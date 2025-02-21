@@ -1,8 +1,7 @@
-
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useNavigate } from "wouter"
+import { useLocation } from "wouter"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -16,23 +15,14 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CategoryPicker } from "@/components/CategoryPicker"
 import { insertEventSchema } from "@shared/schema"
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 
-const CATEGORIES = [
-  "Sports",
-  "Music",
-  "Arts",
-  "Technology",
-  "Food",
-  "Other"
-]
-
 export default function CreateEventPage() {
   const { toast } = useToast()
-  const [, navigate] = useNavigate()
+  const [, setLocation] = useLocation()
   const [position, setPosition] = useState({ lat: 52.3676, lng: 4.9041 })
 
   const form = useForm({
@@ -45,10 +35,11 @@ export default function CreateEventPage() {
       startTime: new Date().toISOString().split('T')[0],
       endTime: new Date().toISOString().split('T')[0],
       category: "",
+      subcategory: "",
       isPaid: false,
       price: 0,
       maxParticipants: 0,
-      hostId: 1,
+      hostId: 1, // This will be replaced with actual user ID when auth is implemented
     },
   })
 
@@ -80,7 +71,7 @@ export default function CreateEventPage() {
         title: "Success",
         description: "Event created successfully",
       })
-      navigate('/')
+      setLocation('/')
     } catch (error) {
       toast({
         title: "Error",
@@ -125,30 +116,16 @@ export default function CreateEventPage() {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {CATEGORIES.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-2">
+              <FormLabel>Category</FormLabel>
+              <CategoryPicker
+                onCategoryChange={(main, sub) => {
+                  form.setValue("category", main)
+                  form.setValue("subcategory", sub)
+                }}
+              />
+              <FormMessage />
+            </div>
 
             <div className="space-y-2">
               <FormLabel>Location</FormLabel>

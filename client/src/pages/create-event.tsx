@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { insertEventSchema } from "@shared/schema"
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
@@ -130,33 +131,34 @@ export default function CreateEventPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <FormControl>
-                    <select 
-                      className="w-full p-2 border rounded"
-                      {...field}
-                    >
-                      <option value="">Select category</option>
-                      {CATEGORIES.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {CATEGORIES.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
                       ))}
-                    </select>
-                  </FormControl>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
             <div className="space-y-2">
-              <FormLabel>Location (Click on map to set)</FormLabel>
-              <div className="h-[300px] w-full">
+              <FormLabel>Location</FormLabel>
+              <div className="h-[200px] rounded-md overflow-hidden">
                 <MapContainer
-                  center={position}
+                  center={[position.lat, position.lng]}
                   zoom={13}
-                  className="h-full w-full"
+                  className="h-full"
                 >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <LocationMarker />
                 </MapContainer>
               </div>

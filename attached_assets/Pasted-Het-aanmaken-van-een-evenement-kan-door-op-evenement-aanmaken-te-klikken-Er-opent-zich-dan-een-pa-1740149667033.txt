@@ -1,0 +1,71 @@
+Het aanmaken van een evenement kan door op “evenement aanmaken” te klikken. Er opent zich dan een pagina met de volgende velden:
+1.	Locatie: op basis van de huidige locatie van de gebruiker wordt op een ingezoomd kaartje automatisch een pin geplaatst. Deze pin kan handmatig worden verplaatst door met je vinger op een locatie op de kaart te drukken. 
+2.	Soort event: selecteer een soort event uit de lijst en heb ook de mogelijkheid om zelf een soort event handmatig in te vullen onder overige events.
+i.	1. Sport
+1.	Voetbal: Wedstrijden, toernooien, pick-up games.
+2.	Hardlopen: Groepstrainingen, fun runs, marathons.
+3.	Fietsen: Groepsfietstochten, mountainbiken, stadsfietsen.
+4.	Basketbal: Vriendschappelijke wedstrijden, pick-up games.
+5.	Tennis: Wedstrijden, trainingen, groepsspel.
+6.	Yoga: Outdoor yoga sessies, groepslessen.
+7.	Klimmen: Binnen- of buitensportklimmen, rotsklimmen.
+8.	Zwemmen: Groepszwemmen, waterpolo, open water zwemmen.
+ii.	2. Cultuur
+1.	Theater: Toneelvoorstellingen, improvisatie, musicals.
+2.	Muziek: Concerten, jam-sessies, muziekworkshops.
+3.	Film: Filmvertoningen, openluchtbioscopen, filmfestivals.
+4.	Dans: Groepsdans, dansworkshops, salsa, hiphop.
+5.	Kunst: Schilderworkshops, tekenlessen, street art.
+6.	Literatuur: Boekenclubs, poëzieavonden, lezingen.
+7.	Fotografie: Fotowandelingen, workshops, foto-exposities.
+iii.	3. Educatie
+1.	Workshops: Creatieve workshops, technologie, koken.
+2.	Lezingen: Educatieve lezingen, gastsprekers, discussies.
+3.	Cursussen: Taalcursussen, bedrijfsgerelateerde trainingen, persoonlijke ontwikkeling.
+4.	Studiegroepen: Groepsstudie voor examens of professionele ontwikkeling.
+5.	Tech Meetups: Programmering, AI, digitale tools.
+iv.	4. Gezondheid & Welzijn
+1.	Mindfulness: Meditatie, mindfulness wandelingen, ademhalingsoefeningen.
+2.	Fitness: Groepsworkouts, bootcamps, HIIT.
+3.	Gezondheid: Lezingen over gezonde voeding, wellness-events.
+4.	Massage & Spa: Massagesessies in groepsverband, wellnessdagen.
+5.	Voeding: Kookworkshops voor gezonde gerechten, voedingsadvies.
+v.	5. Natuur & Avontuur
+1.	Wandeltochten: Groepswandelingen, natuurwandelingen, bergwandelingen.
+2.	Fietstochten: Avontuurlijke fietstochten, langeafstandsfietsen.
+3.	Kamperen: Groepskamperen, survivaltochten, natuurbeleving.
+4.	Strandactiviteiten: Beachvolleybal, surfen, zeilen.
+5.	Vogels kijken: Vogelspotten, natuuronderzoek.
+vi.	6. Sociale Activiteiten
+1.	Meetups: Algemeen netwerken, interessegroepen (technologie, boeken, etc.).
+2.	Picknicks: Informele bijeenkomsten in parken, gezamenlijke maaltijden.
+3.	Spelletjesavonden: Bordspelavonden, kaartspellen, groepsgames.
+4.	Film- of boekenclubs: Gezamenlijk boeken lezen of films kijken en bespreken.
+5.	Borrel of Pub Meetup: Sociale borrels, uitgaan in een café of bar.
+vii.	7. Familie & Kinderen
+1.	Kinderworkshops: Creatieve activiteiten voor kinderen, educatieve workshops.
+2.	Gezinsuitjes: Activiteiten voor het hele gezin zoals speeltuinbezoeken of gezinswandelingen.
+3.	Gezinsfilmavond: Films speciaal voor kinderen, met gezinsvriendelijke thema’s.
+4.	Kinderfeestjes: Organiseren van verjaardagsfeestjes en andere evenementen voor kinderen.
+viii.	8. Vrijwilligerswerk & Goede Doelen
+1.	Strand- of parkopruiming: Opruimacties, milieubewustzijn.
+2.	Huisdierenopvang: Vrijwilligerswerk bij dierenasielen, hondenuitlaatdiensten.
+3.	Eten uitdelen: Maaltijden delen met daklozen of minderbedeelden.
+4.	Groene initiatieven: Planten van bomen, tuinieren voor duurzaamheid.
+ix.	9. Creatieve Activiteiten
+1.	Kunst en Ambachten: Schilderen, keramiek, houtbewerking.
+2.	Mode: Kledingruilen, modeworkshops, upcycling.
+3.	Muziek maken: Jam-sessies, muziek maken met instrumenten, elektronische muziekworkshops.
+4.	DIY & Knutselen: Zelfgemaakte decoraties, upcycling van oude voorwerpen.
+x.	10. Reizen & Avontuur
+1.	Stadsrondleidingen: Historische tours, architectuurrondleidingen.
+2.	Outdoor Avonturen: Rafting, survivaltochten, zip-linen.
+3.	Roadtrips: Groepsreisjes met een specifiek thema (cultuur, natuur, geschiedenis).
+b.	Excursies: Bezoeken aan interessante plaatsen, bijvoorbeeld wijngaarden, natuurgebieden
+3.	Datum 
+4.	Tijdstip
+5.	Keuze optie: Eenmalig of wekelijks of dagelijks event (als het event periodiek terug keert zouden er automatisch nieuwe events aangemaakt moeten worden) Ik denk dat we dagelijks terugkerende events een week vooruit moeten plannen en dat we maandelijks terugkerende events 3 maanden vooruit moeten plannen. Eke dag op een vast moment moeten de terugkerende events worden gecontroleerd en geüpdatet.
+6.	Gewenst aantal bezoekers
+7.	Opmerking
+ 
+Alle categorieën en subcategorieën moeten een eigen icoon krijgen uit dezelfde openbaar beschikbare bron als de andere icoons die we gebruiken. Op de kaart tonen we de meest specifieke categorie icoon die beschikbaar is. (dus voor tennis een racket, voor voetbal een voetbal, voor hockey een stick etc)

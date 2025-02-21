@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -9,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { CategoryPicker } from "@/components/CategoryPicker"
 import { DateTimePicker } from "@/components/date-time-picker"
 import { Switch } from "@/components/ui/switch"
+import { useToast } from "@/hooks/use-toast"
+import { useNavigate } from "wouter"
 import {
   Select,
   SelectContent,
@@ -25,6 +28,8 @@ const RECURRENCE_OPTIONS = [
 ]
 
 export default function CreateEventPage() {
+  const { toast } = useToast()
+  const [, navigate] = useNavigate()
   const form = useForm({
     resolver: zodResolver(insertEventSchema),
     defaultValues: {
@@ -38,16 +43,40 @@ export default function CreateEventPage() {
       isPaid: false,
       price: 0,
       maxParticipants: null,
-      recurrence: "once",
+      hostId: 1, // TODO: Replace with actual user ID
     },
   })
 
   const handleCategoryChange = (mainCategory: string, subCategory: string) => {
-    form.setValue("category", subCategory || mainCategory);
-  };
+    form.setValue("category", subCategory || mainCategory)
+  }
 
-  function onSubmit(data: any) {
-    console.log(data)
+  async function onSubmit(data: any) {
+    try {
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create event')
+      }
+
+      toast({
+        title: "Success",
+        description: "Event created successfully",
+      })
+      navigate('/')
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create event",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -78,10 +107,37 @@ export default function CreateEventPage() {
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Describe your event"
-                      className="min-h-[100px]"
-                      {...field}
+                    <Textarea placeholder="Enter event description" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter event address" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <FormControl>
+                    <CategoryPicker
+                      value={field.value}
+                      onCategoryChange={handleCategoryChange}
                     />
                   </FormControl>
                   <FormMessage />
@@ -89,57 +145,28 @@ export default function CreateEventPage() {
               )}
             />
 
-            <div className="space-y-4">
-              <FormLabel>Location</FormLabel>
-              <div className="border rounded-lg p-4 bg-muted/50">
-                <p className="text-sm text-muted-foreground mb-2">Map integration coming soon...</p>
-                <Input placeholder="Search location" />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <FormLabel>Category</FormLabel>
-              <CategoryPicker onCategoryChange={handleCategoryChange} />
-            </div>
-
-            <div className="space-y-4">
-              <FormLabel>Date & Time</FormLabel>
-              <div className="grid gap-4">
-                <DateTimePicker
-                  date={form.watch("startTime")}
-                  setDate={(date) => form.setValue("startTime", date)}
-                />
-                <Select
-                  value={form.watch("recurrence")}
-                  onValueChange={(value) => form.setValue("recurrence", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select recurrence" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RECURRENCE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <FormField
+              control={form.control}
+              name="startTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Start Time</FormLabel>
+                  <FormControl>
+                    <DateTimePicker {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
-              name="maxParticipants"
+              name="endTime"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Maximum Participants</FormLabel>
+                  <FormLabel>End Time</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="Leave empty for unlimited"
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
-                    />
+                    <DateTimePicker {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -150,19 +177,17 @@ export default function CreateEventPage() {
               control={form.control}
               name="isPaid"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Paid Event</FormLabel>
-                    <div className="text-sm text-muted-foreground">
-                      Enable if this is a paid event
-                    </div>
+                <FormItem>
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel>Paid Event</FormLabel>
                   </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />

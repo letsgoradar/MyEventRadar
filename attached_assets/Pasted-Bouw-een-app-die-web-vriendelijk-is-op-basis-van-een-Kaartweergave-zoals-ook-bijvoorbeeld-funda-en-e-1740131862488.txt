@@ -1,0 +1,44 @@
+Bouw een app die web vriendelijk is op basis van een Kaartweergave zoals ook bijvoorbeeld funda en easypark dat heeft, waarmee gebruikers direct inzicht krijgen in wat er in de buurt te doen is. De app kan zowel gratis als betaald worden gebruikt, Gebruikers kunnen de app gratis downloaden en gebruiken en betalen wanneer ze bepaalde evenementen willen hosten of bepaalde evenementen willen bijwonen. 
+•	Gebruik voor de kaartweergave een gratis dienst zoals open street map
+•	De achtergrond van de app mag gewoon wit zijn, bovenaan de app en webversie staat een balk in de kleur van Funda oranje met daarin een actie om een nieuw evenement aan te maken
+•	De eerste pagina van de app is direct de kaartweergave, als je vervolgens een evenement wilt bekijken of aanmelden moet je inloggen dit kan via een mailadres met wachtwoord of via google.
+•	Maak de kaartweergave niet te gedetailleerd door alleen kleurverschil op hoofdlijnen te gebruiken:
+1.	Bebouwde kom is grijs
+2.	Straat is wit
+3.	Buitengebied is lichtgroen
+4.	Sportparten gewoon groen
+5.	Stadsparken gewoon groen
+•	Toon alleen gebouwen de laatste 5% van de inzoom mogelijkheid
+•	Open de kaart altijd op basis van de locatie van de gebruiker met een straal van 2 kilometer. Als de locatie van de gebruiker niet beschikbaar is, toon dan heel Nederland op de kaart.
+•	De locatie van de gebruiker wordt altijd getoond met een interactieve kompasnaald gericht in looprichting van de gebruiker . Recht onder de kaart staat een icoon van dezelfde kompasnaald die de kaartweergave terugbrengt naar je huidige locatie door er op te klikken. 
+•	De gebruiker kan op de kaart uit en inzoomen en zo op de kaart weg gaan van zijn huidige locatie. In het exacte midden van de kaart blijft altijd een donkergrijze “locatiepin” staan met daarin een icoon van een wit vergrootgras staan. Deze pin is de manier om locatie aan te wijzen op de kaart. Wanneer de gebruiker een evenement op de kaart ziet staan kan hij hier op 2 manieren komen:
+1.	Door er heen te zoomen met de kaart
+2.	Door op het evenement te klikken, de kaart en pin zullen dan verplaatsen richting het evenement
+
+Wanneer door een van deze 2 manieren kaart een activiteitlocatie wordt aangedaan, komt de categorie van het evenement op de kaart in beeld en details van het evenement komen vanaf onder de kaart naar voren in een overlay tot een kwart van de kaart, die door de gebruiker omhoog en omlaag kan worden gesleept 
+
+Daar staat wanneer er weer een evenement staat gepland en hoeveel deelnemers er aangemeld zijn. Je kunt vervolgens jezelf aanmelden via een groen vink, afmelden via een rood kruis of de activiteit als favoriet opslaan via een gele ster. De locatie kan meerdere evenementen bevatten op basis van tijd. Het kan dus zo zijn dat er standaard op vrijdag om 19.00 uur een evenement is op een bepaalde locatie waar men zich voor aan en af kan melden. 
+•	Boven de kaartweergave staat de huidige locatie van de gebruiker in de vorm van een straat en plaats. Hiernaast kan de gebruiker een straal kiezen die je wilt gebruiken bij het zoeken naar evenementen. De straal kan worden gekozen met een dop-down met de opties:
+1.	0,5 km
+2.	1 km
+3.	2 km
+4.	5 km
+5.	10 km
+6.	15 km
+7.	30 km
+8.	50 km
+9.	100 km
+Naast de staal staat een icoon die de kaartweergave om kan zetten naar een lijstweergave. Omdat default de weergave met kaart is kun je het lijst icoon gebruiken om de weergave te veranderen naar lijst. Zodra je een lijstweergave hebt gekozen veranderd het icoon naar een Kaart/map icoon om weer terug te kunnen naar de kaartweergave. 
+Gebruik hiervoor openbaar beschikbare icoons en zoek zelf even uit welk icoon het best passend is en hoe deze icoons heten, zodat je correct verwijst naar een passend icoon uit een openbaar beschikbare bron. Nieuwe evenementen zouden 
+Onder de locatie komt een filter icoon met de tekst “filter”. Achter “filter” komt een rondje te staan als er 1 of meer filters aan staan (los van de locatie) en in dit bolletje komt het aantal filters te staan. 
+Als je op filter klikt opent zich een halve pagina overlay vanaf de bovenkant waarin filters kunnen worden gekozen. De overlay kan worden weg geklikt met een x rechtsboven of verdwijnt wanneer je de gekozen filters opslaat via “Opslaan”. De opgeslagen filters worden toegepast op de evenementen die zichtbaar zijn op de kaart of in de lijst weergave. Naast filter komt de optie om de huidige zoekopdracht op te slaan als favoriet via een knop genaamd “bewaar”. Als je daar op klikt komt er een vergelijkbare overlay pagina als bij filtering,  waarin wordt toegelicht dat de zoekopdracht kan worden opgeslagen. De naam van de zoekopdracht kan worden aangepast en is al vooringesteld op basis van de zoekcriteria gescheiden door een “+” standaard staan pushmeldingen van zoekopdrachten aan wanneer de gebruiker akkoord is met pushmeldingen vanuit de app.
+Onder de kaartweergave staat in de telefoonapp een balkje met daarin 5 opties om naar toe te navigeren. Dit balkje is vast en blijft in elke weergave onder in je telefoon staan:
+1.	Zoeken (dit brengt je terug naar de startpagina met de kaartweergave)
+2.	Bewaard (dit is een overzicht van widgets met daarin opgeslagen zoekopdrachten. In de widget kun je een paar acties uitvoeren
+a.	Verwijder zoekopdracht (weergegeven middels een Bin icoon)
+b.	Bewerk zoekopdracht (weergegeven middels een pencil icoon)
+c.	Wil je meldingen ontvangen van nieuwe evenementen voor deze zoekopdracht (aan of uit zetten)
+d.	Toon resultaten brengt je naar het actuele aanbod op basis van de opgeslagen zoekcriteria
+3.	Favorieten (bij het bekijken van een evenement kun je op een ster klikken om zo aan te geven dat deze activiteit tot je favorieten behoord. Op deze pagina zie je een overzicht in lijstweergave van alle evenementen die tot je favorieten behoren. De reeds verlopen evenementen staan standaard uit maar je kunt deze zichtbaar maken door “verlopen evenementen” aan te zetten
+4.	Mijn events (Op deze pagina zie je een overzicht in lijstweergave van alle evenementen die jij hebt gehost. De reeds verlopen evenementen staan standaard uit maar je kunt deze zichtbaar maken door “verlopen evenementen” aan te zetten
+5.	Account (op deze pagina zie je algemene informatie over je account en kun je er voor kiezen om uit te loggen, hier kun je je wachtwoord wijzigen en al je persoonlijke informatie aanpassen. Ook kun je hier een foto uploaden/ maken van jezelf die standaard wordt gebruikt wanneer je een event host of bijwoont)

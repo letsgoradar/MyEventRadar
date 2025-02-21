@@ -38,7 +38,7 @@ function App() {
                 <Filter className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="top" className="w-full h-[50vh]">
+            <SheetContent side="top" className="w-full h-[50vh] z-[9999]">
               <SheetHeader>
                 <SheetTitle>Filters</SheetTitle>
               </SheetHeader>

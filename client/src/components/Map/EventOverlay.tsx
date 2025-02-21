@@ -13,6 +13,7 @@ interface EventOverlayProps {
 }
 
 export default function EventOverlay({ event, onClose }: EventOverlayProps) {
+  const overlayStyle = "fixed bottom-0 left-0 right-0 bg-background p-4 rounded-t-xl shadow-lg z-[51] max-h-[50vh] overflow-y-auto";
   const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
 

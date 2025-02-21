@@ -55,6 +55,9 @@ export default function MapView() {
 
   return (
     <div className="relative h-[calc(100vh-4rem)]">
+      {selectedEvent && (
+        <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setSelectedEvent(null)} />
+      )}
       <MapContainer
         center={[userLocation.lat, userLocation.lng]}
         zoom={13}

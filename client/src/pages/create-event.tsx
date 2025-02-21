@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { CategoryPicker } from "@/components/CategoryPicker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { format, addHours, setMinutes, setSeconds, setMilliseconds } from "date-fns"
 import * as z from 'zod'
 import { insertEventSchema } from "@shared/schema"
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
@@ -30,36 +31,29 @@ const RECURRENCE_OPTIONS = [
   { label: "Maandelijks", value: "monthly" }
 ]
 
+function getNextHour() {
+  const now = new Date()
+  return setMilliseconds(setSeconds(setMinutes(addHours(now, 1), 0), 0), 0)
+}
+
 export default function CreateEventPage() {
   const { toast } = useToast()
   const [, setLocation] = useLocation()
   const [position, setPosition] = useState({ lat: 52.3676, lng: 4.9041 })
 
+  const nextHour = getNextHour()
+  const defaultEndTime = addHours(nextHour, 1)
+
   const form = useForm({
-    resolver: zodResolver(
-      insertEventSchema.extend({
-        startTime: insertEventSchema.shape.startTime.refine(
-          (date) => new Date(date) > new Date(),
-          "Event must be in the future"
-        ),
-        endTime: insertEventSchema.shape.endTime.refine(
-          (date, ctx) => {
-            if (!date) return true;
-            const startTime = new Date(ctx.startTime);
-            const endTime = new Date(date);
-            return endTime > startTime;
-          },
-          "End time must be after start time"
-        ),
-        recurrence: z.enum(["once", "daily", "weekly", "monthly"]).default("once"),
-      })
-    ),
+    resolver: zodResolver(insertEventSchema),
     defaultValues: {
       title: "",
       description: "",
       location: position,
-      startTime: new Date(),
-      endTime: new Date(),
+      startDate: format(nextHour, 'yyyy-MM-dd'),
+      startTime: format(nextHour, 'HH:mm'),
+      endDate: format(defaultEndTime, 'yyyy-MM-dd'),
+      endTime: format(defaultEndTime, 'HH:mm'),
       category: "",
       subcategory: "",
       isPaid: false,
@@ -166,17 +160,42 @@ export default function CreateEventPage() {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="startTime"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Start Time</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="datetime-local" 
-                        {...field} 
-                        value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : field.value}
-                        onChange={(e) => field.onChange(new Date(e.target.value))}
-                      />
+                      <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -190,12 +209,7 @@ export default function CreateEventPage() {
                   <FormItem>
                     <FormLabel>End Time</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="datetime-local" 
-                        {...field}
-                        value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : field.value}
-                        onChange={(e) => field.onChange(new Date(e.target.value))}
-                      />
+                      <Input type="time" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

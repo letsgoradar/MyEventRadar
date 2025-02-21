@@ -56,15 +56,37 @@ export const insertUserSchema = createInsertSchema(users).pick({
   googleId: true,
 });
 
+const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format");
+const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format");
+
 export const insertEventSchema = createInsertSchema(events).extend({
-  startTime: z.coerce.date(),
-  endTime: z.coerce.date().optional(),
+  startDate: dateSchema,
+  startTime: timeSchema,
+  endDate: dateSchema.optional(),
+  endTime: timeSchema.optional(),
   location: z.object({
     lat: z.number(),
     lng: z.number(),
   }),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
-});
+}).transform((data) => {
+  const start = new Date(`${data.startDate}T${data.startTime}:00`);
+  let end = undefined;
+  if (data.endDate && data.endTime) {
+    end = new Date(`${data.endDate}T${data.endTime}:00`);
+  }
+  return {
+    ...data,
+    startTime: start,
+    endTime: end,
+  };
+}).refine((data) => {
+  const now = new Date();
+  return data.startTime > now;
+}, "Event must be in the future").refine((data) => {
+  if (!data.endTime) return true;
+  return data.endTime > data.startTime;
+}, "End time must be after start time");
 
 export const insertFavoriteSchema = createInsertSchema(favorites).pick({
   userId: true,

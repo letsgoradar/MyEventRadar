@@ -10,7 +10,24 @@ interface EventListProps {
 
 export default function EventList({ location, radius }: EventListProps) {
   const { data: events, isLoading } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", location.lat, location.lng, radius],
+    queryKey: [
+      "/api/events/nearby",
+      location.lat,
+      location.lng,
+      radius,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        lat: location.lat.toString(),
+        lng: location.lng.toString(),
+        radius: radius.toString(),
+      });
+      const response = await fetch(`/api/events/nearby?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch events');
+      }
+      return response.json();
+    },
   });
 
   if (isLoading) {

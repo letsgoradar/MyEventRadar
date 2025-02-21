@@ -1,54 +1,64 @@
 
-import * as React from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { insertEventSchema } from "@shared/schema"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { CategoryPicker } from "@/components/CategoryPicker"
-import { DateTimePicker } from "@/components/date-time-picker"
-import { Switch } from "@/components/ui/switch"
-import { useToast } from "@/hooks/use-toast"
 import { useNavigate } from "wouter"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { insertEventSchema } from "@shared/schema"
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
+import "leaflet/dist/leaflet.css"
 
-const RECURRENCE_OPTIONS = [
-  { value: "once", label: "One-time event" },
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
+const CATEGORIES = [
+  "Sports",
+  "Music",
+  "Arts",
+  "Technology",
+  "Food",
+  "Other"
 ]
 
 export default function CreateEventPage() {
   const { toast } = useToast()
   const [, navigate] = useNavigate()
+  const [position, setPosition] = useState({ lat: 52.3676, lng: 4.9041 })
+
   const form = useForm({
     resolver: zodResolver(insertEventSchema),
     defaultValues: {
       title: "",
       description: "",
-      location: { lat: 0, lng: 0 },
+      location: position,
       address: "",
-      startTime: new Date(),
-      endTime: null,
+      startTime: new Date().toISOString().split('T')[0],
+      endTime: new Date().toISOString().split('T')[0],
       category: "",
       isPaid: false,
       price: 0,
-      maxParticipants: null,
-      hostId: 1, // TODO: Replace with actual user ID
+      maxParticipants: 0,
+      hostId: 1,
     },
   })
 
-  const handleCategoryChange = (mainCategory: string, subCategory: string) => {
-    form.setValue("category", subCategory || mainCategory)
+  function LocationMarker() {
+    useMapEvents({
+      click(e) {
+        setPosition(e.latlng)
+        form.setValue("location", e.latlng)
+      },
+    })
+    return <Marker position={position} />
   }
 
   async function onSubmit(data: any) {
@@ -116,57 +126,99 @@ export default function CreateEventPage() {
 
             <FormField
               control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter event address" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="category"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
                   <FormControl>
-                    <CategoryPicker
-                      value={field.value}
-                      onCategoryChange={handleCategoryChange}
+                    <select 
+                      className="w-full p-2 border rounded"
+                      {...field}
+                    >
+                      <option value="">Select category</option>
+                      {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-2">
+              <FormLabel>Location (Click on map to set)</FormLabel>
+              <div className="h-[300px] w-full">
+                <MapContainer
+                  center={position}
+                  zoom={13}
+                  className="h-full w-full"
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <LocationMarker />
+                </MapContainer>
+              </div>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter address" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="startTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Time</FormLabel>
+                    <FormControl>
+                      <Input type="datetime-local" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="endTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Time</FormLabel>
+                    <FormControl>
+                      <Input type="datetime-local" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="maxParticipants"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Max Participants</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="Enter max participants"
+                      {...field}
+                      onChange={e => field.onChange(parseInt(e.target.value))}
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="startTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Start Time</FormLabel>
-                  <FormControl>
-                    <DateTimePicker {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="endTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>End Time</FormLabel>
-                  <FormControl>
-                    <DateTimePicker {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -177,16 +229,16 @@ export default function CreateEventPage() {
               control={form.control}
               name="isPaid"
               render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center gap-2">
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel>Paid Event</FormLabel>
-                  </div>
+                <FormItem className="flex items-center space-x-2">
+                  <FormControl>
+                    <Input 
+                      type="checkbox" 
+                      className="w-4 h-4"
+                      checked={field.value}
+                      onChange={e => field.onChange(e.target.checked)}
+                    />
+                  </FormControl>
+                  <FormLabel>Is this a paid event?</FormLabel>
                   <FormMessage />
                 </FormItem>
               )}
@@ -204,7 +256,7 @@ export default function CreateEventPage() {
                         type="number"
                         placeholder="Enter price"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        onChange={e => field.onChange(parseFloat(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
@@ -213,11 +265,9 @@ export default function CreateEventPage() {
               />
             )}
 
-            <div className="pt-6">
-              <Button type="submit" className="w-full">
-                Create Event
-              </Button>
-            </div>
+            <Button type="submit" className="w-full">
+              Create Event
+            </Button>
           </form>
         </Form>
       </Card>

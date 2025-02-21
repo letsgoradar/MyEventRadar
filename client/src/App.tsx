@@ -9,6 +9,7 @@ import { Link, useLocation } from "wouter"
 import { CategoryPicker } from "@/components/CategoryPicker"
 import Map from "@/components/Map"
 import { EventList } from "@/components/EventList"
+import { Checkbox } from "@/components/ui/checkbox"; // Added import for Checkbox
 
 const queryClient = new QueryClient()
 
@@ -18,6 +19,11 @@ function App() {
   const [radius, setRadius] = React.useState(5)
   const [viewMode, setViewMode] = React.useState<'map' | 'list'>('map')
   const [, setLocation] = useLocation()
+  const [searchQuery, setSearchQuery] = React.useState(''); // Added state for search
+  const [category, setCategory] = React.useState(''); // Added state for category
+  const [startDate, setStartDate] = React.useState(new Date()); // Added state for start date
+  const [showPaidEvents, setShowPaidEvents] = React.useState(false); // Added state for showPaidEvents
+
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -42,30 +48,52 @@ function App() {
               <SheetHeader>
                 <SheetTitle>Filters</SheetTitle>
               </SheetHeader>
-              <div className="space-y-4 mt-4">
+              <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <label>Location</label>
-                  <div className="flex gap-2">
-                    <Input 
-                      placeholder="Current location" 
-                      value={searchLocation}
-                      onChange={(e) => setSearchLocation(e.target.value)}
-                    />
-                    <Input 
-                      type="number"
-                      placeholder="Radius (km)"
-                      value={radius}
-                      onChange={(e) => setRadius(Number(e.target.value))}
-                    />
-                  </div>
+                  <label htmlFor="search" className="text-sm font-medium">Search</label>
+                  <Input
+                    id="search"
+                    placeholder="Search events..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
+
                 <div className="space-y-2">
-                  <label>Date & Time</label>
-                  <DateTimePicker date={date} setDate={setDate} />
+                  <label className="text-sm font-medium">Category</label>
+                  <CategoryPicker
+                    value={category}
+                    onChange={(value) => setCategory(value)}
+                  />
                 </div>
+
                 <div className="space-y-2">
-                  <label>Categories</label>
-                  <CategoryPicker />
+                  <label className="text-sm font-medium">Date</label>
+                  <DateTimePicker
+                    date={startDate}
+                    setDate={setStartDate}
+                    mode="date"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Time</label>
+                  <DateTimePicker
+                    date={startDate}
+                    setDate={setStartDate}
+                    mode="time"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2 pt-2">
+                  <Checkbox
+                    id="paid"
+                    checked={showPaidEvents}
+                    onCheckedChange={(checked) =>
+                      setShowPaidEvents(checked as boolean)
+                    }
+                  />
+                  <label htmlFor="paid" className="text-sm font-medium">Show paid events</label>
                 </div>
               </div>
             </SheetContent>

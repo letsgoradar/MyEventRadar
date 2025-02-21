@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -13,10 +12,12 @@ import { format } from "date-fns"
 
 export function DateTimePicker({
   date,
-  setDate
+  setDate,
+  mode = "datetime"
 }: {
-  date?: Date
+  date: Date | undefined
   setDate: (date: Date | undefined) => void
+  mode?: "datetime" | "date" | "time"
 }) {
   return (
     <Popover>
@@ -34,7 +35,7 @@ export function DateTimePicker({
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
-          mode="single"
+          mode={mode === "time" ? "time" : "single"}
           selected={date}
           onSelect={setDate}
           initialFocus

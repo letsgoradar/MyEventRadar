@@ -1,24 +1,21 @@
 
-import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Route, Switch } from 'wouter';
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { MapPin, Filter, List, Map as MapIcon } from 'lucide-react';
-import { DateTimePicker } from '@/components/date-time-picker';
-import Map from '@/components/Map';
-import EventList from '@/components/EventList';
-import { CategoryPicker } from '@/components/CategoryPicker';
+import * as React from "react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Filter, MapPin } from "lucide-react"
+import { DateTimePicker } from "@/components/date-time-picker"
+import { Link } from "wouter"
+import { CategoryPicker } from "@/components/CategoryPicker"
+import Map from "@/components/Map"
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient()
 
 function App() {
-  const [view, setView] = React.useState<'map' | 'list'>('map');
-  const [location, setLocation] = React.useState('');
-  const [radius, setRadius] = React.useState(5);
+  const [date, setDate] = React.useState<Date>()
+  const [location, setLocation] = React.useState('')
+  const [radius, setRadius] = React.useState(5)
   
   return (
     <QueryClientProvider client={queryClient}>
@@ -29,7 +26,7 @@ function App() {
           <Button variant="secondary">Create Event</Button>
         </nav>
         
-        {/* View Toggle and Filter */}
+        {/* Filter Bar */}
         <div className="flex justify-between items-center px-4 py-3">
           <Sheet>
             <SheetTrigger asChild>
@@ -51,7 +48,7 @@ function App() {
                       onChange={(e) => setLocation(e.target.value)}
                     />
                     <Input 
-                      type="number" 
+                      type="number"
                       placeholder="Radius (km)"
                       value={radius}
                       onChange={(e) => setRadius(Number(e.target.value))}
@@ -60,41 +57,34 @@ function App() {
                 </div>
                 <div className="space-y-2">
                   <label>Date & Time</label>
-                  <DateTimePicker />
+                  <DateTimePicker date={date} setDate={setDate} />
                 </div>
                 <div className="space-y-2">
-                  <label>Category</label>
+                  <label>Categories</label>
                   <CategoryPicker />
                 </div>
               </div>
             </SheetContent>
           </Sheet>
-          
-          <div className="flex gap-2">
-            <Button
-              variant={view === 'list' ? 'secondary' : 'ghost'}
-              size="icon"
-              onClick={() => setView('list')}
-            >
-              <List className="h-5 w-5" />
-            </Button>
-            <Button
-              variant={view === 'map' ? 'secondary' : 'ghost'}
-              size="icon"
-              onClick={() => setView('map')}
-            >
-              <MapIcon className="h-5 w-5" />
-            </Button>
-          </div>
         </div>
 
         {/* Main Content */}
         <div className="flex-1 relative">
-          {view === 'map' ? <Map /> : <EventList />}
+          <Map />
         </div>
+
+        {/* Bottom Navigation */}
+        <nav className="bg-white border-t p-4">
+          <div className="flex justify-around">
+            <div className="flex flex-col items-center">
+              <MapPin className="h-6 w-6" />
+              <span className="text-sm">Map</span>
+            </div>
+          </div>
+        </nav>
       </div>
     </QueryClientProvider>
-  );
+  )
 }
 
-export default App;
+export default App

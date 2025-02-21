@@ -113,7 +113,56 @@ export class MemStorage implements IStorage {
       }
     ];
 
+    // Add some test events in Oss
+    const ossEvents = [
+      {
+        id: this.currentId.events++,
+        title: "Oss Weekly Market",
+        description: "Traditional Dutch market with local products and street food",
+        location: { lat: 51.7654, lng: 5.5307 },
+        address: "Heuvel, Oss",
+        startTime: new Date("2025-02-22T09:00:00"),
+        endTime: new Date("2025-02-22T17:00:00"),
+        category: "Market",
+        isPaid: false,
+        price: null,
+        hostId: 1,
+        maxParticipants: null
+      },
+      {
+        id: this.currentId.events++,
+        title: "Live Music at Groene Engel",
+        description: "Local bands performing live at Groene Engel cultural center",
+        location: { lat: 51.7651, lng: 5.5290 },
+        address: "Kruisstraat 15, Oss",
+        startTime: new Date("2025-02-23T20:00:00"),
+        endTime: new Date("2025-02-24T00:00:00"),
+        category: "Music",
+        isPaid: true,
+        price: 10,
+        hostId: 1,
+        maxParticipants: 200
+      },
+      {
+        id: this.currentId.events++,
+        title: "Sunday Morning Run",
+        description: "Group running session for all levels around Oss",
+        location: { lat: 51.7620, lng: 5.5315 },
+        address: "Sportpark Ossenkoppelerhoek, Oss",
+        startTime: new Date("2025-02-24T09:30:00"),
+        endTime: new Date("2025-02-24T11:00:00"),
+        category: "Sports",
+        isPaid: false,
+        price: null,
+        hostId: 1,
+        maxParticipants: 50
+      }
+    ];
+
     testEvents.forEach(event => {
+      this.events.set(event.id, event);
+    });
+    ossEvents.forEach(event => {
       this.events.set(event.id, event);
     });
   }

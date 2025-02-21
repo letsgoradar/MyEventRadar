@@ -66,6 +66,56 @@ export class MemStorage implements IStorage {
       participants: 1,
       savedSearches: 1,
     };
+
+    // Add some test events
+    const testEvents = [
+      {
+        id: this.currentId.events++,
+        title: "Amsterdam Food Festival",
+        description: "Experience the best of Dutch cuisine with local vendors and chefs",
+        location: { lat: 52.3676, lng: 4.9041 },
+        address: "Dam Square, Amsterdam",
+        startTime: new Date("2025-02-22T14:00:00"),
+        endTime: new Date("2025-02-22T22:00:00"),
+        category: "Food",
+        isPaid: true,
+        price: 15,
+        hostId: 1,
+        maxParticipants: 500
+      },
+      {
+        id: this.currentId.events++,
+        title: "Morning Yoga in Vondelpark",
+        description: "Start your day with energizing yoga in the park",
+        location: { lat: 52.3579, lng: 4.8686 },
+        address: "Vondelpark, Amsterdam",
+        startTime: new Date("2025-02-23T08:00:00"),
+        endTime: new Date("2025-02-23T09:30:00"),
+        category: "Sports",
+        isPaid: false,
+        price: null,
+        hostId: 1,
+        maxParticipants: 30
+      },
+      {
+        id: this.currentId.events++,
+        title: "Tech Meetup",
+        description: "Network with local tech professionals and learn about the latest trends",
+        location: { lat: 52.3740, lng: 4.8897 },
+        address: "Westerpark, Amsterdam",
+        startTime: new Date("2025-02-24T18:30:00"),
+        endTime: new Date("2025-02-24T21:00:00"),
+        category: "Technology",
+        isPaid: false,
+        price: null,
+        hostId: 1,
+        maxParticipants: 100
+      }
+    ];
+
+    testEvents.forEach(event => {
+      this.events.set(event.id, event);
+    });
   }
 
   async getUser(id: number): Promise<User | undefined> {

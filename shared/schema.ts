@@ -16,14 +16,15 @@ export const events = pgTable("events", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   location: jsonb("location").notNull(),
-  address: text("address").notNull(),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time"),
   category: text("category").notNull(),
+  subcategory: text("subcategory"),
   isPaid: boolean("is_paid").default(false),
   price: integer("price"),
   hostId: integer("host_id").notNull(),
   maxParticipants: integer("max_participants"),
+  recurrence: text("recurrence").notNull().default('once'),
 });
 
 export const favorites = pgTable("favorites", {
@@ -55,18 +56,14 @@ export const insertUserSchema = createInsertSchema(users).pick({
   googleId: true,
 });
 
-export const insertEventSchema = createInsertSchema(events).pick({
-  title: true,
-  description: true,
-  location: true,
-  address: true,
-  startTime: true,
-  endTime: true,
-  category: true,
-  isPaid: true,
-  price: true,
-  hostId: true,
-  maxParticipants: true,
+export const insertEventSchema = createInsertSchema(events).extend({
+  startTime: z.coerce.date(),
+  endTime: z.coerce.date().optional(),
+  location: z.object({
+    lat: z.number(),
+    lng: z.number(),
+  }),
+  recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
 });
 
 export const insertFavoriteSchema = createInsertSchema(favorites).pick({

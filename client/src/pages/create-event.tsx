@@ -5,6 +5,7 @@ import { useLocation } from "wouter"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { X } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -16,9 +17,18 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { CategoryPicker } from "@/components/CategoryPicker"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import * as z from 'zod'
 import { insertEventSchema } from "@shared/schema"
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
+
+const RECURRENCE_OPTIONS = [
+  { label: "Eenmalig", value: "once" },
+  { label: "Dagelijks", value: "daily" },
+  { label: "Wekelijks", value: "weekly" },
+  { label: "Maandelijks", value: "monthly" }
+]
 
 export default function CreateEventPage() {
   const { toast } = useToast()
@@ -26,19 +36,36 @@ export default function CreateEventPage() {
   const [position, setPosition] = useState({ lat: 52.3676, lng: 4.9041 })
 
   const form = useForm({
-    resolver: zodResolver(insertEventSchema),
+    resolver: zodResolver(
+      insertEventSchema.extend({
+        startTime: insertEventSchema.shape.startTime.refine(
+          (date) => new Date(date) > new Date(),
+          "Event must be in the future"
+        ),
+        endTime: insertEventSchema.shape.endTime.refine(
+          (date, ctx) => {
+            if (!date) return true;
+            const startTime = new Date(ctx.startTime);
+            const endTime = new Date(date);
+            return endTime > startTime;
+          },
+          "End time must be after start time"
+        ),
+        recurrence: z.enum(["once", "daily", "weekly", "monthly"]).default("once"),
+      })
+    ),
     defaultValues: {
       title: "",
       description: "",
       location: position,
-      address: "",
-      startTime: new Date().toISOString().split('T')[0],
-      endTime: new Date().toISOString().split('T')[0],
+      startTime: new Date(),
+      endTime: new Date(),
       category: "",
       subcategory: "",
       isPaid: false,
       price: 0,
       maxParticipants: 0,
+      recurrence: "once",
       hostId: 1, // This will be replaced with actual user ID when auth is implemented
     },
   })
@@ -83,7 +110,16 @@ export default function CreateEventPage() {
 
   return (
     <div className="container max-w-2xl py-10">
-      <Card className="p-6">
+      <Card className="p-6 relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-4 top-4"
+          onClick={() => setLocation('/')}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+
         <h1 className="text-2xl font-bold mb-6">Create New Event</h1>
 
         <Form {...form}>
@@ -102,31 +138,6 @@ export default function CreateEventPage() {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Enter event description" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="space-y-2">
-              <FormLabel>Category</FormLabel>
-              <CategoryPicker
-                onCategoryChange={(main, sub) => {
-                  form.setValue("category", main)
-                  form.setValue("subcategory", sub)
-                }}
-              />
-              <FormMessage />
-            </div>
-
             <div className="space-y-2">
               <FormLabel>Location</FormLabel>
               <div className="h-[200px] rounded-md overflow-hidden">
@@ -141,19 +152,16 @@ export default function CreateEventPage() {
               </div>
             </div>
 
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter address" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-2">
+              <FormLabel>Category</FormLabel>
+              <CategoryPicker
+                onCategoryChange={(main, sub) => {
+                  form.setValue("category", main)
+                  form.setValue("subcategory", sub)
+                }}
+              />
+              <FormMessage />
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -163,7 +171,12 @@ export default function CreateEventPage() {
                   <FormItem>
                     <FormLabel>Start Time</FormLabel>
                     <FormControl>
-                      <Input type="datetime-local" {...field} />
+                      <Input 
+                        type="datetime-local" 
+                        {...field} 
+                        value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : field.value}
+                        onChange={(e) => field.onChange(new Date(e.target.value))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -177,13 +190,43 @@ export default function CreateEventPage() {
                   <FormItem>
                     <FormLabel>End Time</FormLabel>
                     <FormControl>
-                      <Input type="datetime-local" {...field} />
+                      <Input 
+                        type="datetime-local" 
+                        {...field}
+                        value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : field.value}
+                        onChange={(e) => field.onChange(new Date(e.target.value))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="recurrence"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Event Frequency</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select frequency" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {RECURRENCE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -198,6 +241,20 @@ export default function CreateEventPage() {
                       {...field}
                       onChange={e => field.onChange(parseInt(e.target.value))}
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Enter event description" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -229,7 +286,7 @@ export default function CreateEventPage() {
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Price</FormLabel>
+                    <FormLabel>Price per person</FormLabel>
                     <FormControl>
                       <Input
                         type="number"

@@ -1,3 +1,6 @@
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { eq, and } from 'drizzle-orm';
+import { Pool } from '@neondatabase/serverless';
 import {
   users,
   events,
@@ -22,187 +25,72 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Event operations
   createEvent(event: InsertEvent): Promise<Event>;
   getEvent(id: number): Promise<Event | undefined>;
   getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]>;
   getEventsByHost(hostId: number): Promise<Event[]>;
-  
+
   // Favorite operations
   addFavorite(favorite: InsertFavorite): Promise<Favorite>;
   removeFavorite(userId: number, eventId: number): Promise<void>;
   getFavoritesByUser(userId: number): Promise<Event[]>;
-  
+
   // Participant operations
   addParticipant(participant: InsertParticipant): Promise<Participant>;
   removeParticipant(userId: number, eventId: number): Promise<void>;
   getEventParticipants(eventId: number): Promise<User[]>;
-  
+
   // SavedSearch operations
   saveSavedSearch(search: InsertSavedSearch): Promise<SavedSearch>;
   getSavedSearchesByUser(userId: number): Promise<SavedSearch[]>;
   removeSavedSearch(id: number): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private events: Map<number, Event>;
-  private favorites: Map<number, Favorite>;
-  private participants: Map<number, Participant>;
-  private savedSearches: Map<number, SavedSearch>;
-  private currentId: { [key: string]: number };
+export class PgStorage implements IStorage {
+  private db;
 
   constructor() {
-    this.users = new Map();
-    this.events = new Map();
-    this.favorites = new Map();
-    this.participants = new Map();
-    this.savedSearches = new Map();
-    this.currentId = {
-      users: 1,
-      events: 1,
-      favorites: 1,
-      participants: 1,
-      savedSearches: 1,
-    };
-
-    // Add some test events
-    const testEvents = [
-      {
-        id: this.currentId.events++,
-        title: "Amsterdam Food Festival",
-        description: "Experience the best of Dutch cuisine with local vendors and chefs",
-        location: { lat: 52.3676, lng: 4.9041 },
-        address: "Dam Square, Amsterdam",
-        startTime: new Date("2025-02-22T14:00:00"),
-        endTime: new Date("2025-02-22T22:00:00"),
-        category: "Food",
-        isPaid: true,
-        price: 15,
-        hostId: 1,
-        maxParticipants: 500
-      },
-      {
-        id: this.currentId.events++,
-        title: "Morning Yoga in Vondelpark",
-        description: "Start your day with energizing yoga in the park",
-        location: { lat: 52.3579, lng: 4.8686 },
-        address: "Vondelpark, Amsterdam",
-        startTime: new Date("2025-02-23T08:00:00"),
-        endTime: new Date("2025-02-23T09:30:00"),
-        category: "Sports",
-        isPaid: false,
-        price: null,
-        hostId: 1,
-        maxParticipants: 30
-      },
-      {
-        id: this.currentId.events++,
-        title: "Tech Meetup",
-        description: "Network with local tech professionals and learn about the latest trends",
-        location: { lat: 52.3740, lng: 4.8897 },
-        address: "Westerpark, Amsterdam",
-        startTime: new Date("2025-02-24T18:30:00"),
-        endTime: new Date("2025-02-24T21:00:00"),
-        category: "Technology",
-        isPaid: false,
-        price: null,
-        hostId: 1,
-        maxParticipants: 100
-      }
-    ];
-
-    // Add some test events in Oss
-    const ossEvents = [
-      {
-        id: this.currentId.events++,
-        title: "Oss Weekly Market",
-        description: "Traditional Dutch market with local products and street food",
-        location: { lat: 51.7654, lng: 5.5307 },
-        address: "Heuvel, Oss",
-        startTime: new Date("2025-02-22T09:00:00"),
-        endTime: new Date("2025-02-22T17:00:00"),
-        category: "Market",
-        isPaid: false,
-        price: null,
-        hostId: 1,
-        maxParticipants: null
-      },
-      {
-        id: this.currentId.events++,
-        title: "Live Music at Groene Engel",
-        description: "Local bands performing live at Groene Engel cultural center",
-        location: { lat: 51.7651, lng: 5.5290 },
-        address: "Kruisstraat 15, Oss",
-        startTime: new Date("2025-02-23T20:00:00"),
-        endTime: new Date("2025-02-24T00:00:00"),
-        category: "Music",
-        isPaid: true,
-        price: 10,
-        hostId: 1,
-        maxParticipants: 200
-      },
-      {
-        id: this.currentId.events++,
-        title: "Sunday Morning Run",
-        description: "Group running session for all levels around Oss",
-        location: { lat: 51.7620, lng: 5.5315 },
-        address: "Sportpark Ossenkoppelerhoek, Oss",
-        startTime: new Date("2025-02-24T09:30:00"),
-        endTime: new Date("2025-02-24T11:00:00"),
-        category: "Sports",
-        isPaid: false,
-        price: null,
-        hostId: 1,
-        maxParticipants: 50
-      }
-    ];
-
-    testEvents.forEach(event => {
-      this.events.set(event.id, event);
-    });
-    ossEvents.forEach(event => {
-      this.events.set(event.id, event);
-    });
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+    this.db = drizzle(pool);
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await this.db.select().from(users).where(eq(users.id, id));
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const result = await this.db.select().from(users).where(eq(users.username, username));
+    return result[0];
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email,
-    );
+    const result = await this.db.select().from(users).where(eq(users.email, email));
+    return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentId.users++;
-    const user = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const result = await this.db.insert(users).values(insertUser).returning();
+    return result[0];
   }
 
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
-    const id = this.currentId.events++;
-    const event = { ...insertEvent, id };
-    this.events.set(id, event);
-    return event;
+    const result = await this.db.insert(events).values(insertEvent).returning();
+    return result[0];
   }
 
   async getEvent(id: number): Promise<Event | undefined> {
-    return this.events.get(id);
+    const result = await this.db.select().from(events).where(eq(events.id, id));
+    return result[0];
   }
 
   async getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]> {
-    return Array.from(this.events.values()).filter(event => {
+    // For now, return all events since we need PostGIS for proper radius search
+    // TODO: Add PostGIS extension and implement proper radius search
+    const allEvents = await this.db.select().from(events);
+    return allEvents.filter(event => {
       const eventLoc = event.location as { lat: number; lng: number };
       const distance = this.calculateDistance(lat, lng, eventLoc.lat, eventLoc.lng);
       return distance <= radius;
@@ -210,72 +98,74 @@ export class MemStorage implements IStorage {
   }
 
   async getEventsByHost(hostId: number): Promise<Event[]> {
-    return Array.from(this.events.values()).filter(
-      event => event.hostId === hostId
-    );
+    return this.db.select().from(events).where(eq(events.hostId, hostId));
   }
 
   async addFavorite(insertFavorite: InsertFavorite): Promise<Favorite> {
-    const id = this.currentId.favorites++;
-    const favorite = { ...insertFavorite, id };
-    this.favorites.set(id, favorite);
-    return favorite;
+    const result = await this.db.insert(favorites).values(insertFavorite).returning();
+    return result[0];
   }
 
   async removeFavorite(userId: number, eventId: number): Promise<void> {
-    const favorite = Array.from(this.favorites.values()).find(
-      f => f.userId === userId && f.eventId === eventId
-    );
-    if (favorite) {
-      this.favorites.delete(favorite.id);
-    }
+    await this.db.delete(favorites)
+      .where(
+        and(
+          eq(favorites.userId, userId),
+          eq(favorites.eventId, eventId)
+        )
+      );
   }
 
   async getFavoritesByUser(userId: number): Promise<Event[]> {
-    const userFavorites = Array.from(this.favorites.values()).filter(
-      f => f.userId === userId
-    );
-    return userFavorites.map(f => this.events.get(f.eventId)!);
+    const result = await this.db
+      .select({
+        event: events
+      })
+      .from(favorites)
+      .where(eq(favorites.userId, userId))
+      .leftJoin(events, eq(events.id, favorites.eventId));
+
+    return result.map(r => r.event);
   }
 
   async addParticipant(insertParticipant: InsertParticipant): Promise<Participant> {
-    const id = this.currentId.participants++;
-    const participant = { ...insertParticipant, id };
-    this.participants.set(id, participant);
-    return participant;
+    const result = await this.db.insert(participants).values(insertParticipant).returning();
+    return result[0];
   }
 
   async removeParticipant(userId: number, eventId: number): Promise<void> {
-    const participant = Array.from(this.participants.values()).find(
-      p => p.userId === userId && p.eventId === eventId
-    );
-    if (participant) {
-      this.participants.delete(participant.id);
-    }
+    await this.db.delete(participants)
+      .where(
+        and(
+          eq(participants.userId, userId),
+          eq(participants.eventId, eventId)
+        )
+      );
   }
 
   async getEventParticipants(eventId: number): Promise<User[]> {
-    const eventParticipants = Array.from(this.participants.values()).filter(
-      p => p.eventId === eventId
-    );
-    return eventParticipants.map(p => this.users.get(p.userId)!);
+    const result = await this.db
+      .select({
+        user: users
+      })
+      .from(participants)
+      .where(eq(participants.eventId, eventId))
+      .leftJoin(users, eq(users.id, participants.userId));
+
+    return result.map(r => r.user);
   }
 
   async saveSavedSearch(insertSearch: InsertSavedSearch): Promise<SavedSearch> {
-    const id = this.currentId.savedSearches++;
-    const search = { ...insertSearch, id };
-    this.savedSearches.set(id, search);
-    return search;
+    const result = await this.db.insert(savedSearches).values(insertSearch).returning();
+    return result[0];
   }
 
   async getSavedSearchesByUser(userId: number): Promise<SavedSearch[]> {
-    return Array.from(this.savedSearches.values()).filter(
-      s => s.userId === userId
-    );
+    return this.db.select().from(savedSearches).where(eq(savedSearches.userId, userId));
   }
 
   async removeSavedSearch(id: number): Promise<void> {
-    this.savedSearches.delete(id);
+    await this.db.delete(savedSearches).where(eq(savedSearches.id, id));
   }
 
   private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -295,4 +185,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new PgStorage();

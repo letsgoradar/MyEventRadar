@@ -1,0 +1,75 @@
+De kaart komt voor het menu onder in de app, zou je het menu onder altijd voor de kaart willen tonen?
+Zou je in de bovenst oranje balk de app naam willen laten staan(zoals nu al is) en daar rechts naast alleen de knop genaamd “Create event” willen zeten. Nu valt deze kno buiten het scherm van een telefoon.
+De volgende elementen mogen weg uit de oranje balk boven:
+•	Het veld “current location” mag samen met de straal, weg uit de oranje balk en als filter optie aan het filter menu worden toegevoegd. Het filter icoon mag op dezelfde hoogte als de lijst/ kaart weergave icoon onder de oranje balk komen maar dan aan de linker kant komen. 
+•	Beide icoontjes graag iets lager zetten zodat ze niet tegen de oranje balk aan staan. 
+•	Het vergrootglas icoontje in de oranje balk mag weg.
+Wanneer je op de filter icoon klikt moet er vanaf boven een menu naar beneden sliden tot halverwege het scherm met de volgende filter opties:
+•	Locatie+ straal
+•	Datum + tijd
+•	Categorie + soort
+1.	Graag wil ik een aantal categorieën voorprogrammeren maar wat mij betreft is het ook prima als de gebruikers zelf categorieën aanmaken. Zou je een vorm van gratis beschikbare  AI intelligentie in kunnen bouwen die automatisch categorieën herkend en de gebruiker tijdens het invoeren van een nieuwe categorie suggesties geeft over passende categorieën
+2.	De volgende Categorieën mogen er vooraf in komen te staan:
+	1. Sport
+•	Voetbal: Wedstrijden, toernooien, pick-up games.
+•	Hardlopen: Groepstrainingen, fun runs, marathons.
+•	Fietsen: Groepsfietstochten, mountainbiken, stadsfietsen.
+•	Basketbal: Vriendschappelijke wedstrijden, pick-up games.
+•	Tennis: Wedstrijden, trainingen, groepsspel.
+•	Yoga: Outdoor yoga sessies, groepslessen.
+•	Klimmen: Binnen- of buitensportklimmen, rotsklimmen.
+•	Zwemmen: Groepszwemmen, waterpolo, open water zwemmen.
+	2. Cultuur
+•	Theater: Toneelvoorstellingen, improvisatie, musicals.
+•	Muziek: Concerten, jam-sessies, muziekworkshops.
+•	Film: Filmvertoningen, openluchtbioscopen, filmfestivals.
+•	Dans: Groepsdans, dansworkshops, salsa, hiphop.
+•	Kunst: Schilderworkshops, tekenlessen, street art.
+•	Literatuur: Boekenclubs, poëzieavonden, lezingen.
+•	Fotografie: Fotowandelingen, workshops, foto-exposities.
+	3. Educatie
+•	Workshops: Creatieve workshops, technologie, koken.
+•	Lezingen: Educatieve lezingen, gastsprekers, discussies.
+•	Cursussen: Taalcursussen, bedrijfsgerelateerde trainingen, persoonlijke ontwikkeling.
+•	Studiegroepen: Groepsstudie voor examens of professionele ontwikkeling.
+•	Tech Meetups: Programmering, AI, digitale tools.
+	4. Gezondheid & Welzijn
+•	Mindfulness: Meditatie, mindfulness wandelingen, ademhalingsoefeningen.
+•	Fitness: Groepsworkouts, bootcamps, HIIT.
+•	Gezondheid: Lezingen over gezonde voeding, wellness-events.
+•	Massage & Spa: Massagesessies in groepsverband, wellnessdagen.
+•	Voeding: Kookworkshops voor gezonde gerechten, voedingsadvies.
+	5. Natuur & Avontuur
+•	Wandeltochten: Groepswandelingen, natuurwandelingen, bergwandelingen.
+•	Fietstochten: Avontuurlijke fietstochten, langeafstandsfietsen.
+•	Kamperen: Groepskamperen, survivaltochten, natuurbeleving.
+•	Strandactiviteiten: Beachvolleybal, surfen, zeilen.
+•	Vogels kijken: Vogelspotten, natuuronderzoek.
+	6. Sociale Activiteiten
+•	Meetups: Algemeen netwerken, interessegroepen (technologie, boeken, etc.).
+•	Picknicks: Informele bijeenkomsten in parken, gezamenlijke maaltijden.
+•	Spelletjesavonden: Bordspelavonden, kaartspellen, groepsgames.
+•	Film- of boekenclubs: Gezamenlijk boeken lezen of films kijken en bespreken.
+•	Borrel of Pub Meetup: Sociale borrels, uitgaan in een café of bar.
+	7. Familie & Kinderen
+•	Kinderworkshops: Creatieve activiteiten voor kinderen, educatieve workshops.
+•	Gezinsuitjes: Activiteiten voor het hele gezin zoals speeltuinbezoeken of gezinswandelingen.
+•	Gezinsfilmavond: Films speciaal voor kinderen, met gezinsvriendelijke thema’s.
+•	Kinderfeestjes: Organiseren van verjaardagsfeestjes en andere evenementen voor kinderen.
+	8. Vrijwilligerswerk & Goede Doelen
+•	Strand- of parkopruiming: Opruimacties, milieubewustzijn.
+•	Huisdierenopvang: Vrijwilligerswerk bij dierenasielen, hondenuitlaatdiensten.
+•	Eten uitdelen: Maaltijden delen met daklozen of minderbedeelden.
+•	Groene initiatieven: Planten van bomen, tuinieren voor duurzaamheid.
+	9. Creatieve Activiteiten
+•	Kunst en Ambachten: Schilderen, keramiek, houtbewerking.
+•	Mode: Kledingruilen, modeworkshops, upcycling.
+•	Muziek maken: Jam-sessies, muziek maken met instrumenten, elektronische muziekworkshops.
+•	DIY & Knutselen: Zelfgemaakte decoraties, upcycling van oude voorwerpen.
+	10. Reizen & Avontuur
+•	Stadsrondleidingen: Historische tours, architectuurrondleidingen.
+•	Outdoor Avonturen: Rafting, survivaltochten, zip-linen.
+•	Roadtrips: Groepsreisjes met een specifiek thema (cultuur, natuur, geschiedenis).
+•	Excursies: Bezoeken aan interessante plaatsen, bijvoorbeeld wijngaarden, natuurgebieden.
+Events worden wel weergegeven in de lijst weergave maar ze zijn niet zichtbaar in de kaartweergave, Graag de nieuwe events met een oranje dot op de juiste locatie weergeven en reeds bekeken events met een witte dot tonen.
+De huidige locatie van de gebruiker wordt niet getoond. Graag de locatie weergeven met een (indien online gratis beschikbaat) “interactieve icoon” bij voorkeur van een kompasnaald mag anders ook een map-pin zijn.

@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
+import { useQueryClient } from "@tanstack/react-query"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useLocation } from "wouter"
 import { useToast } from "@/hooks/use-toast"
@@ -39,6 +40,7 @@ function getNextHour() {
 export default function CreateEventPage() {
   const { toast } = useToast()
   const [, setLocation] = useLocation()
+  const queryClient = useQueryClient()
   const [position, setPosition] = useState({ lat: 52.3676, lng: 4.9041 })
 
   const nextHour = getNextHour()
@@ -88,6 +90,11 @@ export default function CreateEventPage() {
         throw new Error('Failed to create event')
       }
 
+      const event = await response.json()
+      
+      // Invalidate the events query cache to trigger a refresh
+      queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] })
+      
       toast({
         title: "Success",
         description: "Event created successfully",

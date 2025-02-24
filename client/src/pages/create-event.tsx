@@ -81,7 +81,11 @@ export default function CreateEventPage() {
     defaultValues: {
       title: "",
       description: "",
-      location: position,
+      location: {
+        lat: position.lat,
+        lng: position.lng,
+        notificationReach: 1,
+      },
       startDate: format(nextHour, 'yyyy-MM-dd'),
       startTime: format(nextHour, 'HH:mm'),
       endDate: format(defaultEndTime, 'yyyy-MM-dd'),
@@ -93,7 +97,6 @@ export default function CreateEventPage() {
       maxParticipants: 0,
       recurrence: "once",
       hostId: 1, // This will be replaced with actual user ID when auth is implemented
-      notificationReach: 1,
     },
   })
 
@@ -104,7 +107,8 @@ export default function CreateEventPage() {
         (position) => {
           const newPos = {
             lat: position.coords.latitude,
-            lng: position.coords.longitude
+            lng: position.coords.longitude,
+            notificationReach: 1,
           }
           setPosition(newPos)
           form.setValue("location", newPos)
@@ -120,8 +124,12 @@ export default function CreateEventPage() {
   function LocationMarker() {
     useMapEvents({
       click(e) {
-        setPosition(e.latlng)
-        form.setValue("location", e.latlng)
+        const newPos = {
+          ...e.latlng,
+          notificationReach: form.getValues().location.notificationReach,
+        }
+        setPosition(newPos)
+        form.setValue("location", newPos)
       },
     })
     return (
@@ -138,8 +146,6 @@ export default function CreateEventPage() {
 
   async function onSubmit(data: z.infer<typeof createEventFormSchema>) {
     try {
-      console.log("Form data:", data); // Debug log
-
       // Create combined datetime strings
       const startDateTime = new Date(`${data.startDate}T${data.startTime}`);
       const endDateTime = data.endDate && data.endTime 
@@ -160,16 +166,16 @@ export default function CreateEventPage() {
         startTime: startDateTime.toISOString(),
         endTime: endDateTime?.toISOString() || null,
         isPaid: data.isPaid,
-        price: data.price,
+        price: data.price || null,
         maxParticipants: data.maxParticipants,
         hostId: data.hostId,
         recurrence: data.recurrence,
       };
 
-      console.log("Sending event data:", eventData); // Debug log
+      console.log("Sending event data:", eventData);
 
       const response = await apiRequest('POST', '/api/events', eventData);
-      console.log("Server response:", response); // Debug log
+      console.log("Server response:", response);
 
       // Invalidate the events query cache to trigger a refresh
       queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
@@ -181,7 +187,7 @@ export default function CreateEventPage() {
 
       setLocation('/');
     } catch (error) {
-      console.error("Error creating event:", error); // Debug log
+      console.error("Error creating event:", error);
       toast({
         title: "Error",
         description: "Failed to create event. Please check all required fields.",

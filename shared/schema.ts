@@ -62,7 +62,6 @@ const locationSchema = z.object({
   address: z.string().optional(),
 });
 
-
 export const insertEventSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string(),
@@ -70,9 +69,9 @@ export const insertEventSchema = z.object({
   category: z.string().min(1, "Category is required"),
   subcategory: z.string().optional(),
   startTime: z.string().or(z.date()),
-  endTime: z.string().or(z.date()).optional(),
+  endTime: z.string().or(z.date()).optional().nullable(),
   isPaid: z.boolean().default(false),
-  price: z.number().optional(),
+  price: z.number().optional().nullable(),
   maxParticipants: z.number().optional(),
   hostId: z.number(),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),

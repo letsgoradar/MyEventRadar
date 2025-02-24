@@ -66,15 +66,20 @@ const locationSchema = z.object({
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format");
 const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format");
 
-const baseEventSchema = createInsertSchema(events);
-
 export const insertEventSchema = z.object({
-  ...baseEventSchema.shape,
+  title: z.string().min(1, "Title is required"),
+  description: z.string(),
+  location: locationSchema,
+  category: z.string().min(1, "Category is required"),
+  subcategory: z.string().optional(),
   startDate: dateSchema,
   startTime: timeSchema,
   endDate: dateSchema.optional(),
   endTime: timeSchema.optional(),
-  location: locationSchema,
+  isPaid: z.boolean().default(false),
+  price: z.number().optional(),
+  maxParticipants: z.number().optional(),
+  hostId: z.number(),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
 }).transform((data) => {
   const start = new Date(`${data.startDate}T${data.startTime}:00`);
@@ -82,18 +87,25 @@ export const insertEventSchema = z.object({
   if (data.endDate && data.endTime) {
     end = new Date(`${data.endDate}T${data.endTime}:00`);
   }
+
   return {
-    ...data,
+    title: data.title,
+    description: data.description,
+    location: {
+      ...data.location,
+      notificationReach: data.location.notificationReach || 1,
+    },
+    category: data.category,
+    subcategory: data.subcategory,
     startTime: start,
     endTime: end,
+    isPaid: data.isPaid,
+    price: data.price,
+    maxParticipants: data.maxParticipants,
+    hostId: data.hostId,
+    recurrence: data.recurrence,
   };
-}).refine((data) => {
-  const now = new Date();
-  return data.startTime > now;
-}, "Event must be in the future").refine((data) => {
-  if (!data.endTime) return true;
-  return data.endTime > data.startTime;
-}, "End time must be after start time");
+});
 
 export const insertFavoriteSchema = createInsertSchema(favorites).pick({
   userId: true,

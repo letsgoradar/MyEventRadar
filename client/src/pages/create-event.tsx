@@ -35,7 +35,7 @@ const RECURRENCE_OPTIONS = [
 ]
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
-const DEFAULT_ZOOM = 8
+const DEFAULT_ZOOM = 11 // Increased zoom for better visibility of 5km radius
 const MIN_REACH = 1
 const MAX_REACH = 5
 
@@ -140,7 +140,7 @@ export default function CreateEventPage() {
     try {
       // Create combined datetime strings
       const startDateTime = new Date(`${data.startDate}T${data.startTime}`).toISOString()
-      const endDateTime = data.endDate && data.endTime 
+      const endDateTime = data.endDate && data.endTime
         ? new Date(`${data.endDate}T${data.endTime}`).toISOString()
         : null
 
@@ -207,7 +207,7 @@ export default function CreateEventPage() {
 
             <div className="space-y-2">
               <FormLabel>Location *</FormLabel>
-              <div className="h-[200px] rounded-md overflow-hidden">
+              <div className="h-[200px] rounded-md overflow-hidden relative z-10">
                 <MapContainer
                   center={[position.lat, position.lng]}
                   zoom={13}
@@ -219,7 +219,7 @@ export default function CreateEventPage() {
               </div>
             </div>
 
-            <div className="space-y-2 relative z-50">
+            <div className="space-y-2 relative z-20">
               <FormLabel>Category *</FormLabel>
               <CategoryPicker
                 onCategoryChange={(main, sub) => {

@@ -267,7 +267,7 @@ export default function CreateEventPage() {
 
             <FormField
               control={form.control}
-              name="location.notificationReach"
+              name="notificationReach"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Notification Reach</FormLabel>
@@ -278,9 +278,9 @@ export default function CreateEventPage() {
                       step={0.1}
                       value={[field.value]}
                       onValueChange={(vals) => {
-                        const value = vals[0];
-                        field.onChange(value);
-                        setPosition(prev => ({...prev, notificationReach: value}));
+                        const value = vals[0]
+                        field.onChange(value)
+                        setPosition({...position, notificationReach: value}) // Update position directly
                       }}
                     />
                   </FormControl>

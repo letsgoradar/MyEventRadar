@@ -50,147 +50,214 @@ export interface IStorage {
 
 export class PgStorage implements IStorage {
   private db;
+  private pool;
+  private retryCount = 0;
+  private maxRetries = 3;
 
   constructor() {
-    const pool = new Pool({ 
-      connectionString: process.env.DATABASE_URL!,
-      connectionTimeoutMillis: 5000
-    });
-    this.db = drizzle(pool);
+    this.initializeDatabase();
   }
 
-  async createEvent(insertEvent: InsertEvent): Promise<Event> {
+  private initializeDatabase() {
     try {
-      console.log('Creating event with data:', insertEvent);
-      const eventData = {
-        title: insertEvent.title,
-        description: insertEvent.description,
-        location: insertEvent.location,
-        startTime: new Date(insertEvent.startTime),
-        endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
-        category: insertEvent.category,
-        subcategory: insertEvent.subcategory || null,
-        isPaid: insertEvent.isPaid || false,
-        price: insertEvent.price || null,
-        hostId: insertEvent.hostId,
-        recurrence: insertEvent.recurrence || 'once',
-      };
+      this.pool = new Pool({ 
+        connectionString: process.env.DATABASE_URL!,
+        connectionTimeoutMillis: 5000,
+        max: 20,
+        idleTimeoutMillis: 30000
+      });
 
-      console.log('Formatted event data:', eventData);
-      const result = await this.db.insert(events).values(eventData).returning();
-      console.log('Created event:', result[0]);
-      return result[0];
+      this.db = drizzle(this.pool);
     } catch (error) {
-      console.error('Error creating event:', error);
+      console.error('Failed to initialize database:', error);
       throw error;
     }
   }
 
+  private async withRetry<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      console.error('Database operation failed:', error);
+
+      if (this.retryCount < this.maxRetries) {
+        this.retryCount++;
+        console.log(`Retrying operation (attempt ${this.retryCount})...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * this.retryCount));
+        return this.withRetry(operation);
+      }
+
+      this.retryCount = 0;
+      throw error;
+    }
+  }
+
+  async createEvent(insertEvent: InsertEvent): Promise<Event> {
+    return this.withRetry(async () => {
+      try {
+        console.log('Creating event with data:', insertEvent);
+        const eventData = {
+          title: insertEvent.title,
+          description: insertEvent.description,
+          location: insertEvent.location,
+          startTime: new Date(insertEvent.startTime),
+          endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
+          category: insertEvent.category,
+          subcategory: insertEvent.subcategory || null,
+          isPaid: insertEvent.isPaid || false,
+          price: insertEvent.price || null,
+          hostId: insertEvent.hostId,
+          recurrence: insertEvent.recurrence,
+        };
+
+        console.log('Formatted event data:', eventData);
+        const result = await this.db.insert(events).values(eventData).returning();
+        console.log('Created event:', result[0]);
+        return result[0];
+      } catch (error) {
+        console.error('Error creating event:', error);
+        throw error;
+      }
+    });
+  }
+
   async getUser(id: number): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.id, id));
-    return result[0];
+    return this.withRetry(async () => {
+      const result = await this.db.select().from(users).where(eq(users.id, id));
+      return result[0];
+    });
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.username, username));
-    return result[0];
+    return this.withRetry(async () => {
+      const result = await this.db.select().from(users).where(eq(users.username, username));
+      return result[0];
+    });
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.email, email));
-    return result[0];
+    return this.withRetry(async () => {
+      const result = await this.db.select().from(users).where(eq(users.email, email));
+      return result[0];
+    });
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await this.db.insert(users).values(insertUser).returning();
-    return result[0];
+    return this.withRetry(async () => {
+      const result = await this.db.insert(users).values(insertUser).returning();
+      return result[0];
+    });
   }
 
   async getEvent(id: number): Promise<Event | undefined> {
-    const result = await this.db.select().from(events).where(eq(events.id, id));
-    return result[0];
+    return this.withRetry(async () => {
+      const result = await this.db.select().from(events).where(eq(events.id, id));
+      return result[0];
+    });
   }
 
   async getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]> {
-    // For now, return all events since we need PostGIS for proper radius search
-    // TODO: Add PostGIS extension and implement proper radius search
-    const allEvents = await this.db.select().from(events).orderBy(desc(events.startTime));
-    return allEvents.filter(event => {
-      const eventLoc = event.location as { lat: number; lng: number };
-      const distance = this.calculateDistance(lat, lng, eventLoc.lat, eventLoc.lng);
-      return distance <= radius;
+    return this.withRetry(async () => {
+      // For now, return all events since we need PostGIS for proper radius search
+      // TODO: Add PostGIS extension and implement proper radius search
+      const allEvents = await this.db.select().from(events).orderBy(desc(events.startTime));
+      return allEvents.filter(event => {
+        const eventLoc = event.location as { lat: number; lng: number };
+        const distance = this.calculateDistance(lat, lng, eventLoc.lat, eventLoc.lng);
+        return distance <= radius;
+      });
     });
   }
 
   async getEventsByHost(hostId: number): Promise<Event[]> {
-    return this.db.select().from(events).where(eq(events.hostId, hostId));
+    return this.withRetry(async () => {
+      return this.db.select().from(events).where(eq(events.hostId, hostId));
+    });
   }
 
   async addFavorite(insertFavorite: InsertFavorite): Promise<Favorite> {
-    const result = await this.db.insert(favorites).values(insertFavorite).returning();
-    return result[0];
+    return this.withRetry(async () => {
+      const result = await this.db.insert(favorites).values(insertFavorite).returning();
+      return result[0];
+    });
   }
 
   async removeFavorite(userId: number, eventId: number): Promise<void> {
-    await this.db.delete(favorites)
-      .where(
-        and(
-          eq(favorites.userId, userId),
-          eq(favorites.eventId, eventId)
-        )
-      );
+    return this.withRetry(async () => {
+      await this.db.delete(favorites)
+        .where(
+          and(
+            eq(favorites.userId, userId),
+            eq(favorites.eventId, eventId)
+          )
+        );
+    });
   }
 
   async getFavoritesByUser(userId: number): Promise<Event[]> {
-    const result = await this.db
-      .select({
-        event: events
-      })
-      .from(favorites)
-      .where(eq(favorites.userId, userId))
-      .innerJoin(events, eq(events.id, favorites.eventId));
+    return this.withRetry(async () => {
+      const result = await this.db
+        .select({
+          event: events
+        })
+        .from(favorites)
+        .where(eq(favorites.userId, userId))
+        .innerJoin(events, eq(events.id, favorites.eventId));
 
-    return result.map(r => r.event);
+      return result.map(r => r.event);
+    });
   }
 
   async addParticipant(insertParticipant: InsertParticipant): Promise<Participant> {
-    const result = await this.db.insert(participants).values(insertParticipant).returning();
-    return result[0];
+    return this.withRetry(async () => {
+      const result = await this.db.insert(participants).values(insertParticipant).returning();
+      return result[0];
+    });
   }
 
   async removeParticipant(userId: number, eventId: number): Promise<void> {
-    await this.db.delete(participants)
-      .where(
-        and(
-          eq(participants.userId, userId),
-          eq(participants.eventId, eventId)
-        )
-      );
+    return this.withRetry(async () => {
+      await this.db.delete(participants)
+        .where(
+          and(
+            eq(participants.userId, userId),
+            eq(participants.eventId, eventId)
+          )
+        );
+    });
   }
 
   async getEventParticipants(eventId: number): Promise<User[]> {
-    const result = await this.db
-      .select({
-        user: users
-      })
-      .from(participants)
-      .where(eq(participants.eventId, eventId))
-      .innerJoin(users, eq(users.id, participants.userId));
+    return this.withRetry(async () => {
+      const result = await this.db
+        .select({
+          user: users
+        })
+        .from(participants)
+        .where(eq(participants.eventId, eventId))
+        .innerJoin(users, eq(users.id, participants.userId));
 
-    return result.map(r => r.user);
+      return result.map(r => r.user);
+    });
   }
 
   async saveSavedSearch(insertSearch: InsertSavedSearch): Promise<SavedSearch> {
-    const result = await this.db.insert(savedSearches).values(insertSearch).returning();
-    return result[0];
+    return this.withRetry(async () => {
+      const result = await this.db.insert(savedSearches).values(insertSearch).returning();
+      return result[0];
+    });
   }
 
   async getSavedSearchesByUser(userId: number): Promise<SavedSearch[]> {
-    return this.db.select().from(savedSearches).where(eq(savedSearches.userId, userId));
+    return this.withRetry(async () => {
+      return this.db.select().from(savedSearches).where(eq(savedSearches.userId, userId));
+    });
   }
 
   async removeSavedSearch(id: number): Promise<void> {
-    await this.db.delete(savedSearches).where(eq(savedSearches.id, id));
+    return this.withRetry(async () => {
+      await this.db.delete(savedSearches).where(eq(savedSearches.id, id));
+    });
   }
 
   private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {

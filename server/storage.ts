@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq, and, desc } from 'drizzle-orm';
 import { Pool } from '@neondatabase/serverless';
+import { WebSocket } from 'ws';
 import {
   users,
   events,
@@ -54,7 +55,8 @@ export class PgStorage implements IStorage {
   constructor() {
     const pool = new Pool({ 
       connectionString: process.env.DATABASE_URL!,
-      connectionTimeoutMillis: 5000
+      connectionTimeoutMillis: 5000,
+      webSocketConstructor: WebSocket 
     });
     this.db = drizzle(pool);
   }
@@ -78,10 +80,17 @@ export class PgStorage implements IStorage {
 
       console.log('Formatted event data:', eventData);
       const result = await this.db.insert(events).values(eventData).returning();
+      if (!result || result.length === 0) {
+        throw new Error('Failed to create event - no result returned');
+      }
       console.log('Created event:', result[0]);
       return result[0];
     } catch (error) {
       console.error('Error creating event:', error);
+      // Check if it's a connection error
+      if (error instanceof Error && error.message.includes('WebSocket')) {
+        throw new Error('Database connection failed. Please try again.');
+      }
       throw error;
     }
   }

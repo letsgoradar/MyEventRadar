@@ -72,6 +72,16 @@ function App() {
     }
   };
 
+  // Update category handler to apply filter immediately
+  const handleCategoryChange = (main: string, sub: string) => {
+    setCategory(sub || main);
+  };
+
+  // Update date handler to apply filter immediately
+  const handleDateChange = (newDate: Date) => {
+    setStartDate(newDate);
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <Switch>
@@ -89,7 +99,7 @@ function App() {
             </nav>
 
             {/* Filter Bar */}
-            <div className="flex items-center gap-2 px-4 py-3 bg-white border-b z-10">
+            <div className="flex items-center gap-2 px-4 py-3 bg-white border-b relative z-30">
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -101,6 +111,27 @@ function App() {
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
                   <div className="grid gap-6 py-6">
+                    {/* Active Filter Tags in Form */}
+                    {activeFilters.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {activeFilters.map((filter) => (
+                          <Badge
+                            key={filter.key}
+                            variant="secondary"
+                            className="flex items-center gap-1"
+                          >
+                            {filter.label}
+                            <button
+                              onClick={() => removeFilter(filter.key)}
+                              className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <label htmlFor="search" className="text-sm font-medium">Search</label>
                       <Input
@@ -114,7 +145,7 @@ function App() {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Category</label>
                       <CategoryPicker
-                        onCategoryChange={(main, sub) => setCategory(sub || main)}
+                        onCategoryChange={handleCategoryChange}
                       />
                     </div>
 
@@ -123,7 +154,7 @@ function App() {
                         <label className="text-sm font-medium">Date</label>
                         <DateTimePicker
                           date={startDate}
-                          setDate={setStartDate}
+                          setDate={handleDateChange}
                           mode="date"
                         />
                       </div>
@@ -132,7 +163,7 @@ function App() {
                         <label className="text-sm font-medium">Time</label>
                         <DateTimePicker
                           date={startDate}
-                          setDate={setStartDate}
+                          setDate={handleDateChange}
                           mode="time"
                         />
                       </div>
@@ -152,24 +183,6 @@ function App() {
                 </SheetContent>
               </Sheet>
 
-              {/* Active Filter Tags */}
-              <div className="flex gap-2 flex-wrap">
-                {activeFilters.map((filter) => (
-                  <Badge
-                    key={filter.key}
-                    variant="secondary"
-                    className="flex items-center gap-1"
-                  >
-                    {filter.label}
-                    <button
-                      onClick={() => removeFilter(filter.key)}
-                      className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
 
               {/* View Mode Toggle */}
               <Button
@@ -187,7 +200,7 @@ function App() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 relative">
+            <div className="flex-1 relative z-20">
               {viewMode === 'map' ? <Map /> : <EventList />}
             </div>
 

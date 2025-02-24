@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Filter, MapPin, List, Calendar, Heart, User, Plus } from "lucide-react"
+import { Filter, MapPin, List, Calendar, Heart, User, Plus, X } from "lucide-react"
 import { DateTimePicker } from "@/components/date-time-picker"
 import { Link, Route, Switch, useLocation } from "wouter"
 import { CategoryPicker } from "@/components/CategoryPicker"
@@ -11,8 +11,15 @@ import Map from "@/components/Map"
 import { EventList } from "@/components/EventList"
 import CreateEventPage from "@/pages/create-event"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 
 const queryClient = new QueryClient()
+
+interface ActiveFilter {
+  key: string;
+  value: string;
+  label: string;
+}
 
 function App() {
   const [date, setDate] = React.useState<Date>()
@@ -24,6 +31,46 @@ function App() {
   const [category, setCategory] = React.useState('')
   const [startDate, setStartDate] = React.useState(new Date())
   const [showPaidEvents, setShowPaidEvents] = React.useState(false)
+
+  const activeFilters = React.useMemo<ActiveFilter[]>(() => {
+    const filters: ActiveFilter[] = [];
+
+    if (searchQuery) {
+      filters.push({ key: 'search', value: searchQuery, label: `Search: ${searchQuery}` });
+    }
+    if (category) {
+      filters.push({ key: 'category', value: category, label: `Category: ${category}` });
+    }
+    if (startDate) {
+      filters.push({
+        key: 'date',
+        value: startDate.toISOString(),
+        label: `Date: ${startDate.toLocaleDateString()}`
+      });
+    }
+    if (showPaidEvents) {
+      filters.push({ key: 'paid', value: 'true', label: 'Paid Events Only' });
+    }
+
+    return filters;
+  }, [searchQuery, category, startDate, showPaidEvents]);
+
+  const removeFilter = (filterKey: string) => {
+    switch (filterKey) {
+      case 'search':
+        setSearchQuery('');
+        break;
+      case 'category':
+        setCategory('');
+        break;
+      case 'date':
+        setStartDate(new Date());
+        break;
+      case 'paid':
+        setShowPaidEvents(false);
+        break;
+    }
+  };
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -42,14 +89,14 @@ function App() {
             </nav>
 
             {/* Filter Bar */}
-            <div className="flex justify-between items-center px-4 py-3">
+            <div className="flex items-center gap-2 px-4 py-3 bg-white border-b z-10">
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon">
                     <Filter className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="top" className="w-full overflow-y-auto">
+                <SheetContent side="top" className="w-full overflow-y-auto z-50">
                   <SheetHeader>
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
@@ -105,10 +152,30 @@ function App() {
                 </SheetContent>
               </Sheet>
 
+              {/* Active Filter Tags */}
+              <div className="flex gap-2 flex-wrap">
+                {activeFilters.map((filter) => (
+                  <Badge
+                    key={filter.key}
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
+                    {filter.label}
+                    <button
+                      onClick={() => removeFilter(filter.key)}
+                      className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+
               {/* View Mode Toggle */}
               <Button
                 variant="ghost"
                 size="icon"
+                className="ml-auto"
                 onClick={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
               >
                 {viewMode === 'map' ? (

@@ -2,7 +2,6 @@ import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from 'ws';
 import * as schema from "@shared/schema";
-import { log } from "./vite";
 
 // Configure neon to use the ws package
 neonConfig.webSocketConstructor = ws;
@@ -22,12 +21,30 @@ const pool = new Pool({
 
 // Add error handling for the pool
 pool.on('error', (err) => {
-  log(`Unexpected error on idle client: ${err.message}`);
+  console.error(`Unexpected error on idle client: ${err.message}`);
 });
 
 // Add connection error handling
 pool.on('connect', () => {
-  log('Successfully connected to database');
+  console.log('Successfully connected to database');
 });
+
+// Test database connection
+async function testConnection() {
+  try {
+    console.log('Testing database connection...');
+    const client = await pool.connect();
+    const result = await client.query('SELECT 1 as test');
+    console.log('Database connection test successful:', result.rows[0]);
+    client.release();
+    return true;
+  } catch (error) {
+    console.error('Database connection test failed:', error);
+    return false;
+  }
+}
+
+// Initialize connection test
+testConnection();
 
 export const db = drizzle(pool, { schema });

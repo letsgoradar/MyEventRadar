@@ -54,17 +54,36 @@ export class PgStorage implements IStorage {
     try {
       log('Creating event with data:', JSON.stringify(insertEvent, null, 2));
 
-      // Validate the data before inserting
+      // Validate required fields
       if (!insertEvent.title || !insertEvent.description || !insertEvent.location) {
         throw new Error('Missing required event fields');
+      }
+
+      // Ensure dates are properly handled
+      const startTime = insertEvent.startTime instanceof Date 
+        ? insertEvent.startTime 
+        : new Date(insertEvent.startTime);
+
+      const endTime = insertEvent.endTime
+        ? (insertEvent.endTime instanceof Date 
+          ? insertEvent.endTime 
+          : new Date(insertEvent.endTime))
+        : null;
+
+      if (isNaN(startTime.getTime())) {
+        throw new Error('Invalid start time');
+      }
+
+      if (endTime && isNaN(endTime.getTime())) {
+        throw new Error('Invalid end time');
       }
 
       const eventData = {
         title: insertEvent.title,
         description: insertEvent.description,
         location: insertEvent.location,
-        startTime: new Date(insertEvent.startTime),
-        endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
+        startTime,
+        endTime,
         category: insertEvent.category,
         subcategory: insertEvent.subcategory || null,
         isPaid: insertEvent.isPaid || false,

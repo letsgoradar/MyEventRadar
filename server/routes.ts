@@ -1,27 +1,14 @@
 import type { Express } from "express";
 import { storage } from "./storage";
-import { insertUserSchema, insertEventSchema, insertParticipantSchema, insertSavedSearchSchema } from "@shared/schema";
+import { insertEventSchema } from "@shared/schema";
 import { z } from "zod";
 import { log } from "./vite";
 
 export async function registerRoutes(app: Express): Promise<void> {
-  // Auth routes
-  app.post("/api/auth/register", async (req, res) => {
-    try {
-      const data = insertUserSchema.parse(req.body);
-      const existingUser = await storage.getUserByEmail(data.email);
-      if (existingUser) {
-        return res.status(400).json({ message: "Email already registered" });
-      }
-      const user = await storage.createUser(data);
-      res.json(user);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ message: error.errors });
-      } else {
-        res.status(500).json({ message: "Internal server error" });
-      }
-    }
+  // Diagnostic endpoint
+  app.get("/ping", (req, res) => {
+    log("Received ping request");
+    res.status(200).json({ message: "pong" });
   });
 
   // Event routes
@@ -30,25 +17,52 @@ export async function registerRoutes(app: Express): Promise<void> {
       log("Received event creation request");
       log("Request body:", JSON.stringify(req.body, null, 2));
 
-      const data = insertEventSchema.parse({
+      // Pre-validate required fields
+      if (!req.body.title || !req.body.description || !req.body.location) {
+        log("Missing required fields in request");
+        return res.status(400).json({
+          message: "Missing required fields",
+          errors: ["title, description, and location are required"]
+        });
+      }
+
+      // Pre-validate recurrence
+      if (!['once', 'daily', 'weekly', 'monthly'].includes(req.body.recurrence)) {
+        log("Invalid recurrence value:", req.body.recurrence);
+        return res.status(400).json({
+          message: "Invalid recurrence value. Must be one of: once, daily, weekly, monthly"
+        });
+      }
+
+      // Parse dates before schema validation
+      const eventData = {
         ...req.body,
         startTime: new Date(req.body.startTime),
         endTime: req.body.endTime ? new Date(req.body.endTime) : null,
-      });
+      };
 
-      log("Parsed event data:", JSON.stringify(data, null, 2));
+      log("Attempting to parse event data:", JSON.stringify(eventData, null, 2));
+      const data = insertEventSchema.parse(eventData);
+
+      log("Successfully parsed event data, creating event");
       const event = await storage.createEvent(data);
       log("Event created successfully:", JSON.stringify(event, null, 2));
 
       res.json(event);
     } catch (error) {
-      log("Error creating event:", error);
+      log("Error in event creation:", error);
       if (error instanceof z.ZodError) {
+        const formattedErrors = error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message
+        }));
+        log("Validation errors:", JSON.stringify(formattedErrors, null, 2));
         res.status(400).json({ 
           message: "Validation error",
-          errors: error.errors 
+          errors: formattedErrors
         });
       } else {
+        log("Internal server error:", error instanceof Error ? error.stack : String(error));
         res.status(500).json({ 
           message: "Internal server error",
           error: error instanceof Error ? error.message : String(error)
@@ -90,7 +104,6 @@ export async function registerRoutes(app: Express): Promise<void> {
     res.json(event);
   });
 
-  // Participants routes
   app.post("/api/events/:id/participants", async (req, res) => {
     try {
       const data = insertParticipantSchema.parse({
@@ -120,7 +133,6 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  // Favorites routes
   app.post("/api/favorites", async (req, res) => {
     try {
       const favorite = await storage.addFavorite(req.body);
@@ -142,7 +154,6 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  // Saved searches routes
   app.post("/api/saved-searches", async (req, res) => {
     try {
       const data = insertSavedSearchSchema.parse(req.body);

@@ -55,27 +55,26 @@ export const insertUserSchema = createInsertSchema(users).pick({
   googleId: true,
 });
 
-const locationSchema = z.object({
-  lat: z.number(),
-  lng: z.number(),
-  notificationReach: z.number(),
-  address: z.string().optional(),
-});
-
-export const insertEventSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string(),
-  location: locationSchema,
-  category: z.string().min(1, "Category is required"),
-  subcategory: z.string().optional(),
-  startTime: z.string().or(z.date()),
-  endTime: z.string().or(z.date()).optional().nullable(),
-  isPaid: z.boolean().default(false),
-  price: z.number().optional().nullable(),
-  maxParticipants: z.number().optional(),
-  hostId: z.number(),
-  recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
-});
+export const insertEventSchema = createInsertSchema(events)
+  .extend({
+    title: z.string().min(1, "Title is required"),
+    description: z.string(),
+    location: z.object({
+      lat: z.number(),
+      lng: z.number(),
+      notificationReach: z.number(),
+      address: z.string().optional(),
+    }),
+    startTime: z.string().or(z.date()),
+    endTime: z.string().or(z.date()).optional().nullable(),
+    category: z.string().min(1, "Category is required"),
+    subcategory: z.string().optional(),
+    isPaid: z.boolean().default(false),
+    price: z.number().optional().nullable(),
+    maxParticipants: z.number().optional(),
+    hostId: z.number(),
+    recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
+  });
 
 export const insertFavoriteSchema = createInsertSchema(favorites).pick({
   userId: true,

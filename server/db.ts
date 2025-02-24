@@ -3,8 +3,11 @@ import { drizzle } from 'drizzle-orm/neon-serverless';
 import WebSocket from 'ws';
 import * as schema from "@shared/schema";
 
-// Configure WebSocket globally
-globalThis.WebSocket = WebSocket;
+// Configure WebSocket globally before any other initialization
+if (!globalThis.WebSocket) {
+  globalThis.WebSocket = WebSocket as any;
+}
+
 // Configure neon to use WebSocket
 neonConfig.webSocketConstructor = WebSocket;
 

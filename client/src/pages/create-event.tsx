@@ -51,6 +51,7 @@ const createEventFormSchema = z.object({
   location: z.object({
     lat: z.number(),
     lng: z.number(),
+    notificationReach: z.number().min(MIN_REACH).max(MAX_REACH),
   }, { required_error: "Location is required" }),
   category: z.string().min(1, "Category is required"),
   subcategory: z.string().optional(),
@@ -63,7 +64,6 @@ const createEventFormSchema = z.object({
   maxParticipants: z.number(),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
   hostId: z.number(),
-  notificationReach: z.number().min(MIN_REACH).max(MAX_REACH),
 });
 
 export default function CreateEventPage() {
@@ -138,40 +138,55 @@ export default function CreateEventPage() {
 
   async function onSubmit(data: z.infer<typeof createEventFormSchema>) {
     try {
+      console.log("Form data:", data); // Debug log
+
       // Create combined datetime strings
-      const startDateTime = new Date(`${data.startDate}T${data.startTime}`).toISOString()
-      const endDateTime = data.endDate && data.endTime
-        ? new Date(`${data.endDate}T${data.endTime}`).toISOString()
-        : null
+      const startDateTime = new Date(`${data.startDate}T${data.startTime}`);
+      const endDateTime = data.endDate && data.endTime 
+        ? new Date(`${data.endDate}T${data.endTime}`)
+        : null;
 
       // Prepare event data
       const eventData = {
-        ...data,
-        startTime: startDateTime,
-        endTime: endDateTime,
+        title: data.title,
+        description: data.description,
         location: {
           lat: data.location.lat,
           lng: data.location.lng,
-          notificationReach: data.notificationReach
-        }
-      }
+          notificationReach: data.location.notificationReach,
+        },
+        category: data.category,
+        subcategory: data.subcategory,
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime?.toISOString() || null,
+        isPaid: data.isPaid,
+        price: data.price,
+        maxParticipants: data.maxParticipants,
+        hostId: data.hostId,
+        recurrence: data.recurrence,
+      };
 
-      const response = await apiRequest('POST', '/api/events', eventData)
+      console.log("Sending event data:", eventData); // Debug log
+
+      const response = await apiRequest('POST', '/api/events', eventData);
+      console.log("Server response:", response); // Debug log
 
       // Invalidate the events query cache to trigger a refresh
-      queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] })
+      queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
 
       toast({
         title: "Success",
         description: "Event created successfully",
-      })
-      setLocation('/')
+      });
+
+      setLocation('/');
     } catch (error) {
+      console.error("Error creating event:", error); // Debug log
       toast({
         title: "Error",
-        description: "Failed to create event",
+        description: "Failed to create event. Please check all required fields.",
         variant: "destructive",
-      })
+      });
     }
   }
 

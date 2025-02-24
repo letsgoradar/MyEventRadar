@@ -23,7 +23,6 @@ export const events = pgTable("events", {
   isPaid: boolean("is_paid").default(false),
   price: integer("price"),
   hostId: integer("host_id").notNull(),
-  maxParticipants: integer("max_participants"),
   recurrence: text("recurrence").notNull().default('once'),
 });
 
@@ -59,12 +58,10 @@ export const insertUserSchema = createInsertSchema(users).pick({
 const locationSchema = z.object({
   lat: z.number(),
   lng: z.number(),
-  notificationReach: z.number().optional(),
+  notificationReach: z.number(),
   address: z.string().optional(),
 });
 
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format");
-const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format");
 
 export const insertEventSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -72,39 +69,13 @@ export const insertEventSchema = z.object({
   location: locationSchema,
   category: z.string().min(1, "Category is required"),
   subcategory: z.string().optional(),
-  startDate: dateSchema,
-  startTime: timeSchema,
-  endDate: dateSchema.optional(),
-  endTime: timeSchema.optional(),
+  startTime: z.string().or(z.date()),
+  endTime: z.string().or(z.date()).optional(),
   isPaid: z.boolean().default(false),
   price: z.number().optional(),
   maxParticipants: z.number().optional(),
   hostId: z.number(),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
-}).transform((data) => {
-  const start = new Date(`${data.startDate}T${data.startTime}:00`);
-  let end = undefined;
-  if (data.endDate && data.endTime) {
-    end = new Date(`${data.endDate}T${data.endTime}:00`);
-  }
-
-  return {
-    title: data.title,
-    description: data.description,
-    location: {
-      ...data.location,
-      notificationReach: data.location.notificationReach || 1,
-    },
-    category: data.category,
-    subcategory: data.subcategory,
-    startTime: start,
-    endTime: end,
-    isPaid: data.isPaid,
-    price: data.price,
-    maxParticipants: data.maxParticipants,
-    hostId: data.hostId,
-    recurrence: data.recurrence,
-  };
 });
 
 export const insertFavoriteSchema = createInsertSchema(favorites).pick({

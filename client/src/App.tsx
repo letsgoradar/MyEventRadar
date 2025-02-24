@@ -49,7 +49,7 @@ function App() {
                     <Filter className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="top" className="w-full h-[50vh] z-[9999]">
+                <SheetContent side="top" className="w-full max-h-[80vh] overflow-y-auto">
                   <SheetHeader>
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
@@ -71,22 +71,24 @@ function App() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Date</label>
-                      <DateTimePicker
-                        date={startDate}
-                        setDate={setStartDate}
-                        mode="date"
-                      />
-                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Date</label>
+                        <DateTimePicker
+                          date={startDate}
+                          setDate={setStartDate}
+                          mode="date"
+                        />
+                      </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Time</label>
-                      <DateTimePicker
-                        date={startDate}
-                        setDate={setStartDate}
-                        mode="time"
-                      />
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Time</label>
+                        <DateTimePicker
+                          date={startDate}
+                          setDate={setStartDate}
+                          mode="time"
+                        />
+                      </div>
                     </div>
 
                     <div className="flex items-center space-x-2 pt-2">

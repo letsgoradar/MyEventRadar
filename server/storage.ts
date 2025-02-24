@@ -77,8 +77,26 @@ export class PgStorage implements IStorage {
   }
 
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
-    const result = await this.db.insert(events).values(insertEvent).returning();
-    return result[0];
+    try {
+      const result = await this.db.insert(events).values({
+        title: insertEvent.title,
+        description: insertEvent.description,
+        location: insertEvent.location,
+        startTime: insertEvent.startTime,
+        endTime: insertEvent.endTime,
+        category: insertEvent.category,
+        subcategory: insertEvent.subcategory,
+        isPaid: insertEvent.isPaid,
+        price: insertEvent.price,
+        hostId: insertEvent.hostId,
+        maxParticipants: insertEvent.maxParticipants,
+        recurrence: insertEvent.recurrence,
+      }).returning();
+      return result[0];
+    } catch (error) {
+      console.error('Error creating event:', error);
+      throw error;
+    }
   }
 
   async getEvent(id: number): Promise<Event | undefined> {

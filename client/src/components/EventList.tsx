@@ -50,22 +50,27 @@ export function EventList() {
 
   return (
     <div className="p-4 space-y-4 overflow-auto max-h-[calc(100vh-16rem)]">
-      {events.map((event) => (
-        <Card key={event.id}>
-          <CardHeader>
-            <CardTitle>{event.title}</CardTitle>
-            <CardDescription>{event.category}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">{event.description}</p>
-            <div className="mt-2 text-sm text-muted-foreground">
-              <p>{event.address}</p>
-              <p>{format(new Date(event.startTime), 'PPP')}</p>
-              {event.isPaid && <p>Price: ${event.price}</p>}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+      {events.map((event) => {
+        const location = event.location as { lat: number; lng: number; address?: string };
+        const locationText = location.address || `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+
+        return (
+          <Card key={event.id}>
+            <CardHeader>
+              <CardTitle>{event.title}</CardTitle>
+              <CardDescription>{event.category}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm">{event.description}</p>
+              <div className="mt-2 text-sm text-muted-foreground">
+                <p>{locationText}</p>
+                <p>{format(new Date(event.startTime), 'PPP')}</p>
+                {event.isPaid && event.price && <p>Price: ${event.price}</p>}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   )
 }

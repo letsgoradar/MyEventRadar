@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertEventSchema, insertParticipantSchema, insertSavedSearchSchema } from "@shared/schema";
 import { z } from "zod";
+import { log } from "./vite";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -27,22 +28,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Event routes
   app.post("/api/events", async (req, res) => {
     try {
-      console.log("Received event data:", req.body);
+      log("Received event creation request");
+      log("Request body:", JSON.stringify(req.body));
+
       const data = insertEventSchema.parse({
         ...req.body,
         startTime: new Date(req.body.startTime),
         endTime: req.body.endTime ? new Date(req.body.endTime) : null,
       });
-      console.log("Parsed event data:", data);
+
+      log("Parsed event data:", JSON.stringify(data));
       const event = await storage.createEvent(data);
-      console.log("Created event:", event);
+      log("Event created successfully:", JSON.stringify(event));
+
       res.json(event);
     } catch (error) {
-      console.error("Error creating event:", error);
+      log("Error creating event:", error);
       if (error instanceof z.ZodError) {
-        res.status(400).json({ message: error.errors });
+        res.status(400).json({ 
+          message: "Validation error",
+          errors: error.errors 
+        });
       } else {
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ 
+          message: "Internal server error",
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     }
   });

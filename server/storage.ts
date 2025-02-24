@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from './db';
-import { WebSocket } from 'ws';
+import { log } from './vite';
 import {
   users,
   events,
@@ -52,7 +52,13 @@ export interface IStorage {
 export class PgStorage implements IStorage {
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
     try {
-      console.log('Creating event with data:', insertEvent);
+      log('Creating event with data:', JSON.stringify(insertEvent, null, 2));
+
+      // Validate the data before inserting
+      if (!insertEvent.title || !insertEvent.description || !insertEvent.location) {
+        throw new Error('Missing required event fields');
+      }
+
       const eventData = {
         title: insertEvent.title,
         description: insertEvent.description,
@@ -67,15 +73,19 @@ export class PgStorage implements IStorage {
         recurrence: insertEvent.recurrence || 'once',
       };
 
-      console.log('Formatted event data:', eventData);
+      log('Formatted event data:', JSON.stringify(eventData, null, 2));
+
       const result = await db.insert(events).values(eventData).returning();
+
       if (!result || result.length === 0) {
         throw new Error('Failed to create event - no result returned');
       }
-      console.log('Created event:', result[0]);
+
+      log('Successfully created event:', JSON.stringify(result[0], null, 2));
       return result[0];
     } catch (error) {
-      console.error('Error creating event:', error);
+      log('Error creating event:', error instanceof Error ? error.message : String(error));
+      log('Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
       throw error;
     }
   }

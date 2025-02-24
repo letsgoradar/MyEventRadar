@@ -28,7 +28,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post("/api/events", async (req, res) => {
     try {
       log("Received event creation request");
-      log("Request body:", JSON.stringify(req.body));
+      log("Request body:", JSON.stringify(req.body, null, 2));
 
       const data = insertEventSchema.parse({
         ...req.body,
@@ -36,9 +36,9 @@ export async function registerRoutes(app: Express): Promise<void> {
         endTime: req.body.endTime ? new Date(req.body.endTime) : null,
       });
 
-      log("Parsed event data:", JSON.stringify(data));
+      log("Parsed event data:", JSON.stringify(data, null, 2));
       const event = await storage.createEvent(data);
-      log("Event created successfully:", JSON.stringify(event));
+      log("Event created successfully:", JSON.stringify(event, null, 2));
 
       res.json(event);
     } catch (error) {

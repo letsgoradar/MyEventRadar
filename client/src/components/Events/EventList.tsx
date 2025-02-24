@@ -10,12 +10,7 @@ interface EventListProps {
 
 export default function EventList({ location, radius }: EventListProps) {
   const { data: events, isLoading } = useQuery<Event[]>({
-    queryKey: [
-      "/api/events/nearby",
-      location.lat,
-      location.lng,
-      radius,
-    ],
+    queryKey: ["/api/events/nearby", location.lat, location.lng, radius],
     queryFn: async () => {
       const params = new URLSearchParams({
         lat: location.lat.toString(),
@@ -49,7 +44,7 @@ export default function EventList({ location, radius }: EventListProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4">
       {events.map((event) => (
         <EventCard key={event.id} event={event} />
       ))}

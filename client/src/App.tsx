@@ -49,11 +49,11 @@ function App() {
                     <Filter className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="top" className="w-full max-h-[80vh] overflow-y-auto">
+                <SheetContent side="top" className="w-full overflow-y-auto">
                   <SheetHeader>
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
-                  <div className="grid gap-4 py-4">
+                  <div className="grid gap-6 py-6">
                     <div className="space-y-2">
                       <label htmlFor="search" className="text-sm font-medium">Search</label>
                       <Input
@@ -71,7 +71,7 @@ function App() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Date</label>
                         <DateTimePicker
@@ -91,7 +91,7 @@ function App() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 pt-2">
+                    <div className="flex items-center space-x-2">
                       <Checkbox
                         id="paid"
                         checked={showPaidEvents}

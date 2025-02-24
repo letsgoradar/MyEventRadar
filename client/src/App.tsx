@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Filter, MapPin, List, Calendar, Heart, User, Plus, X } from "lucide-react"
 import { DateTimePicker } from "@/components/date-time-picker"
-import { Link, Route, Switch, useLocation } from "wouter"
+import { Link, Route, Switch } from "wouter"
 import { CategoryPicker } from "@/components/CategoryPicker"
-import Map from "@/components/Map"
-import { EventList } from "@/components/EventList"
+import MapView from "@/components/Map/MapView"
+import EventList from "@/components/Events/EventList"
 import CreateEventPage from "@/pages/create-event"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
@@ -22,15 +22,26 @@ interface ActiveFilter {
 }
 
 function App() {
-  const [date, setDate] = React.useState<Date>()
-  const [searchLocation, setSearchLocation] = React.useState('')
-  const [radius, setRadius] = React.useState(5)
-  const [viewMode, setViewMode] = React.useState<'map' | 'list'>('map')
-  const [, setLocation] = useLocation()
   const [searchQuery, setSearchQuery] = React.useState('')
   const [category, setCategory] = React.useState('')
   const [startDate, setStartDate] = React.useState(new Date())
   const [showPaidEvents, setShowPaidEvents] = React.useState(false)
+  const [viewMode, setViewMode] = React.useState<'map' | 'list'>('map')
+  const [radius, setRadius] = React.useState(10)
+  const [userLocation, setUserLocation] = React.useState({ lat: 51.9225, lng: 4.47917 }) // Default to Rotterdam
+
+  React.useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        }
+      );
+    }
+  }, []);
 
   const activeFilters = React.useMemo<ActiveFilter[]>(() => {
     const filters: ActiveFilter[] = [];
@@ -72,12 +83,10 @@ function App() {
     }
   };
 
-  // Update category handler to apply filter immediately
   const handleCategoryChange = (main: string, sub: string) => {
     setCategory(sub || main);
   };
 
-  // Update date handler to apply filter immediately
   const handleDateChange = (newDate: Date) => {
     setStartDate(newDate);
   };
@@ -99,90 +108,110 @@ function App() {
             </nav>
 
             {/* Filter Bar */}
-            <div className="flex items-center gap-2 px-4 py-3 bg-white border-b relative z-30">
+            <div className="flex items-center gap-2 px-4 py-3 bg-white border-b relative z-40">
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon">
                     <Filter className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="top" className="w-full overflow-y-auto z-50">
-                  <SheetHeader>
-                    <SheetTitle>Filters</SheetTitle>
-                  </SheetHeader>
-                  <div className="grid gap-6 py-6">
-                    {/* Active Filter Tags in Form */}
-                    {activeFilters.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {activeFilters.map((filter) => (
-                          <Badge
-                            key={filter.key}
-                            variant="secondary"
-                            className="flex items-center gap-1"
-                          >
-                            {filter.label}
-                            <button
-                              onClick={() => removeFilter(filter.key)}
-                              className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                <div className="fixed inset-0 z-50">
+                  <SheetContent side="top" className="w-full overflow-y-auto">
+                    <SheetHeader>
+                      <SheetTitle>Filters</SheetTitle>
+                    </SheetHeader>
+                    <div className="grid gap-6 py-6">
+                      {/* Active Filter Tags in Form */}
+                      {activeFilters.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {activeFilters.map((filter) => (
+                            <Badge
+                              key={filter.key}
+                              variant="secondary"
+                              className="flex items-center gap-1"
                             >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+                              {filter.label}
+                              <button
+                                onClick={() => removeFilter(filter.key)}
+                                className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
 
-                    <div className="space-y-2">
-                      <label htmlFor="search" className="text-sm font-medium">Search</label>
-                      <Input
-                        id="search"
-                        placeholder="Search events..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Category</label>
-                      <CategoryPicker
-                        onCategoryChange={handleCategoryChange}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Date</label>
-                        <DateTimePicker
-                          date={startDate}
-                          setDate={handleDateChange}
-                          mode="date"
+                        <label htmlFor="search" className="text-sm font-medium">Search</label>
+                        <Input
+                          id="search"
+                          placeholder="Search events..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Time</label>
-                        <DateTimePicker
-                          date={startDate}
-                          setDate={handleDateChange}
-                          mode="time"
+                        <label className="text-sm font-medium">Category</label>
+                        <CategoryPicker
+                          onCategoryChange={handleCategoryChange}
                         />
                       </div>
-                    </div>
 
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="paid"
-                        checked={showPaidEvents}
-                        onCheckedChange={(checked) =>
-                          setShowPaidEvents(checked as boolean)
-                        }
-                      />
-                      <label htmlFor="paid" className="text-sm font-medium">Show paid events</label>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Date</label>
+                          <DateTimePicker
+                            date={startDate}
+                            setDate={handleDateChange}
+                            mode="date"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Time</label>
+                          <DateTimePicker
+                            date={startDate}
+                            setDate={handleDateChange}
+                            mode="time"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="paid"
+                          checked={showPaidEvents}
+                          onCheckedChange={(checked) =>
+                            setShowPaidEvents(checked as boolean)
+                          }
+                        />
+                        <label htmlFor="paid" className="text-sm font-medium">Show paid events</label>
+                      </div>
                     </div>
-                  </div>
-                </SheetContent>
+                  </SheetContent>
+                </div>
               </Sheet>
 
+              {/* Active Filter Tags next to filter icon */}
+              <div className="flex gap-2 flex-wrap overflow-x-auto">
+                {activeFilters.map((filter) => (
+                  <Badge
+                    key={filter.key}
+                    variant="secondary"
+                    className="flex items-center gap-1 whitespace-nowrap"
+                  >
+                    {filter.label}
+                    <button
+                      onClick={() => removeFilter(filter.key)}
+                      className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
 
               {/* View Mode Toggle */}
               <Button
@@ -200,8 +229,16 @@ function App() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 relative z-20">
-              {viewMode === 'map' ? <Map /> : <EventList />}
+            <div className="flex-1 relative z-30">
+              {viewMode === 'map' ? (
+                <MapView filters={activeFilters} />
+              ) : (
+                <EventList
+                  location={userLocation}
+                  radius={radius}
+                  filters={activeFilters}
+                />
+              )}
             </div>
 
             {/* Bottom Navigation */}
@@ -211,12 +248,6 @@ function App() {
                   <div className="flex flex-col items-center cursor-pointer">
                     <MapPin className="h-6 w-6" />
                     <span className="text-sm">Explore</span>
-                  </div>
-                </Link>
-                <Link href="/events">
-                  <div className="flex flex-col items-center cursor-pointer">
-                    <Calendar className="h-6 w-6" />
-                    <span className="text-sm">Events</span>
                   </div>
                 </Link>
                 <Link href="/create">

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { useQueryClient } from "@tanstack/react-query"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -14,16 +14,18 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { CategoryPicker } from "@/components/CategoryPicker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
 import { format, addHours, setMinutes, setSeconds, setMilliseconds } from "date-fns"
 import * as z from 'zod'
-import { insertEventSchema } from "@shared/schema"
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
+import { MapContainer, TileLayer, Marker, Circle, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
+import { apiRequest } from "@/lib/queryClient"
 
 const RECURRENCE_OPTIONS = [
   { label: "Eenmalig", value: "once" },
@@ -32,22 +34,50 @@ const RECURRENCE_OPTIONS = [
   { label: "Maandelijks", value: "monthly" }
 ]
 
+const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
+const DEFAULT_ZOOM = 8
+const MIN_REACH = 1
+const MAX_REACH = 5
+
 function getNextHour() {
   const now = new Date()
   return setMilliseconds(setSeconds(setMinutes(addHours(now, 1), 0), 0), 0)
 }
 
+// Create a custom validation schema for the form
+const createEventFormSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string(),
+  location: z.object({
+    lat: z.number(),
+    lng: z.number(),
+  }, { required_error: "Location is required" }),
+  category: z.string().min(1, "Category is required"),
+  subcategory: z.string().optional(),
+  startDate: z.string().min(1, "Start date is required"),
+  startTime: z.string().min(1, "Start time is required"),
+  endDate: z.string().optional(),
+  endTime: z.string().optional(),
+  isPaid: z.boolean(),
+  price: z.number().optional(),
+  maxParticipants: z.number(),
+  recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
+  hostId: z.number(),
+  notificationReach: z.number().min(MIN_REACH).max(MAX_REACH),
+});
+
 export default function CreateEventPage() {
   const { toast } = useToast()
   const [, setLocation] = useLocation()
   const queryClient = useQueryClient()
-  const [position, setPosition] = useState({ lat: 52.3676, lng: 4.9041 })
+  const [position, setPosition] = useState({ lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] })
+  const [notificationReach, setNotificationReach] = useState(1) // Default 1km reach
 
   const nextHour = getNextHour()
   const defaultEndTime = addHours(nextHour, 1)
 
-  const form = useForm({
-    resolver: zodResolver(insertEventSchema),
+  const form = useForm<z.infer<typeof createEventFormSchema>>({
+    resolver: zodResolver(createEventFormSchema),
     defaultValues: {
       title: "",
       description: "",
@@ -63,8 +93,29 @@ export default function CreateEventPage() {
       maxParticipants: 0,
       recurrence: "once",
       hostId: 1, // This will be replaced with actual user ID when auth is implemented
+      notificationReach: 1,
     },
   })
+
+  // Get user's location on component mount
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newPos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          }
+          setPosition(newPos)
+          form.setValue("location", newPos)
+        },
+        (error) => {
+          console.error("Error getting location:", error)
+          // Keep default Netherlands center if geolocation fails
+        }
+      )
+    }
+  }, [])
 
   function LocationMarker() {
     useMapEvents({
@@ -73,28 +124,43 @@ export default function CreateEventPage() {
         form.setValue("location", e.latlng)
       },
     })
-    return <Marker position={position} />
+    return (
+      <>
+        <Marker position={position} />
+        <Circle
+          center={position}
+          radius={notificationReach * 1000} // Convert km to meters
+          pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.2 }}
+        />
+      </>
+    )
   }
 
-  async function onSubmit(data: any) {
+  async function onSubmit(data: z.infer<typeof createEventFormSchema>) {
     try {
-      const response = await fetch('/api/events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
+      // Create combined datetime strings
+      const startDateTime = new Date(`${data.startDate}T${data.startTime}`).toISOString()
+      const endDateTime = data.endDate && data.endTime 
+        ? new Date(`${data.endDate}T${data.endTime}`).toISOString()
+        : null
 
-      if (!response.ok) {
-        throw new Error('Failed to create event')
+      // Prepare event data
+      const eventData = {
+        ...data,
+        startTime: startDateTime,
+        endTime: endDateTime,
+        location: {
+          lat: data.location.lat,
+          lng: data.location.lng,
+          notificationReach: data.notificationReach
+        }
       }
 
-      const event = await response.json()
-      
+      const response = await apiRequest('POST', '/api/events', eventData)
+
       // Invalidate the events query cache to trigger a refresh
       queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] })
-      
+
       toast({
         title: "Success",
         description: "Event created successfully",
@@ -130,7 +196,7 @@ export default function CreateEventPage() {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Event Title</FormLabel>
+                  <FormLabel>Event Title *</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter event title" {...field} />
                   </FormControl>
@@ -140,7 +206,7 @@ export default function CreateEventPage() {
             />
 
             <div className="space-y-2">
-              <FormLabel>Location</FormLabel>
+              <FormLabel>Location *</FormLabel>
               <div className="h-[200px] rounded-md overflow-hidden">
                 <MapContainer
                   center={[position.lat, position.lng]}
@@ -153,8 +219,8 @@ export default function CreateEventPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <FormLabel>Category</FormLabel>
+            <div className="space-y-2 relative z-50">
+              <FormLabel>Category *</FormLabel>
               <CategoryPicker
                 onCategoryChange={(main, sub) => {
                   form.setValue("category", main)
@@ -164,13 +230,40 @@ export default function CreateEventPage() {
               <FormMessage />
             </div>
 
+            <FormField
+              control={form.control}
+              name="notificationReach"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notification Reach</FormLabel>
+                  <FormControl>
+                    <Slider
+                      min={MIN_REACH}
+                      max={MAX_REACH}
+                      step={0.1}
+                      value={[field.value]}
+                      onValueChange={(vals) => {
+                        const value = vals[0]
+                        field.onChange(value)
+                        setNotificationReach(value)
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Notification radius: {field.value} km
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="startDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Date</FormLabel>
+                    <FormLabel>Start Date *</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -184,7 +277,7 @@ export default function CreateEventPage() {
                 name="startTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Time</FormLabel>
+                    <FormLabel>Start Time *</FormLabel>
                     <FormControl>
                       <Input type="time" {...field} />
                     </FormControl>
@@ -256,8 +349,8 @@ export default function CreateEventPage() {
                 <FormItem>
                   <FormLabel>Max Participants</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
+                    <Input
+                      type="number"
                       placeholder="Enter max participants"
                       {...field}
                       onChange={e => field.onChange(parseInt(e.target.value))}
@@ -288,8 +381,8 @@ export default function CreateEventPage() {
               render={({ field }) => (
                 <FormItem className="flex items-center space-x-2">
                   <FormControl>
-                    <Input 
-                      type="checkbox" 
+                    <Input
+                      type="checkbox"
                       className="w-4 h-4"
                       checked={field.value}
                       onChange={e => field.onChange(e.target.checked)}

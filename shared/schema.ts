@@ -56,18 +56,25 @@ export const insertUserSchema = createInsertSchema(users).pick({
   googleId: true,
 });
 
+const locationSchema = z.object({
+  lat: z.number(),
+  lng: z.number(),
+  notificationReach: z.number().optional(),
+  address: z.string().optional(),
+});
+
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format");
 const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format");
 
-export const insertEventSchema = createInsertSchema(events).extend({
+const baseEventSchema = createInsertSchema(events);
+
+export const insertEventSchema = z.object({
+  ...baseEventSchema.shape,
   startDate: dateSchema,
   startTime: timeSchema,
   endDate: dateSchema.optional(),
   endTime: timeSchema.optional(),
-  location: z.object({
-    lat: z.number(),
-    lng: z.number(),
-  }),
+  location: locationSchema,
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
 }).transform((data) => {
   const start = new Date(`${data.startDate}T${data.startTime}:00`);

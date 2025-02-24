@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { Pool } from '@neondatabase/serverless';
 import {
   users,
@@ -89,7 +89,7 @@ export class PgStorage implements IStorage {
   async getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]> {
     // For now, return all events since we need PostGIS for proper radius search
     // TODO: Add PostGIS extension and implement proper radius search
-    const allEvents = await this.db.select().from(events);
+    const allEvents = await this.db.select().from(events).orderBy(desc(events.startTime));
     return allEvents.filter(event => {
       const eventLoc = event.location as { lat: number; lng: number };
       const distance = this.calculateDistance(lat, lng, eventLoc.lat, eventLoc.lng);
@@ -123,7 +123,7 @@ export class PgStorage implements IStorage {
       })
       .from(favorites)
       .where(eq(favorites.userId, userId))
-      .leftJoin(events, eq(events.id, favorites.eventId));
+      .innerJoin(events, eq(events.id, favorites.eventId));
 
     return result.map(r => r.event);
   }
@@ -150,7 +150,7 @@ export class PgStorage implements IStorage {
       })
       .from(participants)
       .where(eq(participants.eventId, eventId))
-      .leftJoin(users, eq(users.id, participants.userId));
+      .innerJoin(users, eq(users.id, participants.userId));
 
     return result.map(r => r.user);
   }

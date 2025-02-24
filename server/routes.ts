@@ -61,9 +61,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         radius: req.query.radius,
       });
 
+      console.log('Searching for events:', { lat, lng, radius });
       const events = await storage.getEventsByRadius(lat, lng, radius);
+      console.log('Found events:', events);
       res.json(events);
     } catch (error) {
+      console.error('Error in /api/events/nearby:', error);
       if (error instanceof z.ZodError) {
         res.status(400).json({ message: error.errors });
       } else {

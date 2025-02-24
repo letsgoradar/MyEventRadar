@@ -45,7 +45,7 @@ export default function MapView() {
     }
   }, []);
 
-  const { data: events } = useQuery<Event[]>({
+  const { data: events, error } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", userLocation.lat, userLocation.lng, searchRadius],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -53,13 +53,20 @@ export default function MapView() {
         lng: userLocation.lng.toString(),
         radius: searchRadius.toString(),
       });
+      console.log('Fetching events with params:', params.toString());
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('Received events:', data);
+      return data;
     },
   });
+
+  if (error) {
+    console.error('Error fetching events:', error);
+  }
 
   return (
     <div className="relative h-[calc(100vh-8rem)]">

@@ -1,11 +1,10 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertEventSchema, insertParticipantSchema, insertSavedSearchSchema } from "@shared/schema";
 import { z } from "zod";
 import { log } from "./vite";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express): Promise<void> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -166,7 +165,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Internal server error" });
     }
   });
-
-  const httpServer = createServer(app);
-  return httpServer;
 }

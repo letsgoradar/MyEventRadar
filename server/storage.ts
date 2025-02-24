@@ -52,8 +52,38 @@ export class PgStorage implements IStorage {
   private db;
 
   constructor() {
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+    const pool = new Pool({ 
+      connectionString: process.env.DATABASE_URL!,
+      connectionTimeoutMillis: 5000
+    });
     this.db = drizzle(pool);
+  }
+
+  async createEvent(insertEvent: InsertEvent): Promise<Event> {
+    try {
+      console.log('Creating event with data:', insertEvent);
+      const eventData = {
+        title: insertEvent.title,
+        description: insertEvent.description,
+        location: insertEvent.location,
+        startTime: new Date(insertEvent.startTime),
+        endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
+        category: insertEvent.category,
+        subcategory: insertEvent.subcategory || null,
+        isPaid: insertEvent.isPaid || false,
+        price: insertEvent.price || null,
+        hostId: insertEvent.hostId,
+        recurrence: insertEvent.recurrence || 'once',
+      };
+
+      console.log('Formatted event data:', eventData);
+      const result = await this.db.insert(events).values(eventData).returning();
+      console.log('Created event:', result[0]);
+      return result[0];
+    } catch (error) {
+      console.error('Error creating event:', error);
+      throw error;
+    }
   }
 
   async getUser(id: number): Promise<User | undefined> {
@@ -74,29 +104,6 @@ export class PgStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const result = await this.db.insert(users).values(insertUser).returning();
     return result[0];
-  }
-
-  async createEvent(insertEvent: InsertEvent): Promise<Event> {
-    try {
-      const result = await this.db.insert(events).values({
-        title: insertEvent.title,
-        description: insertEvent.description,
-        location: insertEvent.location,
-        startTime: insertEvent.startTime,
-        endTime: insertEvent.endTime,
-        category: insertEvent.category,
-        subcategory: insertEvent.subcategory,
-        isPaid: insertEvent.isPaid,
-        price: insertEvent.price,
-        hostId: insertEvent.hostId,
-        maxParticipants: insertEvent.maxParticipants,
-        recurrence: insertEvent.recurrence,
-      }).returning();
-      return result[0];
-    } catch (error) {
-      console.error('Error creating event:', error);
-      throw error;
-    }
   }
 
   async getEvent(id: number): Promise<Event | undefined> {

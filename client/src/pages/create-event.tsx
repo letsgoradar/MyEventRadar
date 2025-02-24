@@ -44,7 +44,7 @@ function getNextHour() {
   return setMilliseconds(setSeconds(setMinutes(addHours(now, 1), 0), 0), 0)
 }
 
-// Create a custom validation schema for the form
+// Update form schema to properly handle notification reach
 const createEventFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string(),
@@ -67,14 +67,17 @@ const createEventFormSchema = z.object({
 });
 
 export default function CreateEventPage() {
-  const { toast } = useToast()
-  const [, setLocation] = useLocation()
-  const queryClient = useQueryClient()
-  const [position, setPosition] = useState({ lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] })
-  const [notificationReach, setNotificationReach] = useState(1) // Default 1km reach
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const [position, setPosition] = useState({ 
+    lat: DEFAULT_CENTER[0], 
+    lng: DEFAULT_CENTER[1],
+    notificationReach: 1 
+  });
 
-  const nextHour = getNextHour()
-  const defaultEndTime = addHours(nextHour, 1)
+  const nextHour = getNextHour();
+  const defaultEndTime = addHours(nextHour, 1);
 
   const form = useForm<z.infer<typeof createEventFormSchema>>({
     resolver: zodResolver(createEventFormSchema),
@@ -98,7 +101,7 @@ export default function CreateEventPage() {
       recurrence: "once",
       hostId: 1, // This will be replaced with actual user ID when auth is implemented
     },
-  })
+  });
 
   // Get user's location on component mount
   useEffect(() => {
@@ -108,40 +111,51 @@ export default function CreateEventPage() {
           const newPos = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-            notificationReach: 1,
-          }
-          setPosition(newPos)
-          form.setValue("location", newPos)
+            notificationReach: form.getValues().location.notificationReach || 1,
+          };
+          setPosition(newPos);
+          form.setValue("location", newPos);
         },
         (error) => {
-          console.error("Error getting location:", error)
-          // Keep default Netherlands center if geolocation fails
+          console.error("Error getting location:", error);
+          toast({
+            title: "Location Access Error",
+            description: "Could not access your location. Using default location.",
+            variant: "destructive",
+          });
         }
-      )
+      );
     }
-  }, [])
+  }, []);
+
+  // Update position and notification reach when the map is clicked or slider changes
+  const updateLocation = (newLocation: { lat: number; lng: number }) => {
+    const currentReach = form.getValues().location.notificationReach;
+    const newPos = {
+      ...newLocation,
+      notificationReach: currentReach,
+    };
+    setPosition(newPos);
+    form.setValue("location", newPos);
+  };
 
   function LocationMarker() {
     useMapEvents({
       click(e) {
-        const newPos = {
-          ...e.latlng,
-          notificationReach: form.getValues().location.notificationReach,
-        }
-        setPosition(newPos)
-        form.setValue("location", newPos)
+        updateLocation(e.latlng);
       },
-    })
+    });
+
     return (
       <>
         <Marker position={position} />
         <Circle
           center={position}
-          radius={notificationReach * 1000} // Convert km to meters
+          radius={position.notificationReach * 1000}
           pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.2 }}
         />
       </>
-    )
+    );
   }
 
   async function onSubmit(data: z.infer<typeof createEventFormSchema>) {
@@ -266,7 +280,7 @@ export default function CreateEventPage() {
                       onValueChange={(vals) => {
                         const value = vals[0]
                         field.onChange(value)
-                        setNotificationReach(value)
+                        setPosition({...position, notificationReach: value}) // Update position directly
                       }}
                     />
                   </FormControl>

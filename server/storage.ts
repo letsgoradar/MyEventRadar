@@ -1,6 +1,6 @@
+import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq, and, desc } from 'drizzle-orm';
-import { Pool } from '@neondatabase/serverless';
 import {
   users,
   events,
@@ -18,6 +18,7 @@ import {
   type SavedSearch,
   type InsertSavedSearch,
 } from "@shared/schema";
+import { db } from './db';
 
 export interface IStorage {
   // User operations
@@ -49,30 +50,8 @@ export interface IStorage {
 }
 
 export class PgStorage implements IStorage {
-  private db;
-  private pool;
   private retryCount = 0;
   private maxRetries = 3;
-
-  constructor() {
-    this.initializeDatabase();
-  }
-
-  private initializeDatabase() {
-    try {
-      this.pool = new Pool({ 
-        connectionString: process.env.DATABASE_URL!,
-        connectionTimeoutMillis: 5000,
-        max: 20,
-        idleTimeoutMillis: 30000
-      });
-
-      this.db = drizzle(this.pool);
-    } catch (error) {
-      console.error('Failed to initialize database:', error);
-      throw error;
-    }
-  }
 
   private async withRetry<T>(operation: () => Promise<T>): Promise<T> {
     try {
@@ -95,7 +74,6 @@ export class PgStorage implements IStorage {
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
     return this.withRetry(async () => {
       try {
-        console.log('Creating event with data:', insertEvent);
         const eventData = {
           title: insertEvent.title,
           description: insertEvent.description,
@@ -110,10 +88,8 @@ export class PgStorage implements IStorage {
           recurrence: insertEvent.recurrence,
         };
 
-        console.log('Formatted event data:', eventData);
-        const result = await this.db.insert(events).values(eventData).returning();
-        console.log('Created event:', result[0]);
-        return result[0];
+        const [result] = await db.insert(events).values(eventData).returning();
+        return result;
       } catch (error) {
         console.error('Error creating event:', error);
         throw error;
@@ -123,44 +99,42 @@ export class PgStorage implements IStorage {
 
   async getUser(id: number): Promise<User | undefined> {
     return this.withRetry(async () => {
-      const result = await this.db.select().from(users).where(eq(users.id, id));
-      return result[0];
+      const [result] = await db.select().from(users).where(eq(users.id, id));
+      return result;
     });
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     return this.withRetry(async () => {
-      const result = await this.db.select().from(users).where(eq(users.username, username));
-      return result[0];
+      const [result] = await db.select().from(users).where(eq(users.username, username));
+      return result;
     });
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     return this.withRetry(async () => {
-      const result = await this.db.select().from(users).where(eq(users.email, email));
-      return result[0];
+      const [result] = await db.select().from(users).where(eq(users.email, email));
+      return result;
     });
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     return this.withRetry(async () => {
-      const result = await this.db.insert(users).values(insertUser).returning();
-      return result[0];
+      const [result] = await db.insert(users).values(insertUser).returning();
+      return result;
     });
   }
 
   async getEvent(id: number): Promise<Event | undefined> {
     return this.withRetry(async () => {
-      const result = await this.db.select().from(events).where(eq(events.id, id));
-      return result[0];
+      const [result] = await db.select().from(events).where(eq(events.id, id));
+      return result;
     });
   }
 
   async getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]> {
     return this.withRetry(async () => {
-      // For now, return all events since we need PostGIS for proper radius search
-      // TODO: Add PostGIS extension and implement proper radius search
-      const allEvents = await this.db.select().from(events).orderBy(desc(events.startTime));
+      const allEvents = await db.select().from(events).orderBy(desc(events.startTime));
       return allEvents.filter(event => {
         const eventLoc = event.location as { lat: number; lng: number };
         const distance = this.calculateDistance(lat, lng, eventLoc.lat, eventLoc.lng);
@@ -171,20 +145,20 @@ export class PgStorage implements IStorage {
 
   async getEventsByHost(hostId: number): Promise<Event[]> {
     return this.withRetry(async () => {
-      return this.db.select().from(events).where(eq(events.hostId, hostId));
+      return db.select().from(events).where(eq(events.hostId, hostId));
     });
   }
 
   async addFavorite(insertFavorite: InsertFavorite): Promise<Favorite> {
     return this.withRetry(async () => {
-      const result = await this.db.insert(favorites).values(insertFavorite).returning();
-      return result[0];
+      const [result] = await db.insert(favorites).values(insertFavorite).returning();
+      return result;
     });
   }
 
   async removeFavorite(userId: number, eventId: number): Promise<void> {
     return this.withRetry(async () => {
-      await this.db.delete(favorites)
+      await db.delete(favorites)
         .where(
           and(
             eq(favorites.userId, userId),
@@ -196,7 +170,7 @@ export class PgStorage implements IStorage {
 
   async getFavoritesByUser(userId: number): Promise<Event[]> {
     return this.withRetry(async () => {
-      const result = await this.db
+      const result = await db
         .select({
           event: events
         })
@@ -210,14 +184,14 @@ export class PgStorage implements IStorage {
 
   async addParticipant(insertParticipant: InsertParticipant): Promise<Participant> {
     return this.withRetry(async () => {
-      const result = await this.db.insert(participants).values(insertParticipant).returning();
-      return result[0];
+      const [result] = await db.insert(participants).values(insertParticipant).returning();
+      return result;
     });
   }
 
   async removeParticipant(userId: number, eventId: number): Promise<void> {
     return this.withRetry(async () => {
-      await this.db.delete(participants)
+      await db.delete(participants)
         .where(
           and(
             eq(participants.userId, userId),
@@ -229,7 +203,7 @@ export class PgStorage implements IStorage {
 
   async getEventParticipants(eventId: number): Promise<User[]> {
     return this.withRetry(async () => {
-      const result = await this.db
+      const result = await db
         .select({
           user: users
         })
@@ -243,20 +217,20 @@ export class PgStorage implements IStorage {
 
   async saveSavedSearch(insertSearch: InsertSavedSearch): Promise<SavedSearch> {
     return this.withRetry(async () => {
-      const result = await this.db.insert(savedSearches).values(insertSearch).returning();
-      return result[0];
+      const [result] = await db.insert(savedSearches).values(insertSearch).returning();
+      return result;
     });
   }
 
   async getSavedSearchesByUser(userId: number): Promise<SavedSearch[]> {
     return this.withRetry(async () => {
-      return this.db.select().from(savedSearches).where(eq(savedSearches.userId, userId));
+      return db.select().from(savedSearches).where(eq(savedSearches.userId, userId));
     });
   }
 
   async removeSavedSearch(id: number): Promise<void> {
     return this.withRetry(async () => {
-      await this.db.delete(savedSearches).where(eq(savedSearches.id, id));
+      await db.delete(savedSearches).where(eq(savedSearches.id, id));
     });
   }
 

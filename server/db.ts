@@ -1,15 +1,8 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import WebSocket from 'ws';
+import pg from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 
-// Configure WebSocket globally before any other initialization
-if (!globalThis.WebSocket) {
-  globalThis.WebSocket = WebSocket as any;
-}
-
-// Configure neon to use WebSocket
-neonConfig.webSocketConstructor = WebSocket;
+const { Pool } = pg;
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
@@ -18,6 +11,9 @@ if (!process.env.DATABASE_URL) {
 // Create a new pool with keepAlive disabled and timeout
 const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  },
   connectionTimeoutMillis: 5000,
   max: 20,
   idleTimeoutMillis: 30000

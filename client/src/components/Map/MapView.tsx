@@ -55,9 +55,11 @@ export default function MapView({ filters }: MapViewProps) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
+          console.log('User location set to:', [position.coords.latitude, position.coords.longitude]);
         },
-        () => {
-          // Keep default Oss center on error
+        (error) => {
+          console.error("Location error:", error);
+          // Keep default Oss center
           setMapReady(true);
         }
       );
@@ -65,9 +67,14 @@ export default function MapView({ filters }: MapViewProps) {
     setMapReady(true);
   }, []);
 
-  const { data: events, isLoading } = useQuery<Event[]>({
+  const { data: events, isLoading, error } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", filters],
     queryFn: async () => {
+      console.log('Fetching events with params:', {
+        location: userLocation,
+        radius: filters.useDistanceFilter ? filters.distanceRadius : 10
+      });
+
       const params = new URLSearchParams({
         lat: userLocation[0].toString(),
         lng: userLocation[1].toString(),
@@ -78,34 +85,52 @@ export default function MapView({ filters }: MapViewProps) {
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('Received events from API:', data);
+      return data;
     },
     enabled: mapReady,
   });
 
-  if (isLoading) return <div>Loading map...</div>;
-
   const filteredEvents = events?.filter(event => {
+    console.log('Processing event:', event.title, {
+      coordinates: [event.latitude, event.longitude],
+      date: new Date(event.startTime)
+    });
+
     // Validate coordinates
-    if (!event.latitude || !event.longitude) return false;
+    if (!event.latitude || !event.longitude) {
+      console.log('Event skipped - invalid coordinates:', event.title);
+      return false;
+    }
 
     const eventDate = new Date(event.startTime);
 
     // Apply date range filter
-    if (eventDate < filters.fromDate || eventDate > filters.toDate) return false;
+    if (eventDate < filters.fromDate || eventDate > filters.toDate) {
+      console.log('Event skipped - outside date range:', event.title);
+      return false;
+    }
 
     // Apply search filter
     if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
+      console.log('Event skipped - search mismatch:', event.title);
       return false;
     }
 
     // Apply category filter
-    if (filters.category && event.category !== filters.category) return false;
+    if (filters.category && event.category !== filters.category) {
+      console.log('Event skipped - category mismatch:', event.title);
+      return false;
+    }
 
     // Apply paid events filter
-    if (filters.showPaidEvents && !event.isPaid) return false;
+    if (filters.showPaidEvents && !event.isPaid) {
+      console.log('Event skipped - not paid:', event.title);
+      return false;
+    }
 
-    // Apply distance filter
+    // Apply distance filter if enabled
     if (filters.useDistanceFilter) {
       const distance = calculateDistance(
         userLocation[0],
@@ -113,11 +138,20 @@ export default function MapView({ filters }: MapViewProps) {
         Number(event.latitude),
         Number(event.longitude)
       );
-      if (distance > filters.distanceRadius) return false;
+      if (distance > filters.distanceRadius) {
+        console.log('Event skipped - too far:', event.title, distance.toFixed(1), 'km');
+        return false;
+      }
     }
 
+    console.log('Event passed all filters:', event.title);
     return true;
   });
+
+  if (isLoading) return <div>Loading map...</div>;
+  if (error) return <div>Error loading events</div>;
+
+  console.log('Showing filtered events:', filteredEvents?.length);
 
   return (
     <div className="h-[calc(100vh-8rem)]">
@@ -138,10 +172,15 @@ export default function MapView({ filters }: MapViewProps) {
 
         {/* Event markers */}
         {filteredEvents?.map(event => {
+          // Parse coordinates as numbers
           const latitude = Number(event.latitude);
           const longitude = Number(event.longitude);
 
-          if (isNaN(latitude) || isNaN(longitude)) return null;
+          // Skip invalid coordinates
+          if (isNaN(latitude) || isNaN(longitude)) {
+            console.error('Invalid coordinates for event:', event.title);
+            return null;
+          }
 
           return (
             <Marker

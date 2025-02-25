@@ -72,30 +72,37 @@ export class PgStorage implements IStorage {
   }
 
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
-    try {
-      const eventData = {
-        title: insertEvent.title,
-        description: insertEvent.description,
-        latitude: insertEvent.location.lat.toString(),
-        longitude: insertEvent.location.lng.toString(),
-        notificationReach: insertEvent.location.notificationReach.toString(),
-        startTime: new Date(insertEvent.startTime),
-        endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
-        category: insertEvent.category,
-        subcategory: insertEvent.subcategory || null,
-        isPaid: insertEvent.isPaid || false,
-        price: insertEvent.price || null,
-        maxParticipants: insertEvent.maxParticipants || null,
-        hostId: insertEvent.hostId,
-        recurrence: insertEvent.recurrence,
-      };
+    return this.withRetry(async () => {
+      try {
+        const eventData = {
+          title: insertEvent.title,
+          description: insertEvent.description,
+          latitude: insertEvent.location.lat.toString(),
+          longitude: insertEvent.location.lng.toString(),
+          notificationReach: insertEvent.location.notificationReach.toString(),
+          startTime: new Date(insertEvent.startTime),
+          endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
+          category: insertEvent.category,
+          subcategory: insertEvent.subcategory || null,
+          isPaid: insertEvent.isPaid || false,
+          price: insertEvent.price || null,
+          maxParticipants: insertEvent.maxParticipants || null,
+          hostId: insertEvent.hostId,
+          recurrence: insertEvent.recurrence,
+        };
 
-      const [result] = await db.insert(events).values(eventData).returning();
-      return result;
-    } catch (error) {
-      console.error('Error creating event:', error);
-      throw error;
-    }
+        console.log('Creating event with data:', eventData);
+
+        const [result] = await db.insert(events).values(eventData).returning();
+
+        console.log('Created event result:', result);
+
+        return result;
+      } catch (error) {
+        console.error('Error creating event:', error);
+        throw error;
+      }
+    });
   }
 
   async getUser(id: number): Promise<User | undefined> {
@@ -135,13 +142,27 @@ export class PgStorage implements IStorage {
 
   async getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]> {
     try {
+      console.log('Fetching events with params:', { lat, lng, radius });
       const result = await db.select().from(events);
-      return result.map(event => ({
-        ...event,
-        latitude: parseFloat(event.latitude),
-        longitude: parseFloat(event.longitude),
-        notificationReach: parseFloat(event.notificationReach)
-      }));
+
+      console.log('Raw database events:', result);
+
+      // Convert coordinates to numbers consistently
+      const formattedEvents = result.map(event => {
+        const formattedEvent = {
+          ...event,
+          latitude: parseFloat(event.latitude),
+          longitude: parseFloat(event.longitude),
+          notificationReach: parseFloat(event.notificationReach)
+        };
+        console.log('Formatted event:', {
+          title: formattedEvent.title,
+          coords: [formattedEvent.latitude, formattedEvent.longitude]
+        });
+        return formattedEvent;
+      });
+
+      return formattedEvents;
     } catch (error) {
       console.error('Error fetching events:', error);
       throw error;

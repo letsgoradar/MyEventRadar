@@ -91,43 +91,17 @@ export default function MapView() {
           />
           <MapController center={userLocation} />
 
-          {events?.map((event) => {
-            const location = {
-              lat: Number(event.latitude),
-              lng: Number(event.longitude)
-            };
-            return (
-              <Marker
-                key={event.id}
-                position={[location.lat, location.lng]}
-                icon={eventIcon}
-                eventHandlers={{
-                  click: () => setSelectedEvent(event)
-                }}
-              >
-                <Popup>
-                  <div className="p-2 min-w-[200px]">
-                    <h3 className="font-bold text-lg mb-2">{event.title}</h3>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline">{event.category}</Badge>
-                      {event.subcategory && (
-                        <Badge variant="outline" className="bg-slate-50">
-                          {event.subcategory}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <p>{format(new Date(event.startTime), "PPP")}</p>
-                      <p>
-                        {format(new Date(event.startTime), "h:mm a")}
-                        {event.endTime && ` - ${format(new Date(event.endTime), "h:mm a")}`}
-                      </p>
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          })}
+          {events?.map((event) => (
+            <Marker
+              key={event.id}
+              position={[Number(event.latitude), Number(event.longitude)]}
+              icon={eventIcon}
+              eventHandlers={{
+                click: () => setSelectedEvent(event)
+              }}
+            >
+            </Marker>
+          ))}
         </MapContainer>
       </div>
 

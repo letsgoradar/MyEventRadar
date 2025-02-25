@@ -11,8 +11,7 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event, onSelect }: EventCardProps) {
-  const location = event.location as { lat: number; lng: number; address?: string; notificationReach: number };
-  const locationText = location.address || `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+  const locationText = `${Number(event.latitude).toFixed(4)}, ${Number(event.longitude).toFixed(4)}`;
 
   return (
     <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onSelect?.(event)}>
@@ -31,7 +30,7 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
           </div>
           {event.isPaid && event.price && (
             <Badge variant="secondary" className="text-lg">
-              €{event.price}
+              €{Number(event.price).toFixed(2)}
             </Badge>
           )}
         </div>
@@ -43,7 +42,7 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
             <div>
               <span className="text-sm">{locationText}</span>
               <span className="text-sm text-gray-500 block">
-                Notification radius: {location.notificationReach}km
+                Notification radius: {Number(event.notificationReach)}km
               </span>
             </div>
           </div>

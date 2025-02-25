@@ -4,14 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Event } from "@shared/schema";
+import { useEffect } from 'react';
 
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 const RADIUS = 10;
 
-// Create icon outside component
+// Create icon using a simpler approach
 const eventIcon = L.icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
@@ -29,12 +30,26 @@ export default function MapView() {
     },
   });
 
+  // Debug logging
+  useEffect(() => {
+    console.log('Current events:', events);
+    events.forEach(event => {
+      console.log(`Event ${event.id}: [${event.latitude}, ${event.longitude}]`);
+    });
+  }, [events]);
+
   return (
-    <div className="h-[calc(100vh-8rem)] w-full">
+    <div className="h-[calc(100vh-8rem)] w-full relative">
+      {/* Debug info */}
+      <div className="absolute top-0 right-0 z-[1000] bg-white p-2 text-xs">
+        Events loaded: {events.length}
+      </div>
+      
       <MapContainer
         center={DEFAULT_CENTER}
-        zoom={12}
-        className="h-full w-full"
+        zoom={13}
+        scrollWheelZoom={true}
+        style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

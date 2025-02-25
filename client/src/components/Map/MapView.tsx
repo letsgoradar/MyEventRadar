@@ -104,25 +104,16 @@ export default function MapView({ filters }: MapViewProps) {
 
   // Display events with valid coordinates
   const validEvents = events.filter(event => {
-    const lat = Number(event.latitude);
-    const lng = Number(event.longitude);
-
-    const isValid = !isNaN(lat) && !isNaN(lng);
-
-    if (!isValid) {
-      console.log('Invalid coordinates for event:', {
-        title: event.title,
-        latitude: event.latitude,
-        longitude: event.longitude
-      });
-    } else {
-      console.log('Valid event coordinates:', {
-        title: event.title,
-        coordinates: [lat, lng]
-      });
+    // Check if event has location property
+    if (!event.location) {
+      const lat = Number(event.latitude);
+      const lng = Number(event.longitude);
+      return !isNaN(lat) && !isNaN(lng);
     }
-
-    return isValid;
+    
+    // Handle location object structure
+    const location = event.location as { lat: number; lng: number };
+    return !isNaN(location.lat) && !isNaN(location.lng);
   });
 
   console.log('Total valid events:', validEvents.length);
@@ -146,19 +137,20 @@ export default function MapView({ filters }: MapViewProps) {
 
         {/* Event markers */}
         {validEvents.map(event => {
-          const lat = Number(event.latitude);
-          const lng = Number(event.longitude);
+          const coordinates = event.location 
+            ? [event.location.lat, event.location.lng]
+            : [Number(event.latitude), Number(event.longitude)];
 
           console.log('Adding marker for event:', {
             id: event.id,
             title: event.title,
-            position: [lat, lng]
+            position: coordinates
           });
 
           return (
             <Marker
               key={event.id}
-              position={[lat, lng]}
+              position={coordinates as [number, number]}
               icon={eventIcon}
             >
               <Popup>

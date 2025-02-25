@@ -96,7 +96,7 @@ export function EventList() {
 
   return (
     <div className="p-4 space-y-4 overflow-auto max-h-[calc(100vh-16rem)]">
-      {events?.map(async (event) => {
+      {events?.map((event) => {
         const eventCoords = event.location 
           ? [event.location.lat, event.location.lng] 
           : [Number(event.latitude), Number(event.longitude)];
@@ -108,7 +108,7 @@ export function EventList() {
           eventCoords[1]
         );
 
-        const city = await getGeocodedCity(eventCoords[0], eventCoords[1]);
+        const city = getGeocodedCity(eventCoords[0], eventCoords[1]); //removed await
         const locationDisplay = city ? `${event.location?.locationName || 'Location not specified'}, ${city}` : event.location?.locationName || 'Location not specified';
 
         return (
@@ -117,7 +117,7 @@ export function EventList() {
               <div>
                 <h3 className="font-bold">{event.title}</h3>
                 <div className="text-sm text-muted-foreground mt-2">
-                  <p>{locationDisplay}</p>
+                  <p>{event.location?.locationName || 'Location not specified'}</p>
                   <p>{format(new Date(event.startTime), 'PPP')}</p>
                   <p>{event.category}</p>
                   {event.isPaid && <p>Price: €{event.price}</p>}

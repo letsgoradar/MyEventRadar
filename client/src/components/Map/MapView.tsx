@@ -1,5 +1,6 @@
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import "./leaflet-fix.css"; // This line is added
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
 
@@ -17,7 +18,6 @@ export default function MapView() {
         lng: DEFAULT_CENTER[1].toString(),
         radius: "10", // 10km radius
       });
-      console.log('Fetching events with params:', params.toString());
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch events');
@@ -28,15 +28,14 @@ export default function MapView() {
     },
   });
 
-  console.log('Current events data:', events);
-
   return (
     <div className="relative h-[calc(100vh-8rem)]">
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 z-0">
         <MapContainer
           center={DEFAULT_CENTER}
           zoom={DEFAULT_ZOOM}
           className="h-full w-full"
+          style={{ zIndex: 0 }}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

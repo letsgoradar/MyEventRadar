@@ -92,9 +92,7 @@ export class PgStorage implements IStorage {
         };
 
         console.log('Creating event with data:', eventData);
-
         const [result] = await db.insert(events).values(eventData).returning();
-
         console.log('Created event result:', result);
 
         return result;

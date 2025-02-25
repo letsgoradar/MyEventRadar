@@ -89,31 +89,33 @@ const testEvents: Event[] = [
   }
 ];
 
-export default function MapView({ filters }: MapViewProps) {
-  // Default to Oss center
+export default function MapView() {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
+  const mapRef = useRef<any>(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
-          console.log('Set user location:', [position.coords.latitude, position.coords.longitude]);
+          const newLocation: [number, number] = [position.coords.latitude, position.coords.longitude];
+          setUserLocation(newLocation);
+          mapRef.current?.setView(newLocation, 13);
+          console.log('Set user location:', newLocation);
         },
-        () => {
-          console.log('Using default location (Oss):', userLocation);
+        (error) => {
+          console.error('Geolocation error:', error);
         }
       );
     }
   }, []);
 
   const { data: apiEvents } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", filters, userLocation],
+    queryKey: ["/api/events/nearby", userLocation],
     queryFn: async () => {
       const params = new URLSearchParams({
         lat: userLocation[0].toString(),
         lng: userLocation[1].toString(),
-        radius: filters.useDistanceFilter ? filters.distanceRadius.toString() : "10",
+        radius: "50", // Large radius to show all events
       });
 
       console.log('Fetching nearby events:', Object.fromEntries(params));
@@ -160,6 +162,7 @@ export default function MapView({ filters }: MapViewProps) {
         center={userLocation}
         zoom={13}
         className="h-full w-full"
+        ref={mapRef}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

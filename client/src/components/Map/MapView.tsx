@@ -1,5 +1,5 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useQuery } from "@tanstack/react-query";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import React, { useState, useEffect } from 'react';
@@ -36,52 +36,24 @@ const getCategoryColor = (category: string): string => {
   return categoryColors[category.toLowerCase()] || categoryColors.other;
 };
 
-// Custom icon creator function
+// Function to create event icon
 const createEventIcon = (category: string) => {
   const color = getCategoryColor(category);
   return L.divIcon({
     className: 'custom-icon',
-    html: `<div class="w-4 h-4 rounded-full border-2 border-white" style="background-color: ${color};"></div>`
+    html: `<div class="w-6 h-6 rounded-full border-2 border-white shadow-lg" style="background-color: ${color};"></div>`
   });
 };
 
-// Interactive Legend Component
-const MapLegend = ({ onToggleCategory, activeCategories }: {
-  onToggleCategory: (category: string) => void;
-  activeCategories: Set<string>;
-}) => {
-  return (
-    <div className="absolute bottom-4 right-4 bg-white p-3 rounded-lg shadow-md z-[1000]">
-      <h4 className="text-sm font-bold mb-2">Filter by Category</h4>
-      <div className="grid gap-2">
-        {Object.entries(categoryColors).map(([category, color]) => {
-          const isActive = activeCategories.has(category);
-          return (
-            <button
-              key={category}
-              onClick={() => onToggleCategory(category)}
-              className={`flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 transition-colors
-                ${isActive ? 'opacity-100' : 'opacity-50'}`}
-            >
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: color }}
-              />
-              <span className="text-xs capitalize">{category}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// Function to create compass needle SVG with pin
+// Function to create location arrow with direction
 const createCompassNeedleIcon = (heading: number = 0) => {
   const svg = `
     <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path transform="rotate(${heading} 16 16)" d="M16 4L19 28L16 25L13 28L16 4Z" fill="#4285F4"/>
-      <circle cx="16" cy="16" r="2" fill="#4285F4"/>
+      <g transform="rotate(${heading} 16 16)">
+        <path d="M16 4L20 14L16 28L12 14L16 4Z" fill="#4285F4"/>
+        <path d="M16 4L20 14L16 12L12 14L16 4Z" fill="#5C9FFF"/>
+        <circle cx="16" cy="14" r="2" fill="white"/>
+      </g>
     </svg>
   `;
 
@@ -161,6 +133,38 @@ function LocationMarker() {
     </Marker>
   );
 }
+
+// Interactive Legend Component
+const MapLegend = ({ onToggleCategory, activeCategories }: {
+  onToggleCategory: (category: string) => void;
+  activeCategories: Set<string>;
+}) => {
+  return (
+    <div className="absolute bottom-4 right-4 bg-white p-3 rounded-lg shadow-md z-[1000]">
+      <h4 className="text-sm font-bold mb-2">Filter by Category</h4>
+      <div className="grid gap-2">
+        {Object.entries(categoryColors).map(([category, color]) => {
+          const isActive = activeCategories.has(category);
+          return (
+            <button
+              key={category}
+              onClick={() => onToggleCategory(category)}
+              className={`flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 transition-colors
+                ${isActive ? 'opacity-100' : 'opacity-50'}`}
+            >
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-xs capitalize">{category}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 
 export default function MapView({ filters }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]); // Default to Oss

@@ -51,8 +51,8 @@ export function EventList() {
   return (
     <div className="p-4 space-y-4 overflow-auto max-h-[calc(100vh-16rem)]">
       {events.map((event) => {
-        const location = event.location as { lat: number; lng: number; address?: string };
-        const locationText = location.address || `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+        const location = event.location as { lat: number; lng: number; locationName?: string };
+        const locationText = location.locationName || `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
 
         return (
           <Card key={event.id}>

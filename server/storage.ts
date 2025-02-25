@@ -80,7 +80,6 @@ export class PgStorage implements IStorage {
           latitude: insertEvent.location.lat,
           longitude: insertEvent.location.lng,
           notificationReach: insertEvent.location.notificationReach,
-          address: insertEvent.location.address || null,
           startTime: new Date(insertEvent.startTime),
           endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
           category: insertEvent.category,
@@ -101,7 +100,6 @@ export class PgStorage implements IStorage {
             lat: Number(result.latitude),
             lng: Number(result.longitude),
             notificationReach: Number(result.notificationReach),
-            address: result.address || undefined,
           },
         };
       } catch (error) {

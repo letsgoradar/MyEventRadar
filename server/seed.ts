@@ -9,7 +9,7 @@ async function seedEvents() {
         lat: 51.7656, 
         lng: 5.5314,
         notificationReach: 5,
-        address: "Centrum Oss"
+        locationName: "Centrum Oss"
       },
       startTime: new Date("2024-07-15T14:00:00"),
       endTime: new Date("2024-07-15T23:00:00"),

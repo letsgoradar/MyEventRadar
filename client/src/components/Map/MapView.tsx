@@ -48,7 +48,8 @@ const testEvents: Event[] = [
     price: "15.00",
     hostId: 1,
     maxParticipants: 1000,
-    recurrence: "once"
+    recurrence: "once",
+    locationName: "Centrum Oss" // Added locationName
   }
 ];
 
@@ -165,6 +166,7 @@ export default function MapView({ filters }: MapViewProps) {
                 <p>{event.description}</p>
                 <p>Category: {event.category}</p>
                 {event.isPaid && <p>Price: €{event.price}</p>}
+                {event.locationName && <p>Location: {event.locationName}</p>} {/* Added locationName to popup */}
               </Popup>
             </Marker>
           );

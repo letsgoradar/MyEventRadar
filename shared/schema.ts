@@ -62,7 +62,7 @@ const locationSchema = z.object({
   lat: z.number(),
   lng: z.number(),
   notificationReach: z.number(),
-  address: z.string().optional(),
+  locationName: z.string().optional(),
 });
 
 export const insertEventSchema = z.object({

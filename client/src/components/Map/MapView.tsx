@@ -5,16 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
 import LocationPin from "./LocationPin";
 import EventOverlay from "./EventOverlay";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import L from "leaflet";
 
 interface Location {
   lat: number;
   lng: number;
-}
-
-interface MapViewProps {
-  filters: Array<{ key: string; value: string }>;
 }
 
 // Define custom icon for events
@@ -33,61 +29,44 @@ function MapController({ center }: { center: Location }) {
   return null;
 }
 
-export default function MapView({ filters }: MapViewProps) {
+export default function MapView() {
   const [userLocation, setUserLocation] = useState<Location>({ lat: 51.9225, lng: 4.47917 }); // Default to Rotterdam
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [searchRadius, setSearchRadius] = useState(10); // 10km radius
 
   useEffect(() => {
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        }
-      );
+      navigator.geolocation.getCurrentPosition((position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      });
     }
   }, []);
 
-  const { data: events } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", userLocation.lat, userLocation.lng, searchRadius, filters],
+  const { data: events, error } = useQuery<Event[]>({
+    queryKey: ["/api/events/nearby", userLocation.lat, userLocation.lng, searchRadius],
     queryFn: async () => {
       const params = new URLSearchParams({
         lat: userLocation.lat.toString(),
         lng: userLocation.lng.toString(),
         radius: searchRadius.toString(),
       });
+      console.log('Fetching events with params:', params.toString());
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('Received events:', data);
+      return data;
     },
   });
 
-  // Filter events based on active filters
-  const filteredEvents = events?.filter(event => {
-    return filters.every(filter => {
-      switch (filter.key) {
-        case 'search':
-          return event.title.toLowerCase().includes(filter.value.toLowerCase()) ||
-                 event.description.toLowerCase().includes(filter.value.toLowerCase());
-        case 'category':
-          return event.category === filter.value || event.subcategory === filter.value;
-        case 'date': {
-          const filterDate = new Date(filter.value);
-          const eventDate = new Date(event.startTime);
-          return isSameDay(filterDate, eventDate);
-        }
-        case 'paid':
-          return event.isPaid === (filter.value === 'true');
-        default:
-          return true;
-      }
-    });
-  });
+  if (error) {
+    console.error('Error fetching events:', error);
+  }
 
   return (
     <div className="relative h-[calc(100vh-8rem)]">
@@ -113,7 +92,7 @@ export default function MapView({ filters }: MapViewProps) {
           pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.1 }}
         />
 
-        {filteredEvents?.map((event) => {
+        {events?.map((event) => {
           const location = event.location as { lat: number; lng: number };
           return (
             <Marker

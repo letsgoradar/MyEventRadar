@@ -4,6 +4,7 @@ import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
 import LocationMarker from './LocationMarker';
 import type { Event } from "@shared/schema";
+import { DialogDescription } from "@/components/ui/dialog";
 
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 const RADIUS = 10;
@@ -42,6 +43,7 @@ function MapView() {
           icon={blueIcon}
         >
           <Popup>
+            <DialogDescription>Event details</DialogDescription>
             <div className="text-sm">
               <h3 className="font-bold">{event.title}</h3>
               <p>{event.description}</p>

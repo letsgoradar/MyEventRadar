@@ -21,16 +21,14 @@ interface MapViewProps {
   filters: FilterProps;
 }
 
-// Category colors mapping
+// Category colors mapping - Updated to pastel palette
 const categoryColors: { [key: string]: string } = {
-  'festival': '#FF6B6B',   // Coral Red
-  'sport': '#4ECDC4',      // Turquoise
-  'music': '#45B7D1',      // Sky Blue
-  'food': '#96CEB4',       // Sage Green
-  'culture': '#9B59B6',    // Purple
-  'education': '#3498DB',  // Blue
-  'networking': '#F1C40F', // Yellow
-  'other': '#95A5A6',      // Gray
+  'festival': '#FFB5B5',   // Pastel Pink
+  'sport': '#B5E6D8',      // Pastel Mint
+  'music': '#B5D8FF',      // Pastel Blue
+  'food': '#FFE2B5',       // Pastel Orange
+  'culture': '#E2B5FF',    // Pastel Purple
+  'other': '#D9D9D9',      // Light Gray
 };
 
 // Function to get color for category

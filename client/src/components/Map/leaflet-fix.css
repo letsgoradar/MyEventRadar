@@ -62,5 +62,5 @@
 
 /* Tile styling */
 .leaflet-tile-pane {
-  filter: saturate(1.1) brightness(1.02) !important;
+  filter: saturate(0.8) brightness(1.05) contrast(0.95) !important;
 }

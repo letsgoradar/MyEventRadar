@@ -6,6 +6,7 @@ import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
 import type { Event } from "@shared/schema";
 import "leaflet/dist/leaflet.css";
+import '../Map/leaflet-fix.css';
 
 interface EventCardProps {
   event: Event;
@@ -64,7 +65,10 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
               scrollWheelZoom={false}
               attributionControl={false}
             >
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <TileLayer 
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                attribution={false}
+              />
               <Marker position={[lat, lng]} icon={miniEventIcon} />
             </MapContainer>
           </div>

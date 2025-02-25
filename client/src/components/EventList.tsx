@@ -7,7 +7,7 @@ import { MapContainer, TileLayer, Marker } from "react-leaflet"
 import type { Event } from "@shared/schema"
 import L from 'leaflet'
 import "leaflet/dist/leaflet.css"
-import axios from 'axios'; // Added for geocoding
+import "./Map/leaflet-fix.css"
 
 // Custom icon for the mini map marker
 const miniEventIcon = new L.Icon({
@@ -124,11 +124,23 @@ export function EventList() {
                 </div>
               </div>
               <div className="relative h-32 bg-muted rounded">
-                <iframe
-                  className="w-full h-full rounded"
-                  frameBorder="0"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${eventCoords[1]-0.01},${eventCoords[0]-0.01},${eventCoords[1]+0.01},${eventCoords[0]+0.01}&layer=mapnik&marker=${eventCoords[0]},${eventCoords[1]}`}
-                />
+                <MapContainer
+                  center={eventCoords}
+                  zoom={14}
+                  className="h-full w-full rounded"
+                  zoomControl={false}
+                  dragging={false}
+                  touchZoom={false}
+                  doubleClickZoom={false}
+                  scrollWheelZoom={false}
+                  attributionControl={false}
+                >
+                  <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                    attribution={false}
+                  />
+                  <Marker position={eventCoords} icon={miniEventIcon} />
+                </MapContainer>
               </div>
             </CardContent>
           </Card>

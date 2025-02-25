@@ -18,10 +18,12 @@ const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
 const DEFAULT_ZOOM = 6; // Zoomed out to show ~175km radius
 const DEFAULT_RADIUS = 175; // 175km radius
 
-// Define custom icon for events
+// Define custom icon for events with higher z-index
 const eventIcon = L.divIcon({
   className: 'custom-event-icon',
-  html: '<div class="w-4 h-4 bg-orange-500 rounded-full border-2 border-white shadow-lg"></div>'
+  html: '<div class="w-6 h-6 bg-orange-500 rounded-full border-2 border-white shadow-lg" style="z-index: 1000;"></div>',
+  iconSize: [24, 24],
+  iconAnchor: [12, 12]
 });
 
 function MapController({ center }: { center: Location }) {
@@ -90,6 +92,7 @@ export default function MapView() {
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            zIndex={1}
           />
           <MapController center={userLocation} />
 
@@ -101,6 +104,7 @@ export default function MapView() {
               eventHandlers={{
                 click: () => setSelectedEvent(event)
               }}
+              zIndexOffset={1000}
             />
           ))}
         </MapContainer>

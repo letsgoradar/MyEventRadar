@@ -3,15 +3,27 @@ import { Calendar, MapPin, Users, Euro, Clock, Tag, RepeatIcon } from "lucide-re
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import L from "leaflet";
 import type { Event } from "@shared/schema";
+import "leaflet/dist/leaflet.css";
 
 interface EventCardProps {
   event: Event;
   onSelect?: (event: Event) => void;
 }
 
+// Define custom icon for the mini map marker
+const miniEventIcon = L.divIcon({
+  className: 'custom-event-icon',
+  html: '<div class="w-4 h-4 bg-orange-500 rounded-full border-2 border-white shadow-lg"></div>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8]
+});
+
 export default function EventCard({ event, onSelect }: EventCardProps) {
-  const locationText = `${Number(event.latitude).toFixed(4)}, ${Number(event.longitude).toFixed(4)}`;
+  const lat = Number(event.latitude);
+  const lng = Number(event.longitude);
 
   return (
     <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onSelect?.(event)}>
@@ -37,14 +49,21 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          <div className="flex items-center text-gray-600">
-            <MapPin className="h-4 w-4 mr-2" />
-            <div>
-              <span className="text-sm">{locationText}</span>
-              <span className="text-sm text-gray-500 block">
-                Notification radius: {Number(event.notificationReach)}km
-              </span>
-            </div>
+          <div className="h-[150px] rounded-md overflow-hidden border border-gray-200">
+            <MapContainer
+              center={[lat, lng]}
+              zoom={14}
+              className="h-full w-full"
+              zoomControl={false}
+              dragging={false}
+              touchZoom={false}
+              doubleClickZoom={false}
+              scrollWheelZoom={false}
+              attributionControl={false}
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <Marker position={[lat, lng]} icon={miniEventIcon} />
+            </MapContainer>
           </div>
 
           <div className="flex items-center text-gray-600">

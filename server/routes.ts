@@ -183,15 +183,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10`,
         {
           headers: {
-            'User-Agent': 'EventApp/1.0 (https://replit.com)',
+            'User-Agent': 'EventApp/1.0 (https://replit.com/@user/EventApp)',
             'Accept': 'application/json',
-            'Accept-Language': 'en'
-          }
+            'Accept-Language': 'en',
+            'Referer': 'https://replit.com'
+          },
+          timeout: 5000
         }
       );
       
       if (!response.ok) {
-        console.error("Geocoding error:", response.status, response.statusText);
+        const errorText = await response.text();
+        console.error("Geocoding error:", response.status, response.statusText, errorText);
         return res.status(500).json({ city: "Unknown location" });
       }
       

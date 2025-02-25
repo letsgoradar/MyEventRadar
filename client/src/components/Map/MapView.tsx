@@ -1,8 +1,16 @@
-import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import "./leaflet-fix.css"; // This line is added
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
+import * as L from 'leaflet';
+
+// Fix Leaflet's default icon path
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 // Set default center to Oss
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
@@ -29,27 +37,29 @@ export default function MapView() {
   });
 
   return (
-    <div className="relative h-[calc(100vh-8rem)]">
-      <div className="absolute inset-0 z-0">
-        <MapContainer
-          center={DEFAULT_CENTER}
-          zoom={DEFAULT_ZOOM}
-          className="h-full w-full"
-          style={{ zIndex: 0 }}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
+    <div className="h-[calc(100vh-8rem)]">
+      <MapContainer
+        center={DEFAULT_CENTER}
+        zoom={DEFAULT_ZOOM}
+        className="h-full w-full"
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
 
-          {events?.map((event) => (
-            <Marker
-              key={event.id}
-              position={[Number(event.latitude), Number(event.longitude)]}
-            />
-          ))}
-        </MapContainer>
-      </div>
+        {events?.map((event) => (
+          <Marker
+            key={event.id}
+            position={[Number(event.latitude), Number(event.longitude)]}
+          >
+            <Popup>
+              <h3 className="font-bold">{event.title}</h3>
+              <p>{event.description}</p>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
     </div>
   );
 }

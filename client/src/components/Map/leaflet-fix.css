@@ -41,3 +41,17 @@
   background: transparent !important;
   border: none !important;
 }
+
+/* Hide grid lines and make map cleaner */
+.leaflet-grid-hide .leaflet-grid-pane {
+  display: none !important;
+}
+
+.leaflet-control-attribution {
+  display: none !important;
+}
+
+/* Remove grid lines */
+.leaflet-tile-pane {
+  filter: saturate(0.85) brightness(1.02);
+}

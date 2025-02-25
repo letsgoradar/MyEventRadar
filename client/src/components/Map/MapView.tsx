@@ -250,11 +250,12 @@ export default function MapView({ filters }: MapViewProps) {
       <MapContainer
         center={userLocation}
         zoom={13}
-        className="h-full w-full"
+        className="h-full w-full leaflet-grid-hide"
+        attributionControl={false}
       >
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+          attribution={false}
         />
         <LocationMarker />
         <MapLegend

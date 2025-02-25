@@ -15,8 +15,8 @@ interface Location {
 
 // Default center of Netherlands and zoom level
 const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
-const DEFAULT_ZOOM = 7; // Zoomed out to show ~150km radius
-const DEFAULT_RADIUS = 150; // 150km radius
+const DEFAULT_ZOOM = 6; // Zoomed out to show ~175km radius
+const DEFAULT_RADIUS = 175; // 175km radius
 
 // Define custom icon for events
 const eventIcon = L.divIcon({
@@ -40,7 +40,7 @@ export default function MapView() {
     lng: DEFAULT_CENTER[1] 
   });
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [searchRadius, setSearchRadius] = useState(10); // 10km radius
+  const [searchRadius, setSearchRadius] = useState(DEFAULT_RADIUS);
   const [mapInitialized, setMapInitialized] = useState(false);
 
   useEffect(() => {
@@ -51,11 +51,11 @@ export default function MapView() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
+          setSearchRadius(10); // Reduce radius when zooming to user location
           setMapInitialized(true);
         },
         (error) => {
           console.error("Error getting location:", error);
-          // Keep default Netherlands center if location access fails
           setMapInitialized(true);
         }
       );
@@ -83,10 +83,10 @@ export default function MapView() {
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setSelectedEvent(null)} />
       )}
-      <div className="absolute inset-0 border-4 border-gray-200 rounded-lg overflow-hidden">
+      <div className="absolute inset-0 border-[20px] border-gray-200 rounded-lg overflow-hidden">
         <MapContainer
           center={[userLocation.lat, userLocation.lng]}
-          zoom={mapInitialized ? 11 : DEFAULT_ZOOM}
+          zoom={mapInitialized && userLocation.lat !== DEFAULT_CENTER[0] ? 11 : DEFAULT_ZOOM}
           className="h-full w-full relative z-[1]"
         >
           <TileLayer

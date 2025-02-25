@@ -35,7 +35,7 @@ const RECURRENCE_OPTIONS = [
 ]
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
-const DEFAULT_ZOOM = 7 // Zoomed out view
+const DEFAULT_ZOOM = 6 // Zoomed out to show ~175km radius
 const MIN_REACH = 1
 const MAX_REACH = 5
 
@@ -240,10 +240,10 @@ export default function CreateEventPage() {
 
             <div className="space-y-2">
               <FormLabel>Location *</FormLabel>
-              <div className="h-[200px] rounded-md overflow-hidden relative z-10 border-4 border-gray-200">
+              <div className="h-[200px] rounded-md overflow-hidden relative z-10 border-[20px] border-gray-200">
                 <MapContainer
                   center={[position.lat, position.lng]}
-                  zoom={mapInitialized ? 13 : DEFAULT_ZOOM}
+                  zoom={mapInitialized && position.lat !== DEFAULT_CENTER[0] ? 13 : DEFAULT_ZOOM}
                   className="h-full"
                 >
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />

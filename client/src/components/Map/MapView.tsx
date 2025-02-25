@@ -3,7 +3,16 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
 import "leaflet/dist/leaflet.css";
+import L from 'leaflet';
 import { format } from "date-fns";
+
+// Fix Leaflet's default icon path issues
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 interface FilterProps {
   searchQuery: string;
@@ -66,12 +75,12 @@ export default function MapView({ filters }: MapViewProps) {
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
-      console.log('Fetched events:', data);
+      console.log('Debug - Fetched events:', data);
       return data;
     },
   });
 
-  // Filter and process events
+  // Filter events
   const filteredEvents = events?.filter(event => {
     const eventDate = new Date(event.startTime);
     const now = new Date();
@@ -115,8 +124,6 @@ export default function MapView({ filters }: MapViewProps) {
     return true;
   });
 
-  console.log('Filtered events to show:', filteredEvents);
-
   return (
     <div className="h-[calc(100vh-8rem)]">
       <MapContainer
@@ -144,22 +151,26 @@ export default function MapView({ filters }: MapViewProps) {
             return null;
           }
 
+          console.log('Debug - Adding marker for event:', event.title, 'at', lat, lng);
+
           return (
             <Marker
               key={event.id}
               position={[lat, lng]}
             >
               <Popup>
-                <h3 className="font-bold">{event.title}</h3>
-                <p>{event.description}</p>
-                <p className="text-sm text-gray-600">
-                  {format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a")}
-                </p>
-                {event.isPaid && (
-                  <p className="text-sm font-semibold">
-                    Price: €{Number(event.price).toFixed(2)}
+                <div className="min-w-[200px]">
+                  <h3 className="font-bold text-lg">{event.title}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{event.description}</p>
+                  <p className="text-sm mt-2">
+                    {format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a")}
                   </p>
-                )}
+                  {event.isPaid && (
+                    <p className="text-sm font-semibold mt-1">
+                      Price: €{Number(event.price).toFixed(2)}
+                    </p>
+                  )}
+                </div>
               </Popup>
             </Marker>
           );

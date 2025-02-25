@@ -16,6 +16,7 @@ interface FilterProps {
 interface EventListProps {
   filters: FilterProps;
   sortBy: 'date' | 'distance';
+  sortAscending: boolean;
 }
 
 // Calculate distance between two points
@@ -31,7 +32,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
-export default function EventList({ filters, sortBy }: EventListProps) {
+export default function EventList({ filters, sortBy, sortAscending }: EventListProps) {
   const { data: events, isLoading } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", filters],
     queryFn: async () => {
@@ -108,8 +109,10 @@ export default function EventList({ filters, sortBy }: EventListProps) {
   // Sort events
   if (filteredEvents?.length) {
     filteredEvents = [...filteredEvents].sort((a, b) => {
+      let comparison = 0;
+
       if (sortBy === 'date') {
-        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+        comparison = new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
       } else {
         // Sort by distance
         const distanceA = calculateDistance(
@@ -124,8 +127,10 @@ export default function EventList({ filters, sortBy }: EventListProps) {
           Number(b.latitude),
           Number(b.longitude)
         );
-        return distanceA - distanceB;
+        comparison = distanceA - distanceB;
       }
+
+      return sortAscending ? comparison : -comparison;
     });
   }
 

@@ -163,12 +163,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/geocode", async (req, res) => {
     try {
       const { lat, lng } = req.query;
+      if (!lat || !lng) {
+        return res.status(400).json({ city: "Unknown location" });
+      }
+      
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        {
+          headers: {
+            'User-Agent': 'EventApp/1.0'
+          }
+        }
       );
+      
+      if (!response.ok) {
+        throw new Error('Geocoding service unavailable');
+      }
+      
       const data = await response.json();
       res.json({ 
-        city: data.address?.city || data.address?.town || data.address?.village || "Unknown location" 
+        city: data.address?.city || 
+              data.address?.town || 
+              data.address?.village || 
+              data.address?.municipality ||
+              "Unknown location" 
       });
     } catch (error) {
       console.error("Geocoding error:", error);

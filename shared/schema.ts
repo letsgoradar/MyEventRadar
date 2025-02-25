@@ -15,7 +15,6 @@ export const events = pgTable("events", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  // Location data split into separate columns
   latitude: decimal("latitude").notNull(),
   longitude: decimal("longitude").notNull(),
   notificationReach: decimal("notification_reach").notNull(),
@@ -24,7 +23,7 @@ export const events = pgTable("events", {
   category: text("category").notNull(),
   subcategory: text("subcategory"),
   isPaid: boolean("is_paid").default(false),
-  price: decimal("price"),
+  price: decimal("price"), 
   maxParticipants: integer("max_participants"),
   hostId: integer("host_id").notNull(),
   recurrence: text("recurrence").notNull().default('once'),
@@ -40,7 +39,7 @@ export const participants = pgTable("participants", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   eventId: integer("event_id").notNull(),
-  status: text("status").notNull(), // attending, waitlist
+  status: text("status").notNull(), 
 });
 
 export const savedSearches = pgTable("saved_searches", {
@@ -59,7 +58,6 @@ export const insertUserSchema = createInsertSchema(users).pick({
   googleId: true,
 });
 
-// Schema for location data
 const locationSchema = z.object({
   lat: z.number(),
   lng: z.number(),

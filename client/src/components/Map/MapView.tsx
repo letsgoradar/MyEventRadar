@@ -6,6 +6,7 @@ import type { Event } from "@shared/schema";
 import { format } from "date-fns";
 import L from "leaflet";
 import { Badge } from "@/components/ui/badge";
+import EventCard from "@/components/Events/EventCard";
 
 interface Location {
   lat: number;
@@ -40,6 +41,7 @@ export default function MapView() {
   });
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [searchRadius, setSearchRadius] = useState(DEFAULT_RADIUS);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -89,20 +91,19 @@ export default function MapView() {
           />
           <MapController center={userLocation} />
 
-          {/* Show search radius circle */}
-          <Circle
-            center={[userLocation.lat, userLocation.lng]}
-            radius={searchRadius * 1000}
-            pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.1 }}
-          />
-
           {events?.map((event) => {
-            const location = event.location as { lat: number; lng: number };
+            const location = {
+              lat: Number(event.latitude),
+              lng: Number(event.longitude)
+            };
             return (
               <Marker
                 key={event.id}
                 position={[location.lat, location.lng]}
                 icon={eventIcon}
+                eventHandlers={{
+                  click: () => setSelectedEvent(event)
+                }}
               >
                 <Popup>
                   <div className="p-2 min-w-[200px]">
@@ -129,6 +130,14 @@ export default function MapView() {
           })}
         </MapContainer>
       </div>
+
+      {selectedEvent && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedEvent(null)}>
+          <div className="max-w-xl w-full" onClick={e => e.stopPropagation()}>
+            <EventCard event={selectedEvent} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

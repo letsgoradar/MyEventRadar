@@ -6,134 +6,121 @@ import type { Event } from "@shared/schema";
 import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
 
-// Custom icon for events
-const eventIcon = L.icon({
-  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+// Custom marker icons
+const userIcon = L.divIcon({
+  html: `
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="8" fill="#f97316" stroke="white" stroke-width="2"/>
+      <circle cx="12" cy="12" r="8" fill="#2196F3" stroke="white" stroke-width="2"/>
     </svg>
-  `),
+  `,
   iconSize: [24, 24],
   iconAnchor: [12, 12],
 });
 
-function LocationMarker() {
-  const [position, setPosition] = useState<[number, number] | null>(null);
+const eventIcon = L.divIcon({
+  html: `
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="8" fill="#f97316" stroke="white" stroke-width="2"/>
+    </svg>
+  `,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+});
+
+// Map location updater component
+function MapLocator({ center }: { center: [number, number] }) {
   const map = useMap();
-
   useEffect(() => {
-    map.locate().on("locationfound", function (e) {
-      setPosition([e.latlng.lat, e.latlng.lng]);
-      map.flyTo(e.latlng, map.getZoom());
-    });
-  }, [map]);
-
-  return position === null ? null : (
-    <Marker 
-      position={position}
-      icon={L.divIcon({
-        className: 'custom-icon',
-        html: '<div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white"></div>'
-      })}
-    >
-      <Popup>Your location</Popup>
-    </Marker>
-  );
-}
-
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return Math.round(R * c * 10) / 10;
+    map.setView(center, map.getZoom());
+  }, [center, map]);
+  return null;
 }
 
 export default function MapView() {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
+  const [zoom] = useState(13);
 
+  // Get user's location
   useEffect(() => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation([position.coords.latitude, position.coords.longitude]);
-      },
-      (error) => {
-        console.error("Error getting user location:", error);
-      }
-    );
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+        }
+      );
+    }
   }, []);
 
-  const { data: events } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", userLocation],
+  // Fetch nearby events
+  const { data: events = [] } = useQuery<Event[]>({
+    queryKey: ["events", "nearby", userLocation],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        lat: userLocation[0].toString(),
-        lng: userLocation[1].toString(),
-        radius: "50",
-      });
-
-      const response = await fetch(`/api/events/nearby?${params}`);
+      const [lat, lng] = userLocation;
+      console.log('Fetching events with params:', { lat, lng, radius: 10 });
+      const response = await fetch(`/api/events/nearby?lat=${lat}&lng=${lng}&radius=10`);
       if (!response.ok) {
-        throw new Error('Failed to fetch events');
+        throw new Error('Network response was not ok');
       }
       return response.json();
     },
   });
 
+  // Filter and format events
+  const validEvents = events.filter(event => {
+    const lat = Number(event.latitude);
+    const lng = Number(event.longitude);
+    return !isNaN(lat) && !isNaN(lng);
+  });
+
+  console.log('Found events:', validEvents.length);
+
   return (
     <div className="h-[calc(100vh-8rem)]">
       <MapContainer
         center={userLocation}
-        zoom={13}
+        zoom={zoom}
+        scrollWheelZoom={true}
         className="h-full w-full"
       >
         <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
         
-        <LocationMarker />
+        {/* User location marker */}
+        <Marker position={userLocation} icon={userIcon}>
+          <Popup>Your location</Popup>
+        </Marker>
 
-        {events?.map((event) => {
-          const lat = Number(event.latitude);
-          const lng = Number(event.longitude);
+        {/* Event markers */}
+        {validEvents.map(event => {
+          const coordinates: [number, number] = [
+            Number(event.latitude),
+            Number(event.longitude)
+          ];
           
-          if (isNaN(lat) || isNaN(lng)) {
-            return null;
-          }
-
           return (
             <Marker
               key={event.id}
-              position={[lat, lng]}
+              position={coordinates}
               icon={eventIcon}
             >
               <Popup>
-                <div className="p-2">
+                <div className="text-sm">
                   <h3 className="font-bold">{event.title}</h3>
-                  <p className="text-sm">{event.description}</p>
-                  {event.category && (
-                    <p className="text-sm mt-1">Category: {event.category}</p>
-                  )}
-                  {event.isPaid && (
-                    <p className="text-sm">Price: €{event.price}</p>
-                  )}
-                  <p className="text-sm mt-1">
-                    Distance: {calculateDistance(
-                      userLocation[0],
-                      userLocation[1],
-                      lat,
-                      lng
-                    )} km
-                  </p>
+                  <p>{event.description}</p>
+                  {event.isPaid && <p>Price: €{event.price}</p>}
+                  <p>Category: {event.category}</p>
                 </div>
               </Popup>
             </Marker>
           );
         })}
+
+        <MapLocator center={userLocation} />
       </MapContainer>
     </div>
   );

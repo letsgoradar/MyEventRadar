@@ -37,6 +37,7 @@ export interface IStorage {
   getEvent(id: number): Promise<Event | undefined>;
   getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]>;
   getEventsByHost(hostId: number): Promise<Event[]>;
+  clearEvents(): Promise<void>; // Added clearEvents method
 
   // Favorite operations
   addFavorite(favorite: InsertFavorite): Promise<Favorite>;
@@ -176,6 +177,12 @@ export class PgStorage implements IStorage {
   async getEventsByHost(hostId: number): Promise<Event[]> {
     return this.withRetry(async () => {
       return db.select().from(events).where(eq(events.hostId, hostId));
+    });
+  }
+
+  async clearEvents(): Promise<void> { // Added clearEvents method implementation
+    return this.withRetry(async () => {
+      await db.delete(events);
     });
   }
 

@@ -3,8 +3,6 @@ import { MapContainer, TileLayer, useMap, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
-import { format } from "date-fns";
-import L from "leaflet";
 import EventCard from "@/components/Events/EventCard";
 
 interface Location {
@@ -13,22 +11,9 @@ interface Location {
 }
 
 // Default center of Netherlands and zoom level
-const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
-const DEFAULT_ZOOM = 6;
-const DEFAULT_RADIUS = 175;
-
-// Custom icon for events
-const eventIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="10" fill="#f97316" stroke="white" stroke-width="2"/>
-    </svg>
-  `),
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-  popupAnchor: [0, -12],
-  className: 'event-marker'
-});
+const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314]; // Center of Oss
+const DEFAULT_ZOOM = 13;
+const DEFAULT_RADIUS = 10; // 10km radius
 
 function MapController({ center }: { center: Location }) {
   const map = useMap();
@@ -57,12 +42,10 @@ export default function MapView() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
-          setSearchRadius(10);
-          setZoom(11);
         },
         (error) => {
           console.error("Error getting location:", error);
-          // Keep default Netherlands center
+          // Keep default Oss center
         }
       );
     }
@@ -76,15 +59,18 @@ export default function MapView() {
         lng: userLocation.lng.toString(),
         radius: searchRadius.toString(),
       });
+      console.log('Fetching events with params:', params.toString());
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
-      console.log('Events data:', data);
+      console.log('Fetched events:', data);
       return data;
     },
   });
+
+  console.log('Current events data:', events);
 
   return (
     <div className="relative h-[calc(100vh-8rem)]">
@@ -104,7 +90,6 @@ export default function MapView() {
             <Marker
               key={event.id}
               position={[Number(event.latitude), Number(event.longitude)]}
-              icon={eventIcon}
               eventHandlers={{
                 click: () => setSelectedEvent(event)
               }}

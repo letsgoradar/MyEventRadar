@@ -10,8 +10,8 @@ interface Location {
   lng: number;
 }
 
-// Default center of Netherlands and zoom level
-const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314]; // Center of Oss
+// Set default center to Oss
+const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 const DEFAULT_ZOOM = 13;
 const DEFAULT_RADIUS = 10; // 10km radius
 
@@ -30,34 +30,16 @@ export default function MapView() {
     lat: DEFAULT_CENTER[0], 
     lng: DEFAULT_CENTER[1] 
   });
-  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
-  const [searchRadius, setSearchRadius] = useState(DEFAULT_RADIUS);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          // Keep default Oss center
-        }
-      );
-    }
-  }, []);
-
+  // Fetch events
   const { data: events } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", userLocation.lat, userLocation.lng, searchRadius],
+    queryKey: ["/api/events/nearby", userLocation.lat, userLocation.lng, DEFAULT_RADIUS],
     queryFn: async () => {
       const params = new URLSearchParams({
         lat: userLocation.lat.toString(),
         lng: userLocation.lng.toString(),
-        radius: searchRadius.toString(),
+        radius: DEFAULT_RADIUS.toString(),
       });
       console.log('Fetching events with params:', params.toString());
       const response = await fetch(`/api/events/nearby?${params}`);
@@ -77,7 +59,7 @@ export default function MapView() {
       <div className="absolute inset-0 border-[5px] border-gray-200 rounded-lg overflow-hidden">
         <MapContainer
           center={[userLocation.lat, userLocation.lng]}
-          zoom={zoom}
+          zoom={DEFAULT_ZOOM}
           className="h-full w-full"
         >
           <TileLayer
@@ -86,6 +68,7 @@ export default function MapView() {
           />
           <MapController center={userLocation} />
 
+          {/* Show event markers */}
           {events?.map((event) => (
             <Marker
               key={event.id}
@@ -98,6 +81,7 @@ export default function MapView() {
         </MapContainer>
       </div>
 
+      {/* Event details popup */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedEvent(null)}>
           <div className="max-w-xl w-full" onClick={e => e.stopPropagation()}>

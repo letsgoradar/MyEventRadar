@@ -1,7 +1,6 @@
 import { format } from "date-fns";
-import { Calendar, MapPin, Users, Euro, Clock, Tag, RepeatIcon } from "lucide-react";
+import { Calendar, Users, Euro, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
@@ -13,7 +12,7 @@ interface EventCardProps {
   onSelect?: (event: Event) => void;
 }
 
-// Define custom icon for the mini map marker
+// Custom icon for the mini map marker
 const miniEventIcon = new L.Icon({
   iconUrl: 'data:image/svg+xml;base64,' + btoa(`
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -29,7 +28,7 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
   const lng = Number(event.longitude);
 
   return (
-    <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onSelect?.(event)}>
+    <Card className="cursor-pointer hover:shadow-lg transition-shadow bg-white" onClick={() => onSelect?.(event)}>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
@@ -52,7 +51,7 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          <div className="h-[150px] rounded-md overflow-hidden relative z-10 border-[5px] border-gray-200">
+          <div className="h-[150px] rounded-md overflow-hidden relative border-2 border-gray-200">
             <MapContainer
               center={[lat, lng]}
               zoom={14}
@@ -86,7 +85,7 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            {event.maxParticipants > 0 && (
+            {event.maxParticipants && (
               <div className="flex items-center text-gray-600">
                 <Users className="h-4 w-4 mr-2" />
                 <span className="text-sm">
@@ -94,19 +93,11 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
                 </span>
               </div>
             )}
-
-            <div className="flex items-center text-gray-600">
-              <RepeatIcon className="h-4 w-4 mr-2" />
-              <span className="text-sm capitalize">
-                {event.recurrence}
-              </span>
-            </div>
           </div>
 
           <p className="text-sm text-gray-600 mt-2">
             {event.description}
           </p>
-
           <div className="pt-2 flex justify-end">
             <Button>View Details</Button>
           </div>

@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
 import { format } from "date-fns";
 import L from "leaflet";
-import { Badge } from "@/components/ui/badge";
 import EventCard from "@/components/Events/EventCard";
 
 interface Location {
@@ -15,8 +14,8 @@ interface Location {
 
 // Default center of Netherlands and zoom level
 const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
-const DEFAULT_ZOOM = 6; // Zoomed out to show ~175km radius
-const DEFAULT_RADIUS = 175; // 175km radius
+const DEFAULT_ZOOM = 6;
+const DEFAULT_RADIUS = 175;
 
 // Custom icon for events
 const eventIcon = new L.Icon({
@@ -58,11 +57,12 @@ export default function MapView() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
-          setSearchRadius(10); // Reduce radius when zooming to user location
+          setSearchRadius(10);
           setZoom(11);
         },
         (error) => {
           console.error("Error getting location:", error);
+          // Keep default Netherlands center
         }
       );
     }
@@ -80,11 +80,11 @@ export default function MapView() {
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('Events data:', data);
+      return data;
     },
   });
-
-  console.log('Events data:', events);
 
   return (
     <div className="relative h-[calc(100vh-8rem)]">
@@ -92,8 +92,7 @@ export default function MapView() {
         <MapContainer
           center={[userLocation.lat, userLocation.lng]}
           zoom={zoom}
-          className="h-full w-full relative z-[1]"
-          style={{ background: '#f0f0f0' }}
+          className="h-full w-full"
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

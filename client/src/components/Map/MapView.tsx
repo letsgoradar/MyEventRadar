@@ -1,67 +1,120 @@
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
-import L from "leaflet";
 
-// Set default center to Oss
+// Oss als standaard centrum
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 const DEFAULT_ZOOM = 13;
 
+// Haversine formule voor afstandsberekening
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Aarde radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+// Component om de kaart te updaten wanneer locatie verandert
+function MapController({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center);
+  }, [center, map]);
+  return null;
+}
+
 export default function MapView() {
-  // Fetch events
+  const [userLocation, setUserLocation] = useState<[number, number]>(DEFAULT_CENTER);
+
+  // Gebruiker's locatie ophalen
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+        },
+        (error) => {
+          console.error("Locatie fout:", error);
+        }
+      );
+    }
+  }, []);
+
+  // Events ophalen
   const { data: events } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby"],
     queryFn: async () => {
       const params = new URLSearchParams({
-        lat: DEFAULT_CENTER[0].toString(),
-        lng: DEFAULT_CENTER[1].toString(),
+        lat: userLocation[0].toString(),
+        lng: userLocation[1].toString(),
         radius: "10", // 10km radius
       });
 
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch events');
+        throw new Error('Fout bij ophalen events');
       }
       const data = await response.json();
-      console.log('Fetched events:', data); // Debug log
+      console.log('Opgehaalde events:', data);
       return data;
     },
   });
 
-  // Debug log
-  console.log('Events in render:', events);
+  // Filter events binnen 10km
+  const nearbyEvents = events?.filter(event => {
+    const distance = calculateDistance(
+      userLocation[0],
+      userLocation[1],
+      Number(event.latitude),
+      Number(event.longitude)
+    );
+    return distance <= 10; // Toon alleen events binnen 10km
+  });
 
   return (
     <div className="h-[calc(100vh-8rem)]">
       <MapContainer
-        center={DEFAULT_CENTER}
+        center={userLocation}
         zoom={DEFAULT_ZOOM}
         className="h-full w-full"
-        style={{ position: 'relative', zIndex: 0 }}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
 
-        {events && events.map((event) => {
-          const lat = Number(event.latitude);
-          const lng = Number(event.longitude);
-          console.log('Rendering marker for event:', event.title, 'at position:', lat, lng);
+        <MapController center={userLocation} />
 
-          return (
-            <Marker
-              key={event.id}
-              position={[lat, lng]}
-            >
-              <Popup>
-                <strong>{event.title}</strong>
-                <p>{event.description}</p>
-              </Popup>
-            </Marker>
-          );
-        })}
+        {/* Marker voor gebruiker's locatie */}
+        <Marker position={userLocation}>
+          <Popup>Jouw locatie</Popup>
+        </Marker>
+
+        {/* Markers voor events */}
+        {nearbyEvents?.map((event) => (
+          <Marker
+            key={event.id}
+            position={[Number(event.latitude), Number(event.longitude)]}
+          >
+            <Popup>
+              <strong>{event.title}</strong>
+              <p>{event.description}</p>
+              <p>Afstand: {calculateDistance(
+                userLocation[0],
+                userLocation[1],
+                Number(event.latitude),
+                Number(event.longitude)
+              ).toFixed(1)} km</p>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
     </div>
   );

@@ -31,6 +31,10 @@ function MapView() {
       zoom={13}
       className="h-full w-full"
     >
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attributionControl={false}
+      />
       <LocationMarker />
       {events.map((event) => (
         <Marker

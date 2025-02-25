@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { useQuery } from "@tanstack/react-query";
@@ -6,39 +5,28 @@ import type { Event } from "@shared/schema";
 import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
 
-// Custom marker icons
-const userIcon = L.divIcon({
-  html: `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="8" fill="#2196F3" stroke="white" stroke-width="2"/>
-    </svg>
-  `,
+// Default center of Netherlands (if user location not available)
+const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
+const RADIUS = 30; // 30km radius
+
+// Standard blue pin icon
+const blueIcon = L.divIcon({
+  html: `<div style="background-color: #2196F3; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white;"></div>`,
+  className: '',
   iconSize: [24, 24],
-  iconAnchor: [12, 12],
+  iconAnchor: [12, 12]
 });
 
-const eventIcon = L.divIcon({
-  html: `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="8" fill="#f97316" stroke="white" stroke-width="2"/>
-    </svg>
-  `,
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-});
-
-// Map location updater component
 function MapLocator({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, map.getZoom());
+    map.setView(center, 11);
   }, [center, map]);
   return null;
 }
 
 export default function MapView() {
-  const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
-  const [zoom] = useState(13);
+  const [userLocation, setUserLocation] = useState<[number, number]>(DEFAULT_CENTER);
 
   // Get user's location
   useEffect(() => {
@@ -59,61 +47,42 @@ export default function MapView() {
     queryKey: ["events", "nearby", userLocation],
     queryFn: async () => {
       const [lat, lng] = userLocation;
-      console.log('Fetching events with params:', { lat, lng, radius: 10 });
-      const response = await fetch(`/api/events/nearby?lat=${lat}&lng=${lng}&radius=10`);
+      const response = await fetch(`/api/events/nearby?lat=${lat}&lng=${lng}&radius=${RADIUS}`);
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('Failed to fetch events');
       }
       return response.json();
     },
   });
 
-  // Filter and format events
-  const validEvents = events.filter(event => {
-    const lat = Number(event.latitude);
-    const lng = Number(event.longitude);
-    return !isNaN(lat) && !isNaN(lng);
-  });
-
-  console.log('Found events:', validEvents.length);
-
   return (
     <div className="h-[calc(100vh-8rem)]">
       <MapContainer
         center={userLocation}
-        zoom={zoom}
-        scrollWheelZoom={true}
+        zoom={11}
         className="h-full w-full"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        
-        {/* User location marker */}
-        <Marker position={userLocation} icon={userIcon}>
-          <Popup>Your location</Popup>
-        </Marker>
 
-        {/* Event markers */}
-        {validEvents.map(event => {
-          const coordinates: [number, number] = [
-            Number(event.latitude),
-            Number(event.longitude)
-          ];
-          
+        {events.map(event => {
+          const lat = Number(event.latitude);
+          const lng = Number(event.longitude);
+
+          if (isNaN(lat) || isNaN(lng)) return null;
+
           return (
             <Marker
               key={event.id}
-              position={coordinates}
-              icon={eventIcon}
+              position={[lat, lng]}
+              icon={blueIcon}
             >
               <Popup>
                 <div className="text-sm">
                   <h3 className="font-bold">{event.title}</h3>
                   <p>{event.description}</p>
-                  {event.isPaid && <p>Price: €{event.price}</p>}
-                  <p>Category: {event.category}</p>
                 </div>
               </Popup>
             </Marker>

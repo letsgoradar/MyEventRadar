@@ -25,7 +25,6 @@
 
 .pulse-animation {
   animation: pulse 2s infinite;
-  border-radius: 50%;
   z-index: 2000 !important;
   display: flex;
   align-items: center;

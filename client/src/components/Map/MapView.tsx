@@ -21,14 +21,14 @@ interface MapViewProps {
   filters: FilterProps;
 }
 
-// Category colors mapping - Updated to pastel palette
+// Category colors mapping - Updated to brighter pastels
 const categoryColors: { [key: string]: string } = {
-  'festival': '#FFB5B5',   // Pastel Pink
-  'sport': '#B5E6D8',      // Pastel Mint
-  'music': '#B5D8FF',      // Pastel Blue
-  'food': '#FFE2B5',       // Pastel Orange
-  'culture': '#E2B5FF',    // Pastel Purple
-  'other': '#D9D9D9',      // Light Gray
+  'festival': '#FF9E9E',   // Brighter Pastel Pink
+  'sport': '#90EED0',      // Brighter Pastel Mint
+  'music': '#8CD3FF',      // Brighter Pastel Blue
+  'food': '#FFD391',       // Brighter Pastel Orange
+  'culture': '#D6A2FF',    // Brighter Pastel Purple
+  'other': '#E6E6E6',      // Lighter Gray
 };
 
 // Function to get color for category
@@ -80,8 +80,7 @@ const MapLegend = ({ onToggleCategory, activeCategories }: {
 const createCompassNeedleIcon = (heading: number = 0) => {
   const svg = `
     <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="16" cy="16" r="14" fill="white" stroke="#3B82F6" stroke-width="2"/>
-      <path transform="rotate(${heading} 16 16)" d="M16 4L20 28L16 24L12 28L16 4Z" fill="#3B82F6"/>
+      <path transform="rotate(${heading} 16 16)" d="M16 4L19 28L16 25L13 28L16 4Z" fill="#3B82F6"/>
     </svg>
   `;
 

@@ -25,13 +25,10 @@ interface ActiveFilter {
 }
 
 function App() {
-  const today = new Date()
-  const nextYear = addYears(today, 1)
-
   const [searchQuery, setSearchQuery] = React.useState('')
   const [category, setCategory] = React.useState('')
-  const [fromDate, setFromDate] = React.useState<Date>(today)
-  const [toDate, setToDate] = React.useState<Date>(nextYear)
+  const [fromDate, setFromDate] = React.useState<Date | null>(null)
+  const [toDate, setToDate] = React.useState<Date | null>(null)
   const [showPaidEvents, setShowPaidEvents] = React.useState(false)
   const [useDistanceFilter, setUseDistanceFilter] = React.useState(false)
   const [distanceRadius, setDistanceRadius] = React.useState(5) // Default 5km
@@ -45,8 +42,8 @@ function App() {
   const [tempFilters, setTempFilters] = React.useState({
     searchQuery,
     category,
-    fromDate: today,
-    toDate: nextYear,
+    fromDate: null,
+    toDate: null,
     showPaidEvents,
     useDistanceFilter,
     distanceRadius
@@ -61,14 +58,14 @@ function App() {
     if (category) {
       filters.push({ key: 'category', value: category, label: `Category: ${category}` });
     }
-    if (fromDate) {
+    if (fromDate instanceof Date) {
       filters.push({
         key: 'fromDate',
         value: fromDate.toISOString(),
         label: `From: ${format(fromDate, 'MMM d, yyyy')}`
       });
     }
-    if (toDate) {
+    if (toDate instanceof Date) {
       filters.push({
         key: 'toDate',
         value: toDate.toISOString(),
@@ -96,12 +93,12 @@ function App() {
         setTempFilters(prev => ({ ...prev, category: '' }));
         break;
       case 'fromDate':
-        setFromDate(new Date());
-        setTempFilters(prev => ({ ...prev, fromDate: new Date() }));
+        setFromDate(null);
+        setTempFilters(prev => ({ ...prev, fromDate: null }));
         break;
       case 'toDate':
-        setToDate(new Date());
-        setTempFilters(prev => ({ ...prev, toDate: new Date() }));
+        setToDate(null);
+        setTempFilters(prev => ({ ...prev, toDate: null }));
         break;
       case 'paid':
         setShowPaidEvents(false);

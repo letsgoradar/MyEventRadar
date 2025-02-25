@@ -62,6 +62,7 @@
   display: none !important;
 }
 
+/* Hide attribution */
 .leaflet-control-attribution {
   display: none !important;
 }
@@ -69,4 +70,17 @@
 /* Tile styling */
 .leaflet-tile-pane {
   filter: saturate(1.1) brightness(1.02) !important;
+}
+
+/* Hide all grid lines */
+.leaflet-grid-pane {
+  display: none !important;
+}
+
+.leaflet-layer {
+  border: none !important;
+}
+
+.leaflet-tile {
+  border: none !important;
 }

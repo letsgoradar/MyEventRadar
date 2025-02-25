@@ -19,6 +19,11 @@ import {
   type InsertSavedSearch,
 } from "@shared/schema";
 import { db } from './db';
+import NodeGeocoder from 'node-geocoder';
+
+const geocoder = NodeGeocoder({
+  provider: 'openstreetmap'
+});
 
 export interface IStorage {
   // User operations

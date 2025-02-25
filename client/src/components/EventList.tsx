@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Card, CardContent } from "@/components/ui/card"
@@ -8,6 +7,7 @@ import { MapContainer, TileLayer, Marker } from "react-leaflet"
 import type { Event } from "@shared/schema"
 import L from 'leaflet'
 import "leaflet/dist/leaflet.css"
+import axios from 'axios'; // Added for geocoding
 
 // Custom icon for the mini map marker
 const miniEventIcon = new L.Icon({
@@ -30,6 +30,17 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return Math.round(R * c * 10) / 10;
 }
+
+async function getGeocodedCity(lat: number, lng: number): Promise<string | null> {
+  try {
+    const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+    return response.data.address.city || response.data.address.town || null; // Prioritize city, then town
+  } catch (error) {
+    console.error("Error geocoding location:", error);
+    return null;
+  }
+}
+
 
 export function EventList() {
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7656, 5.5314]); // Default to Oss
@@ -81,11 +92,11 @@ export function EventList() {
 
   return (
     <div className="p-4 space-y-4 overflow-auto max-h-[calc(100vh-16rem)]">
-      {events?.map((event) => {
+      {events?.map(async (event) => {
         const eventCoords = event.location 
           ? [event.location.lat, event.location.lng] 
           : [Number(event.latitude), Number(event.longitude)];
-        
+
         const distance = calculateDistance(
           userLocation[0], 
           userLocation[1], 
@@ -93,48 +104,27 @@ export function EventList() {
           eventCoords[1]
         );
 
+        const city = await getGeocodedCity(eventCoords[0], eventCoords[1]);
+        const locationDisplay = city ? `${event.location?.locationName || 'Location not specified'}, ${city}` : event.location?.locationName || 'Location not specified';
+
         return (
           <Card key={event.id} className="overflow-hidden">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">{event.title}</h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div className="h-[200px] rounded-md overflow-hidden">
-                    <MapContainer
-                      center={eventCoords as [number, number]}
-                      zoom={14}
-                      className="h-full w-full"
-                      zoomControl={false}
-                      dragging={false}
-                      touchZoom={false}
-                      doubleClickZoom={false}
-                      scrollWheelZoom={false}
-                      attributionControl={false}
-                    >
-                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                      <Marker position={eventCoords as [number, number]} icon={miniEventIcon} />
-                    </MapContainer>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    <p>{event.location?.locationName || 'Location not specified'}</p>
-                    <p>{distance} km away</p>
-                  </div>
+            <CardContent className="p-6 grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-bold">{event.title}</h3>
+                <div className="text-sm text-muted-foreground mt-2">
+                  <p>{locationDisplay}</p>
+                  <p>{format(new Date(event.startTime), 'PPP')}</p>
+                  <p>{event.category}</p>
+                  {event.isPaid && <p>Price: €{event.price}</p>}
                 </div>
-                <div className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">{event.category}</Badge>
-                    {event.subcategory && (
-                      <Badge variant="outline" className="bg-slate-50">
-                        {event.subcategory}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm">{format(new Date(event.startTime), 'PPP')}</p>
-                  {event.isPaid && event.price && (
-                    <p className="text-sm font-semibold">€{Number(event.price).toFixed(2)}</p>
-                  )}
-                  <p className="text-sm text-muted-foreground">{event.description}</p>
-                </div>
+              </div>
+              <div className="relative h-32 bg-muted rounded">
+                <iframe
+                  className="w-full h-full rounded"
+                  frameBorder="0"
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${eventCoords[1]-0.01},${eventCoords[0]-0.01},${eventCoords[1]+0.01},${eventCoords[0]+0.01}&layer=mapnik&marker=${eventCoords[0]},${eventCoords[1]}`}
+                />
               </div>
             </CardContent>
           </Card>

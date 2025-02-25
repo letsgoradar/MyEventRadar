@@ -7,7 +7,7 @@ import { Filter, MapPin, List, Calendar, Heart, User, Plus, X, SortAsc, ArrowUpD
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Link, Route, Switch, useLocation } from "wouter"
 import { CategoryPicker } from "@/components/CategoryPicker"
-import Map from "@/components/Map"
+import MapView from "@/components/Map/MapView"
 import { EventList } from "@/components/EventList"
 import CreateEventPage from "@/pages/create-event"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -31,14 +31,13 @@ function App() {
   const [toDate, setToDate] = React.useState<Date | null>(null)
   const [showPaidEvents, setShowPaidEvents] = React.useState(false)
   const [useDistanceFilter, setUseDistanceFilter] = React.useState(false)
-  const [distanceRadius, setDistanceRadius] = React.useState(5) // Default 5km
+  const [distanceRadius, setDistanceRadius] = React.useState(5) 
   const [sortBy, setSortBy] = React.useState<'date' | 'distance'>('date')
   const [sortAscending, setSortAscending] = React.useState(true)
   const [viewMode, setViewMode] = React.useState<'map' | 'list'>('map')
   const [, setLocation] = useLocation()
   const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
 
-  // Temporary states for filters before applying
   const [tempFilters, setTempFilters] = React.useState({
     searchQuery,
     category,
@@ -138,7 +137,6 @@ function App() {
         </Route>
         <Route>
           <div className="flex flex-col h-screen">
-            {/* Top Navigation */}
             <nav className="bg-orange-500 p-4 flex justify-between items-center">
               <h1 className="text-white text-xl font-bold">EventMap</h1>
               <Link href="/create">
@@ -146,7 +144,6 @@ function App() {
               </Link>
             </nav>
 
-            {/* Filter Bar */}
             <div className="flex items-center gap-2 px-4 py-3 bg-white border-b relative z-30">
               <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
                 <SheetTrigger asChild>
@@ -164,7 +161,6 @@ function App() {
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
                   <div className="grid gap-6 py-6">
-                    {/* Active Filter Tags */}
                     {activeFilters.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {activeFilters.map((filter) => (
@@ -185,7 +181,6 @@ function App() {
                       </div>
                     )}
 
-                    {/* Search */}
                     <div className="space-y-2">
                       <label htmlFor="search" className="text-sm font-medium">Search</label>
                       <Input
@@ -196,7 +191,6 @@ function App() {
                       />
                     </div>
 
-                    {/* Category */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Category</label>
                       <CategoryPicker
@@ -204,7 +198,6 @@ function App() {
                       />
                     </div>
 
-                    {/* Date Range */}
                     <div className="space-y-4">
                       <label className="text-sm font-medium">Date Range</label>
                       <div className="rounded-md border">
@@ -229,7 +222,6 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Distance Filter */}
                     <div className="space-y-4">
                       <div className="flex items-center space-x-2">
                         <Checkbox
@@ -258,7 +250,6 @@ function App() {
                       )}
                     </div>
 
-                    {/* Paid Events Filter */}
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="paid"
@@ -270,7 +261,6 @@ function App() {
                       <label htmlFor="paid" className="text-sm font-medium">Show paid events only</label>
                     </div>
 
-                    {/* Apply Filters Button */}
                     <Button
                       className="w-full mt-4"
                       onClick={applyFilters}
@@ -281,7 +271,6 @@ function App() {
                 </SheetContent>
               </Sheet>
 
-              {/* Active Filters Display */}
               <div className="flex-1 flex gap-2 overflow-x-auto">
                 {activeFilters.map((filter) => (
                   <Badge
@@ -300,7 +289,6 @@ function App() {
                 ))}
               </div>
 
-              {/* Sort Options (only visible in list view) */}
               {viewMode === 'list' && (
                 <div className="flex items-center gap-2">
                   <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
@@ -324,7 +312,6 @@ function App() {
                 </div>
               )}
 
-              {/* View Mode Toggle */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -338,10 +325,9 @@ function App() {
               </Button>
             </div>
 
-            {/* Main Content */}
             <div className="flex-1 relative z-20">
               {viewMode === 'map' ? (
-                <Map
+                <MapView
                   filters={{
                     searchQuery,
                     category,
@@ -369,7 +355,6 @@ function App() {
               )}
             </div>
 
-            {/* Bottom Navigation */}
             <nav className="bg-white border-t p-4">
               <div className="flex justify-around">
                 <Link href="/">

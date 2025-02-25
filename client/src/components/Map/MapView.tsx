@@ -100,6 +100,7 @@ export default function MapView() {
         })}
 
         <MapLocator center={userLocation} />
+        <MapDebug events={events} userLocation={userLocation} />
       </MapContainer>
     </div>
   );

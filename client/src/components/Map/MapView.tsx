@@ -258,6 +258,18 @@ export default function MapView({ filters }: MapViewProps) {
       url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
       name: "Light Style"
     },
+    voyager_labels: {
+      url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png",
+      name: "Clean with Labels"
+    },
+    positron_soft: {
+      url: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
+      name: "Soft Light"
+    },
+    positron_hybrid: {
+      url: "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png",
+      name: "Light Hybrid"
+    },
     dark: {
       url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
       name: "Dark Style"
@@ -270,11 +282,12 @@ export default function MapView({ filters }: MapViewProps) {
 
   return (
     <div className="h-[calc(100vh-8rem)] relative">
-      <div className="absolute top-4 right-4 z-[1000] bg-white p-2 rounded-lg shadow-md">
+      <div className="absolute top-4 right-4 z-[1000] bg-white p-3 rounded-lg shadow-md">
+        <label className="block text-sm font-medium mb-2">Map Style</label>
         <select 
           value={selectedTileStyle}
           onChange={(e) => setSelectedTileStyle(e.target.value)}
-          className="text-sm p-1 border rounded"
+          className="w-full text-sm p-2 border rounded bg-white shadow-sm"
         >
           {Object.entries(tileStyles).map(([key, style]) => (
             <option key={key} value={key}>

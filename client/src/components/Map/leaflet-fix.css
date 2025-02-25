@@ -53,44 +53,50 @@
   border: none !important;
 }
 
-/* Remove grid lines */
+/* Remove all grid lines */
 .leaflet-grid-hide .leaflet-pane {
   border: none !important;
 }
 
-.leaflet-grid-hide .leaflet-overlay-pane svg {
+.leaflet-overlay-pane svg {
   display: none !important;
 }
 
-/* Hide attribution */
 .leaflet-control-attribution {
   display: none !important;
 }
 
-/* Tile styling */
+/* Complete grid removal */
+.leaflet-grid-pane,
+.leaflet-overlay-pane path,
+.leaflet-overlay-pane svg,
+.leaflet-overlay-pane rect {
+  display: none !important;
+}
+
+/* Remove tile borders */
+.leaflet-tile-container,
+.leaflet-tile,
+.leaflet-tile-loaded {
+  border: none !important;
+  outline: none !important;
+}
+
+/* Disable grid features */
+.leaflet-container {
+  background: transparent !important;
+}
+
 .leaflet-tile-pane {
   filter: saturate(1.1) brightness(1.02) !important;
 }
 
-/* Hide all grid lines */
-.leaflet-grid-pane {
-  display: none !important;
-}
-
-.leaflet-layer {
-  border: none !important;
-}
-
-.leaflet-tile {
-  border: none !important;
-}
-
-/* Remove grid lines from map */
-.leaflet-tile-container {
-  border: none !important;
-}
-
-.leaflet-tile-loaded {
+/* Remove any remaining grid artifacts */
+.leaflet-layer,
+.leaflet-tile,
+.leaflet-tile-container,
+.leaflet-tile-loaded,
+.leaflet-zoom-animated {
   border: none !important;
   outline: none !important;
 }

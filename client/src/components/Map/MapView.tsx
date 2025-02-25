@@ -1,23 +1,34 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
 import "leaflet/dist/leaflet.css";
 
-// Fix default icon issue
-import L from 'leaflet';
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-  iconUrl: require('leaflet/dist/images/marker-icon.png'),
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png')
-});
-
 // Center of Oss
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 
 export default function MapView() {
-  const { data: events, isLoading, error } = useQuery<Event[]>({
+  // State for user location
+  const [userLocation, setUserLocation] = useState<[number, number]>(DEFAULT_CENTER);
+
+  // Get user location
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newLocation: [number, number] = [position.coords.latitude, position.coords.longitude];
+          console.log('User location:', newLocation); // Debug log
+          setUserLocation(newLocation);
+        },
+        (error) => {
+          console.error("Location error:", error);
+        }
+      );
+    }
+  }, []);
+
+  // Fetch events
+  const { data: events } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby"],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -31,22 +42,21 @@ export default function MapView() {
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
-      console.log('Fetched events:', data);
+      console.log('Raw events data:', data); // Debug log
       return data;
     }
   });
 
+  // Debug log for comparison
   useEffect(() => {
     if (events) {
-      console.log('Events loaded:', events.length);
+      console.log('User marker format:', userLocation);
       events.forEach(event => {
-        console.log('Event location:', event.title, event.latitude, event.longitude);
+        const eventLocation: [number, number] = [Number(event.latitude), Number(event.longitude)];
+        console.log('Event marker format:', event.title, eventLocation);
       });
     }
-  }, [events]);
-
-  if (isLoading) return <div>Loading map...</div>;
-  if (error) return <div>Error loading map</div>;
+  }, [events, userLocation]);
 
   return (
     <div style={{ height: "calc(100vh - 8rem)" }}>
@@ -60,10 +70,23 @@ export default function MapView() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
 
+        {/* User location marker */}
+        <Marker position={userLocation}>
+          <Popup>You are here</Popup>
+        </Marker>
+
+        {/* Event markers */}
         {events && events.map(event => {
+          // Convert string coordinates to numbers and ensure they're valid
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
-          console.log('Rendering marker:', event.title, lat, lng);
+
+          if (isNaN(lat) || isNaN(lng)) {
+            console.error('Invalid coordinates for event:', event.title, lat, lng);
+            return null;
+          }
+
+          console.log('Adding event marker:', event.title, [lat, lng]); // Debug log
 
           return (
             <Marker

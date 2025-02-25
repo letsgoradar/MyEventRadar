@@ -5,3 +5,35 @@
 .leaflet-marker-icon {
   z-index: 1000 !important;
 }
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+
+  70% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.pulse-animation {
+  animation: pulse 2s infinite;
+  border-radius: 50%;
+  z-index: 2000 !important;
+}
+
+.user-location-marker {
+  width: 20px !important;
+  height: 20px !important;
+  margin-left: -10px !important;
+  margin-top: -10px !important;
+  z-index: 2000 !important;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}

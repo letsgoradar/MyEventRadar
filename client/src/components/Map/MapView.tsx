@@ -48,7 +48,7 @@ const createEventIcon = (category: string) => {
 };
 
 // Interactive Legend Component
-const MapLegend = ({ onToggleCategory, activeCategories }: { 
+const MapLegend = ({ onToggleCategory, activeCategories }: {
   onToggleCategory: (category: string) => void;
   activeCategories: Set<string>;
 }) => {
@@ -65,7 +65,7 @@ const MapLegend = ({ onToggleCategory, activeCategories }: {
               className={`flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 transition-colors
                 ${isActive ? 'opacity-100' : 'opacity-50'}`}
             >
-              <div 
+              <div
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: color }}
               />
@@ -92,14 +92,25 @@ function LocationMarker() {
   }, [map]);
 
   return position === null ? null : (
-    <Marker 
+    <Marker
       position={position}
       icon={L.divIcon({
-        className: 'custom-icon',
-        html: '<div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white pulse-animation"></div>'
+        className: 'user-location-marker',
+        html: `
+          <div class="w-full h-full bg-blue-500 rounded-full border-4 border-white pulse-animation">
+            <div class="absolute inset-0 bg-blue-300 rounded-full opacity-30"></div>
+          </div>
+        `
       })}
     >
-      <Popup>You are here</Popup>
+      <Popup>
+        <div className="text-center">
+          <div className="font-bold">You are here</div>
+          <div className="text-sm text-gray-600">
+            {position[0].toFixed(4)}, {position[1].toFixed(4)}
+          </div>
+        </div>
+      </Popup>
     </Marker>
   );
 }
@@ -197,7 +208,7 @@ export default function MapView({ filters }: MapViewProps) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <LocationMarker />
-        <MapLegend 
+        <MapLegend
           onToggleCategory={toggleCategory}
           activeCategories={activeCategories}
         />

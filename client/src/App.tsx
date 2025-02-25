@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Filter, MapPin, List, Calendar, Heart, User, Plus, X } from "lucide-react"
+import { Filter, MapPin, List, Calendar, Heart, User, Plus, X, SortAsc } from "lucide-react"
 import { DateTimePicker } from "@/components/date-time-picker"
 import { Link, Route, Switch, useLocation } from "wouter"
 import { CategoryPicker } from "@/components/CategoryPicker"
@@ -12,6 +12,8 @@ import { EventList } from "@/components/EventList"
 import CreateEventPage from "@/pages/create-event"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
+import { Slider } from "@/components/ui/slider"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const queryClient = new QueryClient()
 
@@ -22,15 +24,16 @@ interface ActiveFilter {
 }
 
 function App() {
-  const [date, setDate] = React.useState<Date>()
-  const [searchLocation, setSearchLocation] = React.useState('')
-  const [radius, setRadius] = React.useState(5)
-  const [viewMode, setViewMode] = React.useState<'map' | 'list'>('map')
-  const [, setLocation] = useLocation()
   const [searchQuery, setSearchQuery] = React.useState('')
   const [category, setCategory] = React.useState('')
-  const [startDate, setStartDate] = React.useState(new Date())
+  const [fromDate, setFromDate] = React.useState<Date>(new Date())
+  const [toDate, setToDate] = React.useState<Date>(new Date())
   const [showPaidEvents, setShowPaidEvents] = React.useState(false)
+  const [useDistanceFilter, setUseDistanceFilter] = React.useState(false)
+  const [distanceRadius, setDistanceRadius] = React.useState(5) // Default 5km
+  const [sortBy, setSortBy] = React.useState<'date' | 'distance'>('date')
+  const [viewMode, setViewMode] = React.useState<'map' | 'list'>('map')
+  const [, setLocation] = useLocation()
 
   const activeFilters = React.useMemo<ActiveFilter[]>(() => {
     const filters: ActiveFilter[] = [];
@@ -41,19 +44,29 @@ function App() {
     if (category) {
       filters.push({ key: 'category', value: category, label: `Category: ${category}` });
     }
-    if (startDate) {
+    if (fromDate) {
       filters.push({
-        key: 'date',
-        value: startDate.toISOString(),
-        label: `Date: ${startDate.toLocaleDateString()}`
+        key: 'fromDate',
+        value: fromDate.toISOString(),
+        label: `From: ${fromDate.toLocaleDateString()}`
+      });
+    }
+    if (toDate) {
+      filters.push({
+        key: 'toDate',
+        value: toDate.toISOString(),
+        label: `To: ${toDate.toLocaleDateString()}`
       });
     }
     if (showPaidEvents) {
       filters.push({ key: 'paid', value: 'true', label: 'Paid Events Only' });
     }
+    if (useDistanceFilter) {
+      filters.push({ key: 'distance', value: distanceRadius.toString(), label: `Within ${distanceRadius}km` });
+    }
 
     return filters;
-  }, [searchQuery, category, startDate, showPaidEvents]);
+  }, [searchQuery, category, fromDate, toDate, showPaidEvents, useDistanceFilter, distanceRadius]);
 
   const removeFilter = (filterKey: string) => {
     switch (filterKey) {
@@ -63,23 +76,23 @@ function App() {
       case 'category':
         setCategory('');
         break;
-      case 'date':
-        setStartDate(new Date());
+      case 'fromDate':
+        setFromDate(new Date());
+        break;
+      case 'toDate':
+        setToDate(new Date());
         break;
       case 'paid':
         setShowPaidEvents(false);
         break;
+      case 'distance':
+        setUseDistanceFilter(false);
+        break;
     }
   };
 
-  // Update category handler to apply filter immediately
   const handleCategoryChange = (main: string, sub: string) => {
     setCategory(sub || main);
-  };
-
-  // Update date handler to apply filter immediately
-  const handleDateChange = (newDate: Date) => {
-    setStartDate(newDate);
   };
 
   return (
@@ -111,7 +124,7 @@ function App() {
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
                   <div className="grid gap-6 py-6">
-                    {/* Active Filter Tags in Form */}
+                    {/* Active Filter Tags */}
                     {activeFilters.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {activeFilters.map((filter) => (
@@ -132,6 +145,7 @@ function App() {
                       </div>
                     )}
 
+                    {/* Search */}
                     <div className="space-y-2">
                       <label htmlFor="search" className="text-sm font-medium">Search</label>
                       <Input
@@ -142,6 +156,7 @@ function App() {
                       />
                     </div>
 
+                    {/* Category */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Category</label>
                       <CategoryPicker
@@ -149,26 +164,57 @@ function App() {
                       />
                     </div>
 
+                    {/* Date Range */}
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Date</label>
+                        <label className="text-sm font-medium">From Date</label>
                         <DateTimePicker
-                          date={startDate}
-                          setDate={handleDateChange}
+                          date={fromDate}
+                          setDate={setFromDate}
                           mode="date"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Time</label>
+                        <label className="text-sm font-medium">To Date</label>
                         <DateTimePicker
-                          date={startDate}
-                          setDate={handleDateChange}
-                          mode="time"
+                          date={toDate}
+                          setDate={setToDate}
+                          mode="date"
                         />
                       </div>
                     </div>
 
+                    {/* Distance Filter */}
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="useDistance"
+                          checked={useDistanceFilter}
+                          onCheckedChange={(checked) =>
+                            setUseDistanceFilter(checked as boolean)
+                          }
+                        />
+                        <label htmlFor="useDistance" className="text-sm font-medium">
+                          Filter by distance from my location
+                        </label>
+                      </div>
+
+                      {useDistanceFilter && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Distance (km): {distanceRadius}</label>
+                          <Slider
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={[distanceRadius]}
+                            onValueChange={(value) => setDistanceRadius(value[0])}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Paid Events Filter */}
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="paid"
@@ -177,12 +223,25 @@ function App() {
                           setShowPaidEvents(checked as boolean)
                         }
                       />
-                      <label htmlFor="paid" className="text-sm font-medium">Show paid events</label>
+                      <label htmlFor="paid" className="text-sm font-medium">Show paid events only</label>
                     </div>
                   </div>
                 </SheetContent>
               </Sheet>
 
+              {/* Sort Options (only visible in list view) */}
+              {viewMode === 'list' && (
+                <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SortAsc className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Sort by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Sort by Date</SelectItem>
+                    <SelectItem value="distance">Sort by Distance</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
 
               {/* View Mode Toggle */}
               <Button
@@ -201,7 +260,32 @@ function App() {
 
             {/* Main Content */}
             <div className="flex-1 relative z-20">
-              {viewMode === 'map' ? <Map /> : <EventList />}
+              {viewMode === 'map' ? (
+                <Map 
+                  filters={{
+                    searchQuery,
+                    category,
+                    fromDate,
+                    toDate,
+                    showPaidEvents,
+                    useDistanceFilter,
+                    distanceRadius
+                  }}
+                />
+              ) : (
+                <EventList 
+                  filters={{
+                    searchQuery,
+                    category,
+                    fromDate,
+                    toDate,
+                    showPaidEvents,
+                    useDistanceFilter,
+                    distanceRadius
+                  }}
+                  sortBy={sortBy}
+                />
+              )}
             </div>
 
             {/* Bottom Navigation */}

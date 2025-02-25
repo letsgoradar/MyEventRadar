@@ -5,11 +5,36 @@ import type { Event } from "@shared/schema";
 import "leaflet/dist/leaflet.css";
 import { format } from "date-fns";
 
-// Center of Oss
-const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
+interface FilterProps {
+  searchQuery: string;
+  category: string;
+  fromDate: Date;
+  toDate: Date;
+  showPaidEvents: boolean;
+  useDistanceFilter: boolean;
+  distanceRadius: number;
+}
 
-export default function MapView() {
-  // State for user location
+interface MapViewProps {
+  filters: FilterProps;
+}
+
+// Calculate distance between two points using Haversine formula
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+export default function MapView({ filters }: MapViewProps) {
+  // Default center (Oss)
+  const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
   const [userLocation, setUserLocation] = useState<[number, number]>(DEFAULT_CENTER);
 
   // Get user location
@@ -17,8 +42,7 @@ export default function MapView() {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const newLocation: [number, number] = [position.coords.latitude, position.coords.longitude];
-          setUserLocation(newLocation);
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
         },
         (error) => {
           console.error("Location error:", error);
@@ -29,12 +53,12 @@ export default function MapView() {
 
   // Fetch events
   const { data: events } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby"],
+    queryKey: ["/api/events/nearby", filters],
     queryFn: async () => {
       const params = new URLSearchParams({
-        lat: DEFAULT_CENTER[0].toString(),
-        lng: DEFAULT_CENTER[1].toString(),
-        radius: "10", // 10km radius
+        lat: userLocation[0].toString(),
+        lng: userLocation[1].toString(),
+        radius: filters.useDistanceFilter ? filters.distanceRadius.toString() : "10",
       });
 
       const response = await fetch(`/api/events/nearby?${params}`);
@@ -42,23 +66,63 @@ export default function MapView() {
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
-      console.log('Raw events data:', data);
+      console.log('Fetched events:', data);
       return data;
-    }
+    },
   });
 
-  // Filter future events
-  const futureEvents = events?.filter(event => {
+  // Filter and process events
+  const filteredEvents = events?.filter(event => {
     const eventDate = new Date(event.startTime);
-    return eventDate > new Date();
+    const now = new Date();
+
+    // Basic date filter - only future events
+    if (eventDate <= now) return false;
+
+    // Apply search filter
+    if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
+      return false;
+    }
+
+    // Apply category filter
+    if (filters.category && event.category !== filters.category) {
+      return false;
+    }
+
+    // Apply date range filter
+    if (eventDate < filters.fromDate || eventDate > filters.toDate) {
+      return false;
+    }
+
+    // Apply paid events filter
+    if (filters.showPaidEvents && !event.isPaid) {
+      return false;
+    }
+
+    // Apply distance filter if enabled
+    if (filters.useDistanceFilter) {
+      const distance = calculateDistance(
+        userLocation[0],
+        userLocation[1],
+        Number(event.latitude),
+        Number(event.longitude)
+      );
+      if (distance > filters.distanceRadius) {
+        return false;
+      }
+    }
+
+    return true;
   });
+
+  console.log('Filtered events to show:', filteredEvents);
 
   return (
-    <div style={{ height: "calc(100vh - 8rem)" }}>
+    <div className="h-[calc(100vh-8rem)]">
       <MapContainer
-        center={DEFAULT_CENTER}
+        center={userLocation}
         zoom={13}
-        style={{ height: "100%", width: "100%" }}
+        className="h-full w-full"
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -67,11 +131,11 @@ export default function MapView() {
 
         {/* User location marker */}
         <Marker position={userLocation}>
-          <Popup>You are here</Popup>
+          <Popup>Your location</Popup>
         </Marker>
 
-        {/* Event markers - only showing future events */}
-        {futureEvents?.map(event => {
+        {/* Event markers */}
+        {filteredEvents?.map(event => {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
 

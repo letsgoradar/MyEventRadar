@@ -171,23 +171,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
         {
           headers: {
-            'User-Agent': 'EventApp/1.0'
+            'User-Agent': 'EventApp/1.0',
+            'Accept': 'application/json'
           }
         }
       );
       
       if (!response.ok) {
-        throw new Error('Geocoding service unavailable');
+        return res.status(500).json({ city: "Unknown location" });
       }
       
-      const data = await response.json();
-      res.json({ 
-        city: data.address?.city || 
-              data.address?.town || 
-              data.address?.village || 
-              data.address?.municipality ||
-              "Unknown location" 
-      });
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("Failed to parse geocoding response:", text);
+        return res.status(500).json({ city: "Unknown location" });
+      }
+      
+      const city = data.address?.city || 
+                   data.address?.town || 
+                   data.address?.village || 
+                   data.address?.municipality ||
+                   "Unknown location";
+      
+      res.json({ city });
     } catch (error) {
       console.error("Geocoding error:", error);
       res.status(500).json({ city: "Unknown location" });

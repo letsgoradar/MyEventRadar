@@ -1,5 +1,6 @@
 import { format } from "date-fns";
-import { Calendar, Users, Euro } from "lucide-react";
+import { Calendar, Users, Euro, Satellite } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
@@ -7,6 +8,7 @@ import L from "leaflet";
 import type { Event } from "@shared/schema";
 import "leaflet/dist/leaflet.css";
 import '../Map/leaflet-fix.css';
+import React from 'react';
 
 interface EventCardProps {
   event: Event;
@@ -25,9 +27,17 @@ const miniEventIcon = new L.Icon({
 });
 
 export default function EventCard({ event, onSelect }: EventCardProps) {
-  // Use correct column names from database schema
+  const [isSatelliteView, setIsSatelliteView] = React.useState(false);
   const lat = Number(event.latitude);
   const lng = Number(event.longitude);
+
+  const tileUrl = isSatelliteView
+    ? "https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
+  const tileConfig = isSatelliteView
+    ? { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }
+    : { subdomains: 'abcd' };
 
   return (
     <Card className="cursor-pointer hover:shadow-lg transition-shadow bg-white" onClick={() => onSelect?.(event)}>
@@ -54,6 +64,18 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
       <CardContent>
         <div className="space-y-3">
           <div className="h-[150px] rounded-md overflow-hidden relative border-2 border-gray-200">
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute top-2 right-2 z-[1000] bg-white/90 hover:bg-white"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsSatelliteView(!isSatelliteView);
+              }}
+              title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
+            >
+              <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
+            </Button>
             <MapContainer
               center={[lat, lng]}
               zoom={14}
@@ -66,8 +88,9 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
               attributionControl={false}
             >
               <TileLayer 
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                url={tileUrl}
                 attribution={false}
+                {...tileConfig}
               />
               <Marker position={[lat, lng]} icon={miniEventIcon} />
             </MapContainer>

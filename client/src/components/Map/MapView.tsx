@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { Satellite } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import React, { useState, useEffect } from 'react';
@@ -165,13 +167,12 @@ const MapLegend = ({ onToggleCategory, activeCategories }: {
   );
 };
 
-
 export default function MapView({ filters }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]); // Default to Oss
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
     new Set(Object.keys(categoryColors))
   );
-  const [selectedTileStyle, setSelectedTileStyle] = useState<string>("voyager");
+  const [isSatelliteView, setIsSatelliteView] = useState(false);
 
   const toggleCategory = (category: string) => {
     setActiveCategories(prev => {
@@ -248,54 +249,26 @@ export default function MapView({ filters }: MapViewProps) {
 
   console.log('Filtered events:', filteredEvents.length);
 
-  // Map tile style options
-  const tileStyles = {
-    voyager: {
-      url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-      name: "Clean Style"
-    },
-    positron: {
-      url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      name: "Light Style"
-    },
-    voyager_labels: {
-      url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png",
-      name: "Clean with Labels"
-    },
-    positron_soft: {
-      url: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
-      name: "Soft Light"
-    },
-    positron_hybrid: {
-      url: "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png",
-      name: "Light Hybrid"
-    },
-    dark: {
-      url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      name: "Dark Style"
-    },
-    osm: {
-      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      name: "Standard Style"
-    }
-  };
+  // Map tile styles
+  const tileUrl = isSatelliteView
+    ? "https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
+  const tileConfig = isSatelliteView
+    ? { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }
+    : { subdomains: 'abcd' };
 
   return (
     <div className="h-[calc(100vh-8rem)] relative">
-      <div className="absolute top-4 right-4 z-[1000] bg-white p-3 rounded-lg shadow-md">
-        <label className="block text-sm font-medium mb-2">Map Style</label>
-        <select 
-          value={selectedTileStyle}
-          onChange={(e) => setSelectedTileStyle(e.target.value)}
-          className="w-full text-sm p-2 border rounded bg-white shadow-sm"
-        >
-          {Object.entries(tileStyles).map(([key, style]) => (
-            <option key={key} value={key}>
-              {style.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Button
+        variant="outline"
+        size="icon"
+        className="absolute top-4 right-4 z-[1000] bg-white/90 hover:bg-white"
+        onClick={() => setIsSatelliteView(!isSatelliteView)}
+        title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
+      >
+        <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
+      </Button>
 
       <MapContainer
         center={userLocation}
@@ -304,8 +277,9 @@ export default function MapView({ filters }: MapViewProps) {
         attributionControl={false}
       >
         <TileLayer
-          url={tileStyles[selectedTileStyle as keyof typeof tileStyles].url}
+          url={tileUrl}
           attribution={false}
+          {...tileConfig}
         />
         <LocationMarker />
         <MapLegend

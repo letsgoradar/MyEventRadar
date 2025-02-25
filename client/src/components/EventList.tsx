@@ -1,9 +1,11 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { MapContainer, TileLayer, Marker } from "react-leaflet"
+import { Satellite } from "lucide-react"
 import type { Event } from "@shared/schema"
 import L from 'leaflet'
 import "leaflet/dist/leaflet.css"
@@ -48,6 +50,7 @@ async function getGeocodedCity(lat: number, lng: number): Promise<string | null>
 
 export function EventList() {
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7656, 5.5314]); // Default to Oss
+  const [isSatelliteView, setIsSatelliteView] = React.useState(false);
 
   React.useEffect(() => {
     if ("geolocation" in navigator) {
@@ -94,6 +97,14 @@ export function EventList() {
     return <div className="p-4 text-red-500">Error loading events. Please try again.</div>;
   }
 
+  const tileUrl = isSatelliteView
+    ? "https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
+  const tileConfig = isSatelliteView
+    ? { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }
+    : { subdomains: 'abcd' };
+
   return (
     <div className="p-4 space-y-4 overflow-auto max-h-[calc(100vh-16rem)]">
       {events?.map((event) => {
@@ -108,7 +119,7 @@ export function EventList() {
           eventCoords[1]
         );
 
-        const city = getGeocodedCity(eventCoords[0], eventCoords[1]); //removed await
+        const city = getGeocodedCity(eventCoords[0], eventCoords[1]); 
         const locationDisplay = city ? `${event.location?.locationName || 'Location not specified'}, ${city}` : event.location?.locationName || 'Location not specified';
 
         return (
@@ -117,13 +128,22 @@ export function EventList() {
               <div>
                 <h3 className="font-bold">{event.title}</h3>
                 <div className="text-sm text-muted-foreground mt-2">
-                  <p>{event.location?.locationName || 'Location not specified'}</p>
+                  <p>{locationDisplay}</p>
                   <p>{format(new Date(event.startTime), 'PPP')}</p>
                   <p>{event.category}</p>
                   {event.isPaid && <p>Price: €{event.price}</p>}
                 </div>
               </div>
               <div className="relative h-32 bg-muted rounded">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute top-2 right-2 z-[1000] bg-white/90 hover:bg-white"
+                  onClick={() => setIsSatelliteView(!isSatelliteView)}
+                  title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
+                >
+                  <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
+                </Button>
                 <MapContainer
                   center={eventCoords}
                   zoom={14}
@@ -136,8 +156,9 @@ export function EventList() {
                   attributionControl={false}
                 >
                   <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                    url={tileUrl}
                     attribution={false}
+                    {...tileConfig}
                   />
                   <Marker position={eventCoords} icon={miniEventIcon} />
                 </MapContainer>

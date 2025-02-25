@@ -159,6 +159,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Geocoding endpoint
+  app.get("/api/geocode", async (req, res) => {
+    try {
+      const { lat, lng } = req.query;
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`
+      );
+      const data = await response.json();
+      res.json({ 
+        city: data.address?.city || data.address?.town || data.address?.village || "Unknown location" 
+      });
+    } catch (error) {
+      console.error("Geocoding error:", error);
+      res.status(500).json({ city: "Unknown location" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

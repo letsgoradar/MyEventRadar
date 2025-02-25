@@ -33,11 +33,15 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
 async function getGeocodedCity(lat: number, lng: number): Promise<string | null> {
   try {
-    const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
-    return response.data.address.city || response.data.address.town || null; // Prioritize city, then town
+    const response = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`);
+    if (!response.ok) {
+      throw new Error('Failed to geocode location');
+    }
+    const data = await response.json();
+    return data.city || null;
   } catch (error) {
     console.error("Error geocoding location:", error);
-    return null;
+    return "Unknown location"; // Fallback text
   }
 }
 

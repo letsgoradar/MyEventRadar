@@ -21,14 +21,14 @@ interface MapViewProps {
   filters: FilterProps;
 }
 
-// Category colors mapping - Updated to brighter pastels
+// Category colors mapping - Updated to Google Maps style
 const categoryColors: { [key: string]: string } = {
-  'festival': '#FF9E9E',   // Brighter Pastel Pink
-  'sport': '#90EED0',      // Brighter Pastel Mint
-  'music': '#8CD3FF',      // Brighter Pastel Blue
-  'food': '#FFD391',       // Brighter Pastel Orange
-  'culture': '#D6A2FF',    // Brighter Pastel Purple
-  'other': '#E6E6E6',      // Lighter Gray
+  'festival': '#EA4335',   // Google Red
+  'sport': '#34A853',      // Google Green
+  'music': '#4285F4',      // Google Blue
+  'food': '#FBBC05',       // Google Yellow
+  'culture': '#7B1FA2',    // Purple
+  'other': '#757575',      // Gray
 };
 
 // Function to get color for category
@@ -76,11 +76,12 @@ const MapLegend = ({ onToggleCategory, activeCategories }: {
   );
 };
 
-// Function to create compass needle SVG
+// Function to create compass needle SVG with pin
 const createCompassNeedleIcon = (heading: number = 0) => {
   const svg = `
     <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path transform="rotate(${heading} 16 16)" d="M16 4L19 28L16 25L13 28L16 4Z" fill="#3B82F6"/>
+      <path transform="rotate(${heading} 16 16)" d="M16 4L19 28L16 25L13 28L16 4Z" fill="#4285F4"/>
+      <circle cx="16" cy="16" r="2" fill="#4285F4"/>
     </svg>
   `;
 

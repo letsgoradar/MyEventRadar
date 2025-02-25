@@ -12,6 +12,42 @@ const eventIcon = new L.Icon({
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="12" cy="12" r="8" fill="#f97316" stroke="white" stroke-width="2"/>
     </svg>
+
+// Distance calculation function
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return Math.round(R * c * 10) / 10;
+}
+
+// City display component
+function CityDisplay({ lat, lng }: { lat: number, lng: number }) {
+  const [city, setCity] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    async function fetchCity() {
+      try {
+        const response = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`);
+        if (!response.ok) throw new Error('Failed to fetch city');
+        const data = await response.json();
+        setCity(data.city);
+      } catch (error) {
+        console.error('Error fetching city:', error);
+        setCity(null);
+      }
+    }
+    fetchCity();
+  }, [lat, lng]);
+
+  return city ? <p>City: {city}</p> : null;
+}
+</new_str>
+
   `),
   iconSize: [24, 24],
   iconAnchor: [12, 12],
@@ -158,7 +194,14 @@ export default function MapView({ filters }: MapViewProps) {
                 <p>{event.description}</p>
                 <p>Category: {event.category}</p>
                 {event.isPaid && <p>Price: €{event.price}</p>}
-                {event.locationName && <p>Location: {event.locationName}</p>} {/* Added locationName to popup */}
+                {event.locationName && <p>Location: {event.locationName}</p>}
+                <p>{calculateDistance(
+                  userLocation[0],
+                  userLocation[1],
+                  coordinates[0],
+                  coordinates[1]
+                ).toFixed(1)} km away</p>
+                <CityDisplay lat={coordinates[0]} lng={coordinates[1]} />
               </Popup>
             </Marker>
           );

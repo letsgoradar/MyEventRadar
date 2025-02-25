@@ -6,76 +6,78 @@ import type { Event } from "@shared/schema";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Default center of Netherlands
 const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
-const RADIUS = 30000; // 30km radius in meters
+const RADIUS = 30000;
 
-// Event marker icon
-const eventIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="8" fill="#f97316" stroke="white" stroke-width="2"/>
-    </svg>
-  `),
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
+// Create event icon
+const eventIcon = L.divIcon({
+  className: 'custom-event-marker',
+  html: '<div style="background-color: #f97316; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white;"></div>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
 });
 
-// Location marker icon
-const locationIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="8" fill="#2196F3" stroke="white" stroke-width="2"/>
-    </svg>
-  `),
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
+// Create location icon
+const locationIcon = L.divIcon({
+  className: 'custom-location-marker',
+  html: '<div style="background-color: #2196F3; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white;"></div>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
 });
 
 function MapLocator({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, 11);
+    map.setView(center);
   }, [center, map]);
   return null;
 }
 
 export default function MapView() {
   const [userLocation, setUserLocation] = useState<[number, number]>(DEFAULT_CENTER);
-  const [eventsVisible, setEventsVisible] = useState(false);
 
+  // Get user location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          const newLocation: [number, number] = [position.coords.latitude, position.coords.longitude];
+          console.log("User location set:", newLocation);
+          setUserLocation(newLocation);
         },
         (error) => {
-          console.error("Error getting location:", error);
+          console.error("Geolocation error:", error);
         }
       );
     }
   }, []);
 
-  const { data: events = [], isLoading } = useQuery<Event[]>({
+  // Fetch events
+  const { data: events = [] } = useQuery<Event[]>({
     queryKey: ["events", "nearby", userLocation],
     queryFn: async () => {
       const [lat, lng] = userLocation;
-      console.log("Fetching events with params:", { lat, lng, radius: RADIUS });
+      console.log("Fetching events for coordinates:", { lat, lng, radius: RADIUS });
       const response = await fetch(`/api/events/nearby?lat=${lat}&lng=${lng}&radius=${RADIUS}`);
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
-      console.log("Fetched events:", data);
+      console.log("Received events:", data);
       return data;
     },
   });
 
+  // Log when events update
   useEffect(() => {
-    if (events.length > 0) {
-      setEventsVisible(true);
-    }
+    console.log("Events updated:", events.length, "events found");
+    events.forEach(event => {
+      console.log("Event marker data:", {
+        id: event.id,
+        title: event.title,
+        position: [Number(event.latitude), Number(event.longitude)]
+      });
+    });
   }, [events]);
 
   return (
@@ -90,11 +92,13 @@ export default function MapView() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
+        {/* User location marker */}
         <Marker position={userLocation} icon={locationIcon}>
           <Popup>Your location</Popup>
         </Marker>
 
-        {eventsVisible && events.map(event => {
+        {/* Event markers */}
+        {events.map(event => {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
 
@@ -103,8 +107,8 @@ export default function MapView() {
             return null;
           }
 
-          console.log("Rendering event marker:", { id: event.id, title: event.title, coords: [lat, lng] });
-          
+          console.log("Rendering marker:", { id: event.id, title: event.title, position: [lat, lng] });
+
           return (
             <Marker
               key={event.id}

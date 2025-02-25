@@ -145,8 +145,6 @@ export class PgStorage implements IStorage {
       console.log('Fetching events with params:', { lat, lng, radius });
       const result = await db.select().from(events);
 
-      console.log('Raw database events:', result);
-
       // Convert coordinates to numbers consistently
       const formattedEvents = result.map(event => {
         const formattedEvent = {
@@ -156,6 +154,7 @@ export class PgStorage implements IStorage {
           notificationReach: parseFloat(event.notificationReach)
         };
         console.log('Formatted event:', {
+          id: formattedEvent.id,
           title: formattedEvent.title,
           coords: [formattedEvent.latitude, formattedEvent.longitude]
         });

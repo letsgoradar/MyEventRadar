@@ -61,9 +61,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         radius: req.query.radius,
       });
 
-      console.log('Searching for events:', { lat, lng, radius });
+      console.log('GET /api/events/nearby params:', { lat, lng, radius });
       const events = await storage.getEventsByRadius(lat, lng, radius);
-      console.log('Found events:', events);
+      console.log('Found events:', events.length);
       res.json(events);
     } catch (error) {
       console.error('Error in /api/events/nearby:', error);

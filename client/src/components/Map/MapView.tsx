@@ -37,8 +37,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const R = 6371; // Earth's radius in km
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
     Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
@@ -55,11 +54,10 @@ export default function MapView({ filters }: MapViewProps) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
-          console.log('User location set to:', [position.coords.latitude, position.coords.longitude]);
+          console.log('User location set:', [position.coords.latitude, position.coords.longitude]);
         },
         (error) => {
           console.error("Location error:", error);
-          // Keep default Oss center
           setMapReady(true);
         }
       );
@@ -70,35 +68,36 @@ export default function MapView({ filters }: MapViewProps) {
   const { data: events, isLoading, error } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", filters],
     queryFn: async () => {
-      console.log('Fetching events with params:', {
-        location: userLocation,
-        radius: filters.useDistanceFilter ? filters.distanceRadius : 10
-      });
-
       const params = new URLSearchParams({
         lat: userLocation[0].toString(),
         lng: userLocation[1].toString(),
         radius: filters.useDistanceFilter ? filters.distanceRadius.toString() : "10",
       });
 
+      console.log('Fetching events with params:', Object.fromEntries(params));
       const response = await fetch(`/api/events/nearby?${params}`);
+
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
+
       const data = await response.json();
-      console.log('Received events from API:', data);
+      console.log('Received events:', data.length, 'events');
       return data;
     },
     enabled: mapReady,
   });
 
   const filteredEvents = events?.filter(event => {
-    console.log('Processing event:', event.title, {
-      coordinates: [event.latitude, event.longitude],
-      date: new Date(event.startTime)
+    // Debug log for each event
+    console.log('Processing event:', {
+      id: event.id,
+      title: event.title,
+      coords: [event.latitude, event.longitude],
+      startTime: event.startTime
     });
 
-    // Validate coordinates
+    // Check coordinates
     if (!event.latitude || !event.longitude) {
       console.log('Event skipped - invalid coordinates:', event.title);
       return false;
@@ -114,19 +113,16 @@ export default function MapView({ filters }: MapViewProps) {
 
     // Apply search filter
     if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
-      console.log('Event skipped - search mismatch:', event.title);
       return false;
     }
 
     // Apply category filter
     if (filters.category && event.category !== filters.category) {
-      console.log('Event skipped - category mismatch:', event.title);
       return false;
     }
 
     // Apply paid events filter
     if (filters.showPaidEvents && !event.isPaid) {
-      console.log('Event skipped - not paid:', event.title);
       return false;
     }
 
@@ -144,7 +140,6 @@ export default function MapView({ filters }: MapViewProps) {
       }
     }
 
-    console.log('Event passed all filters:', event.title);
     return true;
   });
 
@@ -172,11 +167,9 @@ export default function MapView({ filters }: MapViewProps) {
 
         {/* Event markers */}
         {filteredEvents?.map(event => {
-          // Parse coordinates as numbers
           const latitude = Number(event.latitude);
           const longitude = Number(event.longitude);
 
-          // Skip invalid coordinates
           if (isNaN(latitude) || isNaN(longitude)) {
             console.error('Invalid coordinates for event:', event.title);
             return null;

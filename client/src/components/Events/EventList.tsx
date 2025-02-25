@@ -8,7 +8,7 @@ interface FilterProps {
   category: string;
   fromDate: Date;
   toDate: Date;
-  showFreeEvents: boolean;
+  showPaidEvents: boolean;
   useDistanceFilter: boolean;
   distanceRadius: number;
 }
@@ -17,9 +17,9 @@ interface EventListProps {
   filters: FilterProps;
   sortBy: 'date' | 'distance';
   sortAscending: boolean;
-  filtersEnabled: boolean;
 }
 
+// Calculate distance between two points
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in km
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -32,9 +32,9 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
-export default function EventList({ filters, sortBy, sortAscending, filtersEnabled }: EventListProps) {
+export default function EventList({ filters, sortBy, sortAscending }: EventListProps) {
   const { data: events, isLoading } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", filters, filtersEnabled],
+    queryKey: ["/api/events/nearby", filters],
     queryFn: async () => {
       const params = new URLSearchParams({
         lat: "51.7656", // Default to Oss
@@ -47,6 +47,7 @@ export default function EventList({ filters, sortBy, sortAscending, filtersEnabl
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
+      console.log('Debug - Fetched events:', data);
       return data;
     },
   });
@@ -69,33 +70,33 @@ export default function EventList({ filters, sortBy, sortAscending, filtersEnabl
     // Basic date filter - only future events
     if (eventDate <= now) return false;
 
-    if (!filtersEnabled) {
-      return true;
-    }
-
-    // Apply filters only when enabled
+    // Apply search filter
     if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
       return false;
     }
 
+    // Apply category filter
     if (filters.category && event.category !== filters.category) {
       return false;
     }
 
+    // Apply date range filter
     if (eventDate < filters.fromDate || eventDate > filters.toDate) {
       return false;
     }
 
-    if (filters.showFreeEvents && event.isPaid) {
+    // Apply paid events filter
+    if (filters.showPaidEvents && !event.isPaid) {
       return false;
     }
 
+    // Apply distance filter if enabled
     if (filters.useDistanceFilter) {
       const distance = calculateDistance(
         51.7656, // Default user location (Oss)
         5.5314,
-        Number(event.latitude),
-        Number(event.longitude)
+        Number(event.latitude), // Changed from lat to latitude
+        Number(event.longitude) // Changed from lng to longitude
       );
       if (distance > filters.distanceRadius) {
         return false;
@@ -104,6 +105,8 @@ export default function EventList({ filters, sortBy, sortAscending, filtersEnabl
 
     return true;
   });
+
+  console.log('Debug - Filtered events:', filteredEvents?.length, 'events');
 
   // Sort events
   if (filteredEvents?.length) {
@@ -117,14 +120,14 @@ export default function EventList({ filters, sortBy, sortAscending, filtersEnabl
         const distanceA = calculateDistance(
           51.7656,
           5.5314,
-          Number(a.latitude),
-          Number(a.longitude)
+          Number(a.latitude), // Changed from lat to latitude
+          Number(a.longitude) // Changed from lng to longitude
         );
         const distanceB = calculateDistance(
           51.7656,
           5.5314,
-          Number(b.latitude),
-          Number(b.longitude)
+          Number(b.latitude), // Changed from lat to latitude
+          Number(b.longitude) // Changed from lng to longitude
         );
         comparison = distanceA - distanceB;
       }
@@ -136,7 +139,7 @@ export default function EventList({ filters, sortBy, sortAscending, filtersEnabl
   if (!filteredEvents?.length) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-500">Geen evenementen gevonden</p>
+        <p className="text-gray-500">No events found</p>
       </div>
     );
   }

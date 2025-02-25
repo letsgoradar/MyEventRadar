@@ -19,30 +19,18 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Custom icon for user location
-const userIcon = L.icon({
-  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="8" fill="#3b82f6" stroke="white" stroke-width="2"/>
-    </svg>
-  `),
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-});
-
 interface FilterProps {
   searchQuery: string;
   category: string;
   fromDate: Date;
   toDate: Date;
-  showFreeEvents: boolean;
+  showPaidEvents: boolean;
   useDistanceFilter: boolean;
   distanceRadius: number;
 }
 
 interface MapViewProps {
   filters: FilterProps;
-  filtersEnabled: boolean;
 }
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -57,7 +45,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
-export default function MapView({ filters, filtersEnabled }: MapViewProps) {
+export default function MapView({ filters }: MapViewProps) {
   // Default to Oss center
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [mapReady, setMapReady] = useState(false);
@@ -66,10 +54,8 @@ export default function MapView({ filters, filtersEnabled }: MapViewProps) {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const newLocation: [number, number] = [position.coords.latitude, position.coords.longitude];
-          console.log('User location set to:', newLocation);
-          setUserLocation(newLocation);
-          setMapReady(true);
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          console.log('User location set to:', [position.coords.latitude, position.coords.longitude]);
         },
         (error) => {
           console.error("Location error:", error);
@@ -77,13 +63,12 @@ export default function MapView({ filters, filtersEnabled }: MapViewProps) {
           setMapReady(true);
         }
       );
-    } else {
-      setMapReady(true);
     }
+    setMapReady(true);
   }, []);
 
-  const { data: events, isLoading } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", filters, filtersEnabled],
+  const { data: events, isLoading, error } = useQuery<Event[]>({
+    queryKey: ["/api/events/nearby", filters],
     queryFn: async () => {
       console.log('Fetching events with params:', {
         location: userLocation,
@@ -108,41 +93,44 @@ export default function MapView({ filters, filtersEnabled }: MapViewProps) {
   });
 
   const filteredEvents = events?.filter(event => {
-    // Skip invalid coordinates
+    console.log('Processing event:', event.title, {
+      coordinates: [event.latitude, event.longitude],
+      date: new Date(event.startTime)
+    });
+
+    // Validate coordinates
     if (!event.latitude || !event.longitude) {
       console.log('Event skipped - invalid coordinates:', event.title);
       return false;
     }
 
     const eventDate = new Date(event.startTime);
-    const now = new Date();
 
-    // Skip past events
-    if (eventDate <= now) {
-      return false;
-    }
-
-    if (!filtersEnabled) {
-      return true;
-    }
-
-    // Apply filters only when enabled
-    if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
-      return false;
-    }
-
-    if (filters.category && event.category !== filters.category) {
-      return false;
-    }
-
+    // Apply date range filter
     if (eventDate < filters.fromDate || eventDate > filters.toDate) {
+      console.log('Event skipped - outside date range:', event.title);
       return false;
     }
 
-    if (filters.showFreeEvents && event.isPaid) {
+    // Apply search filter
+    if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
+      console.log('Event skipped - search mismatch:', event.title);
       return false;
     }
 
+    // Apply category filter
+    if (filters.category && event.category !== filters.category) {
+      console.log('Event skipped - category mismatch:', event.title);
+      return false;
+    }
+
+    // Apply paid events filter
+    if (filters.showPaidEvents && !event.isPaid) {
+      console.log('Event skipped - not paid:', event.title);
+      return false;
+    }
+
+    // Apply distance filter if enabled
     if (filters.useDistanceFilter) {
       const distance = calculateDistance(
         userLocation[0],
@@ -151,14 +139,19 @@ export default function MapView({ filters, filtersEnabled }: MapViewProps) {
         Number(event.longitude)
       );
       if (distance > filters.distanceRadius) {
+        console.log('Event skipped - too far:', event.title, distance.toFixed(1), 'km');
         return false;
       }
     }
 
+    console.log('Event passed all filters:', event.title);
     return true;
   });
 
   if (isLoading) return <div>Loading map...</div>;
+  if (error) return <div>Error loading events</div>;
+
+  console.log('Showing filtered events:', filteredEvents?.length);
 
   return (
     <div className="h-[calc(100vh-8rem)]">
@@ -173,19 +166,17 @@ export default function MapView({ filters, filtersEnabled }: MapViewProps) {
         />
 
         {/* User location marker */}
-        <Marker position={userLocation} icon={userIcon}>
-          <Popup>
-            <div className="text-center">
-              <strong>Jouw locatie</strong>
-            </div>
-          </Popup>
+        <Marker position={userLocation}>
+          <Popup>Your location</Popup>
         </Marker>
 
         {/* Event markers */}
         {filteredEvents?.map(event => {
+          // Parse coordinates as numbers
           const latitude = Number(event.latitude);
           const longitude = Number(event.longitude);
 
+          // Skip invalid coordinates
           if (isNaN(latitude) || isNaN(longitude)) {
             console.error('Invalid coordinates for event:', event.title);
             return null;
@@ -205,7 +196,7 @@ export default function MapView({ filters, filtersEnabled }: MapViewProps) {
                   </p>
                   {event.isPaid && event.price && (
                     <p className="text-sm font-semibold mt-1">
-                      Prijs: €{Number(event.price).toFixed(2)}
+                      Price: €{Number(event.price).toFixed(2)}
                     </p>
                   )}
                 </div>

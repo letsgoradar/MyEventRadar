@@ -36,7 +36,6 @@ const RECURRENCE_OPTIONS = [
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
 const DEFAULT_ZOOM = 6 // Zoomed out to show ~175km radius
-const DEFAULT_REACH = 2 // Default radius in km
 const MIN_REACH = 1
 const MAX_REACH = 5
 
@@ -73,7 +72,7 @@ export default function CreateEventPage() {
   const [position, setPosition] = useState({ 
     lat: DEFAULT_CENTER[0], 
     lng: DEFAULT_CENTER[1],
-    notificationReach: DEFAULT_REACH 
+    notificationReach: 1 
   });
   const [mapInitialized, setMapInitialized] = useState(false);
 
@@ -88,7 +87,7 @@ export default function CreateEventPage() {
       location: {
         lat: position.lat,
         lng: position.lng,
-        notificationReach: DEFAULT_REACH,
+        notificationReach: 1,
       },
       startDate: format(nextHour, 'yyyy-MM-dd'),
       startTime: format(nextHour, 'HH:mm'),
@@ -111,7 +110,7 @@ export default function CreateEventPage() {
           const newPos = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-            notificationReach: form.getValues().location.notificationReach || DEFAULT_REACH,
+            notificationReach: form.getValues().location.notificationReach || 1,
           };
           setPosition(newPos);
           form.setValue("location", newPos);
@@ -170,9 +169,11 @@ export default function CreateEventPage() {
       const eventData = {
         title: data.title,
         description: data.description,
-        latitude: data.location.lat.toString(),
-        longitude: data.location.lng.toString(),
-        notificationReach: data.location.notificationReach.toString(),
+        location: {
+          lat: data.location.lat,
+          lng: data.location.lng,
+          notificationReach: data.location.notificationReach,
+        },
         category: data.category,
         subcategory: data.subcategory,
         startTime: startDateTime.toISOString(),
@@ -185,7 +186,9 @@ export default function CreateEventPage() {
       };
 
       console.log("Sending event data:", eventData);
-      await apiRequest('POST', '/api/events', eventData);
+
+      const response = await apiRequest('POST', '/api/events', eventData);
+      console.log("Server response:", response);
 
       queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
 
@@ -249,6 +252,17 @@ export default function CreateEventPage() {
               </div>
             </div>
 
+            <div className="space-y-2 relative z-20">
+              <FormLabel>Category *</FormLabel>
+              <CategoryPicker
+                onCategoryChange={(main, sub) => {
+                  form.setValue("category", main)
+                  form.setValue("subcategory", sub)
+                }}
+              />
+              <FormMessage />
+            </div>
+
             <FormField
               control={form.control}
               name="notificationReach"
@@ -260,7 +274,7 @@ export default function CreateEventPage() {
                       min={MIN_REACH}
                       max={MAX_REACH}
                       step={0.1}
-                      value={[position.notificationReach]}
+                      value={[field.value]}
                       onValueChange={(vals) => {
                         const value = vals[0]
                         field.onChange(value)
@@ -269,23 +283,12 @@ export default function CreateEventPage() {
                     />
                   </FormControl>
                   <FormDescription>
-                    Notification radius: {position.notificationReach} km
+                    Notification radius: {field.value} km
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <div className="space-y-2">
-              <FormLabel>Category *</FormLabel>
-              <CategoryPicker
-                onCategoryChange={(main, sub) => {
-                  form.setValue("category", main)
-                  form.setValue("subcategory", sub)
-                }}
-              />
-              <FormMessage />
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -452,5 +455,5 @@ export default function CreateEventPage() {
         </Form>
       </Card>
     </div>
-  );
+  )
 }

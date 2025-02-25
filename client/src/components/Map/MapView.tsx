@@ -1,59 +1,33 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
+import L from "leaflet";
 
-// Oss als standaard centrum
+// Fix default marker icons
+const icon = L.icon({
+  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+// Standaard centrum op Oss
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 const DEFAULT_ZOOM = 13;
 
-// Haversine formule voor afstandsberekening
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Aarde radius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
-
-// Component om de kaart te updaten wanneer locatie verandert
-function MapController({ center }: { center: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center);
-  }, [center, map]);
-  return null;
-}
-
 export default function MapView() {
-  const [userLocation, setUserLocation] = useState<[number, number]>(DEFAULT_CENTER);
-
-  // Gebruiker's locatie ophalen
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
-        },
-        (error) => {
-          console.error("Locatie fout:", error);
-        }
-      );
-    }
-  }, []);
-
   // Events ophalen
   const { data: events } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby"],
     queryFn: async () => {
       const params = new URLSearchParams({
-        lat: userLocation[0].toString(),
-        lng: userLocation[1].toString(),
+        lat: DEFAULT_CENTER[0].toString(),
+        lng: DEFAULT_CENTER[1].toString(),
         radius: "10", // 10km radius
       });
 
@@ -67,51 +41,27 @@ export default function MapView() {
     },
   });
 
-  // Filter events binnen 10km
-  const nearbyEvents = events?.filter(event => {
-    const distance = calculateDistance(
-      userLocation[0],
-      userLocation[1],
-      Number(event.latitude),
-      Number(event.longitude)
-    );
-    return distance <= 10; // Toon alleen events binnen 10km
-  });
-
   return (
-    <div className="h-[calc(100vh-8rem)]">
+    <div style={{ height: "calc(100vh - 8rem)" }}>
       <MapContainer
-        center={userLocation}
+        center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
-        className="h-full w-full"
+        style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
 
-        <MapController center={userLocation} />
-
-        {/* Marker voor gebruiker's locatie */}
-        <Marker position={userLocation}>
-          <Popup>Jouw locatie</Popup>
-        </Marker>
-
-        {/* Markers voor events */}
-        {nearbyEvents?.map((event) => (
+        {events?.map((event) => (
           <Marker
             key={event.id}
             position={[Number(event.latitude), Number(event.longitude)]}
+            icon={icon}
           >
             <Popup>
               <strong>{event.title}</strong>
               <p>{event.description}</p>
-              <p>Afstand: {calculateDistance(
-                userLocation[0],
-                userLocation[1],
-                Number(event.latitude),
-                Number(event.longitude)
-              ).toFixed(1)} km</p>
             </Popup>
           </Marker>
         ))}

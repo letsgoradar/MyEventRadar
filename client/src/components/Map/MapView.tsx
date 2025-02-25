@@ -8,21 +8,6 @@ import React, { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 
-// Define the filter props interface
-interface FilterProps {
-  searchQuery: string;
-  category: string;
-  fromDate: Date | null;
-  toDate: Date | null;
-  showPaidEvents: boolean;
-  useDistanceFilter: boolean;
-  distanceRadius: number;
-}
-
-interface MapViewProps {
-  filters: FilterProps;
-}
-
 // Category colors mapping - Updated to Google Maps style
 const categoryColors: { [key: string]: string } = {
   'festival': '#EA4335',   // Google Red
@@ -251,11 +236,11 @@ export default function MapView({ filters }: MapViewProps) {
 
   // Map tile styles
   const tileUrl = isSatelliteView
-    ? "https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}"
+    ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
   const tileConfig = isSatelliteView
-    ? { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }
+    ? { subdomains: [] }
     : { subdomains: 'abcd' };
 
   return (
@@ -313,4 +298,18 @@ export default function MapView({ filters }: MapViewProps) {
       </MapContainer>
     </div>
   );
+}
+
+interface FilterProps {
+  searchQuery: string;
+  category: string;
+  fromDate: Date | null;
+  toDate: Date | null;
+  showPaidEvents: boolean;
+  useDistanceFilter: boolean;
+  distanceRadius: number;
+}
+
+interface MapViewProps {
+  filters: FilterProps;
 }

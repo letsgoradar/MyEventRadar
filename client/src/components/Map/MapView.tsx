@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, useMap, Marker, Popup, Circle } from "react-leaflet";
+import { MapContainer, TileLayer, useMap, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
-import LocationPin from "./LocationPin";
-import EventOverlay from "./EventOverlay";
 import { format } from "date-fns";
 import L from "leaflet";
+import { Badge } from "@/components/ui/badge";
 
 interface Location {
   lat: number;
@@ -39,9 +38,8 @@ export default function MapView() {
     lat: DEFAULT_CENTER[0], 
     lng: DEFAULT_CENTER[1] 
   });
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [searchRadius, setSearchRadius] = useState(DEFAULT_RADIUS);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [searchRadius, setSearchRadius] = useState(DEFAULT_RADIUS);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -79,9 +77,6 @@ export default function MapView() {
 
   return (
     <div className="relative h-[calc(100vh-8rem)]">
-      {selectedEvent && (
-        <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setSelectedEvent(null)} />
-      )}
       <div className="absolute inset-0 border-[5px] border-gray-200 rounded-lg overflow-hidden">
         <MapContainer
           center={[userLocation.lat, userLocation.lng]}
@@ -93,7 +88,6 @@ export default function MapView() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
           <MapController center={userLocation} />
-          <LocationPin />
 
           {/* Show search radius circle */}
           <Circle
@@ -109,15 +103,25 @@ export default function MapView() {
                 key={event.id}
                 position={[location.lat, location.lng]}
                 icon={eventIcon}
-                eventHandlers={{
-                  click: () => setSelectedEvent(event),
-                }}
               >
                 <Popup>
-                  <div className="p-2">
-                    <h3 className="font-bold text-lg">{event.title}</h3>
-                    <p className="text-sm text-gray-600">{format(new Date(event.startTime), 'PPP')}</p>
-                    <p className="text-sm">{event.description}</p>
+                  <div className="p-2 min-w-[200px]">
+                    <h3 className="font-bold text-lg mb-2">{event.title}</h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="outline">{event.category}</Badge>
+                      {event.subcategory && (
+                        <Badge variant="outline" className="bg-slate-50">
+                          {event.subcategory}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <p>{format(new Date(event.startTime), "PPP")}</p>
+                      <p>
+                        {format(new Date(event.startTime), "h:mm a")}
+                        {event.endTime && ` - ${format(new Date(event.endTime), "h:mm a")}`}
+                      </p>
+                    </div>
                   </div>
                 </Popup>
               </Marker>
@@ -125,13 +129,6 @@ export default function MapView() {
           })}
         </MapContainer>
       </div>
-
-      {selectedEvent && (
-        <EventOverlay
-          event={selectedEvent}
-          onClose={() => setSelectedEvent(null)}
-        />
-      )}
     </div>
   );
 }

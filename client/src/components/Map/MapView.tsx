@@ -21,11 +21,51 @@ interface MapViewProps {
   filters: FilterProps;
 }
 
-// Custom icon for events
-const eventIcon = L.divIcon({
-  className: 'custom-icon',
-  html: '<div class="w-4 h-4 bg-orange-500 rounded-full border-2 border-white"></div>'
-});
+// Category colors mapping
+const categoryColors: { [key: string]: string } = {
+  'festival': '#FF6B6B',   // Coral Red
+  'sport': '#4ECDC4',      // Turquoise
+  'music': '#45B7D1',      // Sky Blue
+  'food': '#96CEB4',       // Sage Green
+  'culture': '#9B59B6',    // Purple
+  'education': '#3498DB',  // Blue
+  'networking': '#F1C40F', // Yellow
+  'other': '#95A5A6',      // Gray
+};
+
+// Function to get color for category
+const getCategoryColor = (category: string): string => {
+  return categoryColors[category.toLowerCase()] || categoryColors.other;
+};
+
+// Custom icon creator function
+const createEventIcon = (category: string) => {
+  const color = getCategoryColor(category);
+  return L.divIcon({
+    className: 'custom-icon',
+    html: `<div class="w-4 h-4 rounded-full border-2 border-white" style="background-color: ${color};"></div>`
+  });
+};
+
+// Legend Component
+const MapLegend = () => {
+  return (
+    <div className="absolute bottom-4 right-4 bg-white p-2 rounded-lg shadow-md z-[1000]">
+      <h4 className="text-sm font-bold mb-2">Event Categories</h4>
+      <div className="grid gap-1">
+        {Object.entries(categoryColors).map(([category, color]) => (
+          <div key={category} className="flex items-center gap-2">
+            <div 
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            <span className="text-xs capitalize">{category}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 // User location marker
 function LocationMarker() {
@@ -96,6 +136,7 @@ export default function MapView({ filters }: MapViewProps) {
   console.log('Processing events:', events.map(e => ({
     id: e.id,
     title: e.title,
+    category: e.category,
     coords: [e.latitude, e.longitude]
   })));
 
@@ -126,7 +167,7 @@ export default function MapView({ filters }: MapViewProps) {
   console.log('Filtered events:', filteredEvents.length);
 
   return (
-    <div className="h-[calc(100vh-8rem)]">
+    <div className="h-[calc(100vh-8rem)] relative">
       <MapContainer
         center={userLocation}
         zoom={13}
@@ -137,6 +178,7 @@ export default function MapView({ filters }: MapViewProps) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <LocationMarker />
+        <MapLegend />
 
         {filteredEvents.map(event => {
           const lat = Number(event.latitude);
@@ -145,6 +187,7 @@ export default function MapView({ filters }: MapViewProps) {
           console.log('Adding marker for event:', {
             id: event.id,
             title: event.title,
+            category: event.category,
             position: [lat, lng]
           });
 
@@ -152,14 +195,16 @@ export default function MapView({ filters }: MapViewProps) {
             <Marker
               key={event.id}
               position={[lat, lng]}
-              icon={eventIcon}
+              icon={createEventIcon(event.category)}
             >
               <Popup>
                 <div className="p-2">
                   <h3 className="font-bold">{event.title}</h3>
                   <p className="text-sm">{event.description}</p>
+                  <p className="text-sm mt-1">
+                    Category: <span className="capitalize">{event.category}</span>
+                  </p>
                   {event.isPaid && <p className="text-sm mt-1">Price: €{event.price}</p>}
-                  <p className="text-sm mt-1">Category: {event.category}</p>
                 </div>
               </Popup>
             </Marker>

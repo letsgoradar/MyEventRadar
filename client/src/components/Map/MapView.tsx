@@ -13,6 +13,11 @@ interface Location {
   lng: number;
 }
 
+// Default center of Netherlands and zoom level
+const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
+const DEFAULT_ZOOM = 7; // Zoomed out to show ~150km radius
+const DEFAULT_RADIUS = 150; // 150km radius
+
 // Define custom icon for events
 const eventIcon = L.divIcon({
   className: 'custom-event-icon',
@@ -30,22 +35,34 @@ function MapController({ center }: { center: Location }) {
 }
 
 export default function MapView() {
-  const [userLocation, setUserLocation] = useState<Location>({ lat: 51.9225, lng: 4.47917 }); // Default to Rotterdam
+  const [userLocation, setUserLocation] = useState<Location>({ 
+    lat: DEFAULT_CENTER[0], 
+    lng: DEFAULT_CENTER[1] 
+  });
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [searchRadius, setSearchRadius] = useState(10); // 10km radius
+  const [mapInitialized, setMapInitialized] = useState(false);
 
   useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-      });
+    if ("geolocation" in navigator && !mapInitialized) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          setMapInitialized(true);
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          // Keep default Netherlands center if location access fails
+          setMapInitialized(true);
+        }
+      );
     }
   }, []);
 
-  const { data: events, error } = useQuery<Event[]>({
+  const { data: events } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", userLocation.lat, userLocation.lng, searchRadius],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -53,67 +70,62 @@ export default function MapView() {
         lng: userLocation.lng.toString(),
         radius: searchRadius.toString(),
       });
-      console.log('Fetching events with params:', params.toString());
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-      const data = await response.json();
-      console.log('Received events:', data);
-      return data;
+      return response.json();
     },
   });
-
-  if (error) {
-    console.error('Error fetching events:', error);
-  }
 
   return (
     <div className="relative h-[calc(100vh-8rem)]">
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setSelectedEvent(null)} />
       )}
-      <MapContainer
-        center={[userLocation.lat, userLocation.lng]}
-        zoom={11}
-        className="h-full w-full relative z-[1]"
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-        <MapController center={userLocation} />
-        <LocationPin />
-
-        {/* Show search radius circle */}
-        <Circle
+      <div className="absolute inset-0 border-4 border-gray-200 rounded-lg overflow-hidden">
+        <MapContainer
           center={[userLocation.lat, userLocation.lng]}
-          radius={searchRadius * 1000}
-          pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.1 }}
-        />
+          zoom={mapInitialized ? 11 : DEFAULT_ZOOM}
+          className="h-full w-full relative z-[1]"
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+          <MapController center={userLocation} />
+          <LocationPin />
 
-        {events?.map((event) => {
-          const location = event.location as { lat: number; lng: number };
-          return (
-            <Marker
-              key={event.id}
-              position={[location.lat, location.lng]}
-              icon={eventIcon}
-              eventHandlers={{
-                click: () => setSelectedEvent(event),
-              }}
-            >
-              <Popup>
-                <div className="p-2">
-                  <h3 className="font-bold text-lg">{event.title}</h3>
-                  <p className="text-sm text-gray-600">{format(new Date(event.startTime), 'PPP')}</p>
-                  <p className="text-sm">{event.description}</p>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
-      </MapContainer>
+          {/* Show search radius circle */}
+          <Circle
+            center={[userLocation.lat, userLocation.lng]}
+            radius={searchRadius * 1000}
+            pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.1 }}
+          />
+
+          {events?.map((event) => {
+            const location = event.location as { lat: number; lng: number };
+            return (
+              <Marker
+                key={event.id}
+                position={[location.lat, location.lng]}
+                icon={eventIcon}
+                eventHandlers={{
+                  click: () => setSelectedEvent(event),
+                }}
+              >
+                <Popup>
+                  <div className="p-2">
+                    <h3 className="font-bold text-lg">{event.title}</h3>
+                    <p className="text-sm text-gray-600">{format(new Date(event.startTime), 'PPP')}</p>
+                    <p className="text-sm">{event.description}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
+        </MapContainer>
+      </div>
 
       {selectedEvent && (
         <EventOverlay

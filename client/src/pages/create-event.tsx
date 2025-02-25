@@ -35,7 +35,7 @@ const RECURRENCE_OPTIONS = [
 ]
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
-const DEFAULT_ZOOM = 11 // Increased zoom for better visibility of 5km radius
+const DEFAULT_ZOOM = 7 // Zoomed out view
 const MIN_REACH = 1
 const MAX_REACH = 5
 
@@ -44,7 +44,6 @@ function getNextHour() {
   return setMilliseconds(setSeconds(setMinutes(addHours(now, 1), 0), 0), 0)
 }
 
-// Update form schema to properly handle notification reach
 const createEventFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string(),
@@ -75,6 +74,7 @@ export default function CreateEventPage() {
     lng: DEFAULT_CENTER[1],
     notificationReach: 1 
   });
+  const [mapInitialized, setMapInitialized] = useState(false);
 
   const nextHour = getNextHour();
   const defaultEndTime = addHours(nextHour, 1);
@@ -103,9 +103,8 @@ export default function CreateEventPage() {
     },
   });
 
-  // Get user's location on component mount
   useEffect(() => {
-    if ("geolocation" in navigator) {
+    if ("geolocation" in navigator && !mapInitialized) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const newPos = {
@@ -115,9 +114,12 @@ export default function CreateEventPage() {
           };
           setPosition(newPos);
           form.setValue("location", newPos);
+          setMapInitialized(true);
         },
         (error) => {
           console.error("Error getting location:", error);
+          // Keep default Netherlands center
+          setMapInitialized(true);
           toast({
             title: "Location Access Error",
             description: "Could not access your location. Using default location.",
@@ -128,7 +130,6 @@ export default function CreateEventPage() {
     }
   }, []);
 
-  // Update position and notification reach when the map is clicked or slider changes
   const updateLocation = (newLocation: { lat: number; lng: number }) => {
     const currentReach = form.getValues().location.notificationReach;
     const newPos = {
@@ -160,13 +161,11 @@ export default function CreateEventPage() {
 
   async function onSubmit(data: z.infer<typeof createEventFormSchema>) {
     try {
-      // Create combined datetime strings
       const startDateTime = new Date(`${data.startDate}T${data.startTime}`);
       const endDateTime = data.endDate && data.endTime 
         ? new Date(`${data.endDate}T${data.endTime}`)
         : null;
 
-      // Prepare event data
       const eventData = {
         title: data.title,
         description: data.description,
@@ -191,7 +190,6 @@ export default function CreateEventPage() {
       const response = await apiRequest('POST', '/api/events', eventData);
       console.log("Server response:", response);
 
-      // Invalidate the events query cache to trigger a refresh
       queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
 
       toast({
@@ -242,10 +240,10 @@ export default function CreateEventPage() {
 
             <div className="space-y-2">
               <FormLabel>Location *</FormLabel>
-              <div className="h-[200px] rounded-md overflow-hidden relative z-10">
+              <div className="h-[200px] rounded-md overflow-hidden relative z-10 border-4 border-gray-200">
                 <MapContainer
                   center={[position.lat, position.lng]}
-                  zoom={13}
+                  zoom={mapInitialized ? 13 : DEFAULT_ZOOM}
                   className="h-full"
                 >
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -280,7 +278,7 @@ export default function CreateEventPage() {
                       onValueChange={(vals) => {
                         const value = vals[0]
                         field.onChange(value)
-                        setPosition({...position, notificationReach: value}) // Update position directly
+                        setPosition({...position, notificationReach: value}) 
                       }}
                     />
                   </FormControl>

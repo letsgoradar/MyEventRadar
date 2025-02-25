@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -15,13 +15,18 @@ export const events = pgTable("events", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  location: jsonb("location").notNull(),
+  // Location data split into separate columns
+  latitude: decimal("latitude").notNull(),
+  longitude: decimal("longitude").notNull(),
+  notificationReach: decimal("notification_reach").notNull(),
+  address: text("address"),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time"),
   category: text("category").notNull(),
   subcategory: text("subcategory"),
   isPaid: boolean("is_paid").default(false),
-  price: integer("price"),
+  price: decimal("price"),
+  maxParticipants: integer("max_participants"),
   hostId: integer("host_id").notNull(),
   recurrence: text("recurrence").notNull().default('once'),
 });
@@ -55,6 +60,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   googleId: true,
 });
 
+// Schema for location data
 const locationSchema = z.object({
   lat: z.number(),
   lng: z.number(),

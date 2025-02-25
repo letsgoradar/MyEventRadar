@@ -77,19 +77,33 @@ export class PgStorage implements IStorage {
         const eventData = {
           title: insertEvent.title,
           description: insertEvent.description,
-          location: insertEvent.location,
+          latitude: insertEvent.location.lat,
+          longitude: insertEvent.location.lng,
+          notificationReach: insertEvent.location.notificationReach,
+          address: insertEvent.location.address || null,
           startTime: new Date(insertEvent.startTime),
           endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
           category: insertEvent.category,
           subcategory: insertEvent.subcategory || null,
           isPaid: insertEvent.isPaid || false,
           price: insertEvent.price || null,
+          maxParticipants: insertEvent.maxParticipants || null,
           hostId: insertEvent.hostId,
           recurrence: insertEvent.recurrence,
         };
 
         const [result] = await db.insert(events).values(eventData).returning();
-        return result;
+
+        // Transform result back to expected format with location object
+        return {
+          ...result,
+          location: {
+            lat: Number(result.latitude),
+            lng: Number(result.longitude),
+            notificationReach: Number(result.notificationReach),
+            address: result.address || undefined,
+          },
+        };
       } catch (error) {
         console.error('Error creating event:', error);
         throw error;
@@ -135,9 +149,17 @@ export class PgStorage implements IStorage {
   async getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]> {
     return this.withRetry(async () => {
       const allEvents = await db.select().from(events).orderBy(desc(events.startTime));
-      return allEvents.filter(event => {
-        const eventLoc = event.location as { lat: number; lng: number };
-        const distance = this.calculateDistance(lat, lng, eventLoc.lat, eventLoc.lng);
+
+      return allEvents.map(event => ({
+        ...event,
+        location: {
+          lat: Number(event.latitude),
+          lng: Number(event.longitude),
+          notificationReach: Number(event.notificationReach),
+          address: event.address || undefined,
+        },
+      })).filter(event => {
+        const distance = this.calculateDistance(lat, lng, event.location.lat, event.location.lng);
         return distance <= radius;
       });
     });
@@ -239,15 +261,15 @@ export class PgStorage implements IStorage {
     const dLat = this.deg2rad(lat2 - lat1);
     const dLon = this.deg2rad(lon2 - lon1);
     const a =
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) *
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
 
   private deg2rad(deg: number): number {
-    return deg * (Math.PI/180);
+    return deg * (Math.PI / 180);
   }
 }
 

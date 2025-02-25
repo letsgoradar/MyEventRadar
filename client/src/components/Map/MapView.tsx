@@ -161,18 +161,10 @@ export default function MapView({ filters }: MapViewProps) {
               icon={eventIcon}
             >
               <Popup>
-                <div className="min-w-[200px]">
-                  <h3 className="font-bold text-lg">{event.title}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{event.description}</p>
-                  <p className="text-sm mt-2">
-                    {format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a")}
-                  </p>
-                  {event.isPaid && event.price && (
-                    <p className="text-sm font-semibold mt-1">
-                      Price: €{Number(event.price).toFixed(2)}
-                    </p>
-                  )}
-                </div>
+                <strong>{event.title}</strong><br />
+                <p>{event.description}</p>
+                <p>Category: {event.category}</p>
+                {event.isPaid && <p>Price: €{event.price}</p>}
               </Popup>
             </Marker>
           );

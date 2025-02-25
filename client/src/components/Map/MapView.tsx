@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
-import { format } from "date-fns";
 import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
 
@@ -12,6 +11,10 @@ const eventIcon = new L.Icon({
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="12" cy="12" r="8" fill="#f97316" stroke="white" stroke-width="2"/>
     </svg>
+  `),
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+});
 
 // Distance calculation function
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -25,11 +28,10 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return Math.round(R * c * 10) / 10;
 }
 
-// City display component
 function CityDisplay({ lat, lng }: { lat: number, lng: number }) {
-  const [city, setCity] = React.useState<string | null>(null);
+  const [city, setCity] = useState<string | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     async function fetchCity() {
       try {
         const response = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`);
@@ -46,48 +48,6 @@ function CityDisplay({ lat, lng }: { lat: number, lng: number }) {
 
   return city ? <p>City: {city}</p> : null;
 }
-</new_str>
-
-  `),
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-});
-
-interface FilterProps {
-  searchQuery: string;
-  category: string;
-  fromDate: Date;
-  toDate: Date;
-  showPaidEvents: boolean;
-  useDistanceFilter: boolean;
-  distanceRadius: number;
-}
-
-interface MapViewProps {
-  filters: FilterProps;
-}
-
-// Test data matching a known event from the database
-const testEvents: Event[] = [
-  {
-    id: 42,
-    title: "Muziekfestival Centrum Oss",
-    description: "Jaarlijks muziekfestival met lokale bands",
-    latitude: "51.7656",
-    longitude: "5.5314",
-    notificationReach: "5",
-    startTime: new Date("2024-03-30T14:00:00"),
-    endTime: new Date("2024-03-30T23:00:00"),
-    category: "festival",
-    subcategory: "music",
-    isPaid: true,
-    price: "15.00",
-    hostId: 1,
-    maxParticipants: 1000,
-    recurrence: "once",
-    locationName: "Centrum Oss" // Added locationName
-  }
-];
 
 export default function MapView() {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
@@ -131,30 +91,11 @@ export default function MapView() {
     },
   });
 
-  // Use test data if API call fails
-  const events = apiEvents || testEvents;
-
-  console.log('Processing events:', events.map(e => ({
-    id: e.id,
-    title: e.title,
-    coords: [e.latitude, e.longitude]
-  })));
-
-  // Display events with valid coordinates
-  const validEvents = events.filter(event => {
-    // Check if event has location property
-    if (!event.location) {
-      const lat = Number(event.latitude);
-      const lng = Number(event.longitude);
-      return !isNaN(lat) && !isNaN(lng);
-    }
-    
-    // Handle location object structure
-    const location = event.location as { lat: number; lng: number };
-    return !isNaN(location.lat) && !isNaN(location.lng);
+  const validEvents = (apiEvents || []).filter(event => {
+    const lat = Number(event.latitude);
+    const lng = Number(event.longitude);
+    return !isNaN(lat) && !isNaN(lng);
   });
-
-  console.log('Total valid events:', validEvents.length);
 
   return (
     <div className="h-[calc(100vh-8rem)]">
@@ -176,20 +117,12 @@ export default function MapView() {
 
         {/* Event markers */}
         {validEvents.map(event => {
-          const coordinates = event.location 
-            ? [event.location.lat, event.location.lng]
-            : [Number(event.latitude), Number(event.longitude)];
-
-          console.log('Adding marker for event:', {
-            id: event.id,
-            title: event.title,
-            position: coordinates
-          });
+          const coordinates: [number, number] = [Number(event.latitude), Number(event.longitude)];
 
           return (
             <Marker
               key={event.id}
-              position={coordinates as [number, number]}
+              position={coordinates}
               icon={eventIcon}
             >
               <Popup>

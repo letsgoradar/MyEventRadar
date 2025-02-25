@@ -53,5 +53,14 @@
 
 /* Remove grid lines */
 .leaflet-tile-pane {
-  filter: saturate(0.85) brightness(1.02);
+  filter: saturate(1.1) brightness(1.02);
+}
+
+/* Additional rules to remove grid lines */
+.leaflet-grid-hide .leaflet-pane {
+  border: none !important;
+}
+
+.leaflet-grid-hide .leaflet-overlay-pane svg {
+  display: none !important;
 }

@@ -77,6 +77,8 @@ export default function MapView() {
     },
   });
 
+  console.log('Events data:', events);
+
   return (
     <div className="relative h-[calc(100vh-8rem)]">
       <div className="absolute inset-0 border-[5px] border-gray-200 rounded-lg overflow-hidden">
@@ -99,8 +101,7 @@ export default function MapView() {
               eventHandlers={{
                 click: () => setSelectedEvent(event)
               }}
-            >
-            </Marker>
+            />
           ))}
         </MapContainer>
       </div>

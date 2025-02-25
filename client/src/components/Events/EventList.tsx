@@ -21,7 +21,9 @@ export default function EventList({ location, radius }: EventListProps) {
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('Fetched events:', data);
+      return data;
     },
   });
 

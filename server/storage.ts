@@ -91,9 +91,13 @@ export class PgStorage implements IStorage {
           recurrence: insertEvent.recurrence,
         };
 
+        console.log('Creating event with data:', eventData);
+
         const [result] = await db.insert(events).values(eventData).returning();
 
-        // Transform result back to expected format with location object
+        console.log('Created event result:', result);
+
+        // Transform result back to expected format
         return {
           ...result,
           location: {
@@ -146,7 +150,9 @@ export class PgStorage implements IStorage {
 
   async getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]> {
     return this.withRetry(async () => {
-      const allEvents = await db.select().from(events).orderBy(desc(events.startTime));
+      console.log('Searching for events:', { lat, lng, radius });
+      const allEvents = await db.select().from(events);
+      console.log('Found events:', allEvents);
 
       return allEvents.map(event => ({
         ...event,
@@ -154,12 +160,8 @@ export class PgStorage implements IStorage {
           lat: Number(event.latitude),
           lng: Number(event.longitude),
           notificationReach: Number(event.notificationReach),
-          address: event.address || undefined,
         },
-      })).filter(event => {
-        const distance = this.calculateDistance(lat, lng, event.location.lat, event.location.lng);
-        return distance <= radius;
-      });
+      }));
     });
   }
 

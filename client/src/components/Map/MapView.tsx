@@ -2,6 +2,7 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useQuery } from "@tanstack/react-query";
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import "leaflet/dist/leaflet.css";
 import { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
@@ -9,12 +10,15 @@ import type { Event } from "@shared/schema";
 const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
 const RADIUS = 30000;
 
-const eventIcon = L.divIcon({
-  className: 'event-marker',
-  html: '<div style="width: 16px; height: 16px; background-color: #f97316; border: 2px solid white; border-radius: 50%;"></div>',
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-  popupAnchor: [0, -8]
+const eventIcon = new L.Icon({
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="8" fill="#f97316" stroke="white" stroke-width="2"/>
+    </svg>
+  `),
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+  popupAnchor: [0, -12]
 });
 
 const locationIcon = L.divIcon({
@@ -78,13 +82,20 @@ export default function MapView() {
           <Popup>Your location</Popup>
         </Marker>
 
-        {events.map((event) => {
-          if (!event.latitude || !event.longitude) return null;
-          const position: [number, number] = [Number(event.latitude), Number(event.longitude)];
+        {events?.map((event) => {
+          console.log("Rendering event:", event);
+          const lat = Number(event.latitude || event.coords?.[0]);
+          const lng = Number(event.longitude || event.coords?.[1]);
+          
+          if (isNaN(lat) || isNaN(lng)) {
+            console.warn("Invalid coordinates for event:", event);
+            return null;
+          }
+          
           return (
             <Marker
               key={event.id}
-              position={position}
+              position={[lat, lng]}
               icon={eventIcon}
             >
               <Popup>

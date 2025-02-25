@@ -26,11 +26,27 @@ export default function MapView() {
     },
   });
 
+  // Filter events to only include "Summer Music Festival"
+  const summerMusicFestival = events.find(event => event.title === "Summer Music Festival");
+
+  let center = DEFAULT_CENTER;
+  let zoom = 13;
+
+  if (summerMusicFestival) {
+    const lat = Number(summerMusicFestival.latitude);
+    const lng = Number(summerMusicFestival.longitude);
+    if (!isNaN(lat) && !isNaN(lng)) {
+        center = [lat, lng];
+        zoom = 15; // Zoom in closer to the festival
+    }
+  }
+
+
   return (
     <div className="h-[calc(100vh-8rem)] w-full">
       <MapContainer
-        center={DEFAULT_CENTER}
-        zoom={13}
+        center={center}
+        zoom={zoom}
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
@@ -38,28 +54,21 @@ export default function MapView() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {events.map((event) => {
-          const lat = Number(event.latitude);
-          const lng = Number(event.longitude);
-
-          if (isNaN(lat) || isNaN(lng)) return null;
-
-          return (
-            <Marker
-              key={event.id}
-              position={[lat, lng]}
-            >
-              <Popup>
-                <div className="text-sm">
-                  <h3 className="font-bold">{event.title}</h3>
-                  <p>{event.description}</p>
-                  {event.isPaid && <p>Price: €{event.price}</p>}
-                  <p>Category: {event.category}</p>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
+        {summerMusicFestival && (
+          <Marker
+            key={summerMusicFestival.id}
+            position={[Number(summerMusicFestival.latitude), Number(summerMusicFestival.longitude)]}
+          >
+            <Popup>
+              <div className="text-sm">
+                <h3 className="font-bold">{summerMusicFestival.title}</h3>
+                <p>{summerMusicFestival.description}</p>
+                {summerMusicFestival.isPaid && <p>Price: €{summerMusicFestival.price}</p>}
+                <p>Category: {summerMusicFestival.category}</p>
+              </div>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
     </div>
   );

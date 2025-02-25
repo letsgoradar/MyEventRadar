@@ -47,21 +47,32 @@ const createEventIcon = (category: string) => {
   });
 };
 
-// Legend Component
-const MapLegend = () => {
+// Interactive Legend Component
+const MapLegend = ({ onToggleCategory, activeCategories }: { 
+  onToggleCategory: (category: string) => void;
+  activeCategories: Set<string>;
+}) => {
   return (
-    <div className="absolute bottom-4 right-4 bg-white p-2 rounded-lg shadow-md z-[1000]">
-      <h4 className="text-sm font-bold mb-2">Event Categories</h4>
-      <div className="grid gap-1">
-        {Object.entries(categoryColors).map(([category, color]) => (
-          <div key={category} className="flex items-center gap-2">
-            <div 
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            <span className="text-xs capitalize">{category}</span>
-          </div>
-        ))}
+    <div className="absolute bottom-4 right-4 bg-white p-3 rounded-lg shadow-md z-[1000]">
+      <h4 className="text-sm font-bold mb-2">Filter by Category</h4>
+      <div className="grid gap-2">
+        {Object.entries(categoryColors).map(([category, color]) => {
+          const isActive = activeCategories.has(category);
+          return (
+            <button
+              key={category}
+              onClick={() => onToggleCategory(category)}
+              className={`flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 transition-colors
+                ${isActive ? 'opacity-100' : 'opacity-50'}`}
+            >
+              <div 
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-xs capitalize">{category}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -95,6 +106,21 @@ function LocationMarker() {
 
 export default function MapView({ filters }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]); // Default to Oss
+  const [activeCategories, setActiveCategories] = useState<Set<string>>(
+    new Set(Object.keys(categoryColors))
+  );
+
+  const toggleCategory = (category: string) => {
+    setActiveCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -132,14 +158,6 @@ export default function MapView({ filters }: MapViewProps) {
     },
   });
 
-  // Log all events for debugging
-  console.log('Processing events:', events.map(e => ({
-    id: e.id,
-    title: e.title,
-    category: e.category,
-    coords: [e.latitude, e.longitude]
-  })));
-
   // Filter events based on criteria
   const filteredEvents = events.filter(event => {
     const lat = Number(event.latitude);
@@ -157,6 +175,7 @@ export default function MapView({ filters }: MapViewProps) {
     }
 
     // Apply filters
+    if (!activeCategories.has(event.category.toLowerCase())) return false;
     if (filters.category && event.category !== filters.category) return false;
     if (filters.showPaidEvents && !event.isPaid) return false;
     if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
@@ -178,18 +197,14 @@ export default function MapView({ filters }: MapViewProps) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <LocationMarker />
-        <MapLegend />
+        <MapLegend 
+          onToggleCategory={toggleCategory}
+          activeCategories={activeCategories}
+        />
 
         {filteredEvents.map(event => {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
-
-          console.log('Adding marker for event:', {
-            id: event.id,
-            title: event.title,
-            category: event.category,
-            position: [lat, lng]
-          });
 
           return (
             <Marker

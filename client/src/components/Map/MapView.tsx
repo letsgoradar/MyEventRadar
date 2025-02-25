@@ -1,15 +1,14 @@
-
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { useQuery } from "@tanstack/react-query";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
-import { MapDebug } from './MapDebug';
 
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 const RADIUS = 10;
 
+// Create event icon outside component to prevent recreation
 const eventIcon = new L.Icon({
   iconUrl: 'data:image/svg+xml;base64,' + btoa(`
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -55,28 +54,24 @@ export default function MapView() {
   });
 
   return (
-    <div className="h-[calc(100vh-8rem)]">
+    <div className="h-[calc(100vh-8rem)] relative">
       <MapContainer
         center={DEFAULT_CENTER}
         zoom={12}
         className="h-full w-full"
-        zoomControl={true}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <Marker position={userLocation} icon={locationIcon}>
-          <Popup>Your location</Popup>
-        </Marker>
-
         {events.map((event) => {
+          // Safely extract coordinates
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
-          
+
           if (isNaN(lat) || isNaN(lng)) {
-            console.warn("Invalid coordinates for event:", event);
+            console.warn(`Invalid coordinates for event ${event.id}`);
             return null;
           }
 
@@ -98,7 +93,6 @@ export default function MapView() {
           );
         })}
       </MapContainer>
-      <MapDebug events={events} userLocation={userLocation} />
     </div>
   );
 }

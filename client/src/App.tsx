@@ -137,7 +137,7 @@ function App() {
         </Route>
         <Route>
           <div className="flex flex-col h-screen">
-            <nav className="bg-orange-500 p-4 flex justify-between items-center">
+            <nav className="bg-[#0066FF] p-4 flex justify-between items-center">
               <h1 className="text-white text-xl font-bold">EventMap</h1>
               <Link href="/create">
                 <Button variant="secondary">Create Event</Button>
@@ -150,7 +150,7 @@ function App() {
                   <Button variant="ghost" size="icon" className="relative">
                     <Filter className="h-5 w-5" />
                     {activeFilters.length > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-orange-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
+                      <span className="absolute -top-1 -right-1 bg-[#FF6B00] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
                         {activeFilters.length}
                       </span>
                     )}
@@ -393,7 +393,7 @@ function App() {
         </Route>
       </Switch>
     </QueryClientProvider>
-  )
+  );
 }
 
-export default App
+export default App;

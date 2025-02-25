@@ -8,10 +8,10 @@ import React, { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 
-// Category colors mapping - Updated to Google Maps style
+// Category colors mapping - Updated to new color scheme
 const categoryColors: { [key: string]: string } = {
-  'festival': '#EA4335',   // Google Red
-  'sport': '#34A853',      // Google Green
+  'festival': '#FF6B00',   // Gaspedaal Orange
+  'sport': '#0066FF',      // Gaspedaal Blue
   'music': '#4285F4',      // Google Blue
   'food': '#FBBC05',       // Google Yellow
   'culture': '#7B1FA2',    // Purple

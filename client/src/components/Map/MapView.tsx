@@ -78,36 +78,85 @@ const MapLegend = ({ onToggleCategory, activeCategories }: {
   );
 };
 
-// User location marker
+// Function to create compass needle SVG
+const createCompassNeedleIcon = (heading: number = 0) => {
+  const svg = `
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="14" fill="white" stroke="#3B82F6" stroke-width="2"/>
+      <path transform="rotate(${heading} 16 16)" d="M16 4L20 28L16 24L12 28L16 4Z" fill="#3B82F6"/>
+    </svg>
+  `;
+
+  return L.divIcon({
+    className: 'user-location-marker',
+    html: `<div class="pulse-animation">${svg}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+};
+
+// User location marker with compass direction
 function LocationMarker() {
   const [position, setPosition] = useState<[number, number] | null>(null);
+  const [heading, setHeading] = useState<number>(0);
   const map = useMap();
 
   useEffect(() => {
-    map.locate().on("locationfound", function (e) {
-      const newPos: [number, number] = [e.latlng.lat, e.latlng.lng];
-      setPosition(newPos);
-      map.flyTo(e.latlng, map.getZoom());
-    });
+    if ('geolocation' in navigator) {
+      // Watch position for real-time updates
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const newPos: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+
+          // Update heading if available
+          if (pos.coords.heading !== null) {
+            setHeading(pos.coords.heading);
+          }
+
+          setPosition(newPos);
+          map.flyTo(newPos, map.getZoom());
+        },
+        undefined,
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 5000
+        }
+      );
+
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
   }, [map]);
+
+  // Also listen for device orientation changes
+  useEffect(() => {
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.webkitCompassHeading) {
+        // iOS devices
+        setHeading(e.webkitCompassHeading);
+      } else if (e.alpha !== null) {
+        // Other devices
+        setHeading(360 - e.alpha);
+      }
+    };
+
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    return () => window.removeEventListener('deviceorientation', handleOrientation, true);
+  }, []);
 
   return position === null ? null : (
     <Marker
       position={position}
-      icon={L.divIcon({
-        className: 'user-location-marker',
-        html: `
-          <div class="w-full h-full bg-blue-500 rounded-full border-4 border-white pulse-animation">
-            <div class="absolute inset-0 bg-blue-300 rounded-full opacity-30"></div>
-          </div>
-        `
-      })}
+      icon={createCompassNeedleIcon(heading)}
     >
       <Popup>
         <div className="text-center">
           <div className="font-bold">You are here</div>
           <div className="text-sm text-gray-600">
             {position[0].toFixed(4)}, {position[1].toFixed(4)}
+          </div>
+          <div className="text-sm text-blue-600">
+            Heading: {Math.round(heading)}°
           </div>
         </div>
       </Popup>

@@ -6,8 +6,8 @@ import LocationMarker from './LocationMarker';
 import type { Event } from "@shared/schema";
 import { DialogDescription } from "@/components/ui/dialog";
 
-const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
-const RADIUS = 10;
+const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
+const RADIUS = 175;
 
 const blueIcon = L.divIcon({
   className: 'custom-icon',

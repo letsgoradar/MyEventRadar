@@ -76,7 +76,7 @@ export default function MapView({ filters }: MapViewProps) {
       const params = new URLSearchParams({
         lat: userLocation[0].toString(),
         lng: userLocation[1].toString(),
-        radius: "10", // Fixed radius for testing
+        radius: filters.useDistanceFilter ? filters.distanceRadius.toString() : "10",
       });
 
       console.log('Fetching nearby events:', Object.fromEntries(params));

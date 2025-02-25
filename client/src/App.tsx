@@ -8,7 +8,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Link, Route, Switch, useLocation } from "wouter"
 import { CategoryPicker } from "@/components/CategoryPicker"
 import Map from "@/components/Map"
-import { EventList } from "@/components/EventList"
+import { EventList } from "@/components/Events/EventList"
 import CreateEventPage from "@/pages/create-event"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
@@ -32,7 +32,7 @@ function App() {
   const [category, setCategory] = React.useState('')
   const [fromDate, setFromDate] = React.useState<Date>(today)
   const [toDate, setToDate] = React.useState<Date>(nextYear)
-  const [showPaidEvents, setShowPaidEvents] = React.useState(false)
+  const [showFreeEvents, setShowFreeEvents] = React.useState(false)
   const [useDistanceFilter, setUseDistanceFilter] = React.useState(false)
   const [distanceRadius, setDistanceRadius] = React.useState(5) // Default 5km
   const [sortBy, setSortBy] = React.useState<'date' | 'distance'>('date')
@@ -40,6 +40,7 @@ function App() {
   const [viewMode, setViewMode] = React.useState<'map' | 'list'>('map')
   const [, setLocation] = useLocation()
   const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
+  const [filtersEnabled, setFiltersEnabled] = React.useState(false)
 
   // Temporary states for filters before applying
   const [tempFilters, setTempFilters] = React.useState({
@@ -47,12 +48,14 @@ function App() {
     category,
     fromDate: today,
     toDate: nextYear,
-    showPaidEvents,
+    showFreeEvents,
     useDistanceFilter,
     distanceRadius
   })
 
   const activeFilters = React.useMemo<ActiveFilter[]>(() => {
+    if (!filtersEnabled) return [];
+
     const filters: ActiveFilter[] = [];
 
     if (searchQuery) {
@@ -75,15 +78,15 @@ function App() {
         label: `To: ${format(toDate, 'MMM d, yyyy')}`
       });
     }
-    if (showPaidEvents) {
-      filters.push({ key: 'paid', value: 'true', label: 'Paid Events Only' });
+    if (showFreeEvents) {
+      filters.push({ key: 'free', value: 'true', label: 'Alleen gratis evenementen' });
     }
     if (useDistanceFilter) {
       filters.push({ key: 'distance', value: distanceRadius.toString(), label: `Within ${distanceRadius}km` });
     }
 
     return filters;
-  }, [searchQuery, category, fromDate, toDate, showPaidEvents, useDistanceFilter, distanceRadius]);
+  }, [searchQuery, category, fromDate, toDate, showFreeEvents, useDistanceFilter, distanceRadius, filtersEnabled]);
 
   const removeFilter = (filterKey: string) => {
     switch (filterKey) {
@@ -96,16 +99,16 @@ function App() {
         setTempFilters(prev => ({ ...prev, category: '' }));
         break;
       case 'fromDate':
-        setFromDate(new Date());
-        setTempFilters(prev => ({ ...prev, fromDate: new Date() }));
+        setFromDate(today);
+        setTempFilters(prev => ({ ...prev, fromDate: today }));
         break;
       case 'toDate':
-        setToDate(new Date());
-        setTempFilters(prev => ({ ...prev, toDate: new Date() }));
+        setToDate(nextYear);
+        setTempFilters(prev => ({ ...prev, toDate: nextYear }));
         break;
-      case 'paid':
-        setShowPaidEvents(false);
-        setTempFilters(prev => ({ ...prev, showPaidEvents: false }));
+      case 'free':
+        setShowFreeEvents(false);
+        setTempFilters(prev => ({ ...prev, showFreeEvents: false }));
         break;
       case 'distance':
         setUseDistanceFilter(false);
@@ -123,10 +126,24 @@ function App() {
     setCategory(tempFilters.category);
     setFromDate(tempFilters.fromDate);
     setToDate(tempFilters.toDate);
-    setShowPaidEvents(tempFilters.showPaidEvents);
+    setShowFreeEvents(tempFilters.showFreeEvents);
     setUseDistanceFilter(tempFilters.useDistanceFilter);
     setDistanceRadius(tempFilters.distanceRadius);
+    setFiltersEnabled(true);
     setIsFilterSheetOpen(false);
+  };
+
+  const resetFilters = () => {
+    setTempFilters({
+      searchQuery: '',
+      category: '',
+      fromDate: today,
+      toDate: nextYear,
+      showFreeEvents: false,
+      useDistanceFilter: false,
+      distanceRadius: 5
+    });
+    setFiltersEnabled(false);
   };
 
   const toggleSort = () => {
@@ -167,27 +184,6 @@ function App() {
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
                   <div className="grid gap-6 py-6">
-                    {/* Active Filter Tags */}
-                    {activeFilters.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {activeFilters.map((filter) => (
-                          <Badge
-                            key={filter.key}
-                            variant="secondary"
-                            className="flex items-center gap-1"
-                          >
-                            {filter.label}
-                            <button
-                              onClick={() => removeFilter(filter.key)}
-                              className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
                     {/* Search */}
                     <div className="space-y-2">
                       <label htmlFor="search" className="text-sm font-medium">Search</label>
@@ -199,17 +195,58 @@ function App() {
                       />
                     </div>
 
+                    {/* Distance Filter */}
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="useDistance"
+                          checked={tempFilters.useDistanceFilter}
+                          onCheckedChange={(checked) =>
+                            setTempFilters(prev => ({ ...prev, useDistanceFilter: checked as boolean }))
+                          }
+                        />
+                        <label htmlFor="useDistance" className="text-sm font-medium">
+                          Filter op afstand van mijn locatie
+                        </label>
+                      </div>
+
+                      {tempFilters.useDistanceFilter && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Afstand (km): {tempFilters.distanceRadius}</label>
+                          <Slider
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={[tempFilters.distanceRadius]}
+                            onValueChange={(value) => setTempFilters(prev => ({ ...prev, distanceRadius: value[0] }))}
+                          />
+                        </div>
+                      )}
+                    </div>
+
                     {/* Category */}
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Category</label>
+                      <label className="text-sm font-medium">Categorie</label>
                       <CategoryPicker
                         onCategoryChange={handleCategoryChange}
                       />
                     </div>
 
+                    {/* Free Events Filter */}
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="free"
+                        checked={tempFilters.showFreeEvents}
+                        onCheckedChange={(checked) =>
+                          setTempFilters(prev => ({ ...prev, showFreeEvents: checked as boolean }))
+                        }
+                      />
+                      <label htmlFor="free" className="text-sm font-medium">Toon alleen gratis evenementen</label>
+                    </div>
+
                     {/* Date Range */}
                     <div className="space-y-4">
-                      <label className="text-sm font-medium">Date Range</label>
+                      <label className="text-sm font-medium">Datum bereik</label>
                       <div className="rounded-md border">
                         <CalendarComponent
                           mode="range"
@@ -232,54 +269,22 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Distance Filter */}
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="useDistance"
-                          checked={tempFilters.useDistanceFilter}
-                          onCheckedChange={(checked) =>
-                            setTempFilters(prev => ({ ...prev, useDistanceFilter: checked as boolean }))
-                          }
-                        />
-                        <label htmlFor="useDistance" className="text-sm font-medium">
-                          Filter by distance from my location
-                        </label>
-                      </div>
-
-                      {tempFilters.useDistanceFilter && (
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Distance (km): {tempFilters.distanceRadius}</label>
-                          <Slider
-                            min={1}
-                            max={100}
-                            step={1}
-                            value={[tempFilters.distanceRadius]}
-                            onValueChange={(value) => setTempFilters(prev => ({ ...prev, distanceRadius: value[0] }))}
-                          />
-                        </div>
-                      )}
+                    {/* Filter Buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={resetFilters}
+                      >
+                        Reset Filters
+                      </Button>
+                      <Button
+                        className="flex-1"
+                        onClick={applyFilters}
+                      >
+                        Filters Toepassen
+                      </Button>
                     </div>
-
-                    {/* Paid Events Filter */}
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="paid"
-                        checked={tempFilters.showPaidEvents}
-                        onCheckedChange={(checked) =>
-                          setTempFilters(prev => ({ ...prev, showPaidEvents: checked as boolean }))
-                        }
-                      />
-                      <label htmlFor="paid" className="text-sm font-medium">Show paid events only</label>
-                    </div>
-
-                    {/* Apply Filters Button */}
-                    <Button
-                      className="w-full mt-4"
-                      onClick={applyFilters}
-                    >
-                      Apply Filters
-                    </Button>
                   </div>
                 </SheetContent>
               </Sheet>
@@ -350,10 +355,11 @@ function App() {
                     category,
                     fromDate,
                     toDate,
-                    showPaidEvents,
+                    showFreeEvents,
                     useDistanceFilter,
                     distanceRadius
                   }}
+                  filtersEnabled={filtersEnabled}
                 />
               ) : (
                 <EventList
@@ -362,10 +368,11 @@ function App() {
                     category,
                     fromDate,
                     toDate,
-                    showPaidEvents,
+                    showFreeEvents,
                     useDistanceFilter,
                     distanceRadius
                   }}
+                  filtersEnabled={filtersEnabled}
                   sortBy={sortBy}
                   sortAscending={sortAscending}
                 />

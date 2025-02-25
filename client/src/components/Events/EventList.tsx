@@ -47,7 +47,7 @@ export default function EventList({ filters, sortBy, sortAscending }: EventListP
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
-      console.log('Fetched events:', data);
+      console.log('Debug - Fetched events:', data);
       return data;
     },
   });
@@ -95,8 +95,8 @@ export default function EventList({ filters, sortBy, sortAscending }: EventListP
       const distance = calculateDistance(
         51.7656, // Default user location (Oss)
         5.5314,
-        Number(event.latitude),
-        Number(event.longitude)
+        Number(event.latitude), // Changed from lat to latitude
+        Number(event.longitude) // Changed from lng to longitude
       );
       if (distance > filters.distanceRadius) {
         return false;
@@ -105,6 +105,8 @@ export default function EventList({ filters, sortBy, sortAscending }: EventListP
 
     return true;
   });
+
+  console.log('Debug - Filtered events:', filteredEvents?.length, 'events');
 
   // Sort events
   if (filteredEvents?.length) {
@@ -118,14 +120,14 @@ export default function EventList({ filters, sortBy, sortAscending }: EventListP
         const distanceA = calculateDistance(
           51.7656,
           5.5314,
-          Number(a.latitude),
-          Number(a.longitude)
+          Number(a.latitude), // Changed from lat to latitude
+          Number(a.longitude) // Changed from lng to longitude
         );
         const distanceB = calculateDistance(
           51.7656,
           5.5314,
-          Number(b.latitude),
-          Number(b.longitude)
+          Number(b.latitude), // Changed from lat to latitude
+          Number(b.longitude) // Changed from lng to longitude
         );
         comparison = distanceA - distanceB;
       }

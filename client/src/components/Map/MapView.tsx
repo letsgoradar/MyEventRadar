@@ -6,13 +6,18 @@ import "leaflet/dist/leaflet.css";
 import L from 'leaflet';
 import { format } from "date-fns";
 
-// Fix Leaflet's default icon path issues
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+// Fix Leaflet default icon
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
 });
+
+L.Marker.prototype.options.icon = DefaultIcon;
 
 interface FilterProps {
   searchQuery: string;
@@ -28,7 +33,6 @@ interface MapViewProps {
   filters: FilterProps;
 }
 
-// Calculate distance between two points using Haversine formula
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in km
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -42,28 +46,35 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 export default function MapView({ filters }: MapViewProps) {
-  // Default center (Oss)
-  const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
-  const [userLocation, setUserLocation] = useState<[number, number]>(DEFAULT_CENTER);
+  // Default to Oss center
+  const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
+  const [mapReady, setMapReady] = useState(false);
 
-  // Get user location
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
+          console.log('User location set to:', [position.coords.latitude, position.coords.longitude]);
         },
         (error) => {
           console.error("Location error:", error);
+          // Keep default Oss center
+          setMapReady(true);
         }
       );
     }
+    setMapReady(true);
   }, []);
 
-  // Fetch events
-  const { data: events } = useQuery<Event[]>({
+  const { data: events, isLoading, error } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", filters],
     queryFn: async () => {
+      console.log('Fetching events with params:', {
+        location: userLocation,
+        radius: filters.useDistanceFilter ? filters.distanceRadius : 10
+      });
+
       const params = new URLSearchParams({
         lat: userLocation[0].toString(),
         lng: userLocation[1].toString(),
@@ -75,36 +86,47 @@ export default function MapView({ filters }: MapViewProps) {
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
-      console.log('Debug - Fetched events:', data);
+      console.log('Received events from API:', data);
       return data;
     },
+    enabled: mapReady,
   });
 
-  // Filter events
   const filteredEvents = events?.filter(event => {
-    const eventDate = new Date(event.startTime);
-    const now = new Date();
+    console.log('Processing event:', event.title, {
+      coordinates: [event.latitude, event.longitude],
+      date: new Date(event.startTime)
+    });
 
-    // Basic date filter - only future events
-    if (eventDate <= now) return false;
+    // Validate coordinates
+    if (!event.latitude || !event.longitude) {
+      console.log('Event skipped - invalid coordinates:', event.title);
+      return false;
+    }
+
+    const eventDate = new Date(event.startTime);
+
+    // Apply date range filter
+    if (eventDate < filters.fromDate || eventDate > filters.toDate) {
+      console.log('Event skipped - outside date range:', event.title);
+      return false;
+    }
 
     // Apply search filter
     if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
+      console.log('Event skipped - search mismatch:', event.title);
       return false;
     }
 
     // Apply category filter
     if (filters.category && event.category !== filters.category) {
-      return false;
-    }
-
-    // Apply date range filter
-    if (eventDate < filters.fromDate || eventDate > filters.toDate) {
+      console.log('Event skipped - category mismatch:', event.title);
       return false;
     }
 
     // Apply paid events filter
     if (filters.showPaidEvents && !event.isPaid) {
+      console.log('Event skipped - not paid:', event.title);
       return false;
     }
 
@@ -117,12 +139,19 @@ export default function MapView({ filters }: MapViewProps) {
         Number(event.longitude)
       );
       if (distance > filters.distanceRadius) {
+        console.log('Event skipped - too far:', event.title, distance.toFixed(1), 'km');
         return false;
       }
     }
 
+    console.log('Event passed all filters:', event.title);
     return true;
   });
+
+  if (isLoading) return <div>Loading map...</div>;
+  if (error) return <div>Error loading events</div>;
+
+  console.log('Showing filtered events:', filteredEvents?.length);
 
   return (
     <div className="h-[calc(100vh-8rem)]">
@@ -143,20 +172,20 @@ export default function MapView({ filters }: MapViewProps) {
 
         {/* Event markers */}
         {filteredEvents?.map(event => {
-          const lat = Number(event.latitude);
-          const lng = Number(event.longitude);
+          // Parse coordinates as numbers
+          const latitude = Number(event.latitude);
+          const longitude = Number(event.longitude);
 
-          if (isNaN(lat) || isNaN(lng)) {
-            console.error('Invalid coordinates for event:', event.title, lat, lng);
+          // Skip invalid coordinates
+          if (isNaN(latitude) || isNaN(longitude)) {
+            console.error('Invalid coordinates for event:', event.title);
             return null;
           }
-
-          console.log('Debug - Adding marker for event:', event.title, 'at', lat, lng);
 
           return (
             <Marker
               key={event.id}
-              position={[lat, lng]}
+              position={[latitude, longitude]}
             >
               <Popup>
                 <div className="min-w-[200px]">
@@ -165,7 +194,7 @@ export default function MapView({ filters }: MapViewProps) {
                   <p className="text-sm mt-2">
                     {format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a")}
                   </p>
-                  {event.isPaid && (
+                  {event.isPaid && event.price && (
                     <p className="text-sm font-semibold mt-1">
                       Price: €{Number(event.price).toFixed(2)}
                     </p>

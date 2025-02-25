@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { format } from "date-fns"
+import { format, addYears } from "date-fns"
 
 const queryClient = new QueryClient()
 
@@ -25,10 +25,13 @@ interface ActiveFilter {
 }
 
 function App() {
+  const today = new Date()
+  const nextYear = addYears(today, 1)
+
   const [searchQuery, setSearchQuery] = React.useState('')
   const [category, setCategory] = React.useState('')
-  const [fromDate, setFromDate] = React.useState<Date>(new Date())
-  const [toDate, setToDate] = React.useState<Date>(new Date())
+  const [fromDate, setFromDate] = React.useState<Date>(today)
+  const [toDate, setToDate] = React.useState<Date>(nextYear)
   const [showPaidEvents, setShowPaidEvents] = React.useState(false)
   const [useDistanceFilter, setUseDistanceFilter] = React.useState(false)
   const [distanceRadius, setDistanceRadius] = React.useState(5) // Default 5km
@@ -42,8 +45,8 @@ function App() {
   const [tempFilters, setTempFilters] = React.useState({
     searchQuery,
     category,
-    fromDate,
-    toDate,
+    fromDate: today,
+    toDate: nextYear,
     showPaidEvents,
     useDistanceFilter,
     distanceRadius
@@ -271,8 +274,8 @@ function App() {
                     </div>
 
                     {/* Apply Filters Button */}
-                    <Button 
-                      className="w-full mt-4" 
+                    <Button
+                      className="w-full mt-4"
                       onClick={applyFilters}
                     >
                       Apply Filters
@@ -341,7 +344,7 @@ function App() {
             {/* Main Content */}
             <div className="flex-1 relative z-20">
               {viewMode === 'map' ? (
-                <Map 
+                <Map
                   filters={{
                     searchQuery,
                     category,
@@ -353,7 +356,7 @@ function App() {
                   }}
                 />
               ) : (
-                <EventList 
+                <EventList
                   filters={{
                     searchQuery,
                     category,

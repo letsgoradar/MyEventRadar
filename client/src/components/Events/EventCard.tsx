@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Calendar, Users, Euro, Clock } from "lucide-react";
+import { Calendar, Users, Euro } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
@@ -24,6 +24,7 @@ const miniEventIcon = new L.Icon({
 });
 
 export default function EventCard({ event, onSelect }: EventCardProps) {
+  // Use correct column names from database schema
   const lat = Number(event.latitude);
   const lng = Number(event.longitude);
 
@@ -70,18 +71,10 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
 
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
-            <div>
-              <span className="text-sm">
-                {format(new Date(event.startTime), "MMM d, yyyy")}
-              </span>
-              <div className="flex items-center gap-2">
-                <Clock className="h-3 w-3" />
-                <span className="text-sm">
-                  {format(new Date(event.startTime), "h:mm a")}
-                  {event.endTime && ` - ${format(new Date(event.endTime), "h:mm a")}`}
-                </span>
-              </div>
-            </div>
+            <span className="text-sm">
+              {format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a")}
+              {event.endTime && ` - ${format(new Date(event.endTime), "h:mm a")}`}
+            </span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -98,9 +91,6 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
           <p className="text-sm text-gray-600 mt-2">
             {event.description}
           </p>
-          <div className="pt-2 flex justify-end">
-            <Button>View Details</Button>
-          </div>
         </div>
       </CardContent>
     </Card>

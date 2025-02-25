@@ -77,9 +77,9 @@ export class PgStorage implements IStorage {
         const eventData = {
           title: insertEvent.title,
           description: insertEvent.description,
-          latitude: insertEvent.location.lat,
-          longitude: insertEvent.location.lng,
-          notificationReach: insertEvent.location.notificationReach,
+          latitude: insertEvent.location.lat.toString(),
+          longitude: insertEvent.location.lng.toString(),
+          notificationReach: insertEvent.location.notificationReach.toString(),
           startTime: new Date(insertEvent.startTime),
           endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
           category: insertEvent.category,
@@ -97,15 +97,7 @@ export class PgStorage implements IStorage {
 
         console.log('Created event result:', result);
 
-        // Transform result back to expected format
-        return {
-          ...result,
-          location: {
-            lat: Number(result.latitude),
-            lng: Number(result.longitude),
-            notificationReach: Number(result.notificationReach),
-          },
-        };
+        return result;
       } catch (error) {
         console.error('Error creating event:', error);
         throw error;
@@ -149,20 +141,32 @@ export class PgStorage implements IStorage {
   }
 
   async getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]> {
-    return this.withRetry(async () => {
-      console.log('Searching for events:', { lat, lng, radius });
-      const allEvents = await db.select().from(events);
-      console.log('Found events:', allEvents);
+    try {
+      console.log('Fetching events with params:', { lat, lng, radius });
+      const result = await db.select().from(events);
 
-      return allEvents.map(event => ({
-        ...event,
-        location: {
-          lat: Number(event.latitude),
-          lng: Number(event.longitude),
-          notificationReach: Number(event.notificationReach),
-        },
-      }));
-    });
+      console.log('Raw database events:', result);
+
+      // Convert coordinates to numbers consistently
+      const formattedEvents = result.map(event => {
+        const formattedEvent = {
+          ...event,
+          latitude: parseFloat(event.latitude),
+          longitude: parseFloat(event.longitude),
+          notificationReach: parseFloat(event.notificationReach)
+        };
+        console.log('Formatted event:', {
+          title: formattedEvent.title,
+          coords: [formattedEvent.latitude, formattedEvent.longitude]
+        });
+        return formattedEvent;
+      });
+
+      return formattedEvents;
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      throw error;
+    }
   }
 
   async getEventsByHost(hostId: number): Promise<Event[]> {

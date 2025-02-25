@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,8 +10,8 @@ export function EventList() {
     queryKey: ['/api/events/nearby'],
     queryFn: async () => {
       const params = new URLSearchParams({
-        lat: '37.7749', // Default to San Francisco
-        lng: '-122.4194',
+        lat: '51.7656', // Default to Oss
+        lng: '5.5314',
         radius: '10'
       });
       const response = await fetch(`/api/events/nearby?${params}`);
@@ -51,8 +52,12 @@ export function EventList() {
   return (
     <div className="p-4 space-y-4 overflow-auto max-h-[calc(100vh-16rem)]">
       {events.map((event) => {
-        const location = event.location as { lat: number; lng: number; locationName?: string };
-        const locationText = location.locationName || `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+        let locationText;
+        if (event.location) {
+          locationText = event.location.locationName || `${event.location.lat.toFixed(4)}, ${event.location.lng.toFixed(4)}`;
+        } else {
+          locationText = `${event.latitude}, ${event.longitude}`;
+        }
 
         return (
           <Card key={event.id}>
@@ -65,12 +70,12 @@ export function EventList() {
               <div className="mt-2 text-sm text-muted-foreground">
                 <p>{locationText}</p>
                 <p>{format(new Date(event.startTime), 'PPP')}</p>
-                {event.isPaid && event.price && <p>Price: ${event.price}</p>}
+                {event.isPaid && event.price && <p>Price: €{event.price}</p>}
               </div>
             </CardContent>
           </Card>
         );
       })}
     </div>
-  )
+  );
 }

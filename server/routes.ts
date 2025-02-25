@@ -159,25 +159,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Geocoding endpoint
+  // Geocoding endpoint with rate limiting
+  const GEOCODING_CACHE = new Map();
+  const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+  
   app.get("/api/geocode", async (req, res) => {
     try {
       const { lat, lng } = req.query;
       if (!lat || !lng) {
         return res.status(400).json({ city: "Unknown location" });
       }
+
+      const cacheKey = `${lat},${lng}`;
+      const cached = GEOCODING_CACHE.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return res.json({ city: cached.city });
+      }
+
+      // Add delay to respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10`,
         {
           headers: {
-            'User-Agent': 'EventApp/1.0',
-            'Accept': 'application/json'
+            'User-Agent': 'EventApp/1.0 (https://replit.com)',
+            'Accept': 'application/json',
+            'Accept-Language': 'en'
           }
         }
       );
       
       if (!response.ok) {
+        console.error("Geocoding error:", response.status, response.statusText);
         return res.status(500).json({ city: "Unknown location" });
       }
       
@@ -186,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         data = JSON.parse(text);
       } catch (e) {
-        console.error("Failed to parse geocoding response:", text);
+        console.error("Failed to parse geocoding response:", text.substring(0, 100));
         return res.status(500).json({ city: "Unknown location" });
       }
       
@@ -195,6 +209,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                    data.address?.village || 
                    data.address?.municipality ||
                    "Unknown location";
+      
+      // Cache the result
+      GEOCODING_CACHE.set(cacheKey, {
+        city,
+        timestamp: Date.now()
+      });
       
       res.json({ city });
     } catch (error) {

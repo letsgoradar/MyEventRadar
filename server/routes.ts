@@ -162,6 +162,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Geocoding endpoint with rate limiting
   const GEOCODING_CACHE = new Map();
   const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+  const RATE_LIMIT_DELAY = 1100; // 1.1 seconds between requests
+  let lastRequestTime = 0;
   
   app.get("/api/geocode", async (req, res) => {
     try {
@@ -176,8 +178,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ city: cached.city });
       }
 
-      // Add delay to respect rate limits
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Ensure minimum delay between requests
+      const now = Date.now();
+      const timeSinceLastRequest = now - lastRequestTime;
+      if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
+        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY - timeSinceLastRequest));
+      }
+      lastRequestTime = Date.now();
       
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10`,
@@ -185,12 +192,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           headers: {
             'User-Agent': 'EventApp/1.0 (https://replit.com/@user/EventApp)',
             'Accept': 'application/json',
-            'Accept-Language': 'en',
-            'Referer': 'https://replit.com'
+            'Accept-Language': 'en'
           },
           timeout: 5000
         }
       );
+
+      if (!response.ok) {
+        console.error("Geocoding error status:", response.status);
+        return res.json({ city: "Unknown location" });
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error("Invalid content type:", contentType);
+        return res.json({ city: "Unknown location" });
+      }
       
       if (!response.ok) {
         const errorText = await response.text();

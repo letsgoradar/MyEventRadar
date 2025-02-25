@@ -1,3 +1,4 @@
+
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useQuery } from "@tanstack/react-query";
 import L from 'leaflet';
@@ -8,20 +9,20 @@ import type { Event } from "@shared/schema";
 const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
 const RADIUS = 30000;
 
-// Create event icon using divIcon for better rendering
 const eventIcon = L.divIcon({
   className: 'event-marker',
   html: '<div style="width: 16px; height: 16px; background-color: #f97316; border: 2px solid white; border-radius: 50%;"></div>',
   iconSize: [16, 16],
-  iconAnchor: [8, 8]
+  iconAnchor: [8, 8],
+  popupAnchor: [0, -8]
 });
 
-// Create location icon
 const locationIcon = L.divIcon({
   className: 'location-marker',
   html: '<div style="width: 16px; height: 16px; background-color: #2196F3; border: 2px solid white; border-radius: 50%;"></div>',
   iconSize: [16, 16],
-  iconAnchor: [8, 8]
+  iconAnchor: [8, 8],
+  popupAnchor: [0, -8]
 });
 
 function MapLocator({ center }: { center: [number, number] }) {
@@ -52,9 +53,12 @@ export default function MapView() {
     queryKey: ["events", "nearby", userLocation],
     queryFn: async () => {
       const [lat, lng] = userLocation;
+      console.log("Fetching events for:", { lat, lng, radius: RADIUS });
       const response = await fetch(`/api/events/nearby?lat=${lat}&lng=${lng}&radius=${RADIUS}`);
       if (!response.ok) throw new Error('Failed to fetch events');
-      return response.json();
+      const data = await response.json();
+      console.log("Received events:", data.length);
+      return data;
     },
   });
 
@@ -74,16 +78,13 @@ export default function MapView() {
           <Popup>Your location</Popup>
         </Marker>
 
-        {events.map(event => {
-          const lat = Number(event.latitude);
-          const lng = Number(event.longitude);
-
-          if (isNaN(lat) || isNaN(lng)) return null;
-
+        {events.map((event) => {
+          if (!event.latitude || !event.longitude) return null;
+          const position: [number, number] = [Number(event.latitude), Number(event.longitude)];
           return (
             <Marker
               key={event.id}
-              position={[lat, lng]}
+              position={position}
               icon={eventIcon}
             >
               <Popup>

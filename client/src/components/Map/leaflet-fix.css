@@ -84,3 +84,13 @@
 .leaflet-tile {
   border: none !important;
 }
+
+/* Remove grid lines from map */
+.leaflet-tile-container {
+  border: none !important;
+}
+
+.leaflet-tile-loaded {
+  border: none !important;
+  outline: none !important;
+}

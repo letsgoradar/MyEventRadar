@@ -171,6 +171,7 @@ export default function MapView({ filters }: MapViewProps) {
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
     new Set(Object.keys(categoryColors))
   );
+  const [selectedTileStyle, setSelectedTileStyle] = useState<string>("voyager");
 
   const toggleCategory = (category: string) => {
     setActiveCategories(prev => {
@@ -247,8 +248,42 @@ export default function MapView({ filters }: MapViewProps) {
 
   console.log('Filtered events:', filteredEvents.length);
 
+  // Map tile style options
+  const tileStyles = {
+    voyager: {
+      url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      name: "Clean Style"
+    },
+    positron: {
+      url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+      name: "Light Style"
+    },
+    dark: {
+      url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      name: "Dark Style"
+    },
+    osm: {
+      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      name: "Standard Style"
+    }
+  };
+
   return (
     <div className="h-[calc(100vh-8rem)] relative">
+      <div className="absolute top-4 right-4 z-[1000] bg-white p-2 rounded-lg shadow-md">
+        <select 
+          value={selectedTileStyle}
+          onChange={(e) => setSelectedTileStyle(e.target.value)}
+          className="text-sm p-1 border rounded"
+        >
+          {Object.entries(tileStyles).map(([key, style]) => (
+            <option key={key} value={key}>
+              {style.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <MapContainer
         center={userLocation}
         zoom={13}
@@ -256,7 +291,7 @@ export default function MapView({ filters }: MapViewProps) {
         attributionControl={false}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          url={tileStyles[selectedTileStyle as keyof typeof tileStyles].url}
           attribution={false}
         />
         <LocationMarker />

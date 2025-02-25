@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, useMap, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, useMap, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
@@ -18,12 +18,17 @@ const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
 const DEFAULT_ZOOM = 6; // Zoomed out to show ~175km radius
 const DEFAULT_RADIUS = 175; // 175km radius
 
-// Define custom icon for events with higher z-index
-const eventIcon = L.divIcon({
-  className: 'custom-event-icon',
-  html: '<div class="w-6 h-6 bg-orange-500 rounded-full border-2 border-white shadow-lg" style="z-index: 1000;"></div>',
+// Custom icon for events
+const eventIcon = new L.Icon({
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10" fill="#f97316" stroke="white" stroke-width="2"/>
+    </svg>
+  `),
   iconSize: [24, 24],
-  iconAnchor: [12, 12]
+  iconAnchor: [12, 12],
+  popupAnchor: [0, -12],
+  className: 'event-marker'
 });
 
 function MapController({ center }: { center: Location }) {
@@ -88,11 +93,11 @@ export default function MapView() {
           center={[userLocation.lat, userLocation.lng]}
           zoom={zoom}
           className="h-full w-full relative z-[1]"
+          style={{ background: '#f0f0f0' }}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            zIndex={1}
           />
           <MapController center={userLocation} />
 
@@ -104,7 +109,6 @@ export default function MapView() {
               eventHandlers={{
                 click: () => setSelectedEvent(event)
               }}
-              zIndexOffset={1000}
             />
           ))}
         </MapContainer>

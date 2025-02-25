@@ -14,11 +14,14 @@ interface EventCardProps {
 }
 
 // Define custom icon for the mini map marker
-const miniEventIcon = L.divIcon({
-  className: 'custom-event-icon',
-  html: '<div class="w-4 h-4 bg-orange-500 rounded-full border-2 border-white shadow-lg"></div>',
+const miniEventIcon = new L.Icon({
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8" cy="8" r="6" fill="#f97316" stroke="white" stroke-width="2"/>
+    </svg>
+  `),
   iconSize: [16, 16],
-  iconAnchor: [8, 8]
+  iconAnchor: [8, 8],
 });
 
 export default function EventCard({ event, onSelect }: EventCardProps) {
@@ -49,7 +52,7 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          <div className="h-[150px] rounded-md overflow-hidden border border-gray-200">
+          <div className="h-[150px] rounded-md overflow-hidden relative z-10 border-[5px] border-gray-200">
             <MapContainer
               center={[lat, lng]}
               zoom={14}

@@ -1,16 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
-//import L from "leaflet"; //Removed as custom icon is no longer needed
+import "leaflet/dist/leaflet.css";
 
-// Default center (Oss)
+// Fix default icon issue
+import L from 'leaflet';
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png')
+});
+
+// Center of Oss
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 
 export default function MapView() {
-  // Fetch events
-  const { data: events } = useQuery<Event[]>({
+  const { data: events, isLoading, error } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby"],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -24,10 +31,22 @@ export default function MapView() {
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
-      console.log('Events data:', data); // Debug log
+      console.log('Fetched events:', data);
       return data;
     }
   });
+
+  useEffect(() => {
+    if (events) {
+      console.log('Events loaded:', events.length);
+      events.forEach(event => {
+        console.log('Event location:', event.title, event.latitude, event.longitude);
+      });
+    }
+  }, [events]);
+
+  if (isLoading) return <div>Loading map...</div>;
+  if (error) return <div>Error loading map</div>;
 
   return (
     <div style={{ height: "calc(100vh - 8rem)" }}>
@@ -41,11 +60,10 @@ export default function MapView() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
 
-        {events?.map(event => {
+        {events && events.map(event => {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
-
-          console.log(`Adding marker for event ${event.title} at ${lat},${lng}`); // Debug log
+          console.log('Rendering marker:', event.title, lat, lng);
 
           return (
             <Marker
@@ -53,7 +71,7 @@ export default function MapView() {
               position={[lat, lng]}
             >
               <Popup>
-                <h3 style={{ fontWeight: 'bold' }}>{event.title}</h3>
+                <h3 className="font-bold">{event.title}</h3>
                 <p>{event.description}</p>
               </Popup>
             </Marker>

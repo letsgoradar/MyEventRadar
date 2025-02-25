@@ -1,12 +1,12 @@
 
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Default center of Netherlands (if user location not available)
+// Default center of Netherlands
 const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
 const RADIUS = 30000; // 30km radius in meters
 
@@ -42,6 +42,7 @@ function MapLocator({ center }: { center: [number, number] }) {
 
 export default function MapView() {
   const [userLocation, setUserLocation] = useState<[number, number]>(DEFAULT_CENTER);
+  const [eventsVisible, setEventsVisible] = useState(false);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -56,17 +57,26 @@ export default function MapView() {
     }
   }, []);
 
-  const { data: events = [] } = useQuery<Event[]>({
+  const { data: events = [], isLoading } = useQuery<Event[]>({
     queryKey: ["events", "nearby", userLocation],
     queryFn: async () => {
       const [lat, lng] = userLocation;
+      console.log("Fetching events with params:", { lat, lng, radius: RADIUS });
       const response = await fetch(`/api/events/nearby?lat=${lat}&lng=${lng}&radius=${RADIUS}`);
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-      return response.json();
+      const data = await response.json();
+      console.log("Fetched events:", data);
+      return data;
     },
   });
+
+  useEffect(() => {
+    if (events.length > 0) {
+      setEventsVisible(true);
+    }
+  }, [events]);
 
   return (
     <div className="h-[calc(100vh-8rem)]">
@@ -80,18 +90,21 @@ export default function MapView() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {/* User location marker */}
         <Marker position={userLocation} icon={locationIcon}>
           <Popup>Your location</Popup>
         </Marker>
 
-        {/* Event markers */}
-        {events.map(event => {
+        {eventsVisible && events.map(event => {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
 
-          if (isNaN(lat) || isNaN(lng)) return null;
+          if (isNaN(lat) || isNaN(lng)) {
+            console.warn("Invalid coordinates for event:", event);
+            return null;
+          }
 
+          console.log("Rendering event marker:", { id: event.id, title: event.title, coords: [lat, lng] });
+          
           return (
             <Marker
               key={event.id}
@@ -102,6 +115,8 @@ export default function MapView() {
                 <div className="text-sm">
                   <h3 className="font-bold">{event.title}</h3>
                   <p>{event.description}</p>
+                  {event.isPaid && <p>Price: €{event.price}</p>}
+                  <p>Category: {event.category}</p>
                 </div>
               </Popup>
             </Marker>

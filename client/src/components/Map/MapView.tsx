@@ -1,22 +1,18 @@
-
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { useQuery } from "@tanstack/react-query";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Event } from "@shared/schema";
-import { useEffect } from 'react';
 
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 const RADIUS = 10;
 
-// Create icon using a simpler approach
-const eventIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+// Fix Leaflet default marker path issues
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
 export default function MapView() {
@@ -30,46 +26,28 @@ export default function MapView() {
     },
   });
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Current events:', events);
-    events.forEach(event => {
-      console.log(`Event ${event.id}: [${event.latitude}, ${event.longitude}]`);
-    });
-  }, [events]);
-
   return (
-    <div className="h-[calc(100vh-8rem)] w-full relative">
-      {/* Debug info */}
-      <div className="absolute top-0 right-0 z-[1000] bg-white p-2 text-xs">
-        Events loaded: {events.length}
-      </div>
-      
+    <div className="h-[calc(100vh-8rem)] w-full">
       <MapContainer
         center={DEFAULT_CENTER}
         zoom={13}
-        scrollWheelZoom={true}
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        
+
         {events.map((event) => {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
-          
-          if (isNaN(lat) || isNaN(lng)) {
-            console.warn(`Invalid coordinates for event ${event.id}`);
-            return null;
-          }
-          
+
+          if (isNaN(lat) || isNaN(lng)) return null;
+
           return (
             <Marker
               key={event.id}
               position={[lat, lng]}
-              icon={eventIcon}
             >
               <Popup>
                 <div className="text-sm">

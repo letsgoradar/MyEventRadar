@@ -56,9 +56,8 @@ export default function MapView({ filters }: MapViewProps) {
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
         },
-        (error) => {
-          console.error("Location error:", error);
-          // Keep default Oss center
+        () => {
+          // Keep default Oss center on error
           setMapReady(true);
         }
       );
@@ -66,7 +65,7 @@ export default function MapView({ filters }: MapViewProps) {
     setMapReady(true);
   }, []);
 
-  const { data: events, isLoading, error } = useQuery<Event[]>({
+  const { data: events, isLoading } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", filters],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -79,25 +78,21 @@ export default function MapView({ filters }: MapViewProps) {
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-      const data = await response.json();
-      return data;
+      return response.json();
     },
     enabled: mapReady,
   });
 
-  const filteredEvents = events?.filter(event => {
+  if (isLoading) return <div>Loading map...</div>;
 
+  const filteredEvents = events?.filter(event => {
     // Validate coordinates
-    if (!event.latitude || !event.longitude) {
-      return false;
-    }
+    if (!event.latitude || !event.longitude) return false;
 
     const eventDate = new Date(event.startTime);
 
     // Apply date range filter
-    if (eventDate < filters.fromDate || eventDate > filters.toDate) {
-      return false;
-    }
+    if (eventDate < filters.fromDate || eventDate > filters.toDate) return false;
 
     // Apply search filter
     if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
@@ -105,16 +100,12 @@ export default function MapView({ filters }: MapViewProps) {
     }
 
     // Apply category filter
-    if (filters.category && event.category !== filters.category) {
-      return false;
-    }
+    if (filters.category && event.category !== filters.category) return false;
 
     // Apply paid events filter
-    if (filters.showPaidEvents && !event.isPaid) {
-      return false;
-    }
+    if (filters.showPaidEvents && !event.isPaid) return false;
 
-    // Apply distance filter if enabled
+    // Apply distance filter
     if (filters.useDistanceFilter) {
       const distance = calculateDistance(
         userLocation[0],
@@ -122,17 +113,11 @@ export default function MapView({ filters }: MapViewProps) {
         Number(event.latitude),
         Number(event.longitude)
       );
-      if (distance > filters.distanceRadius) {
-        return false;
-      }
+      if (distance > filters.distanceRadius) return false;
     }
 
     return true;
   });
-
-  if (isLoading) return <div>Loading map...</div>;
-  if (error) return <div>Error loading events</div>;
-
 
   return (
     <div className="h-[calc(100vh-8rem)]">
@@ -156,10 +141,7 @@ export default function MapView({ filters }: MapViewProps) {
           const latitude = Number(event.latitude);
           const longitude = Number(event.longitude);
 
-          if (isNaN(latitude) || isNaN(longitude)) {
-            console.error('Invalid coordinates for event:', event.title);
-            return null;
-          }
+          if (isNaN(latitude) || isNaN(longitude)) return null;
 
           return (
             <Marker

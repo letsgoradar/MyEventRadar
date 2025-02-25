@@ -1,34 +1,33 @@
+
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useQuery } from "@tanstack/react-query";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useState, useEffect } from 'react';
-import type { Event } from "@shared/schema";
 
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 const RADIUS = 10;
 
-const eventIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="8" fill="#f97316" stroke="white" stroke-width="2"/>
-    </svg>
-  `),
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-  popupAnchor: [0, -12],
+const eventIcon = L.divIcon({
+  className: 'custom-icon',
+  html: '<div class="w-4 h-4 bg-orange-500 rounded-full border-2 border-gray-300"></div>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8]
 });
 
-function MapEvents() {
+function LocationMarker() {
   const map = useMap();
+
   useEffect(() => {
-    map.invalidateSize();
+    map.locate().on("locationfound", function (e) {
+      map.flyTo(e.latlng, map.getZoom());
+    });
   }, [map]);
+
   return null;
 }
 
 export default function MapView() {
-  const { data: events = [] } = useQuery<Event[]>({
+  const { data: events = [] } = useQuery({
     queryKey: ["events", "nearby", DEFAULT_CENTER],
     queryFn: async () => {
       const [lat, lng] = DEFAULT_CENTER;
@@ -50,14 +49,14 @@ export default function MapView() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapEvents />
-
+        <LocationMarker />
+        
         {events.map((event) => {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
-
+          
           if (isNaN(lat) || isNaN(lng)) return null;
-
+          
           return (
             <Marker
               key={event.id}

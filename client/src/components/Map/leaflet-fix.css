@@ -14,8 +14,7 @@
 }
 
 .custom-icon > div {
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.3); /* Updated box-shadow */
-  transform: scale(1.2); /* Added transform */
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes pulse {
@@ -69,5 +68,5 @@
 
 /* Tile styling */
 .leaflet-tile-pane {
-  filter: saturate(1.2) brightness(1.05) contrast(1.1) !important; /* Updated filter */
+  filter: saturate(1.1) brightness(1.02) !important;
 }

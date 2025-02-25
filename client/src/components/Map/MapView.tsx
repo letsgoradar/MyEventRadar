@@ -41,7 +41,7 @@ const createEventIcon = (category: string) => {
   const color = getCategoryColor(category);
   return L.divIcon({
     className: 'custom-icon',
-    html: `<div class="w-6 h-6 rounded-full border-2 border-white shadow-lg" style="background-color: ${color};"></div>`
+    html: `<div class="w-4 h-4 rounded-full border-2 border-white shadow-lg" style="background-color: ${color};"></div>`
   });
 };
 
@@ -256,7 +256,7 @@ export default function MapView({ filters }: MapViewProps) {
         attributionControl={false}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution={false}
         />
         <LocationMarker />

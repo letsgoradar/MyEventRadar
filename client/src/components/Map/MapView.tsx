@@ -28,7 +28,7 @@ function MapController({ center }: { center: Location }) {
   const map = useMap();
 
   useEffect(() => {
-    map.setView([center.lat, center.lng], 11);
+    map.setView([center.lat, center.lng], map.getZoom());
   }, [center, map]);
 
   return null;
@@ -41,10 +41,10 @@ export default function MapView() {
   });
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [searchRadius, setSearchRadius] = useState(DEFAULT_RADIUS);
-  const [mapInitialized, setMapInitialized] = useState(false);
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
 
   useEffect(() => {
-    if ("geolocation" in navigator && !mapInitialized) {
+    if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation({
@@ -52,11 +52,10 @@ export default function MapView() {
             lng: position.coords.longitude,
           });
           setSearchRadius(10); // Reduce radius when zooming to user location
-          setMapInitialized(true);
+          setZoom(11);
         },
         (error) => {
           console.error("Error getting location:", error);
-          setMapInitialized(true);
         }
       );
     }
@@ -83,10 +82,10 @@ export default function MapView() {
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setSelectedEvent(null)} />
       )}
-      <div className="absolute inset-0 border-[20px] border-gray-200 rounded-lg overflow-hidden">
+      <div className="absolute inset-0 border-[5px] border-gray-200 rounded-lg overflow-hidden">
         <MapContainer
           center={[userLocation.lat, userLocation.lng]}
-          zoom={mapInitialized && userLocation.lat !== DEFAULT_CENTER[0] ? 11 : DEFAULT_ZOOM}
+          zoom={zoom}
           className="h-full w-full relative z-[1]"
         >
           <TileLayer

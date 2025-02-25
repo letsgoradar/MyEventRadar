@@ -209,7 +209,7 @@ export default function CreateEventPage() {
   }
 
   return (
-    <div className="container max-w-2xl py-10">
+    <div className="container max-w-2xl mx-auto py-10">
       <Card className="p-6 relative">
         <Button
           variant="ghost"
@@ -240,7 +240,7 @@ export default function CreateEventPage() {
 
             <div className="space-y-2">
               <FormLabel>Location *</FormLabel>
-              <div className="h-[200px] rounded-md overflow-hidden relative z-10 border-[20px] border-gray-200">
+              <div className="h-[200px] rounded-md overflow-hidden relative z-10 border-[5px] border-gray-200">
                 <MapContainer
                   center={[position.lat, position.lng]}
                   zoom={mapInitialized && position.lat !== DEFAULT_CENTER[0] ? 13 : DEFAULT_ZOOM}

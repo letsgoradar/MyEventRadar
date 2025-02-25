@@ -8,14 +8,17 @@ import "leaflet/dist/leaflet.css";
 
 // Default center of Netherlands (if user location not available)
 const DEFAULT_CENTER: [number, number] = [52.1326, 5.2913];
-const RADIUS = 30; // 30km radius
+const RADIUS = 30000; // 30km radius in meters
 
 // Standard blue pin icon
-const blueIcon = L.divIcon({
-  html: `<div style="background-color: #2196F3; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white;"></div>`,
-  className: '',
+const eventIcon = new L.Icon({
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="8" fill="#f97316" stroke="white" stroke-width="2"/>
+    </svg>
+  `),
   iconSize: [24, 24],
-  iconAnchor: [12, 12]
+  iconAnchor: [12, 12],
 });
 
 function MapLocator({ center }: { center: [number, number] }) {
@@ -78,7 +81,7 @@ export default function MapView() {
             <Marker
               key={event.id}
               position={[lat, lng]}
-              icon={blueIcon}
+              icon={eventIcon}
             >
               <Popup>
                 <div className="text-sm">

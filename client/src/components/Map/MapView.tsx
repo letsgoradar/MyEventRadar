@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
+import { MapDebug } from './MapDebug';
 
 const DEFAULT_CENTER: [number, number] = [51.7656, 5.5314];
 const RADIUS = 10;
@@ -56,9 +57,10 @@ export default function MapView() {
   return (
     <div className="h-[calc(100vh-8rem)]">
       <MapContainer
-        center={userLocation}
-        zoom={13}
+        center={DEFAULT_CENTER}
+        zoom={12}
         className="h-full w-full"
+        zoomControl={true}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -69,23 +71,34 @@ export default function MapView() {
           <Popup>Your location</Popup>
         </Marker>
 
-        {events.map((event) => (
-          <Marker
-            key={event.id}
-            position={[Number(event.latitude), Number(event.longitude)]}
-            icon={eventIcon}
-          >
-            <Popup>
-              <div className="text-sm">
-                <h3 className="font-bold">{event.title}</h3>
-                <p>{event.description}</p>
-                {event.isPaid && <p>Price: €{event.price}</p>}
-                <p>Category: {event.category}</p>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {events.map((event) => {
+          const lat = Number(event.latitude);
+          const lng = Number(event.longitude);
+          
+          if (isNaN(lat) || isNaN(lng)) {
+            console.warn("Invalid coordinates for event:", event);
+            return null;
+          }
+
+          return (
+            <Marker
+              key={event.id}
+              position={[lat, lng]}
+              icon={eventIcon}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <h3 className="font-bold">{event.title}</h3>
+                  <p>{event.description}</p>
+                  {event.isPaid && <p>Price: €{event.price}</p>}
+                  <p>Category: {event.category}</p>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
+      <MapDebug events={events} userLocation={userLocation} />
     </div>
   );
 }

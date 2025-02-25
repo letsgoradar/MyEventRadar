@@ -39,8 +39,13 @@ const HOST = '0.0.0.0';
 
     // Enhanced error handling for server startup
     server.on('error', (error: any) => {
-      console.error('Server failed to start:', error);
-      process.exit(1);
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Please free up the port and try again.`);
+        process.exit(1);
+      } else {
+        console.error('Server failed to start:', error);
+        process.exit(1);
+      }
     });
 
     console.log(`Attempting to start server on port ${PORT}...`);

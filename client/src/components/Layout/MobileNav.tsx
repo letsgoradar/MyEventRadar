@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Search, Star, Calendar, User, Heart } from "lucide-react";
+import { useTranslation } from 'react-i18next';
 
 const NAV_ITEMS = [
   { icon: Search, label: "Search", href: "/" },

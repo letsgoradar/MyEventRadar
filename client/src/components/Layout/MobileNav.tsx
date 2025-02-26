@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "wouter";
 import { Search, Star, Calendar, User, Heart } from "lucide-react";
 
@@ -19,15 +18,17 @@ export default function MobileNav() {
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href;
-          
+
           return (
             <Link key={item.href} href={item.href}>
               <a className="flex flex-col items-center justify-center h-full">
-                <Icon
-                  className={`h-6 w-6 ${
-                    isActive ? "text-primary" : "text-gray-500"
-                  }`}
-                />
+                <div className="rounded-full p-2 bg-gray-100">
+                  <Icon
+                    className={`h-6 w-6 aspect-square ${
+                      isActive ? "text-primary" : "text-gray-500"
+                    }`}
+                  />
+                </div>
                 <span
                   className={`text-xs mt-1 ${
                     isActive ? "text-primary" : "text-gray-500"

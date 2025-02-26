@@ -25,9 +25,11 @@ body {
   top: 0;
   left: 0;
   right: 0;
+  height: 4rem;
   z-index: 50;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+  background: #3b82f6;
+  color: white;
+  border-bottom: 1px solid #2563eb;
 }
 
 main {

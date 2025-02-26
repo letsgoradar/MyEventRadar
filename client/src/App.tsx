@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Filter, MapPin, List, Calendar, Heart, User, Plus, X, SortAsc, ArrowUpDown } from "lucide-react"
+import { Filter, Compass, List, Calendar, Heart, User, Plus, X, SortAsc, ArrowUpDown, Globe2, ChevronDown, ChevronUp } from "lucide-react"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Link, Route, Switch, useLocation } from "wouter"
 import { CategoryPicker } from "@/components/CategoryPicker"
@@ -14,9 +14,25 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { format, addYears } from "date-fns"
+import { format } from "date-fns"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useTranslation } from "react-i18next"
 
 const queryClient = new QueryClient()
+
+const LANGUAGES = [
+  { code: 'nl', name: 'Nederlands', flag: '🇳🇱' },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹' }
+]
 
 interface ActiveFilter {
   key: string;
@@ -25,6 +41,8 @@ interface ActiveFilter {
 }
 
 function App() {
+  const [isCategoryExpanded, setIsCategoryExpanded] = React.useState(false)
+  const { t, i18n } = useTranslation()
   const [searchQuery, setSearchQuery] = React.useState('')
   const [category, setCategory] = React.useState('')
   const [fromDate, setFromDate] = React.useState<Date | null>(null)
@@ -137,11 +155,31 @@ function App() {
         </Route>
         <Route>
           <div className="flex flex-col h-screen">
-            <nav className="bg-[#0066FF] p-4 flex justify-between items-center">
+            <nav className="bg-[#0066FF] p-4 flex justify-between items-center h-24">
               <h1 className="text-white text-xl font-bold">EventMap</h1>
-              <Link href="/create">
-                <Button variant="secondary">Create Event</Button>
-              </Link>
+              <div className="flex items-center gap-4">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-white">
+                      <Globe2 className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {LANGUAGES.map((lang) => (
+                      <DropdownMenuItem
+                        key={lang.code}
+                        onClick={() => i18n.changeLanguage(lang.code)}
+                      >
+                        <span className="mr-2">{lang.flag}</span>
+                        {lang.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Link href="/create">
+                  <Button variant="secondary">{t('events.create')}</Button>
+                </Link>
+              </div>
             </nav>
 
             <div className="flex items-center gap-2 px-4 py-3 bg-white border-b relative z-30">
@@ -157,117 +195,108 @@ function App() {
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-full overflow-y-auto z-50">
-                  <SheetHeader>
-                    <SheetTitle>Filters</SheetTitle>
+                  <SheetHeader className="flex items-center justify-between">
+                    <SheetTitle>{t('events.category')}</SheetTitle>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsCategoryExpanded(!isCategoryExpanded)}
+                    >
+                      {isCategoryExpanded ? (
+                        <ChevronUp className="h-5 w-5" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5" />
+                      )}
+                    </Button>
                   </SheetHeader>
-                  <div className="grid gap-6 py-6">
-                    {activeFilters.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {activeFilters.map((filter) => (
-                          <Badge
-                            key={filter.key}
-                            variant="secondary"
-                            className="flex items-center gap-1"
-                          >
-                            {filter.label}
-                            <button
-                              onClick={() => removeFilter(filter.key)}
-                              className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <label htmlFor="search" className="text-sm font-medium">Search</label>
-                      <Input
-                        id="search"
-                        placeholder="Search events..."
-                        value={tempFilters.searchQuery}
-                        onChange={(e) => setTempFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Category</label>
-                      <CategoryPicker
-                        onCategoryChange={handleCategoryChange}
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <label className="text-sm font-medium">Date Range</label>
-                      <div className="rounded-md border">
-                        <CalendarComponent
-                          mode="range"
-                          selected={{
-                            from: tempFilters.fromDate,
-                            to: tempFilters.toDate
-                          }}
-                          onSelect={(range) => {
-                            if (range?.from) {
-                              setTempFilters(prev => ({
-                                ...prev,
-                                fromDate: range.from,
-                                toDate: range.to || range.from
-                              }));
-                            }
-                          }}
-                          numberOfMonths={2}
-                          className="rounded-md border"
+                  {isCategoryExpanded && (
+                    <div className="grid gap-6 py-6">
+                      <div className="space-y-2">
+                        <label htmlFor="search" className="text-sm font-medium">{t('events.search')}</label>
+                        <Input
+                          id="search"
+                          placeholder={t('events.searchPlaceholder')}
+                          value={tempFilters.searchQuery}
+                          onChange={(e) => setTempFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
                         />
                       </div>
-                    </div>
 
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="useDistance"
-                          checked={tempFilters.useDistanceFilter}
-                          onCheckedChange={(checked) =>
-                            setTempFilters(prev => ({ ...prev, useDistanceFilter: checked as boolean }))
-                          }
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{t('events.category')}</label>
+                        <CategoryPicker
+                          onCategoryChange={handleCategoryChange}
                         />
-                        <label htmlFor="useDistance" className="text-sm font-medium">
-                          Filter by distance from my location
-                        </label>
                       </div>
 
-                      {tempFilters.useDistanceFilter && (
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Distance (km): {tempFilters.distanceRadius}</label>
-                          <Slider
-                            min={1}
-                            max={100}
-                            step={1}
-                            value={[tempFilters.distanceRadius]}
-                            onValueChange={(value) => setTempFilters(prev => ({ ...prev, distanceRadius: value[0] }))}
+                      <div className="space-y-4">
+                        <label className="text-sm font-medium">{t('events.dateRange')}</label>
+                        <div className="rounded-md border">
+                          <CalendarComponent
+                            mode="range"
+                            selected={{
+                              from: tempFilters.fromDate,
+                              to: tempFilters.toDate
+                            }}
+                            onSelect={(range) => {
+                              if (range?.from) {
+                                setTempFilters(prev => ({
+                                  ...prev,
+                                  fromDate: range.from,
+                                  toDate: range.to || range.from
+                                }));
+                              }
+                            }}
+                            numberOfMonths={2}
+                            className="rounded-md border"
                           />
                         </div>
-                      )}
-                    </div>
+                      </div>
 
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="paid"
-                        checked={tempFilters.showPaidEvents}
-                        onCheckedChange={(checked) =>
-                          setTempFilters(prev => ({ ...prev, showPaidEvents: checked as boolean }))
-                        }
-                      />
-                      <label htmlFor="paid" className="text-sm font-medium">Show paid events only</label>
-                    </div>
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="useDistance"
+                            checked={tempFilters.useDistanceFilter}
+                            onCheckedChange={(checked) =>
+                              setTempFilters(prev => ({ ...prev, useDistanceFilter: checked as boolean }))
+                            }
+                          />
+                          <label htmlFor="useDistance" className="text-sm font-medium">{t('events.filterDistance')}</label>
+                        </div>
 
-                    <Button
-                      className="w-full mt-4"
-                      onClick={applyFilters}
-                    >
-                      Apply Filters
-                    </Button>
-                  </div>
+                        {tempFilters.useDistanceFilter && (
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">{t('events.distance', { distance: tempFilters.distanceRadius })}</label>
+                            <Slider
+                              min={1}
+                              max={100}
+                              step={1}
+                              value={[tempFilters.distanceRadius]}
+                              onValueChange={(value) => setTempFilters(prev => ({ ...prev, distanceRadius: value[0] }))}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="paid"
+                          checked={tempFilters.showPaidEvents}
+                          onCheckedChange={(checked) =>
+                            setTempFilters(prev => ({ ...prev, showPaidEvents: checked as boolean }))
+                          }
+                        />
+                        <label htmlFor="paid" className="text-sm font-medium">{t('events.showPaid')}</label>
+                      </div>
+
+                      <Button
+                        className="w-full mt-4"
+                        onClick={applyFilters}
+                      >
+                        {t('events.applyFilters')}
+                      </Button>
+                    </div>
+                  )}
                 </SheetContent>
               </Sheet>
 
@@ -294,18 +323,18 @@ function App() {
                   <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
                     <SelectTrigger className="w-[140px]">
                       <SortAsc className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Sort by..." />
+                      <SelectValue placeholder={t('events.sortBy')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="date">Sort by Date</SelectItem>
-                      <SelectItem value="distance">Sort by Distance</SelectItem>
+                      <SelectItem value="date">{t('events.sortByDate')}</SelectItem>
+                      <SelectItem value="distance">{t('events.sortByDistance')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={toggleSort}
-                    title={sortAscending ? "Sort Ascending" : "Sort Descending"}
+                    title={sortAscending ? t('events.sortAscending') : t('events.sortDescending')}
                   >
                     <ArrowUpDown className="h-4 w-4" />
                   </Button>
@@ -316,11 +345,12 @@ function App() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
+                className="nav-icon-button"
               >
                 {viewMode === 'map' ? (
-                  <List className="h-5 w-5" />
+                  <List className="nav-icon" />
                 ) : (
-                  <MapPin className="h-5 w-5" />
+                  <Compass className="nav-icon" />
                 )}
               </Button>
             </div>
@@ -355,36 +385,46 @@ function App() {
               )}
             </div>
 
-            <nav className="bg-white border-t p-4">
-              <div className="flex justify-around">
+            <nav className="bg-white border-t p-4 h-24">
+              <div className="flex justify-around h-full items-center">
                 <Link href="/">
                   <div className="flex flex-col items-center cursor-pointer">
-                    <MapPin className="h-6 w-6" />
-                    <span className="text-sm">Explore</span>
+                    <div className="nav-icon-button">
+                      <Compass className="nav-icon" />
+                    </div>
+                    <span className="text-sm mt-1">{t('navigation.search')}</span>
                   </div>
                 </Link>
                 <Link href="/events">
                   <div className="flex flex-col items-center cursor-pointer">
-                    <Calendar className="h-6 w-6" />
-                    <span className="text-sm">Events</span>
+                    <div className="nav-icon-button">
+                      <Calendar className="nav-icon" />
+                    </div>
+                    <span className="text-sm mt-1">{t('navigation.events')}</span>
                   </div>
                 </Link>
                 <Link href="/create">
                   <div className="flex flex-col items-center cursor-pointer">
-                    <Plus className="h-6 w-6" />
-                    <span className="text-sm">Create</span>
+                    <div className="nav-icon-button">
+                      <Plus className="nav-icon" />
+                    </div>
+                    <span className="text-sm mt-1">{t('navigation.create')}</span>
                   </div>
                 </Link>
                 <Link href="/favorites">
                   <div className="flex flex-col items-center cursor-pointer">
-                    <Heart className="h-6 w-6" />
-                    <span className="text-sm">Favorites</span>
+                    <div className="nav-icon-button">
+                      <Heart className="nav-icon" />
+                    </div>
+                    <span className="text-sm mt-1">{t('navigation.favorites')}</span>
                   </div>
                 </Link>
                 <Link href="/profile">
                   <div className="flex flex-col items-center cursor-pointer">
-                    <User className="h-6 w-6" />
-                    <span className="text-sm">Profile</span>
+                    <div className="nav-icon-button">
+                      <User className="nav-icon" />
+                    </div>
+                    <span className="text-sm mt-1">{t('navigation.profile')}</span>
                   </div>
                 </Link>
               </div>

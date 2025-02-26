@@ -25,7 +25,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 5rem;
+    height: 6rem; /* Increased from 5rem */
     z-index: 50;
     background: #2563eb;
     color: white;
@@ -39,8 +39,8 @@
   main {
     flex: 1;
     overflow-y: auto;
-    padding-top: 5rem;
-    padding-bottom: 5rem;
+    padding-top: 6rem; /* Adjusted to match new nav height */
+    padding-bottom: 6rem; /* Adjusted for taller bottom nav */
     position: relative;
     z-index: 1;
     margin-top: env(safe-area-inset-top);
@@ -52,13 +52,33 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 5rem;
+    height: 6rem; /* Increased from 5rem */
     z-index: 50;
     background: white;
     border-top: 1px solid #e5e7eb;
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
   }
 
+  .nav-icon-button {
+    aspect-ratio: 1/1;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #f3f4f6;
+    transition: all 0.2s;
+  }
+
+  .nav-icon-button:hover {
+    background: #e5e7eb;
+  }
+
+  .nav-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
 
   body {
     @apply font-sans antialiased bg-background text-foreground;

@@ -23,7 +23,7 @@ export default function MobileNav() {
           return (
             <Link key={item.href} href={item.href}>
               <a className="flex flex-col items-center justify-center h-full">
-                <div className="rounded-full p-2 bg-gray-100">
+                <div className="rounded-full p-3 bg-gray-100 shadow-md hover:bg-gray-200 transition-colors">
                   <Icon
                     className={`w-6 h-6 aspect-square ${
                       isActive ? "text-primary" : "text-gray-500"

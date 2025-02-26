@@ -28,7 +28,9 @@ const createEventIcon = (category: string) => {
   const color = getCategoryColor(category);
   return L.divIcon({
     className: 'custom-icon',
-    html: `<div class="w-4 h-4 rounded-full border-2 border-white shadow-lg" style="background-color: ${color};"></div>`
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    html: `<div style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); background-color: ${color};"></div>`
   });
 };
 

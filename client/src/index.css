@@ -1,3 +1,15 @@
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.location-marker {
+  z-index: 1000;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

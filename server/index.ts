@@ -1,8 +1,25 @@
+// Set development mode by default
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = "development";
+}
+console.log("Starting server with NODE_ENV:", process.env.NODE_ENV);
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Enhanced error handling middleware
+const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Server error:', err);
+  res.status(500).json({ 
+    message: "Internal Server Error",
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined 
+  });
+};
+
+// Setup middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -14,20 +31,19 @@ console.log('Server starting...');
 const PORT = 5000;
 const HOST = '0.0.0.0';
 
+// Improved async server startup
 (async () => {
   try {
     console.log('Initializing server configuration...');
+
     // Register routes first for faster API availability
     const server = await registerRoutes(app);
     console.log('Routes registered successfully');
 
-    // Basic error handler
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      console.error('Server error:', err);
-      res.status(500).json({ message: "Internal Server Error" });
-    });
+    // Add error handling middleware
+    app.use(errorHandler);
 
-    if (app.get("env") === "development") {
+    if (process.env.NODE_ENV === "development") {
       console.log('Setting up Vite in development mode...');
       await setupVite(app, server);
       console.log('Vite setup complete');
@@ -48,14 +64,14 @@ const HOST = '0.0.0.0';
       }
     });
 
-    console.log(`Attempting to start server on port ${PORT}...`);
-    // Start listening with proper error handling
+    // Start listening with enhanced logging
     server.listen({
       port: PORT,
       host: HOST,
     }, () => {
       const setupTime = Date.now() - startTime;
-      log(`Server started on port ${PORT} (setup took ${setupTime}ms)`);
+      log(`Server started successfully on http://${HOST}:${PORT} (setup took ${setupTime}ms)`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
 
   } catch (err) {

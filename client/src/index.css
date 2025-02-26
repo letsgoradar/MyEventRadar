@@ -8,11 +8,14 @@
   }
 
 body {
-  padding-bottom: 4rem; /* This accounts for the fixed navigation */
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
 }
 
 #root {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -20,6 +23,19 @@ body {
 main {
   flex: 1;
   overflow-y: auto;
+  padding-bottom: 4rem; /* Space for navigation */
+  position: relative;
+  z-index: 1;
+}
+
+nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: white;
+  border-top: 1px solid #e5e7eb;
 }
 
 

@@ -20,12 +20,25 @@ body {
   flex-direction: column;
 }
 
+.top-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
 main {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 4rem; /* Space for navigation */
+  padding-top: 4rem; /* Space for top navigation */
+  padding-bottom: 4rem; /* Space for bottom navigation */
   position: relative;
   z-index: 1;
+  margin-top: env(safe-area-inset-top);
+  margin-bottom: env(safe-area-inset-bottom);
 }
 
 nav {

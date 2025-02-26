@@ -1,22 +1,20 @@
-
 import { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 export default function CategoryFilter({ categories, selectedCategory, onSelectCategory }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   return (
-    <div className="absolute top-4 right-4 bg-white rounded-lg shadow-md z-10">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 p-2 text-sm font-medium"
+    <div className="absolute right-4 top-4 z-10 bg-white rounded-lg shadow-lg">
+      <button 
+        onClick={() => setIsCollapsed(!isCollapsed)} 
+        className="flex items-center gap-2 p-3 w-full"
       >
-        <span>Categorie</span>
-        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        <span>{/*t('categories.title')*/ 'Categorie'}</span> {/* Assuming 't' function is for translation */}
+        <ChevronDown className={`w-4 h-4 transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
       </button>
-
-      {isExpanded && (
-        <div className="p-2 bg-white rounded-b-lg border-t">
+      {!isCollapsed && (
+        <div className="p-4 border-t">
           {categories.map((category) => (
             <button
               key={category}

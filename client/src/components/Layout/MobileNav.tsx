@@ -14,7 +14,7 @@ export default function MobileNav() {
   const [location] = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t h-16">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-3 shadow-lg">
       <div className="grid grid-cols-5 gap-1 h-full">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -25,7 +25,7 @@ export default function MobileNav() {
               <a className="flex flex-col items-center justify-center h-full">
                 <div className="rounded-full p-2 bg-gray-100">
                   <Icon
-                    className={`h-6 w-6 aspect-square ${
+                    className={`w-6 h-6 aspect-square ${
                       isActive ? "text-primary" : "text-gray-500"
                     }`}
                   />

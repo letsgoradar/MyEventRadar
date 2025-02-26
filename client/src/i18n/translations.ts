@@ -1,5 +1,10 @@
 
 export const translations = {
+  categories: {
+    title: 'Categories',
+    filter: 'Filter by category',
+    all: 'All categories'
+  },
   en: {
     navigation: {
       search: 'Search',

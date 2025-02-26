@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format, addYears } from "date-fns"
+import TopNav from "@/components/Layout/TopNav"; // Added import
 
 const queryClient = new QueryClient()
 
@@ -137,13 +138,7 @@ function App() {
         </Route>
         <Route>
           <div className="flex flex-col h-screen">
-            <nav className="bg-[#0066FF] p-4 flex justify-between items-center">
-              <h1 className="text-white text-xl font-bold">EventMap</h1>
-              <Link href="/create">
-                <Button variant="secondary">Create Event</Button>
-              </Link>
-            </nav>
-
+            <TopNav /> {/* Added TopNav component */}
             <div className="flex items-center gap-2 px-4 py-3 bg-white border-b relative z-30">
               <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
                 <SheetTrigger asChild>
@@ -397,3 +392,15 @@ function App() {
 }
 
 export default App;
+
+// Added TopNav component (replace with your actual implementation)
+const TopNav = () => {
+  return (
+    <nav className="bg-[#0066FF] p-4 flex justify-between items-center">
+      <h1 className="text-white text-xl font-bold">EventMap</h1>
+      <Link href="/create">
+        <Button variant="secondary">Create Event</Button>
+      </Link>
+    </nav>
+  );
+};

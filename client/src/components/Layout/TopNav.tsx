@@ -13,7 +13,7 @@ export default function TopNav() {
         <Button 
           variant="secondary" 
           size="sm"
-          onClick={() => setLocation("/events/create")}
+          onClick={() => setLocation("/create")}
         >
           <Plus className="h-4 w-4 mr-1" />
           Add Event

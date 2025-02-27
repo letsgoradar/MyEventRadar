@@ -12,7 +12,7 @@ import React from 'react';
 
 interface EventCardProps {
   event: Event;
-  onSelect?: (event: Event) => void;
+  distance?: number;
 }
 
 // Custom icon for the mini map marker
@@ -26,7 +26,7 @@ const miniEventIcon = new L.Icon({
   iconAnchor: [8, 8],
 });
 
-export default function EventCard({ event, onSelect }: EventCardProps) {
+export default function EventCard({ event, distance }: EventCardProps) {
   const [isSatelliteView, setIsSatelliteView] = React.useState(false);
   const lat = Number(event.latitude);
   const lng = Number(event.longitude);
@@ -87,7 +87,7 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
               scrollWheelZoom={false}
               attributionControl={false}
             >
-              <TileLayer 
+              <TileLayer
                 url={tileUrl}
                 attribution={false}
                 {...tileConfig}
@@ -110,6 +110,14 @@ export default function EventCard({ event, onSelect }: EventCardProps) {
                 <Users className="h-4 w-4 mr-2" />
                 <span className="text-sm">
                   Max: {event.maxParticipants}
+                </span>
+              </div>
+            )}
+            {distance !== undefined && (
+              <div className="flex items-center text-gray-600">
+                <Satellite className="h-4 w-4 mr-2" />
+                <span className="text-sm">
+                  {distance.toFixed(1)} km
                 </span>
               </div>
             )}

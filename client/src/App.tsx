@@ -140,28 +140,17 @@ function App() {
         <Route>
           <div className="flex flex-col h-screen">
             <TopNav /> 
-            <div className="flex items-center gap-2 px-4 py-3 bg-white border-b relative z-30">
-              <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative">
-                    <Filter className="h-5 w-5" />
-                    {activeFilters.length > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-[#FF6B00] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
-                        {activeFilters.length}
-                      </span>
-                    )}
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-full overflow-y-auto z-50">
-                  <SheetHeader>
-                    <SheetTitle>Filters</SheetTitle>
-                  </SheetHeader>
-                  <div className="grid gap-6 py-6">
-                    {activeFilters.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {activeFilters.map((filter) => (
-                          <Badge
-                            key={filter.key}
+            <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+              <SheetContent side="left" className="w-full overflow-y-auto z-50">
+                <SheetHeader>
+                  <SheetTitle>Filters</SheetTitle>
+                </SheetHeader>
+                <div className="grid gap-6 py-6">
+                  {activeFilters.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {activeFilters.map((filter) => (
+                        <Badge
+                          key={filter.key}
                             variant="secondary"
                             className="flex items-center gap-1"
                           >

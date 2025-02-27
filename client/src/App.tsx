@@ -3,19 +3,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { MapPin, Calendar, Heart, User, Plus } from "lucide-react"
-import { Link, Route, Switch } from "wouter"
+import { MapPin, Calendar as CalendarIcon, Heart, User, Plus } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { Link } from "wouter"
 import TopNav from "@/components/Layout/TopNav"
 import { Toaster } from '@/components/ui/toaster'
-import { CategoryPicker } from "@/components/CategoryPicker";
-import MapView from "@/components/Map/MapView";
-import EventList from "@/components/Events/EventList";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Slider } from "@/components/ui/slider";
-import Home from '@/pages/Home';
-import EventDetails from '@/pages/EventDetails';
-import CreateEvent from '@/pages/CreateEvent';
-
+import { CategoryPicker } from "@/components/CategoryPicker"
+import MapView from "@/components/Map/MapView"
+import EventList from "@/components/Events/EventList"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Slider } from "@/components/ui/slider"
 
 const queryClient = new QueryClient()
 
@@ -187,7 +184,7 @@ export default function App() {
             </Link>
             <Link href="/events">
               <div className="flex flex-col items-center cursor-pointer">
-                <Calendar className="h-6 w-6" />
+                <CalendarIcon className="h-6 w-6" />
                 <span className="text-sm">Events</span>
               </div>
             </Link>
@@ -239,12 +236,12 @@ export default function App() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Date Range</label>
                 <div className="grid gap-2">
-                  <CalendarComponent
+                  <Calendar
                     mode="single"
                     selected={tempFilters.fromDate}
                     onSelect={(date) => setTempFilters(prev => ({ ...prev, fromDate: date }))}
                   />
-                  <CalendarComponent
+                  <Calendar
                     mode="single"
                     selected={tempFilters.toDate}
                     onSelect={(date) => setTempFilters(prev => ({ ...prev, toDate: date }))}

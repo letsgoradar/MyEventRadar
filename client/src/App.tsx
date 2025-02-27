@@ -1,9 +1,9 @@
 import * as React from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { MapPin, Calendar, Heart, User, Plus } from "lucide-react"
+import { MapPin, Calendar, Heart, User, Plus, PlusCircle, Menu } from "lucide-react"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Link, Route, Switch } from "wouter"
 import { CategoryPicker } from "@/components/CategoryPicker"
@@ -176,7 +176,6 @@ function App() {
               )}
             </main>
 
-            <Navbar /> {/* Added Navbar component */}
             <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
               <SheetContent side="left" className="w-full overflow-y-auto z-50">
                 <SheetHeader>
@@ -276,44 +275,3 @@ function App() {
     </QueryClientProvider>
   );
 }
-
-function Navbar() {
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 h-[64px] bg-white border-t">
-      <div className="flex justify-around h-full items-center">
-        <Link href="/">
-          <div className="flex flex-col items-center cursor-pointer">
-            <MapPin className="h-6 w-6" />
-            <span className="text-sm">Explore</span>
-          </div>
-        </Link>
-        <Link href="/events">
-          <div className="flex flex-col items-center cursor-pointer">
-            <Calendar className="h-6 w-6" />
-            <span className="text-sm">Events</span>
-          </div>
-        </Link>
-        <Link href="/create">
-          <div className="flex flex-col items-center cursor-pointer">
-            <Plus className="h-6 w-6" />
-            <span className="text-sm">Create</span>
-          </div>
-        </Link>
-        <Link href="/favorites">
-          <div className="flex flex-col items-center cursor-pointer">
-            <Heart className="h-6 w-6" />
-            <span className="text-sm">Favorites</span>
-          </div>
-        </Link>
-        <Link href="/profile">
-          <div className="flex flex-col items-center cursor-pointer">
-            <User className="h-6 w-6" />
-            <span className="text-sm">Profile</span>
-          </div>
-        </Link>
-      </div>
-    </nav>
-  );
-}
-
-export default App;

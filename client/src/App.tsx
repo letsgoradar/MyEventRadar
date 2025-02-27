@@ -4,41 +4,309 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { MapPin, Calendar, Heart, User, Plus } from "lucide-react"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Link, Route, Switch } from "wouter"
-import { CategoryPicker } from "@/components/CategoryPicker"
-import MapView from "@/components/Map/MapView"
-import EventList from "@/components/Events/EventList"
-import CreateEventPage from "@/pages/create-event"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Slider } from "@/components/ui/slider"
 import TopNav from "@/components/Layout/TopNav"
+import { Toaster } from '@/components/ui/toaster'
+import { CategoryPicker } from "@/components/CategoryPicker";
+import MapView from "@/components/Map/MapView";
+import EventList from "@/components/Events/EventList";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
 import Home from '@/pages/Home';
 import EventDetails from '@/pages/EventDetails';
 import CreateEvent from '@/pages/CreateEvent';
-import { Toaster } from '@/components/ui/toaster';
-import FilterSheet from '@/components/Filter/FilterSheet';
 
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient()
+
+interface TempFilters {
+  searchQuery: string;
+  category: string;
+  fromDate: Date | null;
+  toDate: Date | null;
+  showPaidEvents: boolean;
+  useDistanceFilter: boolean;
+  distanceRadius: number;
+}
 
 export default function App() {
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [view, setView] = useState<"map" | "list">("map");
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [category, setCategory] = React.useState("")
+  const [fromDate, setFromDate] = React.useState<Date | null>(null)
+  const [toDate, setToDate] = React.useState<Date | null>(null)
+  const [showPaidEvents, setShowPaidEvents] = React.useState(false)
+  const [useDistanceFilter, setUseDistanceFilter] = React.useState(false)
+  const [distanceRadius, setDistanceRadius] = React.useState(5)
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
+  const [isMapView, setIsMapView] = React.useState(true)
+
+  const [tempFilters, setTempFilters] = React.useState<TempFilters>({
+    searchQuery,
+    category,
+    fromDate,
+    toDate,
+    showPaidEvents,
+    useDistanceFilter,
+    distanceRadius
+  })
+
+  const activeFilters = React.useMemo(() => {
+    const filters = [];
+
+    if (searchQuery) {
+      filters.push({ key: 'search', value: searchQuery, label: `Search: ${searchQuery}` });
+    }
+    if (category) {
+      filters.push({ key: 'category', value: category, label: `Category: ${category}` });
+    }
+    if (fromDate) {
+      filters.push({
+        key: 'fromDate',
+        value: fromDate.toISOString(),
+        label: `From: ${fromDate.toLocaleDateString()}`
+      });
+    }
+    if (toDate) {
+      filters.push({
+        key: 'toDate',
+        value: toDate.toISOString(),
+        label: `To: ${toDate.toLocaleDateString()}`
+      });
+    }
+    if (showPaidEvents) {
+      filters.push({ key: 'paid', value: 'true', label: 'Paid Events Only' });
+    }
+    if (useDistanceFilter) {
+      filters.push({ key: 'distance', value: distanceRadius.toString(), label: `Within ${distanceRadius}km` });
+    }
+
+    return filters;
+  }, [searchQuery, category, fromDate, toDate, showPaidEvents, useDistanceFilter, distanceRadius]);
+
+  const handleFilterReset = () => {
+    setTempFilters({
+      searchQuery: "",
+      category: "",
+      fromDate: null,
+      toDate: null,
+      showPaidEvents: false,
+      useDistanceFilter: false,
+      distanceRadius: 5
+    });
+  };
+
+  const handleFilterApply = () => {
+    setSearchQuery(tempFilters.searchQuery);
+    setCategory(tempFilters.category);
+    setFromDate(tempFilters.fromDate);
+    setToDate(tempFilters.toDate);
+    setShowPaidEvents(tempFilters.showPaidEvents);
+    setUseDistanceFilter(tempFilters.useDistanceFilter);
+    setDistanceRadius(tempFilters.distanceRadius);
+    setIsFilterSheetOpen(false);
+  };
+
+  const removeFilter = (key: string) => {
+    switch (key) {
+      case 'search':
+        setSearchQuery('');
+        break;
+      case 'category':
+        setCategory('');
+        break;
+      case 'fromDate':
+        setFromDate(null);
+        break;
+      case 'toDate':
+        setToDate(null);
+        break;
+      case 'paid':
+        setShowPaidEvents(false);
+        break;
+      case 'distance':
+        setUseDistanceFilter(false);
+        break;
+    }
+    setIsFilterSheetOpen(false);
+  };
+
+  const toggleView = React.useCallback(() => {
+    setIsMapView(prev => !prev);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TopNav 
-        toggleFilterSheet={() => setFilterOpen(true)}
-        isMapView={view === "map"}
-        toggleView={() => setView(view === "map" ? "list" : "map")}
-      />
-      <FilterSheet open={filterOpen} onOpenChange={setFilterOpen} />
-      <Switch>
-        <Route path="/" component={() => <Home view={view} setView={setView} />} />
-        <Route path="/event/:id" component={EventDetails} />
-        <Route path="/event/create" component={CreateEvent} />
-      </Switch>
+      <div className="flex flex-col h-screen">
+        <TopNav 
+          activeFilters={activeFilters}
+          isMapView={isMapView}
+          toggleView={toggleView}
+          isFilterSheetOpen={isFilterSheetOpen}
+          setIsFilterSheetOpen={setIsFilterSheetOpen}
+        />
+
+        <main className="fixed top-[72px] bottom-[64px] left-0 right-0 w-full overflow-hidden">
+          {isMapView ? (
+            <MapView
+              filters={{
+                searchQuery,
+                category,
+                fromDate,
+                toDate,
+                showPaidEvents,
+                useDistanceFilter,
+                distanceRadius
+              }}
+            />
+          ) : (
+            <div className="h-full overflow-auto">
+              <EventList
+                filters={{
+                  searchQuery,
+                  category,
+                  fromDate,
+                  toDate,
+                  showPaidEvents,
+                  useDistanceFilter,
+                  distanceRadius
+                }}
+                sortBy="date"
+                sortAscending={true}
+              />
+            </div>
+          )}
+        </main>
+
+        <nav className="fixed bottom-0 left-0 right-0 h-[64px] bg-white border-t">
+          <div className="flex justify-around h-full items-center">
+            <Link href="/">
+              <div className="flex flex-col items-center cursor-pointer">
+                <MapPin className="h-6 w-6" />
+                <span className="text-sm">Explore</span>
+              </div>
+            </Link>
+            <Link href="/events">
+              <div className="flex flex-col items-center cursor-pointer">
+                <Calendar className="h-6 w-6" />
+                <span className="text-sm">Events</span>
+              </div>
+            </Link>
+            <Link href="/create">
+              <div className="flex flex-col items-center cursor-pointer">
+                <Plus className="h-6 w-6" />
+                <span className="text-sm">Create</span>
+              </div>
+            </Link>
+            <Link href="/favorites">
+              <div className="flex flex-col items-center cursor-pointer">
+                <Heart className="h-6 w-6" />
+                <span className="text-sm">Favorites</span>
+              </div>
+            </Link>
+            <Link href="/profile">
+              <div className="flex flex-col items-center cursor-pointer">
+                <User className="h-6 w-6" />
+                <span className="text-sm">Profile</span>
+              </div>
+            </Link>
+          </div>
+        </nav>
+
+        <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+          <SheetContent side="left" className="w-full overflow-y-auto z-50">
+            <SheetHeader>
+              <SheetTitle>Filters</SheetTitle>
+            </SheetHeader>
+            <div className="grid gap-6 py-6">
+              <div className="space-y-2">
+                <label htmlFor="search" className="text-sm font-medium">Search</label>
+                <Input
+                  id="search"
+                  value={tempFilters.searchQuery}
+                  onChange={(e) => setTempFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
+                  placeholder="Search events..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Category</label>
+                <CategoryPicker
+                  value={tempFilters.category}
+                  onValueChange={(value) => setTempFilters(prev => ({ ...prev, category: value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Date Range</label>
+                <div className="grid gap-2">
+                  <CalendarComponent
+                    mode="single"
+                    selected={tempFilters.fromDate}
+                    onSelect={(date) => setTempFilters(prev => ({ ...prev, fromDate: date }))}
+                  />
+                  <CalendarComponent
+                    mode="single"
+                    selected={tempFilters.toDate}
+                    onSelect={(date) => setTempFilters(prev => ({ ...prev, toDate: date }))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="paid-events"
+                  checked={tempFilters.showPaidEvents}
+                  onCheckedChange={(checked) => 
+                    setTempFilters(prev => ({ ...prev, showPaidEvents: checked as boolean }))
+                  }
+                />
+                <label htmlFor="paid-events" className="text-sm font-medium">
+                  Show paid events only
+                </label>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="distance-filter"
+                    checked={tempFilters.useDistanceFilter}
+                    onCheckedChange={(checked) =>
+                      setTempFilters(prev => ({ ...prev, useDistanceFilter: checked as boolean }))
+                    }
+                  />
+                  <label htmlFor="distance-filter" className="text-sm font-medium">
+                    Filter by distance
+                  </label>
+                </div>
+                {tempFilters.useDistanceFilter && (
+                  <div className="space-y-4">
+                    <Slider
+                      value={[tempFilters.distanceRadius]}
+                      onValueChange={([value]) =>
+                        setTempFilters(prev => ({ ...prev, distanceRadius: value }))
+                      }
+                      max={50}
+                      step={1}
+                    />
+                    <div className="text-sm text-muted-foreground">
+                      Within {tempFilters.distanceRadius} kilometers
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handleFilterReset} variant="outline" className="flex-1">
+                  Reset
+                </Button>
+                <Button onClick={handleFilterApply} className="flex-1">
+                  Apply
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
       <Toaster />
     </QueryClientProvider>
   );

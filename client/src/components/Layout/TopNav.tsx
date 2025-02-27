@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, Map, List, Plus } from "lucide-react";
+import { Filter, Map, List, Plus } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 interface TopNavProps {
@@ -19,7 +19,7 @@ export default function TopNav({
   setIsFilterSheetOpen
 }: TopNavProps) {
   return (
-    <header className="fixed top-0 left-0 right-0 h-[72px] bg-[#0097FB] text-white p-4 flex items-center justify-between z-40">
+    <header className="fixed top-0 left-0 right-0 z-50 h-[72px] bg-[#0097FB] text-white p-4 flex items-center justify-between">
       <Link href="/">
         <h1 className="text-xl font-bold">Evenementen</h1>
       </Link>

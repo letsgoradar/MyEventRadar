@@ -3,26 +3,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Filter, MapPin, List, Calendar, Heart, User, Plus, X, SortAsc, ArrowUpDown } from "lucide-react"
+import { MapPin, Calendar, Heart, User, Plus } from "lucide-react"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
-import { Link, Route, Switch, useLocation } from "wouter"
+import { Link, Route, Switch } from "wouter"
 import { CategoryPicker } from "@/components/CategoryPicker"
 import MapView from "@/components/Map/MapView"
 import EventList from "@/components/Events/EventList"
 import CreateEventPage from "@/pages/create-event"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import TopNav from "@/components/Layout/TopNav";
+import TopNav from "@/components/Layout/TopNav"
 
 const queryClient = new QueryClient()
-
-interface ActiveFilter {
-  key: string;
-  value: string;
-  label: string;
-}
 
 interface TempFilters {
   searchQuery: string;
@@ -42,12 +34,8 @@ function App() {
   const [showPaidEvents, setShowPaidEvents] = React.useState(false)
   const [useDistanceFilter, setUseDistanceFilter] = React.useState(false)
   const [distanceRadius, setDistanceRadius] = React.useState(5)
-  const [sortBy, setSortBy] = React.useState<'date' | 'distance'>('date')
-  const [sortAscending, setSortAscending] = React.useState(true)
-  const [viewMode, setViewMode] = React.useState<'map' | 'list'>('map')
-  const [, setLocation] = useLocation()
   const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
-  const [isMapView, setIsMapView] = React.useState(true);
+  const [isMapView, setIsMapView] = React.useState(true)
 
   const [tempFilters, setTempFilters] = React.useState<TempFilters>({
     searchQuery,
@@ -59,8 +47,8 @@ function App() {
     distanceRadius
   })
 
-  const activeFilters = React.useMemo<ActiveFilter[]>(() => {
-    const filters: ActiveFilter[] = [];
+  const activeFilters = React.useMemo(() => {
+    const filters = [];
 
     if (searchQuery) {
       filters.push({ key: 'search', value: searchQuery, label: `Search: ${searchQuery}` });
@@ -136,13 +124,8 @@ function App() {
     setIsFilterSheetOpen(false);
   };
 
-  const toggleSort = () => {
-    setSortAscending(!sortAscending);
-  };
-
   const toggleView = React.useCallback(() => {
-    setIsMapView((prev) => !prev);
-    setViewMode((prev) => prev === 'map' ? 'list' : 'map');
+    setIsMapView(prev => !prev);
   }, []);
 
   return (
@@ -155,41 +138,28 @@ function App() {
           <div className="flex flex-col h-screen">
             <TopNav 
               activeFilters={activeFilters}
-              isMapView={viewMode === 'map'}
+              isMapView={isMapView}
               toggleView={toggleView}
               isFilterSheetOpen={isFilterSheetOpen}
               setIsFilterSheetOpen={setIsFilterSheetOpen}
             />
 
-            <main className="fixed top-[72px] bottom-[64px] left-0 right-0 overflow-hidden bg-white">
-              {viewMode === 'list' && (
-                <div className="border-b">
-                  <div className="container mx-auto px-4 py-2 flex items-center gap-2">
-                    <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
-                      <SelectTrigger className="w-[140px]">
-                        <SortAsc className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Sort by..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="date">Sort by Date</SelectItem>
-                        <SelectItem value="distance">Sort by Distance</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={toggleSort}
-                      title={sortAscending ? "Sort Ascending" : "Sort Descending"}
-                    >
-                      <ArrowUpDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="h-full overflow-hidden">
-                {viewMode === 'map' ? (
-                  <MapView
+            <main className="h-[calc(100vh-136px)] mt-[72px]">
+              {isMapView ? (
+                <MapView
+                  filters={{
+                    searchQuery,
+                    category,
+                    fromDate,
+                    toDate,
+                    showPaidEvents,
+                    useDistanceFilter,
+                    distanceRadius
+                  }}
+                />
+              ) : (
+                <div className="h-full overflow-auto">
+                  <EventList
                     filters={{
                       searchQuery,
                       category,
@@ -199,29 +169,15 @@ function App() {
                       useDistanceFilter,
                       distanceRadius
                     }}
+                    sortBy="date"
+                    sortAscending={true}
                   />
-                ) : (
-                  <div className="container mx-auto h-full overflow-auto px-4">
-                    <EventList
-                      filters={{
-                        searchQuery,
-                        category,
-                        fromDate,
-                        toDate,
-                        showPaidEvents,
-                        useDistanceFilter,
-                        distanceRadius
-                      }}
-                      sortBy={sortBy}
-                      sortAscending={sortAscending}
-                    />
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </main>
 
-            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
-              <div className="flex justify-around">
+            <nav className="fixed bottom-0 left-0 right-0 h-[64px] bg-white border-t">
+              <div className="flex justify-around h-full items-center">
                 <Link href="/">
                   <div className="flex flex-col items-center cursor-pointer">
                     <MapPin className="h-6 w-6" />
@@ -261,26 +217,6 @@ function App() {
                   <SheetTitle>Filters</SheetTitle>
                 </SheetHeader>
                 <div className="grid gap-6 py-6">
-                  {activeFilters.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {activeFilters.map((filter) => (
-                        <Badge
-                          key={filter.key}
-                          variant="secondary"
-                          className="flex items-center gap-1"
-                        >
-                          {filter.label}
-                          <button
-                            onClick={() => removeFilter(filter.key)}
-                            className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-
                   <div className="space-y-2">
                     <label htmlFor="search" className="text-sm font-medium">Search</label>
                     <Input

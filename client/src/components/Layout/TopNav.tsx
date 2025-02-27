@@ -1,65 +1,44 @@
-import { Link } from "wouter";
+import React from "react";
 import { Button } from "@/components/ui/button";
-import { Filter, Map, List, Plus } from "lucide-react";
+import { MapPin, Menu, Plus } from "lucide-react";
+import { Link } from "wouter";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { CategoryPicker } from "@/components/CategoryPicker";
 
-interface TopNavProps {
-  activeFilters: { key: string; value: string; label: string; }[];
-  isMapView: boolean;
-  toggleView: () => void;
-  isFilterSheetOpen: boolean;
-  setIsFilterSheetOpen: (open: boolean) => void;
-}
-
-export default function TopNav({
-  activeFilters,
-  isMapView,
-  toggleView,
-  isFilterSheetOpen,
-  setIsFilterSheetOpen
-}: TopNavProps) {
+export default function TopNav() {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-[72px] bg-[#0097FB] text-white p-4 flex items-center justify-between">
-      <Link href="/">
-        <h1 className="text-xl font-bold">Evenementen</h1>
-      </Link>
-
-      <div className="flex items-center gap-3">
-        <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+    <div className="bg-blue-600 px-4 py-3 flex justify-between items-center border-b sticky top-0 z-10">
+      <div className="flex items-center">
+        <Sheet>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-blue-600 relative">
-              <Filter className="h-5 w-5" />
-              {activeFilters.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#FF6B00] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
-                  {activeFilters.length}
-                </span>
-              )}
+            <Button variant="ghost" size="icon" className="text-white">
+              <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-full overflow-y-auto z-50">
+          <SheetContent side="left">
             <SheetHeader>
               <SheetTitle>Filters</SheetTitle>
             </SheetHeader>
-            {/* Filter content */}
+            <nav className="flex flex-col gap-4 mt-4">
+              <div>
+                <h3 className="mb-2 font-medium">Categorieën</h3>
+                <CategoryPicker />
+              </div>
+            </nav>
           </SheetContent>
         </Sheet>
-
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={toggleView}
-          className="text-white hover:bg-blue-600"
-        >
-          {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
+        <div className="text-white font-semibold ml-2">Evenementen</div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="text-white">
+          <MapPin className="h-5 w-5" />
         </Button>
-
         <Link href="/create">
-          <Button className="bg-white text-[#0097FB] hover:bg-gray-100">
-            <Plus className="h-4 w-4 mr-2" />
-            Aanmaken
+          <Button size="sm" variant="secondary">
+            <Plus className="h-4 w-4 mr-1" /> Aanmaken
           </Button>
         </Link>
       </div>
-    </header>
+    </div>
   );
 }

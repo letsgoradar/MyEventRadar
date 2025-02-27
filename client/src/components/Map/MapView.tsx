@@ -73,11 +73,16 @@ function CreateEventMarker() {
 
   const map = useMapEvents({
     touchstart: (e) => {
-      setTouchCount(e.touches?.length || 0);
-      if (e.touches?.length === 1) {
+      const touches = e.originalEvent.touches;
+      setTouchCount(touches?.length || 0);
+
+      // Only trigger for single touch
+      if (touches?.length === 1) {
+        const touch = touches[0];
+        const touchPoint = map.mouseEventToLatLng(touch);
+
         setPressTimer(setTimeout(() => {
-          const latlng = e.latlng;
-          navigate(`/create?lat=${latlng.lat}&lng=${latlng.lng}`);
+          navigate(`/create?lat=${touchPoint.lat}&lng=${touchPoint.lng}`);
         }, 1000));
       }
     },

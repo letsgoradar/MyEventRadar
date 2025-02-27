@@ -27,15 +27,8 @@ import { MapContainer, TileLayer, Marker, Circle, useMapEvents } from "react-lea
 import "leaflet/dist/leaflet.css"
 import { apiRequest } from "@/lib/queryClient"
 
-const RECURRENCE_OPTIONS = [
-  { label: "Eenmalig", value: "once" },
-  { label: "Dagelijks", value: "daily" },
-  { label: "Wekelijks", value: "weekly" },
-  { label: "Maandelijks", value: "monthly" }
-]
-
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
-const DEFAULT_ZOOM = 6 // Zoomed out to show ~175km radius
+const DEFAULT_ZOOM = 6
 const MIN_REACH = 1
 const MAX_REACH = 5
 
@@ -44,46 +37,46 @@ function getNextHour() {
   return setMilliseconds(setSeconds(setMinutes(addHours(now, 1), 0), 0), 0)
 }
 
-const createEventFormSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string(),
-  location: z.object({
-    lat: z.number(),
-    lng: z.number(),
-    notificationReach: z.number().min(MIN_REACH).max(MAX_REACH),
-  }, { required_error: "Location is required" }),
-  category: z.string().min(1, "Category is required"),
-  subcategory: z.string().optional(),
-  startDate: z.string().min(1, "Start date is required"),
-  startTime: z.string().min(1, "Start time is required"),
-  endDate: z.string().optional(),
-  endTime: z.string().optional(),
-  isPaid: z.boolean(),
-  price: z.number().optional(),
-  maxParticipants: z.number(),
-  recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
-  hostId: z.number(),
-});
-
 export default function CreateEventPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [isSatelliteView, setIsSatelliteView] = useState(false);
-  const [position, setPosition] = useState({ 
-    lat: DEFAULT_CENTER[0], 
-    lng: DEFAULT_CENTER[1],
-    notificationReach: 1 
-  });
   const [mapInitialized, setMapInitialized] = useState(false);
-
-  const nextHour = getNextHour();
-  const defaultEndTime = addHours(nextHour, 1);
 
   // Get location from URL if it exists (from long-press)
   const params = new URLSearchParams(window.location.search || "");
   const urlLatitude = params.get('lat');
   const urlLongitude = params.get('lng');
+
+  const nextHour = getNextHour();
+  const defaultEndTime = addHours(nextHour, 1);
+
+  const form = useForm<z.infer<typeof createEventFormSchema>>({
+    resolver: zodResolver(createEventFormSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      location: {
+        lat: urlLatitude ? parseFloat(urlLatitude) : DEFAULT_CENTER[0],
+        lng: urlLongitude ? parseFloat(urlLongitude) : DEFAULT_CENTER[1],
+        notificationReach: 1,
+      },
+      startDate: format(nextHour, 'yyyy-MM-dd'),
+      startTime: format(nextHour, 'HH:mm'),
+      endDate: format(defaultEndTime, 'yyyy-MM-dd'),
+      endTime: format(defaultEndTime, 'HH:mm'),
+      category: "",
+      subcategory: "",
+      isPaid: false,
+      price: 0,
+      maxParticipants: 0,
+      recurrence: "once",
+      hostId: 1,
+    },
+  });
+
+  const [position, setPosition] = useState(form.getValues().location);
 
   useEffect(() => {
     if (urlLatitude && urlLongitude) {
@@ -118,31 +111,7 @@ export default function CreateEventPage() {
         }
       );
     }
-  }, [urlLatitude, urlLongitude, form]);
-
-  const form = useForm<z.infer<typeof createEventFormSchema>>({
-    resolver: zodResolver(createEventFormSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      location: {
-        lat: urlLatitude ? parseFloat(urlLatitude) : DEFAULT_CENTER[0],
-        lng: urlLongitude ? parseFloat(urlLongitude) : DEFAULT_CENTER[1],
-        notificationReach: 1,
-      },
-      startDate: format(nextHour, 'yyyy-MM-dd'),
-      startTime: format(nextHour, 'HH:mm'),
-      endDate: format(defaultEndTime, 'yyyy-MM-dd'),
-      endTime: format(defaultEndTime, 'HH:mm'),
-      category: "",
-      subcategory: "",
-      isPaid: false,
-      price: 0,
-      maxParticipants: 0,
-      recurrence: "once",
-      hostId: 1,
-    },
-  });
+  }, [urlLatitude, urlLongitude, mapInitialized, form]);
 
   const updateLocation = (newLocation: { lat: number; lng: number }) => {
     const currentReach = form.getValues().location.notificationReach;
@@ -182,10 +151,31 @@ export default function CreateEventPage() {
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
 
+  const createEventFormSchema = z.object({
+    title: z.string().min(1, "Title is required"),
+    description: z.string(),
+    location: z.object({
+      lat: z.number(),
+      lng: z.number(),
+      notificationReach: z.number().min(MIN_REACH).max(MAX_REACH),
+    }, { required_error: "Location is required" }),
+    category: z.string().min(1, "Category is required"),
+    subcategory: z.string().optional(),
+    startDate: z.string().min(1, "Start date is required"),
+    startTime: z.string().min(1, "Start time is required"),
+    endDate: z.string().optional(),
+    endTime: z.string().optional(),
+    isPaid: z.boolean(),
+    price: z.number().optional(),
+    maxParticipants: z.number(),
+    recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
+    hostId: z.number(),
+  });
+
   async function onSubmit(data: z.infer<typeof createEventFormSchema>) {
     try {
       const startDateTime = new Date(`${data.startDate}T${data.startTime}`);
-      const endDateTime = data.endDate && data.endTime 
+      const endDateTime = data.endDate && data.endTime
         ? new Date(`${data.endDate}T${data.endTime}`)
         : null;
 
@@ -208,10 +198,7 @@ export default function CreateEventPage() {
         recurrence: data.recurrence,
       };
 
-      console.log("Sending event data:", eventData);
-
       const response = await apiRequest('POST', '/api/events', eventData);
-      console.log("Server response:", response);
 
       queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
 
@@ -302,7 +289,7 @@ export default function CreateEventPage() {
                       onValueChange={(vals) => {
                         const value = vals[0]
                         field.onChange(value)
-                        setPosition({...position, notificationReach: value}) 
+                        setPosition({...position, notificationReach: value})
                       }}
                     />
                   </FormControl>
@@ -313,7 +300,32 @@ export default function CreateEventPage() {
                 </FormItem>
               )}
             />
-
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category *</FormLabel>
+                  <FormControl>
+                    <CategoryPicker {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="subcategory"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Subcategory</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter subcategory" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -481,3 +493,10 @@ export default function CreateEventPage() {
     </div>
   );
 }
+
+const RECURRENCE_OPTIONS = [
+  { label: "Eenmalig", value: "once" },
+  { label: "Dagelijks", value: "daily" },
+  { label: "Wekelijks", value: "weekly" },
+  { label: "Maandelijks", value: "monthly" }
+]

@@ -18,6 +18,7 @@ export default function Home({ view, setView }: HomeProps) {
   const [toDate, setToDate] = useState(null);
   const [showPaidEvents, setShowPaidEvents] = useState(false);
   const [useDistanceFilter, setUseDistanceFilter] = useState(true);
+  const [filterSettings, setFilterSettings] = useState(null); //Added State for filter settings
 
 
   return (
@@ -47,6 +48,8 @@ export default function Home({ view, setView }: HomeProps) {
           }}
           sortBy="date"
           sortAscending={true}
+          categoryFilter={filterSettings?.category}
+          subcategoryFilter={filterSettings?.subcategory}
         />
       )}
     </div>

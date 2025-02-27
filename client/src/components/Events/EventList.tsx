@@ -1,142 +1,58 @@
-
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
-import type { Event } from "@shared/schema";
+import { apiRequest } from "@/lib/api";
+import { Event } from "@shared/schema";
 import EventCard from "./EventCard";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useLocation } from "@/hooks/useLocation";
-
-interface FilterProps {
-  searchQuery?: string;
-  category?: string;
-  fromDate?: Date | null;  
-  toDate?: Date | null;    
-  showPaidEvents?: boolean;
-  useDistanceFilter?: boolean;
-  distanceRadius?: number;
-}
+import { Filter } from "lucide-react";
 
 interface EventListProps {
-  filters?: FilterProps;
-  sortBy?: "date" | "distance" | "price";
-  sortAscending?: boolean;
+  categoryFilter?: string;
+  subcategoryFilter?: string;
 }
 
-export default function EventList({ 
-  filters = {}, 
-  sortBy = "date", 
-  sortAscending = true 
-}: EventListProps) {
+export function EventList({ categoryFilter, subcategoryFilter }: EventListProps) {
+  const { location, radius } = useLocation();
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
-  const { userLocation } = useLocation();
-  
-  // Default radius is 10 km if not specified in filters
-  const radius = filters.distanceRadius || 10;
 
-  const { data: events = [], isLoading, isError } = useQuery<Event[]>({
-    queryKey: ['events', userLocation, radius],
+  const { data: events, isLoading, isError } = useQuery<Event[]>({
+    queryKey: ["/api/events/nearby", location?.lat, location?.lng, radius],
     queryFn: async () => {
-      if (!userLocation || userLocation.length !== 2) {
-        return [];
-      }
-      
-      const params = new URLSearchParams({
-        lat: userLocation[0].toString(),
-        lng: userLocation[1].toString(),
-        radius: radius.toString()
-      });
-      
-      console.log(`Fetching events with params: ${params.toString()}`);
-      const response = await fetch(`/api/events/nearby?${params.toString()}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch events');
-      }
-      
-      const data = await response.json();
-      console.log("Debug - Fetched events:", data);
-      return data;
+      if (!location) return [];
+      console.log(`Fetching events with params: lat=${location.lat}&lng=${location.lng}&radius=${radius}`);
+      return apiRequest(
+        "GET",
+        `/api/events/nearby?lat=${location.lat}&lng=${location.lng}&radius=${radius}`
+      );
     },
-    enabled: userLocation !== null && userLocation.length === 2
+    enabled: !!location,
   });
 
-  // Apply filters and sorting to events
+  // Alleen filteren wanneer events of filters veranderen
   useEffect(() => {
-    if (!events || events.length === 0) {
-      setFilteredEvents([]);
-      return;
-    }
+    if (!events) return;
+
+    console.log("Debug - Fetched events:", events);
 
     let filtered = [...events];
-    
-    // Apply search filter
-    if (filters.searchQuery) {
-      const query = filters.searchQuery.toLowerCase();
-      filtered = filtered.filter(event => 
-        event.title.toLowerCase().includes(query) || 
-        (event.description && event.description.toLowerCase().includes(query))
-      );
-    }
-    
-    // Apply category filter
-    if (filters.category) {
-      filtered = filtered.filter(event => event.category === filters.category);
-    }
-    
-    // Apply date filters
-    if (filters.fromDate) {
-      filtered = filtered.filter(event => new Date(event.startTime) >= filters.fromDate!);
-    }
-    
-    if (filters.toDate) {
-      filtered = filtered.filter(event => new Date(event.startTime) <= filters.toDate!);
-    }
-    
-    // Apply paid events filter
-    if (filters.showPaidEvents === false) {
-      filtered = filtered.filter(event => !event.isPaid);
+
+    if (categoryFilter) {
+      filtered = filtered.filter(event => event.category === categoryFilter);
     }
 
-    // Sort events
-    if (sortBy === "date") {
-      filtered.sort((a, b) => {
-        const dateA = new Date(a.startTime).getTime();
-        const dateB = new Date(b.startTime).getTime();
-        return sortAscending ? dateA - dateB : dateB - dateA;
-      });
-    } else if (sortBy === "distance" && userLocation) {
-      // Sort by distance - simplified calculation for demo
-      filtered.sort((a, b) => {
-        const distA = Math.sqrt(
-          Math.pow(a.latitude - userLocation[0], 2) + 
-          Math.pow(a.longitude - userLocation[1], 2)
-        );
-        const distB = Math.sqrt(
-          Math.pow(b.latitude - userLocation[0], 2) + 
-          Math.pow(b.longitude - userLocation[1], 2)
-        );
-        return sortAscending ? distA - distB : distB - distA;
-      });
-    } else if (sortBy === "price") {
-      filtered.sort((a, b) => {
-        const priceA = a.price ? parseFloat(a.price) : 0;
-        const priceB = b.price ? parseFloat(b.price) : 0;
-        return sortAscending ? priceA - priceB : priceB - priceA;
-      });
+    if (subcategoryFilter) {
+      filtered = filtered.filter(event => event.subcategory === subcategoryFilter);
     }
 
     console.log("Debug - Filtered events:", filtered.length, "events");
     setFilteredEvents(filtered);
-  }, [events, filters, sortBy, sortAscending, userLocation]);
+  }, [events, categoryFilter, subcategoryFilter]);
 
   if (isLoading) {
     return (
-      <div className="p-4 space-y-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="rounded-lg overflow-hidden">
-            <Skeleton className="h-[200px] w-full" />
-          </div>
-        ))}
+      <div className="p-4 text-center text-gray-500">
+        Evenementen laden...
       </div>
     );
   }

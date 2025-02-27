@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import { Satellite } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import L from 'leaflet';
@@ -9,14 +9,14 @@ import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
 
-// Category colors mapping - Updated to new color scheme
+// Category colors mapping
 const categoryColors: { [key: string]: string } = {
-  'festival': '#FF6B00',   // Gaspedaal Orange
-  'sport': '#0066FF',      // Gaspedaal Blue
-  'music': '#4285F4',      // Google Blue
-  'food': '#FBBC05',       // Google Yellow
-  'culture': '#7B1FA2',    // Purple
-  'other': '#757575',      // Gray
+  'festival': '#FF6B00',
+  'sport': '#0066FF',
+  'music': '#4285F4',
+  'food': '#FBBC05',
+  'culture': '#7B1FA2',
+  'other': '#757575',
 };
 
 // Function to get color for category
@@ -69,8 +69,32 @@ const MapLegend = ({ onToggleCategory, activeCategories }: {
 function CreateEventMarker() {
   const [, navigate] = useLocation();
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
+  const [touchCount, setTouchCount] = useState(0);
 
   const map = useMapEvents({
+    touchstart: (e) => {
+      setTouchCount(e.touches?.length || 0);
+      if (e.touches?.length === 1) {
+        setPressTimer(setTimeout(() => {
+          const latlng = e.latlng;
+          navigate(`/create?lat=${latlng.lat}&lng=${latlng.lng}`);
+        }, 1000));
+      }
+    },
+    touchend: () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        setPressTimer(null);
+      }
+      setTouchCount(0);
+    },
+    touchcancel: () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        setPressTimer(null);
+      }
+      setTouchCount(0);
+    },
     mousedown: (e) => {
       setPressTimer(setTimeout(() => {
         navigate(`/create?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
@@ -87,25 +111,7 @@ function CreateEventMarker() {
         clearTimeout(pressTimer);
         setPressTimer(null);
       }
-    },
-    touchstart: (e) => {
-      setPressTimer(setTimeout(() => {
-        const latlng = e.latlng || e.touches[0].target.getLatLng();
-        navigate(`/create?lat=${latlng.lat}&lng=${latlng.lng}`);
-      }, 1000));
-    },
-    touchend: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-    },
-    touchcancel: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-    },
+    }
   });
 
   return null;
@@ -117,18 +123,6 @@ export default function MapView({ filters }: MapViewProps) {
     new Set(Object.keys(categoryColors))
   );
   const [isSatelliteView, setIsSatelliteView] = useState(false);
-
-  const toggleCategory = (category: string) => {
-    setActiveCategories(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(category)) {
-        newSet.delete(category);
-      } else {
-        newSet.add(category);
-      }
-      return newSet;
-    });
-  };
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -165,6 +159,18 @@ export default function MapView({ filters }: MapViewProps) {
     if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
     return true;
   });
+
+  const toggleCategory = (category: string) => {
+    setActiveCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
 
   // Map tile styles
   const tileUrl = isSatelliteView

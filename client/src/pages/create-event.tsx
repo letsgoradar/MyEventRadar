@@ -6,7 +6,7 @@ import { useLocation } from "wouter"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { X } from "lucide-react"
+import { X, Satellite } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -69,6 +69,7 @@ export default function CreateEventPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [position, setPosition] = useState({ 
     lat: DEFAULT_CENTER[0], 
     lng: DEFAULT_CENTER[1],
@@ -79,10 +80,45 @@ export default function CreateEventPage() {
   const nextHour = getNextHour();
   const defaultEndTime = addHours(nextHour, 1);
 
-  // Get URL parameters safely
+  // Get location from URL if it exists (from long-press)
   const params = new URLSearchParams(window.location.search || "");
-  const latitude = params.get('lat');
-  const longitude = params.get('lng');
+  const urlLatitude = params.get('lat');
+  const urlLongitude = params.get('lng');
+
+  useEffect(() => {
+    if (urlLatitude && urlLongitude) {
+      const newPos = {
+        lat: parseFloat(urlLatitude),
+        lng: parseFloat(urlLongitude),
+        notificationReach: 1,
+      };
+      setPosition(newPos);
+      form.setValue("location", newPos);
+      setMapInitialized(true);
+    } else if ("geolocation" in navigator && !mapInitialized) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newPos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            notificationReach: 1,
+          };
+          setPosition(newPos);
+          form.setValue("location", newPos);
+          setMapInitialized(true);
+        },
+        () => {
+          console.error("Could not get user location");
+          setMapInitialized(true);
+          toast({
+            title: "Location Access Error",
+            description: "Could not access your location. Using default location.",
+            variant: "destructive",
+          });
+        }
+      );
+    }
+  }, [urlLatitude, urlLongitude, form]);
 
   const form = useForm<z.infer<typeof createEventFormSchema>>({
     resolver: zodResolver(createEventFormSchema),
@@ -90,8 +126,8 @@ export default function CreateEventPage() {
       title: "",
       description: "",
       location: {
-        lat: latitude ? parseFloat(latitude) : DEFAULT_CENTER[0],
-        lng: longitude ? parseFloat(longitude) : DEFAULT_CENTER[1],
+        lat: urlLatitude ? parseFloat(urlLatitude) : DEFAULT_CENTER[0],
+        lng: urlLongitude ? parseFloat(urlLongitude) : DEFAULT_CENTER[1],
         notificationReach: 1,
       },
       startDate: format(nextHour, 'yyyy-MM-dd'),
@@ -104,36 +140,9 @@ export default function CreateEventPage() {
       price: 0,
       maxParticipants: 0,
       recurrence: "once",
-      hostId: 1, // This will be replaced with actual user ID when auth is implemented
+      hostId: 1,
     },
   });
-
-  useEffect(() => {
-    if ("geolocation" in navigator && !mapInitialized) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newPos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            notificationReach: form.getValues().location.notificationReach || 1,
-          };
-          setPosition(newPos);
-          form.setValue("location", newPos);
-          setMapInitialized(true);
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          // Keep default Netherlands center
-          setMapInitialized(true);
-          toast({
-            title: "Location Access Error",
-            description: "Could not access your location. Using default location.",
-            variant: "destructive",
-          });
-        }
-      );
-    }
-  }, []);
 
   const updateLocation = (newLocation: { lat: number; lng: number }) => {
     const currentReach = form.getValues().location.notificationReach;
@@ -163,6 +172,15 @@ export default function CreateEventPage() {
       </>
     );
   }
+
+  // Map tile styles
+  const tileUrl = isSatelliteView
+    ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
+  const tileConfig = isSatelliteView
+    ? { subdomains: [] }
+    : { subdomains: 'abcd' };
 
   async function onSubmit(data: z.infer<typeof createEventFormSchema>) {
     try {
@@ -225,47 +243,48 @@ export default function CreateEventPage() {
           <X className="h-4 w-4" />
         </Button>
 
-        <h1 className="text-2xl font-bold mb-6">Create New Event</h1>
+        <h1 className="text-2xl font-bold mb-6">Event Aanmaken</h1>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Title field */}
             <FormField
               control={form.control}
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Event Title *</FormLabel>
+                  <FormLabel>Event Titel *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter event title" {...field} />
+                    <Input placeholder="Voer event titel in" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Location field */}
             <div className="space-y-2">
-              <FormLabel>Location *</FormLabel>
-              <div className="h-[200px] rounded-md overflow-hidden relative z-10 border-[5px] border-gray-200">
+              <FormLabel>Locatie *</FormLabel>
+              <div className="h-[200px] rounded-md overflow-hidden relative border-2 border-gray-200">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute top-2 right-2 z-[1000] bg-white/90 hover:bg-white"
+                  onClick={() => setIsSatelliteView(!isSatelliteView)}
+                  title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
+                >
+                  <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
+                </Button>
                 <MapContainer
                   center={[position.lat, position.lng]}
-                  zoom={mapInitialized && position.lat !== DEFAULT_CENTER[0] ? 13 : DEFAULT_ZOOM}
-                  className="h-full"
+                  zoom={mapInitialized ? 13 : DEFAULT_ZOOM}
+                  className="h-full w-full"
+                  zoomControl={false}
                 >
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <TileLayer url={tileUrl} {...tileConfig} />
                   <LocationMarker />
                 </MapContainer>
               </div>
-            </div>
-
-            <div className="space-y-2 relative z-20">
-              <FormLabel>Category *</FormLabel>
-              <CategoryPicker
-                onCategoryChange={(main, sub) => {
-                  form.setValue("category", main)
-                  form.setValue("subcategory", sub)
-                }}
-              />
-              <FormMessage />
             </div>
 
             <FormField
@@ -460,5 +479,5 @@ export default function CreateEventPage() {
         </Form>
       </Card>
     </div>
-  )
+  );
 }

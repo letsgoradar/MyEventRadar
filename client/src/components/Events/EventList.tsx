@@ -1,151 +1,114 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import type { Event } from "@shared/schema";
 import EventCard from "./EventCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocation } from "@/hooks/useLocation";
 
 interface FilterProps {
-  searchQuery: string;
-  category: string;
-  fromDate: Date | null;  
-  toDate: Date | null;    
-  showPaidEvents: boolean;
-  useDistanceFilter: boolean;
-  distanceRadius: number;
+  searchQuery?: string;
+  category?: string;
+  fromDate?: Date | null;  
+  toDate?: Date | null;    
+  showPaidEvents?: boolean;
+  useDistanceFilter?: boolean;
+  distanceRadius?: number;
 }
 
 interface EventListProps {
-  filters: FilterProps;
-  sortBy: 'date' | 'distance';
-  sortAscending: boolean;
+  filters?: FilterProps;
+  sortBy?: "date" | "distance" | "popularity";
+  sortAscending?: boolean;
 }
 
-// Calculate distance between two points
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
+export default function EventList({ 
+  filters = {}, 
+  sortBy = "date", 
+  sortAscending = true 
+}: EventListProps) {
+  const { userLocation } = useLocation();
+  const radius = filters?.distanceRadius || 10; // Default to 10km radius if not specified
 
-export default function EventList({ filters, sortBy, sortAscending }: EventListProps) {
-  const { data: events, isLoading } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", filters],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        lat: "51.7656", // Default to Oss
-        lng: "5.5314",
-        radius: filters.useDistanceFilter ? filters.distanceRadius.toString() : "10",
-      });
-
-      const response = await fetch(`/api/events/nearby?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch events');
-      }
-      const data = await response.json();
-      console.log('Debug - Fetched events:', data);
-      return data;
-    },
+  const { data: events, isLoading, isError } = useQuery<Event[]>({
+    queryKey: ["/api/events/nearby", userLocation[0], userLocation[1], radius],
+    enabled: !!userLocation,
   });
+
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+
+  useEffect(() => {
+    console.log("Debug - Fetched events:", events);
+
+    if (!events) {
+      setFilteredEvents([]);
+      return;
+    }
+
+    let filtered = [...events];
+
+    // Apply filters
+    if (filters.searchQuery) {
+      const query = filters.searchQuery.toLowerCase();
+      filtered = filtered.filter(event => 
+        event.title.toLowerCase().includes(query) || 
+        event.description.toLowerCase().includes(query)
+      );
+    }
+
+    if (filters.category && filters.category !== "all") {
+      filtered = filtered.filter(event => event.category === filters.category);
+    }
+
+    if (filters.fromDate) {
+      filtered = filtered.filter(event => 
+        new Date(event.startTime) >= filters.fromDate!
+      );
+    }
+
+    if (filters.toDate) {
+      filtered = filtered.filter(event => 
+        new Date(event.startTime) <= filters.toDate!
+      );
+    }
+
+    if (filters.showPaidEvents === false) {
+      filtered = filtered.filter(event => !event.isPaid);
+    }
+
+    console.log("Debug - Filtered events:", filtered.length, "events");
+    setFilteredEvents(filtered);
+  }, [events, filters]);
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-4">
-        {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} className="h-48 w-full" />
+      <div className="p-4 space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="rounded-lg overflow-hidden">
+            <Skeleton className="h-[200px] w-full" />
+          </div>
         ))}
       </div>
     );
   }
 
-  // Filter and sort events
-  let filteredEvents = events?.filter(event => {
-    const eventDate = new Date(event.startTime);
-    const now = new Date();
-
-    // Basic date filter - only future events
-    if (eventDate <= now) return false;
-
-    // Apply search filter
-    if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
-      return false;
-    }
-
-    // Apply category filter
-    if (filters.category && event.category !== filters.category) {
-      return false;
-    }
-
-    // Apply date range filter
-    if (eventDate < filters.fromDate || eventDate > filters.toDate) {
-      return false;
-    }
-
-    // Apply paid events filter
-    if (filters.showPaidEvents && !event.isPaid) {
-      return false;
-    }
-
-    // Apply distance filter if enabled
-    if (filters.useDistanceFilter) {
-      const distance = calculateDistance(
-        51.7656, // Default user location (Oss)
-        5.5314,
-        Number(event.latitude), 
-        Number(event.longitude) 
-      );
-      if (distance > filters.distanceRadius) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  console.log('Debug - Filtered events:', filteredEvents?.length, 'events');
-
-  // Sort events
-  if (filteredEvents?.length) {
-    filteredEvents = [...filteredEvents].sort((a, b) => {
-      let comparison = 0;
-
-      if (sortBy === 'date') {
-        comparison = new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-      } else {
-        // Sort by distance
-        const distanceA = calculateDistance(
-          51.7656,
-          5.5314,
-          Number(a.latitude), 
-          Number(a.longitude) 
-        );
-        const distanceB = calculateDistance(
-          51.7656,
-          5.5314,
-          Number(b.latitude), 
-          Number(b.longitude) 
-        );
-        comparison = distanceA - distanceB;
-      }
-
-      return sortAscending ? comparison : -comparison;
-    });
+  if (isError) {
+    return (
+      <div className="p-4 text-center text-red-500">
+        Er is een fout opgetreden bij het laden van evenementen.
+      </div>
+    );
   }
 
-  if (!filteredEvents?.length) {
+  if (filteredEvents.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">No events found</p>
+      <div className="p-4 text-center text-gray-500">
+        Geen evenementen gevonden.
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="p-4 space-y-4 overflow-auto max-h-[calc(100vh-16rem)]">
       {filteredEvents.map((event) => (
         <EventCard key={event.id} event={event} />
       ))}

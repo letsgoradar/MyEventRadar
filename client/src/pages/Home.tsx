@@ -18,7 +18,10 @@ export default function Home({ view, setView }: HomeProps) {
       {view === "map" ? (
         <MapView />
       ) : (
-        <EventList />
+        <EventList filters={{
+          useDistanceFilter: true,
+          distanceRadius: radius
+        }} />
       )}
     </div>
   );

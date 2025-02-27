@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import { Satellite } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import L from 'leaflet';
@@ -35,96 +35,7 @@ const createEventIcon = (category: string) => {
   });
 };
 
-// Function to create location arrow with direction
-const createCompassNeedleIcon = (heading: number = 0) => {
-  const svg = `
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <g transform="rotate(${heading} 16 16)">
-        <path d="M16 4L20 14L16 28L12 14L16 4Z" fill="#4285F4"/>
-        <path d="M16 4L20 14L16 12L12 14L16 4Z" fill="#5C9FFF"/>
-        <circle cx="16" cy="14" r="2" fill="white"/>
-      </g>
-    </svg>
-  `;
-
-  return L.divIcon({
-    className: 'user-location-marker',
-    html: `<div class="pulse-animation">${svg}</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16]
-  });
-};
-
-// User location marker with compass direction
-function LocationMarker() {
-  const [position, setPosition] = useState<[number, number] | null>(null);
-  const [heading, setHeading] = useState<number>(0);
-  const map = useMap();
-
-  useEffect(() => {
-    if ('geolocation' in navigator) {
-      // Watch position for real-time updates
-      const watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          const newPos: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-
-          // Update heading if available
-          if (pos.coords.heading !== null) {
-            setHeading(pos.coords.heading);
-          }
-
-          setPosition(newPos);
-          map.flyTo(newPos, map.getZoom());
-        },
-        undefined,
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 5000
-        }
-      );
-
-      return () => navigator.geolocation.clearWatch(watchId);
-    }
-  }, [map]);
-
-  // Also listen for device orientation changes
-  useEffect(() => {
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      if (e.webkitCompassHeading) {
-        // iOS devices
-        setHeading(e.webkitCompassHeading);
-      } else if (e.alpha !== null) {
-        // Other devices
-        setHeading(360 - e.alpha);
-      }
-    };
-
-    window.addEventListener('deviceorientation', handleOrientation, true);
-    return () => window.removeEventListener('deviceorientation', handleOrientation, true);
-  }, []);
-
-  return position === null ? null : (
-    <Marker
-      position={position}
-      icon={createCompassNeedleIcon(heading)}
-    >
-      <Popup>
-        <div className="text-center">
-          <div className="font-bold">You are here</div>
-          <div className="text-sm text-gray-600">
-            {position[0].toFixed(4)}, {position[1].toFixed(4)}
-          </div>
-          <div className="text-sm text-blue-600">
-            Heading: {Math.round(heading)}°
-          </div>
-        </div>
-      </Popup>
-    </Marker>
-  );
-}
-
-// Interactive Legend Component
+// Map legend component
 const MapLegend = ({ onToggleCategory, activeCategories }: {
   onToggleCategory: (category: string) => void;
   activeCategories: Set<string>;
@@ -154,10 +65,53 @@ const MapLegend = ({ onToggleCategory, activeCategories }: {
   );
 };
 
-export default function MapView({ filters }: MapViewProps) {
+// Create Event Marker Component
+function CreateEventMarker() {
   const [, navigate] = useLocation();
-  const [pressTimer, setPressTimer] = React.useState<NodeJS.Timeout | null>(null);
-  const [pressedLocation, setPressedLocation] = React.useState<[number, number] | null>(null);
+  const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const map = useMapEvents({
+    mousedown: (e) => {
+      setPressTimer(setTimeout(() => {
+        navigate(`/create?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
+      }, 1000));
+    },
+    mouseup: () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        setPressTimer(null);
+      }
+    },
+    mouseleave: () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        setPressTimer(null);
+      }
+    },
+    touchstart: (e) => {
+      setPressTimer(setTimeout(() => {
+        const latlng = e.latlng || e.touches[0].target.getLatLng();
+        navigate(`/create?lat=${latlng.lat}&lng=${latlng.lng}`);
+      }, 1000));
+    },
+    touchend: () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        setPressTimer(null);
+      }
+    },
+    touchcancel: () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        setPressTimer(null);
+      }
+    },
+  });
+
+  return null;
+}
+
+export default function MapView({ filters }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]); // Default to Oss
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
     new Set(Object.keys(categoryColors))
@@ -181,10 +135,6 @@ export default function MapView({ filters }: MapViewProps) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
-          console.log('User location set:', [position.coords.latitude, position.coords.longitude]);
-        },
-        () => {
-          console.log('Using default location (Oss):', userLocation);
         }
       );
     }
@@ -199,45 +149,22 @@ export default function MapView({ filters }: MapViewProps) {
         radius: filters.useDistanceFilter ? filters.distanceRadius.toString() : "10"
       });
 
-      console.log('Fetching events with params:', Object.fromEntries(params));
       const response = await fetch(`/api/events/nearby?${params}`);
-
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-
-      const data = await response.json();
-      console.log('Received events:', data);
-      return data;
+      return response.json();
     },
   });
 
   // Filter events based on criteria
   const filteredEvents = events.filter(event => {
-    const lat = Number(event.latitude);
-    const lng = Number(event.longitude);
-
-    // Basic coordinate validation
-    if (isNaN(lat) || isNaN(lng)) {
-      console.warn('Invalid coordinates for event:', {
-        id: event.id,
-        title: event.title,
-        latitude: event.latitude,
-        longitude: event.longitude
-      });
-      return false;
-    }
-
-    // Apply filters
     if (!activeCategories.has(event.category.toLowerCase())) return false;
     if (filters.category && event.category !== filters.category) return false;
     if (filters.showPaidEvents && !event.isPaid) return false;
     if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
-
     return true;
   });
-
-  console.log('Filtered events:', filteredEvents.length);
 
   // Map tile styles
   const tileUrl = isSatelliteView
@@ -248,47 +175,8 @@ export default function MapView({ filters }: MapViewProps) {
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
 
-  const handleMapPress = React.useCallback((e: L.LeafletMouseEvent) => {
-    setPressedLocation([e.latlng.lat, e.latlng.lng]);
-    const timer = setTimeout(() => {
-      // Navigate to create event with location params
-      navigate(`/create?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
-    }, 1000);
-    setPressTimer(timer);
-  }, [navigate]);
-
-  const handleMapPressEnd = React.useCallback(() => {
-    if (pressTimer) {
-      clearTimeout(pressTimer);
-      setPressTimer(null);
-    }
-    setPressedLocation(null);
-  }, [pressTimer]);
-
-  useEffect(() => {
-    const map = document.querySelector('.leaflet-container');
-    if (map) {
-      map.addEventListener('mousedown', handleMapPress as any);
-      map.addEventListener('touchstart', handleMapPress as any);
-      map.addEventListener('mouseup', handleMapPressEnd);
-      map.addEventListener('touchend', handleMapPressEnd);
-      map.addEventListener('mouseleave', handleMapPressEnd);
-      map.addEventListener('touchcancel', handleMapPressEnd);
-
-      return () => {
-        map.removeEventListener('mousedown', handleMapPress as any);
-        map.removeEventListener('touchstart', handleMapPress as any);
-        map.removeEventListener('mouseup', handleMapPressEnd);
-        map.removeEventListener('touchend', handleMapPressEnd);
-        map.removeEventListener('mouseleave', handleMapPressEnd);
-        map.removeEventListener('touchcancel', handleMapPressEnd);
-      };
-    }
-  }, [handleMapPress, handleMapPressEnd]);
-
-
   return (
-    <div className="h-[calc(100vh-8rem)] relative">
+    <div className="h-full relative">
       <Button
         variant="outline"
         size="icon"
@@ -302,15 +190,11 @@ export default function MapView({ filters }: MapViewProps) {
       <MapContainer
         center={userLocation}
         zoom={13}
-        className="h-full w-full leaflet-grid-hide"
-        attributionControl={false}
+        className="h-full w-full"
+        zoomControl={false}
       >
-        <TileLayer
-          url={tileUrl}
-          attribution={false}
-          {...tileConfig}
-        />
-        <LocationMarker />
+        <TileLayer url={tileUrl} {...tileConfig} />
+        <CreateEventMarker />
         <MapLegend
           onToggleCategory={toggleCategory}
           activeCategories={activeCategories}

@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { format, addHours, setMinutes, setSeconds, setMilliseconds } from "date-fns"
 import * as z from 'zod'
-import { MapContainer, TileLayer, Marker, Circle, useMapEvents } from "react-leaflet"
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import { apiRequest } from "@/lib/queryClient"
 
@@ -31,6 +31,35 @@ const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
 const DEFAULT_ZOOM = 6
 const MIN_REACH = 1
 const MAX_REACH = 5
+
+// Define the schema first
+const createEventFormSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string(),
+  location: z.object({
+    lat: z.number(),
+    lng: z.number(),
+    notificationReach: z.number().min(MIN_REACH).max(MAX_REACH),
+  }, { required_error: "Location is required" }),
+  category: z.string().min(1, "Category is required"),
+  subcategory: z.string().optional(),
+  startDate: z.string().min(1, "Start date is required"),
+  startTime: z.string().min(1, "Start time is required"),
+  endDate: z.string().optional(),
+  endTime: z.string().optional(),
+  isPaid: z.boolean(),
+  price: z.number().optional(),
+  maxParticipants: z.number(),
+  recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
+  hostId: z.number(),
+});
+
+const RECURRENCE_OPTIONS = [
+  { label: "Eenmalig", value: "once" },
+  { label: "Dagelijks", value: "daily" },
+  { label: "Wekelijks", value: "weekly" },
+  { label: "Maandelijks", value: "monthly" }
+];
 
 function getNextHour() {
   const now = new Date()
@@ -131,14 +160,7 @@ export default function CreateEventPage() {
     });
 
     return (
-      <>
-        <Marker position={position} />
-        <Circle
-          center={position}
-          radius={position.notificationReach * 1000}
-          pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.2 }}
-        />
-      </>
+      <Marker position={[position.lat, position.lng]} />
     );
   }
 
@@ -150,27 +172,6 @@ export default function CreateEventPage() {
   const tileConfig = isSatelliteView
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
-
-  const createEventFormSchema = z.object({
-    title: z.string().min(1, "Title is required"),
-    description: z.string(),
-    location: z.object({
-      lat: z.number(),
-      lng: z.number(),
-      notificationReach: z.number().min(MIN_REACH).max(MAX_REACH),
-    }, { required_error: "Location is required" }),
-    category: z.string().min(1, "Category is required"),
-    subcategory: z.string().optional(),
-    startDate: z.string().min(1, "Start date is required"),
-    startTime: z.string().min(1, "Start time is required"),
-    endDate: z.string().optional(),
-    endTime: z.string().optional(),
-    isPaid: z.boolean(),
-    price: z.number().optional(),
-    maxParticipants: z.number(),
-    recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
-    hostId: z.number(),
-  });
 
   async function onSubmit(data: z.infer<typeof createEventFormSchema>) {
     try {
@@ -276,7 +277,7 @@ export default function CreateEventPage() {
 
             <FormField
               control={form.control}
-              name="notificationReach"
+              name="location.notificationReach"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Notification Reach</FormLabel>
@@ -300,6 +301,7 @@ export default function CreateEventPage() {
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="category"
@@ -313,6 +315,7 @@ export default function CreateEventPage() {
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="subcategory"
@@ -326,6 +329,7 @@ export default function CreateEventPage() {
                 </FormItem>
               )}
             />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -493,10 +497,3 @@ export default function CreateEventPage() {
     </div>
   );
 }
-
-const RECURRENCE_OPTIONS = [
-  { label: "Eenmalig", value: "once" },
-  { label: "Dagelijks", value: "daily" },
-  { label: "Wekelijks", value: "weekly" },
-  { label: "Maandelijks", value: "monthly" }
-]

@@ -3,7 +3,6 @@ import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaf
 import { Satellite } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import React, { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
@@ -19,12 +18,10 @@ const categoryColors: { [key: string]: string } = {
   'other': '#757575',
 };
 
-// Function to get color for category
 const getCategoryColor = (category: string): string => {
   return categoryColors[category.toLowerCase()] || categoryColors.other;
 };
 
-// Function to create event icon
 const createEventIcon = (category: string) => {
   const color = getCategoryColor(category);
   return L.divIcon({
@@ -35,7 +32,6 @@ const createEventIcon = (category: string) => {
   });
 };
 
-// Map legend component
 const MapLegend = ({ onToggleCategory, activeCategories }: {
   onToggleCategory: (category: string) => void;
   activeCategories: Set<string>;
@@ -65,43 +61,11 @@ const MapLegend = ({ onToggleCategory, activeCategories }: {
   );
 };
 
-// Create Event Marker Component
 function CreateEventMarker() {
   const [, navigate] = useLocation();
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [touchCount, setTouchCount] = useState(0);
-
   const map = useMapEvents({
-    touchstart: (e) => {
-      const touches = e.originalEvent.touches;
-      setTouchCount(touches?.length || 0);
-
-      // Only trigger for single touch
-      if (touches?.length === 1) {
-        const point = map.mouseEventToLatLng({
-          clientX: touches[0].clientX,
-          clientY: touches[0].clientY
-        });
-
-        setPressTimer(setTimeout(() => {
-          navigate(`/create?lat=${point.lat}&lng=${point.lng}`);
-        }, 1000));
-      }
-    },
-    touchend: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-      setTouchCount(0);
-    },
-    touchcancel: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-      setTouchCount(0);
-    },
     mousedown: (e) => {
       setPressTimer(setTimeout(() => {
         navigate(`/create?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
@@ -118,6 +82,35 @@ function CreateEventMarker() {
         clearTimeout(pressTimer);
         setPressTimer(null);
       }
+    },
+    touchstart: (e) => {
+      const touches = e.originalEvent.touches;
+      setTouchCount(touches.length);
+
+      if (touches.length === 1) {
+        const container = map.getContainer();
+        const touch = touches[0];
+        const pos = L.point(touch.clientX, touch.clientY);
+        const touchLatLng = map.containerPointToLatLng(pos);
+
+        setPressTimer(setTimeout(() => {
+          navigate(`/create?lat=${touchLatLng.lat}&lng=${touchLatLng.lng}`);
+        }, 1000));
+      }
+    },
+    touchend: () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        setPressTimer(null);
+      }
+      setTouchCount(0);
+    },
+    touchcancel: () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        setPressTimer(null);
+      }
+      setTouchCount(0);
     }
   });
 
@@ -158,7 +151,6 @@ export default function MapView({ filters }: MapViewProps) {
     },
   });
 
-  // Filter events based on criteria
   const filteredEvents = events.filter(event => {
     if (!activeCategories.has(event.category.toLowerCase())) return false;
     if (filters.category && event.category !== filters.category) return false;
@@ -179,7 +171,6 @@ export default function MapView({ filters }: MapViewProps) {
     });
   };
 
-  // Map tile styles
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";

@@ -53,7 +53,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex flex-col h-screen bg-white">
+      <div className="relative flex flex-col h-screen">
         <TopNav 
           isMapView={isMapView}
           toggleView={toggleView}
@@ -62,7 +62,7 @@ export default function App() {
           setIsFilterSheetOpen={setIsFilterSheetOpen}
         />
 
-        <main className="fixed inset-x-0 bottom-[64px] top-[72px] overflow-hidden">
+        <main className="absolute inset-0 top-[72px] bottom-[64px]">
           {isMapView ? (
             <MapView
               filters={{
@@ -242,8 +242,8 @@ export default function App() {
             </div>
           </SheetContent>
         </Sheet>
+        <Toaster />
       </div>
-      <Toaster />
     </QueryClientProvider>
   );
 }

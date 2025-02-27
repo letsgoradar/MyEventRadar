@@ -8,8 +8,7 @@ import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
 
-// Category colors mapping
-const categoryColors: { [key: string]: string } = {
+const categoryColors = {
   'festival': '#FF6B00',
   'sport': '#0066FF',
   'music': '#4285F4',
@@ -65,37 +64,40 @@ function CreateEventMarker() {
   const [, navigate] = useLocation();
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [touchCount, setTouchCount] = useState(0);
+  const [startPoint, setStartPoint] = useState<{ x: number, y: number } | null>(null);
+  const moveThreshold = 10; // pixels
+
   const map = useMapEvents({
-    mousedown: (e) => {
-      setPressTimer(setTimeout(() => {
-        navigate(`/create?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
-      }, 1000));
-    },
-    mouseup: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-    },
-    mouseleave: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-    },
     touchstart: (e) => {
       const touches = e.originalEvent.touches;
       setTouchCount(touches.length);
 
       if (touches.length === 1) {
-        const container = map.getContainer();
         const touch = touches[0];
+        setStartPoint({ x: touch.clientX, y: touch.clientY });
+
+        const container = map.getContainer();
         const pos = L.point(touch.clientX, touch.clientY);
         const touchLatLng = map.containerPointToLatLng(pos);
 
         setPressTimer(setTimeout(() => {
-          navigate(`/create?lat=${touchLatLng.lat}&lng=${touchLatLng.lng}`);
+          navigate(`/create?lat=${touchLatLng.lat}&lng=${touchLatLng.lng}&zoom=18`);
         }, 1000));
+      }
+    },
+    touchmove: (e) => {
+      if (startPoint && e.originalEvent.touches.length === 1) {
+        const touch = e.originalEvent.touches[0];
+        const deltaX = Math.abs(touch.clientX - startPoint.x);
+        const deltaY = Math.abs(touch.clientY - startPoint.y);
+
+        if (deltaX > moveThreshold || deltaY > moveThreshold) {
+          if (pressTimer) {
+            clearTimeout(pressTimer);
+            setPressTimer(null);
+          }
+          setStartPoint(null);
+        }
       }
     },
     touchend: () => {
@@ -104,6 +106,7 @@ function CreateEventMarker() {
         setPressTimer(null);
       }
       setTouchCount(0);
+      setStartPoint(null);
     },
     touchcancel: () => {
       if (pressTimer) {
@@ -111,6 +114,41 @@ function CreateEventMarker() {
         setPressTimer(null);
       }
       setTouchCount(0);
+      setStartPoint(null);
+    },
+    mousedown: (e) => {
+      setStartPoint({ x: e.originalEvent.clientX, y: e.originalEvent.clientY });
+      setPressTimer(setTimeout(() => {
+        navigate(`/create?lat=${e.latlng.lat}&lng=${e.latlng.lng}&zoom=18`);
+      }, 1000));
+    },
+    mousemove: (e) => {
+      if (startPoint) {
+        const deltaX = Math.abs(e.originalEvent.clientX - startPoint.x);
+        const deltaY = Math.abs(e.originalEvent.clientY - startPoint.y);
+
+        if (deltaX > moveThreshold || deltaY > moveThreshold) {
+          if (pressTimer) {
+            clearTimeout(pressTimer);
+            setPressTimer(null);
+          }
+          setStartPoint(null);
+        }
+      }
+    },
+    mouseup: () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        setPressTimer(null);
+      }
+      setStartPoint(null);
+    },
+    mouseleave: () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        setPressTimer(null);
+      }
+      setStartPoint(null);
     }
   });
 

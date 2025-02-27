@@ -29,7 +29,8 @@ import { apiRequest } from "@/lib/queryClient"
 import React from 'react';
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
-const DEFAULT_ZOOM = 6
+const DEFAULT_ZOOM = 6 // For Netherlands overview
+const LOCATION_ZOOM = 18 // For specific location
 const MIN_REACH = 1
 const MAX_REACH = 5
 
@@ -74,10 +75,11 @@ export default function CreateEventPage() {
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [mapInitialized, setMapInitialized] = useState(false);
 
-  // Get location from URL if it exists (from long-press)
+  // Get location from URL parameters (from long-press)
   const params = new URLSearchParams(window.location.search || "");
   const urlLatitude = params.get('lat');
   const urlLongitude = params.get('lng');
+  const urlZoom = params.get('zoom');
 
   const nextHour = getNextHour();
   const defaultEndTime = addHours(nextHour, 1);
@@ -89,6 +91,7 @@ export default function CreateEventPage() {
   }), [urlLatitude, urlLongitude]);
 
   const [position, setPosition] = useState(initialPosition);
+  const [zoom, setZoom] = useState(urlZoom ? parseInt(urlZoom) : DEFAULT_ZOOM);
 
   const form = useForm<z.infer<typeof createEventFormSchema>>({
     resolver: zodResolver(createEventFormSchema),
@@ -110,11 +113,13 @@ export default function CreateEventPage() {
     },
   });
 
-  // Initialize with URL coordinates or get user location
+  // Initialize location
   useEffect(() => {
     if (urlLatitude && urlLongitude) {
+      // Location from long-press
       setMapInitialized(true);
     } else if ("geolocation" in navigator && !mapInitialized) {
+      // Try to get user's current location
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const newPos = {
@@ -124,6 +129,7 @@ export default function CreateEventPage() {
           };
           setPosition(newPos);
           form.setValue("location", newPos);
+          setZoom(LOCATION_ZOOM);
           setMapInitialized(true);
         },
         () => {
@@ -262,7 +268,7 @@ export default function CreateEventPage() {
                 </Button>
                 <MapContainer
                   center={[position.lat, position.lng]}
-                  zoom={mapInitialized ? 13 : DEFAULT_ZOOM}
+                  zoom={zoom}
                   className="h-full w-full"
                   zoomControl={false}
                 >

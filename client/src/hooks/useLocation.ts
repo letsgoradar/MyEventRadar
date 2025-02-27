@@ -1,68 +1,59 @@
 
 import { useState, useEffect } from "react";
 
-interface LocationState {
+interface Coordinates {
   lat: number;
   lng: number;
 }
 
-export function useLocation() {
-  const [location, setLocation] = useState<LocationState | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+interface LocationHook {
+  location: Coordinates | null;
+  locationError: GeolocationPositionError | null;
+  isLoadingLocation: boolean;
+}
+
+export function useLocation(): LocationHook {
+  const [location, setLocation] = useState<Coordinates | null>(null);
+  const [locationError, setLocationError] = useState<GeolocationPositionError | null>(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  
+  // Default to Oss coordinates
+  const DEFAULT_COORDINATES: Coordinates = { lat: 51.7656, lng: 5.5314 };
 
   useEffect(() => {
-    let isMounted = true;
+    // Check if geolocation is supported
+    if (!navigator.geolocation) {
+      console.log("Geolocation is not supported by your browser");
+      setLocation(DEFAULT_COORDINATES);
+      setIsLoadingLocation(false);
+      return;
+    }
 
-    const getLocation = () => {
-      if (isMounted) setLoading(true);
-      
-      if (!navigator.geolocation) {
-        if (isMounted) {
-          setError("Geolocation wordt niet ondersteund door deze browser.");
-          setLoading(false);
-        }
-        return;
+    // Get user's location
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log("Got user location:", position.coords.latitude, position.coords.longitude);
+        setLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setIsLoadingLocation(false);
+        setLocationError(null);
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        setLocationError(error);
+        // Fall back to default location
+        setLocation(DEFAULT_COORDINATES);
+        setIsLoadingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
       }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          if (isMounted) {
-            console.log("Locatie succesvol opgevraagd:", position.coords);
-            setLocation({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            });
-            setLoading(false);
-            setError(null);
-          }
-        },
-        (error) => {
-          if (isMounted) {
-            console.error("Fout bij opvragen locatie:", error);
-            setError("Kon uw locatie niet ophalen. Standaardlocatie wordt gebruikt.");
-            // Gebruik een standaardlocatie (bijv. centrum van Nederland)
-            setLocation({
-              lat: 52.1326,
-              lng: 5.2913,
-            });
-            setLoading(false);
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000, // 1 minuut caching
-        }
-      );
-    };
-
-    getLocation();
-
-    return () => {
-      isMounted = false;
-    };
+    );
   }, []);
 
-  return { location, loading, error };
+  return { location, locationError, isLoadingLocation };
 }

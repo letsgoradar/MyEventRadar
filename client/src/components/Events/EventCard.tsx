@@ -1,70 +1,74 @@
 import React from "react";
 import { Event } from "@shared/schema";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDate } from "@/lib/utils";
+import { MapPin, Clock, Calendar } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 
 interface EventCardProps {
-  event: Event & { distance?: number };
+  event: Event;
+  distance: number;
 }
 
-function EventCard({ event }: EventCardProps) {
-  const formatDate = (date: Date) => {
-    return format(new Date(date), "d MMM yyyy HH:mm");
-  };
+export default function EventCard({ event, distance }: EventCardProps) {
+  const categoryColor = getCategoryColor(event.category);
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader>
+    <Card className="overflow-hidden h-full flex flex-col">
+      <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <CardTitle className="text-lg">{event.title}</CardTitle>
-          {event.distance !== undefined && (
-            <Badge variant="outline" className="ml-2">
-              {event.distance.toFixed(1)} km
-            </Badge>
-          )}
+          <Badge variant="outline" style={{ backgroundColor: categoryColor, color: 'white' }} className="mb-2">
+            {event.category}
+          </Badge>
+          <Badge variant="outline" className="bg-muted text-foreground">
+            {distance} km
+          </Badge>
         </div>
+        <CardTitle className="text-lg md:text-xl line-clamp-2">{event.title}</CardTitle>
+        <CardDescription className="flex items-center gap-1 text-xs">
+          <MapPin size={14} />
+          {event.latitude.toFixed(3)}, {event.longitude.toFixed(3)}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-          {event.description}
-        </p>
-        <div className="flex flex-wrap gap-2 mb-2">
-          <Badge variant="secondary">{event.category}</Badge>
-          {event.subcategory && (
-            <Badge variant="outline">{event.subcategory}</Badge>
-          )}
-        </div>
-        <div className="text-sm mt-2">
-          <div>
-            <span className="font-medium">Start: </span>
-            {formatDate(event.startTime)}
+
+      <CardContent className="pb-2 flex-grow">
+        <p className="text-sm line-clamp-3 mb-2">{event.description}</p>
+        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <Calendar size={14} />
+            {formatDate(event.startTime, "d MMMM yyyy")}
           </div>
-          {event.endTime && (
-            <div>
-              <span className="font-medium">Eind: </span>
-              {formatDate(event.endTime)}
-            </div>
-          )}
-          {event.isPaid && (
-            <div className="mt-1">
-              <span className="font-medium">Prijs: </span>€{event.price}
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <Clock size={14} />
+            {formatDate(event.startTime, "HH:mm")} - {formatDate(event.endTime, "HH:mm")}
+          </div>
         </div>
       </CardContent>
-      <CardFooter className="border-t pt-4">
-        <div className="w-full flex justify-between items-center">
-          <Badge variant={event.isPaid ? "destructive" : "success"}>
-            {event.isPaid ? "Betaald" : "Gratis"}
-          </Badge>
-          <span className="text-sm text-muted-foreground">
-            Max: {event.maxParticipants} deelnemers
-          </span>
-        </div>
+
+      <CardFooter className="pt-2">
+        <Link href={`/events/${event.id}`}>
+          <Button className="w-full" variant="default" size="sm">
+            Bekijken
+          </Button>
+        </Link>
       </CardFooter>
     </Card>
   );
 }
 
-export default EventCard;
+function getCategoryColor(category: string): string {
+  const colors: Record<string, string> = {
+    "festival": "#ff6b6b",
+    "music": "#5f3dc4",
+    "sports": "#4c6ef5",
+    "food": "#f59f00",
+    "culture": "#da77f2",
+    "educational": "#20c997",
+    "networking": "#15aabf",
+    "other": "#868e96"
+  };
+
+  return colors[category] || colors["other"];
+}

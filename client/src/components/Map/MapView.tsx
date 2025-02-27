@@ -130,7 +130,6 @@ const MapLegend = ({ onToggleCategory, activeCategories }: {
 }) => {
   return (
     <div className="absolute bottom-16 right-4 bg-white p-3 rounded-lg shadow-md z-[1000]">
-      <h4 className="text-sm font-bold mb-2">Filter by Category</h4>
       <div className="grid gap-2">
         {Object.entries(categoryColors).map(([category, color]) => {
           const isActive = activeCategories.has(category);

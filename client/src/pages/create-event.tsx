@@ -26,6 +26,7 @@ import * as z from 'zod'
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import { apiRequest } from "@/lib/queryClient"
+import React from 'react';
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
 const DEFAULT_ZOOM = 6
@@ -81,16 +82,20 @@ export default function CreateEventPage() {
   const nextHour = getNextHour();
   const defaultEndTime = addHours(nextHour, 1);
 
+  const initialPosition = React.useMemo(() => ({
+    lat: urlLatitude ? parseFloat(urlLatitude) : DEFAULT_CENTER[0],
+    lng: urlLongitude ? parseFloat(urlLongitude) : DEFAULT_CENTER[1],
+    notificationReach: 1,
+  }), [urlLatitude, urlLongitude]);
+
+  const [position, setPosition] = useState(initialPosition);
+
   const form = useForm<z.infer<typeof createEventFormSchema>>({
     resolver: zodResolver(createEventFormSchema),
     defaultValues: {
       title: "",
       description: "",
-      location: {
-        lat: urlLatitude ? parseFloat(urlLatitude) : DEFAULT_CENTER[0],
-        lng: urlLongitude ? parseFloat(urlLongitude) : DEFAULT_CENTER[1],
-        notificationReach: 1,
-      },
+      location: initialPosition,
       startDate: format(nextHour, 'yyyy-MM-dd'),
       startTime: format(nextHour, 'HH:mm'),
       endDate: format(defaultEndTime, 'yyyy-MM-dd'),
@@ -105,17 +110,9 @@ export default function CreateEventPage() {
     },
   });
 
-  const [position, setPosition] = useState(form.getValues().location);
-
+  // Initialize with URL coordinates or get user location
   useEffect(() => {
     if (urlLatitude && urlLongitude) {
-      const newPos = {
-        lat: parseFloat(urlLatitude),
-        lng: parseFloat(urlLongitude),
-        notificationReach: 1,
-      };
-      setPosition(newPos);
-      form.setValue("location", newPos);
       setMapInitialized(true);
     } else if ("geolocation" in navigator && !mapInitialized) {
       navigator.geolocation.getCurrentPosition(

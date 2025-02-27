@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 
@@ -35,39 +35,40 @@ const CATEGORIES = {
   ]
 };
 
-interface CategoryPickerProps {
-  onCategoryChange: (category: string, subcategory: string) => void;
+interface CategoryPickerProps extends React.ComponentPropsWithoutRef<typeof Select> {
+  onValueChange?: (value: string) => void;
 }
 
-export function CategoryPicker({ onCategoryChange }: CategoryPickerProps) {
+export const CategoryPicker = React.forwardRef<
+  React.ElementRef<typeof Select>,
+  CategoryPickerProps
+>(({ onValueChange, ...props }, ref) => {
   const [mainCategory, setMainCategory] = React.useState<string>('');
-  const [subCategory, setSubCategory] = React.useState<string>('');
   const [customCategory, setCustomCategory] = React.useState<string>('');
   const [showCustomInput, setShowCustomInput] = React.useState(false);
 
   const handleMainCategoryChange = (value: string) => {
     setMainCategory(value);
-    setSubCategory('');
     setShowCustomInput(value === 'Overige');
-    onCategoryChange(value, '');
-  };
-
-  const handleSubCategoryChange = (value: string) => {
-    setSubCategory(value);
-    onCategoryChange(mainCategory, value);
+    onValueChange?.(value);
   };
 
   const handleCustomCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setCustomCategory(value);
-    onCategoryChange('Overige', value);
+    onValueChange?.('Overige');
   };
 
   return (
     <div className="space-y-2">
-      <Select value={mainCategory} onValueChange={handleMainCategoryChange}>
+      <Select 
+        value={mainCategory} 
+        onValueChange={handleMainCategoryChange}
+        ref={ref}
+        {...props}
+      >
         <SelectTrigger>
-          <SelectValue placeholder="Select category" />
+          <SelectValue placeholder="Selecteer categorie" />
         </SelectTrigger>
         <SelectContent>
           {Object.keys(CATEGORIES).map((category) => (
@@ -79,28 +80,15 @@ export function CategoryPicker({ onCategoryChange }: CategoryPickerProps) {
         </SelectContent>
       </Select>
 
-      {mainCategory && !showCustomInput && (
-        <Select value={subCategory} onValueChange={handleSubCategoryChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select subcategory" />
-          </SelectTrigger>
-          <SelectContent>
-            {CATEGORIES[mainCategory as keyof typeof CATEGORIES]?.map((sub) => (
-              <SelectItem key={sub} value={sub}>
-                {sub}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-
       {showCustomInput && (
         <Input
-          placeholder="Enter custom category"
+          placeholder="Voer eigen categorie in"
           value={customCategory}
           onChange={handleCustomCategoryChange}
         />
       )}
     </div>
   );
-}
+});
+
+CategoryPicker.displayName = "CategoryPicker";

@@ -5,51 +5,58 @@ import { Event } from "@shared/schema";
 import EventCard from "./EventCard";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "@/hooks/useLocation";
-import CategoryPicker from "@/components/CategoryPicker";
 
+// Helper function to calculate distance between two coordinates
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Radius of the Earth in km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Distance in km
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return Math.round(R * c * 10) / 10;
 }
 
 function EventList() {
   const { location } = useLocation();
-  const [radius, setRadius] = useState<number>(5);
+  const [radius, setRadius] = useState(5);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [subcategoryFilter, setSubcategoryFilter] = useState<string | null>(null);
-  const [filteredEvents, setFilteredEvents] = useState<(Event & { distance?: number })[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<Array<Event & { distance: number }>>([]);
 
-  // Fetch events from API
-  const { data: events = [], isLoading, error } = useQuery({
-    queryKey: ["events", location, radius],
+  const { data: events, isLoading, isError } = useQuery({
+    queryKey: ["events", location?.lat, location?.lng, radius],
     queryFn: async () => {
       if (!location) return [];
       console.log(`Fetching events with params: lat=${location.lat}&lng=${location.lng}&radius=${radius}`);
-      const fetchedEvents = await fetchEventsByRadius(location.lat, location.lng, radius);
-
-      // Calculate distance for each event and sort by distance
-      return fetchedEvents.map((event: Event) => ({
-        ...event,
-        distance: calculateDistance(location.lat, location.lng, event.latitude, event.longitude)
-      })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
+      return fetchEventsByRadius(location.lat, location.lng, radius);
     },
     enabled: !!location,
   });
 
-  // Filter events based on category and subcategory
+  // Process events and calculate distances
   useEffect(() => {
-    if (!events) return;
+    if (!events || !location) return;
 
     console.log("Debug - Fetched events:", events);
 
-    let filtered = [...events];
+    // Calculate distance for each event and sort by distance
+    const eventsWithDistance = events.map((event: Event) => ({
+      ...event,
+      distance: calculateDistance(
+        location.lat,
+        location.lng,
+        event.latitude,
+        event.longitude
+      )
+    }));
+
+    // Sort by distance
+    eventsWithDistance.sort((a, b) => a.distance - b.distance);
+
+    // Apply filters
+    let filtered = [...eventsWithDistance];
 
     if (categoryFilter) {
       filtered = filtered.filter(event => event.category === categoryFilter);
@@ -66,46 +73,51 @@ function EventList() {
     }
 
     setFilteredEvents(filtered);
-  }, [events, categoryFilter, subcategoryFilter]);
+  }, [events, categoryFilter, subcategoryFilter, location]);
 
-  // Handle radius change
-  const increaseRadius = () => {
-    setRadius(prevRadius => prevRadius + 5);
-  };
+  const incrementRadius = useCallback(() => {
+    setRadius(prev => prev + 5);
+  }, []);
 
-  if (isLoading) return <div className="p-4">Evenementen laden...</div>;
-  if (error) return <div className="p-4">Er is een fout opgetreden bij het laden van evenementen.</div>;
-  if (!location) return <div className="p-4">Locatie wordt bepaald...</div>;
+  if (isLoading) {
+    return <div className="p-4 text-center">Evenementen laden...</div>;
+  }
+
+  if (isError) {
+    return (
+      <div className="p-4 text-center text-red-500">
+        Er is een fout opgetreden bij het ophalen van evenementen.
+      </div>
+    );
+  }
+
+  if (filteredEvents.length === 0) {
+    return (
+      <div className="p-4 flex flex-col items-center">
+        <p className="mb-4 text-center">
+          Geen evenementen gevonden in de buurt. Probeer de zoekcriteria aan te passen of een grotere zoekafstand.
+        </p>
+        <Button onClick={incrementRadius}>
+          Zoekbereik vergroten ({radius} km → {radius + 5} km)
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4">
-      <div className="mb-4">
-        <CategoryPicker
-          onCategoryChange={setCategoryFilter}
-          onSubcategoryChange={setSubcategoryFilter}
+    <div className="p-2 grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {filteredEvents.map((event) => (
+        <EventCard 
+          key={event.id} 
+          event={event} 
+          distance={event.distance}
         />
+      ))}
+      <div className="col-span-full flex justify-center mt-4">
+        <Button onClick={incrementRadius}>
+          Meer evenementen laden ({radius} km → {radius + 5} km)
+        </Button>
       </div>
-
-      <div className="mb-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold">Evenementen binnen {radius} km</h2>
-          <Button onClick={increaseRadius} variant="outline" size="sm">
-            Zoekafstand vergroten
-          </Button>
-        </div>
-      </div>
-
-      {filteredEvents.length === 0 ? (
-        <div className="p-4 text-center bg-muted rounded-lg">
-          Geen evenementen gevonden in de buurt. Probeer de zoekcriteria aan te passen of een grotere zoekafstand.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredEvents.map(event => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

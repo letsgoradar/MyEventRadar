@@ -6,8 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface FilterProps {
   searchQuery: string;
   category: string;
-  fromDate: Date;
-  toDate: Date;
+  fromDate: Date | null;  
+  toDate: Date | null;    
   showPaidEvents: boolean;
   useDistanceFilter: boolean;
   distanceRadius: number;
@@ -95,8 +95,8 @@ export default function EventList({ filters, sortBy, sortAscending }: EventListP
       const distance = calculateDistance(
         51.7656, // Default user location (Oss)
         5.5314,
-        Number(event.latitude), // Changed from lat to latitude
-        Number(event.longitude) // Changed from lng to longitude
+        Number(event.latitude), 
+        Number(event.longitude) 
       );
       if (distance > filters.distanceRadius) {
         return false;
@@ -120,14 +120,14 @@ export default function EventList({ filters, sortBy, sortAscending }: EventListP
         const distanceA = calculateDistance(
           51.7656,
           5.5314,
-          Number(a.latitude), // Changed from lat to latitude
-          Number(a.longitude) // Changed from lng to longitude
+          Number(a.latitude), 
+          Number(a.longitude) 
         );
         const distanceB = calculateDistance(
           51.7656,
           5.5314,
-          Number(b.latitude), // Changed from lat to latitude
-          Number(b.longitude) // Changed from lng to longitude
+          Number(b.latitude), 
+          Number(b.longitude) 
         );
         comparison = distanceA - distanceB;
       }

@@ -1,6 +1,6 @@
 import * as React from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Filter, MapPin, List, Calendar, Heart, User, Plus, X, SortAsc, ArrowUpDown } from "lucide-react"
@@ -8,15 +8,13 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Link, Route, Switch, useLocation } from "wouter"
 import { CategoryPicker } from "@/components/CategoryPicker"
 import MapView from "@/components/Map/MapView"
-import { EventList } from "@/components/EventList"
+import EventList from "@/components/Events/EventList"
 import CreateEventPage from "@/pages/create-event"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { format, addYears } from "date-fns"
 import TopNav from "@/components/Layout/TopNav";
-
 
 const queryClient = new QueryClient()
 
@@ -26,6 +24,16 @@ interface ActiveFilter {
   label: string;
 }
 
+interface TempFilters {
+  searchQuery: string;
+  category: string;
+  fromDate: Date | null;
+  toDate: Date | null;
+  showPaidEvents: boolean;
+  useDistanceFilter: boolean;
+  distanceRadius: number;
+}
+
 function App() {
   const [searchQuery, setSearchQuery] = React.useState('')
   const [category, setCategory] = React.useState('')
@@ -33,14 +41,15 @@ function App() {
   const [toDate, setToDate] = React.useState<Date | null>(null)
   const [showPaidEvents, setShowPaidEvents] = React.useState(false)
   const [useDistanceFilter, setUseDistanceFilter] = React.useState(false)
-  const [distanceRadius, setDistanceRadius] = React.useState(5) 
+  const [distanceRadius, setDistanceRadius] = React.useState(5)
   const [sortBy, setSortBy] = React.useState<'date' | 'distance'>('date')
   const [sortAscending, setSortAscending] = React.useState(true)
   const [viewMode, setViewMode] = React.useState<'map' | 'list'>('map')
   const [, setLocation] = useLocation()
   const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
+  const [isMapView, setIsMapView] = React.useState(true);
 
-  const [tempFilters, setTempFilters] = React.useState({
+  const [tempFilters, setTempFilters] = React.useState<TempFilters>({
     searchQuery,
     category,
     fromDate: null,
@@ -131,6 +140,11 @@ function App() {
     setSortAscending(!sortAscending);
   };
 
+  const toggleView = React.useCallback(() => {
+    setIsMapView((prev) => !prev);
+    setViewMode((prev) => prev === 'map' ? 'list' : 'map');
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Switch>
@@ -139,7 +153,13 @@ function App() {
         </Route>
         <Route>
           <div className="flex flex-col h-screen">
-            <TopNav /> 
+            <TopNav 
+              activeFilters={activeFilters}
+              isMapView={viewMode === 'map'}
+              toggleView={toggleView}
+              isFilterSheetOpen={isFilterSheetOpen}
+              setIsFilterSheetOpen={setIsFilterSheetOpen}
+            />
             <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
               <SheetContent side="left" className="w-full overflow-y-auto z-50">
                 <SheetHeader>
@@ -166,149 +186,146 @@ function App() {
                     </div>
                   )}
 
-                    <div className="space-y-2">
-                      <label htmlFor="search" className="text-sm font-medium">Search</label>
-                      <Input
-                        id="search"
-                        placeholder="Search events..."
-                        value={tempFilters.searchQuery}
-                        onChange={(e) => setTempFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
+                  <div className="space-y-2">
+                    <label htmlFor="search" className="text-sm font-medium">Search</label>
+                    <Input
+                      id="search"
+                      placeholder="Search events..."
+                      value={tempFilters.searchQuery}
+                      onChange={(e) => setTempFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Category</label>
+                    <CategoryPicker
+                      onCategoryChange={handleCategoryChange}
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-sm font-medium">Date Range</label>
+                    <div className="rounded-md border">
+                      <CalendarComponent
+                        mode="range"
+                        selected={{
+                          from: tempFilters.fromDate || undefined,
+                          to: tempFilters.toDate || undefined
+                        }}
+                        onSelect={(range) => {
+                          setTempFilters(prev => ({
+                            ...prev,
+                            fromDate: range?.from || null,
+                            toDate: range?.to || null
+                          }));
+                        }}
+                        numberOfMonths={2}
+                        className="rounded-md border"
                       />
                     </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Category</label>
-                      <CategoryPicker
-                        onCategoryChange={handleCategoryChange}
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <label className="text-sm font-medium">Date Range</label>
-                      <div className="rounded-md border">
-                        <CalendarComponent
-                          mode="range"
-                          selected={{
-                            from: tempFilters.fromDate,
-                            to: tempFilters.toDate
-                          }}
-                          onSelect={(range) => {
-                            if (range?.from) {
-                              setTempFilters(prev => ({
-                                ...prev,
-                                fromDate: range.from,
-                                toDate: range.to || range.from
-                              }));
-                            }
-                          }}
-                          numberOfMonths={2}
-                          className="rounded-md border"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="useDistance"
-                          checked={tempFilters.useDistanceFilter}
-                          onCheckedChange={(checked) =>
-                            setTempFilters(prev => ({ ...prev, useDistanceFilter: checked as boolean }))
-                          }
-                        />
-                        <label htmlFor="useDistance" className="text-sm font-medium">
-                          Filter by distance from my location
-                        </label>
-                      </div>
-
-                      {tempFilters.useDistanceFilter && (
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Distance (km): {tempFilters.distanceRadius}</label>
-                          <Slider
-                            min={1}
-                            max={100}
-                            step={1}
-                            value={[tempFilters.distanceRadius]}
-                            onValueChange={(value) => setTempFilters(prev => ({ ...prev, distanceRadius: value[0] }))}
-                          />
-                        </div>
-                      )}
-                    </div>
-
+                  <div className="space-y-4">
                     <div className="flex items-center space-x-2">
                       <Checkbox
-                        id="paid"
-                        checked={tempFilters.showPaidEvents}
+                        id="useDistance"
+                        checked={tempFilters.useDistanceFilter}
                         onCheckedChange={(checked) =>
-                          setTempFilters(prev => ({ ...prev, showPaidEvents: checked as boolean }))
+                          setTempFilters(prev => ({ ...prev, useDistanceFilter: checked as boolean }))
                         }
                       />
-                      <label htmlFor="paid" className="text-sm font-medium">Show paid events only</label>
+                      <label htmlFor="useDistance" className="text-sm font-medium">
+                        Filter by distance from my location
+                      </label>
                     </div>
 
-                    <Button
-                      className="w-full mt-4"
-                      onClick={applyFilters}
-                    >
-                      Apply Filters
-                    </Button>
+                    {tempFilters.useDistanceFilter && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Distance (km): {tempFilters.distanceRadius}</label>
+                        <Slider
+                          min={1}
+                          max={100}
+                          step={1}
+                          value={[tempFilters.distanceRadius]}
+                          onValueChange={(value) => setTempFilters(prev => ({ ...prev, distanceRadius: value[0] }))}
+                        />
+                      </div>
+                    )}
                   </div>
-                </SheetContent>
-              </Sheet>
 
-              <div className="flex-1 flex gap-2 overflow-x-auto">
-                {activeFilters.map((filter) => (
-                  <Badge
-                    key={filter.key}
-                    variant="secondary"
-                    className="flex items-center gap-1"
-                  >
-                    {filter.label}
-                    <button
-                      onClick={() => removeFilter(filter.key)}
-                      className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="paid"
+                      checked={tempFilters.showPaidEvents}
+                      onCheckedChange={(checked) =>
+                        setTempFilters(prev => ({ ...prev, showPaidEvents: checked as boolean }))
+                      }
+                    />
+                    <label htmlFor="paid" className="text-sm font-medium">Show paid events only</label>
+                  </div>
 
-              {viewMode === 'list' && (
-                <div className="flex items-center gap-2">
-                  <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
-                    <SelectTrigger className="w-[140px]">
-                      <SortAsc className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Sort by..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="date">Sort by Date</SelectItem>
-                      <SelectItem value="distance">Sort by Distance</SelectItem>
-                    </SelectContent>
-                  </Select>
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={toggleSort}
-                    title={sortAscending ? "Sort Ascending" : "Sort Descending"}
+                    className="w-full mt-4"
+                    onClick={applyFilters}
                   >
-                    <ArrowUpDown className="h-4 w-4" />
+                    Apply Filters
                   </Button>
                 </div>
-              )}
+              </SheetContent>
+            </Sheet>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
-              >
-                {viewMode === 'map' ? (
-                  <List className="h-5 w-5" />
-                ) : (
-                  <MapPin className="h-5 w-5" />
-                )}
-              </Button>
+            <div className="flex-1 flex gap-2 overflow-x-auto">
+              {activeFilters.map((filter) => (
+                <Badge
+                  key={filter.key}
+                  variant="secondary"
+                  className="flex items-center gap-1"
+                >
+                  {filter.label}
+                  <button
+                    onClick={() => removeFilter(filter.key)}
+                    className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
             </div>
+
+            {viewMode === 'list' && (
+              <div className="flex items-center gap-2">
+                <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SortAsc className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Sort by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Sort by Date</SelectItem>
+                    <SelectItem value="distance">Sort by Distance</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleSort}
+                  title={sortAscending ? "Sort Ascending" : "Sort Descending"}
+                >
+                  <ArrowUpDown className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
+            >
+              {viewMode === 'map' ? (
+                <List className="h-5 w-5" />
+              ) : (
+                <MapPin className="h-5 w-5" />
+              )}
+            </Button>
 
             <div className="flex-1 relative z-20">
               {viewMode === 'map' ? (
@@ -374,11 +391,9 @@ function App() {
                 </Link>
               </div>
             </nav>
-          </SheetContent>
-        </Sheet>
-      </div>
-    </Route>
-    </Switch>
+          </div>
+        </Route>
+      </Switch>
     </QueryClientProvider>
   );
 }

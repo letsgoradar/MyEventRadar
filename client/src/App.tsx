@@ -275,7 +275,8 @@ function App() {
               </SheetContent>
             </Sheet>
 
-            <div className="flex-1 flex flex-col" style={{ height: 'calc(100vh - 136px)' }}>
+            {/* Main content area */}
+            <main className="flex-1" style={{ height: 'calc(100vh - 136px)', marginTop: '72px' }}>
               {viewMode === 'list' && (
                 <div className="bg-white p-4 border-b flex items-center gap-2">
                   <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
@@ -299,7 +300,7 @@ function App() {
                 </div>
               )}
 
-              <div className="flex-1">
+              <div className="h-full">
                 {viewMode === 'map' ? (
                   <MapView
                     filters={{
@@ -313,7 +314,7 @@ function App() {
                     }}
                   />
                 ) : (
-                  <div className="container mx-auto py-4">
+                  <div className="container mx-auto py-4 overflow-auto h-full">
                     <EventList
                       filters={{
                         searchQuery,
@@ -330,9 +331,9 @@ function App() {
                   </div>
                 )}
               </div>
-            </div>
+            </main>
 
-            <nav className="bg-white border-t p-4">
+            <nav className="bg-white border-t p-4 fixed bottom-0 left-0 right-0">
               <div className="flex justify-around">
                 <Link href="/">
                   <div className="flex flex-col items-center cursor-pointer">

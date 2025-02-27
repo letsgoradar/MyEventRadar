@@ -275,34 +275,46 @@ function App() {
               </SheetContent>
             </Sheet>
 
-            <div className="flex-1 relative">
-              <div className="absolute inset-0 flex flex-col">
-                {viewMode === 'list' && (
-                  <div className="bg-white p-4 border-b flex items-center gap-2">
-                    <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
-                      <SelectTrigger className="w-[140px]">
-                        <SortAsc className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Sort by..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="date">Sort by Date</SelectItem>
-                        <SelectItem value="distance">Sort by Distance</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={toggleSort}
-                      title={sortAscending ? "Sort Ascending" : "Sort Descending"}
-                    >
-                      <ArrowUpDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
+            <div className="flex-1 flex flex-col" style={{ height: 'calc(100vh - 136px)' }}>
+              {viewMode === 'list' && (
+                <div className="bg-white p-4 border-b flex items-center gap-2">
+                  <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
+                    <SelectTrigger className="w-[140px]">
+                      <SortAsc className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Sort by..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date">Sort by Date</SelectItem>
+                      <SelectItem value="distance">Sort by Distance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleSort}
+                    title={sortAscending ? "Sort Ascending" : "Sort Descending"}
+                  >
+                    <ArrowUpDown className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
 
-                <div className="flex-1 overflow-auto">
-                  {viewMode === 'map' ? (
-                    <MapView
+              <div className="flex-1">
+                {viewMode === 'map' ? (
+                  <MapView
+                    filters={{
+                      searchQuery,
+                      category,
+                      fromDate,
+                      toDate,
+                      showPaidEvents,
+                      useDistanceFilter,
+                      distanceRadius
+                    }}
+                  />
+                ) : (
+                  <div className="container mx-auto py-4">
+                    <EventList
                       filters={{
                         searchQuery,
                         category,
@@ -312,25 +324,11 @@ function App() {
                         useDistanceFilter,
                         distanceRadius
                       }}
+                      sortBy={sortBy}
+                      sortAscending={sortAscending}
                     />
-                  ) : (
-                    <div className="container mx-auto py-4">
-                      <EventList
-                        filters={{
-                          searchQuery,
-                          category,
-                          fromDate,
-                          toDate,
-                          showPaidEvents,
-                          useDistanceFilter,
-                          distanceRadius
-                        }}
-                        sortBy={sortBy}
-                        sortAscending={sortAscending}
-                      />
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
 

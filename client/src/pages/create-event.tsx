@@ -79,9 +79,10 @@ export default function CreateEventPage() {
   const nextHour = getNextHour();
   const defaultEndTime = addHours(nextHour, 1);
 
-  const [searchParams] = new URLSearchParams(window.location.search);
-  const latitude = searchParams.get('lat');
-  const longitude = searchParams.get('lng');
+  // Get URL parameters safely
+  const params = new URLSearchParams(window.location.search || "");
+  const latitude = params.get('lat');
+  const longitude = params.get('lng');
 
   const form = useForm<z.infer<typeof createEventFormSchema>>({
     resolver: zodResolver(createEventFormSchema),

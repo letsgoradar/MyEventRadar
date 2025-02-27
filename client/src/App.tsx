@@ -69,7 +69,7 @@ export default function App() {
                 setIsFilterSheetOpen={setIsFilterSheetOpen}
               />
 
-              <div className="absolute inset-0 top-[72px] bottom-[83px]">
+              <div className="absolute inset-0 top-[72px] bottom-[75px]">
                 {isMapView ? (
                   <MapView
                     filters={{
@@ -101,29 +101,29 @@ export default function App() {
                 )}
               </div>
 
-              <nav className="absolute bottom-0 left-0 right-0 h-[83px] bg-white border-t">
+              <nav className="absolute bottom-0 left-0 right-0 h-[75px] bg-white border-t">
                 <div className="flex justify-around h-full items-center">
                   <Link href="/">
                     <div className="flex flex-col items-center cursor-pointer">
-                      <MapPin className="h-8 w-8" />
+                      <MapPin className="h-7 w-7" />
                       <span className="text-sm mt-1">Zoek</span>
                     </div>
                   </Link>
                   <Link href="/events">
                     <div className="flex flex-col items-center cursor-pointer">
-                      <CalendarIcon className="h-8 w-8" />
+                      <CalendarIcon className="h-7 w-7" />
                       <span className="text-sm mt-1">Mijn Events</span>
                     </div>
                   </Link>
                   <Link href="/favorites">
                     <div className="flex flex-col items-center cursor-pointer">
-                      <Heart className="h-8 w-8" />
+                      <Heart className="h-7 w-7" />
                       <span className="text-sm mt-1">Favorieten</span>
                     </div>
                   </Link>
                   <Link href="/profile">
                     <div className="flex flex-col items-center cursor-pointer">
-                      <User className="h-8 w-8" />
+                      <User className="h-7 w-7" />
                       <span className="text-sm mt-1">Profiel</span>
                     </div>
                   </Link>

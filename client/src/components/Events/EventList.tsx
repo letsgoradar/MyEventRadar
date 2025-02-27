@@ -43,6 +43,11 @@ export function EventList({ categoryFilter, subcategoryFilter }: EventListProps)
     }
 
     console.log("Debug - Filtered events:", filtered.length, "events");
+
+    if (filtered.length === 0) {
+      console.log("Geen evenementen gevonden met deze filters."); // Extra logging
+    }
+
     setFilteredEvents(filtered);
   }, [events, categoryFilter, subcategoryFilter]);
 
@@ -86,3 +91,5 @@ export function EventList({ categoryFilter, subcategoryFilter }: EventListProps)
     </div>
   );
 }
+
+export default EventList;

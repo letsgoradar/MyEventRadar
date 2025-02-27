@@ -1,133 +1,70 @@
-import { format } from "date-fns";
-import { Calendar, Users, Euro, Satellite } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import React from "react";
+import { Event } from "@shared/schema";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapContainer, TileLayer, Marker } from "react-leaflet";
-import L from "leaflet";
-import type { Event } from "@shared/schema";
-import "leaflet/dist/leaflet.css";
-import '../Map/leaflet-fix.css';
-import React from 'react';
+import { format } from "date-fns";
 
 interface EventCardProps {
-  event: Event;
-  distance?: number;
+  event: Event & { distance?: number };
 }
 
-// Custom icon for the mini map marker
-const miniEventIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="8" r="6" fill="#f97316" stroke="white" stroke-width="2"/>
-    </svg>
-  `),
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
-
-export default function EventCard({ event, distance }: EventCardProps) {
-  const [isSatelliteView, setIsSatelliteView] = React.useState(false);
-  const lat = Number(event.latitude);
-  const lng = Number(event.longitude);
-
-  const tileUrl = isSatelliteView
-    ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-
-  const tileConfig = isSatelliteView
-    ? { subdomains: [] }
-    : { subdomains: 'abcd' };
+function EventCard({ event }: EventCardProps) {
+  const formatDate = (date: Date) => {
+    return format(new Date(date), "d MMM yyyy HH:mm");
+  };
 
   return (
-    <Card className="cursor-pointer hover:shadow-lg transition-shadow bg-white" onClick={() => onSelect?.(event)}>
-      <CardHeader className="pb-2">
+    <Card className="h-full flex flex-col">
+      <CardHeader>
         <div className="flex justify-between items-start">
-          <div>
-            <h3 className="text-lg font-semibold">{event.title}</h3>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant="outline">{event.category}</Badge>
-              {event.subcategory && (
-                <Badge variant="outline" className="bg-slate-50">
-                  {event.subcategory}
-                </Badge>
-              )}
-            </div>
-          </div>
-          {event.isPaid && event.price && (
-            <Badge variant="secondary" className="text-lg">
-              €{Number(event.price).toFixed(2)}
+          <CardTitle className="text-lg">{event.title}</CardTitle>
+          {event.distance !== undefined && (
+            <Badge variant="outline" className="ml-2">
+              {event.distance.toFixed(1)} km
             </Badge>
           )}
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div className="h-[150px] rounded-md overflow-hidden relative border-2 border-gray-200">
-            <Button
-              variant="outline"
-              size="icon"
-              className="absolute top-2 right-2 z-[1000] bg-white/90 hover:bg-white"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsSatelliteView(!isSatelliteView);
-              }}
-              title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
-            >
-              <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
-            </Button>
-            <MapContainer
-              center={[lat, lng]}
-              zoom={14}
-              className="h-full w-full"
-              zoomControl={false}
-              dragging={false}
-              touchZoom={false}
-              doubleClickZoom={false}
-              scrollWheelZoom={false}
-              attributionControl={false}
-            >
-              <TileLayer
-                url={tileUrl}
-                attribution={false}
-                {...tileConfig}
-              />
-              <Marker position={[lat, lng]} icon={miniEventIcon} />
-            </MapContainer>
+      <CardContent className="flex-grow">
+        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+          {event.description}
+        </p>
+        <div className="flex flex-wrap gap-2 mb-2">
+          <Badge variant="secondary">{event.category}</Badge>
+          {event.subcategory && (
+            <Badge variant="outline">{event.subcategory}</Badge>
+          )}
+        </div>
+        <div className="text-sm mt-2">
+          <div>
+            <span className="font-medium">Start: </span>
+            {formatDate(event.startTime)}
           </div>
-
-          <div className="flex items-center text-gray-600">
-            <Calendar className="h-4 w-4 mr-2" />
-            <span className="text-sm">
-              {format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a")}
-              {event.endTime && ` - ${format(new Date(event.endTime), "h:mm a")}`}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {event.maxParticipants && (
-              <div className="flex items-center text-gray-600">
-                <Users className="h-4 w-4 mr-2" />
-                <span className="text-sm">
-                  Max: {event.maxParticipants}
-                </span>
-              </div>
-            )}
-            {distance !== undefined && (
-              <div className="flex items-center text-gray-600">
-                <Satellite className="h-4 w-4 mr-2" />
-                <span className="text-sm">
-                  {distance.toFixed(1)} km
-                </span>
-              </div>
-            )}
-          </div>
-
-          <p className="text-sm text-gray-600 mt-2">
-            {event.description}
-          </p>
+          {event.endTime && (
+            <div>
+              <span className="font-medium">Eind: </span>
+              {formatDate(event.endTime)}
+            </div>
+          )}
+          {event.isPaid && (
+            <div className="mt-1">
+              <span className="font-medium">Prijs: </span>€{event.price}
+            </div>
+          )}
         </div>
       </CardContent>
+      <CardFooter className="border-t pt-4">
+        <div className="w-full flex justify-between items-center">
+          <Badge variant={event.isPaid ? "destructive" : "success"}>
+            {event.isPaid ? "Betaald" : "Gratis"}
+          </Badge>
+          <span className="text-sm text-muted-foreground">
+            Max: {event.maxParticipants} deelnemers
+          </span>
+        </div>
+      </CardFooter>
     </Card>
   );
 }
+
+export default EventCard;

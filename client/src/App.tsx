@@ -144,7 +144,7 @@ function App() {
               setIsFilterSheetOpen={setIsFilterSheetOpen}
             />
 
-            <main className="h-[calc(100vh-136px)] mt-[72px]">
+            <main className="fixed top-[72px] bottom-[64px] left-0 right-0 w-full overflow-hidden">
               {isMapView ? (
                 <MapView
                   filters={{

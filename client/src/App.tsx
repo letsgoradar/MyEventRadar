@@ -161,6 +161,100 @@ function App() {
               setIsFilterSheetOpen={setIsFilterSheetOpen}
             />
 
+            <main className="fixed top-[72px] bottom-[64px] left-0 right-0 overflow-hidden bg-white">
+              {viewMode === 'list' && (
+                <div className="border-b">
+                  <div className="container mx-auto px-4 py-2 flex items-center gap-2">
+                    <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
+                      <SelectTrigger className="w-[140px]">
+                        <SortAsc className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Sort by..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date">Sort by Date</SelectItem>
+                        <SelectItem value="distance">Sort by Distance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={toggleSort}
+                      title={sortAscending ? "Sort Ascending" : "Sort Descending"}
+                    >
+                      <ArrowUpDown className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="h-full overflow-hidden">
+                {viewMode === 'map' ? (
+                  <MapView
+                    filters={{
+                      searchQuery,
+                      category,
+                      fromDate,
+                      toDate,
+                      showPaidEvents,
+                      useDistanceFilter,
+                      distanceRadius
+                    }}
+                  />
+                ) : (
+                  <div className="container mx-auto h-full overflow-auto px-4">
+                    <EventList
+                      filters={{
+                        searchQuery,
+                        category,
+                        fromDate,
+                        toDate,
+                        showPaidEvents,
+                        useDistanceFilter,
+                        distanceRadius
+                      }}
+                      sortBy={sortBy}
+                      sortAscending={sortAscending}
+                    />
+                  </div>
+                )}
+              </div>
+            </main>
+
+            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
+              <div className="flex justify-around">
+                <Link href="/">
+                  <div className="flex flex-col items-center cursor-pointer">
+                    <MapPin className="h-6 w-6" />
+                    <span className="text-sm">Explore</span>
+                  </div>
+                </Link>
+                <Link href="/events">
+                  <div className="flex flex-col items-center cursor-pointer">
+                    <Calendar className="h-6 w-6" />
+                    <span className="text-sm">Events</span>
+                  </div>
+                </Link>
+                <Link href="/create">
+                  <div className="flex flex-col items-center cursor-pointer">
+                    <Plus className="h-6 w-6" />
+                    <span className="text-sm">Create</span>
+                  </div>
+                </Link>
+                <Link href="/favorites">
+                  <div className="flex flex-col items-center cursor-pointer">
+                    <Heart className="h-6 w-6" />
+                    <span className="text-sm">Favorites</span>
+                  </div>
+                </Link>
+                <Link href="/profile">
+                  <div className="flex flex-col items-center cursor-pointer">
+                    <User className="h-6 w-6" />
+                    <span className="text-sm">Profile</span>
+                  </div>
+                </Link>
+              </div>
+            </nav>
+
             <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
               <SheetContent side="left" className="w-full overflow-y-auto z-50">
                 <SheetHeader>
@@ -274,99 +368,6 @@ function App() {
                 </div>
               </SheetContent>
             </Sheet>
-
-            {/* Main content area */}
-            <main className="absolute top-[72px] bottom-[64px] left-0 right-0 overflow-hidden">
-              {viewMode === 'list' && (
-                <div className="bg-white p-4 border-b flex items-center gap-2">
-                  <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
-                    <SelectTrigger className="w-[140px]">
-                      <SortAsc className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Sort by..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="date">Sort by Date</SelectItem>
-                      <SelectItem value="distance">Sort by Distance</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={toggleSort}
-                    title={sortAscending ? "Sort Ascending" : "Sort Descending"}
-                  >
-                    <ArrowUpDown className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-
-              <div className="h-full">
-                {viewMode === 'map' ? (
-                  <MapView
-                    filters={{
-                      searchQuery,
-                      category,
-                      fromDate,
-                      toDate,
-                      showPaidEvents,
-                      useDistanceFilter,
-                      distanceRadius
-                    }}
-                  />
-                ) : (
-                  <div className="container mx-auto py-4 overflow-auto h-full">
-                    <EventList
-                      filters={{
-                        searchQuery,
-                        category,
-                        fromDate,
-                        toDate,
-                        showPaidEvents,
-                        useDistanceFilter,
-                        distanceRadius
-                      }}
-                      sortBy={sortBy}
-                      sortAscending={sortAscending}
-                    />
-                  </div>
-                )}
-              </div>
-            </main>
-
-            <nav className="bg-white border-t p-4 fixed bottom-0 left-0 right-0">
-              <div className="flex justify-around">
-                <Link href="/">
-                  <div className="flex flex-col items-center cursor-pointer">
-                    <MapPin className="h-6 w-6" />
-                    <span className="text-sm">Explore</span>
-                  </div>
-                </Link>
-                <Link href="/events">
-                  <div className="flex flex-col items-center cursor-pointer">
-                    <Calendar className="h-6 w-6" />
-                    <span className="text-sm">Events</span>
-                  </div>
-                </Link>
-                <Link href="/create">
-                  <div className="flex flex-col items-center cursor-pointer">
-                    <Plus className="h-6 w-6" />
-                    <span className="text-sm">Create</span>
-                  </div>
-                </Link>
-                <Link href="/favorites">
-                  <div className="flex flex-col items-center cursor-pointer">
-                    <Heart className="h-6 w-6" />
-                    <span className="text-sm">Favorites</span>
-                  </div>
-                </Link>
-                <Link href="/profile">
-                  <div className="flex flex-col items-center cursor-pointer">
-                    <User className="h-6 w-6" />
-                    <span className="text-sm">Profile</span>
-                  </div>
-                </Link>
-              </div>
-            </nav>
           </div>
         </Route>
       </Switch>

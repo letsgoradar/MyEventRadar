@@ -47,102 +47,22 @@ export default function App() {
     distanceRadius
   })
 
-  const activeFilters = React.useMemo(() => {
-    const filters = [];
-
-    if (searchQuery) {
-      filters.push({ key: 'search', value: searchQuery, label: `Search: ${searchQuery}` });
-    }
-    if (category) {
-      filters.push({ key: 'category', value: category, label: `Category: ${category}` });
-    }
-    if (fromDate) {
-      filters.push({
-        key: 'fromDate',
-        value: fromDate.toISOString(),
-        label: `From: ${fromDate.toLocaleDateString()}`
-      });
-    }
-    if (toDate) {
-      filters.push({
-        key: 'toDate',
-        value: toDate.toISOString(),
-        label: `To: ${toDate.toLocaleDateString()}`
-      });
-    }
-    if (showPaidEvents) {
-      filters.push({ key: 'paid', value: 'true', label: 'Paid Events Only' });
-    }
-    if (useDistanceFilter) {
-      filters.push({ key: 'distance', value: distanceRadius.toString(), label: `Within ${distanceRadius}km` });
-    }
-
-    return filters;
-  }, [searchQuery, category, fromDate, toDate, showPaidEvents, useDistanceFilter, distanceRadius]);
-
-  const handleFilterReset = () => {
-    setTempFilters({
-      searchQuery: "",
-      category: "",
-      fromDate: null,
-      toDate: null,
-      showPaidEvents: false,
-      useDistanceFilter: false,
-      distanceRadius: 5
-    });
-  };
-
-  const handleFilterApply = () => {
-    setSearchQuery(tempFilters.searchQuery);
-    setCategory(tempFilters.category);
-    setFromDate(tempFilters.fromDate);
-    setToDate(tempFilters.toDate);
-    setShowPaidEvents(tempFilters.showPaidEvents);
-    setUseDistanceFilter(tempFilters.useDistanceFilter);
-    setDistanceRadius(tempFilters.distanceRadius);
-    setIsFilterSheetOpen(false);
-  };
-
-  const removeFilter = (key: string) => {
-    switch (key) {
-      case 'search':
-        setSearchQuery('');
-        break;
-      case 'category':
-        setCategory('');
-        break;
-      case 'fromDate':
-        setFromDate(null);
-        break;
-      case 'toDate':
-        setToDate(null);
-        break;
-      case 'paid':
-        setShowPaidEvents(false);
-        break;
-      case 'distance':
-        setUseDistanceFilter(false);
-        break;
-    }
-    setIsFilterSheetOpen(false);
-  };
-
   const toggleView = React.useCallback(() => {
     setIsMapView(prev => !prev);
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex flex-col h-screen">
+      <div className="flex flex-col h-screen bg-white">
         <TopNav 
-          activeFilters={activeFilters}
           isMapView={isMapView}
           toggleView={toggleView}
+          toggleFilterSheet={() => setIsFilterSheetOpen(true)}
           isFilterSheetOpen={isFilterSheetOpen}
           setIsFilterSheetOpen={setIsFilterSheetOpen}
         />
 
-        <main className="fixed top-[72px] bottom-[64px] left-0 right-0 w-full overflow-hidden">
+        <main className="fixed inset-x-0 bottom-[64px] top-[72px] overflow-hidden">
           {isMapView ? (
             <MapView
               filters={{
@@ -293,10 +213,29 @@ export default function App() {
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={handleFilterReset} variant="outline" className="flex-1">
+                <Button onClick={() => {
+                  setTempFilters({
+                    searchQuery: "",
+                    category: "",
+                    fromDate: null,
+                    toDate: null,
+                    showPaidEvents: false,
+                    useDistanceFilter: false,
+                    distanceRadius: 5
+                  });
+                }} variant="outline" className="flex-1">
                   Reset
                 </Button>
-                <Button onClick={handleFilterApply} className="flex-1">
+                <Button onClick={() => {
+                  setSearchQuery(tempFilters.searchQuery);
+                  setCategory(tempFilters.category);
+                  setFromDate(tempFilters.fromDate);
+                  setToDate(tempFilters.toDate);
+                  setShowPaidEvents(tempFilters.showPaidEvents);
+                  setUseDistanceFilter(tempFilters.useDistanceFilter);
+                  setDistanceRadius(tempFilters.distanceRadius);
+                  setIsFilterSheetOpen(false);
+                }} className="flex-1">
                   Apply
                 </Button>
               </div>

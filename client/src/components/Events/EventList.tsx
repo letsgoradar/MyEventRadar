@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/api";
+import { fetchEventsByRadius } from "@/lib/api";
 import { Event } from "@shared/schema";
 import EventCard from "./EventCard";
 import { Button } from "@/components/ui/button";
@@ -21,10 +21,7 @@ export function EventList({ categoryFilter, subcategoryFilter }: EventListProps)
     queryFn: async () => {
       if (!location) return [];
       console.log(`Fetching events with params: lat=${location.lat}&lng=${location.lng}&radius=${radius}`);
-      return apiRequest(
-        "GET",
-        `/api/events/nearby?lat=${location.lat}&lng=${location.lng}&radius=${radius}`
-      );
+      return fetchEventsByRadius(location.lat, location.lng, radius);
     },
     enabled: !!location,
   });

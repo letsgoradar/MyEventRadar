@@ -374,10 +374,10 @@ function App() {
                 </Link>
               </div>
             </nav>
-          </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </Route>
         </Route>
       </Switch>
     </QueryClientProvider>

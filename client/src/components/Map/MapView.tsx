@@ -78,11 +78,13 @@ function CreateEventMarker() {
 
       // Only trigger for single touch
       if (touches?.length === 1) {
-        const touch = touches[0];
-        const touchPoint = map.mouseEventToLatLng(touch);
+        const point = map.mouseEventToLatLng({
+          clientX: touches[0].clientX,
+          clientY: touches[0].clientY
+        });
 
         setPressTimer(setTimeout(() => {
-          navigate(`/create?lat=${touchPoint.lat}&lng=${touchPoint.lng}`);
+          navigate(`/create?lat=${point.lat}&lng=${point.lng}`);
         }, 1000));
       }
     },

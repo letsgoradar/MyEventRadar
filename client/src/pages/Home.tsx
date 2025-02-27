@@ -28,7 +28,7 @@ export default function Home() {
       {view === "map" ? (
         <MapView />
       ) : (
-        <EventList location={location} radius={radius} />
+        <EventList />
       )}
     </div>
   );

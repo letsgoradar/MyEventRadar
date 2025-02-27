@@ -68,18 +68,18 @@ function App() {
     if (category) {
       filters.push({ key: 'category', value: category, label: `Category: ${category}` });
     }
-    if (fromDate instanceof Date) {
+    if (fromDate) {
       filters.push({
         key: 'fromDate',
         value: fromDate.toISOString(),
-        label: `From: ${format(fromDate, 'MMM d, yyyy')}`
+        label: `From: ${fromDate.toLocaleDateString()}`
       });
     }
-    if (toDate instanceof Date) {
+    if (toDate) {
       filters.push({
         key: 'toDate',
         value: toDate.toISOString(),
-        label: `To: ${format(toDate, 'MMM d, yyyy')}`
+        label: `To: ${toDate.toLocaleDateString()}`
       });
     }
     if (showPaidEvents) {
@@ -160,6 +160,7 @@ function App() {
               isFilterSheetOpen={isFilterSheetOpen}
               setIsFilterSheetOpen={setIsFilterSheetOpen}
             />
+
             <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
               <SheetContent side="left" className="w-full overflow-y-auto z-50">
                 <SheetHeader>
@@ -274,87 +275,63 @@ function App() {
               </SheetContent>
             </Sheet>
 
-            <div className="flex-1 flex gap-2 overflow-x-auto">
-              {activeFilters.map((filter) => (
-                <Badge
-                  key={filter.key}
-                  variant="secondary"
-                  className="flex items-center gap-1"
-                >
-                  {filter.label}
-                  <button
-                    onClick={() => removeFilter(filter.key)}
-                    className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
+            <div className="flex-1 relative">
+              <div className="absolute inset-0 flex flex-col">
+                {viewMode === 'list' && (
+                  <div className="bg-white p-4 border-b flex items-center gap-2">
+                    <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
+                      <SelectTrigger className="w-[140px]">
+                        <SortAsc className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Sort by..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date">Sort by Date</SelectItem>
+                        <SelectItem value="distance">Sort by Distance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={toggleSort}
+                      title={sortAscending ? "Sort Ascending" : "Sort Descending"}
+                    >
+                      <ArrowUpDown className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
 
-            {viewMode === 'list' && (
-              <div className="flex items-center gap-2">
-                <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>
-                  <SelectTrigger className="w-[140px]">
-                    <SortAsc className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Sort by..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="date">Sort by Date</SelectItem>
-                    <SelectItem value="distance">Sort by Distance</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleSort}
-                  title={sortAscending ? "Sort Ascending" : "Sort Descending"}
-                >
-                  <ArrowUpDown className="h-4 w-4" />
-                </Button>
+                <div className="flex-1 overflow-auto">
+                  {viewMode === 'map' ? (
+                    <MapView
+                      filters={{
+                        searchQuery,
+                        category,
+                        fromDate,
+                        toDate,
+                        showPaidEvents,
+                        useDistanceFilter,
+                        distanceRadius
+                      }}
+                    />
+                  ) : (
+                    <div className="container mx-auto py-4">
+                      <EventList
+                        filters={{
+                          searchQuery,
+                          category,
+                          fromDate,
+                          toDate,
+                          showPaidEvents,
+                          useDistanceFilter,
+                          distanceRadius
+                        }}
+                        sortBy={sortBy}
+                        sortAscending={sortAscending}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
-            >
-              {viewMode === 'map' ? (
-                <List className="h-5 w-5" />
-              ) : (
-                <MapPin className="h-5 w-5" />
-              )}
-            </Button>
-
-            <div className="flex-1 relative z-20">
-              {viewMode === 'map' ? (
-                <MapView
-                  filters={{
-                    searchQuery,
-                    category,
-                    fromDate,
-                    toDate,
-                    showPaidEvents,
-                    useDistanceFilter,
-                    distanceRadius
-                  }}
-                />
-              ) : (
-                <EventList
-                  filters={{
-                    searchQuery,
-                    category,
-                    fromDate,
-                    toDate,
-                    showPaidEvents,
-                    useDistanceFilter,
-                    distanceRadius
-                  }}
-                  sortBy={sortBy}
-                  sortAscending={sortAscending}
-                />
-              )}
             </div>
 
             <nav className="bg-white border-t p-4">

@@ -27,7 +27,7 @@ app.use(express.urlencoded({ extended: false }));
 const startTime = Date.now();
 console.log('Server starting...');
 
-// Use required port 5000
+// Required port configuration
 const PORT = 5000;
 const HOST = '0.0.0.0';
 
@@ -56,7 +56,7 @@ const HOST = '0.0.0.0';
     // Enhanced error handling for server startup
     server.on('error', (error: any) => {
       if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use. Please free up the port and try again.`);
+        console.error(`Port ${PORT} is already in use. Please ensure port ${PORT} is free before starting the server.`);
         process.exit(1);
       } else {
         console.error('Server failed to start:', error);

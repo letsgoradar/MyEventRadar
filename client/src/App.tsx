@@ -378,7 +378,6 @@ function App() {
           </Sheet>
         </div>
       </Route>
-        </Route>
       </Switch>
     </QueryClientProvider>
   );

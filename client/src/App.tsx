@@ -53,7 +53,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="relative flex flex-col h-screen">
+      <div className="h-screen flex flex-col relative">
         <TopNav 
           isMapView={isMapView}
           toggleView={toggleView}
@@ -62,7 +62,7 @@ export default function App() {
           setIsFilterSheetOpen={setIsFilterSheetOpen}
         />
 
-        <main className="absolute inset-0 top-[72px] bottom-[64px]">
+        <div className="absolute inset-0 top-[72px] bottom-[64px]">
           {isMapView ? (
             <MapView
               filters={{
@@ -92,9 +92,9 @@ export default function App() {
               />
             </div>
           )}
-        </main>
+        </div>
 
-        <nav className="fixed bottom-0 left-0 right-0 h-[64px] bg-white border-t">
+        <nav className="absolute bottom-0 left-0 right-0 h-[64px] bg-white border-t">
           <div className="flex justify-around h-full items-center">
             <Link href="/">
               <div className="flex flex-col items-center cursor-pointer">

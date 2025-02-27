@@ -79,14 +79,18 @@ export default function CreateEventPage() {
   const nextHour = getNextHour();
   const defaultEndTime = addHours(nextHour, 1);
 
+  const [searchParams] = new URLSearchParams(window.location.search);
+  const latitude = searchParams.get('lat');
+  const longitude = searchParams.get('lng');
+
   const form = useForm<z.infer<typeof createEventFormSchema>>({
     resolver: zodResolver(createEventFormSchema),
     defaultValues: {
       title: "",
       description: "",
       location: {
-        lat: position.lat,
-        lng: position.lng,
+        lat: latitude ? parseFloat(latitude) : DEFAULT_CENTER[0],
+        lng: longitude ? parseFloat(longitude) : DEFAULT_CENTER[1],
         notificationReach: 1,
       },
       startDate: format(nextHour, 'yyyy-MM-dd'),

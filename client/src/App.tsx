@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { MapPin, Calendar as CalendarIcon, Heart, User, Plus } from "lucide-react"
+import { MapPin, Calendar as CalendarIcon, Heart, User } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { Link, Route, Switch } from "wouter"
 import TopNav from "@/components/Layout/TopNav"
@@ -69,7 +69,7 @@ export default function App() {
                 setIsFilterSheetOpen={setIsFilterSheetOpen}
               />
 
-              <div className="absolute inset-0 top-[72px] bottom-[64px]">
+              <div className="absolute inset-0 top-[72px] bottom-[83px]">
                 {isMapView ? (
                   <MapView
                     filters={{
@@ -101,36 +101,30 @@ export default function App() {
                 )}
               </div>
 
-              <nav className="absolute bottom-0 left-0 right-0 h-[64px] bg-white border-t">
+              <nav className="absolute bottom-0 left-0 right-0 h-[83px] bg-white border-t">
                 <div className="flex justify-around h-full items-center">
                   <Link href="/">
                     <div className="flex flex-col items-center cursor-pointer">
-                      <MapPin className="h-6 w-6" />
-                      <span className="text-sm">Verkennen</span>
+                      <MapPin className="h-8 w-8" />
+                      <span className="text-sm mt-1">Zoek</span>
                     </div>
                   </Link>
                   <Link href="/events">
                     <div className="flex flex-col items-center cursor-pointer">
-                      <CalendarIcon className="h-6 w-6" />
-                      <span className="text-sm">Evenementen</span>
-                    </div>
-                  </Link>
-                  <Link href="/create">
-                    <div className="flex flex-col items-center cursor-pointer">
-                      <Plus className="h-6 w-6" />
-                      <span className="text-sm">Aanmaken</span>
+                      <CalendarIcon className="h-8 w-8" />
+                      <span className="text-sm mt-1">Mijn Events</span>
                     </div>
                   </Link>
                   <Link href="/favorites">
                     <div className="flex flex-col items-center cursor-pointer">
-                      <Heart className="h-6 w-6" />
-                      <span className="text-sm">Favorieten</span>
+                      <Heart className="h-8 w-8" />
+                      <span className="text-sm mt-1">Favorieten</span>
                     </div>
                   </Link>
                   <Link href="/profile">
                     <div className="flex flex-col items-center cursor-pointer">
-                      <User className="h-6 w-6" />
-                      <span className="text-sm">Profiel</span>
+                      <User className="h-8 w-8" />
+                      <span className="text-sm mt-1">Profiel</span>
                     </div>
                   </Link>
                 </div>
@@ -140,7 +134,7 @@ export default function App() {
         </Switch>
 
         <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
-          <SheetContent side="left" className="w-full overflow-y-auto z-[100]">
+          <SheetContent side="left" className="w-full overflow-y-auto z-[9999]">
             <SheetHeader>
               <SheetTitle>Filters</SheetTitle>
             </SheetHeader>

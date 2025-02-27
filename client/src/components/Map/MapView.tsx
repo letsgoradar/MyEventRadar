@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import React, { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
+import { useLocation } from "wouter";
 
 // Category colors mapping - Updated to new color scheme
 const categoryColors: { [key: string]: string } = {
@@ -154,6 +155,9 @@ const MapLegend = ({ onToggleCategory, activeCategories }: {
 };
 
 export default function MapView({ filters }: MapViewProps) {
+  const [, navigate] = useLocation();
+  const [pressTimer, setPressTimer] = React.useState<NodeJS.Timeout | null>(null);
+  const [pressedLocation, setPressedLocation] = React.useState<[number, number] | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]); // Default to Oss
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
     new Set(Object.keys(categoryColors))
@@ -243,6 +247,45 @@ export default function MapView({ filters }: MapViewProps) {
   const tileConfig = isSatelliteView
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
+
+  const handleMapPress = React.useCallback((e: L.LeafletMouseEvent) => {
+    setPressedLocation([e.latlng.lat, e.latlng.lng]);
+    const timer = setTimeout(() => {
+      // Navigate to create event with location params
+      navigate(`/create?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
+    }, 1000);
+    setPressTimer(timer);
+  }, [navigate]);
+
+  const handleMapPressEnd = React.useCallback(() => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      setPressTimer(null);
+    }
+    setPressedLocation(null);
+  }, [pressTimer]);
+
+  useEffect(() => {
+    const map = document.querySelector('.leaflet-container');
+    if (map) {
+      map.addEventListener('mousedown', handleMapPress as any);
+      map.addEventListener('touchstart', handleMapPress as any);
+      map.addEventListener('mouseup', handleMapPressEnd);
+      map.addEventListener('touchend', handleMapPressEnd);
+      map.addEventListener('mouseleave', handleMapPressEnd);
+      map.addEventListener('touchcancel', handleMapPressEnd);
+
+      return () => {
+        map.removeEventListener('mousedown', handleMapPress as any);
+        map.removeEventListener('touchstart', handleMapPress as any);
+        map.removeEventListener('mouseup', handleMapPressEnd);
+        map.removeEventListener('touchend', handleMapPressEnd);
+        map.removeEventListener('mouseleave', handleMapPressEnd);
+        map.removeEventListener('touchcancel', handleMapPressEnd);
+      };
+    }
+  }, [handleMapPress, handleMapPressEnd]);
+
 
   return (
     <div className="h-[calc(100vh-8rem)] relative">

@@ -276,7 +276,7 @@ function App() {
             </Sheet>
 
             {/* Main content area */}
-            <main className="flex-1" style={{ height: 'calc(100vh - 136px)', marginTop: '72px' }}>
+            <main className="absolute top-[72px] bottom-[64px] left-0 right-0 overflow-hidden">
               {viewMode === 'list' && (
                 <div className="bg-white p-4 border-b flex items-center gap-2">
                   <Select value={sortBy} onValueChange={(value: 'date' | 'distance') => setSortBy(value)}>

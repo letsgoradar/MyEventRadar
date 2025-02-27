@@ -11,20 +11,6 @@ export default function Home() {
 
   return (
     <div className="h-[calc(100vh-4rem)]">
-      <div className="flex justify-end mb-4">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setView(view === "map" ? "list" : "map")}
-        >
-          {view === "map" ? (
-            <List className="h-4 w-4" />
-          ) : (
-            <Map className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
-
       {view === "map" ? (
         <MapView />
       ) : (

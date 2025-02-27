@@ -1,0 +1,24 @@
+[vite] connecting...
+[vite] connected.
+Warning: Function components cannot be given refs. Attempts to access this ref will fail. Did you mean to use React.forwardRef()?
+
+Check the render method of `SlotClone`.
+    at CategoryPicker (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/CategoryPicker.tsx:94:34)
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=f39dc0ca:52:11
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=f39dc0ca:33:11
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/ui/form.tsx:129:9
+    at div
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/ui/form.tsx:71:6
+    at Controller (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-YABUFNLM.js?v=f39dc0ca:313:35)
+    at FormField (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/ui/form.tsx:32:6)
+    at form
+    at FormProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-YABUFNLM.js?v=f39dc0ca:102:11)
+    at div
+    at _c (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/ui/card.tsx:20:11)
+    at div
+    at CreateEventPage (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/pages/create-event.tsx:83:21)
+    at Route (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=f39dc0ca:323:16)
+    at Switch (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=f39dc0ca:379:17)
+    at div
+    at QueryClientProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=f39dc0ca:2805:3)
+    at App (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/App.tsx?v=_bTtTnpaiv7G2UZHNu_aC:37:47)

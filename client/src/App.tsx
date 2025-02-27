@@ -151,20 +151,20 @@ function App() {
                       {activeFilters.map((filter) => (
                         <Badge
                           key={filter.key}
-                            variant="secondary"
-                            className="flex items-center gap-1"
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          {filter.label}
+                          <button
+                            onClick={() => removeFilter(filter.key)}
+                            className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
                           >
-                            {filter.label}
-                            <button
-                              onClick={() => removeFilter(filter.key)}
-                              className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
 
                     <div className="space-y-2">
                       <label htmlFor="search" className="text-sm font-medium">Search</label>
@@ -374,6 +374,9 @@ function App() {
                 </Link>
               </div>
             </nav>
+          </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </Route>
       </Switch>

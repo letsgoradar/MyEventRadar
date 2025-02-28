@@ -1,6 +1,6 @@
 import React from 'react';
 import { Event } from '@shared/schema';
-import { MapPin, Calendar, Euro } from 'lucide-react';
+import { MapPin, Calendar, Euro, Heart } from 'lucide-react';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,10 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import CategoryIcon from './CategoryIcon';
 import './leaflet-fix.css';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { useFavorites } from "@/hooks/useFavorites";
+
 
 // Fix Leaflet icon issues
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -38,9 +42,11 @@ interface EventCardProps {
 
 export default function EventCard({ event, distance }: EventCardProps) {
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
+  const { favorites, toggleFavorite, isFavorite } = useFavorites();
+  const isFav = isFavorite(event.id);
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md">
+    <Card className="overflow-hidden transition-all hover:shadow-md relative">
       <CardHeader className="p-4 pb-0">
         <div className="flex justify-between items-start">
           <div>
@@ -60,6 +66,22 @@ export default function EventCard({ event, distance }: EventCardProps) {
       </CardHeader>
 
       <CardContent className="p-4 pt-2">
+        <div className="absolute top-2 right-2 z-10">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background/90"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleFavorite(event.id);
+            }}
+          >
+            <Heart 
+              className={`h-5 w-5 ${isFav ? "fill-primary text-primary" : "text-muted-foreground"}`} 
+            />
+          </Button>
+        </div>
         <div className="flex flex-col gap-2 mb-2">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Calendar className="h-3 w-3" />

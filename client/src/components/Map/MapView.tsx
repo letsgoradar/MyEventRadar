@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
-import { Satellite } from 'lucide-react';
+import { Satellite, Heart } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import L from 'leaflet';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
 import { Link } from "wouter";
+import { format } from 'date-fns';
+import { nl } from 'date-fns/locale';
 
 
 const categoryColors = {
@@ -169,6 +171,27 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.asin(Math.sqrt(a));
 }
 
+
+const useFavorites = () => {
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+
+  const isFavorite = useCallback((eventId: string) => favorites.has(eventId), [favorites]);
+  const toggleFavorite = useCallback((eventId: string) => {
+    setFavorites(prev => {
+      const newFavorites = new Set(prev);
+      if (newFavorites.has(eventId)) {
+        newFavorites.delete(eventId);
+      } else {
+        newFavorites.add(eventId);
+      }
+      return newFavorites;
+    });
+  }, []);
+
+  return { isFavorite, toggleFavorite };
+};
+
+
 export default function MapView({ filters }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]); // Default to Oss
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
@@ -176,6 +199,13 @@ export default function MapView({ filters }: MapViewProps) {
   );
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [showAllEvents, setShowAllEvents] = useState(true);
+  const [showFavoriteEvents, setShowFavoriteEvents] = useState(true);
+  const [showMyEvents, setShowMyEvents] = useState(true);
+  const [showOldEvents, setShowOldEvents] = useState(false); // Default to false
+
+  const { isFavorite, toggleFavorite } = useFavorites();
+
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -189,12 +219,17 @@ export default function MapView({ filters }: MapViewProps) {
   }, []);
 
   const { data: events = [] } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", filters, userLocation],
+    queryKey: ["/api/events/nearby", filters, userLocation, showAllEvents, showFavoriteEvents, showMyEvents, showOldEvents],
     queryFn: async () => {
       const params = new URLSearchParams({
         lat: userLocation[0].toString(),
         lng: userLocation[1].toString(),
-        radius: filters.useDistanceFilter ? filters.distanceRadius.toString() : "10"
+        radius: filters.useDistanceFilter ? filters.distanceRadius.toString() : "10",
+        showAllEvents: showAllEvents.toString(),
+        showFavoriteEvents: showFavoriteEvents.toString(),
+        showMyEvents: showMyEvents.toString(),
+        showOldEvents: showOldEvents.toString(),
+
       });
 
       const response = await fetch(`/api/events/nearby?${params}`);
@@ -210,8 +245,12 @@ export default function MapView({ filters }: MapViewProps) {
     if (filters.category && event.category !== filters.category) return false;
     if (filters.showPaidEvents && !event.isPaid) return false;
     if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
+    // Add filtering based on new filter states
+    if (!showAllEvents && !isFavorite(event.id) && !event.isMine && !event.isOld) return false;
+
     return true;
   });
+
 
   const toggleCategory = (category: string) => {
     setActiveCategories(prev => {
@@ -266,14 +305,14 @@ export default function MapView({ filters }: MapViewProps) {
           if (isNaN(lat) || isNaN(lng)) return null;
 
           // Calculate distance if location exists
-          const distance = location ? 
-            calculateDistance(location.lat, location.lng, lat, lng) : 
+          const distance = location ?
+            calculateDistance(location.lat, location.lng, lat, lng) :
             null;
 
           return (
-            <Marker 
-              key={event.id} 
-              position={[lat, lng]} 
+            <Marker
+              key={event.id}
+              position={[lat, lng]}
               icon={createEventIcon(event.category)}
             >
               <Popup className="event-popup" maxWidth={300}>
@@ -281,7 +320,7 @@ export default function MapView({ filters }: MapViewProps) {
                   {/* Import EventCard component to reuse in popup */}
                   <div className="event-card-map">
                     <div className="font-semibold mb-1 flex items-center gap-1.5">
-                      <div style={{color: getCategoryColor(event.category)}}>
+                      <div style={{ color: getCategoryColor(event.category) }}>
                         {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
                       </div>
                       <div>{event.title}</div>
@@ -290,7 +329,21 @@ export default function MapView({ filters }: MapViewProps) {
                     {distance !== null && (
                       <div className="text-xs text-gray-600 mb-1">{distance.toFixed(1)} km afstand</div>
                     )}
-                    <Link 
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleFavorite(event.id);
+                      }}
+                    >
+                      <Heart
+                        className={`h-4 w-4 ${isFavorite(event.id) ? "fill-primary text-primary" : "text-muted-foreground"}`}
+                      />
+                    </Button>
+                    <Link
                       to={`/event/${event.id}`}
                       className="text-blue-600 hover:text-blue-800 underline text-xs"
                     >
@@ -303,6 +356,24 @@ export default function MapView({ filters }: MapViewProps) {
           );
         })}
       </MapContainer>
+
+      {/* Added filter controls */}
+      <div className="flex space-x-2 p-4 fixed bottom-0 left-0 bg-white w-full">
+        <label>
+          <input type="checkbox" checked={showAllEvents} onChange={e => setShowAllEvents(e.target.checked)} /> Alle Evenementen
+        </label>
+        <label>
+          <input type="checkbox" checked={showFavoriteEvents} onChange={e => setShowFavoriteEvents(e.target.checked)} /> Favorieten
+        </label>
+        <label>
+          <input type="checkbox" checked={showMyEvents} onChange={e => setShowMyEvents(e.target.checked)} /> Mijn Evenementen
+        </label>
+        <label>
+          <input type="checkbox" checked={showOldEvents} onChange={e => setShowOldEvents(e.target.checked)} /> Oude Evenementen
+        </label>
+      </div>
+
+      <Button className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-primary p-3 rounded-full text-white w-48 my-4" >Evenement aanmaken</Button> {/* Added Create Event Button */}
     </div>
   );
 }

@@ -30,6 +30,7 @@ function EventList() {
     queryKey: ["events", location?.lat, location?.lng, radius],
     queryFn: async () => {
       if (!location) return [];
+      console.log("Fetching events with params:", {lat: location.lat, lng: location.lng, radius});
       try {
         return fetchEventsByRadius(location.lat, location.lng, radius);
       } catch (err) {
@@ -90,7 +91,28 @@ function EventList() {
   }, []);
 
   if (isLoading) {
-    return <div className="p-4 text-center">Evenementen laden...</div>;
+    return (
+      <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="animate-pulse bg-gray-200 rounded-lg p-6">
+            <div className="flex justify-between mb-4">
+              <div className="h-6 w-20 bg-gray-300 rounded"></div>
+              <div className="h-6 w-16 bg-gray-300 rounded"></div>
+            </div>
+            <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
+            <div className="h-4 bg-gray-300 rounded w-1/2 mb-4"></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+                <div className="h-12 bg-gray-300 rounded mt-2"></div>
+              </div>
+              <div className="h-[120px] bg-gray-300 rounded"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   if (isError) {
@@ -143,19 +165,18 @@ function EventList() {
   }
 
   return (
-    <div className="p-2 grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-      {filteredEvents.map((event) => (
-        <EventCard 
-          key={event.id} 
-          event={event} 
-          distance={event.distance}
-        />
-      ))}
-      <div className="col-span-full flex justify-center mt-4">
-        <Button onClick={incrementRadius}>
-          Meer evenementen laden ({radius} km → {radius + 5} km)
-        </Button>
-      </div>
+    <div className="p-4 overflow-auto max-h-[calc(100vh-16rem)]">
+      {filteredEvents.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredEvents.map((event) => (
+            <EventCard key={event.id} event={event} distance={event.distance} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">
+          Geen evenementen gevonden met deze filters.
+        </div>
+      )}
     </div>
   );
 }

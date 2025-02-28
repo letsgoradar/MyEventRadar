@@ -1,0 +1,44 @@
+
+/* Leaflet image path fixes */
+.leaflet-default-icon-path {
+  background-image: url(https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png);
+}
+
+.leaflet-default-shadow-path {
+  background-image: url(https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png);
+}
+
+/* Make mini maps not interactive */
+.leaflet-container {
+  font-family: inherit;
+}
+
+/* Fixed size constraints for event cards */
+@media (min-width: 768px) {
+  .event-card-map {
+    min-height: 120px;
+    max-height: 150px;
+  }
+  
+  .category-icon {
+    min-width: 48px;
+    min-height: 48px;
+    max-width: 64px;
+    max-height: 64px;
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 767px) {
+  .event-card-map {
+    min-height: 100px;
+    max-height: 120px;
+  }
+  
+  .category-icon {
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 48px;
+    max-height: 48px;
+  }
+}

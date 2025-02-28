@@ -2,7 +2,8 @@
 import { QueryClient } from "@tanstack/react-query";
 
 // Define baseUrl based on environment
-const baseUrl = import.meta.env.PROD 
+// In Replit environment, we need to use the same origin for development to avoid CORS issues
+const baseUrl = window.location.origin.includes('replit.dev') 
   ? window.location.origin
   : `${window.location.protocol}//${window.location.hostname}:5000`;
 
@@ -10,19 +11,28 @@ export async function apiRequest(path: string, options?: RequestInit) {
   const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
   
   try {
+    // Create a timeout controller
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
+    
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         ...options?.headers,
       },
-      // Add timeout for fetch requests
-      signal: options?.signal || AbortSignal.timeout(10000), // 10 seconds timeout
+      signal: options?.signal || controller.signal,
+      // Ensure credentials are included for same-origin requests
+      credentials: 'same-origin',
     });
+    
+    // Clear the timeout
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error(`API error: ${response.status} for URL: ${url}`);
-      throw new Error(`API error: ${response.status}`);
+      throw new Error(`API error: ${response.status} - ${response.statusText}`);
     }
 
     // Check if the response is JSON
@@ -34,7 +44,18 @@ export async function apiRequest(path: string, options?: RequestInit) {
     return response.text();
   } catch (error) {
     console.error(`Fetch error for ${url}:`, error);
-    throw error; // Re-throw so React Query can handle retries
+    
+    // Provide more specific error messages
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout for ${url}`);
+    } else if (error.message && error.message.includes('NetworkError')) {
+      throw new Error(`Network error when connecting to ${url} - Check if the server is running`);
+    } else if (error.message && error.message.includes('CORS')) {
+      throw new Error(`CORS error when connecting to ${url} - Check server CORS configuration`);
+    }
+    
+    // Re-throw for React Query to handle retries
+    throw error;
   }
 }
 

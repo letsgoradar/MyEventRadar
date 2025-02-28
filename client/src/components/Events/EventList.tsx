@@ -26,17 +26,23 @@ function EventList() {
   const [filteredEvents, setFilteredEvents] = useState<Array<Event & { distance: number }>>([]);
 
   // Use a larger initial radius to get more events
-  const { data: events, isLoading, isError } = useQuery({
+  const { data: events, isLoading, isError, error } = useQuery({
     queryKey: ["events", location?.lat, location?.lng, radius],
     queryFn: async () => {
       if (!location) return [];
-      console.log(`Fetching events with params: lat=${location.lat}&lng=${location.lng}&radius=${radius}`);
-      return fetchEventsByRadius(location.lat, location.lng, radius);
+      try {
+        return fetchEventsByRadius(location.lat, location.lng, radius);
+      } catch (err) {
+        console.error("Failed to fetch events:", err);
+        return []; // Return empty array as fallback
+      }
     },
     enabled: !!location,
-    // Add retry options to handle network issues
+    // Improved retry options to handle network issues
     retry: 3,
-    retryDelay: 1000,
+    retryDelay: (attemptIndex) => Math.min(1000 * (2 ** attemptIndex), 10000), // Exponential backoff
+    // Default to empty array
+    placeholderData: [],
   });
 
   // Process events and calculate distances
@@ -89,8 +95,14 @@ function EventList() {
 
   if (isError) {
     return (
-      <div className="p-4 text-center text-red-500">
-        Er is een fout opgetreden bij het ophalen van evenementen.
+      <div className="p-4 text-center">
+        <p className="text-red-500 font-medium mb-2">Er is een fout opgetreden bij het ophalen van evenementen.</p>
+        <p className="text-sm text-gray-600 mb-4">
+          {error instanceof Error ? error.message : "Probeer het later opnieuw."}
+        </p>
+        <Button onClick={() => window.location.reload()}>
+          Vernieuwen
+        </Button>
       </div>
     );
   }

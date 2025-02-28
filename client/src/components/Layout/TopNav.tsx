@@ -1,26 +1,30 @@
+
 import React from 'react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Search, Plus } from 'lucide-react';
+import { Menu, X, Search, Plus, Map, List } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import Logo from '../ui/logo';
 
 interface TopNavProps {
-  toggleSidebar: () => void;
-  isSidebarOpen: boolean;
+  isMapView: boolean;
+  toggleView: () => void;
+  toggleFilterSheet: () => void;
+  isFilterSheetOpen: boolean;
+  setIsFilterSheetOpen: (isOpen: boolean) => void;
 }
 
-const TopNav: React.FC<TopNavProps> = ({ toggleSidebar, isSidebarOpen }) => {
+const TopNav: React.FC<TopNavProps> = ({ 
+  isMapView, 
+  toggleView, 
+  toggleFilterSheet, 
+  isFilterSheetOpen,
+  setIsFilterSheetOpen 
+}) => {
   return (
     <nav className="fixed top-0 w-full h-14 bg-[#0097FB] shadow-md z-10 flex items-center justify-between px-4">
       <div className="flex items-center">
-        <button 
-          onClick={toggleSidebar} 
-          className="mr-4 p-1 rounded hover:bg-blue-600 transition duration-200 text-white"
-        >
-          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-        <Link to="/" className="flex items-center">
+        <Link href="/" className="flex items-center">
           <Logo className="w-8 h-8 text-white" />
           <span className="ml-2 text-white text-lg font-semibold">EventApp</span>
         </Link>
@@ -38,7 +42,29 @@ const TopNav: React.FC<TopNavProps> = ({ toggleSidebar, isSidebarOpen }) => {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* We verwijderen hier de "Evenement aanmaken" button die naar BottomNav is verplaatst */}
+        <Button 
+          onClick={toggleFilterSheet} 
+          variant="ghost" 
+          size="icon" 
+          className="text-white hover:bg-blue-600"
+        >
+          <Search className="h-5 w-5" />
+        </Button>
+        
+        <Button 
+          onClick={toggleView} 
+          variant="ghost" 
+          size="icon" 
+          className="text-white hover:bg-blue-600"
+        >
+          {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
+        </Button>
+        
+        <Link href="/create">
+          <Button variant="ghost" size="icon" className="text-white hover:bg-blue-600">
+            <Plus className="h-5 w-5" />
+          </Button>
+        </Link>
       </div>
     </nav>
   );

@@ -44,7 +44,10 @@ export default function EventCard({ event, distance }: EventCardProps) {
       <CardHeader className="p-4 pb-0">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-lg font-bold line-clamp-1">{event.title}</CardTitle>
+            <CardTitle className="text-lg font-bold line-clamp-1 flex items-center gap-2">
+              <CategoryIcon category={event.category} size="sm" className="flex-shrink-0" />
+              {event.title}
+            </CardTitle>
             <CardDescription className="flex items-center gap-1 mt-1">
               <MapPin className="h-3 w-3" />
               <span className="text-xs">{distance.toFixed(1)} km</span>

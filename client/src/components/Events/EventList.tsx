@@ -167,21 +167,21 @@ function EventList() {
 
   return (
     <div className="p-4 overflow-auto max-h-[calc(100vh-16rem)]">
-      <div className="my-4">
-        <label className="text-sm font-medium mb-2 block">Filter op categorie:</label>
+      <div className="mb-3">
         <div className="flex flex-wrap gap-2 mb-3">
           {["festival", "food", "culture", "sports", "market", "education", "music", "technology", "gaming", "health", "nature"].map((cat) => (
             <button
               key={cat}
               onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
-              className={`flex items-center gap-1 px-3 py-2 rounded-full text-xs transition-all ${
+              className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs transition-all ${
                 categoryFilter === cat 
-                  ? 'bg-primary text-primary-foreground font-medium' 
-                  : 'bg-muted hover:bg-muted/80'
+                  ? 'border-2 border-primary shadow-sm scale-105' 
+                  : 'border border-muted hover:border-muted/80'
               }`}
+              title={cat.charAt(0).toUpperCase() + cat.slice(1)}
             >
-              <CategoryIcon category={cat} size="sm" className="mr-1" />
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              <CategoryIcon category={cat} size="xs" className="scale-70" />
+              <span className="ml-0.5">{cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
             </button>
           ))}
         </div>

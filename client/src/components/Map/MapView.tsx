@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
+import { Link } from "wouter";
+
 
 const categoryColors = {
   'festival': '#FF6B00',
@@ -25,9 +27,9 @@ const createEventIcon = (category: string) => {
   const color = getCategoryColor(category);
   return L.divIcon({
     className: 'custom-icon',
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-    html: `<div style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); background-color: ${color};"></div>`
+    iconSize: [12, 12], // Reduced size by 30%
+    iconAnchor: [6, 6],
+    html: `<div style="width: 12px; height: 12px; border-radius: 50%; border: 1px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2); background-color: ${color};"></div>`
   });
 };
 
@@ -155,18 +157,32 @@ function CreateEventMarker() {
   return null;
 }
 
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;  // deg2rad below
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    0.5 - Math.cos(dLat) / 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    (1 - Math.cos(dLon)) / 2;
+
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
 export default function MapView({ filters }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]); // Default to Oss
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
     new Set(Object.keys(categoryColors))
   );
   const [isSatelliteView, setIsSatelliteView] = useState(false);
+  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
+          setLocation({lat: position.coords.latitude, lng: position.coords.longitude});
         }
       );
     }
@@ -246,20 +262,41 @@ export default function MapView({ filters }: MapViewProps) {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
 
+          // Skip if coordinates are invalid
+          if (isNaN(lat) || isNaN(lng)) return null;
+
+          // Calculate distance if location exists
+          const distance = location ? 
+            calculateDistance(location.lat, location.lng, lat, lng) : 
+            null;
+
           return (
-            <Marker
-              key={event.id}
-              position={[lat, lng]}
+            <Marker 
+              key={event.id} 
+              position={[lat, lng]} 
               icon={createEventIcon(event.category)}
             >
-              <Popup>
-                <div className="p-2">
-                  <h3 className="font-bold">{event.title}</h3>
-                  <p className="text-sm">{event.description}</p>
-                  <p className="text-sm mt-1">
-                    Category: <span className="capitalize">{event.category}</span>
-                  </p>
-                  {event.isPaid && <p className="text-sm mt-1">Price: €{event.price}</p>}
+              <Popup className="event-popup" maxWidth={300}>
+                <div className="text-sm pb-1">
+                  {/* Import EventCard component to reuse in popup */}
+                  <div className="event-card-map">
+                    <div className="font-semibold mb-1 flex items-center gap-1.5">
+                      <div style={{color: getCategoryColor(event.category)}}>
+                        {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
+                      </div>
+                      <div>{event.title}</div>
+                    </div>
+                    {event.description && <div className="mb-2 text-xs">{event.description.substring(0, 80)}{event.description.length > 80 ? '...' : ''}</div>}
+                    {distance !== null && (
+                      <div className="text-xs text-gray-600 mb-1">{distance.toFixed(1)} km afstand</div>
+                    )}
+                    <Link 
+                      to={`/event/${event.id}`}
+                      className="text-blue-600 hover:text-blue-800 underline text-xs"
+                    >
+                      Details bekijken
+                    </Link>
+                  </div>
                 </div>
               </Popup>
             </Marker>

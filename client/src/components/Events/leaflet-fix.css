@@ -22,6 +22,22 @@
   transform: scale(1.1);
 }
 
+/* Style popup event cards */
+.leaflet-popup-content {
+  margin: 8px 12px !important;
+  min-width: 150px;
+}
+
+.event-popup .leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Apply scale to category icons in filter */
+.scale-70 {
+  transform: scale(0.7);
+}
+
 /* Fixed size constraints for event cards */
 @media (min-width: 768px) {
   .event-card-map {

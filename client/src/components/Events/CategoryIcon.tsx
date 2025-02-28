@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Music, 
@@ -17,26 +16,26 @@ import {
 
 type CategoryIconProps = {
   category: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
 };
 
-// Google-inspired color palette
+// Map legend colors
 const COLORS = {
-  festival: '#4285F4', // Google Blue
-  food: '#FBBC05',     // Google Yellow
-  culture: '#34A853',  // Google Green
-  sport: '#EA4335',    // Google Red
-  market: '#4285F4',   // Google Blue
-  education: '#34A853',// Google Green
-  music: '#FBBC05',    // Google Yellow
-  gaming: '#EA4335',   // Google Red
-  technology: '#4285F4',// Google Blue
-  health: '#34A853',   // Google Green
-  nature: '#0F9D58',   // Another Google Green shade
+  festival: '#FF6B00',   // Orange from map
+  food: '#FBBC05',       // Yellow/Gold from map
+  culture: '#7B1FA2',    // Purple from map
+  sport: '#0066FF',     // Blue from map
+  market: '#4CAF50',     // Green
+  education: '#3F51B5',  // Indigo
+  music: '#4285F4',      // Google blue from map
+  gaming: '#673AB7',     // Deep Purple
+  technology: '#00BCD4', // Cyan
+  health: '#8BC34A',     // Light Green
+  nature: '#009688',     // Teal
   arts: '#DB4437',     // Another Google Red shade
   social: '#4285F4',   // Google Blue
-  other: '#757575',    // Grey for other
+  other: '#757575',      // Grey from map
 };
 
 export function getCategoryColor(category: string): string {
@@ -48,16 +47,17 @@ const CategoryIcon: React.FC<CategoryIconProps> = ({
   size = 'md', 
   className = '' 
 }) => {
-  // Size mapping
+  // Size mapping with 30% reduction for list view filter
   const sizeMap = {
-    'sm': 24,
-    'md': 32,
-    'lg': 48
+    'xs': 16,
+    'sm': 21,
+    'md': 28,
+    'lg': 42
   };
-  
+
   const iconSize = sizeMap[size];
   const color = getCategoryColor(category);
-  
+
   // Choose the right icon based on category
   const getIcon = () => {
     const iconProps = { 
@@ -66,7 +66,7 @@ const CategoryIcon: React.FC<CategoryIconProps> = ({
       className: `category-icon ${className}`,
       style: { minWidth: iconSize, minHeight: iconSize }
     };
-    
+
     switch(category.toLowerCase()) {
       case 'festival':
         return <Ticket {...iconProps} />;
@@ -98,7 +98,7 @@ const CategoryIcon: React.FC<CategoryIconProps> = ({
         return <Ticket {...iconProps} />;
     }
   };
-  
+
   // Render the icon with a circular background
   return (
     <div 

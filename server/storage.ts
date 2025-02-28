@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import {
   users,
   events,
@@ -37,12 +37,16 @@ export interface IStorage {
   getEvent(id: number): Promise<Event | undefined>;
   getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]>;
   getEventsByHost(hostId: number): Promise<Event[]>;
+  getEventsByHostId(hostId: number): Promise<Event[]>; // Added
+  updateEvent(eventData: any): Promise<Event | undefined>; // Added
+  deleteEvent(eventId: number): Promise<void>; // Added
   clearEvents(): Promise<void>; // Added clearEvents method
 
   // Favorite operations
   addFavorite(favorite: InsertFavorite): Promise<Favorite>;
   removeFavorite(userId: number, eventId: number): Promise<void>;
   getFavoritesByUser(userId: number): Promise<Event[]>;
+  getFavoritesByUserId(userId: number): Promise<Event[]>; // Added
 
   // Participant operations
   addParticipant(participant: InsertParticipant): Promise<Participant>;
@@ -180,7 +184,13 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async clearEvents(): Promise<void> { // Added clearEvents method implementation
+  async getEventsByHostId(hostId: number): Promise<Event[]> {
+    return this.withRetry(async () => {
+      return db.select().from(events).where(eq(events.hostId, hostId));
+    });
+  }
+
+  async clearEvents(): Promise<void> { 
     return this.withRetry(async () => {
       await db.delete(events);
     });
@@ -216,6 +226,27 @@ export class PgStorage implements IStorage {
         .innerJoin(events, eq(events.id, favorites.eventId));
 
       return result.map(r => r.event);
+    });
+  }
+
+  async getFavoritesByUserId(userId: number): Promise<Event[]> {
+    return this.withRetry(async () => {
+      const favorites = await db
+        .select({
+          eventId: favorites.eventId,
+        })
+        .from(favorites)
+        .where(eq(favorites.userId, userId));
+
+      if (favorites.length === 0) {
+        return [];
+      }
+
+      const eventIds = favorites.map(f => f.eventId);
+      return await db
+        .select()
+        .from(events)
+        .where(inArray(events.id, eventIds));
     });
   }
 
@@ -268,6 +299,50 @@ export class PgStorage implements IStorage {
   async removeSavedSearch(id: number): Promise<void> {
     return this.withRetry(async () => {
       await db.delete(savedSearches).where(eq(savedSearches.id, id));
+    });
+  }
+
+  async updateEvent(eventData: any): Promise<Event | undefined> {
+    return this.withRetry(async () => {
+      await db
+        .update(events)
+        .set({
+          title: eventData.title,
+          description: eventData.description,
+          category: eventData.category,
+          subcategory: eventData.subcategory,
+          startTime: eventData.startTime,
+          endTime: eventData.endTime,
+          latitude: eventData.latitude.toString(),
+          longitude: eventData.longitude.toString(),
+          isPaid: eventData.isPaid,
+          price: eventData.price,
+          maxParticipants: eventData.maxParticipants,
+          notificationReach: eventData.notificationReach.toString(),
+          updatedAt: new Date()
+        })
+        .where(eq(events.id, eventData.id));
+
+      return this.getEvent(eventData.id);
+    });
+  }
+
+  async deleteEvent(eventId: number): Promise<void> {
+    return this.withRetry(async () => {
+      // Delete related favorites first
+      await db
+        .delete(favorites)
+        .where(eq(favorites.eventId, eventId));
+
+      // Delete related participants
+      await db
+        .delete(participants)
+        .where(eq(participants.eventId, eventId));
+
+      // Delete the event
+      await db
+        .delete(events)
+        .where(eq(events.id, eventId));
     });
   }
 

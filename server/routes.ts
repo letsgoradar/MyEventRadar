@@ -244,187 +244,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
-  return httpServer;
-}
-// Update your existing routes.ts file to include these new routes
-
-// My events route
-app.get('/api/events/my-events', async (req, res) => {
-  const userId = req.header('X-User-ID'); // In a real app, this would come from authentication
-  
-  if (!userId) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-
-  try {
-    // Query events where hostId matches the current user
-    const myEvents = await db.select().from(eventsTable).where(eq(eventsTable.hostId, parseInt(userId)));
+  // My events route
+  app.get('/api/events/my-events', async (req, res) => {
+    const userId = req.header('X-User-ID'); // In a real app, this would come from authentication
     
-    return res.status(200).json(myEvents);
-  } catch (error) {
-    console.error('Error fetching my events:', error);
-    return res.status(500).json({ error: 'Failed to fetch my events' });
-  }
-});
-
-// Favorite events routes
-app.get('/api/events/favorites', async (req, res) => {
-  const userId = req.header('X-User-ID'); // In a real app, this would come from authentication
-  
-  if (!userId) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-
-  try {
-    // Query favorite events for the current user
-    const favoriteEvents = await db
-      .select({
-        events: eventsTable,
-      })
-      .from(eventFavoritesTable)
-      .innerJoin(
-        eventsTable,
-        eq(eventFavoritesTable.eventId, eventsTable.id)
-      )
-      .where(eq(eventFavoritesTable.userId, parseInt(userId)));
-    
-    // Map the results to get just the events
-    const events = favoriteEvents.map(item => ({
-      ...item.events,
-      isFavorite: true
-    }));
-    
-    return res.status(200).json(events);
-  } catch (error) {
-    console.error('Error fetching favorite events:', error);
-    return res.status(500).json({ error: 'Failed to fetch favorite events' });
-  }
-});
-
-// Toggle favorite status
-app.post('/api/events/:id/favorite', async (req, res) => {
-  const eventId = parseInt(req.params.id);
-  const userId = req.header('X-User-ID'); // In a real app, this would come from authentication
-  const { isFavorite } = req.body;
-  
-  if (!userId) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-
-  try {
-    if (isFavorite) {
-      // Add to favorites
-      await db.insert(eventFavoritesTable).values({
-        userId: parseInt(userId),
-        eventId: eventId,
-        createdAt: new Date()
-      }).onConflictDoNothing();
-    } else {
-      // Remove from favorites
-      await db
-        .delete(eventFavoritesTable)
-        .where(
-          and(
-            eq(eventFavoritesTable.userId, parseInt(userId)),
-            eq(eventFavoritesTable.eventId, eventId)
-          )
-        );
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
-    
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    console.error('Error updating favorite status:', error);
-    return res.status(500).json({ error: 'Failed to update favorite status' });
-  }
-});
 
-// Update event route
-app.put('/api/events/:id', async (req, res) => {
-  const eventId = parseInt(req.params.id);
-  const userId = req.header('X-User-ID'); // In a real app, this would come from authentication
-  
-  if (!userId) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-
-  try {
-    // Verify the user owns this event
-    const event = await db
-      .select()
-      .from(eventsTable)
-      .where(
-        and(
-          eq(eventsTable.id, eventId),
-          eq(eventsTable.hostId, parseInt(userId))
-        )
-      )
-      .get();
-    
-    if (!event) {
-      return res.status(403).json({ error: 'You do not have permission to edit this event' });
+    try {
+      // Get events where hostId matches the current user
+      const myEvents = await storage.getEventsByHostId(parseInt(userId));
+      
+      return res.status(200).json(myEvents);
+    } catch (error) {
+      console.error('Error fetching my events:', error);
+      return res.status(500).json({ error: 'Failed to fetch my events' });
     }
+  });
+
+  // Favorite events routes
+  app.get('/api/events/favorites', async (req, res) => {
+    const userId = req.header('X-User-ID'); // In a real app, this would come from authentication
     
-    // Update the event
-    await db
-      .update(eventsTable)
-      .set({
-        title: req.body.title,
-        description: req.body.description,
-        category: req.body.category,
-        subcategory: req.body.subcategory,
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    try {
+      // Get favorite events for the current user
+      const favoriteEvents = await storage.getFavoritesByUserId(parseInt(userId));
+      
+      // Map the results with isFavorite flag
+      const events = favoriteEvents.map(event => ({
+        ...event,
+        isFavorite: true
+      }));
+      
+      return res.status(200).json(events);
+    } catch (error) {
+      console.error('Error fetching favorite events:', error);
+      return res.status(500).json({ error: 'Failed to fetch favorite events' });
+    }
+  });
+
+  // Toggle favorite status
+  app.post('/api/events/:id/favorite', async (req, res) => {
+    const eventId = parseInt(req.params.id);
+    const userId = req.header('X-User-ID'); // In a real app, this would come from authentication
+    const { isFavorite } = req.body;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    try {
+      if (isFavorite) {
+        // Add to favorites
+        await storage.addFavorite({
+          userId: parseInt(userId),
+          eventId: eventId
+        });
+      } else {
+        // Remove from favorites
+        await storage.removeFavorite(parseInt(userId), eventId);
+      }
+      
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('Error updating favorite status:', error);
+      return res.status(500).json({ error: 'Failed to update favorite status' });
+    }
+  });
+
+  // Update event route
+  app.put('/api/events/:id', async (req, res) => {
+    const eventId = parseInt(req.params.id);
+    const userId = req.header('X-User-ID'); // In a real app, this would come from authentication
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    try {
+      // Verify the user owns this event
+      const event = await storage.getEvent(eventId);
+      
+      if (!event || event.hostId !== parseInt(userId)) {
+        return res.status(403).json({ error: 'You do not have permission to edit this event' });
+      }
+      
+      // Update the event
+      const updatedEvent = await storage.updateEvent({
+        id: eventId,
+        ...req.body,
         startTime: new Date(req.body.startTime),
-        endTime: new Date(req.body.endTime),
-        latitude: req.body.latitude,
-        longitude: req.body.longitude,
-        isPaid: req.body.isPaid,
-        price: req.body.price,
+        endTime: req.body.endTime ? new Date(req.body.endTime) : null,
         maxParticipants: parseInt(req.body.maxParticipants),
         notificationReach: parseInt(req.body.notificationReach),
-        updatedAt: new Date()
-      })
-      .where(eq(eventsTable.id, eventId));
-    
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    console.error('Error updating event:', error);
-    return res.status(500).json({ error: 'Failed to update event' });
-  }
-});
-
-// Delete event route
-app.delete('/api/events/:id', async (req, res) => {
-  const eventId = parseInt(req.params.id);
-  const userId = req.header('X-User-ID'); // In a real app, this would come from authentication
-  
-  if (!userId) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-
-  try {
-    // Verify the user owns this event
-    const event = await db
-      .select()
-      .from(eventsTable)
-      .where(
-        and(
-          eq(eventsTable.id, eventId),
-          eq(eventsTable.hostId, parseInt(userId))
-        )
-      )
-      .get();
-    
-    if (!event) {
-      return res.status(403).json({ error: 'You do not have permission to delete this event' });
+        hostId: parseInt(userId)
+      });
+      
+      return res.status(200).json(updatedEvent);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      return res.status(500).json({ error: 'Failed to update event' });
     }
+  });
+
+  // Delete event route
+  app.delete('/api/events/:id', async (req, res) => {
+    const eventId = parseInt(req.params.id);
+    const userId = req.header('X-User-ID'); // In a real app, this would come from authentication
     
-    // Delete the event
-    await db
-      .delete(eventsTable)
-      .where(eq(eventsTable.id, eventId));
-    
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    console.error('Error deleting event:', error);
-    return res.status(500).json({ error: 'Failed to delete event' });
-  }
-});
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    try {
+      // Verify the user owns this event
+      const event = await storage.getEvent(eventId);
+      
+      if (!event || event.hostId !== parseInt(userId)) {
+        return res.status(403).json({ error: 'You do not have permission to delete this event' });
+      }
+      
+      // Delete the event
+      await storage.deleteEvent(eventId);
+      
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      return res.status(500).json({ error: 'Failed to delete event' });
+    }
+  });
+
+  return httpServer;
+}

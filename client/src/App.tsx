@@ -14,6 +14,7 @@ import EventList from "@/components/Events/EventList"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
 import CreateEventPage from "@/pages/create-event"
+import BottomNav from "@/components/Layout/BottomNav"; // Import BottomNav component
 
 const queryClient = new QueryClient()
 
@@ -66,7 +67,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <div className="h-screen flex flex-col relative">
         <Switch>
-          <Route path="/create">
+          <Route path="/create-event">
             <CreateEventPage />
           </Route>
           <Route path="/">
@@ -78,8 +79,7 @@ export default function App() {
                 isFilterSheetOpen={isFilterSheetOpen}
                 setIsFilterSheetOpen={setIsFilterSheetOpen}
               />
-
-              <div className="absolute inset-0 top-[72px] bottom-[75px]">
+              <div className="absolute inset-0 top-[72px] bottom-[75px]"> {/* Adjusted positioning */}
                 {isMapView ? (
                   <MapView
                     filters={{
@@ -110,39 +110,31 @@ export default function App() {
                   </div>
                 )}
               </div>
-
-              <nav className="absolute bottom-0 left-0 right-0 h-[75px] bg-white border-t">
-                <div className="flex justify-around h-full items-center">
-                  <Link href="/">
-                    <div className="flex flex-col items-center cursor-pointer">
-                      <MapPin className="h-7 w-7" />
-                      <span className="text-sm mt-1">Zoek</span>
-                    </div>
-                  </Link>
-                  <Link href="/events">
-                    <div className="flex flex-col items-center cursor-pointer">
-                      <CalendarIcon className="h-7 w-7" />
-                      <span className="text-sm mt-1">Mijn Events</span>
-                    </div>
-                  </Link>
-                  <Link href="/favorites">
-                    <div className="flex flex-col items-center cursor-pointer">
-                      <Heart className="h-7 w-7" />
-                      <span className="text-sm mt-1">Favorieten</span>
-                    </div>
-                  </Link>
-                  <Link href="/profile">
-                    <div className="flex flex-col items-center cursor-pointer">
-                      <User className="h-7 w-7" />
-                      <span className="text-sm mt-1">Profiel</span>
-                    </div>
-                  </Link>
-                </div>
-              </nav>
+              <BottomNav />
             </>
           </Route>
           <Route path="/events">
             <MyEvents />
+          </Route>
+          <Route path="/favorites">
+            <div className="h-screen flex flex-col relative">
+              <TopNav />
+              <div className="flex-1 overflow-auto p-4 pb-24">
+                <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
+                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
+              </div>
+              <BottomNav />
+            </div>
+          </Route>
+          <Route path="/profile">
+            <div className="h-screen flex flex-col relative">
+              <TopNav />
+              <div className="flex-1 overflow-auto p-4 pb-24">
+                <h1 className="text-2xl font-bold mb-6">Profiel</h1>
+                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
+              </div>
+              <BottomNav />
+            </div>
           </Route>
         </Switch>
 

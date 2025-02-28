@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -7,11 +6,11 @@ import { Input } from "@/components/ui/input";
 import Logo from '../ui/logo';
 
 interface TopNavProps {
-  isMapView: boolean;
-  toggleView: () => void;
-  toggleFilterSheet: () => void;
-  isFilterSheetOpen: boolean;
-  setIsFilterSheetOpen: (isOpen: boolean) => void;
+  isMapView?: boolean;
+  toggleView?: () => void;
+  toggleFilterSheet?: () => void;
+  isFilterSheetOpen?: boolean;
+  setIsFilterSheetOpen?: (open: boolean) => void;
 }
 
 const TopNav: React.FC<TopNavProps> = ({ 
@@ -50,7 +49,7 @@ const TopNav: React.FC<TopNavProps> = ({
         >
           <Search className="h-5 w-5" />
         </Button>
-        
+
         <Button 
           onClick={toggleView} 
           variant="ghost" 
@@ -59,7 +58,7 @@ const TopNav: React.FC<TopNavProps> = ({
         >
           {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
         </Button>
-        
+
         <Link href="/create">
           <Button variant="ghost" size="icon" className="text-white hover:bg-blue-600">
             <Plus className="h-5 w-5" />

@@ -27,6 +27,9 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import { apiRequest } from "@/lib/queryClient"
 import React from 'react';
+import TopNav from "@/components/Layout/TopNav";
+import BottomNav from "@/components/Layout/BottomNav";
+
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
 const DEFAULT_ZOOM = 6 // For Netherlands overview
@@ -223,125 +226,98 @@ export default function CreateEventPage() {
   }
 
   return (
-    <div className="container max-w-2xl mx-auto py-10">
-      <Card className="p-6 relative">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute right-4 top-4"
-          onClick={() => setLocation('/')}
-        >
-          <X className="h-4 w-4" />
-        </Button>
+    <div className="h-screen flex flex-col relative">
+      <TopNav />
+      <div className="flex-1 overflow-auto p-4 pb-24">
+        <Card className="p-6 relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-4 top-4"
+            onClick={() => setLocation('/')}
+          >
+            <X className="h-4 w-4" />
+          </Button>
 
-        <h1 className="text-2xl font-bold mb-6">Event Aanmaken</h1>
+          <h1 className="text-2xl font-bold mb-6">Event Aanmaken</h1>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Title field */}
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Event Titel *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Voer event titel in" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Title field */}
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Event Titel *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Voer event titel in" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {/* Location field */}
-            <div className="space-y-2">
-              <FormLabel>Locatie *</FormLabel>
-              <div className="h-[200px] rounded-md overflow-hidden relative border-2 border-gray-200">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="absolute top-2 right-2 z-[1000] bg-white/90 hover:bg-white"
-                  onClick={() => setIsSatelliteView(!isSatelliteView)}
-                  title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
-                >
-                  <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
-                </Button>
-                <MapContainer
-                  center={[position.lat, position.lng]}
-                  zoom={zoom}
-                  className="h-full w-full"
-                  zoomControl={false}
-                >
-                  <TileLayer url={tileUrl} {...tileConfig} />
-                  <LocationMarker />
-                </MapContainer>
+              {/* Location field */}
+              <div className="space-y-2">
+                <FormLabel>Locatie *</FormLabel>
+                <div className="h-[200px] rounded-md overflow-hidden relative border-2 border-gray-200">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute top-2 right-2 z-[1000] bg-white/90 hover:bg-white"
+                    onClick={() => setIsSatelliteView(!isSatelliteView)}
+                    title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
+                  >
+                    <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </Button>
+                  <MapContainer
+                    center={[position.lat, position.lng]}
+                    zoom={zoom}
+                    className="h-full w-full"
+                    zoomControl={false}
+                  >
+                    <TileLayer url={tileUrl} {...tileConfig} />
+                    <LocationMarker />
+                  </MapContainer>
+                </div>
               </div>
-            </div>
 
-            <FormField
-              control={form.control}
-              name="location.notificationReach"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notification Reach</FormLabel>
-                  <FormControl>
-                    <Slider
-                      min={MIN_REACH}
-                      max={MAX_REACH}
-                      step={0.1}
-                      value={[field.value]}
-                      onValueChange={(vals) => {
-                        const value = vals[0]
-                        field.onChange(value)
-                        setPosition({...position, notificationReach: value})
-                      }}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Notification radius: {field.value} km
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category *</FormLabel>
-                  <FormControl>
-                    <CategoryPicker {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="subcategory"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Subcategory</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter subcategory" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="startDate"
+                name="location.notificationReach"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Date *</FormLabel>
+                    <FormLabel>Notification Reach</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Slider
+                        min={MIN_REACH}
+                        max={MAX_REACH}
+                        step={0.1}
+                        value={[field.value]}
+                        onValueChange={(vals) => {
+                          const value = vals[0]
+                          field.onChange(value)
+                          setPosition({...position, notificationReach: value})
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Notification radius: {field.value} km
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category *</FormLabel>
+                    <FormControl>
+                      <CategoryPicker {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -350,153 +326,184 @@ export default function CreateEventPage() {
 
               <FormField
                 control={form.control}
-                name="startTime"
+                name="subcategory"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Time *</FormLabel>
+                    <FormLabel>Subcategory</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
+                      <Input placeholder="Enter subcategory" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Date *</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="startTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Time *</FormLabel>
+                      <FormControl>
+                        <Input type="time" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>End Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>End Time</FormLabel>
+                      <FormControl>
+                        <Input type="time" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="endTime"
+                name="recurrence"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>End Time</FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
+                    <FormLabel>Event Frequency</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select frequency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {RECURRENCE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
 
-            <FormField
-              control={form.control}
-              name="recurrence"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Event Frequency</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select frequency" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {RECURRENCE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="maxParticipants"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Max Participants</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="Enter max participants"
-                      {...field}
-                      onChange={e => field.onChange(parseInt(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Enter event description" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="isPaid"
-              render={({ field }) => (
-                <FormItem className="flex items-center space-x-2">
-                  <FormControl>
-                    <Input
-                      type="checkbox"
-                      className="w-4 h-4"
-                      checked={field.value}
-                      onChange={e => field.onChange(e.target.checked)}
-                    />
-                  </FormControl>
-                  <FormLabel>Is this a paid event?</FormLabel>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {form.watch("isPaid") && (
               <FormField
                 control={form.control}
-                name="price"
+                name="maxParticipants"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Price per person</FormLabel>
+                    <FormLabel>Max Participants</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="Enter price"
+                        placeholder="Enter max participants"
                         {...field}
-                        onChange={e => field.onChange(parseFloat(e.target.value))}
+                        onChange={e => field.onChange(parseInt(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
 
-            <Button type="submit" className="w-full">
-              Create Event
-            </Button>
-          </form>
-        </Form>
-      </Card>
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Enter event description" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="isPaid"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <Input
+                        type="checkbox"
+                        className="w-4 h-4"
+                        checked={field.value}
+                        onChange={e => field.onChange(e.target.checked)}
+                      />
+                    </FormControl>
+                    <FormLabel>Is this a paid event?</FormLabel>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {form.watch("isPaid") && (
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Price per person</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="Enter price"
+                          {...field}
+                          onChange={e => field.onChange(parseFloat(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <Button type="submit" className="w-full">
+                Create Event
+              </Button>
+            </form>
+          </Form>
+        </Card>
+      </div>
+      <BottomNav />
     </div>
   );
 }

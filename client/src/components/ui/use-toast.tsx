@@ -1,3 +1,3 @@
 
-// Re-export from hooks to maintain path compatibility
-export { useToast, toast } from "@/hooks/use-toast";
+// This file is being removed as it's a duplicate of hooks/use-toast.tsx
+// It was causing conflicts with the toast implementation

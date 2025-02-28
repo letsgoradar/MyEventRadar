@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Search, Plus } from 'lucide-react';
 import { Input } from "@/components/ui/input";

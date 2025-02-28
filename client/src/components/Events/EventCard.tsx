@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Event } from '@shared/schema';
-import { MapPin, Calendar, Euro, Heart } from 'lucide-react';
+import { MapPin, Calendar, Euro } from 'lucide-react';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +10,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import CategoryIcon from './CategoryIcon';
 import './leaflet-fix.css';
-import { useToast } from '@/hooks/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
-
 
 // Fix Leaflet icon issues
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -36,63 +33,14 @@ const miniEventIcon = L.divIcon({
 
 interface EventCardProps {
   event: Event;
-  distance: number | null;
-  showFavoriteButton?: boolean;
-  actionButtons?: React.ReactNode;
+  distance: number;
 }
 
-export default function EventCard({ 
-  event, 
-  distance, 
-  showFavoriteButton = true, 
-  actionButtons 
-}: EventCardProps) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [isFavorite, setIsFavorite] = useState<boolean>(event.isFavorite || false);
+export default function EventCard({ event, distance }: EventCardProps) {
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
-  const locationDisplay = distance !== null ? `${distance.toFixed(1)} km away` : '';
-
-  const toggleFavorite = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    try {
-      const response = await fetch(`/api/events/${event.id}/favorite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ isFavorite: !isFavorite }),
-      });
-
-      if (response.ok) {
-        setIsFavorite(!isFavorite);
-        queryClient.invalidateQueries({ queryKey: ['favorite-events'] });
-
-        toast({
-          title: isFavorite ? "Removed from favorites" : "Added to favorites",
-          description: isFavorite 
-            ? "Event removed from your favorites" 
-            : "Event added to your favorites",
-          variant: "default",
-        });
-      } else {
-        throw new Error('Failed to update favorite status');
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update favorite status",
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md relative">
-      {actionButtons}
-
+    <Card className="overflow-hidden transition-all hover:shadow-md">
       <CardHeader className="p-4 pb-0">
         <div className="flex justify-between items-start">
           <div>
@@ -102,7 +50,7 @@ export default function EventCard({
             </CardTitle>
             <CardDescription className="flex items-center gap-1 mt-1">
               <MapPin className="h-3 w-3" />
-              <span className="text-xs">{locationDisplay}</span>
+              <span className="text-xs">{distance.toFixed(1)} km</span>
             </CardDescription>
           </div>
           <Badge variant="outline" className="bg-primary/10 text-primary text-xs">
@@ -134,6 +82,8 @@ export default function EventCard({
             <div className="line-clamp-3 text-sm">
               {event.description || 'Geen beschrijving beschikbaar'}
             </div>
+
+            {/* Removed Icon */}
           </div>
 
           <div className="h-[120px] min-h-[100px] max-h-[150px] md:min-w-[150px] md:max-w-[200px] rounded-md overflow-hidden shadow-sm event-card-map">
@@ -154,15 +104,6 @@ export default function EventCard({
             </MapContainer>
           </div>
         </div>
-        {showFavoriteButton && (
-          <button
-            onClick={toggleFavorite}
-            className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-white rounded-full shadow-sm"
-            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-          >
-            <Heart className={`h-4 w-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
-          </button>
-        )}
       </CardContent>
     </Card>
   );

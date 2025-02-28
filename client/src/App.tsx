@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { MapPin, Calendar as CalendarIcon, Heart, User } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
-import { Link, Route, Switch, useLocation } from "wouter"
+import { Link, Route, Switch } from "wouter"
 import TopNav from "@/components/Layout/TopNav"
 import { Toaster } from '@/components/ui/toaster'
 import { CategoryPicker } from "@/components/CategoryPicker"
@@ -14,10 +14,6 @@ import EventList from "@/components/Events/EventList"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
 import CreateEventPage from "@/pages/create-event"
-import MyEvents from '@/components/Events/MyEvents';
-import FavoriteEvents from '@/components/Events/FavoriteEvents';
-import EditEventPage from '@/pages/edit-event';
-
 
 const queryClient = new QueryClient()
 
@@ -32,19 +28,25 @@ interface TempFilters {
 }
 
 export default function App() {
-  const [_, setLocation] = useLocation();
-  const [isMapView, setIsMapView] = React.useState(true);
-  const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false);
-  const [currentTab, setCurrentTab] = React.useState<'explore' | 'my-events' | 'favorites'>('explore');
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [category, setCategory] = React.useState("")
+  const [fromDate, setFromDate] = React.useState<Date | null>(null)
+  const [toDate, setToDate] = React.useState<Date | null>(null)
+  const [showPaidEvents, setShowPaidEvents] = React.useState(false)
+  const [useDistanceFilter, setUseDistanceFilter] = React.useState(false)
+  const [distanceRadius, setDistanceRadius] = React.useState(5)
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
+  const [isMapView, setIsMapView] = React.useState(true)
 
-  // Filter states
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [category, setCategory] = React.useState<string | null>(null);
-  const [fromDate, setFromDate] = React.useState<Date | null>(null);
-  const [toDate, setToDate] = React.useState<Date | null>(null);
-  const [showPaidEvents, setShowPaidEvents] = React.useState(true);
-  const [useDistanceFilter, setUseDistanceFilter] = React.useState(false);
-  const [distanceRadius, setDistanceRadius] = React.useState(10);
+  const [tempFilters, setTempFilters] = React.useState<TempFilters>({
+    searchQuery,
+    category,
+    fromDate,
+    toDate,
+    showPaidEvents,
+    useDistanceFilter,
+    distanceRadius
+  })
 
   const toggleView = React.useCallback(() => {
     setIsMapView(prev => !prev);
@@ -56,9 +58,6 @@ export default function App() {
         <Switch>
           <Route path="/create">
             <CreateEventPage />
-          </Route>
-          <Route path="/edit-event/:eventId">
-            {(params) => <EditEventPage />}
           </Route>
           <Route path="/">
             <>
@@ -131,12 +130,6 @@ export default function App() {
                 </div>
               </nav>
             </>
-          </Route>
-          <Route path="/events">
-            <MyEvents />
-          </Route>
-          <Route path="/favorites">
-            <FavoriteEvents />
           </Route>
         </Switch>
 

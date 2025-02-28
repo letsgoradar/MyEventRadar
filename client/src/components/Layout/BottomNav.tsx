@@ -1,69 +1,56 @@
-import React, { useState } from 'react';
-import { Home, Plus, User, Heart, Calendar } from 'lucide-react';
-import { useLocation, setLocation } from 'wouter';
 
+import React from 'react';
+import { Home, PlusCircle, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 interface BottomNavProps {
-  currentTab: 'explore' | 'my-events' | 'favorites' | 'profile';
-  setCurrentTab: (tab: 'explore' | 'my-events' | 'favorites' | 'profile') => void;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
 }
 
-export default function BottomNav({ currentTab, setCurrentTab }: BottomNavProps) {
-  const [location, setLocation] = useLocation();
-
-  const handleTabClick = (tab: 'explore' | 'my-events' | 'favorites' | 'profile', path: string) => {
-    setCurrentTab(tab);
-    if (location.pathname !== path) {
-      setLocation(path);
-    }
-  };
-
+function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 w-full bg-background border-t border-border h-[58px] flex items-center justify-around z-10">
-      <button
-        onClick={() => handleTabClick('explore', '/')}
-        className={`flex flex-col items-center justify-center p-2 ${
-          currentTab === 'explore' ? 'text-[#0097FB]' : 'text-muted-foreground'
-        }`}
+    <nav className="fixed bottom-0 left-0 w-full flex items-center justify-between bg-white border-t border-gray-200 px-4 py-2 z-10">
+      <Button
+        variant="ghost"
+        className="flex-1 py-6 hover:bg-gray-100"
+        onClick={() => {
+          setActiveTab('home');
+        }}
+        data-active={activeTab === 'home'}
       >
-        <Home className="h-5 w-5" />
-        <span className="text-xs mt-1">Home</span>
-      </button>
+        <div className="flex flex-col items-center">
+          <Home className="w-6 h-6 mb-1" />
+          <span className="text-xs">Home</span>
+        </div>
+      </Button>
 
-      <button
-        onClick={() => handleTabClick('my-events', '/my-events')}
-        className={`flex flex-col items-center justify-center p-2 ${
-          currentTab === 'my-events' ? 'text-[#0097FB]' : 'text-muted-foreground'
-        }`}
-      >
-        <Calendar className="h-5 w-5" />
-        <span className="text-xs mt-1">My Events</span>
-      </button>
-
-      <Link to="/create" className="flex flex-col items-center justify-center p-2">
-        <Plus className="h-5 w-5" />
-        <span className="text-xs mt-1">Aanmaken</span>
+      <Link to="/create-event" className="flex-1">
+        <Button
+          variant="default"
+          className="w-full h-[62px] flex flex-col items-center justify-center bg-[#0097FB] hover:bg-[#0087e1] text-white transform -translate-y-2 rounded-lg shadow-md"
+        >
+          <PlusCircle className="w-6 h-6 mb-1" />
+          <span className="text-xs">Aanmaken</span>
+        </Button>
       </Link>
 
-      <button
-        onClick={() => handleTabClick('favorites', '/favorites')}
-        className={`flex flex-col items-center justify-center p-2 ${
-          currentTab === 'favorites' ? 'text-[#0097FB]' : 'text-muted-foreground'
-        }`}
+      <Button
+        variant="ghost"
+        className="flex-1 py-6 hover:bg-gray-100"
+        onClick={() => {
+          setActiveTab('profile');
+        }}
+        data-active={activeTab === 'profile'}
       >
-        <Heart className="h-5 w-5" />
-        <span className="text-xs mt-1">Favorieten</span>
-      </button>
-
-      <button
-        onClick={() => handleTabClick('profile', '/profile')}
-        className={`flex flex-col items-center justify-center p-2 ${
-          currentTab === 'profile' ? 'text-[#0097FB]' : 'text-muted-foreground'
-        }`}
-      >
-        <User className="h-5 w-5" />
-        <span className="text-xs mt-1">Profiel</span>
-      </button>
+        <div className="flex flex-col items-center">
+          <User className="w-6 h-6 mb-1" />
+          <span className="text-xs">Profiel</span>
+        </div>
+      </Button>
     </nav>
   );
 }
+
+export default BottomNav;

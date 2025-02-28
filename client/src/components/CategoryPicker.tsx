@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React, { forwardRef } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 
@@ -39,7 +39,7 @@ interface CategoryPickerProps extends React.ComponentPropsWithoutRef<typeof Sele
   onValueChange?: (value: string) => void;
 }
 
-export const CategoryPicker = React.forwardRef<
+export const CategoryPicker = forwardRef<
   React.ElementRef<typeof Select>,
   CategoryPickerProps
 >(({ onValueChange, ...props }, ref) => {

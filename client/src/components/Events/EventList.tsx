@@ -5,7 +5,7 @@ import { Event } from "@shared/schema";
 import EventCard from "./EventCard";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "@/hooks/useLocation";
-import CategoryIcon from './CategoryIcon'; // Added import statement
+import CategoryIcon from './CategoryIcon'; // Import CategoryIcon
 
 // Helper function to calculate distance between two coordinates
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -19,7 +19,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return Math.round(R * c * 10) / 10;
 }
 
-// Definieer de getCategoryColor functie
+// Definieer de getCategoryColor functie lokaal
 const getCategoryColor = (category: string): string => {
   const colorMap: Record<string, string> = {
     festival: '#FF9800',  // oranje

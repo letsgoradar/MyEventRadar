@@ -27,6 +27,16 @@ interface TempFilters {
   distanceRadius: number;
 }
 
+// Placeholder MyEvents component - needs implementation to filter by creator
+const MyEvents = () => {
+  return (
+    <div className="h-full overflow-auto">
+      <EventList filters={{searchQuery:"", category:"", fromDate:null, toDate:null, showPaidEvents:false, useDistanceFilter:false, distanceRadius:5}} sortBy="date" sortAscending={true} />
+    </div>
+  );
+};
+
+
 export default function App() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [category, setCategory] = React.useState("")
@@ -130,6 +140,9 @@ export default function App() {
                 </div>
               </nav>
             </>
+          </Route>
+          <Route path="/events">
+            <MyEvents />
           </Route>
         </Switch>
 

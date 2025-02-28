@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Home, PlusCircle, User } from 'lucide-react';
+import { Home, PlusCircle, User, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
@@ -33,6 +32,18 @@ function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
         >
           <PlusCircle className="w-6 h-6 mb-1" />
           <span className="text-xs">Aanmaken</span>
+        </Button>
+      </Link>
+
+      <Link to="/events" className="flex-1"> {/* Added link to /events */}
+        <Button
+          variant="ghost"
+          className="flex-1 py-6 hover:bg-gray-100"
+        >
+          <div className="flex flex-col items-center">
+            <Calendar className="w-6 h-6 mb-1" /> {/* Added Calendar icon */}
+            <span className="text-xs">Events</span>
+          </div>
         </Button>
       </Link>
 

@@ -164,7 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
   const RATE_LIMIT_DELAY = 1100; // 1.1 seconds between requests
   let lastRequestTime = 0;
-  
+
   app.get("/api/geocode", async (req, res) => {
     try {
       const { lat, lng } = req.query;
@@ -185,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY - timeSinceLastRequest));
       }
       lastRequestTime = Date.now();
-      
+
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10`,
         {
@@ -208,13 +208,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Invalid content type:", contentType);
         return res.json({ city: "Unknown location" });
       }
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Geocoding error:", response.status, response.statusText, errorText);
         return res.status(500).json({ city: "Unknown location" });
       }
-      
+
       const text = await response.text();
       let data;
       try {
@@ -223,23 +223,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Failed to parse geocoding response:", text.substring(0, 100));
         return res.status(500).json({ city: "Unknown location" });
       }
-      
+
       const city = data.address?.city || 
                    data.address?.town || 
                    data.address?.village || 
                    data.address?.municipality ||
                    "Unknown location";
-      
+
       // Cache the result
       GEOCODING_CACHE.set(cacheKey, {
         city,
         timestamp: Date.now()
       });
-      
+
       res.json({ city });
     } catch (error) {
       console.error("Geocoding error:", error);
       res.status(500).json({ city: "Unknown location" });
+    }
+  });
+
+
+  // User's hosted events
+  app.get('/api/users/:userId/hosted-events', async (req, res) => {
+    const userId = Number(req.params.userId);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    try {
+      const events = await storage.getEventsByHostId(userId); // Assumed function in storage
+      return res.json(events);
+    } catch (error) {
+      console.error('Error fetching user\'s hosted events:', error);
+      return res.status(500).json({ error: 'Failed to fetch hosted events' });
+    }
+  });
+
+  // User's participating events
+  app.get('/api/users/:userId/participating-events', async (req, res) => {
+    const userId = Number(req.params.userId);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    try {
+      const events = await storage.getEventsByUserId(userId); // Assumed function in storage
+      return res.json(events);
+    } catch (error) {
+      console.error('Error fetching user\'s participating events:', error);
+      return res.status(500).json({ error: 'Failed to fetch participating events' });
     }
   });
 

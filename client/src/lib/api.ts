@@ -1,4 +1,3 @@
-
 import { QueryClient } from "@tanstack/react-query";
 
 // Define baseUrl based on environment
@@ -7,56 +6,35 @@ const baseUrl = window.location.origin.includes('replit.dev')
   ? window.location.origin
   : `${window.location.protocol}//${window.location.hostname}:5000`;
 
-export async function apiRequest(path: string, options?: RequestInit) {
-  const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
-  
-  try {
-    // Create a timeout controller
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
-    
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...options?.headers,
-      },
-      signal: options?.signal || controller.signal,
-      // Ensure credentials are included for same-origin requests
-      credentials: 'same-origin',
-    });
-    
-    // Clear the timeout
-    clearTimeout(timeoutId);
+export async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+    const baseUrl = '/api';
+    const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
 
-    if (!response.ok) {
-      console.error(`API error: ${response.status} for URL: ${url}`);
-      throw new Error(`API error: ${response.status} - ${response.statusText}`);
-    }
+    try {
+      console.log(`Making API request to: ${url}`);
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
 
-    // Check if the response is JSON
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return response.json();
-    }
+      if (!response.ok) {
+        console.error(`API error: ${response.status} ${response.statusText}`);
+        throw new Error(`API request failed: ${response.status}`);
+      }
 
-    return response.text();
-  } catch (error) {
-    console.error(`Fetch error for ${url}:`, error);
-    
-    // Provide more specific error messages
-    if (error.name === 'AbortError') {
-      throw new Error(`Request timeout for ${url}`);
-    } else if (error.message && error.message.includes('NetworkError')) {
-      throw new Error(`Network error when connecting to ${url} - Check if the server is running`);
-    } else if (error.message && error.message.includes('CORS')) {
-      throw new Error(`CORS error when connecting to ${url} - Check server CORS configuration`);
+      const data = await response.json();
+      console.log(`API response data:`, data);
+      return data;
+    } catch (error) {
+      console.error('API request error:', error);
+      throw error;
     }
-    
-    // Re-throw for React Query to handle retries
-    throw error;
-  }
 }
 
 export async function fetchEventsByRadius(lat: number, lng: number, radius: number) {

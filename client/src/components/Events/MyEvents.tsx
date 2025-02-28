@@ -15,11 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useNavigate } from 'wouter';
+import { useLocation, useSearchParams } from 'wouter';
 
 export default function MyEvents() {
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [location, setLocation] = useLocation();
   const [deleteEventId, setDeleteEventId] = useState<number | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -54,7 +54,7 @@ export default function MyEvents() {
   }
 
   const handleEditEvent = (eventId: number) => {
-    navigate(`/edit-event/${eventId}`);
+    setLocation(`/edit-event/${eventId}`);
   };
 
   const confirmDelete = (eventId: number) => {

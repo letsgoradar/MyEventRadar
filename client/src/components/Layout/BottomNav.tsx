@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Home, Plus, User, Heart, Calendar } from 'lucide-react';
-import { useLocation } from 'wouter';
+import { useLocation, setLocation } from 'wouter';
 
 
 interface BottomNavProps {
@@ -9,13 +9,12 @@ interface BottomNavProps {
 }
 
 export default function BottomNav({ currentTab, setCurrentTab }: BottomNavProps) {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const [location, setLocation] = useLocation();
 
   const handleTabClick = (tab: 'explore' | 'my-events' | 'favorites' | 'profile', path: string) => {
     setCurrentTab(tab);
     if (location.pathname !== path) {
-      navigate(path);
+      setLocation(path);
     }
   };
 

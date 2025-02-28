@@ -1,0 +1,39 @@
+Got user location: 51.7767168 5.5345152
+Fetching events with params: 
+Object {lat: 51.7767168, lng: 5.5345152, radius: 10}
+Fetching events with params: 
+Object {lat: 51.7767168, lng: 5.5345152, radius: 10}
+Making API request to: /api/events/nearby?lat=51.7767168&lng=5.5345152&radius=10
+Debug - Fetched events: 
+Array []
+Debug - Filtered events: 0 events
+Geen evenementen gevonden met deze filters.
+API response data: 
+(52) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+Debug - Fetched events: 
+(52) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]
+Debug - Filtered events: 52 events
+Warning: Function components cannot be given refs. Attempts to access this ref will fail. Did you mean to use React.forwardRef()?
+
+Check the render method of `CategoryPicker`.
+    at Select (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=8dc88812:79:5)
+    at div
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/CategoryPicker.tsx:95:6
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=8dc88812:52:11
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=8dc88812:33:11
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/ui/form.tsx:129:9
+    at div
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/ui/form.tsx:71:6
+    at Controller (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-YABUFNLM.js?v=8dc88812:313:35)
+    at FormField (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/ui/form.tsx:32:6)
+    at form
+    at FormProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-YABUFNLM.js?v=8dc88812:102:11)
+    at div
+    at _c (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/ui/card.tsx:20:11)
+    at div
+    at CreateEventPage (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/pages/create-event.tsx:85:21)
+    at Route (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8dc88812:323:16)
+    at Switch (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8dc88812:379:17)
+    at div
+    at QueryClientProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=8dc88812:2805:3)
+    at App (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/App.tsx?v=teJFvxtLWwbfWIZuTyapV:37:47)

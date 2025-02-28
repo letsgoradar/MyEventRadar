@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, CalendarDays, Heart, User, PlusCircle } from 'lucide-react';
+import { Home, PlusCircle, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 

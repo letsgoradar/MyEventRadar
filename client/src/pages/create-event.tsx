@@ -254,9 +254,9 @@ export default function CreateEventPage() {
             />
 
             {/* Location field */}
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <FormLabel>Locatie *</FormLabel>
-              <div className="h-[300px] rounded-md overflow-hidden" style={{ zIndex: 0 }}>
+              <div className="h-[300px] rounded-md overflow-hidden absolute-position-map">
                 <Button
                   variant="outline"
                   size="icon"
@@ -269,13 +269,15 @@ export default function CreateEventPage() {
                 <MapContainer
                   center={[position.lat, position.lng]}
                   zoom={zoom}
-                  className="h-full w-full"
+                  className="h-full w-full map-background"
                   zoomControl={false}
                 >
                   <TileLayer url={tileUrl} {...tileConfig} />
                   <LocationMarker />
                 </MapContainer>
               </div>
+              {/* Spacer to keep form layout intact */}
+              <div className="h-[300px] invisible"></div>
             </div>
 
             <FormField

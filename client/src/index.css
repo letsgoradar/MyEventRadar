@@ -6,8 +6,16 @@
 [data-radix-select-content],
 [data-radix-select-viewport],
 [data-radix-select-item],
-[role="listbox"] {
-  z-index: 50 !important;
+[role="listbox"],
+[data-radix-popper],
+.select-content,
+.radix-dropdown-menu,
+.dropdown-menu,
+.popover-content,
+.combobox-content,
+.tooltip-content {
+  z-index: 1001 !important;
+  position: relative !important;
 }
 
 /* Zorg dat form controls boven de kaart komen */
@@ -16,9 +24,60 @@
 select,
 .select,
 .select-trigger,
-.select-content {
+.select-content,
+input,
+textarea,
+button,
+.input,
+.button,
+.textarea,
+.FormItem,
+.FormControl,
+.FormField,
+.FormLabel,
+.FormMessage {
   position: relative;
-  z-index: 40;
+  z-index: 1000;
+}
+
+/* Kaart naar achtergrond */
+.map-background {
+  z-index: 1 !important;
+}
+
+.absolute-position-map {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
+/* Overrule Leaflet z-indices */
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+  z-index: 1 !important;
+}
+
+.leaflet-overlay-pane {
+  z-index: 2 !important;
+}
+
+.leaflet-popup-pane {
+  z-index: 3 !important;
+}
+
+.leaflet-control {
+  z-index: 4 !important;
 }
 
 

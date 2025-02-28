@@ -19,8 +19,8 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return Math.round(R * c * 10) / 10;
 }
 
-// Definieer de getCategoryColor functie
-const getCategoryColor = (category: string): string => {
+// Definieer de getCategoryColor functie en exporteer deze zodat deze herbruikbaar is
+export const getCategoryColor = (category: string): string => {
   const colorMap: Record<string, string> = {
     festival: '#FF9800',  // oranje
     food: '#4CAF50',      // groen

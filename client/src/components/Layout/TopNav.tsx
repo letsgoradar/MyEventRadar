@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Menu, X, Search, Plus } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import Logo from '../ui/logo';
-
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Search } from 'lucide-react';

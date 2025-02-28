@@ -13,16 +13,27 @@
   font-family: inherit;
 }
 
+/* Category icon styles */
+.category-icon {
+  transition: transform 0.2s ease;
+}
+
+.category-icon:hover {
+  transform: scale(1.1);
+}
+
 /* Fixed size constraints for event cards */
 @media (min-width: 768px) {
   .event-card-map {
     min-height: 120px;
     max-height: 150px;
+    min-width: 150px;
+    max-width: 200px;
   }
   
   .category-icon {
-    min-width: 48px;
-    min-height: 48px;
+    min-width: 32px;
+    min-height: 32px;
     max-width: 64px;
     max-height: 64px;
   }
@@ -33,11 +44,12 @@
   .event-card-map {
     min-height: 100px;
     max-height: 120px;
+    width: 100%;
   }
   
   .category-icon {
-    min-width: 32px;
-    min-height: 32px;
+    min-width: 24px;
+    min-height: 24px;
     max-width: 48px;
     max-height: 48px;
   }

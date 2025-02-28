@@ -19,6 +19,25 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return Math.round(R * c * 10) / 10;
 }
 
+// Definieer de getCategoryColor functie
+const getCategoryColor = (category: string): string => {
+  const colorMap: Record<string, string> = {
+    festival: '#FF9800',  // oranje
+    food: '#4CAF50',      // groen
+    culture: '#9C27B0',   // paars
+    sports: '#2196F3',    // blauw
+    market: '#FF5722',    // donkeroranje
+    education: '#607D8B', // blauwgrijs
+    music: '#E91E63',     // roze
+    technology: '#00BCD4', // lichtblauw
+    gaming: '#8BC34A',    // lichtgroen
+    health: '#FFEB3B',    // geel
+    nature: '#795548',    // bruin
+  };
+
+  return colorMap[category] || '#9E9E9E'; // grijs als fallback
+};
+
 function EventList() {
   const { location } = useLocation();
   const [radius, setRadius] = useState(10); // increased default radius

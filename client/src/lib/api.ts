@@ -10,8 +10,10 @@ export async function apiRequest<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-    const baseUrl = '/api';
-    const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
+    // Don't add '/api' prefix if path already starts with it
+    const url = path.startsWith('http') || path.startsWith('/api') 
+      ? path 
+      : `/api${path}`;
 
     try {
       console.log(`Making API request to: ${url}`);
@@ -25,10 +27,23 @@ export async function apiRequest<T>(
 
       if (!response.ok) {
         console.error(`API error: ${response.status} ${response.statusText}`);
-        throw new Error(`API request failed: ${response.status}`);
+        // Try to get error details from response
+        const text = await response.text();
+        console.error(`Response content:`, text.substring(0, 200)); // Log first 200 chars
+        throw new Error(`API request failed: ${response.status} - ${text.substring(0, 100)}`);
       }
 
-      const data = await response.json();
+      // Check if the response is JSON
+      const contentType = response.headers.get('content-type');
+      let data;
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.warn('Response is not JSON:', text.substring(0, 200));
+        throw new Error('Invalid response format: Expected JSON');
+      }
+      
       console.log(`API response data:`, data);
       return data;
     } catch (error) {

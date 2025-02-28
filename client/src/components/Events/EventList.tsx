@@ -5,8 +5,7 @@ import { Event } from "@shared/schema";
 import EventCard from "./EventCard";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "@/hooks/useLocation";
-import CategoryIcon from './CategoryIcon'; // Added import statement
-import { getCategoryColor } from "@/components/Events/EventList"; // Added import statement
+import CategoryIcon, { getCategoryColor } from './CategoryIcon'; // Importeer getCategoryColor van CategoryIcon
 
 // Helper function to calculate distance between two coordinates
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -20,24 +19,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return Math.round(R * c * 10) / 10;
 }
 
-// Definieer de getCategoryColor functie en exporteer deze zodat deze herbruikbaar is
-export const getCategoryColor = (category: string): string => {
-  const colorMap: Record<string, string> = {
-    festival: '#FF9800',  // oranje
-    food: '#4CAF50',      // groen
-    culture: '#9C27B0',   // paars
-    sports: '#2196F3',    // blauw
-    market: '#FF5722',    // donkeroranje
-    education: '#607D8B', // blauwgrijs
-    music: '#E91E63',     // roze
-    technology: '#00BCD4', // lichtblauw
-    gaming: '#8BC34A',    // lichtgroen
-    health: '#FFEB3B',    // geel
-    nature: '#795548',    // bruin
-  };
-
-  return colorMap[category] || '#9E9E9E'; // grijs als fallback
-};
+// We gebruiken nu de getCategoryColor uit CategoryIcon.tsx
 
 function EventList() {
   const { location } = useLocation();

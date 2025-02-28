@@ -6,7 +6,6 @@ import EventCard from "./EventCard";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "@/hooks/useLocation";
 import CategoryIcon from './CategoryIcon'; // Import CategoryIcon
-import { useFavorites } from "@/hooks/useFavorites";
 
 // Helper function to calculate distance between two coordinates
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -44,11 +43,6 @@ function EventList() {
   const [radius, setRadius] = useState(10); // increased default radius
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [subcategoryFilter, setSubcategoryFilter] = useState<string | null>(null);
-  const [showFavorites, setShowFavorites] = useState(true);
-  const [showMyEvents, setShowMyEvents] = useState(true);
-  const [showAllEvents, setShowAllEvents] = useState(true);
-  const [showPastEvents, setShowPastEvents] = useState(false);
-  const { favorites } = useFavorites();
   const [filteredEvents, setFilteredEvents] = useState<Array<Event & { distance: number }>>([]);
 
   // Use a larger initial radius to get more events
@@ -92,7 +86,7 @@ function EventList() {
     // Sort by distance
     eventsWithDistance.sort((a, b) => a.distance - b.distance);
 
-    // Apply filters based on multiple criteria
+    // Apply filters only if they're specified
     let filtered = [...eventsWithDistance];
 
     if (categoryFilter) {
@@ -103,19 +97,6 @@ function EventList() {
       filtered = filtered.filter(event => event.subcategory === subcategoryFilter);
     }
 
-    // Apply filters for all/favorites/myEvents/pastEvents
-    filtered = filtered.filter(event => {
-      const isFavorite = favorites.includes(event.id);
-      const isMyEvent = event.hostId === 1; // Huidige user id, dit zou uit auth context moeten komen
-      const isPastEvent = new Date(event.endTime) < new Date();
-
-      if (isPastEvent && !showPastEvents) return false;
-      if (!showAllEvents && !showFavorites && !showMyEvents) return false;
-      if (showFavorites && isFavorite) return true;
-      if (showMyEvents && isMyEvent) return true;
-      return showAllEvents;
-    });
-
     console.log("Debug - Filtered events:", filtered.length, "events");
 
     if (filtered.length === 0) {
@@ -123,7 +104,7 @@ function EventList() {
     }
 
     setFilteredEvents(filtered);
-  }, [events, categoryFilter, subcategoryFilter, showFavorites, showMyEvents, showAllEvents, showPastEvents, favorites, location]);
+  }, [events, categoryFilter, subcategoryFilter, location]);
 
   const incrementRadius = useCallback(() => {
     setRadius(prev => prev + 5);

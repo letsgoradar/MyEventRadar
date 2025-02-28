@@ -1,3 +1,27 @@
+
+/* Verhoog z-index van dropdown menu's */
+.radix-select-content,
+.radix-select-viewport,
+.radix-select-item,
+[data-radix-select-content],
+[data-radix-select-viewport],
+[data-radix-select-item],
+[role="listbox"] {
+  z-index: 50 !important;
+}
+
+/* Zorg dat form controls boven de kaart komen */
+.form-control,
+.form-item,
+select,
+.select,
+.select-trigger,
+.select-content {
+  position: relative;
+  z-index: 40;
+}
+
+
 @keyframes ping {
   75%, 100% {
     transform: scale(2);

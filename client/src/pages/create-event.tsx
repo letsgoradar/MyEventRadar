@@ -256,7 +256,7 @@ export default function CreateEventPage() {
             {/* Location field */}
             <div className="space-y-2">
               <FormLabel>Locatie *</FormLabel>
-              <div className="h-[200px] rounded-md overflow-hidden relative border-2 border-gray-200">
+              <div className="h-[300px] rounded-md overflow-hidden" style={{ zIndex: 0 }}>
                 <Button
                   variant="outline"
                   size="icon"

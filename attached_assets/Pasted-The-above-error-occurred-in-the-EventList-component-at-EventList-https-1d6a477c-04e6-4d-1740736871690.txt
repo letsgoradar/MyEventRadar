@@ -1,0 +1,30 @@
+The above error occurred in the <EventList> component:
+
+    at EventList (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/Events/EventList.tsx:35:24)
+    at div
+    at div
+    at Route (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8dc88812:323:16)
+    at Switch (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8dc88812:379:17)
+    at div
+    at QueryClientProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=8dc88812:2805:3)
+    at App (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/App.tsx?v=NUgaeQ7-WQN0B5I8mri4I:37:47)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+at EventList (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/Events/EventList.tsx:35:24)
+at div
+at div
+at Route (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8dc88812:323:16)
+at Switch (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8dc88812:379:17)
+at div
+at QueryClientProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=8dc88812:2805:3)
+at App (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/App.tsx?v=NUgaeQ7-WQN0B5I8mri4I:37:47)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+at t.value (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+getCategoryColor is not defined

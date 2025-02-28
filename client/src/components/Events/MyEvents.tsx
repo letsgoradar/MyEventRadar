@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Event } from '@shared/schema';
 import EventCard from './EventCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Pencil, Trash2, Heart } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +22,7 @@ export default function MyEvents() {
   const navigate = useNavigate();
   const [deleteEventId, setDeleteEventId] = useState<number | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  
+
   const { data: events, isLoading, error, refetch } = useQuery<Event[]>({
     queryKey: ['my-events'],
     queryFn: async () => {
@@ -65,12 +64,12 @@ export default function MyEvents() {
 
   const handleDeleteEvent = async () => {
     if (!deleteEventId) return;
-    
+
     try {
       const response = await fetch(`/api/events/${deleteEventId}`, {
         method: 'DELETE',
       });
-      
+
       if (response.ok) {
         toast({
           title: "Event deleted",
@@ -96,7 +95,7 @@ export default function MyEvents() {
   return (
     <div className="p-4 overflow-auto max-h-[calc(100vh-10rem)]">
       <h2 className="text-xl font-semibold mb-4">My Events</h2>
-      
+
       {events && events.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">
           {events.map((event) => (

@@ -1,14 +1,13 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { Event } from '@shared/schema';
 import EventCard from './EventCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Heart } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export default function FavoriteEvents() {
   const { toast } = useToast();
-  
+
   const { data: events, isLoading, error, refetch } = useQuery<Event[]>({
     queryKey: ['favorite-events'],
     queryFn: async () => {
@@ -42,7 +41,7 @@ export default function FavoriteEvents() {
   return (
     <div className="p-4 overflow-auto max-h-[calc(100vh-10rem)]">
       <h2 className="text-xl font-semibold mb-4">Favorite Events</h2>
-      
+
       {events && events.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">
           {events.map((event) => (

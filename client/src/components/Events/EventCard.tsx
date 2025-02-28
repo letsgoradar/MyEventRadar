@@ -83,11 +83,7 @@ export default function EventCard({ event, distance }: EventCardProps) {
               {event.description || 'Geen beschrijving beschikbaar'}
             </div>
 
-            <CategoryIcon 
-              category={event.category} 
-              size="md" 
-              className="mt-2" 
-            />
+            {/* Removed Icon */}
           </div>
 
           <div className="h-[120px] min-h-[100px] max-h-[150px] md:min-w-[150px] md:max-w-[200px] rounded-md overflow-hidden shadow-sm event-card-map">

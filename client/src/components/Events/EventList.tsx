@@ -166,7 +166,7 @@ function EventList() {
   }
 
   return (
-    <div className="p-4 overflow-auto max-h-[calc(100vh-16rem)]">
+    <div className="p-4 overflow-auto max-h-[calc(100vh-10rem)]">
       <div className="mb-3">
         <div className="flex flex-wrap gap-2 mb-3">
           {["festival", "food", "culture", "sports", "market", "education", "music", "technology", "gaming", "health", "nature"].map((cat) => (
@@ -180,8 +180,8 @@ function EventList() {
               }`}
               title={cat.charAt(0).toUpperCase() + cat.slice(1)}
             >
-              <CategoryIcon category={cat} size="xs" className="scale-70" />
-              <span className="ml-0.5">{cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
+              <CategoryIcon category={cat} size="sm" className="mr-1" style={{color: getCategoryColor(cat)}} />
+              <span>{cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
             </button>
           ))}
         </div>

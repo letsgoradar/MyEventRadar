@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Home, Plus, User, Heart, Calendar } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom'; // Corrected import
+import { useLocation } from 'wouter';
 
 
 interface BottomNavProps {

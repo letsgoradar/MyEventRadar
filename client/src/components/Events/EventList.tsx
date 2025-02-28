@@ -20,11 +20,12 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
 function EventList() {
   const { location } = useLocation();
-  const [radius, setRadius] = useState(5);
+  const [radius, setRadius] = useState(10); // increased default radius
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [subcategoryFilter, setSubcategoryFilter] = useState<string | null>(null);
   const [filteredEvents, setFilteredEvents] = useState<Array<Event & { distance: number }>>([]);
 
+  // Use a larger initial radius to get more events
   const { data: events, isLoading, isError } = useQuery({
     queryKey: ["events", location?.lat, location?.lng, radius],
     queryFn: async () => {
@@ -33,6 +34,9 @@ function EventList() {
       return fetchEventsByRadius(location.lat, location.lng, radius);
     },
     enabled: !!location,
+    // Add retry options to handle network issues
+    retry: 3,
+    retryDelay: 1000,
   });
 
   // Process events and calculate distances
@@ -55,7 +59,7 @@ function EventList() {
     // Sort by distance
     eventsWithDistance.sort((a, b) => a.distance - b.distance);
 
-    // Apply filters
+    // Apply filters only if they're specified
     let filtered = [...eventsWithDistance];
 
     if (categoryFilter) {
@@ -91,11 +95,33 @@ function EventList() {
     );
   }
 
-  if (filteredEvents.length === 0) {
+  if (filteredEvents.length === 0 && events && events.length > 0) {
+    // We have events but they're filtered out
     return (
       <div className="p-4 flex flex-col items-center">
         <p className="mb-4 text-center">
-          Geen evenementen gevonden in de buurt. Probeer de zoekcriteria aan te passen of een grotere zoekafstand.
+          Er zijn evenementen beschikbaar, maar ze voldoen niet aan je huidige filters. Probeer de filters aan te passen.
+        </p>
+        {categoryFilter || subcategoryFilter ? (
+          <Button onClick={() => {
+            setCategoryFilter(null);
+            setSubcategoryFilter(null);
+          }}>
+            Filters wissen
+          </Button>
+        ) : (
+          <Button onClick={incrementRadius}>
+            Zoekbereik vergroten ({radius} km → {radius + 5} km)
+          </Button>
+        )}
+      </div>
+    );
+  } else if (filteredEvents.length === 0) {
+    // No events at all
+    return (
+      <div className="p-4 flex flex-col items-center">
+        <p className="mb-4 text-center">
+          Geen evenementen gevonden in de buurt. Probeer een grotere zoekafstand.
         </p>
         <Button onClick={incrementRadius}>
           Zoekbereik vergroten ({radius} km → {radius + 5} km)

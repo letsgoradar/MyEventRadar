@@ -121,7 +121,7 @@ function CreateEventMarker() {
     mousedown: (e) => {
       setStartPoint({ x: e.originalEvent.clientX, y: e.originalEvent.clientY });
       setPressTimer(setTimeout(() => {
-        navigate(`/create?lat=${e.latlng.lat}&lng=${e.latlng.lng}&zoom=18`);
+        navigate(`/create-event?lat=${e.latlng.lat}&lng=${e.latlng.lng}&zoom=18`);
       }, 1000));
     },
     mousemove: (e) => {

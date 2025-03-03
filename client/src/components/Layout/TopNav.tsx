@@ -59,7 +59,7 @@ const TopNav: React.FC<TopNavProps> = ({
           {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
         </Button>
 
-        <Link href="/create">
+        <Link href="/create-event">
           <Button variant="ghost" size="icon" className="text-white hover:bg-blue-600">
             <Plus className="h-5 w-5" />
           </Button>

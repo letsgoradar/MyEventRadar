@@ -21,16 +21,6 @@ export default function BottomNav() {
         </Button>
       </Link>
 
-      <Link href="/create-event" className="flex-1">
-        <Button
-          variant="default"
-          className="w-full h-[62px] flex flex-col items-center justify-center bg-[#0097FB] hover:bg-[#0087e1] text-white transform -translate-y-2 rounded-lg shadow-md"
-        >
-          <PlusCircle className="w-6 h-6 mb-1" />
-          <span className="text-xs">Aanmaken</span>
-        </Button>
-      </Link>
-
       <Link href="/events" className="flex-1">
         <Button
           variant="ghost"
@@ -41,6 +31,16 @@ export default function BottomNav() {
             <Calendar className="w-6 h-6 mb-1" />
             <span className="text-xs">Events</span>
           </div>
+        </Button>
+      </Link>
+
+      <Link href="/create-event" className="flex-1">
+        <Button
+          variant="default"
+          className="w-full h-[62px] flex flex-col items-center justify-center bg-[#0097FB] hover:bg-[#0087e1] text-white transform -translate-y-2 rounded-lg shadow-md"
+        >
+          <PlusCircle className="w-6 h-6 mb-1" />
+          <span className="text-xs">Aanmaken</span>
         </Button>
       </Link>
 

@@ -80,7 +80,7 @@ export default function App() {
                 isFilterSheetOpen={isFilterSheetOpen}
                 setIsFilterSheetOpen={setIsFilterSheetOpen}
               />
-              <div className="absolute inset-0 top-[72px] bottom-[75px]"> {/* Adjusted positioning */}
+              <div className="absolute inset-0 top-14 bottom-[75px]"> {/* Changed from top-[72px] to top-14 to match TopNav height */}
                 {isMapView ? (
                   <MapView
                     filters={{
@@ -105,7 +105,7 @@ export default function App() {
                         useDistanceFilter,
                         distanceRadius
                       }}
-                      sortBy="date"
+                      sortBy="distance"
                       sortAscending={true}
                     />
                   </div>

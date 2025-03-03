@@ -83,7 +83,7 @@ function CreateEventMarker() {
 
         setPressTimer(setTimeout(() => {
           navigate(`/create-event?lat=${touchLatLng.lat}&lng=${touchLatLng.lng}&zoom=18`);
-        }, 800));
+        }, 640));
       }
     },
     touchmove: (e) => {
@@ -121,7 +121,7 @@ function CreateEventMarker() {
       setStartPoint({ x: e.originalEvent.clientX, y: e.originalEvent.clientY });
       setPressTimer(setTimeout(() => {
         navigate(`/create-event?lat=${e.latlng.lat}&lng=${e.latlng.lng}&zoom=18`);
-      }, 800));
+      }, 640));
     },
     mousemove: (e) => {
       if (startPoint) {

@@ -26,7 +26,7 @@ import { DateTimePicker } from "@/components/date-time-picker";
 import { getHoverDivStyle, createNotificationRadiusCircle } from "@/lib/leaflet-map-style";
 import { MapPin } from "lucide-react";
 import { useLocation } from "wouter";
-import { getNextHour } from "@/lib/utils";
+import { getNextHour, addHours } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import TopNav from "@/components/Layout/TopNav";
@@ -34,11 +34,6 @@ import BottomNav from "@/components/Layout/BottomNav";
 import { X, Satellite } from "lucide-react";
 import { format } from "date-fns";
 
-
-function getNextHour() {
-  const now = new Date()
-  return setMilliseconds(setSeconds(setMinutes(addHours(now, 1), 0), 0), 0)
-}
 
 // Function to set map view to coordinates
 function MapViewSetter({ center, zoom }: { center: [number, number]; zoom: number }) {

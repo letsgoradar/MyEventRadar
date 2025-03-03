@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Home, PlusCircle, Calendar, Heart, User } from 'lucide-react';
 import { useLocation, Link } from 'wouter';

@@ -83,7 +83,7 @@ function CreateEventMarker() {
         const touchLatLng = map.containerPointToLatLng(pos);
 
         setPressTimer(setTimeout(() => {
-          navigate(`/create?lat=${touchLatLng.lat}&lng=${touchLatLng.lng}&zoom=18`);
+          navigate(`/create-event?lat=${touchLatLng.lat}&lng=${touchLatLng.lng}&zoom=18`);
         }, 1000));
       }
     },

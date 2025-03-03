@@ -67,6 +67,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <div className="h-screen flex flex-col relative">
         <Switch>
+          {/* Standardize to use /create-event for event creation */}
           <Route path="/create-event">
             <CreateEventPage />
           </Route>

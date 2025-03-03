@@ -14,7 +14,7 @@ import EventList from "@/components/Events/EventList"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
 import CreateEventPage from "@/pages/create-event"
-import BottomNav from "@/components/Layout/BottomNav"; // Import BottomNav component
+import BottomNav from "@/components/Layout/BottomNav"
 
 const queryClient = new QueryClient()
 
@@ -36,7 +36,6 @@ const MyEvents = () => {
     </div>
   );
 };
-
 
 export default function App() {
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -67,7 +66,6 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <div className="h-screen flex flex-col relative">
         <Switch>
-          {/* Standardize to use /create-event for event creation */}
           <Route path="/create-event">
             <CreateEventPage />
           </Route>
@@ -80,7 +78,7 @@ export default function App() {
                 isFilterSheetOpen={isFilterSheetOpen}
                 setIsFilterSheetOpen={setIsFilterSheetOpen}
               />
-              <div className="absolute inset-0 top-14 bottom-[75px]"> {/* Changed from top-[72px] to top-14 to match TopNav height */}
+              <div className="absolute inset-0 top-14 bottom-[75px] z-0"> 
                 {isMapView ? (
                   <MapView
                     filters={{

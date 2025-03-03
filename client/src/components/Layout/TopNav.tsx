@@ -73,7 +73,7 @@ const TopNav: React.FC<TopNavProps> = ({
     .slice(0, 5);
 
   return (
-    <nav className="fixed top-0 w-full h-14 bg-[#0097FB] shadow-md z-10 flex items-center justify-between px-4">
+    <nav className="fixed top-0 w-full h-14 bg-[#0097FB] shadow-md z-50 flex items-center justify-between px-4">
       <div className="flex items-center">
         <Link href="/" className="flex items-center">
           <Logo className="w-8 h-8 text-white" />
@@ -95,7 +95,7 @@ const TopNav: React.FC<TopNavProps> = ({
             onFocus={() => setShowResults(true)}
           />
           {showResults && searchQuery && (
-            <div className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-50">
+            <div className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
               {sortedEvents.map((event) => (
                 <Link key={event.id} href={`/event/${event.id}`}>
                   <div

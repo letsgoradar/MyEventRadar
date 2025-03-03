@@ -7,7 +7,7 @@ export default function BottomNav() {
   const [location] = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 w-full flex items-center justify-between bg-white border-t border-gray-200 px-4 py-2 z-10">
+    <nav className="fixed bottom-0 left-0 w-full flex items-center justify-between bg-white border-t border-gray-200 px-4 py-2 z-50">
       <Link href="/" className="flex-1">
         <Button
           variant="ghost"

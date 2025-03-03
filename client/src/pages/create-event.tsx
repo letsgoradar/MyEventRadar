@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/form";
 import { Card } from "@/components/ui/card";
 import { CategoryPicker } from "@/components/CategoryPicker";
-import { DEFAULT_CENTER, DEFAULT_ZOOM } from "@/components/Map/constants";
+import { DEFAULT_CENTER, DEFAULT_ZOOM, DEFAULT_NOTIFICATION_RADIUS } from "@/components/Map/constants";
 import { DraggableMarker } from "@/components/Map/DraggableMarker";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { getHoverDivStyle } from "@/lib/leaflet-map-style";
@@ -30,8 +30,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import TopNav from "@/components/Layout/TopNav";
 import BottomNav from "@/components/Layout/BottomNav";
-import { X, Satellite } from "lucide-react"; // Added from original code
-import { format } from "date-fns"; // Added from original code
+import { X, Satellite } from "lucide-react";
+import { format } from "date-fns";
 
 
 function getNextHour() {
@@ -67,24 +67,32 @@ export default function CreateEventPage() {
   const initialPosition = React.useMemo(() => ({
     lat: urlLatitude ? parseFloat(urlLatitude) : DEFAULT_CENTER[0],
     lng: urlLongitude ? parseFloat(urlLongitude) : DEFAULT_CENTER[1],
-    notificationReach: 2, // Set default to 2km as requested
+    notificationReach: 2,
   }), [urlLatitude, urlLongitude]);
 
   const [position, setPosition] = useState(initialPosition);
-  const [zoom, setZoom] = useState(urlZoom ? parseInt(urlZoom) : 15); // Higher zoom level (closer to the ground)
+  const [zoom, setZoom] = useState(urlZoom ? parseInt(urlZoom) : 15);
 
   const formSchema = z.object({
-    title: z.string().min(2, {
-      message: "Title must be at least 2 characters.",
+    title: z.string().min(3, {
+      message: "Title must be at least 3 characters.",
     }),
     description: z.string().optional(),
     startTime: z.date(),
     endTime: z.date(),
-    category: z.string(),
+    category: z.string({
+      required_error: "Please select a category.",
+    }),
     subcategory: z.string().optional(),
     isPaid: z.boolean().default(false),
     price: z.string().optional(),
-    maxParticipants: z.number().min(1).optional(),
+    maxParticipants: z.number().int().positive().optional(),
+    location: z.object({
+      lat: z.number(),
+      lng: z.number(),
+    }),
+    notificationReach: z.number().min(0.5).max(10).default(DEFAULT_NOTIFICATION_RADIUS),
+    recurrence: z.enum(["once", "daily", "weekly", "monthly"]).default("once"),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -99,21 +107,24 @@ export default function CreateEventPage() {
       isPaid: false,
       price: "",
       maxParticipants: 0,
+      location: {
+        lat: initialPosition.lat,
+        lng: initialPosition.lng,
+      },
+      notificationReach: initialPosition.notificationReach,
+      recurrence: "once",
     },
   });
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
     const eventData = {
       ...values,
-      latitude: position.lat,
-      longitude: position.lng,
-      notificationReach: position.notificationReach,
       price: values.isPaid ? values.price : null,
-      startDate: format(values.startTime, 'yyyy-MM-dd'), //Added from original
-      startTime: format(values.startTime, 'HH:mm'), //Added from original
-      endDate: format(values.endTime, 'yyyy-MM-dd'), //Added from original
-      endTime: format(values.endTime, 'HH:mm'), //Added from original
-      hostId: 1 //Added from original
+      startDate: format(values.startTime, 'yyyy-MM-dd'),
+      startTime: format(values.startTime, 'HH:mm'),
+      endDate: format(values.endTime, 'yyyy-MM-dd'),
+      endTime: format(values.endTime, 'HH:mm'),
+      hostId: 1
     };
 
     try {
@@ -134,10 +145,8 @@ export default function CreateEventPage() {
         description: "Your event has been successfully created.",
       });
 
-      // Invalidate queries to refetch data
       queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
 
-      // Navigate back to home page
       setLocation('/');
     } catch (error) {
       toast({
@@ -159,7 +168,6 @@ export default function CreateEventPage() {
   useEffect(() => {
     if (mapInitialized) return;
 
-    // Try to get user's location
     if (navigator.geolocation && !urlLatitude && !urlLongitude) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -174,7 +182,6 @@ export default function CreateEventPage() {
           setMapInitialized(true);
         },
         () => {
-          // Fallback if geolocation is denied
           setMapInitialized(true);
         }
       );

@@ -36,3 +36,25 @@ export function truncateText(text: string, maxLength: number): string {
   if (!text || text.length <= maxLength) return text;
   return text.slice(0, maxLength) + "...";
 }
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function getNextHour() {
+  const now = new Date();
+  const nextHour = new Date(now);
+  nextHour.setHours(now.getHours() + 1);
+  nextHour.setMinutes(0);
+  nextHour.setSeconds(0);
+  nextHour.setMilliseconds(0);
+  return nextHour;
+}
+
+export function addHours(date: Date, hours: number) {
+  const newDate = new Date(date);
+  newDate.setHours(date.getHours() + hours);
+  return newDate;
+}

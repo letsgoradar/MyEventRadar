@@ -1,22 +1,28 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import React, { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { MapContainer, TileLayer, Circle, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import { setMilliseconds, setSeconds, setMinutes, addHours } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import "leaflet/dist/leaflet.css";
-import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.webpack.css";
-import "leaflet-defaulticon-compatibility";
+import { Card } from "@/components/ui/card";
+import { CategoryPicker } from "@/components/CategoryPicker";
+import { DEFAULT_CENTER, DEFAULT_ZOOM, DEFAULT_NOTIFICATION_RADIUS } from "@/components/Map/constants";
 import { DraggableMarker } from "@/components/Map/DraggableMarker";
-import BottomNav from "@/components/Layout/BottomNav";
-import { defaultMapCenter, defaultZoom } from "@/components/Map/constants";
+import { DateTimePicker } from "@/components/date-time-picker";
 import { getHoverDivStyle, createNotificationRadiusCircle } from "@/lib/leaflet-map-style";
 import { MapPin } from "lucide-react";
 import { useLocation } from "wouter";
@@ -24,280 +30,405 @@ import { getNextHour, addHours } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import TopNav from "@/components/Layout/TopNav";
-import { DatePicker } from "@/components/date-time-picker";
+import BottomNav from "@/components/Layout/BottomNav";
 import { X, Satellite } from "lucide-react";
 import { format } from "date-fns";
 
+
 // Function to set map view to coordinates
 function MapViewSetter({ center, zoom }: { center: [number, number]; zoom: number }) {
-  useEffect(() => {
-    const map = window.leafletMap;
-    if (map) {
-      map.setView(center, zoom);
-    }
-  }, [center, zoom]);
-
+  const map = useMap();
+  React.useEffect(() => {
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
   return null;
 }
 
-export default function CreateEvent() {
-  const [, navigate] = useLocation();
+export default function CreateEventPage() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const [isSatelliteView, setIsSatelliteView] = useState(false);
+  const [mapInitialized, setMapInitialized] = useState(false);
 
-  const [hoverPosition, setHoverPosition] = useState<[number, number] | null>(null);
-  const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null);
-  const [isMapInitialized, setIsMapInitialized] = useState(false);
-  const [notificationRadius, setNotificationRadius] = useState<number>(500);
+  // Get location from URL parameters (from long-press)
+  const params = new URLSearchParams(window.location.search || "");
+  const urlLatitude = params.get('lat');
+  const urlLongitude = params.get('lng');
+  const urlZoom = params.get('zoom');
 
-  const [eventDate, setEventDate] = useState<Date>(new Date());
-  const [eventTime, setEventTime] = useState<Date>(getNextHour());
+  const nextHour = getNextHour();
+  const defaultEndTime = addHours(nextHour, 1);
 
-  const defaultStartTime = getNextHour();
-  const defaultEndTime = addHours(defaultStartTime, 1);
+  const initialPosition = React.useMemo(() => ({
+    lat: urlLatitude ? parseFloat(urlLatitude) : DEFAULT_CENTER[0],
+    lng: urlLongitude ? parseFloat(urlLongitude) : DEFAULT_CENTER[1],
+    notificationReach: 2,
+  }), [urlLatitude, urlLongitude]);
 
-  const form = useForm({
+  const [position, setPosition] = useState(initialPosition);
+  const [zoom, setZoom] = useState(urlZoom ? parseInt(urlZoom) : 15);
+
+  const formSchema = z.object({
+    title: z.string().min(3, {
+      message: "Title must be at least 3 characters.",
+    }),
+    description: z.string().optional(),
+    startTime: z.date(),
+    endTime: z.date(),
+    category: z.string({
+      required_error: "Please select a category.",
+    }),
+    subcategory: z.string().optional(),
+    isPaid: z.boolean().default(false),
+    price: z.string().optional(),
+    maxParticipants: z.number().int().positive().optional(),
+    location: z.object({
+      lat: z.number(),
+      lng: z.number(),
+    }),
+    notificationReach: z.number().min(0.5).max(10).default(DEFAULT_NOTIFICATION_RADIUS),
+    recurrence: z.enum(["once", "daily", "weekly", "monthly"]).default("once"),
+  });
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
-      location: "",
-      latitude: 0,
-      longitude: 0,
-      startDate: defaultStartTime,
-      endDate: defaultEndTime,
+      startTime: nextHour,
+      endTime: defaultEndTime,
+      category: "sport",
+      subcategory: "",
+      isPaid: false,
+      price: "",
+      maxParticipants: 0,
+      location: {
+        lat: initialPosition.lat,
+        lng: initialPosition.lng,
+      },
+      notificationReach: initialPosition.notificationReach,
+      recurrence: "once",
     },
   });
 
-  const combineDateAndTime = (date: Date, time: Date): Date => {
-    const result = new Date(date);
-    result.setHours(time.getHours());
-    result.setMinutes(time.getMinutes());
-    return result;
-  };
-
-  const handleSubmit = form.handleSubmit(async (data) => {
-    if (!markerPosition) {
-      toast({
-        title: "Error",
-        description: "Please select a location on the map",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const [latitude, longitude] = markerPosition;
-
-    const startDateTime = combineDateAndTime(eventDate, eventTime);
-    const endDateTime = addHours(startDateTime, 1);
-
+  const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
     const eventData = {
-      ...data,
-      latitude,
-      longitude,
-      startDate: startDateTime.toISOString(),
-      endDate: endDateTime.toISOString(),
+      ...values,
+      price: values.isPaid ? values.price : null,
+      startDate: format(values.startTime, 'yyyy-MM-dd'),
+      startTime: format(values.startTime, 'HH:mm'),
+      endDate: format(values.endTime, 'yyyy-MM-dd'),
+      endTime: format(values.endTime, 'HH:mm'),
+      hostId: 1
     };
 
-    console.log("Creating event:", eventData);
-
     try {
-      const response = await fetch("/api/events", {
-        method: "POST",
+      const response = await fetch('/api/events', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(eventData),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create event");
+        throw new Error('Failed to create event');
       }
 
       toast({
-        title: "Success",
-        description: "Event created successfully",
+        title: "Event Created",
+        description: "Your event has been successfully created.",
       });
 
-      // Invalidate events query to refetch
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
 
-      // Navigate back to home
-      navigate("/");
+      setLocation('/');
     } catch (error) {
-      console.error("Error creating event:", error);
       toast({
         title: "Error",
-        description: "Failed to create event",
+        description: "Failed to create event. Please try again.",
         variant: "destructive",
       });
     }
-  });
+  };
+
+  const handlePositionChange = (newPosition: { lat: number; lng: number }) => {
+    setPosition({
+      ...position,
+      lat: newPosition.lat,
+      lng: newPosition.lng,
+    });
+  };
 
   useEffect(() => {
-    const mapContainer = document.getElementById("map");
-    if (!mapContainer || isMapInitialized) return;
+    if (mapInitialized) return;
 
-    // Wait for the map to be initialized by the parent component
-    const checkMap = setInterval(() => {
-      if (window.leafletMap) {
-        clearInterval(checkMap);
-        setIsMapInitialized(true);
+    if (navigator.geolocation && !urlLatitude && !urlLongitude) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const userLat = pos.coords.latitude;
+          const userLng = pos.coords.longitude;
+          setPosition({
+            lat: userLat,
+            lng: userLng,
+            notificationReach: 2,
+          });
+          setZoom(15);
+          setMapInitialized(true);
+        },
+        () => {
+          setMapInitialized(true);
+        }
+      );
+    } else {
+      setMapInitialized(true);
+    }
+  }, [mapInitialized, urlLatitude, urlLongitude]);
 
-        const map = window.leafletMap;
-
-        map.on("click", (e: any) => {
-          const { lat, lng } = e.latlng;
-          setMarkerPosition([lat, lng]);
-          form.setValue("latitude", lat);
-          form.setValue("longitude", lng);
-        });
-
-        map.on("mousemove", (e: any) => {
-          const { lat, lng } = e.latlng;
-          setHoverPosition([lat, lng]);
-        });
-
-        map.on("mouseout", () => {
-          setHoverPosition(null);
-        });
-      }
-    }, 100);
-
-    return () => {
-      clearInterval(checkMap);
-    };
-  }, [isMapInitialized, form]);
+  const mapCenter: [number, number] = [position.lat, position.lng];
+  const tileUrl = isSatelliteView
+    ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col relative">
       <TopNav />
-      <div id="map" className="h-screen w-full" />
-
-      {isMapInitialized && (
-        <>
-          {markerPosition && (
-            <DraggableMarker
-              position={markerPosition}
-              setPosition={(pos) => {
-                setMarkerPosition(pos);
-                form.setValue("latitude", pos[0]);
-                form.setValue("longitude", pos[1]);
-              }}
-            />
-          )}
-
-          {markerPosition &&
-            createNotificationRadiusCircle(markerPosition, notificationRadius)}
-
-          {hoverPosition && (
-            <div
-              style={getHoverDivStyle(hoverPosition)}
-              className="absolute z-[400] hidden md:flex items-center justify-center bg-white rounded-full shadow-lg pointer-events-none"
-            >
-              <MapPin className="h-4 w-4 text-primary" />
-            </div>
-          )}
-
-          <MapViewSetter center={defaultMapCenter} zoom={defaultZoom} />
-        </>
-      )}
-
-      <div className="fixed inset-x-0 bottom-0 z-20 transition-transform duration-300 transform translate-y-0 animate-slide-up">
-        <Card className="rounded-t-xl max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-white z-10 flex justify-between items-center p-4 border-b">
-            <h2 className="text-xl font-bold">Create Event</h2>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-          <CardContent className="p-5">
-            <Form {...form}>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Event Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter event title" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Describe your event"
-                          className="min-h-[100px]"
-                          {...field}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter location name" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <FormLabel>Date</FormLabel>
-                    <DatePicker
-                      date={eventDate}
-                      setDate={setEventDate}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <FormLabel>Time</FormLabel>
-                    <DatePicker
-                      date={eventTime}
-                      setDate={setEventTime}
-                      className="w-full"
-                      mode="time"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <FormLabel>Notification Radius (meters)</FormLabel>
-                  <Input
-                    type="range"
-                    min="100"
-                    max="2000"
-                    step="100"
-                    value={notificationRadius}
-                    onChange={(e) => setNotificationRadius(Number(e.target.value))}
+      <div className="fixed inset-0 top-[60px] bottom-[68px] bg-transparent pointer-events-none z-10">
+        <div 
+          className="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl shadow-lg transform transition-transform duration-300 ease-out pb-6 pointer-events-auto"
+          style={{ height: '90%' }}
+        >
+          <div className="w-16 h-1 bg-gray-300 rounded-full mx-auto my-3"></div>
+          <div className="px-4 pb-16 overflow-auto h-full">
+            <Card className="border-0 shadow-none">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-4 top-4"
+                onClick={() => setLocation('/')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Titel</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Titel van het evenement" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  <div className="text-sm text-gray-500 text-center">
-                    {notificationRadius} meters
-                  </div>
-                </div>
 
-                <Button type="submit" className="w-full">
-                  Create Event
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Beschrijving</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Beschrijving van het evenement"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="startTime"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Start tijd</FormLabel>
+                          <DateTimePicker
+                            date={field.value}
+                            setDate={field.onChange}
+                          />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="endTime"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Eind tijd</FormLabel>
+                          <DateTimePicker
+                            date={field.value}
+                            setDate={field.onChange}
+                          />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Categorie</FormLabel>
+                          <div className="relative z-20">
+                            <CategoryPicker
+                              value={field.value}
+                              onValueChange={field.onChange}
+                            />
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="maxParticipants"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Max deelnemers</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="isPaid"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between">
+                        <div className="space-y-0.5">
+                          <FormLabel>Betaald evenement?</FormLabel>
+                          <FormDescription>
+                            Zet dit aan als deelnemers moeten betalen.
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("isPaid") && (
+                    <FormField
+                      control={form.control}
+                      name="price"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Prijs (€)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="0.00"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-base">Locatie</FormLabel>
+                      <div className="flex items-center space-x-2">
+                        <FormLabel htmlFor="satellite-view">Satelliet</FormLabel>
+                        <Switch
+                          id="satellite-view"
+                          checked={isSatelliteView}
+                          onCheckedChange={setIsSatelliteView}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="relative border rounded-lg overflow-hidden" style={{ height: '200px', zIndex: 1 }}>
+                      <MapContainer
+                        center={mapCenter}
+                        zoom={zoom}
+                        style={{ height: '100%', width: '100%' }}
+                        zoomControl={false}
+                      >
+                        <MapViewSetter center={mapCenter} zoom={zoom} />
+                        <TileLayer
+                          url={tileUrl}
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        />
+                        <DraggableMarker
+                          position={[position.lat, position.lng]}
+                          setPosition={handlePositionChange}
+                        />
+                        <Circle 
+                          center={[position.lat, position.lng]} 
+                          radius={position.notificationReach * 1000}
+                          pathOptions={{ color: '#0097FB', fillColor: '#0097FB', fillOpacity: 0.2 }}
+                        />
+                      </MapContainer>
+                      <div className={getHoverDivStyle('absolute bottom-2 right-2 bg-white p-2 rounded shadow')}>
+                        <div className="flex items-center space-x-1">
+                          <MapPin className="w-4 h-4 text-red-500" />
+                          <span className="text-xs font-medium">
+                            {position.lat.toFixed(6)}, {position.lng.toFixed(6)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-2">
+                      <FormLabel>Notificatie bereik (km)</FormLabel>
+                      <div className="flex items-center space-x-4">
+                        <Input
+                          type="range"
+                          min="0.5"
+                          max="10"
+                          step="0.5"
+                          value={position.notificationReach}
+                          onChange={(e) => setPosition({
+                            ...position,
+                            notificationReach: parseFloat(e.target.value),
+                          })}
+                          className="flex-1"
+                        />
+                        <span className="w-12 text-center">
+                          {position.notificationReach} km
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button type="submit" className="w-full">
+                    Evenement Aanmaken
+                  </Button>
+                </form>
+              </Form>
+            </Card>
+          </div>
+        </div>
       </div>
       <BottomNav />
     </div>

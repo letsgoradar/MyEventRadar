@@ -20,20 +20,7 @@ export default function BottomNav() {
           </div>
         </Button>
       </Link>
-      
-      <Link href="/events" className="flex-1">
-        <Button
-          variant="ghost"
-          className="w-full py-6 hover:bg-gray-100"
-          data-active={location === '/events'}
-        >
-          <div className="flex flex-col items-center">
-            <Calendar className="w-6 h-6 mb-1" />
-            <span className="text-xs">Events</span>
-          </div>
-        </Button>
-      </Link>
-      
+
       <Link href="/create-event" className="flex-1">
         <Button
           variant="default"
@@ -41,19 +28,6 @@ export default function BottomNav() {
         >
           <PlusCircle className="w-6 h-6 mb-1" />
           <span className="text-xs">Aanmaken</span>
-        </Button>
-      </Link>
-
-      <Link href="/events" className="flex-1">
-        <Button
-          variant="ghost"
-          className="w-full py-6 hover:bg-gray-100"
-          data-active={location === '/events'}
-        >
-          <div className="flex flex-col items-center">
-            <Calendar className="w-6 h-6 mb-1" />
-            <span className="text-xs">Events</span>
-          </div>
         </Button>
       </Link>
 
@@ -65,7 +39,7 @@ export default function BottomNav() {
         >
           <div className="flex flex-col items-center">
             <Heart className="w-6 h-6 mb-1" />
-            <span className="text-xs">Favorieten</span>
+            <span className="text-xs">Favoriet</span>
           </div>
         </Button>
       </Link>

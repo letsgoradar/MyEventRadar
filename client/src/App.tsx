@@ -67,9 +67,14 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <div className="h-screen flex flex-col relative">
         <Switch>
-          {/* Standardize to use /create-event for event creation */}
+          {/* Event creation page with sliding form */}
           <Route path="/create-event">
-            <CreateEventPage />
+            <div className="h-screen flex flex-col relative">
+              <div className="flex-1 overflow-hidden">
+                <MapView />
+              </div>
+              <CreateEventPage />
+            </div>
           </Route>
           <Route path="/">
             <>

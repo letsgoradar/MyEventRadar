@@ -31,19 +31,6 @@ export default function BottomNav() {
         </Button>
       </Link>
 
-      <Link href="/events" className="flex-1">
-        <Button
-          variant="ghost"
-          className="w-full py-6 hover:bg-gray-100"
-          data-active={location === '/events'}
-        >
-          <div className="flex flex-col items-center">
-            <Calendar className="w-6 h-6 mb-1" />
-            <span className="text-xs">Events</span>
-          </div>
-        </Button>
-      </Link>
-
       <Link href="/favorites" className="flex-1">
         <Button
           variant="ghost"
@@ -52,7 +39,7 @@ export default function BottomNav() {
         >
           <div className="flex flex-col items-center">
             <Heart className="w-6 h-6 mb-1" />
-            <span className="text-xs">Favorieten</span>
+            <span className="text-xs">Favoriet</span>
           </div>
         </Button>
       </Link>

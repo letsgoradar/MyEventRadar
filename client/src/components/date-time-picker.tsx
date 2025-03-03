@@ -1,49 +1,5 @@
-import * as React from "react"
-import { Calendar as CalendarIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { format } from "date-fns"
 
-export function DateTimePicker({
-  date,
-  setDate,
-  mode = "datetime"
-}: {
-  date: Date | undefined
-  setDate: (date: Date | undefined) => void
-  mode?: "datetime" | "date" | "time"
-}) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-[240px] justify-start text-left font-normal",
-            !date && "text-muted-foreground"
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP") : <span>Pick a date</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode={mode === "time" ? "time" : "single"}
-          selected={date}
-          onSelect={setDate}
-          initialFocus
-        />
-      </PopoverContent>
-    </Popover>
-  )
-}
+import * as React from "react";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -62,15 +18,46 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface DateTimePickerProps {
-  date: Date;
-  setDate: (date: Date) => void;
-}
-
-export function DateTimePicker({ date, setDate }: DateTimePickerProps) {
+export function DateTimePicker({
+  date,
+  setDate,
+  mode = "datetime"
+}: {
+  date: Date | undefined
+  setDate: (date: Date | undefined) => void
+  mode?: "datetime" | "date" | "time"
+}) {
   const minuteOptions = [0, 15, 30, 45];
   const hourOptions = Array.from({ length: 24 }, (_, i) => i);
 
+  if (mode === "date" || mode === "time") {
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant={"outline"}
+            className={cn(
+              "w-[240px] justify-start text-left font-normal",
+              !date && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date ? format(date, "PPP") : <span>Pick a date</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode={mode === "time" ? "time" : "single"}
+            selected={date}
+            onSelect={setDate}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  // For datetime mode (default)
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -92,8 +79,8 @@ export function DateTimePicker({ date, setDate }: DateTimePickerProps) {
           onSelect={(newDate) => {
             if (newDate) {
               const newDateTime = new Date(newDate);
-              newDateTime.setHours(date.getHours());
-              newDateTime.setMinutes(date.getMinutes());
+              newDateTime.setHours(date ? date.getHours() : 0);
+              newDateTime.setMinutes(date ? date.getMinutes() : 0);
               setDate(newDateTime);
             }
           }}
@@ -102,11 +89,13 @@ export function DateTimePicker({ date, setDate }: DateTimePickerProps) {
         <div className="border-t p-3 flex justify-between">
           <div className="mr-2">
             <Select
-              value={date.getHours().toString()}
+              value={date ? date.getHours().toString() : "0"}
               onValueChange={(value) => {
-                const newDate = new Date(date);
-                newDate.setHours(parseInt(value));
-                setDate(newDate);
+                if (date) {
+                  const newDate = new Date(date);
+                  newDate.setHours(parseInt(value));
+                  setDate(newDate);
+                }
               }}
             >
               <SelectTrigger className="w-[70px]">
@@ -123,11 +112,13 @@ export function DateTimePicker({ date, setDate }: DateTimePickerProps) {
           </div>
           <div>
             <Select
-              value={date.getMinutes().toString()}
+              value={date ? date.getMinutes().toString() : "0"}
               onValueChange={(value) => {
-                const newDate = new Date(date);
-                newDate.setMinutes(parseInt(value));
-                setDate(newDate);
+                if (date) {
+                  const newDate = new Date(date);
+                  newDate.setMinutes(parseInt(value));
+                  setDate(newDate);
+                }
               }}
             >
               <SelectTrigger className="w-[70px]">

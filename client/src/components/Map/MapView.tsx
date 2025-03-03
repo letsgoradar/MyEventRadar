@@ -178,7 +178,11 @@ function MapBoundsControl() {
       const { events } = JSON.parse(storedBounds);
       if (events && events.length >= 2) {
         const bounds = L.latLngBounds(events.map(e => [e.lat, e.lng]));
-        map.fitBounds(bounds, { padding: [50, 50] });
+        map.flyToBounds(bounds, { 
+          padding: [50, 50],
+          duration: 1, // Duration in seconds
+          easeLinearity: 0.25
+        });
         // Clear the stored bounds after using them
         sessionStorage.removeItem('mapBounds');
       }
@@ -196,12 +200,15 @@ export default function MapView({ filters }: MapViewProps) {
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   const [currentSearch, setCurrentSearch] = useState<string>('');
+  const [mapKey, setMapKey] = useState(0); // Add this line for forcing map reload
 
   useEffect(() => {
     // Get the current search query from sessionStorage
     const storedSearch = sessionStorage.getItem('currentSearch');
     if (storedSearch) {
       setCurrentSearch(storedSearch);
+      // Force map reload when search changes
+      setMapKey(prev => prev + 1);
       // Clear the stored search after using it
       sessionStorage.removeItem('currentSearch');
     }
@@ -288,6 +295,7 @@ export default function MapView({ filters }: MapViewProps) {
       </Button>
 
       <MapContainer
+        key={mapKey} // Add this line to force map reload
         center={userLocation}
         zoom={13}
         className="h-full w-full"

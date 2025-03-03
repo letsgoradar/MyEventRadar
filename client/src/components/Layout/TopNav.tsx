@@ -96,10 +96,18 @@ const TopNav: React.FC<TopNavProps> = ({
           { lat: Number(event2.latitude), lng: Number(event2.longitude) }
         ]
       }));
-    }
 
-    if (!isMapView && toggleView) {
-      toggleView();
+      // Switch to map view if not already there
+      if (!isMapView && toggleView) {
+        toggleView();
+      } else {
+        // If already in map view, force a reload by clearing and resetting the search
+        const currentSearch = searchQuery;
+        setSearchQuery('');
+        setTimeout(() => {
+          setSearchQuery(currentSearch);
+        }, 0);
+      }
     }
     setShowResults(false);
   };

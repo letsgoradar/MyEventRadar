@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Filter, Plus, Map, List } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ const TopNav: React.FC<TopNavProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -79,8 +80,29 @@ const TopNav: React.FC<TopNavProps> = ({
           )
         : Infinity
     }))
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, 5);
+    .sort((a, b) => a.distance - b.distance);
+
+  const handleViewOnMap = () => {
+    if (filteredAndSortedEvents.length >= 2) {
+      // Calculate bounds for first two events
+      const event1 = filteredAndSortedEvents[0];
+      const event2 = filteredAndSortedEvents[1];
+
+      // Store search and bounds in sessionStorage for map component
+      sessionStorage.setItem('currentSearch', searchQuery);
+      sessionStorage.setItem('mapBounds', JSON.stringify({
+        events: [
+          { lat: Number(event1.latitude), lng: Number(event1.longitude) },
+          { lat: Number(event2.latitude), lng: Number(event2.longitude) }
+        ]
+      }));
+    }
+
+    if (!isMapView && toggleView) {
+      toggleView();
+    }
+    setShowResults(false);
+  };
 
   return (
     <nav className="fixed top-0 w-full h-14 bg-[#0097FB] shadow-md z-50 flex items-center justify-between px-4">
@@ -110,6 +132,15 @@ const TopNav: React.FC<TopNavProps> = ({
           />
           {showResults && searchQuery && (
             <div className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
+              {filteredAndSortedEvents.length > 0 && (
+                <button
+                  onClick={handleViewOnMap}
+                  className="w-full p-2 text-left hover:bg-gray-100 text-blue-600 font-medium border-b"
+                >
+                  <Map className="w-4 h-4 inline-block mr-2" />
+                  Bekijk {filteredAndSortedEvents.length} resultaten op kaart
+                </button>
+              )}
               {filteredAndSortedEvents.length > 0 ? (
                 filteredAndSortedEvents.map((event) => (
                   <Link key={event.id} href={`/event/${event.id}`}>

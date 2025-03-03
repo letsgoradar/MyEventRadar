@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import { Satellite } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import L from 'leaflet';
@@ -8,7 +8,6 @@ import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
 import { Link } from "wouter";
-
 
 const categoryColors = {
   'festival': '#FF6B00',
@@ -169,6 +168,26 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.asin(Math.sqrt(a));
 }
 
+// Add new MapBoundsControl component
+function MapBoundsControl() {
+  const map = useMap();
+
+  useEffect(() => {
+    const storedBounds = sessionStorage.getItem('mapBounds');
+    if (storedBounds) {
+      const { events } = JSON.parse(storedBounds);
+      if (events && events.length >= 2) {
+        const bounds = L.latLngBounds(events.map(e => [e.lat, e.lng]));
+        map.fitBounds(bounds, { padding: [50, 50] });
+        // Clear the stored bounds after using them
+        sessionStorage.removeItem('mapBounds');
+      }
+    }
+  }, [map]);
+
+  return null;
+}
+
 export default function MapView({ filters }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]); // Default to Oss
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
@@ -176,6 +195,17 @@ export default function MapView({ filters }: MapViewProps) {
   );
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [currentSearch, setCurrentSearch] = useState<string>('');
+
+  useEffect(() => {
+    // Get the current search query from sessionStorage
+    const storedSearch = sessionStorage.getItem('currentSearch');
+    if (storedSearch) {
+      setCurrentSearch(storedSearch);
+      // Clear the stored search after using it
+      sessionStorage.removeItem('currentSearch');
+    }
+  }, []);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -209,6 +239,18 @@ export default function MapView({ filters }: MapViewProps) {
     if (!activeCategories.has(event.category.toLowerCase())) return false;
     if (filters.category && event.category !== filters.category) return false;
     if (filters.showPaidEvents && !event.isPaid) return false;
+
+    // Add search query filtering
+    if (currentSearch) {
+      const searchLower = currentSearch.toLowerCase();
+      return (
+        event.title.toLowerCase().includes(searchLower) ||
+        event.category.toLowerCase().includes(searchLower) ||
+        (event.subcategory && event.subcategory.toLowerCase().includes(searchLower)) ||
+        (event.description && event.description.toLowerCase().includes(searchLower))
+      );
+    }
+
     if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
     return true;
   });
@@ -253,6 +295,7 @@ export default function MapView({ filters }: MapViewProps) {
       >
         <TileLayer url={tileUrl} {...tileConfig} />
         <CreateEventMarker />
+        <MapBoundsControl />
         <MapLegend
           onToggleCategory={toggleCategory}
           activeCategories={activeCategories}
@@ -266,14 +309,14 @@ export default function MapView({ filters }: MapViewProps) {
           if (isNaN(lat) || isNaN(lng)) return null;
 
           // Calculate distance if location exists
-          const distance = location ? 
-            calculateDistance(location.lat, location.lng, lat, lng) : 
+          const distance = location ?
+            calculateDistance(location.lat, location.lng, lat, lng) :
             null;
 
           return (
-            <Marker 
-              key={event.id} 
-              position={[lat, lng]} 
+            <Marker
+              key={event.id}
+              position={[lat, lng]}
               icon={createEventIcon(event.category)}
             >
               <Popup className="event-popup" maxWidth={300}>
@@ -281,7 +324,7 @@ export default function MapView({ filters }: MapViewProps) {
                   {/* Import EventCard component to reuse in popup */}
                   <div className="event-card-map">
                     <div className="font-semibold mb-1 flex items-center gap-1.5">
-                      <div style={{color: getCategoryColor(event.category)}}>
+                      <div style={{ color: getCategoryColor(event.category) }}>
                         {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
                       </div>
                       <div>{event.title}</div>
@@ -290,7 +333,7 @@ export default function MapView({ filters }: MapViewProps) {
                     {distance !== null && (
                       <div className="text-xs text-gray-600 mb-1">{distance.toFixed(1)} km afstand</div>
                     )}
-                    <Link 
+                    <Link
                       to={`/event/${event.id}`}
                       className="text-blue-600 hover:text-blue-800 underline text-xs"
                     >

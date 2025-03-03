@@ -1,3 +1,17 @@
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
 @keyframes ping {
   75%, 100% {
     transform: scale(2);

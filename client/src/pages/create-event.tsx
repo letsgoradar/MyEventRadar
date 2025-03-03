@@ -1,506 +1,302 @@
-import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
-import { useQueryClient } from "@tanstack/react-query"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useLocation } from "wouter"
-import { useToast } from "@/hooks/use-toast"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { X, Satellite } from "lucide-react"
+import React, { useState, useEffect, useRef } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
-  FormDescription,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { CategoryPicker } from "@/components/CategoryPicker"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { format, addHours, setMinutes, setSeconds, setMilliseconds } from "date-fns"
-import * as z from 'zod'
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
-import "leaflet/dist/leaflet.css"
-import { apiRequest } from "@/lib/queryClient"
-import React from 'react';
-import TopNav from "@/components/Layout/TopNav";
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import "leaflet/dist/leaflet.css";
+import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.webpack.css";
+import "leaflet-defaulticon-compatibility";
+import { DraggableMarker } from "@/components/Map/DraggableMarker";
 import BottomNav from "@/components/Layout/BottomNav";
+import { defaultMapCenter, defaultZoom } from "@/components/Map/constants";
+import { getHoverDivStyle, createNotificationRadiusCircle } from "@/lib/leaflet-map-style";
+import { MapPin } from "lucide-react";
+import { useLocation } from "wouter";
+import { getNextHour, addHours } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import TopNav from "@/components/Layout/TopNav";
+import { DatePicker } from "@/components/date-time-picker";
+import { X, Satellite } from "lucide-react";
+import { format } from "date-fns";
 
+// Function to set map view to coordinates
+function MapViewSetter({ center, zoom }: { center: [number, number]; zoom: number }) {
+  useEffect(() => {
+    const map = window.leafletMap;
+    if (map) {
+      map.setView(center, zoom);
+    }
+  }, [center, zoom]);
 
-const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
-const DEFAULT_ZOOM = 6 // For Netherlands overview
-const LOCATION_ZOOM = 18 // For specific location
-const MIN_REACH = 1
-const MAX_REACH = 5
-
-// Define the schema first
-const createEventFormSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string(),
-  location: z.object({
-    lat: z.number(),
-    lng: z.number(),
-    notificationReach: z.number().min(MIN_REACH).max(MAX_REACH),
-  }, { required_error: "Location is required" }),
-  category: z.string().min(1, "Category is required"),
-  subcategory: z.string().optional(),
-  startDate: z.string().min(1, "Start date is required"),
-  startTime: z.string().min(1, "Start time is required"),
-  endDate: z.string().optional(),
-  endTime: z.string().optional(),
-  isPaid: z.boolean(),
-  price: z.number().optional(),
-  maxParticipants: z.number(),
-  recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
-  hostId: z.number(),
-});
-
-const RECURRENCE_OPTIONS = [
-  { label: "Eenmalig", value: "once" },
-  { label: "Dagelijks", value: "daily" },
-  { label: "Wekelijks", value: "weekly" },
-  { label: "Maandelijks", value: "monthly" }
-];
-
-function getNextHour() {
-  const now = new Date()
-  return setMilliseconds(setSeconds(setMinutes(addHours(now, 1), 0), 0), 0)
+  return null;
 }
 
-export default function CreateEventPage() {
+export default function CreateEvent() {
+  const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const [isSatelliteView, setIsSatelliteView] = useState(false);
-  const [mapInitialized, setMapInitialized] = useState(false);
 
-  // Get location from URL parameters (from long-press)
-  const params = new URLSearchParams(window.location.search || "");
-  const urlLatitude = params.get('lat');
-  const urlLongitude = params.get('lng');
-  const urlZoom = params.get('zoom');
+  const [hoverPosition, setHoverPosition] = useState<[number, number] | null>(null);
+  const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null);
+  const [isMapInitialized, setIsMapInitialized] = useState(false);
+  const [notificationRadius, setNotificationRadius] = useState<number>(500);
 
-  const nextHour = getNextHour();
-  const defaultEndTime = addHours(nextHour, 1);
+  const [eventDate, setEventDate] = useState<Date>(new Date());
+  const [eventTime, setEventTime] = useState<Date>(getNextHour());
 
-  const initialPosition = React.useMemo(() => ({
-    lat: urlLatitude ? parseFloat(urlLatitude) : DEFAULT_CENTER[0],
-    lng: urlLongitude ? parseFloat(urlLongitude) : DEFAULT_CENTER[1],
-    notificationReach: 1,
-  }), [urlLatitude, urlLongitude]);
+  const defaultStartTime = getNextHour();
+  const defaultEndTime = addHours(defaultStartTime, 1);
 
-  const [position, setPosition] = useState(initialPosition);
-  const [zoom, setZoom] = useState(urlZoom ? parseInt(urlZoom) : DEFAULT_ZOOM);
-
-  const form = useForm<z.infer<typeof createEventFormSchema>>({
-    resolver: zodResolver(createEventFormSchema),
+  const form = useForm({
     defaultValues: {
       title: "",
       description: "",
-      location: initialPosition,
-      startDate: format(nextHour, 'yyyy-MM-dd'),
-      startTime: format(nextHour, 'HH:mm'),
-      endDate: format(defaultEndTime, 'yyyy-MM-dd'),
-      endTime: format(defaultEndTime, 'HH:mm'),
-      category: "",
-      subcategory: "",
-      isPaid: false,
-      price: 0,
-      maxParticipants: 0,
-      recurrence: "once",
-      hostId: 1,
+      location: "",
+      latitude: 0,
+      longitude: 0,
+      startDate: defaultStartTime,
+      endDate: defaultEndTime,
     },
   });
 
-  // Initialize location
-  useEffect(() => {
-    if (urlLatitude && urlLongitude) {
-      // Location from long-press
-      setMapInitialized(true);
-    } else if ("geolocation" in navigator && !mapInitialized) {
-      // Try to get user's current location
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newPos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            notificationReach: 1,
-          };
-          setPosition(newPos);
-          form.setValue("location", newPos);
-          setZoom(LOCATION_ZOOM);
-          setMapInitialized(true);
-        },
-        () => {
-          console.error("Could not get user location");
-          setMapInitialized(true);
-          toast({
-            title: "Location Access Error",
-            description: "Could not access your location. Using default location.",
-            variant: "destructive",
-          });
-        }
-      );
-    }
-  }, [urlLatitude, urlLongitude, mapInitialized, form]);
-
-  const updateLocation = (newLocation: { lat: number; lng: number }) => {
-    const currentReach = form.getValues().location.notificationReach;
-    const newPos = {
-      ...newLocation,
-      notificationReach: currentReach,
-    };
-    setPosition(newPos);
-    form.setValue("location", newPos);
+  const combineDateAndTime = (date: Date, time: Date): Date => {
+    const result = new Date(date);
+    result.setHours(time.getHours());
+    result.setMinutes(time.getMinutes());
+    return result;
   };
 
-  function LocationMarker() {
-    useMapEvents({
-      click(e) {
-        updateLocation(e.latlng);
-      },
-    });
+  const handleSubmit = form.handleSubmit(async (data) => {
+    if (!markerPosition) {
+      toast({
+        title: "Error",
+        description: "Please select a location on the map",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    return (
-      <Marker position={[position.lat, position.lng]} />
-    );
-  }
+    const [latitude, longitude] = markerPosition;
 
-  // Map tile styles
-  const tileUrl = isSatelliteView
-    ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+    const startDateTime = combineDateAndTime(eventDate, eventTime);
+    const endDateTime = addHours(startDateTime, 1);
 
-  const tileConfig = isSatelliteView
-    ? { subdomains: [] }
-    : { subdomains: 'abcd' };
+    const eventData = {
+      ...data,
+      latitude,
+      longitude,
+      startDate: startDateTime.toISOString(),
+      endDate: endDateTime.toISOString(),
+    };
 
-  async function onSubmit(data: z.infer<typeof createEventFormSchema>) {
+    console.log("Creating event:", eventData);
+
     try {
-      const startDateTime = new Date(`${data.startDate}T${data.startTime}`);
-      const endDateTime = data.endDate && data.endTime
-        ? new Date(`${data.endDate}T${data.endTime}`)
-        : null;
-
-      const eventData = {
-        title: data.title,
-        description: data.description,
-        location: {
-          lat: data.location.lat,
-          lng: data.location.lng,
-          notificationReach: data.location.notificationReach,
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        category: data.category,
-        subcategory: data.subcategory,
-        startTime: startDateTime.toISOString(),
-        endTime: endDateTime?.toISOString() || null,
-        isPaid: data.isPaid,
-        price: data.price || null,
-        maxParticipants: data.maxParticipants,
-        hostId: data.hostId,
-        recurrence: data.recurrence,
-      };
+        body: JSON.stringify(eventData),
+      });
 
-      const response = await apiRequest('POST', '/api/events', eventData);
-
-      queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
+      if (!response.ok) {
+        throw new Error("Failed to create event");
+      }
 
       toast({
         title: "Success",
         description: "Event created successfully",
       });
 
-      setLocation('/');
+      // Invalidate events query to refetch
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+
+      // Navigate back to home
+      navigate("/");
     } catch (error) {
       console.error("Error creating event:", error);
       toast({
         title: "Error",
-        description: "Failed to create event. Please check all required fields.",
+        description: "Failed to create event",
         variant: "destructive",
       });
     }
-  }
+  });
+
+  useEffect(() => {
+    const mapContainer = document.getElementById("map");
+    if (!mapContainer || isMapInitialized) return;
+
+    // Wait for the map to be initialized by the parent component
+    const checkMap = setInterval(() => {
+      if (window.leafletMap) {
+        clearInterval(checkMap);
+        setIsMapInitialized(true);
+
+        const map = window.leafletMap;
+
+        map.on("click", (e: any) => {
+          const { lat, lng } = e.latlng;
+          setMarkerPosition([lat, lng]);
+          form.setValue("latitude", lat);
+          form.setValue("longitude", lng);
+        });
+
+        map.on("mousemove", (e: any) => {
+          const { lat, lng } = e.latlng;
+          setHoverPosition([lat, lng]);
+        });
+
+        map.on("mouseout", () => {
+          setHoverPosition(null);
+        });
+      }
+    }, 100);
+
+    return () => {
+      clearInterval(checkMap);
+    };
+  }, [isMapInitialized, form]);
 
   return (
-    <div className="h-screen flex flex-col relative">
+    <div className="min-h-screen bg-background">
       <TopNav />
-      <div className="flex-1 overflow-auto p-4 pb-24">
-        <Card className="p-6 relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-4 top-4"
-            onClick={() => setLocation('/')}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+      <div id="map" className="h-screen w-full" />
 
-          <h1 className="text-2xl font-bold mb-6">Event Aanmaken</h1>
+      {isMapInitialized && (
+        <>
+          {markerPosition && (
+            <DraggableMarker
+              position={markerPosition}
+              setPosition={(pos) => {
+                setMarkerPosition(pos);
+                form.setValue("latitude", pos[0]);
+                form.setValue("longitude", pos[1]);
+              }}
+            />
+          )}
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Title field */}
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Event Titel *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Voer event titel in" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          {markerPosition &&
+            createNotificationRadiusCircle(markerPosition, notificationRadius)}
 
-              {/* Location field */}
-              <div className="space-y-2">
-                <FormLabel>Locatie *</FormLabel>
-                <div className="h-[200px] rounded-md overflow-hidden relative border-2 border-gray-200">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute top-2 right-2 z-[1000] bg-white/90 hover:bg-white"
-                    onClick={() => setIsSatelliteView(!isSatelliteView)}
-                    title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
-                  >
-                    <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
-                  </Button>
-                  <MapContainer
-                    center={[position.lat, position.lng]}
-                    zoom={zoom}
-                    className="h-full w-full"
-                    zoomControl={false}
-                  >
-                    <TileLayer url={tileUrl} {...tileConfig} />
-                    <LocationMarker />
-                  </MapContainer>
-                </div>
-              </div>
+          {hoverPosition && (
+            <div
+              style={getHoverDivStyle(hoverPosition)}
+              className="absolute z-[400] hidden md:flex items-center justify-center bg-white rounded-full shadow-lg pointer-events-none"
+            >
+              <MapPin className="h-4 w-4 text-primary" />
+            </div>
+          )}
 
-              <FormField
-                control={form.control}
-                name="location.notificationReach"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notification Reach</FormLabel>
-                    <FormControl>
-                      <Slider
-                        min={MIN_REACH}
-                        max={MAX_REACH}
-                        step={0.1}
-                        value={[field.value]}
-                        onValueChange={(vals) => {
-                          const value = vals[0]
-                          field.onChange(value)
-                          setPosition({...position, notificationReach: value})
-                        }}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Notification radius: {field.value} km
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <MapViewSetter center={defaultMapCenter} zoom={defaultZoom} />
+        </>
+      )}
 
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category *</FormLabel>
-                    <FormControl>
-                      <CategoryPicker {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="subcategory"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Subcategory</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter subcategory" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-2 gap-4">
+      <div className="fixed inset-x-0 bottom-0 z-20 transition-transform duration-300 transform translate-y-0 animate-slide-up">
+        <Card className="rounded-t-xl max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-white z-10 flex justify-between items-center p-4 border-b">
+            <h2 className="text-xl font-bold">Create Event</h2>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+          <CardContent className="p-5">
+            <Form {...form}>
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="startDate"
+                  name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Start Date *</FormLabel>
+                      <FormLabel>Event Title</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input placeholder="Enter event title" {...field} />
                       </FormControl>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
 
                 <FormField
                   control={form.control}
-                  name="startTime"
+                  name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Start Time *</FormLabel>
+                      <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>End Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="endTime"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>End Time</FormLabel>
-                      <FormControl>
-                        <Input type="time" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="recurrence"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Event Frequency</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select frequency" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {RECURRENCE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="maxParticipants"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Max Participants</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="Enter max participants"
-                        {...field}
-                        onChange={e => field.onChange(parseInt(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Enter event description" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="isPaid"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      <Input
-                        type="checkbox"
-                        className="w-4 h-4"
-                        checked={field.value}
-                        onChange={e => field.onChange(e.target.checked)}
-                      />
-                    </FormControl>
-                    <FormLabel>Is this a paid event?</FormLabel>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {form.watch("isPaid") && (
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price per person</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="Enter price"
+                        <Textarea
+                          placeholder="Describe your event"
+                          className="min-h-[100px]"
                           {...field}
-                          onChange={e => field.onChange(parseFloat(e.target.value))}
                         />
                       </FormControl>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
-              )}
 
-              <Button type="submit" className="w-full">
-                Create Event
-              </Button>
-            </form>
-          </Form>
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter location name" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <FormLabel>Date</FormLabel>
+                    <DatePicker
+                      date={eventDate}
+                      setDate={setEventDate}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <FormLabel>Time</FormLabel>
+                    <DatePicker
+                      date={eventTime}
+                      setDate={setEventTime}
+                      className="w-full"
+                      mode="time"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <FormLabel>Notification Radius (meters)</FormLabel>
+                  <Input
+                    type="range"
+                    min="100"
+                    max="2000"
+                    step="100"
+                    value={notificationRadius}
+                    onChange={(e) => setNotificationRadius(Number(e.target.value))}
+                  />
+                  <div className="text-sm text-gray-500 text-center">
+                    {notificationRadius} meters
+                  </div>
+                </div>
+
+                <Button type="submit" className="w-full">
+                  Create Event
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
         </Card>
       </div>
       <BottomNav />

@@ -117,11 +117,12 @@ const TopNav: React.FC<TopNavProps> = ({
       <div className="flex items-center">
         <Link href="/" className="flex items-center">
           <Logo className="w-8 h-8 text-white" />
+          <span className="ml-2 text-white text-lg font-semibold">EventApp</span>
         </Link>
       </div>
 
-      <div className="flex-1 mx-4 max-w-xl relative">
-        <div className="relative w-full static md:relative">
+      <div className="flex-1 mx-4 max-w-md relative">
+        <div className="relative w-full">
           <Input
             type="text"
             placeholder="Zoeken..."
@@ -138,7 +139,7 @@ const TopNav: React.FC<TopNavProps> = ({
             }}
           />
           {showResults && searchQuery && (
-            <div className="absolute w-full left-0 md:left-auto bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60] max-w-[100vw] md:max-w-full">
+            <div className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
               {filteredAndSortedEvents.length > 0 && (
                 <button
                   onClick={handleViewOnMap}

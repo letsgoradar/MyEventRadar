@@ -22,7 +22,7 @@ import { Card } from "@/components/ui/card";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { DEFAULT_CENTER, DEFAULT_ZOOM, DEFAULT_NOTIFICATION_RADIUS } from "@/components/Map/constants";
 import { DraggableMarker } from "@/components/Map/DraggableMarker";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { DateTimePicker } from "@/components/date-time-picker";
 import { getHoverDivStyle } from "@/lib/leaflet-map-style";
 import { MapPin } from "lucide-react";
 import { useLocation } from "wouter";

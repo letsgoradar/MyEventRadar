@@ -57,7 +57,17 @@ const TopNav: React.FC<TopNavProps> = ({
     enabled: !!userLocation && searchQuery.length > 0
   });
 
-  const sortedEvents = events
+  // Filter and sort events based on search query and distance
+  const filteredAndSortedEvents = events
+    .filter(event => {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        event.title?.toLowerCase().includes(searchLower) ||
+        event.category?.toLowerCase().includes(searchLower) ||
+        event.subcategory?.toLowerCase().includes(searchLower) ||
+        event.description?.toLowerCase().includes(searchLower)
+      );
+    })
     .map(event => ({
       ...event,
       distance: userLocation 
@@ -93,22 +103,31 @@ const TopNav: React.FC<TopNavProps> = ({
               setShowResults(true);
             }}
             onFocus={() => setShowResults(true)}
+            onBlur={() => {
+              // Delay hiding results to allow for clicking
+              setTimeout(() => setShowResults(false), 200);
+            }}
           />
           {showResults && searchQuery && (
             <div className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
-              {sortedEvents.map((event) => (
-                <Link key={event.id} href={`/event/${event.id}`}>
-                  <div
-                    className="p-2 hover:bg-gray-100 cursor-pointer"
-                    onClick={() => setShowResults(false)}
-                  >
-                    <div className="font-medium">{event.title}</div>
-                    <div className="text-sm text-gray-600">
-                      {event.distance.toFixed(1)} km afstand
+              {filteredAndSortedEvents.length > 0 ? (
+                filteredAndSortedEvents.map((event) => (
+                  <Link key={event.id} href={`/event/${event.id}`}>
+                    <div
+                      className="p-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => setShowResults(false)}
+                    >
+                      <div className="font-medium">{event.title}</div>
+                      <div className="text-sm text-gray-600 flex justify-between">
+                        <span>{event.category}</span>
+                        <span>{event.distance.toFixed(1)} km</span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))
+              ) : (
+                <div className="p-2 text-gray-500">Geen resultaten gevonden</div>
+              )}
             </div>
           )}
         </div>

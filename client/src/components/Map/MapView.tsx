@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
-import { Satellite } from 'lucide-react';
+import { Satellite, Filter as FilterIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import L from 'leaflet';
 import React, { useState, useEffect } from 'react';
@@ -8,6 +8,9 @@ import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
 import { Link } from "wouter";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Add pulse animation CSS
 const pulseAnimation = `
@@ -37,7 +40,9 @@ const categoryColors = {
 };
 
 const getCategoryColor = (category: string): string => {
-  return categoryColors[category.toLowerCase()] || '#9E9E9E'; // grey as fallback
+  const color = categoryColors[category.toLowerCase()];
+  console.log('Getting color for category:', category, 'Color:', color);
+  return color || '#9E9E9E'; // grey as fallback
 };
 
 const createEventIcon = (category: string) => {
@@ -247,7 +252,9 @@ export default function MapView({ filters }: MapViewProps) {
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   const [currentSearch, setCurrentSearch] = useState<string>('');
-  const [mapKey, setMapKey] = useState(0); 
+  const [mapKey, setMapKey] = useState(0);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   useEffect(() => {
     const storedSearch = sessionStorage.getItem('currentSearch');
@@ -271,6 +278,7 @@ export default function MapView({ filters }: MapViewProps) {
   const { data: events = [] } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", filters, userLocation],
     queryFn: async () => {
+      if (!userLocation) return [];
       const params = new URLSearchParams({
         lat: userLocation[0].toString(),
         lng: userLocation[1].toString(),
@@ -281,11 +289,14 @@ export default function MapView({ filters }: MapViewProps) {
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('Fetched events:', data);
+      return data;
     },
   });
 
   const filteredEvents = events.filter(event => {
+    console.log('Filtering event:', event.title, 'Category:', event.category);
     if (filters.category && event.category !== filters.category) return false;
     if (filters.showPaidEvents && !event.isPaid) return false;
 
@@ -334,6 +345,58 @@ export default function MapView({ filters }: MapViewProps) {
         <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
       </Button>
 
+      <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+        <SheetTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className="absolute top-4 right-16 z-[1000] bg-white/90 hover:bg-white"
+          >
+            <FilterIcon className="h-4 w-4" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="right" className="w-[300px]">
+          <SheetHeader>
+            <SheetTitle>Filters</SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-full py-4">
+            <div className="space-y-4">
+              <div>
+                <h4 className="mb-2 text-sm font-medium">Categories</h4>
+                <div className="flex flex-wrap gap-2">
+                  {Object.keys(categoryColors).map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => toggleCategory(category)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all ${
+                        activeCategories.has(category)
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted hover:bg-muted/80'
+                      }`}
+                    >
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      {/* Active filters display */}
+      <div className="absolute top-4 right-28 z-[1000] flex gap-2">
+        {Array.from(activeCategories).map((category) => (
+          <Badge
+            key={category}
+            variant="secondary"
+            className="bg-white/90 hover:bg-white"
+          >
+            {category.charAt(0).toUpperCase() + category.slice(1)}
+          </Badge>
+        ))}
+      </div>
+
       <MapContainer
         key={mapKey}
         center={userLocation}
@@ -341,7 +404,13 @@ export default function MapView({ filters }: MapViewProps) {
         className="h-full w-full"
         zoomControl={false}
       >
-        <TileLayer url={tileUrl} {...tileConfig} />
+        <TileLayer
+          url={isSatelliteView
+            ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          }
+          {...(isSatelliteView ? { subdomains: [] } : { subdomains: 'abcd' })}
+        />
         <CreateEventMarker />
         <MapBoundsControl />
         <UserLocationMarker />
@@ -353,6 +422,8 @@ export default function MapView({ filters }: MapViewProps) {
         {filteredEvents.map(event => {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
+
+          console.log('Creating marker for event:', event.title, 'Category:', event.category);
 
           if (isNaN(lat) || isNaN(lng)) return null;
 
@@ -375,9 +446,16 @@ export default function MapView({ filters }: MapViewProps) {
                       </div>
                       <div>{event.title}</div>
                     </div>
-                    {event.description && <div className="mb-2 text-xs">{event.description.substring(0, 80)}{event.description.length > 80 ? '...' : ''}</div>}
+                    {event.description && (
+                      <div className="mb-2 text-xs">
+                        {event.description.substring(0, 80)}
+                        {event.description.length > 80 ? '...' : ''}
+                      </div>
+                    )}
                     {distance !== null && (
-                      <div className="text-xs text-gray-600 mb-1">{distance.toFixed(1)} km afstand</div>
+                      <div className="text-xs text-gray-600 mb-1">
+                        {distance.toFixed(1)} km afstand
+                      </div>
                     )}
                     <Link
                       to={`/event/${event.id}`}

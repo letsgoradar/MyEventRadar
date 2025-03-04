@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import L from 'leaflet';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
@@ -235,7 +235,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
   const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
   const [isCategoryLegendVisible, setIsCategoryLegendVisible] = useState(false);
-
+  const quickFiltersRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const storedSearch = sessionStorage.getItem('currentSearch');
@@ -352,10 +352,25 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     }
   };
 
+  // Handle clicking outside quick filters
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (quickFiltersRef.current && !quickFiltersRef.current.contains(event.target as Node)) {
+        setIsCategoryLegendVisible(false);
+        setIsTimeFilterVisible(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="h-full relative">
-      {/* Map Controls */}
-      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+      {/* Map Controls - Moved to left */}
+      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
         <Button
           variant="outline"
           size="icon"
@@ -366,21 +381,21 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         </Button>
       </div>
 
-      {/* Quick Filters - Icon Only */}
-      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-1.5">
+      {/* Quick Filters - Moved to right */}
+      <div ref={quickFiltersRef} className="absolute top-4 right-4 z-[1000] flex flex-col gap-1.5">
         {/* Categories */}
         <Button
           variant="outline"
           size="icon"
           className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            selectedCategory !== 'all' ? 'border-primary text-primary' : ''
+            selectedCategory !== 'all' ? 'border-primary border-2 text-primary shadow-md' : ''
           }`}
           onClick={() => setIsCategoryLegendVisible(!isCategoryLegendVisible)}
           title="Categorieën"
         >
           <CategoryIcon className="h-4 w-4" />
           {selectedCategory !== 'all' && (
-            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center">
+            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
               •
             </Badge>
           )}
@@ -391,7 +406,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           variant="outline"
           size="icon"
           className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            showFreeOnly ? 'border-primary text-primary' : ''
+            showFreeOnly ? 'border-primary border-2 text-primary shadow-md' : ''
           }`}
           onClick={() => {
             setShowFreeOnly(!showFreeOnly);
@@ -401,7 +416,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         >
           <Euro className="h-4 w-4" />
           {showFreeOnly && (
-            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center">
+            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
               •
             </Badge>
           )}
@@ -412,14 +427,14 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           variant="outline"
           size="icon"
           className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            maxDaysToEvent !== 30 ? 'border-primary text-primary' : ''
+            maxDaysToEvent !== 30 ? 'border-primary border-2 text-primary shadow-md' : ''
           }`}
           onClick={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
           title={`Binnen ${maxDaysToEvent} dagen`}
         >
           <Clock className="h-4 w-4" />
           {maxDaysToEvent !== 30 && (
-            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center">
+            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
               •
             </Badge>
           )}
@@ -430,20 +445,20 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           <Button
             variant="outline"
             size="icon"
-            className="bg-white/90 hover:bg-white h-8 w-8 border-primary text-primary"
+            className="bg-white/90 hover:bg-white h-8 w-8 border-primary border-2 text-primary shadow-md"
             title={`Zoeken: "${currentSearch}"`}
           >
             <Search className="h-4 w-4" />
-            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center">
+            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
               •
             </Badge>
           </Button>
         )}
       </div>
 
-      {/* Category Legend */}
+      {/* Category Legend - Aligned right */}
       {isCategoryLegendVisible && (
-        <div className="absolute top-[52px] left-4 z-[1000] bg-white p-2 rounded-lg shadow-md">
+        <div className="absolute top-[52px] right-4 z-[1000] bg-white p-2 rounded-lg shadow-md">
           <div className="grid gap-1.5">
             <button
               onClick={() => {
@@ -487,9 +502,9 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         </div>
       )}
 
-      {/* Time Filter Popover */}
+      {/* Time Filter Popover - Aligned right */}
       {isTimeFilterVisible && (
-        <div className="absolute top-[52px] left-4 z-[1000] bg-white p-2 rounded-lg shadow-md w-[260px]">
+        <div className="absolute top-[52px] right-4 z-[1000] bg-white p-2 rounded-lg shadow-md w-[260px]">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />

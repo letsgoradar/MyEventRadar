@@ -166,15 +166,7 @@ export default function TopNav({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button 
-          onClick={toggleFilterSheet} 
-          variant="ghost" 
-          size="icon" 
-          className="text-white hover:bg-blue-600"
-        >
-          <Filter className="h-5 w-5" />
-        </Button>
-
+        {/* Switched positions: List/Map toggle first, then Filter */}
         <Button 
           onClick={toggleView} 
           variant="ghost" 
@@ -182,6 +174,15 @@ export default function TopNav({
           className="text-white hover:bg-blue-600"
         >
           {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
+        </Button>
+
+        <Button 
+          onClick={toggleFilterSheet} 
+          variant="ghost" 
+          size="icon" 
+          className="text-white hover:bg-blue-600"
+        >
+          <Filter className="h-5 w-5" />
         </Button>
       </div>
     </nav>

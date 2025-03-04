@@ -88,8 +88,10 @@ const TopNav: React.FC<TopNavProps> = ({
       const event1 = filteredAndSortedEvents[0];
       const event2 = filteredAndSortedEvents[1];
 
-      // Store search and bounds in sessionStorage for map component
+      // First store the search
       sessionStorage.setItem('currentSearch', searchQuery);
+
+      // Then store bounds
       sessionStorage.setItem('mapBounds', JSON.stringify({
         events: [
           { lat: Number(event1.latitude), lng: Number(event1.longitude) },
@@ -97,17 +99,21 @@ const TopNav: React.FC<TopNavProps> = ({
         ]
       }));
 
-      // Switch to map view if not already there
+      // Switch to map view if needed
       if (!isMapView && toggleView) {
         toggleView();
-      } else {
-        // If already in map view, force a reload by clearing and resetting the search
-        const currentSearch = searchQuery;
-        setSearchQuery('');
-        setTimeout(() => {
-          setSearchQuery(currentSearch);
-        }, 0);
       }
+
+      // Force a re-render of the map component by updating sessionStorage again
+      setTimeout(() => {
+        // Update storage again to trigger the map effect
+        sessionStorage.setItem('mapBounds', JSON.stringify({
+          events: [
+            { lat: Number(event1.latitude), lng: Number(event1.longitude) },
+            { lat: Number(event2.latitude), lng: Number(event2.longitude) }
+          ]
+        }));
+      }, 100);
     }
     setShowResults(false);
   };

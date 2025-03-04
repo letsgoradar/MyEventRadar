@@ -26,7 +26,7 @@ const createEventIcon = (category: string) => {
   const color = getCategoryColor(category);
   return L.divIcon({
     className: 'custom-icon',
-    iconSize: [12, 12], // Reduced size by 30%
+    iconSize: [12, 12],
     iconAnchor: [6, 6],
     html: `<div style="width: 12px; height: 12px; border-radius: 50%; border: 1px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2); background-color: ${color};"></div>`
   });
@@ -66,7 +66,7 @@ function CreateEventMarker() {
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [touchCount, setTouchCount] = useState(0);
   const [startPoint, setStartPoint] = useState<{ x: number, y: number } | null>(null);
-  const moveThreshold = 10; // pixels
+  const moveThreshold = 10;
 
   const map = useMapEvents({
     touchstart: (e) => {
@@ -157,8 +157,8 @@ function CreateEventMarker() {
 }
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Radius of the earth in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;  // deg2rad below
+  const R = 6371; 
+  const dLat = (lat2 - lat1) * Math.PI / 180;  
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
     0.5 - Math.cos(dLat) / 2 +
@@ -168,7 +168,6 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.asin(Math.sqrt(a));
 }
 
-// Add new MapBoundsControl component
 function MapBoundsControl() {
   const map = useMap();
 
@@ -180,39 +179,33 @@ function MapBoundsControl() {
         const bounds = L.latLngBounds(events.map(e => [e.lat, e.lng]));
         map.flyToBounds(bounds, { 
           padding: [50, 50],
-          duration: 1, // Duration in seconds
-          easeLinearity: 0.25
+          duration: 1.5, 
+          easeLinearity: 0.5 
         });
-        // Clear the stored bounds after using them
-        sessionStorage.removeItem('mapBounds');
       }
     }
-  }, [map]);
+  }, [map, sessionStorage.getItem('mapBounds')]); 
 
   return null;
 }
 
 export default function MapView({ filters }: MapViewProps) {
-  const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]); // Default to Oss
+  const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
     new Set(Object.keys(categoryColors))
   );
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   const [currentSearch, setCurrentSearch] = useState<string>('');
-  const [mapKey, setMapKey] = useState(0); // Add this line for forcing map reload
+  const [mapKey, setMapKey] = useState(0); 
 
   useEffect(() => {
-    // Get the current search query from sessionStorage
     const storedSearch = sessionStorage.getItem('currentSearch');
     if (storedSearch) {
       setCurrentSearch(storedSearch);
-      // Force map reload when search changes
-      setMapKey(prev => prev + 1);
-      // Clear the stored search after using it
-      sessionStorage.removeItem('currentSearch');
+      console.log('Current search updated:', storedSearch);
     }
-  }, []);
+  }, [sessionStorage.getItem('currentSearch')]); 
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -247,9 +240,9 @@ export default function MapView({ filters }: MapViewProps) {
     if (filters.category && event.category !== filters.category) return false;
     if (filters.showPaidEvents && !event.isPaid) return false;
 
-    // Add search query filtering
-    if (currentSearch) {
-      const searchLower = currentSearch.toLowerCase();
+    const searchTerm = currentSearch || filters.searchQuery;
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
       return (
         event.title.toLowerCase().includes(searchLower) ||
         event.category.toLowerCase().includes(searchLower) ||
@@ -257,8 +250,6 @@ export default function MapView({ filters }: MapViewProps) {
         (event.description && event.description.toLowerCase().includes(searchLower))
       );
     }
-
-    if (filters.searchQuery && !event.title.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
     return true;
   });
 
@@ -295,7 +286,7 @@ export default function MapView({ filters }: MapViewProps) {
       </Button>
 
       <MapContainer
-        key={mapKey} // Add this line to force map reload
+        key={mapKey} 
         center={userLocation}
         zoom={13}
         className="h-full w-full"
@@ -313,10 +304,8 @@ export default function MapView({ filters }: MapViewProps) {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
 
-          // Skip if coordinates are invalid
           if (isNaN(lat) || isNaN(lng)) return null;
 
-          // Calculate distance if location exists
           const distance = location ?
             calculateDistance(location.lat, location.lng, lat, lng) :
             null;
@@ -329,7 +318,6 @@ export default function MapView({ filters }: MapViewProps) {
             >
               <Popup className="event-popup" maxWidth={300}>
                 <div className="text-sm pb-1">
-                  {/* Import EventCard component to reuse in popup */}
                   <div className="event-card-map">
                     <div className="font-semibold mb-1 flex items-center gap-1.5">
                       <div style={{ color: getCategoryColor(event.category) }}>

@@ -10,18 +10,13 @@ import {
   Search
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { format, differenceInDays } from "date-fns";
-import { nl } from "date-fns/locale";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { Link } from "wouter";
 import L from 'leaflet';
 import React, { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
-import { Link } from "wouter";
-import { Badge } from "@/components/ui/badge";
 
 // Add pulse animation CSS
 const pulseAnimation = `
@@ -347,6 +342,16 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
 
+  // Function to update both local and parent state
+  const updateFilters = (updates: Partial<typeof filters>) => {
+    if (onFilterChange) {
+      onFilterChange({
+        ...filters,
+        ...updates
+      });
+    }
+  };
+
   return (
     <div className="h-full relative">
       {/* Map Controls */}
@@ -354,82 +359,97 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         <Button
           variant="outline"
           size="icon"
-          className="bg-white/90 hover:bg-white"
+          className="bg-white/90 hover:bg-white h-8 w-8"
           onClick={() => setIsSatelliteView(!isSatelliteView)}
         >
           <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
         </Button>
       </div>
 
-      {/* Quick Filters */}
+      {/* Quick Filters - Icon Only */}
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-1.5">
         {/* Categories */}
         <Button
           variant="outline"
-          size="sm"
-          className={`bg-white/90 hover:bg-white flex items-center gap-1.5 h-8 px-2 ${
-            selectedCategory !== 'all' ? 'border-primary text-primary font-medium' : ''
+          size="icon"
+          className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
+            selectedCategory !== 'all' ? 'border-primary text-primary' : ''
           }`}
           onClick={() => setIsCategoryLegendVisible(!isCategoryLegendVisible)}
+          title="Categorieën"
         >
-          <CategoryIcon className="h-3.5 w-3.5" />
-          <span className="text-xs">{selectedCategory === 'all' ? 'Alle Categorieën' : selectedCategory}</span>
-          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isCategoryLegendVisible ? 'rotate-180' : ''}`} />
+          <CategoryIcon className="h-4 w-4" />
+          {selectedCategory !== 'all' && (
+            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center">
+              •
+            </Badge>
+          )}
         </Button>
 
         {/* Free/Paid Toggle */}
         <Button
           variant="outline"
-          size="sm"
-          className={`bg-white/90 hover:bg-white flex items-center gap-1.5 h-8 px-2 ${
-            showFreeOnly ? 'border-primary text-primary font-medium' : ''
+          size="icon"
+          className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
+            showFreeOnly ? 'border-primary text-primary' : ''
           }`}
-          onClick={() => setShowFreeOnly(!showFreeOnly)}
+          onClick={() => {
+            setShowFreeOnly(!showFreeOnly);
+            updateFilters({ showFreeOnly: !showFreeOnly });
+          }}
+          title={showFreeOnly ? 'Alleen Gratis' : 'Alle Evenementen'}
         >
-          <Euro className="h-3.5 w-3.5" />
-          <span className="text-xs">{showFreeOnly ? 'Alleen Gratis' : 'Alle Evenementen'}</span>
+          <Euro className="h-4 w-4" />
+          {showFreeOnly && (
+            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center">
+              •
+            </Badge>
+          )}
         </Button>
 
         {/* Time Filter */}
         <Button
           variant="outline"
-          size="sm"
-          className={`bg-white/90 hover:bg-white flex items-center gap-1.5 h-8 px-2 ${
-            maxDaysToEvent !== 30 ? 'border-primary text-primary font-medium' : ''
+          size="icon"
+          className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
+            maxDaysToEvent !== 30 ? 'border-primary text-primary' : ''
           }`}
           onClick={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
+          title={`Binnen ${maxDaysToEvent} dagen`}
         >
-          <Clock className="h-3.5 w-3.5" />
-          <span className="text-xs">Binnen {maxDaysToEvent} dagen</span>
-          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isTimeFilterVisible ? 'rotate-180' : ''}`} />
+          <Clock className="h-4 w-4" />
+          {maxDaysToEvent !== 30 && (
+            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center">
+              •
+            </Badge>
+          )}
         </Button>
 
-        {/* Search Results Badge */}
+        {/* Search Results Indicator */}
         {currentSearch && (
           <Button
             variant="outline"
-            size="sm"
-            className="bg-white/90 hover:bg-white flex items-center gap-1.5 h-8 px-2 text-primary border-primary font-medium"
+            size="icon"
+            className="bg-white/90 hover:bg-white h-8 w-8 border-primary text-primary"
+            title={`Zoeken: "${currentSearch}"`}
           >
-            <Search className="h-3.5 w-3.5" />
-            <span className="text-xs">Zoeken: "{currentSearch}"</span>
+            <Search className="h-4 w-4" />
+            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center">
+              •
+            </Badge>
           </Button>
-        )}
-
-        {/* Active Filter Count */}
-        {activeFilters.length > 0 && (
-          <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center p-0">
-            {activeFilters.length}
-          </Badge>
         )}
       </div>
 
       {/* Category Legend */}
       {isCategoryLegendVisible && (
-        <div className="absolute top-[140px] left-4 z-[1000] bg-white p-2 rounded-lg shadow-md">
+        <div className="absolute top-[52px] left-4 z-[1000] bg-white p-2 rounded-lg shadow-md">
           <div className="grid gap-1.5">
             <button
-              onClick={() => setSelectedCategory('all')}
+              onClick={() => {
+                setSelectedCategory('all');
+                updateFilters({ category: '' });
+              }}
               className={`flex items-center gap-2 p-1 rounded hover:bg-gray-100 ${
                 selectedCategory === 'all' ? 'text-primary' : ''
               }`}
@@ -437,32 +457,39 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: categoryColors.all }} />
               <span className="text-xs">Alle Evenementen ({eventCounts['all'] || 0})</span>
             </button>
-            {Object.entries(categoryColors).filter(([cat]) => cat !== 'all').map(([category, color]) => {
-              const count = eventCounts[category] || 0;
-              const isDisabled = count === 0;
-              return (
-                <button
-                  key={category}
-                  onClick={() => !isDisabled && setSelectedCategory(category)}
-                  className={`flex items-center gap-2 p-1 rounded hover:bg-gray-100 ${
-                    isDisabled ? 'opacity-50 cursor-not-allowed' : ''
-                  } ${selectedCategory === category ? 'text-primary' : ''}`}
-                  disabled={isDisabled}
-                >
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-                  <span className="text-xs capitalize">
-                    {category} ({count})
-                  </span>
-                </button>
-              );
-            })}
+            {Object.entries(categoryColors)
+              .filter(([cat]) => cat !== 'all')
+              .map(([category, color]) => {
+                const count = eventCounts[category] || 0;
+                const isDisabled = count === 0;
+                return (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      if (!isDisabled) {
+                        setSelectedCategory(category);
+                        updateFilters({ category });
+                      }
+                    }}
+                    className={`flex items-center gap-2 p-1 rounded hover:bg-gray-100 ${
+                      isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                    } ${selectedCategory === category ? 'text-primary' : ''}`}
+                    disabled={isDisabled}
+                  >
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                    <span className="text-xs capitalize">
+                      {category} ({count})
+                    </span>
+                  </button>
+                );
+              })}
           </div>
         </div>
       )}
 
       {/* Time Filter Popover */}
       {isTimeFilterVisible && (
-        <div className="absolute top-[140px] left-4 z-[1000] bg-white p-2 rounded-lg shadow-md w-[260px]">
+        <div className="absolute top-[52px] left-4 z-[1000] bg-white p-2 rounded-lg shadow-md w-[260px]">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
@@ -470,7 +497,10 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
                 variant="outline"
                 size="sm"
                 className="h-8 text-xs w-full"
-                onClick={() => setSelectedDate(new Date())}
+                onClick={() => {
+                  setSelectedDate(new Date());
+                  updateFilters({ selectedDate: new Date().toISOString() });
+                }}
               >
                 {format(selectedDate, 'PPP', { locale: nl })}
               </Button>
@@ -478,7 +508,10 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
             <div className="flex items-center gap-2">
               <Slider
                 value={[maxDaysToEvent]}
-                onValueChange={(values) => setMaxDaysToEvent(values[0])}
+                onValueChange={(values) => {
+                  setMaxDaysToEvent(values[0]);
+                  updateFilters({ maxDaysToEvent: values[0] });
+                }}
                 max={90}
                 step={1}
                 className="flex-1"
@@ -570,3 +603,7 @@ interface MapViewProps {
   filters: FilterProps;
   onFilterChange?: (filters: FilterProps) => void;
 }
+import { format, differenceInDays } from "date-fns";
+import { nl } from "date-fns/locale";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Slider } from "@/components/ui/slider";

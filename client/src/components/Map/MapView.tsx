@@ -9,6 +9,19 @@ import './leaflet-fix.css';
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 
+// Add pulse animation CSS
+const pulseAnimation = `
+  @keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    70% { transform: scale(2); opacity: 0; }
+    100% { transform: scale(1); opacity: 0; }
+  }
+`;
+
+const style = document.createElement('style');
+style.textContent = pulseAnimation;
+document.head.appendChild(style);
+
 const categoryColors = {
   'festival': '#FF6B00',
   'sport': '#0066FF',
@@ -189,6 +202,59 @@ function MapBoundsControl() {
   return null;
 }
 
+// Add UserLocationMarker component
+function UserLocationMarker() {
+  const [position, setPosition] = useState<[number, number] | null>(null);
+  const map = useMap();
+
+  useEffect(() => {
+    map.locate().on("locationfound", function (e) {
+      setPosition([e.latitude, e.longitude]);
+      map.flyTo([e.latitude, e.longitude], map.getZoom());
+    });
+  }, [map]);
+
+  if (!position) return null;
+
+  const pulsingIcon = L.divIcon({
+    className: 'custom-icon',
+    html: `
+      <div style="position: relative">
+        <div style="
+          width: 12px;
+          height: 12px;
+          background: #2196F3;
+          border-radius: 50%;
+          border: 2px solid white;
+          box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.4);
+        "></div>
+        <div style="
+          position: absolute;
+          top: -2px;
+          left: -2px;
+          right: -2px;
+          bottom: -2px;
+          border-radius: 50%;
+          background: rgba(33, 150, 243, 0.4);
+          animation: pulse 2s infinite;
+          z-index: -1;
+        "></div>
+      </div>
+    `,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
+
+  return (
+    <Marker position={position} icon={pulsingIcon}>
+      <Popup>
+        <div className="text-sm font-medium">Mijn locatie</div>
+      </Popup>
+    </Marker>
+  );
+}
+
+
 export default function MapView({ filters }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
@@ -286,7 +352,7 @@ export default function MapView({ filters }: MapViewProps) {
       </Button>
 
       <MapContainer
-        key={mapKey} 
+        key={mapKey}
         center={userLocation}
         zoom={13}
         className="h-full w-full"
@@ -295,6 +361,7 @@ export default function MapView({ filters }: MapViewProps) {
         <TileLayer url={tileUrl} {...tileConfig} />
         <CreateEventMarker />
         <MapBoundsControl />
+        <UserLocationMarker />
         <MapLegend
           onToggleCategory={toggleCategory}
           activeCategories={activeCategories}

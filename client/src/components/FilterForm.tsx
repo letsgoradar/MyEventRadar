@@ -12,12 +12,11 @@ import {
   SheetContent, 
   SheetHeader, 
   SheetTitle,
-  SheetDescription,
   SheetClose
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -68,7 +67,7 @@ export function FilterForm({
   const handleFilterChange = (updates: Partial<typeof currentFilters>) => {
     onFilterChange({
       ...currentFilters,
-      ...updates
+      ...updates,
     });
   };
 
@@ -77,104 +76,100 @@ export function FilterForm({
     selectedCategory !== 'all' && 'category',
     showFreeOnly && 'price',
     maxDaysToEvent !== 30 && 'time',
-    searchQuery && 'search'
+    searchQuery && 'search',
+    mapZoomLevel && 'distance'
   ].filter(Boolean);
 
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange} defaultSide="right">
-      <SheetContent side="right" className="w-[300px] sm:w-[400px] p-0">
-        <SheetHeader className="p-4 pb-2">
+    <Sheet open={isOpen} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+        <SheetHeader className="pb-4">
           <SheetTitle>Filters</SheetTitle>
-          <SheetDescription>
-            {searchQuery && (
-              <Badge variant="outline" className="mb-2">
-                Zoeken: {searchQuery}
-              </Badge>
-            )}
-          </SheetDescription>
+          {activeFilters.length > 0 && (
+            <Badge variant="outline" className="w-fit">
+              {activeFilters.length} actieve filters
+            </Badge>
+          )}
         </SheetHeader>
 
-        <ScrollArea className="h-[calc(100vh-120px)]">
-          <div className="space-y-4 p-4">
+        <ScrollArea className="h-[calc(100vh-180px)]">
+          <div className="space-y-6 pr-4">
             {/* Categories */}
-            <div>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`w-full flex items-center justify-between ${
-                  selectedCategory !== 'all' ? 'border-primary text-primary font-medium' : ''
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <CategoryIcon className="h-4 w-4" />
+                <span className="font-medium">Categorieën</span>
+              </div>
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className={`flex items-center gap-2 p-2 rounded-lg w-full hover:bg-gray-100 ${
+                  selectedCategory === 'all' ? 'text-primary' : ''
                 }`}
-                onClick={() => setIsCategoryOpen(!isCategoryOpen)}
               >
-                <div className="flex items-center gap-2">
-                  <CategoryIcon className="h-4 w-4" />
-                  <span>{selectedCategory === 'all' ? 'Alle Categorieën' : selectedCategory}</span>
-                </div>
-                <ChevronDown className={`h-4 w-4 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
-              </Button>
-
-              {isCategoryOpen && (
-                <div className="mt-2 grid gap-1">
-                  <button
-                    onClick={() => setSelectedCategory('all')}
-                    className={`flex items-center gap-2 p-2 rounded hover:bg-gray-100 ${
-                      selectedCategory === 'all' ? 'text-primary' : ''
-                    }`}
-                  >
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: categoryColors.all }} />
-                    <span className="text-sm">Alle Evenementen ({eventCounts['all'] || 0})</span>
-                  </button>
-                  {Object.entries(categoryColors)
-                    .filter(([cat]) => cat !== 'all')
-                    .map(([category, color]) => {
-                      const count = eventCounts[category] || 0;
-                      const isDisabled = count === 0;
-                      return (
-                        <button
-                          key={category}
-                          onClick={() => !isDisabled && setSelectedCategory(category)}
-                          className={`flex items-center gap-2 p-2 rounded hover:bg-gray-100 ${
-                            isDisabled ? 'opacity-50 cursor-not-allowed' : ''
-                          } ${selectedCategory === category ? 'text-primary' : ''}`}
-                          disabled={isDisabled}
-                        >
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-                          <span className="text-sm capitalize">
-                            {category} ({count})
-                          </span>
-                        </button>
-                      );
-                    })}
-                </div>
-              )}
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: categoryColors.all }} />
+                <span>Alle Evenementen ({eventCounts['all'] || 0})</span>
+              </button>
+              {Object.entries(categoryColors)
+                .filter(([cat]) => cat !== 'all')
+                .map(([category, color]) => {
+                  const count = eventCounts[category] || 0;
+                  const isDisabled = count === 0;
+                  return (
+                    <button
+                      key={category}
+                      onClick={() => !isDisabled && setSelectedCategory(category)}
+                      className={`flex items-center gap-2 p-2 rounded-lg w-full ${
+                        isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'
+                      } ${selectedCategory === category ? 'text-primary' : ''}`}
+                      disabled={isDisabled}
+                    >
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                      <span className="capitalize">
+                        {category} ({count})
+                      </span>
+                    </button>
+                  );
+                })}
             </div>
 
-            {/* Free/Paid Toggle */}
-            <div className="flex items-center justify-between">
+            {/* Free/Paid Filter */}
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Euro className="h-4 w-4" />
-                <span>Alleen Gratis</span>
+                <span className="font-medium">Prijs</span>
               </div>
-              <Switch
-                checked={showFreeOnly}
-                onCheckedChange={setShowFreeOnly}
-              />
+              <div className="flex items-center justify-between p-2">
+                <span>Alleen gratis evenementen</span>
+                <Switch
+                  checked={showFreeOnly}
+                  onCheckedChange={setShowFreeOnly}
+                />
+              </div>
             </div>
 
-            {/* Time to Event */}
-            <div className="space-y-4">
+            {/* Time Filter */}
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                <span>Binnen {maxDaysToEvent} dagen</span>
+                <span className="font-medium">Tijd</span>
               </div>
               <div className="px-2">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  className="rounded-md border"
-                />
-                <div className="mt-4 space-y-2">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-sm">Startdatum:</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => setSelectedDate(new Date())}
+                  >
+                    {format(selectedDate, 'PPP', { locale: nl })}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Binnen dagen:</span>
+                    <span className="text-sm font-medium">{maxDaysToEvent}</span>
+                  </div>
                   <Slider
                     value={[maxDaysToEvent]}
                     onValueChange={(values) => setMaxDaysToEvent(values[0])}
@@ -185,29 +180,51 @@ export function FilterForm({
               </div>
             </div>
 
-            {/* Distance Filter (based on map zoom) */}
+            {/* Distance Filter */}
             {mapZoomLevel && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  <span>Zoekradius</span>
+                  <span className="font-medium">Afstand</span>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Radius wordt automatisch aangepast op basis van het zoomniveau van de kaart
+                <div className="text-sm text-muted-foreground p-2">
+                  Zoekradius wordt automatisch aangepast op basis van het zoomniveau van de kaart
+                </div>
+              </div>
+            )}
+
+            {/* Search Query */}
+            {searchQuery && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Search className="h-4 w-4" />
+                  <span className="font-medium">Zoekopdracht</span>
+                </div>
+                <div className="p-2">
+                  <Badge variant="secondary" className="text-xs">
+                    "{searchQuery}"
+                  </Badge>
                 </div>
               </div>
             )}
           </div>
         </ScrollArea>
 
-        <div className="flex justify-end gap-2 p-4 border-t">
+        <div className="flex justify-end gap-2 pt-4 border-t">
           <SheetClose asChild>
             <Button variant="outline" onClick={() => onFilterChange({})}>
               Reset
             </Button>
           </SheetClose>
           <SheetClose asChild>
-            <Button>Filter Toepassen</Button>
+            <Button onClick={() => handleFilterChange({
+              category: selectedCategory !== 'all' ? selectedCategory : undefined,
+              showFreeOnly,
+              maxDaysToEvent,
+              selectedDate: selectedDate.toISOString(),
+            })}>
+              Toepassen
+            </Button>
           </SheetClose>
         </div>
       </SheetContent>

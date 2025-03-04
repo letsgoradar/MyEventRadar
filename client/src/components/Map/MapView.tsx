@@ -1,9 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
-import { Satellite, ChevronDown, Calendar } from 'lucide-react';
+import { 
+  Satellite, 
+  ChevronDown, 
+  Calendar,
+  Tag as CategoryIcon,
+  Euro,
+  Clock,
+  Search
+} from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { format, differenceInDays, addDays } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -219,26 +227,35 @@ function UserLocationMarker() {
 }
 
 
-function MapView({ filters }: MapViewProps) {
+export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   const [currentSearch, setCurrentSearch] = useState<string>('');
   const [mapKey, setMapKey] = useState(0);
   const [showFreeOnly, setShowFreeOnly] = useState(false);
-  const [isCategoryLegendVisible, setIsCategoryLegendVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [maxDaysToEvent, setMaxDaysToEvent] = useState(30); // Default to 30 days
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
+  const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
+  const [isCategoryLegendVisible, setIsCategoryLegendVisible] = useState(false);
+
 
   useEffect(() => {
     const storedSearch = sessionStorage.getItem('currentSearch');
     if (storedSearch) {
       setCurrentSearch(storedSearch);
+      // Update filters with search query
+      if (onFilterChange) {
+        onFilterChange({
+          ...filters,
+          searchQuery: storedSearch
+        });
+      }
       console.log('Current search updated:', storedSearch);
     }
-  }, [sessionStorage.getItem('currentSearch')]); 
+  }, [sessionStorage.getItem('currentSearch'), onFilterChange]); 
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -299,9 +316,10 @@ function MapView({ filters }: MapViewProps) {
     const daysUntilEvent = differenceInDays(new Date(event.startTime), selectedDate);
     if (daysUntilEvent < 0 || daysUntilEvent > maxDaysToEvent) return false;
 
-    // Search filter
-    if (currentSearch) {
-      const searchLower = currentSearch.toLowerCase();
+    // Search filter - prioritize current search from top nav
+    const searchTerm = filters.searchQuery || currentSearch;
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
       return (
         event.title.toLowerCase().includes(searchLower) ||
         event.category.toLowerCase().includes(searchLower) ||
@@ -313,13 +331,13 @@ function MapView({ filters }: MapViewProps) {
     return true;
   });
 
-  // Active filters count
-  const activeFilterCount = [
-    selectedCategory !== 'all',
-    showFreeOnly,
-    maxDaysToEvent !== 30,
-    !!currentSearch
-  ].filter(Boolean).length;
+  // Calculate active filters for visual indicators
+  const activeFilters = [
+    selectedCategory !== 'all' && 'category',
+    showFreeOnly && 'price',
+    maxDaysToEvent !== 30 && 'time',
+    currentSearch && 'search'
+  ].filter(Boolean);
 
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -344,74 +362,72 @@ function MapView({ filters }: MapViewProps) {
       </div>
 
       {/* Quick Filters */}
-      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
+      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-1.5">
         {/* Categories */}
         <Button
           variant="outline"
-          className={`bg-white/90 hover:bg-white flex items-center gap-2 ${
-            selectedCategory !== 'all' ? 'border-primary text-primary' : ''
+          size="sm"
+          className={`bg-white/90 hover:bg-white flex items-center gap-1.5 h-8 px-2 ${
+            selectedCategory !== 'all' ? 'border-primary text-primary font-medium' : ''
           }`}
           onClick={() => setIsCategoryLegendVisible(!isCategoryLegendVisible)}
         >
-          Categories
-          <Badge variant="secondary" className="ml-2">{selectedCategory === 'all' ? 'All' : selectedCategory}</Badge>
-          <ChevronDown className={`h-4 w-4 transition-transform ${isCategoryLegendVisible ? 'rotate-180' : ''}`} />
+          <CategoryIcon className="h-3.5 w-3.5" />
+          <span className="text-xs">{selectedCategory === 'all' ? 'All Categories' : selectedCategory}</span>
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isCategoryLegendVisible ? 'rotate-180' : ''}`} />
         </Button>
 
         {/* Free/Paid Toggle */}
         <Button
           variant="outline"
-          className={`bg-white/90 hover:bg-white ${showFreeOnly ? 'border-primary text-primary' : ''}`}
+          size="sm"
+          className={`bg-white/90 hover:bg-white flex items-center gap-1.5 h-8 px-2 ${
+            showFreeOnly ? 'border-primary text-primary font-medium' : ''
+          }`}
           onClick={() => setShowFreeOnly(!showFreeOnly)}
         >
-          {showFreeOnly ? 'Free Events' : 'All Events'}
+          <Euro className="h-3.5 w-3.5" />
+          <span className="text-xs">{showFreeOnly ? 'Free Only' : 'All Events'}</span>
         </Button>
 
         {/* Time Filter */}
-        <div className="bg-white/90 p-3 rounded-lg border shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[240px]">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {format(selectedDate, 'PPP', { locale: nl })}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <CalendarComponent
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm">Within:</span>
-            <Slider
-              value={[maxDaysToEvent]}
-              onValueChange={(values) => setMaxDaysToEvent(values[0])}
-              max={90}
-              step={1}
-              className="w-[150px]"
-            />
-            <span className="text-sm">{maxDaysToEvent} days</span>
-          </div>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className={`bg-white/90 hover:bg-white flex items-center gap-1.5 h-8 px-2 ${
+            maxDaysToEvent !== 30 ? 'border-primary text-primary font-medium' : ''
+          }`}
+          onClick={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
+        >
+          <Clock className="h-3.5 w-3.5" />
+          <span className="text-xs">Within {maxDaysToEvent} days</span>
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isTimeFilterVisible ? 'rotate-180' : ''}`} />
+        </Button>
 
         {/* Search Results Badge */}
         {currentSearch && (
-          <Badge variant="secondary" className="bg-white/90">
-            Search: {currentSearch}
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-white/90 hover:bg-white flex items-center gap-1.5 h-8 px-2 text-primary border-primary font-medium"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="text-xs">"{currentSearch}"</span>
+          </Button>
+        )}
+
+        {/* Active Filter Count */}
+        {activeFilters.length > 0 && (
+          <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center p-0">
+            {activeFilters.length}
           </Badge>
         )}
       </div>
 
       {/* Category Legend */}
       {isCategoryLegendVisible && (
-        <div className="absolute top-[180px] left-4 z-[1000] bg-white p-3 rounded-lg shadow-md">
-          <div className="grid gap-2">
+        <div className="absolute top-[140px] left-4 z-[1000] bg-white p-2 rounded-lg shadow-md">
+          <div className="grid gap-1.5">
             <button
               onClick={() => setSelectedCategory('all')}
               className={`flex items-center gap-2 p-1 rounded hover:bg-gray-100 ${
@@ -440,6 +456,35 @@ function MapView({ filters }: MapViewProps) {
                 </button>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Time Filter Popover */}
+      {isTimeFilterVisible && (
+        <div className="absolute top-[140px] left-4 z-[1000] bg-white p-2 rounded-lg shadow-md w-[260px]">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs w-full"
+                onClick={() => setSelectedDate(new Date())}
+              >
+                {format(selectedDate, 'PPP', { locale: nl })}
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Slider
+                value={[maxDaysToEvent]}
+                onValueChange={(values) => setMaxDaysToEvent(values[0])}
+                max={90}
+                step={1}
+                className="flex-1"
+              />
+              <span className="text-xs w-12 text-right">{maxDaysToEvent}d</span>
+            </div>
           </div>
         </div>
       )}
@@ -510,8 +555,6 @@ function MapView({ filters }: MapViewProps) {
   );
 }
 
-export default MapView;
-
 interface FilterProps {
   searchQuery: string;
   category: string;
@@ -520,8 +563,10 @@ interface FilterProps {
   showPaidEvents: boolean;
   useDistanceFilter: boolean;
   distanceRadius: number;
+  onFilterChange?: (filters: FilterProps) => void;
 }
 
 interface MapViewProps {
   filters: FilterProps;
+  onFilterChange?: (filters: FilterProps) => void;
 }

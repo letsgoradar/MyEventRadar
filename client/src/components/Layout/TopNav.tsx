@@ -14,6 +14,7 @@ interface TopNavProps {
   toggleFilterSheet?: () => void;
   isFilterSheetOpen?: boolean;
   setIsFilterSheetOpen?: (open: boolean) => void;
+  onSearch?: (query: string) => void;
 }
 
 export default function TopNav({ 
@@ -21,8 +22,9 @@ export default function TopNav({
   toggleView, 
   toggleFilterSheet, 
   isFilterSheetOpen,
-  setIsFilterSheetOpen 
-}) {
+  setIsFilterSheetOpen,
+  onSearch 
+}: TopNavProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -48,7 +50,7 @@ export default function TopNav({
       const params = new URLSearchParams({
         lat: userLocation.lat.toString(),
         lng: userLocation.lng.toString(),
-        radius: "10", //Hardcoded radius
+        radius: "10",
         query: searchQuery
       });
       const response = await fetch(`/api/events/nearby?${params}`);
@@ -120,6 +122,9 @@ export default function TopNav({
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setShowResults(true);
+              if (onSearch) {
+                onSearch(e.target.value);
+              }
             }}
             onFocus={() => setShowResults(true)}
             onBlur={() => {

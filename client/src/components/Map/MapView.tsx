@@ -23,16 +23,21 @@ style.textContent = pulseAnimation;
 document.head.appendChild(style);
 
 const categoryColors = {
-  'festival': '#FF6B00',
-  'sport': '#0066FF',
-  'music': '#4285F4',
-  'food': '#FBBC05',
-  'culture': '#7B1FA2',
-  'other': '#757575',
+  'festival': '#FF9800',  // orange
+  'sports': '#2196F3',    // blue
+  'food': '#4CAF50',      // green
+  'culture': '#9C27B0',   // purple
+  'market': '#FF5722',    // deep orange
+  'education': '#607D8B', // blue grey
+  'music': '#E91E63',     // pink
+  'technology': '#00BCD4', // light blue
+  'gaming': '#8BC34A',    // light green
+  'health': '#FFEB3B',    // yellow
+  'nature': '#795548',    // brown
 };
 
 const getCategoryColor = (category: string): string => {
-  return categoryColors[category.toLowerCase()] || categoryColors.other;
+  return categoryColors[category.toLowerCase()] || '#9E9E9E'; // grey as fallback
 };
 
 const createEventIcon = (category: string) => {
@@ -202,7 +207,6 @@ function MapBoundsControl() {
   return null;
 }
 
-// Update the UserLocationMarker component styling
 function UserLocationMarker() {
   const [position, setPosition] = useState<[number, number] | null>(null);
   const map = useMap();
@@ -219,41 +223,10 @@ function UserLocationMarker() {
   const pulsingIcon = L.divIcon({
     className: 'custom-icon',
     html: `
-      <div style="
-        position: relative;
-        width: 16px;
-        height: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      ">
-        <div style="
-          width: 12px;
-          height: 12px;
-          background: #2196F3;
-          border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.4);
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-        "></div>
-        <div style="
-          position: absolute;
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          background: rgba(33, 150, 243, 0.4);
-          animation: pulse 2s infinite;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-        "></div>
-      </div>
+      <div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white pulse-animation"></div>
     `,
     iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    iconAnchor: [8, 8]
   });
 
   return (

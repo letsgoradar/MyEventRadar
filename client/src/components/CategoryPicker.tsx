@@ -1,64 +1,42 @@
-
 import * as React from 'react';
 import { forwardRef } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 
 const CATEGORIES = {
-  'Sport': [
-    'Voetbal', 'Hardlopen', 'Fietsen', 'Basketbal', 'Tennis', 'Yoga', 'Klimmen', 'Zwemmen'
-  ],
-  'Cultuur': [
-    'Theater', 'Muziek', 'Film', 'Dans', 'Kunst', 'Literatuur', 'Fotografie'
-  ],
-  'Educatie': [
-    'Workshops', 'Lezingen', 'Cursussen', 'Studiegroepen', 'Tech Meetups'
-  ],
-  'Gezondheid & Welzijn': [
-    'Mindfulness', 'Fitness', 'Gezondheid', 'Massage & Spa', 'Voeding'
-  ],
-  'Natuur & Avontuur': [
-    'Wandeltochten', 'Fietstochten', 'Kamperen', 'Strandactiviteiten', 'Vogels kijken'
-  ],
-  'Sociale Activiteiten': [
-    'Meetups', 'Picknicks', 'Spelletjesavonden', 'Film- of boekenclubs', 'Borrel of Pub Meetup'
-  ],
-  'Familie & Kinderen': [
-    'Kinderworkshops', 'Gezinsuitjes', 'Gezinsfilmavond', 'Kinderfeestjes'
-  ],
-  'Vrijwilligerswerk & Goede Doelen': [
-    'Strand- of parkopruiming', 'Huisdierenopvang', 'Eten uitdelen', 'Groene initiatieven'
-  ],
-  'Creatieve Activiteiten': [
-    'Kunst en Ambachten', 'Mode', 'Muziek maken', 'DIY & Knutselen'
-  ],
-  'Reizen & Avontuur': [
-    'Stadsrondleidingen', 'Outdoor Avonturen', 'Roadtrips', 'Excursies'
-  ]
+  'festival': ['Music', 'Food', 'Cultural', 'Arts'],
+  'sports': ['Football', 'Running', 'Cycling', 'Basketball', 'Tennis', 'Yoga', 'Climbing', 'Swimming'],
+  'food': ['Market', 'Tasting', 'Workshop', 'Fair'],
+  'culture': ['Theater', 'Music', 'Film', 'Dance', 'Art', 'Literature', 'Photography'],
+  'market': ['Food', 'Antiques', 'Crafts', 'Farmers'],
+  'education': ['Workshop', 'Lecture', 'Course', 'Study Group', 'Tech Meetup'],
+  'music': ['Classical', 'Jazz', 'Pop', 'Rock', 'Electronic'],
+  'technology': ['Meetup', 'Conference', 'Workshop', 'Hackathon'],
+  'gaming': ['eSports', 'Board Games', 'RPG', 'Card Games'],
+  'health': ['Fitness', 'Wellness', 'Nutrition', 'Meditation'],
+  'nature': ['Hiking', 'Bird Watching', 'Gardening', 'Conservation']
 };
 
 interface CategoryPickerProps extends React.ComponentPropsWithoutRef<typeof Select> {
   onValueChange?: (value: string) => void;
+  onSubcategoryChange?: (value: string) => void;
 }
 
 export const CategoryPicker = forwardRef<
   React.ElementRef<typeof Select>,
   CategoryPickerProps
->(({ onValueChange, ...props }, ref) => {
+>(({ onValueChange, onSubcategoryChange, ...props }, ref) => {
   const [mainCategory, setMainCategory] = React.useState<string>('');
-  const [customCategory, setCustomCategory] = React.useState<string>('');
-  const [showCustomInput, setShowCustomInput] = React.useState(false);
+  const [subcategory, setSubcategory] = React.useState<string>('');
 
   const handleMainCategoryChange = (value: string) => {
     setMainCategory(value);
-    setShowCustomInput(value === 'Overige');
+    setSubcategory(''); // Reset subcategory when main category changes
     onValueChange?.(value);
   };
 
-  const handleCustomCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setCustomCategory(value);
-    onValueChange?.('Overige');
+  const handleSubcategoryChange = (value: string) => {
+    setSubcategory(value);
+    onSubcategoryChange?.(value);
   };
 
   return (
@@ -66,7 +44,6 @@ export const CategoryPicker = forwardRef<
       <Select 
         value={mainCategory} 
         onValueChange={handleMainCategoryChange}
-        ref={ref}
         {...props}
       >
         <SelectTrigger>
@@ -75,22 +52,33 @@ export const CategoryPicker = forwardRef<
         <SelectContent>
           {Object.keys(CATEGORIES).map((category) => (
             <SelectItem key={category} value={category}>
-              {category}
+              {category.charAt(0).toUpperCase() + category.slice(1)}
             </SelectItem>
           ))}
-          <SelectItem value="Overige">Overige</SelectItem>
         </SelectContent>
       </Select>
 
-      {showCustomInput && (
-        <Input
-          placeholder="Voer eigen categorie in"
-          value={customCategory}
-          onChange={handleCustomCategoryChange}
-        />
+      {mainCategory && CATEGORIES[mainCategory] && (
+        <Select
+          value={subcategory}
+          onValueChange={handleSubcategoryChange}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecteer subcategorie" />
+          </SelectTrigger>
+          <SelectContent>
+            {CATEGORIES[mainCategory].map((sub) => (
+              <SelectItem key={sub} value={sub}>
+                {sub}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
     </div>
   );
 });
 
 CategoryPicker.displayName = "CategoryPicker";
+
+export { CATEGORIES };

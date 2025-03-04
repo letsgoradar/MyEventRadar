@@ -202,7 +202,7 @@ function MapBoundsControl() {
   return null;
 }
 
-// Add UserLocationMarker component
+// Update the UserLocationMarker component styling
 function UserLocationMarker() {
   const [position, setPosition] = useState<[number, number] | null>(null);
   const map = useMap();
@@ -219,7 +219,14 @@ function UserLocationMarker() {
   const pulsingIcon = L.divIcon({
     className: 'custom-icon',
     html: `
-      <div style="position: relative">
+      <div style="
+        position: relative;
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
         <div style="
           width: 12px;
           height: 12px;
@@ -227,17 +234,21 @@ function UserLocationMarker() {
           border-radius: 50%;
           border: 2px solid white;
           box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.4);
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
         "></div>
         <div style="
           position: absolute;
-          top: -2px;
-          left: -2px;
-          right: -2px;
-          bottom: -2px;
+          width: 24px;
+          height: 24px;
           border-radius: 50%;
           background: rgba(33, 150, 243, 0.4);
           animation: pulse 2s infinite;
-          z-index: -1;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
         "></div>
       </div>
     `,
@@ -302,7 +313,6 @@ export default function MapView({ filters }: MapViewProps) {
   });
 
   const filteredEvents = events.filter(event => {
-    if (!activeCategories.has(event.category.toLowerCase())) return false;
     if (filters.category && event.category !== filters.category) return false;
     if (filters.showPaidEvents && !event.isPaid) return false;
 

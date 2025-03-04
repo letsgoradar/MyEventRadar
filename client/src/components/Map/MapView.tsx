@@ -373,7 +373,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           onClick={() => setIsCategoryLegendVisible(!isCategoryLegendVisible)}
         >
           <CategoryIcon className="h-3.5 w-3.5" />
-          <span className="text-xs">{selectedCategory === 'all' ? 'All Categories' : selectedCategory}</span>
+          <span className="text-xs">{selectedCategory === 'all' ? 'Alle Categorieën' : selectedCategory}</span>
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isCategoryLegendVisible ? 'rotate-180' : ''}`} />
         </Button>
 
@@ -387,7 +387,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           onClick={() => setShowFreeOnly(!showFreeOnly)}
         >
           <Euro className="h-3.5 w-3.5" />
-          <span className="text-xs">{showFreeOnly ? 'Free Only' : 'All Events'}</span>
+          <span className="text-xs">{showFreeOnly ? 'Alleen Gratis' : 'Alle Evenementen'}</span>
         </Button>
 
         {/* Time Filter */}
@@ -400,7 +400,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           onClick={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
         >
           <Clock className="h-3.5 w-3.5" />
-          <span className="text-xs">Within {maxDaysToEvent} days</span>
+          <span className="text-xs">Binnen {maxDaysToEvent} dagen</span>
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isTimeFilterVisible ? 'rotate-180' : ''}`} />
         </Button>
 
@@ -412,7 +412,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
             className="bg-white/90 hover:bg-white flex items-center gap-1.5 h-8 px-2 text-primary border-primary font-medium"
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="text-xs">"{currentSearch}"</span>
+            <span className="text-xs">Zoeken: "{currentSearch}"</span>
           </Button>
         )}
 
@@ -435,7 +435,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
               }`}
             >
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: categoryColors.all }} />
-              <span className="text-xs">All Events ({eventCounts['all'] || 0})</span>
+              <span className="text-xs">Alle Evenementen ({eventCounts['all'] || 0})</span>
             </button>
             {Object.entries(categoryColors).filter(([cat]) => cat !== 'all').map(([category, color]) => {
               const count = eventCounts[category] || 0;

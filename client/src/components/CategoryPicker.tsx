@@ -3,17 +3,17 @@ import { forwardRef } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const CATEGORIES = {
-  'festival': ['Music', 'Food', 'Cultural', 'Arts'],
-  'sports': ['Football', 'Running', 'Cycling', 'Basketball', 'Tennis', 'Yoga', 'Climbing', 'Swimming'],
-  'food': ['Market', 'Tasting', 'Workshop', 'Fair'],
-  'culture': ['Theater', 'Music', 'Film', 'Dance', 'Art', 'Literature', 'Photography'],
-  'market': ['Food', 'Antiques', 'Crafts', 'Farmers'],
-  'education': ['Workshop', 'Lecture', 'Course', 'Study Group', 'Tech Meetup'],
-  'music': ['Classical', 'Jazz', 'Pop', 'Rock', 'Electronic'],
-  'technology': ['Meetup', 'Conference', 'Workshop', 'Hackathon'],
-  'gaming': ['eSports', 'Board Games', 'RPG', 'Card Games'],
-  'health': ['Fitness', 'Wellness', 'Nutrition', 'Meditation'],
-  'nature': ['Hiking', 'Bird Watching', 'Gardening', 'Conservation']
+  'festival': ['Muziek', 'Eten', 'Cultuur', 'Kunst'],
+  'sports': ['Voetbal', 'Hardlopen', 'Fietsen', 'Basketbal', 'Tennis', 'Yoga', 'Klimmen', 'Zwemmen'],
+  'food': ['Markt', 'Proeverij', 'Workshop', 'Beurs'],
+  'culture': ['Theater', 'Muziek', 'Film', 'Dans', 'Kunst', 'Literatuur', 'Fotografie'],
+  'market': ['Eten', 'Antiek', 'Ambacht', 'Boeren'],
+  'education': ['Workshop', 'Lezing', 'Cursus', 'Studiegroep', 'Tech Meetup'],
+  'music': ['Klassiek', 'Jazz', 'Pop', 'Rock', 'Elektronisch'],
+  'technology': ['Meetup', 'Conferentie', 'Workshop', 'Hackathon'],
+  'gaming': ['eSports', 'Bordspellen', 'RPG', 'Kaartspellen'],
+  'health': ['Fitness', 'Welzijn', 'Voeding', 'Meditatie'],
+  'nature': ['Wandelen', 'Vogels Spotten', 'Tuinieren', 'Natuurbehoud']
 };
 
 interface CategoryPickerProps extends React.ComponentPropsWithoutRef<typeof Select> {

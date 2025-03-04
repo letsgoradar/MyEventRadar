@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
-import { Satellite, Filter as FilterIcon } from 'lucide-react';
+import { Satellite, ChevronDown } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import L from 'leaflet';
 import React, { useState, useEffect } from 'react';
@@ -8,9 +8,7 @@ import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
 import { Link } from "wouter";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Add pulse animation CSS
 const pulseAnimation = `
@@ -55,34 +53,6 @@ const createEventIcon = (category: string) => {
   });
 };
 
-const MapLegend = ({ onToggleCategory, activeCategories }: {
-  onToggleCategory: (category: string) => void;
-  activeCategories: Set<string>;
-}) => {
-  return (
-    <div className="absolute bottom-16 right-4 bg-white p-3 rounded-lg shadow-md z-[1000]">
-      <div className="grid gap-2">
-        {Object.entries(categoryColors).map(([category, color]) => {
-          const isActive = activeCategories.has(category);
-          return (
-            <button
-              key={category}
-              onClick={() => onToggleCategory(category)}
-              className={`flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 transition-colors
-                ${isActive ? 'opacity-100' : 'opacity-50'}`}
-            >
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: color }}
-              />
-              <span className="text-xs capitalize">{category}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
 
 function CreateEventMarker() {
   const [, navigate] = useLocation();
@@ -244,17 +214,17 @@ function UserLocationMarker() {
 }
 
 
-export default function MapView({ filters }: MapViewProps) {
+function MapView({ filters }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
-  const [activeCategories, setActiveCategories] = useState<Set<string>>(
-    new Set(Object.keys(categoryColors))
-  );
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   const [currentSearch, setCurrentSearch] = useState<string>('');
   const [mapKey, setMapKey] = useState(0);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [showFreeOnly, setShowFreeOnly] = useState(false);
+  const [isCategoryLegendVisible, setIsCategoryLegendVisible] = useState(false);
+  const [activeCategories, setActiveCategories] = useState<Set<string>>(
+    new Set(Object.keys(categoryColors))
+  );
 
   useEffect(() => {
     const storedSearch = sessionStorage.getItem('currentSearch');
@@ -298,7 +268,7 @@ export default function MapView({ filters }: MapViewProps) {
   const filteredEvents = events.filter(event => {
     console.log('Filtering event:', event.title, 'Category:', event.category);
     if (filters.category && event.category !== filters.category) return false;
-    if (filters.showPaidEvents && !event.isPaid) return false;
+    if (showFreeOnly && event.isPaid) return false;
 
     const searchTerm = currentSearch || filters.searchQuery;
     if (searchTerm) {
@@ -335,67 +305,52 @@ export default function MapView({ filters }: MapViewProps) {
 
   return (
     <div className="h-full relative">
-      <Button
-        variant="outline"
-        size="icon"
-        className="absolute top-4 right-4 z-[1000] bg-white/90 hover:bg-white"
-        onClick={() => setIsSatelliteView(!isSatelliteView)}
-        title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
-      >
-        <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
-      </Button>
-
-      <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-        <SheetTrigger asChild>
-          <Button
-            variant="outline"
-            size="icon"
-            className="absolute top-4 right-16 z-[1000] bg-white/90 hover:bg-white"
-          >
-            <FilterIcon className="h-4 w-4" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="right" className="w-[300px]">
-          <SheetHeader>
-            <SheetTitle>Filters</SheetTitle>
-          </SheetHeader>
-          <ScrollArea className="h-full py-4">
-            <div className="space-y-4">
-              <div>
-                <h4 className="mb-2 text-sm font-medium">Categories</h4>
-                <div className="flex flex-wrap gap-2">
-                  {Object.keys(categoryColors).map((category) => (
-                    <button
-                      key={category}
-                      onClick={() => toggleCategory(category)}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all ${
-                        activeCategories.has(category)
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted hover:bg-muted/80'
-                      }`}
-                    >
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
-
-      {/* Active filters display */}
-      <div className="absolute top-4 right-28 z-[1000] flex gap-2">
-        {Array.from(activeCategories).map((category) => (
-          <Badge
-            key={category}
-            variant="secondary"
-            className="bg-white/90 hover:bg-white"
-          >
-            {category.charAt(0).toUpperCase() + category.slice(1)}
-          </Badge>
-        ))}
+      {/* Map Controls */}
+      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          className="bg-white/90 hover:bg-white"
+          onClick={() => setIsSatelliteView(!isSatelliteView)}
+          title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
+        >
+          <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
+        </Button>
       </div>
+
+      {/* Quick Filters */}
+      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
+        <Button
+          variant="outline"
+          className="bg-white/90 hover:bg-white flex items-center gap-2"
+          onClick={() => setIsCategoryLegendVisible(!isCategoryLegendVisible)}
+        >
+          Categories
+          <ChevronDown className={`h-4 w-4 transition-transform ${isCategoryLegendVisible ? 'rotate-180' : ''}`} />
+        </Button>
+
+        <Button
+          variant="outline"
+          className={`bg-white/90 hover:bg-white ${showFreeOnly ? 'border-primary text-primary' : ''}`}
+          onClick={() => setShowFreeOnly(!showFreeOnly)}
+        >
+          {showFreeOnly ? 'Free Events' : 'All Events'}
+        </Button>
+      </div>
+
+      {/* Category Legend */}
+      {isCategoryLegendVisible && (
+        <div className="absolute top-16 left-4 z-[1000] bg-white p-3 rounded-lg shadow-md">
+          <div className="grid gap-2">
+            {Object.entries(categoryColors).map(([category, color]) => (
+              <div key={category} className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                <span className="text-xs capitalize">{category}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <MapContainer
         key={mapKey}
@@ -405,19 +360,16 @@ export default function MapView({ filters }: MapViewProps) {
         zoomControl={false}
       >
         <TileLayer
-          url={isSatelliteView
-            ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          }
-          {...(isSatelliteView ? { subdomains: [] } : { subdomains: 'abcd' })}
+          url={tileUrl}
+          {...tileConfig}
         />
         <CreateEventMarker />
         <MapBoundsControl />
         <UserLocationMarker />
-        <MapLegend
+        {/*<MapLegend
           onToggleCategory={toggleCategory}
           activeCategories={activeCategories}
-        />
+        />*/}
 
         {filteredEvents.map(event => {
           const lat = Number(event.latitude);
@@ -473,6 +425,8 @@ export default function MapView({ filters }: MapViewProps) {
     </div>
   );
 }
+
+export default MapView;
 
 interface FilterProps {
   searchQuery: string;

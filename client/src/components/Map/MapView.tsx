@@ -266,20 +266,22 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     }
   }, []);
 
-  const { data: events = [] } = useQuery({
+  const { data: events = [], isLoading, error } = useQuery({
     queryKey: ["/api/events/nearby", filters, userLocation],
     queryFn: async () => {
       if (!userLocation) return [];
+
+      // Use a larger initial radius
       const params = new URLSearchParams({
         lat: userLocation[0].toString(),
         lng: userLocation[1].toString(),
-        radius: "10",
+        radius: "25", // Increased from 10 to 25 km
       });
 
       console.log('Fetching nearby events with params:', {
         lat: userLocation[0],
         lng: userLocation[1],
-        radius: 10
+        radius: 25
       });
 
       const response = await fetch(`/api/events/nearby?${params}`);

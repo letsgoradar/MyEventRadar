@@ -144,9 +144,14 @@ export class PgStorage implements IStorage {
     try {
       console.log('Fetching events with params:', { lat, lng, radius });
 
-      // First get all events and then filter by distance
+      // First get all events
       const result = await db.select().from(events);
       console.log('Total events found in database:', result.length);
+
+      if (result.length === 0) {
+        console.log('No events found in database');
+        return [];
+      }
 
       // Filter events within radius
       const eventsInRadius = result.filter(event => {
@@ -154,20 +159,20 @@ export class PgStorage implements IStorage {
         const eventLng = parseFloat(event.longitude);
 
         if (isNaN(eventLat) || isNaN(eventLng)) {
-          console.log('Invalid coordinates for event:', event.id);
+          console.log('Invalid coordinates for event:', event.id, { latitude: event.latitude, longitude: event.longitude });
           return false;
         }
 
         const distance = this.calculateDistance(lat, lng, eventLat, eventLng);
         const isWithinRadius = distance <= radius;
 
-        if (isWithinRadius) {
-          console.log(`Event ${event.id} is within radius:`, {
-            distance,
-            eventCoords: [eventLat, eventLng],
-            userCoords: [lat, lng]
-          });
-        }
+        console.log('Event distance calculation:', {
+          eventId: event.id,
+          distance,
+          eventCoords: [eventLat, eventLng],
+          userCoords: [lat, lng],
+          isWithinRadius
+        });
 
         return isWithinRadius;
       });
@@ -175,7 +180,7 @@ export class PgStorage implements IStorage {
       console.log('Events within radius:', eventsInRadius.length);
       return eventsInRadius;
     } catch (error) {
-      console.error('Error fetching events:', error);
+      console.error('Error in getEventsByRadius:', error);
       throw error;
     }
   }

@@ -37,8 +37,12 @@ export interface IStorage {
   getEvent(id: number): Promise<Event | undefined>;
   getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]>;
   getEventsByHost(hostId: number): Promise<Event[]>;
-  deleteEvent(id: number): Promise<void>;
-  isParticipant(userId: number, eventId: number): Promise<boolean>;
+  clearEvents(): Promise<void>; // Added clearEvents method
+
+  // Favorite operations
+  addFavorite(favorite: InsertFavorite): Promise<Favorite>;
+  removeFavorite(userId: number, eventId: number): Promise<void>;
+  getFavoritesByUser(userId: number): Promise<Event[]>;
 
   // Participant operations
   addParticipant(participant: InsertParticipant): Promise<Participant>;
@@ -76,15 +80,12 @@ export class PgStorage implements IStorage {
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
     return this.withRetry(async () => {
       try {
-        console.log('Creating event with data:', insertEvent);
-
-        // Create event with direct latitude/longitude values
-        const [result] = await db.insert(events).values({
+        const eventData = {
           title: insertEvent.title,
           description: insertEvent.description,
-          latitude: insertEvent.latitude,
-          longitude: insertEvent.longitude,
-          notificationReach: insertEvent.notificationReach,
+          latitude: insertEvent.location.lat.toString(),
+          longitude: insertEvent.location.lng.toString(),
+          notificationReach: insertEvent.location.notificationReach.toString(),
           startTime: new Date(insertEvent.startTime),
           endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
           category: insertEvent.category,
@@ -94,9 +95,14 @@ export class PgStorage implements IStorage {
           maxParticipants: insertEvent.maxParticipants || null,
           hostId: insertEvent.hostId,
           recurrence: insertEvent.recurrence,
-        }).returning();
+        };
+
+        console.log('Creating event with data:', eventData);
+
+        const [result] = await db.insert(events).values(eventData).returning();
 
         console.log('Created event result:', result);
+
         return result;
       } catch (error) {
         console.error('Error creating event:', error);
@@ -143,44 +149,27 @@ export class PgStorage implements IStorage {
   async getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]> {
     try {
       console.log('Fetching events with params:', { lat, lng, radius });
-
-      // First get all events
       const result = await db.select().from(events);
-      console.log('Total events found in database:', result.length);
 
-      if (result.length === 0) {
-        console.log('No events found in database');
-        return [];
-      }
-
-      // Filter events within radius
-      const eventsInRadius = result.filter(event => {
-        const eventLat = parseFloat(event.latitude);
-        const eventLng = parseFloat(event.longitude);
-
-        if (isNaN(eventLat) || isNaN(eventLng)) {
-          console.log('Invalid coordinates for event:', event.id, { latitude: event.latitude, longitude: event.longitude });
-          return false;
-        }
-
-        const distance = this.calculateDistance(lat, lng, eventLat, eventLng);
-        const isWithinRadius = distance <= radius;
-
-        console.log('Event distance calculation:', {
-          eventId: event.id,
-          distance,
-          eventCoords: [eventLat, eventLng],
-          userCoords: [lat, lng],
-          isWithinRadius
+      // Convert coordinates to numbers consistently
+      const formattedEvents = result.map(event => {
+        const formattedEvent = {
+          ...event,
+          latitude: parseFloat(event.latitude),
+          longitude: parseFloat(event.longitude),
+          notificationReach: parseFloat(event.notificationReach)
+        };
+        console.log('Formatted event:', {
+          id: formattedEvent.id,
+          title: formattedEvent.title,
+          coords: [formattedEvent.latitude, formattedEvent.longitude]
         });
-
-        return isWithinRadius;
+        return formattedEvent;
       });
 
-      console.log('Events within radius:', eventsInRadius.length);
-      return eventsInRadius;
+      return formattedEvents;
     } catch (error) {
-      console.error('Error in getEventsByRadius:', error);
+      console.error('Error fetching events:', error);
       throw error;
     }
   }
@@ -191,24 +180,42 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async deleteEvent(id: number): Promise<void> {
+  async clearEvents(): Promise<void> { // Added clearEvents method implementation
     return this.withRetry(async () => {
-      await db.delete(events).where(eq(events.id, id));
+      await db.delete(events);
     });
   }
 
-  async isParticipant(userId: number, eventId: number): Promise<boolean> {
+  async addFavorite(insertFavorite: InsertFavorite): Promise<Favorite> {
     return this.withRetry(async () => {
-      const [participant] = await db
-        .select()
-        .from(participants)
+      const [result] = await db.insert(favorites).values(insertFavorite).returning();
+      return result;
+    });
+  }
+
+  async removeFavorite(userId: number, eventId: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(favorites)
         .where(
           and(
-            eq(participants.userId, userId),
-            eq(participants.eventId, eventId)
+            eq(favorites.userId, userId),
+            eq(favorites.eventId, eventId)
           )
         );
-      return !!participant;
+    });
+  }
+
+  async getFavoritesByUser(userId: number): Promise<Event[]> {
+    return this.withRetry(async () => {
+      const result = await db
+        .select({
+          event: events
+        })
+        .from(favorites)
+        .where(eq(favorites.userId, userId))
+        .innerJoin(events, eq(events.id, favorites.eventId));
+
+      return result.map(r => r.event);
     });
   }
 

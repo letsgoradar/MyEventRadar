@@ -47,91 +47,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/events/:id", async (req, res) => {
-    try {
-      const event = await storage.getEvent(parseInt(req.params.id));
-      if (!event) {
-        return res.status(404).json({ message: "Event not found" });
-      }
-
-      // Add isOwnEvent flag and participant info
-      const enrichedEvent = {
-        ...event,
-        isOwnEvent: event.userId === req.user?.id,
-        participants: await storage.getEventParticipants(event.id)
-      };
-
-      res.json(enrichedEvent);
-    } catch (error) {
-      console.error("Error fetching event:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.delete("/api/events/:id", async (req, res) => {
-    try {
-      const eventId = parseInt(req.params.id);
-      const event = await storage.getEvent(eventId);
-
-      if (!event) {
-        return res.status(404).json({ message: "Event not found" });
-      }
-
-      // Check ownership
-      if (event.userId !== req.user?.id) {
-        return res.status(403).json({ message: "Not authorized to delete this event" });
-      }
-
-      await storage.deleteEvent(eventId);
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting event:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Event Participation
-  app.post("/api/events/:id/join", async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Must be logged in to join events" });
-      }
-
-      const eventId = parseInt(req.params.id);
-      const event = await storage.getEvent(eventId);
-
-      if (!event) {
-        return res.status(404).json({ message: "Event not found" });
-      }
-
-      // Check if already joined
-      const isParticipant = await storage.isParticipant(req.user.id, eventId);
-      if (isParticipant) {
-        return res.status(400).json({ message: "Already joined this event" });
-      }
-
-      // Check max participants
-      const participants = await storage.getEventParticipants(eventId);
-      if (event.maxParticipants && participants.length >= event.maxParticipants) {
-        return res.status(400).json({ message: "Event is full" });
-      }
-
-      const participant = await storage.addParticipant({
-        userId: req.user.id,
-        eventId: eventId
-      });
-
-      res.json(participant);
-    } catch (error) {
-      console.error("Error joining event:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
   app.get("/api/events/nearby", async (req, res) => {
     try {
-      console.log('Received request for nearby events:', req.query);
-
       const schema = z.object({
         lat: z.coerce.number(),
         lng: z.coerce.number(),
@@ -144,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         radius: req.query.radius,
       });
 
-      console.log('Parsed parameters:', { lat, lng, radius });
+      console.log('GET /api/events/nearby params:', { lat, lng, radius });
       const events = await storage.getEventsByRadius(lat, lng, radius);
       console.log('Found events:', events.length);
       res.json(events);
@@ -158,6 +75,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/events/:id", async (req, res) => {
+    const event = await storage.getEvent(parseInt(req.params.id));
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+    res.json(event);
+  });
 
   // Participants routes
   app.post("/api/events/:id/participants", async (req, res) => {

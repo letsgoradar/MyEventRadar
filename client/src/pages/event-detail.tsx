@@ -17,6 +17,13 @@ export default function EventDetailPage() {
 
   const { data: event, isLoading, isError } = useQuery<Event>({
     queryKey: [`/api/events/${eventId}`],
+    queryFn: async () => {
+      const response = await fetch(`/api/events/${eventId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch event');
+      }
+      return response.json();
+    },
     enabled: !!eventId,
     retry: 1,
   });

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
-import { 
-  Satellite, 
-  ChevronDown, 
+import {
+  Satellite,
+  ChevronDown,
   Calendar,
   Tag as CategoryIcon,
   Euro,
@@ -17,6 +17,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
+import { EventDetailSheet } from "@/components/Events/EventDetailSheet";
 
 // Add pulse animation CSS
 const pulseAnimation = `
@@ -158,8 +159,8 @@ function CreateEventMarker() {
 }
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; 
-  const dLat = (lat2 - lat1) * Math.PI / 180;  
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
     0.5 - Math.cos(dLat) / 2 +
@@ -178,14 +179,14 @@ function MapBoundsControl() {
       const { events } = JSON.parse(storedBounds);
       if (events && events.length >= 2) {
         const bounds = L.latLngBounds(events.map(e => [e.lat, e.lng]));
-        map.flyToBounds(bounds, { 
+        map.flyToBounds(bounds, {
           padding: [50, 50],
-          duration: 1.5, 
-          easeLinearity: 0.5 
+          duration: 1.5,
+          easeLinearity: 0.5
         });
       }
     }
-  }, [map, sessionStorage.getItem('mapBounds')]); 
+  }, [map, sessionStorage.getItem('mapBounds')]);
 
   return null;
 }
@@ -225,7 +226,7 @@ function UserLocationMarker() {
 export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
-  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [currentSearch, setCurrentSearch] = useState<string>('');
   const [mapKey, setMapKey] = useState(0);
   const [showFreeOnly, setShowFreeOnly] = useState(false);
@@ -236,6 +237,8 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
   const [isCategoryLegendVisible, setIsCategoryLegendVisible] = useState(false);
   const quickFiltersRef = useRef<HTMLDivElement>(null);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [isEventDetailOpen, setIsEventDetailOpen] = useState(false);
 
   useEffect(() => {
     const storedSearch = sessionStorage.getItem('currentSearch');
@@ -250,14 +253,14 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
       }
       console.log('Current search updated:', storedSearch);
     }
-  }, [sessionStorage.getItem('currentSearch'), onFilterChange]); 
+  }, [sessionStorage.getItem('currentSearch'), onFilterChange]);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
-          setLocation({lat: position.coords.latitude, lng: position.coords.longitude});
+          setLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
         }
       );
     }
@@ -280,7 +283,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
       const data = await response.json();
 
       // Calculate category counts
-      const counts = {'all': data.length};
+      const counts = { 'all': data.length };
       data.forEach((event: Event) => {
         counts[event.category] = (counts[event.category] || 0) + 1;
       });
@@ -296,8 +299,8 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     if (days === 1) return "Tomorrow";
     if (days < 0) return "Past event";
     if (days < 7) return `In ${days} days`;
-    if (days < 30) return `In ${Math.floor(days/7)} weeks`;
-    return `In ${Math.floor(days/30)} months`;
+    if (days < 30) return `In ${Math.floor(days / 7)} weeks`;
+    return `In ${Math.floor(days / 30)} months`;
   };
 
   const filteredEvents = events.filter(event => {
@@ -366,6 +369,24 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Function to find next/prev event in filtered results
+  const getAdjacentEvent = (direction: 'next' | 'prev') => {
+    if (!selectedEventId) return null;
+    const currentIndex = filteredEvents.findIndex(e => e.id === selectedEventId);
+    if (currentIndex === -1) return null;
+
+    const nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+    return filteredEvents[nextIndex]?.id || null;
+  };
+
+  const handleNavigateEvent = (direction: 'next' | 'prev') => {
+    const adjacentEventId = getAdjacentEvent(direction);
+    if (adjacentEventId) {
+      setSelectedEventId(adjacentEventId);
+    }
+  };
+
 
   return (
     <div className="h-full relative">
@@ -555,19 +576,19 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
 
           if (isNaN(lat) || isNaN(lng)) return null;
 
-          const distance = location ?
-            calculateDistance(location.lat, location.lng, lat, lng) :
-            null;
-
-          const timeToEvent = getTimeToEvent(event.startTime);
-
           return (
             <Marker
               key={event.id}
               position={[lat, lng]}
               icon={createEventIcon(event.category)}
+              eventHandlers={{
+                click: () => {
+                  setSelectedEventId(event.id);
+                  setIsEventDetailOpen(true);
+                },
+              }}
             >
-              <Popup className="event-popup" maxWidth={300}>
+              <Popup className="event-popup">
                 <div className="text-sm pb-1">
                   <div className="event-card-map">
                     <div className="font-semibold mb-1 flex items-center gap-1.5">
@@ -583,15 +604,19 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
                       </div>
                     )}
                     <div className="flex justify-between items-center text-xs text-gray-600 mb-1">
-                      <span>{distance !== null ? `${distance.toFixed(1)} km` : ''}</span>
-                      <span>{timeToEvent}</span>
+                      <span>{location ? `${calculateDistance(location.lat, location.lng, lat, lng).toFixed(1)} km` : ''}</span>
+                      <span>{getTimeToEvent(event.startTime)}</span>
                     </div>
-                    <Link
-                      to={`/event/${event.id}`}
-                      className="text-blue-600 hover:text-blue-800 underline text-xs"
+                    <Button
+                      variant="link"
+                      className="text-xs p-0 h-auto"
+                      onClick={() => {
+                        setSelectedEventId(event.id);
+                        setIsEventDetailOpen(true);
+                      }}
                     >
                       Details bekijken
-                    </Link>
+                    </Button>
                   </div>
                 </div>
               </Popup>
@@ -599,6 +624,17 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           );
         })}
       </MapContainer>
+
+      <EventDetailSheet
+        eventId={selectedEventId}
+        isOpen={isEventDetailOpen}
+        onOpenChange={setIsEventDetailOpen}
+        userLocation={location}
+        onNavigateEvent={handleNavigateEvent}
+        hasNextEvent={!!getAdjacentEvent('next')}
+        hasPrevEvent={!!getAdjacentEvent('prev')}
+        isInSearchResults={filteredEvents.length > 1}
+      />
     </div>
   );
 }

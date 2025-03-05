@@ -15,9 +15,10 @@ export default function EventDetailPage() {
   const params = useParams();
   const eventId = params.id;
 
-  const { data: event, isLoading } = useQuery<Event>({
+  const { data: event, isLoading, isError } = useQuery<Event>({
     queryKey: [`/api/events/${eventId}`],
     enabled: !!eventId,
+    retry: 1,
   });
 
   if (isLoading) {
@@ -36,7 +37,7 @@ export default function EventDetailPage() {
     );
   }
 
-  if (!event) {
+  if (isError || !event) {
     return (
       <div className="h-screen flex flex-col">
         <TopNav />

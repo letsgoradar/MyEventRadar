@@ -6,6 +6,7 @@ import TopNav from "@/components/Layout/TopNav"
 import MapView from "@/components/Map/MapView"
 import EventList from "@/components/Events/EventList"
 import CreateEventPage from "@/pages/create-event"
+import EventDetailPage from "@/pages/event-detail"
 import BottomNav from "@/components/Layout/BottomNav"
 import { FilterForm } from "@/components/FilterForm"
 
@@ -65,6 +66,9 @@ export default function App() {
         <Switch>
           <Route path="/create-event">
             <CreateEventPage />
+          </Route>
+          <Route path="/event/:id">
+            <EventDetailPage />
           </Route>
           <Route path="/">
             <>

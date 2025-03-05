@@ -5,11 +5,9 @@ async function seedEvents() {
     {
       title: "Summer Music Festival",
       description: "Annual summer festival with live music",
-      location: { 
-        lat: 51.7656, 
-        lng: 5.5314,
-        notificationReach: 5,
-      },
+      latitude: "51.7656",
+      longitude: "5.5314",
+      notificationReach: "5",
       startTime: new Date("2024-07-15T14:00:00"),
       endTime: new Date("2024-07-15T23:00:00"),
       category: "festival",
@@ -30,11 +28,9 @@ async function seedEvents() {
     events.push({
       title: `Test Event ${i + 1}`,
       description: `Description for test event ${i + 1}`,
-      location: {
-        lat: 51.7656 + latOffset,
-        lng: 5.5314 + lngOffset,
-        notificationReach: Math.floor(Math.random() * 5) + 1,
-      },
+      latitude: (51.7656 + latOffset).toString(),
+      longitude: (5.5314 + lngOffset).toString(),
+      notificationReach: Math.floor(Math.random() * 5 + 1).toString(),
       startTime: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000),
       endTime: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000),
       category: ["festival", "sports", "culture", "education", "technology"][Math.floor(Math.random() * 5)],
@@ -46,9 +42,6 @@ async function seedEvents() {
       recurrence: ["once", "daily", "weekly", "monthly"][Math.floor(Math.random() * 4)]
     });
   }
-
-  // Clear existing events
-  await storage.clearEvents();
 
   // Create new events
   for (const event of events) {

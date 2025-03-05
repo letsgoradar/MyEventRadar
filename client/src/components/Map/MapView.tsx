@@ -276,11 +276,19 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         radius: "10",
       });
 
+      console.log('Fetching nearby events with params:', {
+        lat: userLocation[0],
+        lng: userLocation[1],
+        radius: 10
+      });
+
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) {
+        console.error('Failed to fetch events:', response.status, response.statusText);
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
+      console.log('Received events from API:', data);
 
       // Calculate category counts
       const counts = { 'all': data.length };
@@ -291,6 +299,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
 
       return data;
     },
+    enabled: !!userLocation,
   });
 
   const getTimeToEvent = (startTime: string) => {

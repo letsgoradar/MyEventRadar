@@ -130,6 +130,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/events/nearby", async (req, res) => {
     try {
+      console.log('Received request for nearby events:', req.query);
+
       const schema = z.object({
         lat: z.coerce.number(),
         lng: z.coerce.number(),
@@ -142,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         radius: req.query.radius,
       });
 
-      console.log('GET /api/events/nearby params:', { lat, lng, radius });
+      console.log('Parsed parameters:', { lat, lng, radius });
       const events = await storage.getEventsByRadius(lat, lng, radius);
       console.log('Found events:', events.length);
       res.json(events);

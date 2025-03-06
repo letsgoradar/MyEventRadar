@@ -37,14 +37,20 @@ export const getCategoryColor = (category: string): string => {
   return colorMap[category.toLowerCase()] || '#9E9E9E';
 };
 
-function EventList() {
+interface EventListProps {
+  filters: {
+    searchQuery: string;
+    category: string;
+    maxDaysToEvent: number;
+    showFreeOnly: boolean;
+    eventCounts: Record<string, number>;
+  };
+  onFilterChange: (filters: any) => void;
+}
+
+function EventList({ filters, onFilterChange }: EventListProps) {
   const { location } = useLocation();
   const [radius, setRadius] = useState(10);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [showFreeOnly, setShowFreeOnly] = useState(false);
-  const [maxDaysToEvent, setMaxDaysToEvent] = useState(30);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
   const [filteredEvents, setFilteredEvents] = useState<Array<Event & { distance: number }>>([]);
 
   const { data: events = [], isLoading, isError, error } = useQuery({
@@ -64,7 +70,7 @@ function EventList() {
     placeholderData: [],
   });
 
-  // Process events and calculate distances
+  // Process events and apply filters
   useEffect(() => {
     if (!events || !location) return;
 
@@ -82,35 +88,28 @@ function EventList() {
     // Sort by distance
     eventsWithDistance.sort((a, b) => a.distance - b.distance);
 
-    // Calculate category counts for quick filters
-    const counts = { 'all': eventsWithDistance.length };
-    eventsWithDistance.forEach((event) => {
-      counts[event.category] = (counts[event.category] || 0) + 1;
-    });
-    setEventCounts(counts);
-
     // Apply filters
     let filtered = [...eventsWithDistance];
 
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(event => event.category === selectedCategory);
+    if (filters.category !== 'all') {
+      filtered = filtered.filter(event => event.category === filters.category);
     }
 
-    if (showFreeOnly) {
+    if (filters.showFreeOnly) {
       filtered = filtered.filter(event => !event.isPaid);
     }
 
-    // Time filter based on maxDaysToEvent
+    // Time filter
     const now = new Date();
     filtered = filtered.filter(event => {
       const eventDate = new Date(event.startTime);
       const diffDays = Math.floor((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      return diffDays >= 0 && diffDays <= maxDaysToEvent;
+      return diffDays >= 0 && diffDays <= filters.maxDaysToEvent;
     });
 
     // Search filter
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
+    if (filters.searchQuery) {
+      const searchLower = filters.searchQuery.toLowerCase();
       filtered = filtered.filter(event =>
         event.title.toLowerCase().includes(searchLower) ||
         event.category.toLowerCase().includes(searchLower) ||
@@ -119,14 +118,7 @@ function EventList() {
     }
 
     setFilteredEvents(filtered);
-  }, [events, selectedCategory, showFreeOnly, maxDaysToEvent, searchQuery, location]);
-
-  const handleFilterChange = (updates: any) => {
-    if ('category' in updates) setSelectedCategory(updates.category || 'all');
-    if ('showFreeOnly' in updates) setShowFreeOnly(updates.showFreeOnly);
-    if ('maxDaysToEvent' in updates) setMaxDaysToEvent(updates.maxDaysToEvent);
-    if ('searchQuery' in updates) setSearchQuery(updates.searchQuery);
-  };
+  }, [events, filters, location]);
 
   const incrementRadius = useCallback(() => {
     setRadius(prev => prev + 5);
@@ -171,16 +163,12 @@ function EventList() {
   }
 
   return (
-    <div className="p-4 overflow-auto max-h-[calc(100vh-10rem)]">
+    <div className="p-4 pb-24">
       {/* Quick Filters */}
       <div className="mb-4">
         <QuickFilters
-          selectedCategory={selectedCategory}
-          showFreeOnly={showFreeOnly}
-          maxDaysToEvent={maxDaysToEvent}
-          searchQuery={searchQuery}
-          onFilterChange={handleFilterChange}
-          eventCounts={eventCounts}
+          filters={filters}
+          onFilterChange={onFilterChange}
           position="left"
         />
       </div>
@@ -192,11 +180,12 @@ function EventList() {
               <p className="mb-4 text-center">
                 Er zijn evenementen beschikbaar, maar ze voldoen niet aan je huidige filters.
               </p>
-              <Button onClick={() => {
-                setSelectedCategory('all');
-                setShowFreeOnly(false);
-                setMaxDaysToEvent(30);
-              }}>
+              <Button onClick={() => onFilterChange({
+                category: 'all',
+                showFreeOnly: false,
+                maxDaysToEvent: 30,
+                searchQuery: ""
+              })}>
                 Filters wissen
               </Button>
             </div>

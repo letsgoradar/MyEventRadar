@@ -8,42 +8,27 @@ import EventList from "@/components/Events/EventList"
 import CreateEventPage from "@/pages/create-event"
 import EventDetailPage from "@/pages/event-detail"
 import BottomNav from "@/components/Layout/BottomNav"
-import { FilterForm } from "@/components/FilterForm"
+import { QuickFilters } from "@/components/QuickFilters"
 
 const queryClient = new QueryClient()
 
 interface FilterState {
   searchQuery: string;
   category: string;
-  selectedDate: Date | null;
   maxDaysToEvent: number;
   showFreeOnly: boolean;
-  useDistanceFilter: boolean;
-  distanceRadius: number;
+  eventCounts: Record<string, number>;
 }
 
-// Placeholder MyEvents component - needs implementation to filter by creator
-const MyEvents = () => {
-  return (
-    <div className="h-full overflow-auto">
-      <EventList filters={{searchQuery:"", category:"", selectedDate:null, maxDaysToEvent:30, showFreeOnly:false, useDistanceFilter:false, distanceRadius:5}} sortBy="date" sortAscending={true} />
-    </div>
-  );
-};
-
 export default function App() {
-  const [isFilterOpen, setIsFilterOpen] = React.useState(false)
   const [isMapView, setIsMapView] = React.useState(true)
-  const [eventCounts, setEventCounts] = React.useState<Record<string, number>>({})
   const [filters, setFilters] = React.useState<FilterState>({
     searchQuery: "",
-    category: "",
-    selectedDate: null,
+    category: "all",
     maxDaysToEvent: 30,
     showFreeOnly: false,
-    useDistanceFilter: false,
-    distanceRadius: 5
-  })
+    eventCounts: {}
+  });
 
   const toggleView = React.useCallback(() => {
     setIsMapView(prev => !prev);
@@ -75,12 +60,22 @@ export default function App() {
               <TopNav 
                 isMapView={isMapView}
                 toggleView={toggleView}
-                toggleFilterSheet={() => setIsFilterOpen(true)}
-                isFilterSheetOpen={isFilterOpen}
-                setIsFilterSheetOpen={setIsFilterOpen}
                 onSearch={handleSearch}
               />
               <div className="absolute inset-0 top-14 bottom-[75px] z-0"> 
+                {/* QuickFilters positioned above both views */}
+                <div className="absolute top-4 right-4 z-[1000]">
+                  <QuickFilters
+                    selectedCategory={filters.category}
+                    showFreeOnly={filters.showFreeOnly}
+                    maxDaysToEvent={filters.maxDaysToEvent}
+                    searchQuery={filters.searchQuery}
+                    onFilterChange={handleFilterChange}
+                    eventCounts={filters.eventCounts}
+                    position="right"
+                  />
+                </div>
+
                 {isMapView ? (
                   <MapView
                     filters={filters}
@@ -90,25 +85,23 @@ export default function App() {
                   <div className="h-full overflow-auto">
                     <EventList
                       filters={filters}
-                      sortBy="distance"
-                      sortAscending={true}
+                      onFilterChange={handleFilterChange}
                     />
                   </div>
                 )}
               </div>
-              <FilterForm
-                isOpen={isFilterOpen}
-                onOpenChange={setIsFilterOpen}
-                currentFilters={filters}
-                onFilterChange={handleFilterChange}
-                eventCounts={eventCounts}
-                searchQuery={filters.searchQuery}
-              />
               <BottomNav />
             </>
           </Route>
           <Route path="/events">
-            <MyEvents />
+            <div className="h-screen flex flex-col relative">
+              <TopNav />
+              <div className="flex-1 overflow-auto p-4 pb-24">
+                <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
+                <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
+              </div>
+              <BottomNav />
+            </div>
           </Route>
           <Route path="/favorites">
             <div className="h-screen flex flex-col relative">

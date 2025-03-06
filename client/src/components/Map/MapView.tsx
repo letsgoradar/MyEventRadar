@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import { 
   Satellite, 
-  ChevronDown, 
   Calendar,
   Tag as CategoryIcon,
   Euro,
@@ -222,32 +221,30 @@ function UserLocationMarker() {
 }
 
 
+interface MapViewProps {
+  filters: {
+    searchQuery: string;
+    category: string;
+    maxDaysToEvent: number;
+    showFreeOnly: boolean;
+    eventCounts: Record<string, number>;
+  };
+  onFilterChange: (filters: any) => void;
+}
+
 export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [currentSearch, setCurrentSearch] = useState<string>('');
   const [mapKey, setMapKey] = useState(0);
-  const [showFreeOnly, setShowFreeOnly] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [maxDaysToEvent, setMaxDaysToEvent] = useState(30); // Default to 30 days
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
-  const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
-  const [isCategoryLegendVisible, setIsCategoryLegendVisible] = useState(false);
   const quickFiltersRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     const storedSearch = sessionStorage.getItem('currentSearch');
     if (storedSearch) {
-      setCurrentSearch(storedSearch);
-      // Update filters with search query
-      if (onFilterChange) {
-        onFilterChange({
-          ...filters,
-          searchQuery: storedSearch
-        });
-      }
+      // Update filters with search query - This part is now handled externally.
+      onFilterChange({...filters, searchQuery: storedSearch});
       console.log('Current search updated:', storedSearch);
     }
   }, [sessionStorage.getItem('currentSearch'), onFilterChange]); 
@@ -277,21 +274,12 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
-      const data = await response.json();
-
-      // Calculate category counts
-      const counts = {'all': data.length};
-      data.forEach((event: Event) => {
-        counts[event.category] = (counts[event.category] || 0) + 1;
-      });
-      setEventCounts(counts);
-
-      return data;
+      return response.json();
     },
   });
 
   const getTimeToEvent = (startTime: string) => {
-    const days = differenceInDays(new Date(startTime), selectedDate);
+    const days = differenceInDays(new Date(startTime), new Date());
     if (days === 0) return "Today";
     if (days === 1) return "Tomorrow";
     if (days < 0) return "Past event";
@@ -302,19 +290,18 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
 
   const filteredEvents = events.filter(event => {
     // Category filter
-    if (selectedCategory !== 'all' && event.category !== selectedCategory) return false;
+    if (filters.category !== 'all' && event.category !== filters.category) return false;
 
     // Paid/free filter
-    if (showFreeOnly && event.isPaid) return false;
+    if (filters.showFreeOnly && event.isPaid) return false;
 
     // Time filter
-    const daysUntilEvent = differenceInDays(new Date(event.startTime), selectedDate);
-    if (daysUntilEvent < 0 || daysUntilEvent > maxDaysToEvent) return false;
+    const daysUntilEvent = differenceInDays(new Date(event.startTime), new Date());
+    if (daysUntilEvent < 0 || daysUntilEvent > filters.maxDaysToEvent) return false;
 
-    // Search filter - prioritize current search from top nav
-    const searchTerm = filters.searchQuery || currentSearch;
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
+    // Search filter
+    if (filters.searchQuery) {
+      const searchLower = filters.searchQuery.toLowerCase();
       return (
         event.title.toLowerCase().includes(searchLower) ||
         event.category.toLowerCase().includes(searchLower) ||
@@ -326,14 +313,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     return true;
   });
 
-  // Calculate active filters for visual indicators
-  const activeFilters = [
-    selectedCategory !== 'all' && 'category',
-    showFreeOnly && 'price',
-    maxDaysToEvent !== 30 && 'time',
-    currentSearch && 'search'
-  ].filter(Boolean);
-
+  // Map configuration
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
@@ -342,22 +322,22 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
 
-  // Function to update both local and parent state
-  const updateFilters = (updates: Partial<typeof filters>) => {
-    if (onFilterChange) {
-      onFilterChange({
-        ...filters,
-        ...updates
-      });
-    }
-  };
+  // Function to update both local and parent state - Removed as filter state is managed externally
+  // const updateFilters = (updates: Partial<typeof filters>) => {
+  //   if (onFilterChange) {
+  //     onFilterChange({
+  //       ...filters,
+  //       ...updates
+  //     });
+  //   }
+  // };
 
   // Handle clicking outside quick filters
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (quickFiltersRef.current && !quickFiltersRef.current.contains(event.target as Node)) {
-        setIsCategoryLegendVisible(false);
-        setIsTimeFilterVisible(false);
+        // setIsCategoryLegendVisible(false); // Removed as legend is not controlled internally anymore
+        // setIsTimeFilterVisible(false);  // Removed as time filter is not controlled internally anymore
       }
     }
 
@@ -388,13 +368,16 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           variant="outline"
           size="icon"
           className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            selectedCategory !== 'all' ? 'border-primary border-2 text-primary shadow-md' : ''
+            filters.category !== 'all' ? 'border-primary border-2 text-primary shadow-md' : ''
           }`}
-          onClick={() => setIsCategoryLegendVisible(!isCategoryLegendVisible)}
+          onClick={() => {
+            // setIsCategoryLegendVisible(!isCategoryLegendVisible); // Removed
+            onFilterChange({...filters, category: filters.category === 'all' ? 'all' : 'all'})
+          }}
           title="Categorieën"
         >
           <CategoryIcon className="h-4 w-4" />
-          {selectedCategory !== 'all' && (
+          {filters.category !== 'all' && (
             <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
               •
             </Badge>
@@ -406,16 +389,13 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           variant="outline"
           size="icon"
           className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            showFreeOnly ? 'border-primary border-2 text-primary shadow-md' : ''
+            filters.showFreeOnly ? 'border-primary border-2 text-primary shadow-md' : ''
           }`}
-          onClick={() => {
-            setShowFreeOnly(!showFreeOnly);
-            updateFilters({ showFreeOnly: !showFreeOnly });
-          }}
-          title={showFreeOnly ? 'Alleen Gratis' : 'Alle Evenementen'}
+          onClick={() => onFilterChange({...filters, showFreeOnly: !filters.showFreeOnly})}
+          title={filters.showFreeOnly ? 'Alleen Gratis' : 'Alle Evenementen'}
         >
           <Euro className="h-4 w-4" />
-          {showFreeOnly && (
+          {filters.showFreeOnly && (
             <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
               •
             </Badge>
@@ -427,13 +407,16 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           variant="outline"
           size="icon"
           className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            maxDaysToEvent !== 30 ? 'border-primary border-2 text-primary shadow-md' : ''
+            filters.maxDaysToEvent !== 30 ? 'border-primary border-2 text-primary shadow-md' : ''
           }`}
-          onClick={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
-          title={`Binnen ${maxDaysToEvent} dagen`}
+          onClick={() => {
+            // setIsTimeFilterVisible(!isTimeFilterVisible); // Removed
+            onFilterChange({...filters, maxDaysToEvent: filters.maxDaysToEvent === 30 ? 30 : 30})
+          }}
+          title={`Binnen ${filters.maxDaysToEvent} dagen`}
         >
           <Clock className="h-4 w-4" />
-          {maxDaysToEvent !== 30 && (
+          {filters.maxDaysToEvent !== 30 && (
             <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
               •
             </Badge>
@@ -441,12 +424,12 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         </Button>
 
         {/* Search Results Indicator */}
-        {currentSearch && (
+        {filters.searchQuery && (
           <Button
             variant="outline"
             size="icon"
             className="bg-white/90 hover:bg-white h-8 w-8 border-primary border-2 text-primary shadow-md"
-            title={`Zoeken: "${currentSearch}"`}
+            title={`Zoeken: "${filters.searchQuery}"`}
           >
             <Search className="h-4 w-4" />
             <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
@@ -457,7 +440,8 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
       </div>
 
       {/* Category Legend - Aligned right */}
-      {isCategoryLegendVisible && (
+      {/* Removed as the legend is not controlled internally anymore */}
+      {/* {isCategoryLegendVisible && (
         <div className="absolute top-[52px] right-4 z-[1000] bg-white p-2 rounded-lg shadow-md">
           <div className="grid gap-1.5">
             <button
@@ -470,12 +454,12 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
               }`}
             >
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: categoryColors.all }} />
-              <span className="text-xs">Alle Evenementen ({eventCounts['all'] || 0})</span>
+              <span className="text-xs">Alle Evenementen ({filters.eventCounts['all'] || 0})</span>
             </button>
             {Object.entries(categoryColors)
               .filter(([cat]) => cat !== 'all')
               .map(([category, color]) => {
-                const count = eventCounts[category] || 0;
+                const count = filters.eventCounts[category] || 0;
                 const isDisabled = count === 0;
                 return (
                   <button
@@ -500,10 +484,11 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
               })}
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Time Filter Popover - Aligned right */}
-      {isTimeFilterVisible && (
+      {/* Removed as the time filter is not controlled internally anymore */}
+      {/* {isTimeFilterVisible && (
         <div className="absolute top-[52px] right-4 z-[1000] bg-white p-2 rounded-lg shadow-md w-[260px]">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -535,7 +520,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       <MapContainer
         key={mapKey}
@@ -603,21 +588,6 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
   );
 }
 
-interface FilterProps {
-  searchQuery: string;
-  category: string;
-  fromDate: Date | null;
-  toDate: Date | null;
-  showPaidEvents: boolean;
-  useDistanceFilter: boolean;
-  distanceRadius: number;
-  onFilterChange?: (filters: FilterProps) => void;
-}
-
-interface MapViewProps {
-  filters: FilterProps;
-  onFilterChange?: (filters: FilterProps) => void;
-}
 import { format, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";

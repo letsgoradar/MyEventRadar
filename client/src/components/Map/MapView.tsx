@@ -6,18 +6,18 @@ import {
   MapPin,
   Euro,
   Clock,
-  Search
+  Search,
+  CalendarDays
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import L from 'leaflet';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { format, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
-
 
 function MapBoundsControl({ events }: { events: Event[] }) {
   const map = useMap();
@@ -63,23 +63,37 @@ const createEventIcon = (category: string) => {
   });
 };
 
-export default function MapView({ filters, onFilterChange }: MapViewProps) {
+export default function MapView({ filters, onFilterChange, setIsFilterOpen, setOpenSection }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [mapKey, setMapKey] = useState(0);
 
-  // Get active filters for display
+  // Get active filters for display with icons
   const activeFilters = [
-    filters.searchQuery && { type: 'search', label: `Zoeken: "${filters.searchQuery}"` },
-    filters.showFreeOnly && { type: 'price', label: 'Alleen gratis' },
-    filters.maxPrice && { type: 'price', label: `Max €${filters.maxPrice}` },
+    filters.searchQuery && { 
+      type: 'search', 
+      label: `Zoeken: "${filters.searchQuery}"`,
+      icon: <Search className="h-4 w-4" />
+    },
+    filters.showFreeOnly && { 
+      type: 'price', 
+      label: 'Alleen gratis',
+      icon: <Euro className="h-4 w-4" />
+    },
+    filters.maxPrice && { 
+      type: 'price', 
+      label: `Max €${filters.maxPrice}`,
+      icon: <Euro className="h-4 w-4" />
+    },
     filters.maxDaysToEvent !== 14 && { 
       type: 'time', 
-      label: filters.maxDaysToEvent === 999 ? 'Alle events' : `Binnen ${filters.maxDaysToEvent} dagen` 
+      label: filters.maxDaysToEvent === 999 ? 'Alle events' : `Binnen ${filters.maxDaysToEvent} dagen`,
+      icon: <CalendarDays className="h-4 w-4" />
     },
     filters.distanceRadius && { 
       type: 'distance', 
-      label: `${filters.distanceRadius}km radius` 
+      label: `${filters.distanceRadius}km radius`,
+      icon: <MapPin className="h-4 w-4" />
     }
   ].filter(Boolean);
 
@@ -144,6 +158,11 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
 
+  const handleFilterClick = (filterType: string) => {
+    setIsFilterOpen(true);
+    setOpenSection(filterType);
+  };
+
   return (
     <div className="h-full relative">
       {/* Map Controls - Left side */}
@@ -165,12 +184,17 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
             <Badge
               key={index}
               variant="secondary"
-              className="bg-white/90 px-2 py-1 flex items-center justify-between gap-2 text-sm"
+              className="bg-white/90 px-2 py-1 flex items-center justify-between gap-2 text-sm cursor-pointer hover:bg-white"
+              onClick={() => handleFilterClick(filter.type)}
             >
-              <span className="truncate">{filter.label}</span>
+              <div className="flex items-center gap-2">
+                {filter.icon}
+                <span className="truncate">{filter.label}</span>
+              </div>
               <button
                 className="opacity-70 hover:opacity-100"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (!filter) return;
                   const updates: any = {};
                   switch (filter.type) {
@@ -224,29 +248,28 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
               icon={createEventIcon(event.category)}
             >
               <Popup className="event-popup" maxWidth={300}>
-                <div className="text-sm pb-1">
-                  <div className="event-card-map">
-                    <div className="font-semibold mb-1 truncate">
-                      {event.title}
-                    </div>
-                    {event.description && (
-                      <div className="mb-2 text-xs text-muted-foreground">
-                        {event.description.substring(0, 80)}
-                        {event.description.length > 80 ? '...' : ''}
+                <Link href={`/event/${event.id}`} className="block">
+                  <div className="text-sm pb-1">
+                    <div className="event-card-map">
+                      <div className="font-semibold mb-1 truncate">
+                        {event.title}
                       </div>
-                    )}
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                      <Clock className="h-3 w-3" />
-                      <span>{format(new Date(event.startTime), 'PPP', { locale: nl })}</span>
+                      {event.description && (
+                        <div className="mb-2 text-xs text-muted-foreground">
+                          {event.description.substring(0, 80)}
+                          {event.description.length > 80 ? '...' : ''}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                        <Clock className="h-3 w-3" />
+                        <span>{format(new Date(event.startTime), 'PPP', { locale: nl })}</span>
+                      </div>
+                      <div className="text-primary hover:text-primary/80 underline text-xs">
+                        Details bekijken
+                      </div>
                     </div>
-                    <Link
-                      to={`/event/${event.id}`}
-                      className="text-primary hover:text-primary/80 underline text-xs"
-                    >
-                      Details bekijken
-                    </Link>
                   </div>
-                </div>
+                </Link>
               </Popup>
             </Marker>
           );
@@ -271,5 +294,7 @@ interface FilterProps {
 
 interface MapViewProps {
   filters: FilterProps;
-  onFilterChange?: (filters: FilterProps) => void;
+  onFilterChange: (filters: FilterProps) => void;
+  setIsFilterOpen: (open: boolean) => void;
+  setOpenSection: (section: string) => void;
 }

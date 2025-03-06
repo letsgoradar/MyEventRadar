@@ -11,68 +11,30 @@ import BottomNav from "@/components/Layout/BottomNav"
 import { FilterForm } from "@/components/FilterForm"
 import { Badge } from "@/components/ui/badge"
 import { Cross2Icon } from '@radix-ui/react-icons'
+import { Search, Euro, CalendarDays, MapPin } from 'lucide-react'
 
 const queryClient = new QueryClient()
 
 interface FilterState {
   searchQuery: string;
-  categories: string[];
   selectedDate: Date | null;
   maxDaysToEvent: number;
   showFreeOnly: boolean;
   maxPrice: number | null;
   distanceRadius: number;
   userLocation: [number, number];
-  totalMatchingEvents?: number; // Added totalMatchingEvents to FilterState
+  totalMatchingEvents?: number;
 }
-
-// Category colors definition
-const categoryColors = {
-  'all': '#666666',
-  'festival': '#FF9800',
-  'sports': '#2196F3',
-  'food': '#4CAF50',
-  'culture': '#9C27B0',
-  'market': '#FF5722',
-  'education': '#607D8B',
-  'music': '#E91E63',
-  'technology': '#00BCD4',
-  'gaming': '#8BC34A',
-  'health': '#FFEB3B',
-  'nature': '#795548',
-};
-
-// Placeholder MyEvents component
-const MyEvents = () => {
-  return (
-    <div className="h-full overflow-auto">
-      <EventList 
-        filters={{
-          searchQuery: "", 
-          categories: Object.keys(categoryColors).filter(cat => cat !== 'all'),
-          selectedDate: null, 
-          maxDaysToEvent: 14, 
-          showFreeOnly: false, 
-          maxPrice: null, 
-          distanceRadius: 5,
-          userLocation: [51.7656, 5.5314]
-        }} 
-        sortBy="date" 
-        sortAscending={true} 
-      />
-    </div>
-  );
-};
 
 export default function App() {
   const [isFilterOpen, setIsFilterOpen] = React.useState(false)
   const [isMapView, setIsMapView] = React.useState(true)
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7656, 5.5314])
   const [totalMatchingEvents, setTotalMatchingEvents] = React.useState(0)
+  const [openSection, setOpenSection] = React.useState<string | null>(null)
 
   const [filters, setFilters] = React.useState<FilterState>({
     searchQuery: "",
-    categories: Object.keys(categoryColors).filter(cat => cat !== 'all'),
     selectedDate: new Date(),
     maxDaysToEvent: 14,
     showFreeOnly: false,
@@ -80,6 +42,34 @@ export default function App() {
     distanceRadius: 5,
     userLocation: [51.7656, 5.5314]
   })
+
+  const activeFilters = [
+    filters.searchQuery && { 
+      type: 'search', 
+      label: `Zoeken: "${filters.searchQuery}"`,
+      icon: <Search className="h-4 w-4" />
+    },
+    filters.showFreeOnly && { 
+      type: 'price', 
+      label: 'Alleen gratis',
+      icon: <Euro className="h-4 w-4" />
+    },
+    filters.maxPrice && { 
+      type: 'price', 
+      label: `Max €${filters.maxPrice}`,
+      icon: <Euro className="h-4 w-4" />
+    },
+    filters.maxDaysToEvent !== 14 && { 
+      type: 'time', 
+      label: filters.maxDaysToEvent === 999 ? 'Alle events' : `Binnen ${filters.maxDaysToEvent} dagen`,
+      icon: <CalendarDays className="h-4 w-4" />
+    },
+    filters.distanceRadius && { 
+      type: 'distance', 
+      label: `${filters.distanceRadius}km radius`,
+      icon: <MapPin className="h-4 w-4" />
+    }
+  ].filter(Boolean);
 
   const toggleView = React.useCallback(() => {
     setIsMapView(prev => !prev);
@@ -104,6 +94,11 @@ export default function App() {
     handleFilterChange({ userLocation: location });
   }, [handleFilterChange]);
 
+  const handleFilterClick = (filterType: string) => {
+    setIsFilterOpen(true);
+    setOpenSection(filterType);
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="h-screen flex flex-col relative">
@@ -127,24 +122,50 @@ export default function App() {
               <div className="absolute inset-0 top-14 bottom-[75px] z-0">
                 {/* Active Filters Display */}
                 <div className="absolute top-0 left-0 right-0 z-10 bg-white border-b px-4 py-2 flex flex-wrap gap-2">
-                  {filters.searchQuery && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <span>Zoeken: {filters.searchQuery}</span>
+                  {activeFilters.map((filter, index) => (
+                    <Badge
+                      key={index}
+                      variant="secondary"
+                      className="flex items-center gap-2 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleFilterClick(filter.type)}
+                    >
+                      {filter.icon}
+                      <span>{filter.label}</span>
                       <button 
-                        onClick={() => handleFilterChange({ searchQuery: '' })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const updates: any = {};
+                          switch (filter.type) {
+                            case 'search':
+                              updates.searchQuery = '';
+                              break;
+                            case 'price':
+                              updates.showFreeOnly = false;
+                              updates.maxPrice = null;
+                              break;
+                            case 'time':
+                              updates.maxDaysToEvent = 14;
+                              break;
+                            case 'distance':
+                              updates.distanceRadius = 5;
+                              break;
+                          }
+                          handleFilterChange(updates);
+                        }}
                         className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
                       >
                         <Cross2Icon className="h-3 w-3" />
                       </button>
                     </Badge>
-                  )}
-                  {/* Add other active filters here */}
+                  ))}
                 </div>
 
                 {isMapView ? (
                   <MapView
                     filters={filters}
                     onFilterChange={handleFilterChange}
+                    setIsFilterOpen={setIsFilterOpen}
+                    setOpenSection={setOpenSection}
                   />
                 ) : (
                   <div className="h-full overflow-auto pt-12">
@@ -165,6 +186,8 @@ export default function App() {
                 totalMatchingEvents={totalMatchingEvents}
                 userLocation={userLocation}
                 onLocationChange={handleLocationChange}
+                activeSection={openSection}
+                onSectionChange={setOpenSection}
               />
               <BottomNav />
             </>
@@ -198,3 +221,51 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+
+const MyEvents = () => {
+  return (
+    <div className="h-full overflow-auto">
+      <EventList 
+        filters={{
+          searchQuery: "", 
+          selectedDate: null, 
+          maxDaysToEvent: 14, 
+          showFreeOnly: false, 
+          maxPrice: null, 
+          distanceRadius: 5,
+          userLocation: [51.7656, 5.5314]
+        }} 
+        sortBy="date" 
+        sortAscending={true} 
+      />
+    </div>
+  );
+};
+
+interface FilterState {
+  searchQuery: string;
+  categories: string[];
+  selectedDate: Date | null;
+  maxDaysToEvent: number;
+  showFreeOnly: boolean;
+  maxPrice: number | null;
+  distanceRadius: number;
+  userLocation: [number, number];
+  totalMatchingEvents?: number; // Added totalMatchingEvents to FilterState
+}
+
+// Category colors definition
+const categoryColors = {
+  'all': '#666666',
+  'festival': '#FF9800',
+  'sports': '#2196F3',
+  'food': '#4CAF50',
+  'culture': '#9C27B0',
+  'market': '#FF5722',
+  'education': '#607D8B',
+  'music': '#E91E63',
+  'technology': '#00BCD4',
+  'gaming': '#8BC34A',
+  'health': '#FFEB3B',
+  'nature': '#795548',
+};

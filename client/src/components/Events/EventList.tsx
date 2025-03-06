@@ -5,11 +5,11 @@ import { Event } from "@shared/schema";
 import EventCard from "./EventCard";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "@/hooks/useLocation";
-import CategoryIcon from './CategoryIcon'; // Import CategoryIcon
+import { QuickFilters } from "@/components/QuickFilters";
 
-// Helper function to calculate distance between two coordinates
+// Helper function to calculate distance
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth's radius in km
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -19,50 +19,48 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return Math.round(R * c * 10) / 10;
 }
 
-// Definieer de getCategoryColor functie lokaal
 export const getCategoryColor = (category: string): string => {
   const colorMap: Record<string, string> = {
-    festival: '#FF9800',  // oranje
-    food: '#4CAF50',      // groen
-    culture: '#9C27B0',   // paars
-    sports: '#2196F3',    // blauw
-    market: '#FF5722',    // donkeroranje
-    education: '#607D8B', // blauwgrijs
-    music: '#E91E63',     // roze
-    technology: '#00BCD4', // lichtblauw
-    gaming: '#8BC34A',    // lichtgroen
-    health: '#FFEB3B',    // geel
-    nature: '#795548',    // bruin
+    festival: '#FF9800',
+    food: '#4CAF50',
+    culture: '#9C27B0',
+    sports: '#2196F3',
+    market: '#FF5722',
+    education: '#607D8B',
+    music: '#E91E63',
+    technology: '#00BCD4',
+    gaming: '#8BC34A',
+    health: '#FFEB3B',
+    nature: '#795548',
   };
 
-  return colorMap[category] || '#9E9E9E'; // grijs als fallback
+  return colorMap[category.toLowerCase()] || '#9E9E9E';
 };
 
 function EventList() {
   const { location } = useLocation();
-  const [radius, setRadius] = useState(10); // increased default radius
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [subcategoryFilter, setSubcategoryFilter] = useState<string | null>(null);
+  const [radius, setRadius] = useState(10);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showFreeOnly, setShowFreeOnly] = useState(false);
+  const [maxDaysToEvent, setMaxDaysToEvent] = useState(30);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
   const [filteredEvents, setFilteredEvents] = useState<Array<Event & { distance: number }>>([]);
 
-  // Use a larger initial radius to get more events
-  const { data: events, isLoading, isError, error } = useQuery({
+  const { data: events = [], isLoading, isError, error } = useQuery({
     queryKey: ["events", location?.lat, location?.lng, radius],
     queryFn: async () => {
       if (!location) return [];
-      console.log("Fetching events with params:", {lat: location.lat, lng: location.lng, radius});
       try {
         return fetchEventsByRadius(location.lat, location.lng, radius);
       } catch (err) {
         console.error("Failed to fetch events:", err);
-        return []; // Return empty array as fallback
+        return [];
       }
     },
     enabled: !!location,
-    // Improved retry options to handle network issues
     retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * (2 ** attemptIndex), 10000), // Exponential backoff
-    // Default to empty array
+    retryDelay: (attemptIndex) => Math.min(1000 * (2 ** attemptIndex), 10000),
     placeholderData: [],
   });
 
@@ -70,41 +68,65 @@ function EventList() {
   useEffect(() => {
     if (!events || !location) return;
 
-    console.log("Debug - Fetched events:", events);
-
     // Calculate distance for each event and sort by distance
     const eventsWithDistance = events.map((event: Event) => ({
       ...event,
       distance: calculateDistance(
         location.lat,
         location.lng,
-        event.latitude,
-        event.longitude
+        Number(event.latitude),
+        Number(event.longitude)
       )
     }));
 
     // Sort by distance
     eventsWithDistance.sort((a, b) => a.distance - b.distance);
 
-    // Apply filters only if they're specified
+    // Calculate category counts for quick filters
+    const counts = { 'all': eventsWithDistance.length };
+    eventsWithDistance.forEach((event) => {
+      counts[event.category] = (counts[event.category] || 0) + 1;
+    });
+    setEventCounts(counts);
+
+    // Apply filters
     let filtered = [...eventsWithDistance];
 
-    if (categoryFilter) {
-      filtered = filtered.filter(event => event.category === categoryFilter);
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(event => event.category === selectedCategory);
     }
 
-    if (subcategoryFilter) {
-      filtered = filtered.filter(event => event.subcategory === subcategoryFilter);
+    if (showFreeOnly) {
+      filtered = filtered.filter(event => !event.isPaid);
     }
 
-    console.log("Debug - Filtered events:", filtered.length, "events");
+    // Time filter based on maxDaysToEvent
+    const now = new Date();
+    filtered = filtered.filter(event => {
+      const eventDate = new Date(event.startTime);
+      const diffDays = Math.floor((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= maxDaysToEvent;
+    });
 
-    if (filtered.length === 0) {
-      console.log("Geen evenementen gevonden met deze filters.");
+    // Search filter
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      filtered = filtered.filter(event =>
+        event.title.toLowerCase().includes(searchLower) ||
+        event.category.toLowerCase().includes(searchLower) ||
+        (event.description && event.description.toLowerCase().includes(searchLower))
+      );
     }
 
     setFilteredEvents(filtered);
-  }, [events, categoryFilter, subcategoryFilter, location]);
+  }, [events, selectedCategory, showFreeOnly, maxDaysToEvent, searchQuery, location]);
+
+  const handleFilterChange = (updates: any) => {
+    if ('category' in updates) setSelectedCategory(updates.category || 'all');
+    if ('showFreeOnly' in updates) setShowFreeOnly(updates.showFreeOnly);
+    if ('maxDaysToEvent' in updates) setMaxDaysToEvent(updates.maxDaysToEvent);
+    if ('searchQuery' in updates) setSearchQuery(updates.searchQuery);
+  };
 
   const incrementRadius = useCallback(() => {
     setRadius(prev => prev + 5);
@@ -125,7 +147,6 @@ function EventList() {
               <div className="space-y-2">
                 <div className="h-4 bg-gray-300 rounded w-3/4"></div>
                 <div className="h-4 bg-gray-300 rounded w-1/2"></div>
-                <div className="h-12 bg-gray-300 rounded mt-2"></div>
               </div>
               <div className="h-[120px] bg-gray-300 rounded"></div>
             </div>
@@ -149,71 +170,52 @@ function EventList() {
     );
   }
 
-  if (filteredEvents.length === 0 && events && events.length > 0) {
-    // We have events but they're filtered out
-    return (
-      <div className="p-4 flex flex-col items-center">
-        <p className="mb-4 text-center">
-          Er zijn evenementen beschikbaar, maar ze voldoen niet aan je huidige filters. Probeer de filters aan te passen.
-        </p>
-        {categoryFilter || subcategoryFilter ? (
-          <Button onClick={() => {
-            setCategoryFilter(null);
-            setSubcategoryFilter(null);
-          }}>
-            Filters wissen
-          </Button>
-        ) : (
-          <Button onClick={incrementRadius}>
-            Zoekbereik vergroten ({radius} km → {radius + 5} km)
-          </Button>
-        )}
-      </div>
-    );
-  } else if (filteredEvents.length === 0) {
-    // No events at all
-    return (
-      <div className="p-4 flex flex-col items-center">
-        <p className="mb-4 text-center">
-          Geen evenementen gevonden in de buurt. Probeer een grotere zoekafstand.
-        </p>
-        <Button onClick={incrementRadius}>
-          Zoekbereik vergroten ({radius} km → {radius + 5} km)
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 overflow-auto max-h-[calc(100vh-10rem)]">
-      <div className="mb-3">
-        <div className="flex flex-wrap gap-2 mb-3">
-          {["festival", "food", "culture", "sports", "market", "education", "music", "technology", "gaming", "health", "nature"].map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
-              className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs transition-all ${
-                categoryFilter === cat 
-                  ? 'border-2 border-primary shadow-sm scale-105' 
-                  : 'border border-muted hover:border-muted/80'
-              }`}
-              title={cat.charAt(0).toUpperCase() + cat.slice(1)}
-            >
-              <CategoryIcon category={cat} size="sm" className="mr-1" style={{color: getCategoryColor(cat)}} />
-              <span>{cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
-            </button>
-          ))}
-        </div>
+      {/* Quick Filters */}
+      <div className="mb-4">
+        <QuickFilters
+          selectedCategory={selectedCategory}
+          showFreeOnly={showFreeOnly}
+          maxDaysToEvent={maxDaysToEvent}
+          searchQuery={searchQuery}
+          onFilterChange={handleFilterChange}
+          eventCounts={eventCounts}
+          position="left"
+        />
       </div>
-      {filteredEvents.length > 0 ? (
+
+      {filteredEvents.length === 0 ? (
+        <div className="text-center py-8">
+          {events.length > 0 ? (
+            <div className="p-4 flex flex-col items-center">
+              <p className="mb-4 text-center">
+                Er zijn evenementen beschikbaar, maar ze voldoen niet aan je huidige filters.
+              </p>
+              <Button onClick={() => {
+                setSelectedCategory('all');
+                setShowFreeOnly(false);
+                setMaxDaysToEvent(30);
+              }}>
+                Filters wissen
+              </Button>
+            </div>
+          ) : (
+            <div className="p-4 flex flex-col items-center">
+              <p className="mb-4 text-center">
+                Geen evenementen gevonden in de buurt.
+              </p>
+              <Button onClick={incrementRadius}>
+                Zoekbereik vergroten ({radius} km → {radius + 5} km)
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredEvents.map((event) => (
             <EventCard key={event.id} event={event} distance={event.distance} />
           ))}
-        </div>
-      ) : (
-        <div className="text-center py-8 text-muted-foreground">
-          Geen evenementen gevonden met deze filters.
         </div>
       )}
     </div>

@@ -3,7 +3,6 @@ import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 're
 import {
   Satellite,
   X as CloseIcon,
-  Tag as CategoryIcon,
   MapPin,
   Euro,
   Clock,
@@ -232,89 +231,10 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [mapKey, setMapKey] = useState(0);
-  const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
 
-
-  const { data: events = [] } = useQuery({
-    queryKey: ["/api/events/nearby", filters, userLocation],
-    queryFn: async () => {
-      if (!userLocation) return [];
-      const params = new URLSearchParams({
-        lat: userLocation[0].toString(),
-        lng: userLocation[1].toString(),
-        radius: "10",
-      });
-
-      const response = await fetch(`/api/events/nearby?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch events');
-      }
-      const data = await response.json();
-
-      // Calculate category counts
-      const counts = { 'all': data.length };
-      data.forEach((event: Event) => {
-        counts[event.category] = (counts[event.category] || 0) + 1;
-      });
-      setEventCounts(counts);
-
-      return data;
-    },
-  });
-
-  const getTimeToEvent = (startTime: string) => {
-    const days = differenceInDays(new Date(startTime), new Date());
-    if (days === 0) return "Today";
-    if (days === 1) return "Tomorrow";
-    if (days < 0) return "Past event";
-    if (days < 7) return `In ${days} days`;
-    if (days < 30) return `In ${Math.floor(days / 7)} weeks`;
-    return `In ${Math.floor(days / 30)} months`;
-  };
-
-  // Filter events based on current filters
-  const filteredEvents = events?.filter(event => {
-    // Category filter
-    if (!filters.categories.includes(event.category.toLowerCase())) {
-      return false;
-    }
-
-    // Price filter
-    if (filters.showFreeOnly && event.isPaid) {
-      return false;
-    }
-    if (filters.maxPrice !== null && event.price > filters.maxPrice) {
-      return false;
-    }
-
-    // Time filter
-    const eventDate = new Date(event.startTime);
-    const daysUntilEvent = differenceInDays(eventDate, new Date());
-    if (daysUntilEvent < 0) return false; // Past events
-    if (filters.maxDaysToEvent !== 999 && daysUntilEvent > filters.maxDaysToEvent) {
-      return false;
-    }
-
-    // Search filter
-    if (filters.searchQuery) {
-      const searchLower = filters.searchQuery.toLowerCase();
-      return (
-        event.title.toLowerCase().includes(searchLower) ||
-        event.category.toLowerCase().includes(searchLower) ||
-        (event.subcategory && event.subcategory.toLowerCase().includes(searchLower)) ||
-        (event.description && event.description.toLowerCase().includes(searchLower))
-      );
-    }
-
-    return true;
-  }) || [];
-
+  // Get active filters for display
   const activeFilters = [
     filters.searchQuery && { type: 'search', label: `Zoeken: "${filters.searchQuery}"` },
-    filters.categories?.length < Object.keys(categoryColors).length && { 
-      type: 'categories', 
-      label: `${filters.categories?.length} categorieën` 
-    },
     filters.showFreeOnly && { type: 'price', label: 'Alleen gratis' },
     filters.maxPrice && { type: 'price', label: `Max €${filters.maxPrice}` },
     filters.maxDaysToEvent !== 14 && { 
@@ -327,16 +247,68 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     }
   ].filter(Boolean);
 
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
-          setLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
-        }
+  // Fetch events
+  const { data: events = [] } = useQuery({
+    queryKey: ["/api/events/nearby", filters, userLocation],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        lat: userLocation[0].toString(),
+        lng: userLocation[1].toString(),
+        radius: filters.distanceRadius.toString(),
+      });
+
+      const response = await fetch(`/api/events/nearby?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch events');
+      }
+      return response.json();
+    },
+  });
+
+  // Filter events based on current filters
+  const filteredEvents = events?.filter(event => {
+    // Price filter
+    if (filters.showFreeOnly && event.isPaid) return false;
+    if (filters.maxPrice !== null && event.price > filters.maxPrice) return false;
+
+    // Time filter
+    const eventDate = new Date(event.startTime);
+    const daysUntilEvent = differenceInDays(eventDate, new Date());
+    if (daysUntilEvent < 0) return false; // Past events
+    if (filters.maxDaysToEvent !== 999 && daysUntilEvent > filters.maxDaysToEvent) return false;
+
+    // Search filter
+    if (filters.searchQuery) {
+      const searchLower = filters.searchQuery.toLowerCase();
+      return (
+        event.title.toLowerCase().includes(searchLower) ||
+        event.description?.toLowerCase().includes(searchLower)
       );
     }
-  }, []);
+
+    return true;
+  }) || [];
+
+  // Update filter counts
+  useEffect(() => {
+    if (onFilterChange) {
+      onFilterChange({
+        ...filters,
+        totalMatchingEvents: filteredEvents.length
+      });
+    }
+  }, [filteredEvents.length]);
+
+  const getTimeToEvent = (startTime: string) => {
+    const days = differenceInDays(new Date(startTime), new Date());
+    if (days === 0) return "Today";
+    if (days === 1) return "Tomorrow";
+    if (days < 0) return "Past event";
+    if (days < 7) return `In ${days} days`;
+    if (days < 30) return `In ${Math.floor(days / 7)} weeks`;
+    return `In ${Math.floor(days / 30)} months`;
+  };
+
 
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -388,9 +360,6 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
                     case 'search':
                       updates.searchQuery = '';
                       break;
-                    case 'categories':
-                      updates.categories = Object.keys(categoryColors).filter(cat => cat !== 'all');
-                      break;
                     case 'price':
                       updates.showFreeOnly = false;
                       updates.maxPrice = null;
@@ -421,11 +390,8 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         zoomControl={false}
       >
         <TileLayer 
-          url={isSatelliteView 
-            ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          }
-          {...(isSatelliteView ? { subdomains: [] } : { subdomains: 'abcd' })}
+          url={tileUrl}
+          {...tileConfig}
         />
         <CreateEventMarker />
         <MapBoundsControl />
@@ -497,6 +463,7 @@ interface FilterProps {
   distanceRadius: number;
   showFreeOnly: boolean;
   maxDaysToEvent: number;
+  totalMatchingEvents?: number; // Added for event count
   onFilterChange?: (filters: FilterProps) => void;
 }
 

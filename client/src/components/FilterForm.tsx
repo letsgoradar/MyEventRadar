@@ -22,6 +22,20 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+
+// Add LocationPicker component
+function LocationPicker({ position, onChange }: { position: [number, number], onChange: (pos: [number, number]) => void }) {
+  const map = useMapEvents({
+    click(e) {
+      onChange([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+
+  return (
+    <Marker position={position} />
+  );
+}
 
 interface FilterFormProps {
   isOpen: boolean;
@@ -85,13 +99,13 @@ export function FilterForm({
 
         <ScrollArea className="h-[calc(100vh-180px)]">
           <div className="space-y-4 pr-4">
-            {/* Search Section */}
+            {/* Search Section with modified input */}
             <div className="space-y-2">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Zoek evenementen..."
-                  className="pl-8"
+                  className="pl-8 search-input"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -320,7 +334,7 @@ export function FilterForm({
               )}
             </div>
 
-            {/* Location Radius Section */}
+            {/* Location Radius Section with Map */}
             <div className="space-y-2">
               <Button
                 variant="ghost"
@@ -345,6 +359,28 @@ export function FilterForm({
 
               {openSection === 'location' && (
                 <div className="space-y-4 pl-8 mt-2">
+                  {/* Mini Map */}
+                  <div className="h-[200px] rounded-lg overflow-hidden border">
+                    <MapContainer
+                      center={userLocation}
+                      zoom={13}
+                      className="h-full w-full"
+                      zoomControl={false}
+                    >
+                      <TileLayer
+                        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                        subdomains="abcd"
+                      />
+                      <LocationPicker
+                        position={userLocation}
+                        onChange={(newLocation) => {
+                          onLocationChange(newLocation);
+                        }}
+                      />
+                    </MapContainer>
+                  </div>
+
+                  {/* Radius Slider */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Afstand:</span>

@@ -40,4 +40,15 @@
     margin-top: env(safe-area-inset-top);
     margin-bottom: env(safe-area-inset-bottom);
   }
+
+  /* Remove focus outline animation for search inputs */
+  .search-input:focus {
+    @apply ring-0 ring-offset-0;
+  }
+
+  /* Custom styles for search inputs */
+  input[type="search"],
+  input[type="text"] {
+    @apply focus:ring-0 focus:ring-offset-0 focus:outline-none;
+  }
 }

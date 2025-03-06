@@ -60,13 +60,14 @@ export function FilterForm({
 }: FilterFormProps) {
   // State for opened sections
   const [openSection, setOpenSection] = useState<string | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   // Local state that syncs with parent
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    Object.keys(categoryColors).filter(cat => cat !== 'all')
+    currentFilters.categories || Object.keys(categoryColors).filter(cat => cat !== 'all')
   );
   const [showFreeOnly, setShowFreeOnly] = useState(currentFilters.showFreeOnly);
-  const [maxPrice, setMaxPrice] = useState<number | null>(null);
+  const [maxPrice, setMaxPrice] = useState<number | null>(currentFilters.maxPrice);
   const [maxDaysToEvent, setMaxDaysToEvent] = useState(currentFilters.maxDaysToEvent || 14);
   const [selectedDate, setSelectedDate] = useState<Date>(
     currentFilters.selectedDate ? new Date(currentFilters.selectedDate) : new Date()
@@ -151,7 +152,10 @@ export function FilterForm({
                                 ? selectedCategories.filter(c => c !== category)
                                 : [...selectedCategories, category];
                               setSelectedCategories(newCategories);
-                              handleFilterChange({ categories: newCategories });
+                              onFilterChange({
+                                ...currentFilters,
+                                categories: newCategories
+                              });
                             }
                           }}
                           className={cn(
@@ -295,43 +299,76 @@ export function FilterForm({
 
               {openSection === 'time' && (
                 <div className="space-y-4 pl-8 mt-2">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        const now = new Date();
-                        setSelectedDate(now);
-                        handleFilterChange({ selectedDate: now.toISOString() });
-                      }}
-                    >
-                      {format(selectedDate, 'PPP', { locale: nl })}
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Binnen dagen:</span>
-                      <span className="text-sm font-medium">
-                        {maxDaysToEvent === 999 ? 'Alle' : maxDaysToEvent}
-                      </span>
+                  <div className="space-y-4">
+                    {/* Date Button */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setShowCalendar(!showCalendar)}
+                      >
+                        {format(selectedDate, 'PPP', { locale: nl })}
+                      </Button>
                     </div>
-                    <Slider
-                      value={[maxDaysToEvent === 999 ? 14 : maxDaysToEvent]}
-                      onValueChange={(values) => {
-                        const value = values[0];
-                        // If slider is at max, show all events
-                        const newValue = value === 14 ? 999 : value;
-                        setMaxDaysToEvent(newValue);
-                        handleFilterChange({ maxDaysToEvent: newValue });
-                      }}
-                      max={14}
-                      step={1}
-                      min={1}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>1 dag</span>
-                      <span>2 weken</span>
+
+                    {/* Calendar Popover */}
+                    {showCalendar && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                        <div className="bg-white p-4 rounded-lg shadow-lg max-w-fit">
+                          <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={(date) => {
+                              if (date) {
+                                setSelectedDate(date);
+                                setShowCalendar(false);
+                                onFilterChange({
+                                  ...currentFilters,
+                                  selectedDate: date
+                                });
+                              }
+                            }}
+                            className="rounded-md border"
+                          />
+                          <Button
+                            variant="outline"
+                            className="w-full mt-2"
+                            onClick={() => setShowCalendar(false)}
+                          >
+                            Sluiten
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Days Range */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Binnen dagen:</span>
+                        <span className="text-sm font-medium">
+                          {maxDaysToEvent === 999 ? 'Alle' : maxDaysToEvent}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[maxDaysToEvent === 999 ? 14 : maxDaysToEvent]}
+                        onValueChange={(values) => {
+                          const value = values[0];
+                          const newValue = value === 14 ? 999 : value;
+                          setMaxDaysToEvent(newValue);
+                          onFilterChange({
+                            ...currentFilters,
+                            maxDaysToEvent: newValue
+                          });
+                        }}
+                        max={14}
+                        step={1}
+                        min={1}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>1 dag</span>
+                        <span>2 weken</span>
+                      </div>
                     </div>
                   </div>
                 </div>

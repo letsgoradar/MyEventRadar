@@ -1,5 +1,4 @@
 import {
-  Tag as CategoryIcon,
   Euro,
   Clock,
   Search,
@@ -20,7 +19,7 @@ import { format, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -34,21 +33,6 @@ interface FilterFormProps {
   userLocation: [number, number];
   onLocationChange: (location: [number, number]) => void;
 }
-
-const categoryColors = {
-  'all': '#666666',
-  'festival': '#FF9800',
-  'sports': '#2196F3',
-  'food': '#4CAF50',
-  'culture': '#9C27B0',
-  'market': '#FF5722',
-  'education': '#607D8B',
-  'music': '#E91E63',
-  'technology': '#00BCD4',
-  'gaming': '#8BC34A',
-  'health': '#FFEB3B',
-  'nature': '#795548',
-};
 
 export function FilterForm({
   isOpen,
@@ -64,9 +48,6 @@ export function FilterForm({
   const [showCalendar, setShowCalendar] = useState(false);
 
   // Local state that syncs with parent
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    currentFilters.categories || Object.keys(categoryColors).filter(cat => cat !== 'all')
-  );
   const [showFreeOnly, setShowFreeOnly] = useState(currentFilters.showFreeOnly);
   const [maxPrice, setMaxPrice] = useState<number | null>(currentFilters.maxPrice);
   const [maxDaysToEvent, setMaxDaysToEvent] = useState(currentFilters.maxDaysToEvent || 14);
@@ -74,15 +55,16 @@ export function FilterForm({
     currentFilters.selectedDate ? new Date(currentFilters.selectedDate) : new Date()
   );
   const [distanceRadius, setDistanceRadius] = useState(currentFilters.distanceRadius || 5);
+  const [searchQuery, setSearchQuery] = useState(currentFilters.searchQuery || '');
 
   // Update local state when currentFilters changes from parent
   useEffect(() => {
-    setSelectedCategories(currentFilters.categories || Object.keys(categoryColors).filter(cat => cat !== 'all'));
     setShowFreeOnly(currentFilters.showFreeOnly);
     setMaxPrice(currentFilters.maxPrice);
     setMaxDaysToEvent(currentFilters.maxDaysToEvent || 14);
     setSelectedDate(currentFilters.selectedDate ? new Date(currentFilters.selectedDate) : new Date());
     setDistanceRadius(currentFilters.distanceRadius || 5);
+    setSearchQuery(currentFilters.searchQuery || '');
   }, [currentFilters]);
 
   const toggleSection = (section: string) => {
@@ -103,70 +85,26 @@ export function FilterForm({
 
         <ScrollArea className="h-[calc(100vh-180px)]">
           <div className="space-y-4 pr-4">
-            {/* Categories Section */}
+            {/* Search Section */}
             <div className="space-y-2">
-              <Button
-                variant="ghost"
-                className={cn(
-                  "w-full flex items-center justify-between",
-                  selectedCategories.length < Object.keys(categoryColors).length - 1 && "text-primary"
-                )}
-                onClick={() => toggleSection('categories')}
-              >
-                <div className="flex items-center gap-2">
-                  <CategoryIcon className="h-4 w-4" />
-                  <span>Categorieën</span>
-                  <Badge variant="outline" className="ml-2">
-                    {selectedCategories.length} geselecteerd
-                  </Badge>
-                </div>
-                <ChevronDown className={cn(
-                  "h-4 w-4 transition-transform",
-                  openSection === 'categories' && "rotate-180"
-                )} />
-              </Button>
-
-              {openSection === 'categories' && (
-                <div className="grid gap-1 mt-2 pl-8">
-                  {Object.entries(categoryColors)
-                    .filter(([cat]) => cat !== 'all')
-                    .map(([category, color]) => {
-                      const count = eventCounts[category] || 0;
-                      const isDisabled = count === 0;
-                      const isSelected = selectedCategories.includes(category);
-
-                      return (
-                        <button
-                          key={category}
-                          onClick={() => {
-                            if (!isDisabled) {
-                              const newCategories = isSelected
-                                ? selectedCategories.filter(c => c !== category)
-                                : [...selectedCategories, category];
-                              setSelectedCategories(newCategories);
-                              onFilterChange({
-                                ...currentFilters,
-                                categories: newCategories
-                              });
-                            }
-                          }}
-                          className={cn(
-                            "flex items-center gap-2 p-2 rounded-lg text-left",
-                            isDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-muted",
-                            isSelected && "text-primary"
-                          )}
-                          disabled={isDisabled}
-                        >
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-                          <span className="capitalize">{category} ({count})</span>
-                        </button>
-                      );
-                    })}
-                </div>
-              )}
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Zoek evenementen..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    onFilterChange({
+                      ...currentFilters,
+                      searchQuery: e.target.value
+                    });
+                  }}
+                />
+              </div>
             </div>
 
-            {/* Free/Paid Filter */}
+            {/* Price Filter */}
             <div className="space-y-2">
               <Button
                 variant="ghost"
@@ -202,7 +140,11 @@ export function FilterForm({
                         onChange={() => {
                           setShowFreeOnly(false);
                           setMaxPrice(null);
-                          handleFilterChange({ showFreeOnly: false, maxPrice: null });
+                          onFilterChange({
+                            ...currentFilters,
+                            showFreeOnly: false,
+                            maxPrice: null
+                          });
                         }}
                         className="w-4 h-4"
                       />
@@ -216,7 +158,11 @@ export function FilterForm({
                         onChange={() => {
                           setShowFreeOnly(true);
                           setMaxPrice(null);
-                          handleFilterChange({ showFreeOnly: true, maxPrice: null });
+                          onFilterChange({
+                            ...currentFilters,
+                            showFreeOnly: true,
+                            maxPrice: null
+                          });
                         }}
                         className="w-4 h-4"
                       />
@@ -230,7 +176,11 @@ export function FilterForm({
                         onChange={() => {
                           setShowFreeOnly(false);
                           setMaxPrice(50);
-                          handleFilterChange({ showFreeOnly: false, maxPrice: 50 });
+                          onFilterChange({
+                            ...currentFilters,
+                            showFreeOnly: false,
+                            maxPrice: 50
+                          });
                         }}
                         className="w-4 h-4"
                       />
@@ -247,7 +197,10 @@ export function FilterForm({
                           value={[maxPrice || 50]}
                           onValueChange={(values) => {
                             setMaxPrice(values[0]);
-                            handleFilterChange({ maxPrice: values[0] });
+                            onFilterChange({
+                              ...currentFilters,
+                              maxPrice: values[0]
+                            });
                           }}
                           max={200}
                           step={5}
@@ -315,7 +268,8 @@ export function FilterForm({
                               if (date) {
                                 setSelectedDate(date);
                                 setShowCalendar(false);
-                                handleFilterChange({
+                                onFilterChange({
+                                  ...currentFilters,
                                   selectedDate: date
                                 });
                               }
@@ -347,7 +301,8 @@ export function FilterForm({
                           const value = values[0];
                           const newValue = value === 14 ? 999 : value;
                           setMaxDaysToEvent(newValue);
-                          handleFilterChange({
+                          onFilterChange({
+                            ...currentFilters,
                             maxDaysToEvent: newValue
                           });
                         }}
@@ -399,7 +354,8 @@ export function FilterForm({
                       value={[distanceRadius]}
                       onValueChange={(values) => {
                         setDistanceRadius(values[0]);
-                        handleFilterChange({
+                        onFilterChange({
+                          ...currentFilters,
                           distanceRadius: values[0]
                         });
                       }}
@@ -415,12 +371,6 @@ export function FilterForm({
                 </div>
               )}
             </div>
-
-            {/* Distance Filter */}
-            {/* Removed because mapZoomLevel is not defined */}
-
-            {/* Search Query */}
-            {/* Removed because searchQuery is not defined */}
           </div>
         </ScrollArea>
 
@@ -430,20 +380,20 @@ export function FilterForm({
               variant="outline"
               onClick={() => {
                 const defaultFilters = {
-                  categories: Object.keys(categoryColors).filter(cat => cat !== 'all'),
                   showFreeOnly: false,
                   maxDaysToEvent: 14,
                   selectedDate: new Date(),
                   maxPrice: null,
-                  distanceRadius: 5
+                  distanceRadius: 5,
+                  searchQuery: ''
                 };
 
-                setSelectedCategories(defaultFilters.categories);
                 setShowFreeOnly(defaultFilters.showFreeOnly);
                 setMaxDaysToEvent(defaultFilters.maxDaysToEvent);
                 setSelectedDate(defaultFilters.selectedDate);
                 setMaxPrice(defaultFilters.maxPrice);
                 setDistanceRadius(defaultFilters.distanceRadius);
+                setSearchQuery(defaultFilters.searchQuery);
 
                 onFilterChange({
                   ...currentFilters,
@@ -457,12 +407,12 @@ export function FilterForm({
           <SheetClose asChild>
             <Button onClick={() => onFilterChange({
               ...currentFilters,
-              categories: selectedCategories,
               showFreeOnly,
               maxDaysToEvent: maxDaysToEvent === 999 ? 14 : maxDaysToEvent,
               selectedDate: selectedDate.toISOString(),
               maxPrice,
-              distanceRadius
+              distanceRadius,
+              searchQuery
             })}>
               Toepassen ({totalMatchingEvents})
             </Button>

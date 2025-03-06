@@ -19,11 +19,11 @@ import './leaflet-fix.css';
 import { format, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 
-function MapBoundsControl({ events }: { events: Event[] }) {
+function MapBoundsControl({ events, shouldUpdateBounds }: { events: Event[], shouldUpdateBounds: boolean }) {
   const map = useMap();
 
   useEffect(() => {
-    if (events.length > 0) {
+    if (shouldUpdateBounds && events.length > 0) {
       const bounds = L.latLngBounds(events.map(e => [Number(e.latitude), Number(e.longitude)]));
       map.fitBounds(bounds, {
         padding: [50, 50],
@@ -31,7 +31,7 @@ function MapBoundsControl({ events }: { events: Event[] }) {
         maxZoom: 15
       });
     }
-  }, [events, map]);
+  }, [events, map, shouldUpdateBounds]);
 
   return null;
 }
@@ -67,6 +67,7 @@ export default function MapView({ filters, onFilterChange, setIsFilterOpen, setO
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [mapKey, setMapKey] = useState(0);
+  const [shouldUpdateBounds, setShouldUpdateBounds] = useState(false);
 
   // Get active filters for display with icons
   const activeFilters = [
@@ -85,9 +86,9 @@ export default function MapView({ filters, onFilterChange, setIsFilterOpen, setO
       label: `Max €${filters.maxPrice}`,
       icon: <Euro className="h-4 w-4" />
     },
-    filters.maxDaysToEvent !== 14 && { 
+    filters.maxDaysToEvent !== 999 && { 
       type: 'time', 
-      label: filters.maxDaysToEvent === 999 ? 'Alle events' : `Binnen ${filters.maxDaysToEvent} dagen`,
+      label: `Binnen ${filters.maxDaysToEvent} dagen`,
       icon: <CalendarDays className="h-4 w-4" />
     },
     filters.distanceRadius && { 
@@ -97,8 +98,7 @@ export default function MapView({ filters, onFilterChange, setIsFilterOpen, setO
     }
   ].filter(Boolean);
 
-  // Fetch events
-  const { data: events = [] } = useQuery({
+  const { data: events = [], isLoading } = useQuery({
     queryKey: ["/api/events/nearby", filters, userLocation],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -141,14 +141,18 @@ export default function MapView({ filters, onFilterChange, setIsFilterOpen, setO
 
   // Update filter counts
   useEffect(() => {
-    const totalEvents = filteredEvents.length;
-    if (onFilterChange) {
+    if (!isLoading && onFilterChange) {
       onFilterChange({
         ...filters,
-        totalMatchingEvents: totalEvents
+        totalMatchingEvents: filteredEvents.length
       });
     }
-  }, [filteredEvents, onFilterChange, filters]);
+  }, [filteredEvents, onFilterChange, isLoading, filters]);
+
+  // Reset shouldUpdateBounds when filters change
+  useEffect(() => {
+    setShouldUpdateBounds(true);
+  }, [filters]);
 
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -206,7 +210,7 @@ export default function MapView({ filters, onFilterChange, setIsFilterOpen, setO
                       updates.maxPrice = null;
                       break;
                     case 'time':
-                      updates.maxDaysToEvent = 14;
+                      updates.maxDaysToEvent = 999;
                       break;
                     case 'distance':
                       updates.distanceRadius = 5;
@@ -231,7 +235,7 @@ export default function MapView({ filters, onFilterChange, setIsFilterOpen, setO
         zoomControl={false}
       >
         <TileLayer url={tileUrl} {...tileConfig} />
-        <MapBoundsControl events={filteredEvents} />
+        <MapBoundsControl events={filteredEvents} shouldUpdateBounds={shouldUpdateBounds} />
         <UserLocationMarker position={userLocation} />
 
         {/* Event Markers */}

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { Calendar } from "@/components/ui/calendar";
-import { format, differenceInDays } from "date-fns";
+import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,7 +42,6 @@ interface FilterFormProps {
   onOpenChange: (open: boolean) => void;
   onFilterChange: (filters: any) => void;
   currentFilters: any;
-  eventCounts: Record<string, number>;
   totalMatchingEvents: number;
   userLocation: [number, number];
   onLocationChange: (location: [number, number]) => void;
@@ -53,18 +52,18 @@ export function FilterForm({
   onOpenChange,
   onFilterChange,
   currentFilters,
-  eventCounts,
   totalMatchingEvents,
   userLocation,
   onLocationChange
 }: FilterFormProps) {
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Local state that syncs with parent
   const [showFreeOnly, setShowFreeOnly] = useState(currentFilters.showFreeOnly);
   const [maxPrice, setMaxPrice] = useState<number | null>(currentFilters.maxPrice);
-  const [maxDaysToEvent, setMaxDaysToEvent] = useState(currentFilters.maxDaysToEvent || 14);
+  const [maxDaysToEvent, setMaxDaysToEvent] = useState(currentFilters.maxDaysToEvent || 999);
   const [selectedDate, setSelectedDate] = useState<Date>(
     currentFilters.selectedDate ? new Date(currentFilters.selectedDate) : new Date()
   );
@@ -75,7 +74,7 @@ export function FilterForm({
   useEffect(() => {
     setShowFreeOnly(currentFilters.showFreeOnly);
     setMaxPrice(currentFilters.maxPrice);
-    setMaxDaysToEvent(currentFilters.maxDaysToEvent || 14);
+    setMaxDaysToEvent(currentFilters.maxDaysToEvent || 999);
     setSelectedDate(currentFilters.selectedDate ? new Date(currentFilters.selectedDate) : new Date());
     setDistanceRadius(currentFilters.distanceRadius || 5);
     setSearchQuery(currentFilters.searchQuery || '');
@@ -92,14 +91,18 @@ export function FilterForm({
           <SheetTitle>Filters</SheetTitle>
           <div className="flex items-center gap-2">
             <Badge variant="outline">
-              {totalMatchingEvents} evenementen gevonden
+              {isLoading ? (
+                <span className="animate-pulse">Zoeken...</span>
+              ) : (
+                `${totalMatchingEvents} evenementen gevonden`
+              )}
             </Badge>
           </div>
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-180px)]">
           <div className="space-y-4 pr-4">
-            {/* Search Section with modified input */}
+            {/* Search Section */}
             <div className="space-y-2">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -237,18 +240,16 @@ export function FilterForm({
                 variant="ghost"
                 className={cn(
                   "w-full flex items-center justify-between",
-                  maxDaysToEvent !== 14 && "text-primary"
+                  maxDaysToEvent !== 999 && "text-primary"
                 )}
                 onClick={() => toggleSection('time')}
               >
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
                   <span>Tijd</span>
-                  {maxDaysToEvent !== 14 && (
-                    <Badge variant="outline" className="ml-2">
-                      {maxDaysToEvent === 999 ? 'Alle events' : `Binnen ${maxDaysToEvent} dagen`}
-                    </Badge>
-                  )}
+                  <Badge variant="outline" className="ml-2">
+                    {maxDaysToEvent === 999 ? 'Alle events' : `Binnen ${maxDaysToEvent} dagen`}
+                  </Badge>
                 </div>
                 <ChevronDown className={cn(
                   "h-4 w-4 transition-transform",
@@ -258,76 +259,32 @@ export function FilterForm({
 
               {openSection === 'time' && (
                 <div className="space-y-4 pl-8 mt-2">
-                  <div className="space-y-4">
-                    {/* Date Button */}
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => setShowCalendar(!showCalendar)}
-                      >
-                        {format(selectedDate, 'PPP', { locale: nl })}
-                      </Button>
+                  {/* Days Range */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Binnen dagen:</span>
+                      <span className="text-sm font-medium">
+                        {maxDaysToEvent === 999 ? 'Alle' : maxDaysToEvent}
+                      </span>
                     </div>
-
-                    {/* Calendar Popover */}
-                    {showCalendar && (
-                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                        <div className="bg-white p-4 rounded-lg shadow-lg max-w-fit">
-                          <Calendar
-                            mode="single"
-                            selected={selectedDate}
-                            onSelect={(date) => {
-                              if (date) {
-                                setSelectedDate(date);
-                                setShowCalendar(false);
-                                onFilterChange({
-                                  ...currentFilters,
-                                  selectedDate: date
-                                });
-                              }
-                            }}
-                            className="rounded-md border"
-                          />
-                          <Button
-                            variant="outline"
-                            className="w-full mt-2"
-                            onClick={() => setShowCalendar(false)}
-                          >
-                            Sluiten
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Days Range */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Binnen dagen:</span>
-                        <span className="text-sm font-medium">
-                          {maxDaysToEvent === 999 ? 'Alle' : maxDaysToEvent}
-                        </span>
-                      </div>
-                      <Slider
-                        value={[maxDaysToEvent === 999 ? 14 : maxDaysToEvent]}
-                        onValueChange={(values) => {
-                          const value = values[0];
-                          const newValue = value === 14 ? 999 : value;
-                          setMaxDaysToEvent(newValue);
-                          onFilterChange({
-                            ...currentFilters,
-                            maxDaysToEvent: newValue
-                          });
-                        }}
-                        max={14}
-                        step={1}
-                        min={1}
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>1 dag</span>
-                        <span>2 weken</span>
-                      </div>
+                    <Slider
+                      value={[maxDaysToEvent === 999 ? 14 : maxDaysToEvent]}
+                      onValueChange={(values) => {
+                        const value = values[0];
+                        const newValue = value === 14 ? 999 : value;
+                        setMaxDaysToEvent(newValue);
+                        onFilterChange({
+                          ...currentFilters,
+                          maxDaysToEvent: newValue
+                        });
+                      }}
+                      max={14}
+                      step={1}
+                      min={1}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>1 dag</span>
+                      <span>2 weken</span>
                     </div>
                   </div>
                 </div>
@@ -415,9 +372,10 @@ export function FilterForm({
             <Button
               variant="outline"
               onClick={() => {
+                setIsLoading(true);
                 const defaultFilters = {
                   showFreeOnly: false,
-                  maxDaysToEvent: 14,
+                  maxDaysToEvent: 999,
                   selectedDate: new Date(),
                   maxPrice: null,
                   distanceRadius: 5,
@@ -433,24 +391,31 @@ export function FilterForm({
 
                 onFilterChange({
                   ...currentFilters,
-                  ...defaultFilters
+                  ...defaultFilters,
+                  shouldUpdateBounds: true
                 });
+                setTimeout(() => setIsLoading(false), 500);
               }}
             >
               Reset
             </Button>
           </SheetClose>
           <SheetClose asChild>
-            <Button onClick={() => onFilterChange({
-              ...currentFilters,
-              showFreeOnly,
-              maxDaysToEvent: maxDaysToEvent === 999 ? 14 : maxDaysToEvent,
-              selectedDate: selectedDate.toISOString(),
-              maxPrice,
-              distanceRadius,
-              searchQuery
-            })}>
-              Toepassen ({totalMatchingEvents})
+            <Button onClick={() => {
+              setIsLoading(true);
+              onFilterChange({
+                ...currentFilters,
+                showFreeOnly,
+                maxDaysToEvent,
+                selectedDate: selectedDate.toISOString(),
+                maxPrice,
+                distanceRadius,
+                searchQuery,
+                shouldUpdateBounds: true
+              });
+              setTimeout(() => setIsLoading(false), 500);
+            }}>
+              Toepassen ({isLoading ? '...' : totalMatchingEvents})
             </Button>
           </SheetClose>
         </div>

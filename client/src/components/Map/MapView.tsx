@@ -291,13 +291,16 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
 
   // Update filter counts
   useEffect(() => {
-    if (onFilterChange) {
+    const totalEvents = filteredEvents.length;
+    console.log('Total matching events:', totalEvents); // Debug log
+
+    if (onFilterChange && typeof filters.totalMatchingEvents !== 'undefined') {
       onFilterChange({
         ...filters,
-        totalMatchingEvents: filteredEvents.length
+        totalMatchingEvents: totalEvents
       });
     }
-  }, [filteredEvents.length]);
+  }, [filteredEvents, onFilterChange]);
 
   const getTimeToEvent = (startTime: string) => {
     const days = differenceInDays(new Date(startTime), new Date());

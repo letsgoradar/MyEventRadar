@@ -23,6 +23,7 @@ interface FilterState {
   maxPrice: number | null;
   distanceRadius: number;
   userLocation: [number, number];
+  totalMatchingEvents?: number; // Added totalMatchingEvents to FilterState
 }
 
 // Category colors definition
@@ -66,7 +67,6 @@ const MyEvents = () => {
 export default function App() {
   const [isFilterOpen, setIsFilterOpen] = React.useState(false)
   const [isMapView, setIsMapView] = React.useState(true)
-  const [eventCounts, setEventCounts] = React.useState<Record<string, number>>({})
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7656, 5.5314])
   const [totalMatchingEvents, setTotalMatchingEvents] = React.useState(0)
 
@@ -86,10 +86,13 @@ export default function App() {
   }, []);
 
   const handleFilterChange = React.useCallback((newFilters: Partial<FilterState>) => {
-    setFilters(prev => ({
-      ...prev,
-      ...newFilters
-    }));
+    setFilters(prev => {
+      const updated = { ...prev, ...newFilters };
+      if (typeof newFilters.totalMatchingEvents !== 'undefined') {
+        setTotalMatchingEvents(newFilters.totalMatchingEvents);
+      }
+      return updated;
+    });
   }, []);
 
   const handleSearch = React.useCallback((query: string) => {
@@ -158,7 +161,7 @@ export default function App() {
                 onOpenChange={setIsFilterOpen}
                 currentFilters={filters}
                 onFilterChange={handleFilterChange}
-                eventCounts={eventCounts}
+                eventCounts={{}}
                 totalMatchingEvents={totalMatchingEvents}
                 userLocation={userLocation}
                 onLocationChange={handleLocationChange}

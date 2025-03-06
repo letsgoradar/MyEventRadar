@@ -10,7 +10,7 @@ import EventDetailPage from "@/pages/event-detail"
 import BottomNav from "@/components/Layout/BottomNav"
 import { FilterForm } from "@/components/FilterForm"
 import { Badge } from "@/components/ui/badge"
-import { X } from '@radix-ui/react-icons'
+import { Cross2Icon } from '@radix-ui/react-icons'
 
 const queryClient = new QueryClient()
 
@@ -25,7 +25,7 @@ interface FilterState {
   userLocation: [number, number];
 }
 
-// Assume categoryColors is defined elsewhere and imported
+// Category colors definition
 const categoryColors = {
   'all': '#666666',
   'festival': '#FF9800',
@@ -131,7 +131,7 @@ export default function App() {
                         onClick={() => handleFilterChange({ searchQuery: '' })}
                         className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
                       >
-                        <X className="h-3 w-3" />
+                        <Cross2Icon className="h-3 w-3" />
                       </button>
                     </Badge>
                   )}

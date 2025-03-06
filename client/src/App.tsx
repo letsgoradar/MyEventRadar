@@ -9,6 +9,8 @@ import CreateEventPage from "@/pages/create-event"
 import EventDetailPage from "@/pages/event-detail"
 import BottomNav from "@/components/Layout/BottomNav"
 import { FilterForm } from "@/components/FilterForm"
+import { Badge } from "@/components/ui/badge"
+import { X } from '@radix-ui/react-icons'
 
 const queryClient = new QueryClient()
 
@@ -19,29 +21,55 @@ interface FilterState {
   maxDaysToEvent: number;
   showFreeOnly: boolean;
   maxPrice: number | null;
-  useDistanceFilter: boolean;
   distanceRadius: number;
+  userLocation: [number, number];
 }
-
-// Placeholder MyEvents component - needs implementation to filter by creator
-const MyEvents = () => {
-  return (
-    <div className="h-full overflow-auto">
-      <EventList filters={{searchQuery:"", categories:[], selectedDate:null, maxDaysToEvent:30, showFreeOnly:false, maxPrice: null, useDistanceFilter:false, distanceRadius:5}} sortBy="date" sortAscending={true} />
-    </div>
-  );
-};
 
 // Assume categoryColors is defined elsewhere and imported
 const categoryColors = {
-  all: '', //add default value
-  // ... other categories and colors
+  'all': '#666666',
+  'festival': '#FF9800',
+  'sports': '#2196F3',
+  'food': '#4CAF50',
+  'culture': '#9C27B0',
+  'market': '#FF5722',
+  'education': '#607D8B',
+  'music': '#E91E63',
+  'technology': '#00BCD4',
+  'gaming': '#8BC34A',
+  'health': '#FFEB3B',
+  'nature': '#795548',
+};
+
+// Placeholder MyEvents component
+const MyEvents = () => {
+  return (
+    <div className="h-full overflow-auto">
+      <EventList 
+        filters={{
+          searchQuery: "", 
+          categories: Object.keys(categoryColors).filter(cat => cat !== 'all'),
+          selectedDate: null, 
+          maxDaysToEvent: 14, 
+          showFreeOnly: false, 
+          maxPrice: null, 
+          distanceRadius: 5,
+          userLocation: [51.7656, 5.5314]
+        }} 
+        sortBy="date" 
+        sortAscending={true} 
+      />
+    </div>
+  );
 };
 
 export default function App() {
   const [isFilterOpen, setIsFilterOpen] = React.useState(false)
   const [isMapView, setIsMapView] = React.useState(true)
   const [eventCounts, setEventCounts] = React.useState<Record<string, number>>({})
+  const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7656, 5.5314])
+  const [totalMatchingEvents, setTotalMatchingEvents] = React.useState(0)
+
   const [filters, setFilters] = React.useState<FilterState>({
     searchQuery: "",
     categories: Object.keys(categoryColors).filter(cat => cat !== 'all'),
@@ -49,8 +77,8 @@ export default function App() {
     maxDaysToEvent: 14,
     showFreeOnly: false,
     maxPrice: null,
-    useDistanceFilter: false,
-    distanceRadius: 5
+    distanceRadius: 5,
+    userLocation: [51.7656, 5.5314]
   })
 
   const toggleView = React.useCallback(() => {
@@ -66,6 +94,11 @@ export default function App() {
 
   const handleSearch = React.useCallback((query: string) => {
     handleFilterChange({ searchQuery: query });
+  }, [handleFilterChange]);
+
+  const handleLocationChange = React.useCallback((location: [number, number]) => {
+    setUserLocation(location);
+    handleFilterChange({ userLocation: location });
   }, [handleFilterChange]);
 
   return (
@@ -88,14 +121,30 @@ export default function App() {
                 setIsFilterSheetOpen={setIsFilterOpen}
                 onSearch={handleSearch}
               />
-              <div className="absolute inset-0 top-14 bottom-[75px] z-0"> 
+              <div className="absolute inset-0 top-14 bottom-[75px] z-0">
+                {/* Active Filters Display */}
+                <div className="absolute top-0 left-0 right-0 z-10 bg-white border-b px-4 py-2 flex flex-wrap gap-2">
+                  {filters.searchQuery && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      <span>Zoeken: {filters.searchQuery}</span>
+                      <button 
+                        onClick={() => handleFilterChange({ searchQuery: '' })}
+                        className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                  {/* Add other active filters here */}
+                </div>
+
                 {isMapView ? (
                   <MapView
                     filters={filters}
                     onFilterChange={handleFilterChange}
                   />
                 ) : (
-                  <div className="h-full overflow-auto">
+                  <div className="h-full overflow-auto pt-12">
                     <EventList
                       filters={filters}
                       sortBy="distance"
@@ -110,7 +159,9 @@ export default function App() {
                 currentFilters={filters}
                 onFilterChange={handleFilterChange}
                 eventCounts={eventCounts}
-                searchQuery={filters.searchQuery}
+                totalMatchingEvents={totalMatchingEvents}
+                userLocation={userLocation}
+                onLocationChange={handleLocationChange}
               />
               <BottomNav />
             </>

@@ -30,8 +30,9 @@ interface FilterFormProps {
   onFilterChange: (filters: any) => void;
   currentFilters: any;
   eventCounts: Record<string, number>;
-  mapZoomLevel?: number;
-  searchQuery?: string;
+  totalMatchingEvents: number;
+  userLocation: [number, number];
+  onLocationChange: (location: [number, number]) => void;
 }
 
 const categoryColors = {
@@ -55,10 +56,10 @@ export function FilterForm({
   onFilterChange,
   currentFilters,
   eventCounts,
-  mapZoomLevel,
-  searchQuery
+  totalMatchingEvents,
+  userLocation,
+  onLocationChange
 }: FilterFormProps) {
-  // State for opened sections
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
 
@@ -72,7 +73,7 @@ export function FilterForm({
   const [selectedDate, setSelectedDate] = useState<Date>(
     currentFilters.selectedDate ? new Date(currentFilters.selectedDate) : new Date()
   );
-
+  const [distanceRadius, setDistanceRadius] = useState(currentFilters.distanceRadius || 5);
 
   const handleFilterChange = (updates: Partial<typeof currentFilters>) => {
     onFilterChange({
@@ -81,16 +82,6 @@ export function FilterForm({
     });
   };
 
-  // Calculate active filters
-  const activeFilters = [
-    selectedCategories.length > 0 && 'category',
-    showFreeOnly && 'price',
-    maxDaysToEvent !== 14 && 'time',
-    searchQuery && 'search',
-    mapZoomLevel && 'distance'
-  ].filter(Boolean);
-
-  // Toggle section visibility
   const toggleSection = (section: string) => {
     setOpenSection(openSection === section ? null : section);
   };
@@ -100,11 +91,11 @@ export function FilterForm({
       <SheetContent side="right" className="w-[300px] sm:w-[400px]">
         <SheetHeader className="pb-4">
           <SheetTitle>Filters</SheetTitle>
-          {activeFilters.length > 0 && (
-            <Badge variant="outline" className="w-fit">
-              {activeFilters.length} actieve filters
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">
+              {totalMatchingEvents} evenementen gevonden
             </Badge>
-          )}
+          </div>
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-180px)]">
@@ -375,50 +366,63 @@ export function FilterForm({
               )}
             </div>
 
-            {/* Distance Filter */}
-            {mapZoomLevel && (
-              <div className="space-y-2">
-                <Button
-                  variant="ghost"
-                  className="w-full flex items-center justify-between"
-                  onClick={() => toggleSection('distance')}
-                >
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    <span>Afstand</span>
-                  </div>
-                  <ChevronDown className={cn(
-                    "h-4 w-4 transition-transform",
-                    openSection === 'distance' && "rotate-180"
-                  )} />
-                </Button>
-
-                {openSection === 'distance' && (
-                  <div className="text-sm text-muted-foreground pl-8 mt-2">
-                    Zoekradius wordt automatisch aangepast op basis van het zoomniveau van de kaart
-                  </div>
+            {/* Location Radius Section */}
+            <div className="space-y-2">
+              <Button
+                variant="ghost"
+                className={cn(
+                  "w-full flex items-center justify-between",
+                  distanceRadius !== 5 && "text-primary"
                 )}
-              </div>
-            )}
+                onClick={() => toggleSection('location')}
+              >
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>Zoekradius</span>
+                  <Badge variant="outline" className="ml-2">
+                    {distanceRadius}km
+                  </Badge>
+                </div>
+                <ChevronDown className={cn(
+                  "h-4 w-4 transition-transform",
+                  openSection === 'location' && "rotate-180"
+                )} />
+              </Button>
+
+              {openSection === 'location' && (
+                <div className="space-y-4 pl-8 mt-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Afstand:</span>
+                      <span className="text-sm font-medium">{distanceRadius}km</span>
+                    </div>
+                    <Slider
+                      value={[distanceRadius]}
+                      onValueChange={(values) => {
+                        setDistanceRadius(values[0]);
+                        onFilterChange({
+                          ...currentFilters,
+                          distanceRadius: values[0]
+                        });
+                      }}
+                      max={50}
+                      step={1}
+                      min={1}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>1km</span>
+                      <span>50km</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Distance Filter */}
+            {/* Removed because mapZoomLevel is not defined */}
 
             {/* Search Query */}
-            {searchQuery && (
-              <div className="space-y-2">
-                <Button
-                  variant="ghost"
-                  className="w-full flex items-center justify-between text-primary"
-                  onClick={() => toggleSection('search')}
-                >
-                  <div className="flex items-center gap-2">
-                    <Search className="h-4 w-4" />
-                    <span>Zoekopdracht</span>
-                    <Badge variant="outline" className="ml-2">
-                      "{searchQuery}"
-                    </Badge>
-                  </div>
-                </Button>
-              </div>
-            )}
+            {/* Removed because searchQuery is not defined */}
           </div>
         </ScrollArea>
 
@@ -427,32 +431,38 @@ export function FilterForm({
             <Button
               variant="outline"
               onClick={() => {
-                setSelectedCategories(Object.keys(categoryColors).filter(cat => cat !== 'all'));
-                setShowFreeOnly(false);
-                setMaxDaysToEvent(14);
-                setSelectedDate(new Date());
-                setMaxPrice(null);
-                handleFilterChange({
+                const defaultFilters = {
                   categories: Object.keys(categoryColors).filter(cat => cat !== 'all'),
                   showFreeOnly: false,
                   maxDaysToEvent: 14,
-                  selectedDate: new Date().toISOString(),
-                  maxPrice: null
-                });
+                  selectedDate: new Date(),
+                  maxPrice: null,
+                  distanceRadius: 5
+                };
+
+                setSelectedCategories(defaultFilters.categories);
+                setShowFreeOnly(defaultFilters.showFreeOnly);
+                setMaxDaysToEvent(defaultFilters.maxDaysToEvent);
+                setSelectedDate(defaultFilters.selectedDate);
+                setMaxPrice(defaultFilters.maxPrice);
+                setDistanceRadius(defaultFilters.distanceRadius);
+
+                onFilterChange(defaultFilters);
               }}
             >
               Reset
             </Button>
           </SheetClose>
           <SheetClose asChild>
-            <Button onClick={() => handleFilterChange({
+            <Button onClick={() => onFilterChange({
               categories: selectedCategories,
               showFreeOnly,
               maxDaysToEvent: maxDaysToEvent === 999 ? 14 : maxDaysToEvent,
               selectedDate: selectedDate.toISOString(),
-              maxPrice
+              maxPrice,
+              distanceRadius
             })}>
-              Toepassen
+              Toepassen ({totalMatchingEvents})
             </Button>
           </SheetClose>
         </div>

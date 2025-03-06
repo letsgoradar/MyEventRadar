@@ -2,15 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import {
   Satellite,
-  ChevronDown,
+  X as CloseIcon,
   Tag as CategoryIcon,
+  MapPin,
   Euro,
   Clock,
   Search
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
 import { Link } from "wouter";
 import L from 'leaflet';
 import React, { useState, useEffect, useRef } from 'react';
@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { format, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { Slider } from "@/components/ui/slider";
+import { Calendar } from "@/components/ui/calendar";
+
 
 // Add pulse animation CSS
 const pulseAnimation = `
@@ -229,35 +231,28 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
-  const [currentSearch, setCurrentSearch] = useState<string>('');
   const [mapKey, setMapKey] = useState(0);
-  const [showFreeOnly, setShowFreeOnly] = useState(false);
-  const [maxPrice, setMaxPrice] = useState<number | null>(null);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    Object.keys(categoryColors).filter(cat => cat !== 'all')
-  );
-  const [maxDaysToEvent, setMaxDaysToEvent] = useState(14);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
-  const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
-  const [isPriceFilterVisible, setIsPriceFilterVisible] = useState(false);
-  const [isCategoryLegendVisible, setIsCategoryLegendVisible] = useState(false);
-  const quickFiltersRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const storedSearch = sessionStorage.getItem('currentSearch');
-    if (storedSearch) {
-      setCurrentSearch(storedSearch);
-      // Update filters with search query
-      if (onFilterChange) {
-        onFilterChange({
-          ...filters,
-          searchQuery: storedSearch
-        });
-      }
-      console.log('Current search updated:', storedSearch);
+
+  // Get active filters for display
+  const activeFilters = [
+    filters.searchQuery && { type: 'search', label: `Zoeken: "${filters.searchQuery}"` },
+    filters.categories?.length < Object.keys(categoryColors).length && { 
+      type: 'categories', 
+      label: `${filters.categories?.length} categorieën` 
+    },
+    filters.showFreeOnly && { type: 'price', label: 'Alleen gratis' },
+    filters.maxPrice && { type: 'price', label: `Max €${filters.maxPrice}` },
+    filters.maxDaysToEvent !== 14 && { 
+      type: 'time', 
+      label: filters.maxDaysToEvent === 999 ? 'Alle events' : `Binnen ${filters.maxDaysToEvent} dagen` 
+    },
+    filters.distanceRadius && { 
+      type: 'distance', 
+      label: `${filters.distanceRadius}km radius` 
     }
-  }, [sessionStorage.getItem('currentSearch'), onFilterChange]);
+  ].filter(Boolean);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -298,7 +293,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
   });
 
   const getTimeToEvent = (startTime: string) => {
-    const days = differenceInDays(new Date(startTime), selectedDate);
+    const days = differenceInDays(new Date(startTime), new Date());
     if (days === 0) return "Today";
     if (days === 1) return "Tomorrow";
     if (days < 0) return "Past event";
@@ -309,20 +304,20 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
 
   const filteredEvents = events.filter(event => {
     // Category filter - only show events in selected categories
-    if (!selectedCategories.includes(event.category.toLowerCase())) return false;
+    if (!filters.categories.includes(event.category.toLowerCase())) return false;
 
     // Price filter
-    if (showFreeOnly && event.isPaid) return false;
-    if (maxPrice !== null && event.price > maxPrice) return false;
+    if (filters.showFreeOnly && event.isPaid) return false;
+    if (filters.maxPrice !== null && event.price > filters.maxPrice) return false;
 
     // Time filter - account for selected date and max days
     const eventDate = new Date(event.startTime);
-    const daysUntilEvent = differenceInDays(eventDate, selectedDate);
+    const daysUntilEvent = differenceInDays(eventDate, new Date());
     if (daysUntilEvent < 0) return false; // Past events
-    if (maxDaysToEvent !== 999 && daysUntilEvent > maxDaysToEvent) return false;
+    if (filters.maxDaysToEvent !== 999 && daysUntilEvent > filters.maxDaysToEvent) return false;
 
     // Search filter - prioritize current search from top nav
-    const searchTerm = filters.searchQuery || currentSearch;
+    const searchTerm = filters.searchQuery;
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
@@ -336,14 +331,6 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     return true;
   });
 
-  // Calculate active filters for visual indicators
-  const activeFilters = [
-    selectedCategories.length < Object.keys(categoryColors).length -1 && 'category',
-    showFreeOnly && 'price',
-    maxDaysToEvent !== 14 && 'time',
-    currentSearch && 'search'
-  ].filter(Boolean);
-
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
@@ -352,8 +339,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
 
-  // Function to update both local and parent state
-  const updateFilters = (updates: Partial<typeof filters>) => {
+  const updateFilters = (updates: Partial<FilterProps>) => {
     if (onFilterChange) {
       onFilterChange({
         ...filters,
@@ -361,22 +347,6 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
       });
     }
   };
-
-  // Handle clicking outside quick filters
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (quickFiltersRef.current && !quickFiltersRef.current.contains(event.target as Node)) {
-        setIsCategoryLegendVisible(false);
-        setIsTimeFilterVisible(false);
-        setIsPriceFilterVisible(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   return (
     <div className="h-full relative">
@@ -392,250 +362,46 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         </Button>
       </div>
 
-      {/* Quick Filters - Right side */}
-      <div ref={quickFiltersRef} className="absolute top-4 right-4 z-[1000] flex flex-col gap-1.5">
-        {/* Categories */}
-        <Button
-          variant="outline"
-          size="icon"
-          className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            selectedCategories.length < Object.keys(categoryColors).length - 1 ? 'border-primary border-2 text-primary shadow-md' : ''
-          }`}
-          onClick={() => setIsCategoryLegendVisible(!isCategoryLegendVisible)}
-          title="Categorieën"
-        >
-          <CategoryIcon className="h-4 w-4" />
-          {selectedCategories.length < Object.keys(categoryColors).length - 1 && (
-            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
-              •
-            </Badge>
-          )}
-        </Button>
-
-        {/* Free/Paid Toggle */}
-        <Button
-          variant="outline"
-          size="icon"
-          className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            (showFreeOnly || maxPrice !== null) ? 'border-primary border-2 text-primary shadow-md' : ''
-          }`}
-          onClick={() => setIsPriceFilterVisible(!isPriceFilterVisible)}
-          title={showFreeOnly ? 'Alleen Gratis' : maxPrice ? `Max €${maxPrice}` : 'Alle Prijzen'}
-        >
-          <Euro className="h-4 w-4" />
-          {(showFreeOnly || maxPrice !== null) && (
-            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
-              •
-            </Badge>
-          )}
-        </Button>
-
-        {/* Time Filter */}
-        <Button
-          variant="outline"
-          size="icon"
-          className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            maxDaysToEvent !== 14 ? 'border-primary border-2 text-primary shadow-md' : ''
-          }`}
-          onClick={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
-          title={maxDaysToEvent === 999 ? 'Alle Events' : `Binnen ${maxDaysToEvent} dagen`}
-        >
-          <Clock className="h-4 w-4" />
-          {maxDaysToEvent !== 14 && (
-            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
-              •
-            </Badge>
-          )}
-        </Button>
-
-        {/* Search Results Indicator */}
-        {currentSearch && (
-          <Button
-            variant="outline"
-            size="icon"
-            className="bg-white/90 hover:bg-white h-8 w-8 border-primary border-2 text-primary shadow-md"
-            title={`Zoeken: "${currentSearch}"`}
-          >
-            <Search className="h-4 w-4" />
-            <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
-              •
-            </Badge>
-          </Button>
-        )}
-      </div>
-
-      {/* Category Legend - Aligned right */}
-      {isCategoryLegendVisible && (
-        <div className="absolute top-[52px] right-4 z-[1000] bg-white p-2 rounded-lg shadow-md">
-          <div className="grid gap-1.5">
-            {Object.entries(categoryColors)
-              .filter(([cat]) => cat !== 'all')
-              .map(([category, color]) => {
-                const count = eventCounts[category] || 0;
-                const isDisabled = count === 0;
-                const isSelected = selectedCategories.includes(category);
-
-                return (
-                  <button
-                    key={category}
-                    onClick={() => {
-                      if (!isDisabled) {
-                        const newCategories = isSelected
-                          ? selectedCategories.filter(c => c !== category)
-                          : [...selectedCategories, category];
-                        setSelectedCategories(newCategories);
-                        updateFilters({ categories: newCategories });
-                      }
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 p-1 rounded hover:bg-gray-100",
-                      isDisabled ? "opacity-50 cursor-not-allowed" : "",
-                      isSelected ? "text-primary" : ""
-                    )}
-                    disabled={isDisabled}
-                  >
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-                    <span className="text-xs capitalize">
-                      {category} ({count})
-                    </span>
-                  </button>
-                );
-              })}
-          </div>
-        </div>
-      )}
-
-      {/* Price Filter Popover */}
-      {isPriceFilterVisible && (
-        <div className="absolute top-[52px] right-4 z-[1000] bg-white p-2 rounded-lg shadow-md w-[260px]">
-          <div className="space-y-2">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="priceFilter"
-                checked={!showFreeOnly && maxPrice === null}
-                onChange={() => {
-                  setShowFreeOnly(false);
-                  setMaxPrice(null);
-                  updateFilters({ showFreeOnly: false, maxPrice: null });
-                }}
-                className="w-4 h-4"
-              />
-              <span>Alle evenementen</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="priceFilter"
-                checked={showFreeOnly}
-                onChange={() => {
-                  setShowFreeOnly(true);
-                  setMaxPrice(null);
-                  updateFilters({ showFreeOnly: true, maxPrice: null });
-                }}
-                className="w-4 h-4"
-              />
-              <span>Alleen gratis evenementen</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="priceFilter"
-                checked={!showFreeOnly && maxPrice !== null}
-                onChange={() => {
-                  setShowFreeOnly(false);
-                  setMaxPrice(50);
-                  updateFilters({ showFreeOnly: false, maxPrice: 50 });
-                }}
-                className="w-4 h-4"
-              />
-              <span>Maximum prijs</span>
-            </label>
-
-            {!showFreeOnly && maxPrice !== null && (
-              <div className="space-y-2 mt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Max prijs:</span>
-                  <span className="text-sm font-medium">€{maxPrice}</span>
-                </div>
-                <Slider
-                  value={[maxPrice || 50]}
-                  onValueChange={(values) => {
-                    setMaxPrice(values[0]);
-                    updateFilters({ maxPrice: values[0] });
-                  }}
-                  max={200}
-                  step={5}
-                  min={5}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>€5</span>
-                  <span>€200</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Time Filter Popover */}
-      {isTimeFilterVisible && (
-        <div className="absolute top-[52px] right-4 z-[1000] bg-white p-2 rounded-lg shadow-md w-[260px]">
-          <div className="space-y-4">
-            {/* Date Selection */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
+      {/* Active Filters Display - Right side */}
+      {activeFilters.length > 0 && (
+        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-1.5 max-w-[200px]">
+          {activeFilters.map((filter, index) => (
+            <Badge
+              key={index}
+              variant="secondary"
+              className="bg-white/90 px-2 py-1 flex items-center justify-between gap-2 text-sm"
+            >
+              <span className="truncate">{filter.label}</span>
+              <button
+                className="opacity-70 hover:opacity-100"
                 onClick={() => {
-                  const now = new Date();
-                  setSelectedDate(now);
-                  updateFilters({ selectedDate: now.toISOString() });
+                  // Reset the specific filter
+                  const updates: any = {};
+                  switch (filter.type) {
+                    case 'search':
+                      updates.searchQuery = '';
+                      break;
+                    case 'categories':
+                      updates.categories = Object.keys(categoryColors).filter(cat => cat !== 'all');
+                      break;
+                    case 'price':
+                      updates.showFreeOnly = false;
+                      updates.maxPrice = null;
+                      break;
+                    case 'time':
+                      updates.maxDaysToEvent = 14;
+                      break;
+                    case 'distance':
+                      updates.distanceRadius = 5;
+                      break;
+                  }
+                  onFilterChange({ ...filters, ...updates });
                 }}
               >
-                {format(selectedDate, 'PPP', { locale: nl })}
-              </Button>
-            </div>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => {
-                if (date) {
-                  setSelectedDate(date);
-                  updateFilters({ selectedDate: date.toISOString() });
-                }
-              }}
-              className="rounded-md border"
-            />
-
-            {/* Days Range */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Binnen dagen:</span>
-                <span className="text-sm font-medium">
-                  {maxDaysToEvent === 999 ? 'Alle' : maxDaysToEvent}
-                </span>
-              </div>
-              <Slider
-                value={[maxDaysToEvent === 999 ? 14 : maxDaysToEvent]}
-                onValueChange={(values) => {
-                  const value = values[0];
-                  // If slider is at max, show all events
-                  const newValue = value === 14 ? 999 : value;
-                  setMaxDaysToEvent(newValue);
-                  updateFilters({ maxDaysToEvent: newValue });
-                }}
-                max={14}
-                step={1}
-                min={1}
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>1 dag</span>
-                <span>2 weken</span>
-              </div>
-            </div>
-          </div>
+                <CloseIcon className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
         </div>
       )}
 
@@ -647,7 +413,13 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         className="h-full w-full"
         zoomControl={false}
       >
-        <TileLayer url={tileUrl} {...tileConfig} />
+        <TileLayer 
+          url={isSatelliteView 
+            ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          }
+          {...(isSatelliteView ? { subdomains: [] } : { subdomains: 'abcd' })}
+        />
         <CreateEventMarker />
         <MapBoundsControl />
         <UserLocationMarker />
@@ -716,6 +488,8 @@ interface FilterProps {
   maxPrice: number | null;
   useDistanceFilter: boolean;
   distanceRadius: number;
+  showFreeOnly: boolean;
+  maxDaysToEvent: number;
   onFilterChange?: (filters: FilterProps) => void;
 }
 

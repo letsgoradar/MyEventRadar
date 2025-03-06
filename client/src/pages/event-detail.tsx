@@ -59,7 +59,7 @@ export default function EventDetailPage() {
   return (
     <div className="h-screen flex flex-col">
       <TopNav />
-      <div className="flex-1 overflow-auto pb-20">
+      <div className="flex-1 overflow-auto pb-24 pt-14">
         {/* Header Section */}
         <div className="p-4 space-y-4">
           <div className="flex items-start justify-between">

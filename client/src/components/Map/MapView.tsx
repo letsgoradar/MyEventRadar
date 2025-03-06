@@ -15,221 +15,57 @@ import L from 'leaflet';
 import React, { useState, useEffect, useRef } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
-import { useLocation } from "wouter";
-import { cn } from "@/lib/utils";
 import { format, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
-import { Slider } from "@/components/ui/slider";
-import { Calendar } from "@/components/ui/calendar";
 
 
-// Add pulse animation CSS
-const pulseAnimation = `
-  @keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    70% { transform: scale(2); opacity: 0; }
-    100% { transform: scale(1); opacity: 0; }
-  }
-`;
+function MapBoundsControl({ events }: { events: Event[] }) {
+  const map = useMap();
 
-const style = document.createElement('style');
-style.textContent = pulseAnimation;
-document.head.appendChild(style);
-
-const categoryColors = {
-  'all': '#666666',  // gray for "all" category
-  'festival': '#FF9800',
-  'sports': '#2196F3',
-  'food': '#4CAF50',
-  'culture': '#9C27B0',
-  'market': '#FF5722',
-  'education': '#607D8B',
-  'music': '#E91E63',
-  'technology': '#00BCD4',
-  'gaming': '#8BC34A',
-  'health': '#FFEB3B',
-  'nature': '#795548',
-};
-
-const getCategoryColor = (category: string): string => {
-  const normalizedCategory = category.toLowerCase();
-  return categoryColors[normalizedCategory as keyof typeof categoryColors] || '#9E9E9E';
-};
-
-const createEventIcon = (category: string) => {
-  const color = getCategoryColor(category);
-  return L.divIcon({
-    className: 'custom-icon',
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
-    html: `<div style="width: 12px; height: 12px; border-radius: 50%; border: 1px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2); background-color: ${color};"></div>`
-  });
-};
-
-function CreateEventMarker() {
-  const [, navigate] = useLocation();
-  const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
-  const [touchCount, setTouchCount] = useState(0);
-  const [startPoint, setStartPoint] = useState<{ x: number, y: number } | null>(null);
-  const moveThreshold = 10;
-
-  const map = useMapEvents({
-    touchstart: (e) => {
-      const touches = e.originalEvent.touches;
-      setTouchCount(touches.length);
-
-      if (touches.length === 1) {
-        const touch = touches[0];
-        setStartPoint({ x: touch.clientX, y: touch.clientY });
-
-        const container = map.getContainer();
-        const pos = L.point(touch.clientX, touch.clientY);
-        const touchLatLng = map.containerPointToLatLng(pos);
-
-        setPressTimer(setTimeout(() => {
-          navigate(`/create-event?lat=${touchLatLng.lat}&lng=${touchLatLng.lng}&zoom=18`);
-        }, 512));
-      }
-    },
-    touchmove: (e) => {
-      if (startPoint && e.originalEvent.touches.length === 1) {
-        const touch = e.originalEvent.touches[0];
-        const deltaX = Math.abs(touch.clientX - startPoint.x);
-        const deltaY = Math.abs(touch.clientY - startPoint.y);
-
-        if (deltaX > moveThreshold || deltaY > moveThreshold) {
-          if (pressTimer) {
-            clearTimeout(pressTimer);
-            setPressTimer(null);
-          }
-          setStartPoint(null);
-        }
-      }
-    },
-    touchend: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-      setTouchCount(0);
-      setStartPoint(null);
-    },
-    touchcancel: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-      setTouchCount(0);
-      setStartPoint(null);
-    },
-    mousedown: (e) => {
-      setStartPoint({ x: e.originalEvent.clientX, y: e.originalEvent.clientY });
-      setPressTimer(setTimeout(() => {
-        navigate(`/create-event?lat=${e.latlng.lat}&lng=${e.latlng.lng}&zoom=18`);
-      }, 512));
-    },
-    mousemove: (e) => {
-      if (startPoint) {
-        const deltaX = Math.abs(e.originalEvent.clientX - startPoint.x);
-        const deltaY = Math.abs(e.originalEvent.clientY - startPoint.y);
-
-        if (deltaX > moveThreshold || deltaY > moveThreshold) {
-          if (pressTimer) {
-            clearTimeout(pressTimer);
-            setPressTimer(null);
-          }
-          setStartPoint(null);
-        }
-      }
-    },
-    mouseup: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-      setStartPoint(null);
-    },
-    mouseleave: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-      setStartPoint(null);
+  useEffect(() => {
+    if (events.length > 0) {
+      const bounds = L.latLngBounds(events.map(e => [Number(e.latitude), Number(e.longitude)]));
+      map.fitBounds(bounds, {
+        padding: [50, 50],
+        duration: 1.5,
+        maxZoom: 15
+      });
     }
-  });
+  }, [events, map]);
 
   return null;
 }
 
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    0.5 - Math.cos(dLat) / 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    (1 - Math.cos(dLon)) / 2;
-
-  return R * 2 * Math.asin(Math.sqrt(a));
-}
-
-function MapBoundsControl() {
-  const map = useMap();
-
-  useEffect(() => {
-    const storedBounds = sessionStorage.getItem('mapBounds');
-    if (storedBounds) {
-      const { events } = JSON.parse(storedBounds);
-      if (events && events.length >= 2) {
-        const bounds = L.latLngBounds(events.map(e => [e.lat, e.lng]));
-        map.flyToBounds(bounds, {
-          padding: [50, 50],
-          duration: 1.5,
-          easeLinearity: 0.5
-        });
-      }
-    }
-  }, [map, sessionStorage.getItem('mapBounds')]);
-
-  return null;
-}
-
-function UserLocationMarker() {
-  const [position, setPosition] = useState<[number, number] | null>(null);
-  const map = useMap();
-
-  useEffect(() => {
-    map.locate().on("locationfound", function (e) {
-      setPosition([e.latitude, e.longitude]);
-      map.flyTo([e.latitude, e.longitude], map.getZoom());
-    });
-  }, [map]);
-
-  if (!position) return null;
-
-  const pulsingIcon = L.divIcon({
-    className: 'custom-icon',
-    html: `
-      <div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white pulse-animation"></div>
-    `,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8]
-  });
-
-  return (
-    <Marker position={position} icon={pulsingIcon}>
+function UserLocationMarker({ position }: { position: [number, number] }) {
+  return position ? (
+    <Marker 
+      position={position}
+      icon={L.divIcon({
+        className: 'custom-icon',
+        html: `<div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+      })}
+    >
       <Popup>
         <div className="text-sm font-medium">Mijn locatie</div>
       </Popup>
     </Marker>
-  );
+  ) : null;
 }
 
+const createEventIcon = (category: string) => {
+  return L.divIcon({
+    className: 'custom-icon',
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+    html: `<div style="width: 12px; height: 12px; border-radius: 50%; border: 1px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2); background-color: #666666;"></div>`
+  });
+};
 
 export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
-  const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [mapKey, setMapKey] = useState(0);
 
   // Get active filters for display
@@ -292,26 +128,13 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
   // Update filter counts
   useEffect(() => {
     const totalEvents = filteredEvents.length;
-    console.log('Total matching events:', totalEvents); // Debug log
-
-    if (onFilterChange && typeof filters.totalMatchingEvents !== 'undefined') {
+    if (onFilterChange) {
       onFilterChange({
         ...filters,
         totalMatchingEvents: totalEvents
       });
     }
-  }, [filteredEvents, onFilterChange]);
-
-  const getTimeToEvent = (startTime: string) => {
-    const days = differenceInDays(new Date(startTime), new Date());
-    if (days === 0) return "Today";
-    if (days === 1) return "Tomorrow";
-    if (days < 0) return "Past event";
-    if (days < 7) return `In ${days} days`;
-    if (days < 30) return `In ${Math.floor(days / 7)} weeks`;
-    return `In ${Math.floor(days / 30)} months`;
-  };
-
+  }, [filteredEvents, onFilterChange, filters]);
 
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -320,15 +143,6 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const tileConfig = isSatelliteView
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
-
-  const updateFilters = (updates: Partial<FilterProps>) => {
-    if (onFilterChange) {
-      onFilterChange({
-        ...filters,
-        ...updates
-      });
-    }
-  };
 
   return (
     <div className="h-full relative">
@@ -357,7 +171,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
               <button
                 className="opacity-70 hover:opacity-100"
                 onClick={() => {
-                  // Reset the specific filter
+                  if (!filter) return;
                   const updates: any = {};
                   switch (filter.type) {
                     case 'search':
@@ -392,13 +206,9 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         className="h-full w-full"
         zoomControl={false}
       >
-        <TileLayer 
-          url={tileUrl}
-          {...tileConfig}
-        />
-        <CreateEventMarker />
-        <MapBoundsControl />
-        <UserLocationMarker />
+        <TileLayer url={tileUrl} {...tileConfig} />
+        <MapBoundsControl events={filteredEvents} />
+        <UserLocationMarker position={userLocation} />
 
         {/* Event Markers */}
         {filteredEvents.map(event => {
@@ -406,12 +216,6 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           const lng = Number(event.longitude);
 
           if (isNaN(lat) || isNaN(lng)) return null;
-
-          const distance = location ?
-            calculateDistance(location.lat, location.lng, lat, lng) :
-            null;
-
-          const timeToEvent = getTimeToEvent(event.startTime);
 
           return (
             <Marker
@@ -422,25 +226,22 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
               <Popup className="event-popup" maxWidth={300}>
                 <div className="text-sm pb-1">
                   <div className="event-card-map">
-                    <div className="font-semibold mb-1 flex items-center gap-1.5">
-                      <div style={{ color: getCategoryColor(event.category) }}>
-                        {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
-                      </div>
-                      <div>{event.title}</div>
+                    <div className="font-semibold mb-1 truncate">
+                      {event.title}
                     </div>
                     {event.description && (
-                      <div className="mb-2 text-xs">
+                      <div className="mb-2 text-xs text-muted-foreground">
                         {event.description.substring(0, 80)}
                         {event.description.length > 80 ? '...' : ''}
                       </div>
                     )}
-                    <div className="flex justify-between items-center text-xs text-gray-600 mb-1">
-                      <span>{distance !== null ? `${distance.toFixed(1)} km` : ''}</span>
-                      <span>{timeToEvent}</span>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                      <Clock className="h-3 w-3" />
+                      <span>{format(new Date(event.startTime), 'PPP', { locale: nl })}</span>
                     </div>
                     <Link
                       to={`/event/${event.id}`}
-                      className="text-blue-600 hover:text-blue-800 underline text-xs"
+                      className="text-primary hover:text-primary/80 underline text-xs"
                     >
                       Details bekijken
                     </Link>
@@ -457,7 +258,6 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
 
 interface FilterProps {
   searchQuery: string;
-  categories: string[];
   fromDate: Date | null;
   toDate: Date | null;
   showPaidEvents: boolean;
@@ -466,8 +266,7 @@ interface FilterProps {
   distanceRadius: number;
   showFreeOnly: boolean;
   maxDaysToEvent: number;
-  totalMatchingEvents?: number; // Added for event count
-  onFilterChange?: (filters: FilterProps) => void;
+  totalMatchingEvents?: number;
 }
 
 interface MapViewProps {

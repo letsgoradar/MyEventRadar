@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import { Satellite } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -7,19 +7,7 @@ import L from 'leaflet';
 import React, { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
-import { differenceInDays } from "date-fns";
 import { useLocation } from "wouter";
-
-// Create event icon
-const createEventIcon = (category: string) => {
-  const color = getCategoryColor(category);
-  return L.divIcon({
-    className: 'custom-icon',
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
-    html: `<div style="width: 12px; height: 12px; border-radius: 50%; border: 1px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2); background-color: ${color};"></div>`
-  });
-};
 
 // Get category color helper
 const getCategoryColor = (category: string): string => {
@@ -38,6 +26,17 @@ const getCategoryColor = (category: string): string => {
   };
 
   return colorMap[category.toLowerCase()] || '#9E9E9E';
+};
+
+// Create event icon
+const createEventIcon = (category: string) => {
+  const color = getCategoryColor(category);
+  return L.divIcon({
+    className: 'custom-icon',
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+    html: `<div style="width: 12px; height: 12px; border-radius: 50%; border: 1px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2); background-color: ${color};"></div>`
+  });
 };
 
 function CreateEventMarker() {
@@ -99,13 +98,6 @@ function CreateEventMarker() {
       }
     },
     mouseup: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-      setStartPoint(null);
-    },
-    mouseleave: () => {
       if (pressTimer) {
         clearTimeout(pressTimer);
         setPressTimer(null);

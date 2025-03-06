@@ -21,7 +21,7 @@ import { nl } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface FilterFormProps {
@@ -75,12 +75,15 @@ export function FilterForm({
   );
   const [distanceRadius, setDistanceRadius] = useState(currentFilters.distanceRadius || 5);
 
-  const handleFilterChange = (updates: Partial<typeof currentFilters>) => {
-    onFilterChange({
-      ...currentFilters,
-      ...updates,
-    });
-  };
+  // Update local state when currentFilters changes from parent
+  useEffect(() => {
+    setSelectedCategories(currentFilters.categories || Object.keys(categoryColors).filter(cat => cat !== 'all'));
+    setShowFreeOnly(currentFilters.showFreeOnly);
+    setMaxPrice(currentFilters.maxPrice);
+    setMaxDaysToEvent(currentFilters.maxDaysToEvent || 14);
+    setSelectedDate(currentFilters.selectedDate ? new Date(currentFilters.selectedDate) : new Date());
+    setDistanceRadius(currentFilters.distanceRadius || 5);
+  }, [currentFilters]);
 
   const toggleSection = (section: string) => {
     setOpenSection(openSection === section ? null : section);
@@ -113,11 +116,9 @@ export function FilterForm({
                 <div className="flex items-center gap-2">
                   <CategoryIcon className="h-4 w-4" />
                   <span>Categorieën</span>
-                  {selectedCategories.length > 0 && (
-                    <Badge variant="outline" className="ml-2">
-                      {selectedCategories.length} geselecteerd
-                    </Badge>
-                  )}
+                  <Badge variant="outline" className="ml-2">
+                    {selectedCategories.length} geselecteerd
+                  </Badge>
                 </div>
                 <ChevronDown className={cn(
                   "h-4 w-4 transition-transform",
@@ -314,8 +315,7 @@ export function FilterForm({
                               if (date) {
                                 setSelectedDate(date);
                                 setShowCalendar(false);
-                                onFilterChange({
-                                  ...currentFilters,
+                                handleFilterChange({
                                   selectedDate: date
                                 });
                               }
@@ -347,8 +347,7 @@ export function FilterForm({
                           const value = values[0];
                           const newValue = value === 14 ? 999 : value;
                           setMaxDaysToEvent(newValue);
-                          onFilterChange({
-                            ...currentFilters,
+                          handleFilterChange({
                             maxDaysToEvent: newValue
                           });
                         }}
@@ -400,8 +399,7 @@ export function FilterForm({
                       value={[distanceRadius]}
                       onValueChange={(values) => {
                         setDistanceRadius(values[0]);
-                        onFilterChange({
-                          ...currentFilters,
+                        handleFilterChange({
                           distanceRadius: values[0]
                         });
                       }}
@@ -447,7 +445,10 @@ export function FilterForm({
                 setMaxPrice(defaultFilters.maxPrice);
                 setDistanceRadius(defaultFilters.distanceRadius);
 
-                onFilterChange(defaultFilters);
+                onFilterChange({
+                  ...currentFilters,
+                  ...defaultFilters
+                });
               }}
             >
               Reset
@@ -455,6 +456,7 @@ export function FilterForm({
           </SheetClose>
           <SheetClose asChild>
             <Button onClick={() => onFilterChange({
+              ...currentFilters,
               categories: selectedCategories,
               showFreeOnly,
               maxDaysToEvent: maxDaysToEvent === 999 ? 14 : maxDaysToEvent,

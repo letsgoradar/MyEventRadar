@@ -235,36 +235,6 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
 
 
-  // Get active filters for display
-  const activeFilters = [
-    filters.searchQuery && { type: 'search', label: `Zoeken: "${filters.searchQuery}"` },
-    filters.categories?.length < Object.keys(categoryColors).length && { 
-      type: 'categories', 
-      label: `${filters.categories?.length} categorieën` 
-    },
-    filters.showFreeOnly && { type: 'price', label: 'Alleen gratis' },
-    filters.maxPrice && { type: 'price', label: `Max €${filters.maxPrice}` },
-    filters.maxDaysToEvent !== 14 && { 
-      type: 'time', 
-      label: filters.maxDaysToEvent === 999 ? 'Alle events' : `Binnen ${filters.maxDaysToEvent} dagen` 
-    },
-    filters.distanceRadius && { 
-      type: 'distance', 
-      label: `${filters.distanceRadius}km radius` 
-    }
-  ].filter(Boolean);
-
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
-          setLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
-        }
-      );
-    }
-  }, []);
-
   const { data: events = [] } = useQuery({
     queryKey: ["/api/events/nearby", filters, userLocation],
     queryFn: async () => {
@@ -302,24 +272,32 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     return `In ${Math.floor(days / 30)} months`;
   };
 
-  const filteredEvents = events.filter(event => {
-    // Category filter - only show events in selected categories
-    if (!filters.categories.includes(event.category.toLowerCase())) return false;
+  // Filter events based on current filters
+  const filteredEvents = events?.filter(event => {
+    // Category filter
+    if (!filters.categories.includes(event.category.toLowerCase())) {
+      return false;
+    }
 
     // Price filter
-    if (filters.showFreeOnly && event.isPaid) return false;
-    if (filters.maxPrice !== null && event.price > filters.maxPrice) return false;
+    if (filters.showFreeOnly && event.isPaid) {
+      return false;
+    }
+    if (filters.maxPrice !== null && event.price > filters.maxPrice) {
+      return false;
+    }
 
-    // Time filter - account for selected date and max days
+    // Time filter
     const eventDate = new Date(event.startTime);
     const daysUntilEvent = differenceInDays(eventDate, new Date());
     if (daysUntilEvent < 0) return false; // Past events
-    if (filters.maxDaysToEvent !== 999 && daysUntilEvent > filters.maxDaysToEvent) return false;
+    if (filters.maxDaysToEvent !== 999 && daysUntilEvent > filters.maxDaysToEvent) {
+      return false;
+    }
 
-    // Search filter - prioritize current search from top nav
-    const searchTerm = filters.searchQuery;
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
+    // Search filter
+    if (filters.searchQuery) {
+      const searchLower = filters.searchQuery.toLowerCase();
       return (
         event.title.toLowerCase().includes(searchLower) ||
         event.category.toLowerCase().includes(searchLower) ||
@@ -329,7 +307,36 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     }
 
     return true;
-  });
+  }) || [];
+
+  const activeFilters = [
+    filters.searchQuery && { type: 'search', label: `Zoeken: "${filters.searchQuery}"` },
+    filters.categories?.length < Object.keys(categoryColors).length && { 
+      type: 'categories', 
+      label: `${filters.categories?.length} categorieën` 
+    },
+    filters.showFreeOnly && { type: 'price', label: 'Alleen gratis' },
+    filters.maxPrice && { type: 'price', label: `Max €${filters.maxPrice}` },
+    filters.maxDaysToEvent !== 14 && { 
+      type: 'time', 
+      label: filters.maxDaysToEvent === 999 ? 'Alle events' : `Binnen ${filters.maxDaysToEvent} dagen` 
+    },
+    filters.distanceRadius && { 
+      type: 'distance', 
+      label: `${filters.distanceRadius}km radius` 
+    }
+  ].filter(Boolean);
+
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          setLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
+        }
+      );
+    }
+  }, []);
 
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"

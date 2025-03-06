@@ -5,7 +5,6 @@ import { Event } from "@shared/schema";
 import EventCard from "./EventCard";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "@/hooks/useLocation";
-import { QuickFilters } from "@/components/QuickFilters";
 
 // Helper function to calculate distance
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -19,36 +18,11 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return Math.round(R * c * 10) / 10;
 }
 
-export const getCategoryColor = (category: string): string => {
-  const colorMap: Record<string, string> = {
-    festival: '#FF9800',
-    food: '#4CAF50',
-    culture: '#9C27B0',
-    sports: '#2196F3',
-    market: '#FF5722',
-    education: '#607D8B',
-    music: '#E91E63',
-    technology: '#00BCD4',
-    gaming: '#8BC34A',
-    health: '#FFEB3B',
-    nature: '#795548',
-  };
-
-  return colorMap[category.toLowerCase()] || '#9E9E9E';
-};
-
 interface EventListProps {
-  filters: {
-    searchQuery: string;
-    category: string;
-    maxDaysToEvent: number;
-    showFreeOnly: boolean;
-    eventCounts: Record<string, number>;
-  };
-  onFilterChange: (filters: any) => void;
+  searchQuery: string;
 }
 
-function EventList({ filters, onFilterChange }: EventListProps) {
+function EventList({ searchQuery }: EventListProps) {
   const { location } = useLocation();
   const [radius, setRadius] = useState(10);
   const [filteredEvents, setFilteredEvents] = useState<Array<Event & { distance: number }>>([]);
@@ -70,7 +44,7 @@ function EventList({ filters, onFilterChange }: EventListProps) {
     placeholderData: [],
   });
 
-  // Process events and apply filters
+  // Process events and apply search filter
   useEffect(() => {
     if (!events || !location) return;
 
@@ -88,28 +62,10 @@ function EventList({ filters, onFilterChange }: EventListProps) {
     // Sort by distance
     eventsWithDistance.sort((a, b) => a.distance - b.distance);
 
-    // Apply filters
+    // Apply search filter
     let filtered = [...eventsWithDistance];
-
-    if (filters.category !== 'all') {
-      filtered = filtered.filter(event => event.category === filters.category);
-    }
-
-    if (filters.showFreeOnly) {
-      filtered = filtered.filter(event => !event.isPaid);
-    }
-
-    // Time filter
-    const now = new Date();
-    filtered = filtered.filter(event => {
-      const eventDate = new Date(event.startTime);
-      const diffDays = Math.floor((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      return diffDays >= 0 && diffDays <= filters.maxDaysToEvent;
-    });
-
-    // Search filter
-    if (filters.searchQuery) {
-      const searchLower = filters.searchQuery.toLowerCase();
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
       filtered = filtered.filter(event =>
         event.title.toLowerCase().includes(searchLower) ||
         event.category.toLowerCase().includes(searchLower) ||
@@ -118,7 +74,7 @@ function EventList({ filters, onFilterChange }: EventListProps) {
     }
 
     setFilteredEvents(filtered);
-  }, [events, filters, location]);
+  }, [events, searchQuery, location]);
 
   const incrementRadius = useCallback(() => {
     setRadius(prev => prev + 5);
@@ -164,29 +120,15 @@ function EventList({ filters, onFilterChange }: EventListProps) {
 
   return (
     <div className="p-4 pb-24">
-      {/* Quick Filters */}
-      <div className="mb-4">
-        <QuickFilters
-          filters={filters}
-          onFilterChange={onFilterChange}
-          position="left"
-        />
-      </div>
-
       {filteredEvents.length === 0 ? (
         <div className="text-center py-8">
           {events.length > 0 ? (
             <div className="p-4 flex flex-col items-center">
               <p className="mb-4 text-center">
-                Er zijn evenementen beschikbaar, maar ze voldoen niet aan je huidige filters.
+                Er zijn evenementen beschikbaar, maar ze voldoen niet aan je zoekopdracht.
               </p>
-              <Button onClick={() => onFilterChange({
-                category: 'all',
-                showFreeOnly: false,
-                maxDaysToEvent: 30,
-                searchQuery: ""
-              })}>
-                Filters wissen
+              <Button onClick={() => incrementRadius()}>
+                Zoekbereik vergroten ({radius} km → {radius + 5} km)
               </Button>
             </div>
           ) : (

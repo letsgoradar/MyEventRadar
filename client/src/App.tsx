@@ -8,42 +8,20 @@ import EventList from "@/components/Events/EventList"
 import CreateEventPage from "@/pages/create-event"
 import EventDetailPage from "@/pages/event-detail"
 import BottomNav from "@/components/Layout/BottomNav"
-import { QuickFilters } from "@/components/QuickFilters"
 
 const queryClient = new QueryClient()
 
-interface FilterState {
-  searchQuery: string;
-  category: string;
-  maxDaysToEvent: number;
-  showFreeOnly: boolean;
-  eventCounts: Record<string, number>;
-}
-
 export default function App() {
   const [isMapView, setIsMapView] = React.useState(true)
-  const [filters, setFilters] = React.useState<FilterState>({
-    searchQuery: "",
-    category: "all",
-    maxDaysToEvent: 30,
-    showFreeOnly: false,
-    eventCounts: {}
-  });
+  const [searchQuery, setSearchQuery] = React.useState("")
 
   const toggleView = React.useCallback(() => {
     setIsMapView(prev => !prev);
   }, []);
 
-  const handleFilterChange = React.useCallback((newFilters: Partial<FilterState>) => {
-    setFilters(prev => ({
-      ...prev,
-      ...newFilters
-    }));
-  }, []);
-
   const handleSearch = React.useCallback((query: string) => {
-    handleFilterChange({ searchQuery: query });
-  }, [handleFilterChange]);
+    setSearchQuery(query);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -63,30 +41,11 @@ export default function App() {
                 onSearch={handleSearch}
               />
               <div className="absolute inset-0 top-14 bottom-[75px] z-0"> 
-                {/* QuickFilters positioned above both views */}
-                <div className="absolute top-4 right-4 z-[1000]">
-                  <QuickFilters
-                    selectedCategory={filters.category}
-                    showFreeOnly={filters.showFreeOnly}
-                    maxDaysToEvent={filters.maxDaysToEvent}
-                    searchQuery={filters.searchQuery}
-                    onFilterChange={handleFilterChange}
-                    eventCounts={filters.eventCounts}
-                    position="right"
-                  />
-                </div>
-
                 {isMapView ? (
-                  <MapView
-                    filters={filters}
-                    onFilterChange={handleFilterChange}
-                  />
+                  <MapView searchQuery={searchQuery} />
                 ) : (
                   <div className="h-full overflow-auto">
-                    <EventList
-                      filters={filters}
-                      onFilterChange={handleFilterChange}
-                    />
+                    <EventList searchQuery={searchQuery} />
                   </div>
                 )}
               </div>

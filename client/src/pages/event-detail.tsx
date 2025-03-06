@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Share2, MapPin, Clock, Euro, User } from "lucide-react";
+import { Share2, MapPin, Clock, Euro, User, Eye } from "lucide-react";
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
@@ -10,6 +10,8 @@ import TopNav from "@/components/Layout/TopNav";
 import BottomNav from "@/components/Layout/BottomNav";
 import type { Event } from "@shared/schema";
 import { formatCurrency } from "@/lib/utils";
+import StreetView from '../components/StreetView/StreetView'; // Added import
+
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -27,6 +29,8 @@ export default function EventDetailPage() {
     enabled: !!eventId,
     retry: 1,
   });
+
+  const [showStreetView, setShowStreetView] = useState(false); // Added state
 
   if (isLoading) {
     return (
@@ -97,20 +101,36 @@ export default function EventDetailPage() {
 
             {/* Location */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>Locatie</span>
-              </div>
-              <div className="h-[200px] rounded-lg overflow-hidden">
-                <MapContainer
-                  center={[Number(event.latitude), Number(event.longitude)]}
-                  zoom={15}
-                  className="h-full w-full"
-                  zoomControl={false}
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-medium">Locatie</h3>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-3"
+                  onClick={() => setShowStreetView(!showStreetView)}
                 >
-                  <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
-                  <Marker position={[Number(event.latitude), Number(event.longitude)]} />
-                </MapContainer>
+                  <Eye className="h-4 w-4 mr-2" />
+                  {showStreetView ? 'Toon kaart' : 'Toon straatbeeld'}
+                </Button>
+              </div>
+
+              <div className="relative h-60 bg-muted rounded-md overflow-hidden shadow-lg">
+                {event && showStreetView ? (
+                  <StreetView 
+                    latitude={Number(event.latitude)} 
+                    longitude={Number(event.longitude)} 
+                  />
+                ) : event && (
+                  <MapContainer
+                    center={[Number(event.latitude), Number(event.longitude)]}
+                    zoom={15}
+                    className="h-full w-full"
+                    zoomControl={false}
+                  >
+                    <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+                    <Marker position={[Number(event.latitude), Number(event.longitude)]} />
+                  </MapContainer>
+                )}
               </div>
             </div>
 

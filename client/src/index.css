@@ -2,6 +2,19 @@
   75%, 100% {
     transform: scale(2);
     opacity: 0;
+
+/* Mapillary street view styles */
+.mapillary-js-dom {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+.mly-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
+
   }
 }
 

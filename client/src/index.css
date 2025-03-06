@@ -40,11 +40,4 @@
     margin-top: env(safe-area-inset-top);
     margin-bottom: env(safe-area-inset-bottom);
   }
-
-  /* Remove focus outline animation for all search inputs */
-  input[type="search"],
-  input[type="text"],
-  .search-input {
-    @apply focus:ring-0 focus:ring-offset-0 focus:outline-none !important;
-  }
 }

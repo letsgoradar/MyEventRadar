@@ -102,7 +102,7 @@ export default function EventCard({ event, distance }: EventCardProps) {
                 {showStreetView ? 'Toon kaart' : 'Toon straatbeeld'}
               </Button>
             </div>
-            
+
             <div className="h-[150px] min-h-[100px] md:min-w-[150px] md:max-w-[200px] rounded-md overflow-hidden shadow-sm event-card-map">
               {showStreetView ? (
                 <StreetView latitude={eventCoords[0]} longitude={eventCoords[1]} />

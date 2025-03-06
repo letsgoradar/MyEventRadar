@@ -2,6 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as Mapillary from '@mapillary/mapillary-js';
 import '@mapillary/mapillary-js/dist/mapillary.css';
+import './streetview.css';
 
 interface StreetViewProps {
   latitude: number;

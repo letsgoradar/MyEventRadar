@@ -10,7 +10,8 @@ import TopNav from "@/components/Layout/TopNav";
 import BottomNav from "@/components/Layout/BottomNav";
 import type { Event } from "@shared/schema";
 import { formatCurrency } from "@/lib/utils";
-import StreetView from '../components/StreetView/StreetView'; // Added import
+import StreetView from "@/components/StreetView/StreetView";
+import { useState } from "react";
 
 
 export default function EventDetailPage() {
@@ -30,7 +31,7 @@ export default function EventDetailPage() {
     retry: 1,
   });
 
-  const [showStreetView, setShowStreetView] = useState(false); // Added state
+  const [showStreetView, setShowStreetView] = useState(false);
 
   if (isLoading) {
     return (
@@ -115,12 +116,12 @@ export default function EventDetailPage() {
               </div>
 
               <div className="relative h-60 bg-muted rounded-md overflow-hidden shadow-lg">
-                {event && showStreetView ? (
+                {showStreetView ? (
                   <StreetView 
                     latitude={Number(event.latitude)} 
                     longitude={Number(event.longitude)} 
                   />
-                ) : event && (
+                ) : (
                   <MapContainer
                     center={[Number(event.latitude), Number(event.longitude)]}
                     zoom={15}

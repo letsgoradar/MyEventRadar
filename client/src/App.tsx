@@ -14,10 +14,11 @@ const queryClient = new QueryClient()
 
 interface FilterState {
   searchQuery: string;
-  category: string;
+  categories: string[];
   selectedDate: Date | null;
   maxDaysToEvent: number;
   showFreeOnly: boolean;
+  maxPrice: number | null;
   useDistanceFilter: boolean;
   distanceRadius: number;
 }
@@ -26,9 +27,15 @@ interface FilterState {
 const MyEvents = () => {
   return (
     <div className="h-full overflow-auto">
-      <EventList filters={{searchQuery:"", category:"", selectedDate:null, maxDaysToEvent:30, showFreeOnly:false, useDistanceFilter:false, distanceRadius:5}} sortBy="date" sortAscending={true} />
+      <EventList filters={{searchQuery:"", categories:[], selectedDate:null, maxDaysToEvent:30, showFreeOnly:false, maxPrice: null, useDistanceFilter:false, distanceRadius:5}} sortBy="date" sortAscending={true} />
     </div>
   );
+};
+
+// Assume categoryColors is defined elsewhere and imported
+const categoryColors = {
+  all: '', //add default value
+  // ... other categories and colors
 };
 
 export default function App() {
@@ -37,10 +44,11 @@ export default function App() {
   const [eventCounts, setEventCounts] = React.useState<Record<string, number>>({})
   const [filters, setFilters] = React.useState<FilterState>({
     searchQuery: "",
-    category: "",
-    selectedDate: null,
-    maxDaysToEvent: 30,
+    categories: Object.keys(categoryColors).filter(cat => cat !== 'all'),
+    selectedDate: new Date(),
+    maxDaysToEvent: 14,
     showFreeOnly: false,
+    maxPrice: null,
     useDistanceFilter: false,
     distanceRadius: 5
   })

@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
-import { 
-  Satellite, 
-  ChevronDown, 
-  Calendar,
+import {
+  Satellite,
+  ChevronDown,
   Tag as CategoryIcon,
   Euro,
   Clock,
@@ -11,12 +10,17 @@ import {
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
 import { Link } from "wouter";
 import L from 'leaflet';
 import React, { useState, useEffect, useRef } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
+import { cn } from "@/lib/utils";
+import { format, differenceInDays } from "date-fns";
+import { nl } from "date-fns/locale";
+import { Slider } from "@/components/ui/slider";
 
 // Add pulse animation CSS
 const pulseAnimation = `
@@ -47,9 +51,8 @@ const categoryColors = {
 };
 
 const getCategoryColor = (category: string): string => {
-  const color = categoryColors[category.toLowerCase()];
-  console.log('Getting color for category:', category, 'Color:', color);
-  return color || '#9E9E9E'; // grey as fallback
+  const normalizedCategory = category.toLowerCase();
+  return categoryColors[normalizedCategory as keyof typeof categoryColors] || '#9E9E9E';
 };
 
 const createEventIcon = (category: string) => {
@@ -158,8 +161,8 @@ function CreateEventMarker() {
 }
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; 
-  const dLat = (lat2 - lat1) * Math.PI / 180;  
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
     0.5 - Math.cos(dLat) / 2 +
@@ -178,14 +181,14 @@ function MapBoundsControl() {
       const { events } = JSON.parse(storedBounds);
       if (events && events.length >= 2) {
         const bounds = L.latLngBounds(events.map(e => [e.lat, e.lng]));
-        map.flyToBounds(bounds, { 
+        map.flyToBounds(bounds, {
           padding: [50, 50],
-          duration: 1.5, 
-          easeLinearity: 0.5 
+          duration: 1.5,
+          easeLinearity: 0.5
         });
       }
     }
-  }, [map, sessionStorage.getItem('mapBounds')]); 
+  }, [map, sessionStorage.getItem('mapBounds')]);
 
   return null;
 }
@@ -225,15 +228,19 @@ function UserLocationMarker() {
 export default function MapView({ filters, onFilterChange }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
-  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [currentSearch, setCurrentSearch] = useState<string>('');
   const [mapKey, setMapKey] = useState(0);
   const [showFreeOnly, setShowFreeOnly] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [maxDaysToEvent, setMaxDaysToEvent] = useState(30); // Default to 30 days
+  const [maxPrice, setMaxPrice] = useState<number | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    Object.keys(categoryColors).filter(cat => cat !== 'all')
+  );
+  const [maxDaysToEvent, setMaxDaysToEvent] = useState(14);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
   const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
+  const [isPriceFilterVisible, setIsPriceFilterVisible] = useState(false);
   const [isCategoryLegendVisible, setIsCategoryLegendVisible] = useState(false);
   const quickFiltersRef = useRef<HTMLDivElement>(null);
 
@@ -250,14 +257,14 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
       }
       console.log('Current search updated:', storedSearch);
     }
-  }, [sessionStorage.getItem('currentSearch'), onFilterChange]); 
+  }, [sessionStorage.getItem('currentSearch'), onFilterChange]);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
-          setLocation({lat: position.coords.latitude, lng: position.coords.longitude});
+          setLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
         }
       );
     }
@@ -280,7 +287,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
       const data = await response.json();
 
       // Calculate category counts
-      const counts = {'all': data.length};
+      const counts = { 'all': data.length };
       data.forEach((event: Event) => {
         counts[event.category] = (counts[event.category] || 0) + 1;
       });
@@ -296,20 +303,23 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
     if (days === 1) return "Tomorrow";
     if (days < 0) return "Past event";
     if (days < 7) return `In ${days} days`;
-    if (days < 30) return `In ${Math.floor(days/7)} weeks`;
-    return `In ${Math.floor(days/30)} months`;
+    if (days < 30) return `In ${Math.floor(days / 7)} weeks`;
+    return `In ${Math.floor(days / 30)} months`;
   };
 
   const filteredEvents = events.filter(event => {
-    // Category filter
-    if (selectedCategory !== 'all' && event.category !== selectedCategory) return false;
+    // Category filter - only show events in selected categories
+    if (!selectedCategories.includes(event.category.toLowerCase())) return false;
 
-    // Paid/free filter
+    // Price filter
     if (showFreeOnly && event.isPaid) return false;
+    if (maxPrice !== null && event.price > maxPrice) return false;
 
-    // Time filter
-    const daysUntilEvent = differenceInDays(new Date(event.startTime), selectedDate);
-    if (daysUntilEvent < 0 || daysUntilEvent > maxDaysToEvent) return false;
+    // Time filter - account for selected date and max days
+    const eventDate = new Date(event.startTime);
+    const daysUntilEvent = differenceInDays(eventDate, selectedDate);
+    if (daysUntilEvent < 0) return false; // Past events
+    if (maxDaysToEvent !== 999 && daysUntilEvent > maxDaysToEvent) return false;
 
     // Search filter - prioritize current search from top nav
     const searchTerm = filters.searchQuery || currentSearch;
@@ -328,9 +338,9 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
 
   // Calculate active filters for visual indicators
   const activeFilters = [
-    selectedCategory !== 'all' && 'category',
+    selectedCategories.length < Object.keys(categoryColors).length -1 && 'category',
     showFreeOnly && 'price',
-    maxDaysToEvent !== 30 && 'time',
+    maxDaysToEvent !== 14 && 'time',
     currentSearch && 'search'
   ].filter(Boolean);
 
@@ -358,6 +368,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
       if (quickFiltersRef.current && !quickFiltersRef.current.contains(event.target as Node)) {
         setIsCategoryLegendVisible(false);
         setIsTimeFilterVisible(false);
+        setIsPriceFilterVisible(false);
       }
     }
 
@@ -369,7 +380,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
 
   return (
     <div className="h-full relative">
-      {/* Map Controls - Moved to left */}
+      {/* Map Controls - Left side */}
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
         <Button
           variant="outline"
@@ -381,20 +392,20 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         </Button>
       </div>
 
-      {/* Quick Filters - Moved to right */}
+      {/* Quick Filters - Right side */}
       <div ref={quickFiltersRef} className="absolute top-4 right-4 z-[1000] flex flex-col gap-1.5">
         {/* Categories */}
         <Button
           variant="outline"
           size="icon"
           className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            selectedCategory !== 'all' ? 'border-primary border-2 text-primary shadow-md' : ''
+            selectedCategories.length < Object.keys(categoryColors).length - 1 ? 'border-primary border-2 text-primary shadow-md' : ''
           }`}
           onClick={() => setIsCategoryLegendVisible(!isCategoryLegendVisible)}
           title="Categorieën"
         >
           <CategoryIcon className="h-4 w-4" />
-          {selectedCategory !== 'all' && (
+          {selectedCategories.length < Object.keys(categoryColors).length - 1 && (
             <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
               •
             </Badge>
@@ -406,16 +417,13 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           variant="outline"
           size="icon"
           className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            showFreeOnly ? 'border-primary border-2 text-primary shadow-md' : ''
+            (showFreeOnly || maxPrice !== null) ? 'border-primary border-2 text-primary shadow-md' : ''
           }`}
-          onClick={() => {
-            setShowFreeOnly(!showFreeOnly);
-            updateFilters({ showFreeOnly: !showFreeOnly });
-          }}
-          title={showFreeOnly ? 'Alleen Gratis' : 'Alle Evenementen'}
+          onClick={() => setIsPriceFilterVisible(!isPriceFilterVisible)}
+          title={showFreeOnly ? 'Alleen Gratis' : maxPrice ? `Max €${maxPrice}` : 'Alle Prijzen'}
         >
           <Euro className="h-4 w-4" />
-          {showFreeOnly && (
+          {(showFreeOnly || maxPrice !== null) && (
             <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
               •
             </Badge>
@@ -427,13 +435,13 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
           variant="outline"
           size="icon"
           className={`bg-white/90 hover:bg-white h-8 w-8 relative ${
-            maxDaysToEvent !== 30 ? 'border-primary border-2 text-primary shadow-md' : ''
+            maxDaysToEvent !== 14 ? 'border-primary border-2 text-primary shadow-md' : ''
           }`}
           onClick={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
-          title={`Binnen ${maxDaysToEvent} dagen`}
+          title={maxDaysToEvent === 999 ? 'Alle Events' : `Binnen ${maxDaysToEvent} dagen`}
         >
           <Clock className="h-4 w-4" />
-          {maxDaysToEvent !== 30 && (
+          {maxDaysToEvent !== 14 && (
             <Badge variant="secondary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white">
               •
             </Badge>
@@ -460,35 +468,30 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
       {isCategoryLegendVisible && (
         <div className="absolute top-[52px] right-4 z-[1000] bg-white p-2 rounded-lg shadow-md">
           <div className="grid gap-1.5">
-            <button
-              onClick={() => {
-                setSelectedCategory('all');
-                updateFilters({ category: '' });
-              }}
-              className={`flex items-center gap-2 p-1 rounded hover:bg-gray-100 ${
-                selectedCategory === 'all' ? 'text-primary' : ''
-              }`}
-            >
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: categoryColors.all }} />
-              <span className="text-xs">Alle Evenementen ({eventCounts['all'] || 0})</span>
-            </button>
             {Object.entries(categoryColors)
               .filter(([cat]) => cat !== 'all')
               .map(([category, color]) => {
                 const count = eventCounts[category] || 0;
                 const isDisabled = count === 0;
+                const isSelected = selectedCategories.includes(category);
+
                 return (
                   <button
                     key={category}
                     onClick={() => {
                       if (!isDisabled) {
-                        setSelectedCategory(category);
-                        updateFilters({ category });
+                        const newCategories = isSelected
+                          ? selectedCategories.filter(c => c !== category)
+                          : [...selectedCategories, category];
+                        setSelectedCategories(newCategories);
+                        updateFilters({ categories: newCategories });
                       }
                     }}
-                    className={`flex items-center gap-2 p-1 rounded hover:bg-gray-100 ${
-                      isDisabled ? 'opacity-50 cursor-not-allowed' : ''
-                    } ${selectedCategory === category ? 'text-primary' : ''}`}
+                    className={cn(
+                      "flex items-center gap-2 p-1 rounded hover:bg-gray-100",
+                      isDisabled ? "opacity-50 cursor-not-allowed" : "",
+                      isSelected ? "text-primary" : ""
+                    )}
                     disabled={isDisabled}
                   >
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
@@ -502,41 +505,141 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         </div>
       )}
 
-      {/* Time Filter Popover - Aligned right */}
-      {isTimeFilterVisible && (
+      {/* Price Filter Popover */}
+      {isPriceFilterVisible && (
         <div className="absolute top-[52px] right-4 z-[1000] bg-white p-2 rounded-lg shadow-md w-[260px]">
           <div className="space-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="priceFilter"
+                checked={!showFreeOnly && maxPrice === null}
+                onChange={() => {
+                  setShowFreeOnly(false);
+                  setMaxPrice(null);
+                  updateFilters({ showFreeOnly: false, maxPrice: null });
+                }}
+                className="w-4 h-4"
+              />
+              <span>Alle evenementen</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="priceFilter"
+                checked={showFreeOnly}
+                onChange={() => {
+                  setShowFreeOnly(true);
+                  setMaxPrice(null);
+                  updateFilters({ showFreeOnly: true, maxPrice: null });
+                }}
+                className="w-4 h-4"
+              />
+              <span>Alleen gratis evenementen</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="priceFilter"
+                checked={!showFreeOnly && maxPrice !== null}
+                onChange={() => {
+                  setShowFreeOnly(false);
+                  setMaxPrice(50);
+                  updateFilters({ showFreeOnly: false, maxPrice: 50 });
+                }}
+                className="w-4 h-4"
+              />
+              <span>Maximum prijs</span>
+            </label>
+
+            {!showFreeOnly && maxPrice !== null && (
+              <div className="space-y-2 mt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Max prijs:</span>
+                  <span className="text-sm font-medium">€{maxPrice}</span>
+                </div>
+                <Slider
+                  value={[maxPrice || 50]}
+                  onValueChange={(values) => {
+                    setMaxPrice(values[0]);
+                    updateFilters({ maxPrice: values[0] });
+                  }}
+                  max={200}
+                  step={5}
+                  min={5}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>€5</span>
+                  <span>€200</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Time Filter Popover */}
+      {isTimeFilterVisible && (
+        <div className="absolute top-[52px] right-4 z-[1000] bg-white p-2 rounded-lg shadow-md w-[260px]">
+          <div className="space-y-4">
+            {/* Date Selection */}
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 text-xs w-full"
+                className="w-full"
                 onClick={() => {
-                  setSelectedDate(new Date());
-                  updateFilters({ selectedDate: new Date().toISOString() });
+                  const now = new Date();
+                  setSelectedDate(now);
+                  updateFilters({ selectedDate: now.toISOString() });
                 }}
               >
                 {format(selectedDate, 'PPP', { locale: nl })}
               </Button>
             </div>
-            <div className="flex items-center gap-2">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => {
+                if (date) {
+                  setSelectedDate(date);
+                  updateFilters({ selectedDate: date.toISOString() });
+                }
+              }}
+              className="rounded-md border"
+            />
+
+            {/* Days Range */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Binnen dagen:</span>
+                <span className="text-sm font-medium">
+                  {maxDaysToEvent === 999 ? 'Alle' : maxDaysToEvent}
+                </span>
+              </div>
               <Slider
-                value={[maxDaysToEvent]}
+                value={[maxDaysToEvent === 999 ? 14 : maxDaysToEvent]}
                 onValueChange={(values) => {
-                  setMaxDaysToEvent(values[0]);
-                  updateFilters({ maxDaysToEvent: values[0] });
+                  const value = values[0];
+                  // If slider is at max, show all events
+                  const newValue = value === 14 ? 999 : value;
+                  setMaxDaysToEvent(newValue);
+                  updateFilters({ maxDaysToEvent: newValue });
                 }}
-                max={90}
+                max={14}
                 step={1}
-                className="flex-1"
+                min={1}
               />
-              <span className="text-xs w-12 text-right">{maxDaysToEvent}d</span>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>1 dag</span>
+                <span>2 weken</span>
+              </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Map Container */}
       <MapContainer
         key={mapKey}
         center={userLocation}
@@ -549,6 +652,7 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
         <MapBoundsControl />
         <UserLocationMarker />
 
+        {/* Event Markers */}
         {filteredEvents.map(event => {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
@@ -605,10 +709,11 @@ export default function MapView({ filters, onFilterChange }: MapViewProps) {
 
 interface FilterProps {
   searchQuery: string;
-  category: string;
+  categories: string[];
   fromDate: Date | null;
   toDate: Date | null;
   showPaidEvents: boolean;
+  maxPrice: number | null;
   useDistanceFilter: boolean;
   distanceRadius: number;
   onFilterChange?: (filters: FilterProps) => void;
@@ -618,7 +723,3 @@ interface MapViewProps {
   filters: FilterProps;
   onFilterChange?: (filters: FilterProps) => void;
 }
-import { format, differenceInDays } from "date-fns";
-import { nl } from "date-fns/locale";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Slider } from "@/components/ui/slider";

@@ -1,18 +1,18 @@
-import { 
+import {
   Tag as CategoryIcon,
   Euro,
   Clock,
   Search,
   MapPin,
-  ChevronDown
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
   SheetTitle,
-  SheetClose
+  SheetClose,
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { Calendar } from "@/components/ui/calendar";
@@ -23,6 +23,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+
+interface FilterFormProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onFilterChange: (filters: any) => void;
+  currentFilters: any;
+  eventCounts: Record<string, number>;
+  mapZoomLevel?: number;
+  searchQuery?: string;
+}
 
 const categoryColors = {
   'all': '#666666',
@@ -39,16 +49,6 @@ const categoryColors = {
   'nature': '#795548',
 };
 
-interface FilterFormProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onFilterChange: (filters: any) => void;
-  currentFilters: any;
-  eventCounts: Record<string, number>;
-  mapZoomLevel?: number;
-  searchQuery?: string;
-}
-
 export function FilterForm({
   isOpen,
   onOpenChange,
@@ -62,12 +62,16 @@ export function FilterForm({
   const [openSection, setOpenSection] = useState<string | null>(null);
 
   // Local state that syncs with parent
-  const [selectedCategory, setSelectedCategory] = useState(currentFilters.category || 'all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    Object.keys(categoryColors).filter(cat => cat !== 'all')
+  );
   const [showFreeOnly, setShowFreeOnly] = useState(currentFilters.showFreeOnly);
-  const [maxDaysToEvent, setMaxDaysToEvent] = useState(currentFilters.maxDaysToEvent || 30);
+  const [maxPrice, setMaxPrice] = useState<number | null>(null);
+  const [maxDaysToEvent, setMaxDaysToEvent] = useState(currentFilters.maxDaysToEvent || 14);
   const [selectedDate, setSelectedDate] = useState<Date>(
     currentFilters.selectedDate ? new Date(currentFilters.selectedDate) : new Date()
   );
+
 
   const handleFilterChange = (updates: Partial<typeof currentFilters>) => {
     onFilterChange({
@@ -78,9 +82,9 @@ export function FilterForm({
 
   // Calculate active filters
   const activeFilters = [
-    selectedCategory !== 'all' && 'category',
+    selectedCategories.length > 0 && 'category',
     showFreeOnly && 'price',
-    maxDaysToEvent !== 30 && 'time',
+    maxDaysToEvent !== 14 && 'time',
     searchQuery && 'search',
     mapZoomLevel && 'distance'
   ].filter(Boolean);
@@ -110,16 +114,16 @@ export function FilterForm({
                 variant="ghost"
                 className={cn(
                   "w-full flex items-center justify-between",
-                  selectedCategory !== 'all' && "text-primary"
+                  selectedCategories.length < Object.keys(categoryColors).length - 1 && "text-primary"
                 )}
                 onClick={() => toggleSection('categories')}
               >
                 <div className="flex items-center gap-2">
                   <CategoryIcon className="h-4 w-4" />
                   <span>Categorieën</span>
-                  {selectedCategory !== 'all' && (
+                  {selectedCategories.length > 0 && (
                     <Badge variant="outline" className="ml-2">
-                      {selectedCategory}
+                      {selectedCategories.length} geselecteerd
                     </Badge>
                   )}
                 </div>
@@ -131,37 +135,29 @@ export function FilterForm({
 
               {openSection === 'categories' && (
                 <div className="grid gap-1 mt-2 pl-8">
-                  <button
-                    onClick={() => {
-                      setSelectedCategory('all');
-                      handleFilterChange({ category: '' });
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 p-2 rounded-lg text-left",
-                      selectedCategory === 'all' ? "text-primary" : "hover:bg-muted"
-                    )}
-                  >
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: categoryColors.all }} />
-                    <span>Alle Evenementen ({eventCounts['all'] || 0})</span>
-                  </button>
                   {Object.entries(categoryColors)
                     .filter(([cat]) => cat !== 'all')
                     .map(([category, color]) => {
                       const count = eventCounts[category] || 0;
                       const isDisabled = count === 0;
+                      const isSelected = selectedCategories.includes(category);
+
                       return (
                         <button
                           key={category}
                           onClick={() => {
                             if (!isDisabled) {
-                              setSelectedCategory(category);
-                              handleFilterChange({ category });
+                              const newCategories = isSelected
+                                ? selectedCategories.filter(c => c !== category)
+                                : [...selectedCategories, category];
+                              setSelectedCategories(newCategories);
+                              handleFilterChange({ categories: newCategories });
                             }
                           }}
                           className={cn(
                             "flex items-center gap-2 p-2 rounded-lg text-left",
                             isDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-muted",
-                            selectedCategory === category && "text-primary"
+                            isSelected && "text-primary"
                           )}
                           disabled={isDisabled}
                         >
@@ -180,16 +176,16 @@ export function FilterForm({
                 variant="ghost"
                 className={cn(
                   "w-full flex items-center justify-between",
-                  showFreeOnly && "text-primary"
+                  (showFreeOnly || maxPrice !== null) && "text-primary"
                 )}
                 onClick={() => toggleSection('price')}
               >
                 <div className="flex items-center gap-2">
                   <Euro className="h-4 w-4" />
                   <span>Prijs</span>
-                  {showFreeOnly && (
+                  {(showFreeOnly || maxPrice !== null) && (
                     <Badge variant="outline" className="ml-2">
-                      Alleen Gratis
+                      {showFreeOnly ? 'Alleen Gratis' : `Max €${maxPrice}`}
                     </Badge>
                   )}
                 </div>
@@ -200,15 +196,74 @@ export function FilterForm({
               </Button>
 
               {openSection === 'price' && (
-                <div className="flex items-center justify-between pl-8 mt-2">
-                  <span>Alleen gratis evenementen</span>
-                  <Switch
-                    checked={showFreeOnly}
-                    onCheckedChange={(checked) => {
-                      setShowFreeOnly(checked);
-                      handleFilterChange({ showFreeOnly: checked });
-                    }}
-                  />
+                <div className="space-y-4 pl-8 mt-2">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="priceFilter"
+                        checked={!showFreeOnly && maxPrice === null}
+                        onChange={() => {
+                          setShowFreeOnly(false);
+                          setMaxPrice(null);
+                          handleFilterChange({ showFreeOnly: false, maxPrice: null });
+                        }}
+                        className="w-4 h-4"
+                      />
+                      <span>Alle evenementen</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="priceFilter"
+                        checked={showFreeOnly}
+                        onChange={() => {
+                          setShowFreeOnly(true);
+                          setMaxPrice(null);
+                          handleFilterChange({ showFreeOnly: true, maxPrice: null });
+                        }}
+                        className="w-4 h-4"
+                      />
+                      <span>Alleen gratis evenementen</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="priceFilter"
+                        checked={!showFreeOnly && maxPrice !== null}
+                        onChange={() => {
+                          setShowFreeOnly(false);
+                          setMaxPrice(50);
+                          handleFilterChange({ showFreeOnly: false, maxPrice: 50 });
+                        }}
+                        className="w-4 h-4"
+                      />
+                      <span>Maximum prijs</span>
+                    </label>
+
+                    {!showFreeOnly && maxPrice !== null && (
+                      <div className="space-y-2 mt-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Max prijs:</span>
+                          <span className="text-sm font-medium">€{maxPrice}</span>
+                        </div>
+                        <Slider
+                          value={[maxPrice || 50]}
+                          onValueChange={(values) => {
+                            setMaxPrice(values[0]);
+                            handleFilterChange({ maxPrice: values[0] });
+                          }}
+                          max={200}
+                          step={5}
+                          min={5}
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>€5</span>
+                          <span>€200</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -219,16 +274,16 @@ export function FilterForm({
                 variant="ghost"
                 className={cn(
                   "w-full flex items-center justify-between",
-                  maxDaysToEvent !== 30 && "text-primary"
+                  maxDaysToEvent !== 14 && "text-primary"
                 )}
                 onClick={() => toggleSection('time')}
               >
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
                   <span>Tijd</span>
-                  {maxDaysToEvent !== 30 && (
+                  {maxDaysToEvent !== 14 && (
                     <Badge variant="outline" className="ml-2">
-                      Binnen {maxDaysToEvent} dagen
+                      {maxDaysToEvent === 999 ? 'Alle events' : `Binnen ${maxDaysToEvent} dagen`}
                     </Badge>
                   )}
                 </div>
@@ -257,17 +312,27 @@ export function FilterForm({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Binnen dagen:</span>
-                      <span className="text-sm font-medium">{maxDaysToEvent}</span>
+                      <span className="text-sm font-medium">
+                        {maxDaysToEvent === 999 ? 'Alle' : maxDaysToEvent}
+                      </span>
                     </div>
                     <Slider
-                      value={[maxDaysToEvent]}
+                      value={[maxDaysToEvent === 999 ? 14 : maxDaysToEvent]}
                       onValueChange={(values) => {
-                        setMaxDaysToEvent(values[0]);
-                        handleFilterChange({ maxDaysToEvent: values[0] });
+                        const value = values[0];
+                        // If slider is at max, show all events
+                        const newValue = value === 14 ? 999 : value;
+                        setMaxDaysToEvent(newValue);
+                        handleFilterChange({ maxDaysToEvent: newValue });
                       }}
-                      max={90}
+                      max={14}
                       step={1}
+                      min={1}
                     />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>1 dag</span>
+                      <span>2 weken</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -322,18 +387,20 @@ export function FilterForm({
 
         <div className="flex justify-end gap-2 pt-4 border-t">
           <SheetClose asChild>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
-                setSelectedCategory('all');
+                setSelectedCategories(Object.keys(categoryColors).filter(cat => cat !== 'all'));
                 setShowFreeOnly(false);
-                setMaxDaysToEvent(30);
+                setMaxDaysToEvent(14);
                 setSelectedDate(new Date());
+                setMaxPrice(null);
                 handleFilterChange({
-                  category: '',
+                  categories: Object.keys(categoryColors).filter(cat => cat !== 'all'),
                   showFreeOnly: false,
-                  maxDaysToEvent: 30,
+                  maxDaysToEvent: 14,
                   selectedDate: new Date().toISOString(),
+                  maxPrice: null
                 });
               }}
             >
@@ -342,10 +409,11 @@ export function FilterForm({
           </SheetClose>
           <SheetClose asChild>
             <Button onClick={() => handleFilterChange({
-              category: selectedCategory !== 'all' ? selectedCategory : '',
+              categories: selectedCategories,
               showFreeOnly,
-              maxDaysToEvent,
+              maxDaysToEvent: maxDaysToEvent === 999 ? 14 : maxDaysToEvent,
               selectedDate: selectedDate.toISOString(),
+              maxPrice
             })}>
               Toepassen
             </Button>

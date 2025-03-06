@@ -27,11 +27,20 @@ export default function ProfilePage() {
   const { data: user, isLoading } = useQuery({
     queryKey: ["/api/user/profile"],
     queryFn: async () => {
-      const response = await fetch("/api/user/profile");
-      if (!response.ok) {
-        throw new Error("Failed to fetch user profile");
-      }
-      return response.json();
+      // Mock data for development
+      return {
+        name: "John Doe",
+        avatarUrl: "",
+        bio: "Event enthusiast and organizer",
+        hostedEvents: 12,
+        attendedEvents: 28,
+        interests: ["festival", "music", "culture", "technology", "food"],
+        notifications: {
+          push: true,
+          location: false,
+          reminders: true
+        }
+      };
     },
   });
 
@@ -54,7 +63,7 @@ export default function ProfilePage() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <TopNav />
-      
+
       <div className="flex-1 overflow-auto pb-20">
         {/* Profile Header */}
         <div className="bg-white p-4 shadow-sm">
@@ -177,7 +186,7 @@ export default function ProfilePage() {
           </Tabs>
         </div>
       </div>
-      
+
       <BottomNav />
     </div>
   );

@@ -111,7 +111,7 @@ export default function EventDetailPage() {
                   onClick={() => setShowStreetView(!showStreetView)}
                 >
                   <Eye className="h-4 w-4 mr-2" />
-                  {showStreetView ? 'Toon kaart' : 'Toon straatbeeld'}
+                  {showStreetView ? 'Toon kaart' : 'Toon locatie'}
                 </Button>
               </div>
 

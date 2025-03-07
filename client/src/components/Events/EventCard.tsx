@@ -99,7 +99,7 @@ export default function EventCard({ event, distance }: EventCardProps) {
                 onClick={() => setShowStreetView(!showStreetView)}
               >
                 <Eye className="h-3 w-3 mr-1" />
-                {showStreetView ? 'Toon kaart' : 'Toon straatbeeld'}
+                {showStreetView ? 'Toon kaart' : 'Toon locatie'}
               </Button>
             </div>
 

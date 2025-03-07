@@ -95,8 +95,6 @@ export class PgStorage implements IStorage {
           maxParticipants: insertEvent.maxParticipants || null,
           hostId: insertEvent.hostId,
           recurrence: insertEvent.recurrence,
-          imageUrl: insertEvent.imageUrl,
-          keywords: Array.isArray(insertEvent.keywords) ? insertEvent.keywords.join(',') : insertEvent.keywords,
         };
 
         console.log('Creating event with data:', eventData);

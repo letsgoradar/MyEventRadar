@@ -57,8 +57,6 @@ const createEventFormSchema = z.object({
   maxParticipants: z.number(),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
   hostId: z.number(),
-  imageUrl: z.string().optional(), // Added imageUrl field
-  keywords: z.array(z.string()).optional(), // Added keywords field
 });
 
 const RECURRENCE_OPTIONS = [
@@ -115,13 +113,8 @@ export default function CreateEventPage() {
       maxParticipants: 0,
       recurrence: "once",
       hostId: 1,
-      imageUrl: "", // Added default value for imageUrl
-      keywords: [], // Added default value for keywords
     },
   });
-
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
-  const [isImageSearchOpen, setIsImageSearchOpen] = useState(false);
 
   // Initialize location
   useEffect(() => {
@@ -186,19 +179,6 @@ export default function CreateEventPage() {
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
 
-  const handleImageSelect = (imageUrl: string, keywords: string[], suggestedCategory: string) => {
-    setSelectedImageUrl(imageUrl);
-    form.setValue('imageUrl', imageUrl);
-    form.setValue('keywords', keywords);
-
-    // If no category is selected yet, use the suggested one
-    if (!form.getValues('category')) {
-      form.setValue('category', suggestedCategory);
-    }
-
-    setIsImageSearchOpen(false);
-  };
-
   async function onSubmit(data: z.infer<typeof createEventFormSchema>) {
     try {
       const startDateTime = new Date(`${data.startDate}T${data.startTime}`);
@@ -223,8 +203,6 @@ export default function CreateEventPage() {
         maxParticipants: data.maxParticipants,
         hostId: data.hostId,
         recurrence: data.recurrence,
-        imageUrl: data.imageUrl, // Include imageUrl in eventData
-        keywords: data.keywords, // Include keywords in eventData
       };
 
       const response = await apiRequest('POST', '/api/events', eventData);
@@ -517,50 +495,6 @@ export default function CreateEventPage() {
                   )}
                 />
               )}
-
-              {/* Image Selection UI */}
-              <FormField
-                control={form.control}
-                name="imageUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Evenement afbeelding</FormLabel>
-                    <FormControl>
-                      <div className="space-y-2">
-                        {selectedImageUrl ? (
-                          <div className="relative">
-                            <img 
-                              src={selectedImageUrl} 
-                              alt="Event" 
-                              className="w-full h-40 object-cover rounded-md"
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute top-2 right-2"
-                              onClick={() => {
-                                setSelectedImageUrl(null);
-                                form.setValue('imageUrl', '');
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button type="button" onClick={() => setIsImageSearchOpen(true)}>Select Image</Button>
-                        )}
-                        <input type="hidden" {...field} />
-                      </div>
-                    </FormControl>
-                    <FormDescription>
-                      Een afbeelding helpt je evenement op te vallen.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
 
               <Button type="submit" className="w-full">
                 Create Event

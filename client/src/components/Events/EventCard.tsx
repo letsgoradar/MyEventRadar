@@ -1,15 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Event } from '@shared/schema';
-import { MapPin, Calendar, Euro } from 'lucide-react';
+import { MapPin, Calendar, Euro, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { Button } from '@/components/ui/button';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import CategoryIcon from './CategoryIcon';
 import './leaflet-fix.css';
+import StreetView from '../StreetView/StreetView';
 
 // Fix Leaflet icon issues
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -37,6 +39,7 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event, distance }: EventCardProps) {
+  const [showStreetView, setShowStreetView] = useState(false);
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
 
   return (
@@ -60,15 +63,6 @@ export default function EventCard({ event, distance }: EventCardProps) {
       </CardHeader>
 
       <CardContent className="p-4 pt-2">
-        {event.imageUrl && (
-          <div className="w-full h-40 mb-4 overflow-hidden rounded-md">
-            <img 
-              src={event.imageUrl} 
-              alt={event.title} 
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
         <div className="flex flex-col gap-2 mb-2">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Calendar className="h-3 w-3" />
@@ -95,22 +89,41 @@ export default function EventCard({ event, distance }: EventCardProps) {
             {/* Removed Icon */}
           </div>
 
-          <div className="h-[120px] min-h-[100px] max-h-[150px] md:min-w-[150px] md:max-w-[200px] rounded-md overflow-hidden shadow-sm event-card-map">
-            <MapContainer 
-              center={eventCoords} 
-              zoom={14} 
-              scrollWheelZoom={false}
-              zoomControl={false}
-              attributionControl={false}
-              dragging={false}
-              style={{ height: '100%', width: '100%' }}
-            >
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                subdomains="abcd"
-              />
-              <Marker position={eventCoords} icon={miniEventIcon} />
-            </MapContainer>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-medium">Locatie</h3>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 px-2 text-xs"
+                onClick={() => setShowStreetView(!showStreetView)}
+              >
+                <Eye className="h-3 w-3 mr-1" />
+                {showStreetView ? 'Toon kaart' : 'Toon straatbeeld'}
+              </Button>
+            </div>
+
+            <div className="h-[150px] min-h-[100px] md:min-w-[150px] md:max-w-[200px] rounded-md overflow-hidden shadow-sm event-card-map">
+              {showStreetView ? (
+                <StreetView latitude={eventCoords[0]} longitude={eventCoords[1]} />
+              ) : (
+                <MapContainer 
+                  center={eventCoords} 
+                  zoom={14} 
+                  scrollWheelZoom={false}
+                  zoomControl={false}
+                  attributionControl={false}
+                  dragging={false}
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                    subdomains="abcd"
+                  />
+                  <Marker position={eventCoords} icon={miniEventIcon} />
+                </MapContainer>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>

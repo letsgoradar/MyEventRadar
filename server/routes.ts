@@ -32,8 +32,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         startTime: new Date(req.body.startTime),
         endTime: req.body.endTime ? new Date(req.body.endTime) : null,
-        // Convert keywords array to string if present
-        keywords: req.body.keywords ? Array.isArray(req.body.keywords) ? req.body.keywords.join(',') : req.body.keywords : undefined,
       });
       console.log("Parsed event data:", data);
       const event = await storage.createEvent(data);

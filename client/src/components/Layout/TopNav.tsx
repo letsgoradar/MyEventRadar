@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Filter, Map, List, Calendar } from 'lucide-react';
+import { Filter, Map, List, Calendar, X } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider"; 
 import { DatePicker } from "@/components/ui/date-picker";
@@ -33,6 +33,10 @@ export default function TopNav({
   const [showTimeFilter, setShowTimeFilter] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<number[]>([24]); // Default 24 hours
+  const [activeFilters, setActiveFilters] = useState<{
+    search?: string;
+    timeToEvent?: { date: Date; hours: number };
+  }>({});
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -48,22 +52,44 @@ export default function TopNav({
     }
   }, []);
 
-  const { data: events = [] } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", searchQuery, userLocation],
+  const { data: events = [], refetch } = useQuery<Event[]>({
+    queryKey: ["/api/events/nearby", searchQuery, userLocation, selectedDate, timeRange],
     queryFn: async () => {
       if (!userLocation) return [];
       const params = new URLSearchParams({
         lat: userLocation.lat.toString(),
         lng: userLocation.lng.toString(),
         radius: "10",
-        query: searchQuery
+        query: searchQuery,
+        date: selectedDate.toISOString(),
+        timeRange: timeRange[0].toString()
       });
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) throw new Error('Failed to fetch events');
       return response.json();
     },
-    enabled: !!userLocation && searchQuery.length > 0
+    enabled: !!userLocation
   });
+
+  // Effect to update filters and refetch when search or time filters change
+  useEffect(() => {
+    const newFilters = { ...activeFilters };
+
+    if (searchQuery) {
+      newFilters.search = searchQuery;
+    } else {
+      delete newFilters.search;
+    }
+
+    if (showTimeFilter) {
+      newFilters.timeToEvent = { date: selectedDate, hours: timeRange[0] };
+    } else {
+      delete newFilters.timeToEvent;
+    }
+
+    setActiveFilters(newFilters);
+    refetch();
+  }, [searchQuery, selectedDate, timeRange[0], showTimeFilter]);
 
   const filteredAndSortedEvents = events
     .filter(event => {
@@ -90,10 +116,7 @@ export default function TopNav({
 
   const handleViewResults = () => {
     if (filteredAndSortedEvents.length >= 2) {
-      // Store search query
       sessionStorage.setItem('currentSearch', searchQuery);
-
-      // Store bounds
       sessionStorage.setItem('mapBounds', JSON.stringify({
         events: [
           { lat: Number(filteredAndSortedEvents[0].latitude), lng: Number(filteredAndSortedEvents[0].longitude) },
@@ -104,7 +127,6 @@ export default function TopNav({
     setShowResults(false);
   };
 
-  // Function to format the time range for display
   const formatTimeRange = (hours: number) => {
     if (hours < 24) return `${hours} uur`;
     if (hours === 24) return '1 dag';
@@ -114,7 +136,6 @@ export default function TopNav({
     return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
   };
 
-  // Custom step calculation for the slider
   const getStep = (value: number) => {
     if (value < 24) return 1; // Per hour
     if (value < 168) return 24; // Per day
@@ -136,7 +157,7 @@ export default function TopNav({
             <Input
               type="text"
               placeholder="Zoeken..."
-              className="pl-4 w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0"
+              className="pl-4 w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -214,6 +235,38 @@ export default function TopNav({
         </div>
       </nav>
 
+      {/* Active Filters */}
+      {(Object.keys(activeFilters).length > 0) && (
+        <div className="fixed top-14 left-0 right-0 bg-white border-b z-30 py-2 px-4">
+          <div className="flex flex-wrap gap-2 max-w-xl mx-auto">
+            {activeFilters.search && (
+              <div className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm">
+                <span>Zoekterm: {activeFilters.search}</span>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="hover:text-blue-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            {activeFilters.timeToEvent && (
+              <div className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm">
+                <span>
+                  Tijd tot event: {formatTimeRange(activeFilters.timeToEvent.hours)}
+                </span>
+                <button
+                  onClick={() => setShowTimeFilter(false)}
+                  className="hover:text-blue-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Time-to-event filter */}
       {showTimeFilter && (
         <div className="fixed top-14 left-0 right-0 bg-white shadow-md z-40 p-4">
@@ -232,8 +285,9 @@ export default function TopNav({
                 step={getStep(timeRange[0])}
                 className="w-full"
               />
-              <div className="text-sm text-gray-600 mt-1">
-                Tijd tot event: {formatTimeRange(timeRange[0])}
+              <div className="flex justify-between text-sm text-gray-600 mt-1">
+                <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>
+                <span>{filteredAndSortedEvents.length} resultaten</span>
               </div>
             </div>
           </div>

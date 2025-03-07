@@ -27,6 +27,8 @@ export const events = pgTable("events", {
   maxParticipants: integer("max_participants"),
   hostId: integer("host_id").notNull(),
   recurrence: text("recurrence").notNull().default('once'),
+  imageUrl: text("image_url"),
+  keywords: text("keywords"),
 });
 
 export const favorites = pgTable("favorites", {
@@ -78,6 +80,8 @@ export const insertEventSchema = z.object({
   maxParticipants: z.number().optional(),
   hostId: z.number(),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
+  imageUrl: z.string().optional(),
+  keywords: z.array(z.string()).optional(),
 });
 
 export const insertFavoriteSchema = createInsertSchema(favorites).pick({

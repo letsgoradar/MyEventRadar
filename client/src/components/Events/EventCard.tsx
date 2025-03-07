@@ -60,6 +60,15 @@ export default function EventCard({ event, distance }: EventCardProps) {
       </CardHeader>
 
       <CardContent className="p-4 pt-2">
+        {event.imageUrl && (
+          <div className="w-full h-40 mb-4 overflow-hidden rounded-md">
+            <img 
+              src={event.imageUrl} 
+              alt={event.title} 
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
         <div className="flex flex-col gap-2 mb-2">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Calendar className="h-3 w-3" />

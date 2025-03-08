@@ -53,37 +53,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lat: z.coerce.number(),
         lng: z.coerce.number(),
         radius: z.coerce.number(),
-        date: z.string().optional(),
-        timeRange: z.coerce.number().optional(),
       });
 
-      const { lat, lng, radius, date, timeRange } = schema.parse({
+      const { lat, lng, radius } = schema.parse({
         lat: req.query.lat,
         lng: req.query.lng,
         radius: req.query.radius,
-        date: req.query.date,
-        timeRange: req.query.timeRange,
       });
 
-      console.log('GET /api/events/nearby params:', { lat, lng, radius, date, timeRange });
-
+      console.log('GET /api/events/nearby params:', { lat, lng, radius });
       const events = await storage.getEventsByRadius(lat, lng, radius);
       console.log('Found events:', events.length);
-
-      // Filter events based on time-to-event if date and timeRange are provided
-      let filteredEvents = events;
-      if (date && timeRange) {
-        const selectedDate = new Date(date);
-        const maxHours = timeRange;
-
-        filteredEvents = events.filter(event => {
-          const eventDate = new Date(event.startTime);
-          const hoursDifference = (eventDate.getTime() - selectedDate.getTime()) / (1000 * 60 * 60);
-          return hoursDifference >= 0 && hoursDifference <= maxHours;
-        });
-      }
-
-      res.json(filteredEvents);
+      res.json(events);
     } catch (error) {
       console.error('Error in /api/events/nearby:', error);
       if (error instanceof z.ZodError) {
@@ -243,9 +224,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ city: "Unknown location" });
       }
 
-      const city = data.address?.city ||
-                   data.address?.town ||
-                   data.address?.village ||
+      const city = data.address?.city || 
+                   data.address?.town || 
+                   data.address?.village || 
                    data.address?.municipality ||
                    "Unknown location";
 

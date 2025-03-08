@@ -29,11 +29,10 @@ export default function TopNav({
 }: TopNavProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [showResults, setShowResults] = useState(false);
   const [showTimeFilter, setShowTimeFilter] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<number[]>([24]); // Default 24 hours
-  const [temporaryTimeRange, setTemporaryTimeRange] = useState<number[]>([24]);
-  const [temporaryDate, setTemporaryDate] = useState<Date>(new Date());
   const [activeFilters, setActiveFilters] = useState<{
     search?: string;
     timeToEvent?: { date: Date; hours: number };
@@ -72,7 +71,7 @@ export default function TopNav({
     enabled: !!userLocation
   });
 
-  // Effect to update filters when search changes
+  // Effect to update filters and refetch when search or time filters change
   useEffect(() => {
     const newFilters = { ...activeFilters };
 
@@ -82,18 +81,15 @@ export default function TopNav({
       delete newFilters.search;
     }
 
-    setActiveFilters(newFilters);
-    refetch();
-  }, [searchQuery]);
+    if (showTimeFilter) {
+      newFilters.timeToEvent = { date: selectedDate, hours: timeRange[0] };
+    } else {
+      delete newFilters.timeToEvent;
+    }
 
-  const applyTimeFilter = () => {
-    setTimeRange(temporaryTimeRange);
-    setSelectedDate(temporaryDate);
-    const newFilters = { ...activeFilters };
-    newFilters.timeToEvent = { date: temporaryDate, hours: temporaryTimeRange[0] };
     setActiveFilters(newFilters);
     refetch();
-  };
+  }, [searchQuery, selectedDate, timeRange[0], showTimeFilter]);
 
   const filteredAndSortedEvents = events
     .filter(event => {
@@ -118,6 +114,18 @@ export default function TopNav({
     }))
     .sort((a, b) => a.distance - b.distance);
 
+  const handleViewResults = () => {
+    if (filteredAndSortedEvents.length >= 2) {
+      sessionStorage.setItem('currentSearch', searchQuery);
+      sessionStorage.setItem('mapBounds', JSON.stringify({
+        events: [
+          { lat: Number(filteredAndSortedEvents[0].latitude), lng: Number(filteredAndSortedEvents[0].longitude) },
+          { lat: Number(filteredAndSortedEvents[1].latitude), lng: Number(filteredAndSortedEvents[1].longitude) }
+        ]
+      }));
+    }
+    setShowResults(false);
+  };
 
   const formatTimeRange = (hours: number) => {
     if (hours < 24) return `${hours} uur`;
@@ -149,15 +157,51 @@ export default function TopNav({
             <Input
               type="text"
               placeholder="Zoeken..."
-              className="pl-4 w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-blue-400 focus:ring-0 focus:outline-none"
+              className="pl-4 w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
+                setShowResults(true);
                 if (onSearch) {
                   onSearch(e.target.value);
                 }
               }}
+              onFocus={() => setShowResults(true)}
+              onBlur={() => {
+                setTimeout(() => setShowResults(false), 200);
+              }}
             />
+            {showResults && searchQuery && (
+              <div className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
+                {filteredAndSortedEvents.length > 0 && (
+                  <button
+                    onClick={handleViewResults}
+                    className="w-full p-2 text-left hover:bg-gray-100 text-blue-600 font-medium border-b"
+                  >
+                    <Map className="w-4 h-4 inline-block mr-2" />
+                    Bekijk resultaten {isMapView ? 'op kaart' : 'in lijst'}
+                  </button>
+                )}
+                {filteredAndSortedEvents.length > 0 ? (
+                  filteredAndSortedEvents.map((event) => (
+                    <Link key={event.id} href={`/event/${event.id}`}>
+                      <div
+                        className="p-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => setShowResults(false)}
+                      >
+                        <div className="font-medium">{event.title}</div>
+                        <div className="text-sm text-gray-600 flex justify-between">
+                          <span>{event.category}</span>
+                          <span>{event.distance.toFixed(1)} km</span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="p-2 text-gray-500">Geen resultaten gevonden</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -197,7 +241,7 @@ export default function TopNav({
           <div className="flex flex-wrap gap-2 max-w-xl mx-auto">
             {activeFilters.search && (
               <div className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm">
-                <span>Zoekterm: {activeFilters.search} ({filteredAndSortedEvents.length} resultaten)</span>
+                <span>Zoekterm: {activeFilters.search}</span>
                 <button
                   onClick={() => setSearchQuery('')}
                   className="hover:text-blue-600"
@@ -212,13 +256,7 @@ export default function TopNav({
                   Tijd tot event: {formatTimeRange(activeFilters.timeToEvent.hours)}
                 </span>
                 <button
-                  onClick={() => {
-                    setShowTimeFilter(false);
-                    const newFilters = { ...activeFilters };
-                    delete newFilters.timeToEvent;
-                    setActiveFilters(newFilters);
-                    refetch();
-                  }}
+                  onClick={() => setShowTimeFilter(false)}
                   className="hover:text-blue-600"
                 >
                   <X className="h-4 w-4" />
@@ -234,27 +272,22 @@ export default function TopNav({
         <div className="fixed top-14 left-0 right-0 bg-white shadow-md z-40 p-4">
           <div className="flex items-center gap-4 max-w-xl mx-auto">
             <DatePicker
-              date={temporaryDate}
-              onSelect={setTemporaryDate}
+              date={selectedDate}
+              onSelect={setSelectedDate}
               className="flex-shrink-0"
             />
             <div className="flex-1">
               <Slider
-                value={temporaryTimeRange}
-                onValueChange={setTemporaryTimeRange}
+                value={timeRange}
+                onValueChange={setTimeRange}
                 max={720} // 1 month
                 min={1}
-                step={getStep(temporaryTimeRange[0])}
+                step={getStep(timeRange[0])}
                 className="w-full"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
-                <span>Tijd tot event: {formatTimeRange(temporaryTimeRange[0])}</span>
+                <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>
                 <span>{filteredAndSortedEvents.length} resultaten</span>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <Button onClick={applyTimeFilter} className="bg-blue-600 text-white hover:bg-blue-700">
-                  Filter toepassen
-                </Button>
               </div>
             </div>
           </div>

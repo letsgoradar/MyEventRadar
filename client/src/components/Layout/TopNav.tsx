@@ -32,7 +32,8 @@ export default function TopNav({
   const [showResults, setShowResults] = useState(false);
   const [showTimeFilter, setShowTimeFilter] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [timeRange, setTimeRange] = useState<number[]>([24]); // Default 24 hours
+  const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
+  const [radius, setRadius] = useState(10); // Default 10km radius
   const [activeFilters, setActiveFilters] = useState<{
     search?: string;
     timeToEvent?: { date: Date; hours: number };
@@ -52,14 +53,14 @@ export default function TopNav({
     }
   }, []);
 
-  const { data: events = [], refetch } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", searchQuery, userLocation, selectedDate, timeRange],
+  const { data: events = [], refetch } = useQuery({
+    queryKey: ["/api/events/nearby", searchQuery, userLocation, selectedDate, timeRange, radius],
     queryFn: async () => {
       if (!userLocation) return [];
       const params = new URLSearchParams({
         lat: userLocation.lat.toString(),
         lng: userLocation.lng.toString(),
-        radius: "10",
+        radius: radius.toString(),
         query: searchQuery,
         date: selectedDate.toISOString(),
         timeRange: timeRange[0].toString()
@@ -89,7 +90,7 @@ export default function TopNav({
 
     setActiveFilters(newFilters);
     refetch();
-  }, [searchQuery, selectedDate, timeRange[0], showTimeFilter]);
+  }, [searchQuery, selectedDate, timeRange[0], showTimeFilter, radius]);
 
   const filteredAndSortedEvents = events
     .filter(event => {
@@ -235,41 +236,46 @@ export default function TopNav({
         </div>
       </nav>
 
-      {/* Active Filters */}
-      {(Object.keys(activeFilters).length > 0) && (
-        <div className="fixed top-14 left-0 right-0 bg-white border-b z-30 py-2 px-4">
-          <div className="flex flex-wrap gap-2 max-w-xl mx-auto">
-            {activeFilters.search && (
-              <div className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm">
-                <span>Zoekterm: {activeFilters.search}</span>
+      {/* Filter Summary */}
+      <div className="fixed top-14 left-0 right-0 bg-white border-b z-30 py-2 px-4">
+        <div className="max-w-xl mx-auto text-sm">
+          <button 
+            onClick={() => setShowTimeFilter(true)} 
+            className="inline hover:text-blue-600"
+          >
+            Deze week
+          </button>
+          {" "}
+          <span className="font-semibold">{filteredAndSortedEvents.length}</span>
+          {" "}
+          {searchQuery && (
+            <>
+              <span className="inline-flex items-center gap-1">
+                "{searchQuery}"
                 <button
                   onClick={() => setSearchQuery('')}
                   className="hover:text-blue-600"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3 w-3" />
                 </button>
-              </div>
-            )}
-            {activeFilters.timeToEvent && (
-              <div className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm">
-                <span>
-                  Tijd tot event: {formatTimeRange(activeFilters.timeToEvent.hours)}
-                </span>
-                <button
-                  onClick={() => setShowTimeFilter(false)}
-                  className="hover:text-blue-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-          </div>
+              </span>
+              {" "}
+            </>
+          )}
+          events binnen
+          {" "}
+          <button 
+            onClick={toggleFilterSheet} 
+            className="inline hover:text-blue-600"
+          >
+            {radius} km
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Time-to-event filter */}
       {showTimeFilter && (
-        <div className="fixed top-14 left-0 right-0 bg-white shadow-md z-40 p-4">
+        <div className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
           <div className="flex items-center gap-4 max-w-xl mx-auto">
             <DatePicker
               date={selectedDate}

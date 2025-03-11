@@ -31,6 +31,7 @@ export default function TopNav({
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [showTimeFilter, setShowTimeFilter] = useState(false);
+  const [showRadiusSlider, setShowRadiusSlider] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
   const [radius, setRadius] = useState(10); // Default 10km radius
@@ -94,13 +95,16 @@ export default function TopNav({
 
   const filteredAndSortedEvents = events
     .filter(event => {
-      const searchLower = searchQuery.toLowerCase();
-      return (
-        event.title?.toLowerCase().includes(searchLower) ||
-        event.category?.toLowerCase().includes(searchLower) ||
-        event.subcategory?.toLowerCase().includes(searchLower) ||
-        event.description?.toLowerCase().includes(searchLower)
-      );
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        return (
+          event.title?.toLowerCase().includes(searchLower) ||
+          event.category?.toLowerCase().includes(searchLower) ||
+          event.subcategory?.toLowerCase().includes(searchLower) ||
+          event.description?.toLowerCase().includes(searchLower)
+        );
+      }
+      return true;
     })
     .map(event => ({
       ...event,
@@ -238,10 +242,10 @@ export default function TopNav({
 
       {/* Filter Summary */}
       <div className="fixed top-14 left-0 right-0 bg-white border-b z-30 py-2 px-4">
-        <div className="max-w-xl mx-auto text-sm">
+        <div className="max-w-xl mx-auto text-sm text-center">
           <button 
             onClick={() => setShowTimeFilter(true)} 
-            className="inline hover:text-blue-600"
+            className="inline hover:text-blue-600 border-b border-dotted border-gray-400"
           >
             Deze week
           </button>
@@ -251,7 +255,7 @@ export default function TopNav({
           {searchQuery && (
             <>
               <span className="inline-flex items-center gap-1">
-                "{searchQuery}"
+                "<span className="text-blue-600">{searchQuery}</span>"
                 <button
                   onClick={() => setSearchQuery('')}
                   className="hover:text-blue-600"
@@ -265,13 +269,35 @@ export default function TopNav({
           events binnen
           {" "}
           <button 
-            onClick={toggleFilterSheet} 
-            className="inline hover:text-blue-600"
+            onClick={() => setShowRadiusSlider(!showRadiusSlider)} 
+            className="inline hover:text-blue-600 border-b border-dotted border-gray-400"
           >
             {radius} km
           </button>
         </div>
       </div>
+
+      {/* Radius Slider */}
+      {showRadiusSlider && (
+        <div className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
+          <div className="flex items-center gap-4 max-w-xl mx-auto">
+            <div className="flex-1">
+              <Slider
+                value={[radius]}
+                onValueChange={(value) => setRadius(value[0])}
+                max={50}
+                min={1}
+                step={1}
+                className="w-full"
+              />
+              <div className="flex justify-between text-sm text-gray-600 mt-1">
+                <span>Radius: {radius} km</span>
+                <span>{filteredAndSortedEvents.length} resultaten</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Time-to-event filter */}
       {showTimeFilter && (

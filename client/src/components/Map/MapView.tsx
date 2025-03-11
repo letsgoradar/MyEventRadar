@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Circle } from 'react-leaflet';
 import { Satellite } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -111,9 +111,10 @@ function CreateEventMarker() {
 
 interface MapViewProps {
   searchQuery: string;
+  radius?: number;
 }
 
-export default function MapView({ searchQuery }: MapViewProps) {
+export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
@@ -190,6 +191,19 @@ export default function MapView({ searchQuery }: MapViewProps) {
       >
         <TileLayer url={tileUrl} {...tileConfig} />
         <CreateEventMarker />
+
+        {userLocation && (
+          <Circle
+            center={userLocation}
+            radius={radius * 1000}
+            pathOptions={{
+              color: '#0097FB',
+              fillColor: '#0097FB',
+              fillOpacity: 0.1,
+              weight: 1
+            }}
+          />
+        )}
 
         {filteredEvents.map(event => {
           const lat = Number(event.latitude);

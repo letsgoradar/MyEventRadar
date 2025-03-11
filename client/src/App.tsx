@@ -12,8 +12,9 @@ import BottomNav from "@/components/Layout/BottomNav"
 const queryClient = new QueryClient()
 
 export default function App() {
-  const [isMapView, setIsMapView] = React.useState(true)
-  const [searchQuery, setSearchQuery] = React.useState("")
+  const [isMapView, setIsMapView] = React.useState(true);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [radius, setRadius] = React.useState(10); // Add radius state
 
   const toggleView = React.useCallback(() => {
     setIsMapView(prev => !prev);
@@ -21,6 +22,10 @@ export default function App() {
 
   const handleSearch = React.useCallback((query: string) => {
     setSearchQuery(query);
+  }, []);
+
+  const handleRadiusChange = React.useCallback((value: number) => {
+    setRadius(value);
   }, []);
 
   return (
@@ -39,13 +44,15 @@ export default function App() {
                 isMapView={isMapView}
                 toggleView={toggleView}
                 onSearch={handleSearch}
+                radius={radius}
+                onRadiusChange={handleRadiusChange}
               />
               <div className="absolute inset-0 top-14 bottom-[75px] z-0"> 
                 {isMapView ? (
-                  <MapView searchQuery={searchQuery} />
+                  <MapView searchQuery={searchQuery} radius={radius} />
                 ) : (
                   <div className="h-full overflow-auto">
-                    <EventList searchQuery={searchQuery} />
+                    <EventList searchQuery={searchQuery} radius={radius} />
                   </div>
                 )}
               </div>

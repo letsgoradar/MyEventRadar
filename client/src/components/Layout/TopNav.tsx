@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Filter, Map, List, Calendar, X } from 'lucide-react';
@@ -32,14 +32,21 @@ export default function TopNav({
   const [showResults, setShowResults] = useState(false);
   const [showTimeFilter, setShowTimeFilter] = useState(false);
   const [showRadiusSlider, setShowRadiusSlider] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
   const [radius, setRadius] = useState(10); // Default 10km radius
+  const [customLocation, setCustomLocation] = useState<{lat: number, lng: number} | null>(null);
   const [activeFilters, setActiveFilters] = useState<{
     search?: string;
     timeToEvent?: { date: Date; hours: number };
   }>({});
   const [, setLocation] = useLocation();
+
+  // Refs for clickaway handlers
+  const timeFilterRef = useRef<HTMLDivElement>(null);
+  const radiusSliderRef = useRef<HTMLDivElement>(null);
+  const locationPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -52,6 +59,26 @@ export default function TopNav({
         }
       );
     }
+  }, []);
+
+  // Clickaway handler
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (timeFilterRef.current && !timeFilterRef.current.contains(event.target as Node)) {
+        setShowTimeFilter(false);
+      }
+      if (radiusSliderRef.current && !radiusSliderRef.current.contains(event.target as Node)) {
+        setShowRadiusSlider(false);
+      }
+      if (locationPickerRef.current && !locationPickerRef.current.contains(event.target as Node)) {
+        setShowLocationPicker(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   const { data: events = [], refetch } = useQuery({
@@ -274,12 +301,21 @@ export default function TopNav({
           >
             {radius} km
           </button>
+          {" "}
+          van
+          {" "}
+          <button 
+            onClick={() => setShowLocationPicker(!showLocationPicker)}
+            className="inline hover:text-blue-600 border-b border-dotted border-gray-400"
+          >
+            mijn locatie
+          </button>
         </div>
       </div>
 
       {/* Radius Slider */}
       {showRadiusSlider && (
-        <div className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
+        <div ref={radiusSliderRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
           <div className="flex items-center gap-4 max-w-xl mx-auto">
             <div className="flex-1">
               <Slider
@@ -301,7 +337,7 @@ export default function TopNav({
 
       {/* Time-to-event filter */}
       {showTimeFilter && (
-        <div className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
+        <div ref={timeFilterRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
           <div className="flex items-center gap-4 max-w-xl mx-auto">
             <DatePicker
               date={selectedDate}
@@ -321,6 +357,21 @@ export default function TopNav({
                 <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>
                 <span>{filteredAndSortedEvents.length} resultaten</span>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Picker */}
+      {showLocationPicker && (
+        <div ref={locationPickerRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
+          <div className="max-w-xl mx-auto">
+            <div className="text-sm text-gray-600 mb-2">
+              Kies een andere locatie:
+            </div>
+            {/* Here you would add a location picker component */}
+            <div className="text-sm text-gray-500">
+              Locatie picker functionaliteit komt binnenkort...
             </div>
           </div>
         </div>

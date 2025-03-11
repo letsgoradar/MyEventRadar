@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import { useLocation } from "wouter";
+import { calculateDistance } from '@/lib/utils';
 
 // Get category color helper
 const getCategoryColor = (category: string): string => {
@@ -254,17 +255,4 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
       </MapContainer>
     </div>
   );
-}
-
-// Helper function to calculate distance
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    0.5 - Math.cos(dLat) / 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    (1 - Math.cos(dLon)) / 2;
-
-  return R * 2 * Math.asin(Math.sqrt(a));
 }

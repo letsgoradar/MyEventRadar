@@ -3,12 +3,13 @@ import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Filter, Map, List, Calendar, X } from 'lucide-react';
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider"; 
+import { Slider } from "@/components/ui/slider";
 import { DatePicker } from "@/components/ui/date-picker";
 import Logo from '../ui/logo';
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
 import { calculateDistance } from '@/lib/utils';
+import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 
 interface TopNavProps {
   isMapView?: boolean;
@@ -21,10 +22,10 @@ interface TopNavProps {
   onRadiusChange?: (value: number) => void;
 }
 
-export default function TopNav({ 
-  isMapView, 
-  toggleView, 
-  toggleFilterSheet, 
+export default function TopNav({
+  isMapView,
+  toggleView,
+  toggleFilterSheet,
   isFilterSheetOpen,
   setIsFilterSheetOpen,
   onSearch,
@@ -32,18 +33,14 @@ export default function TopNav({
   onRadiusChange
 }: TopNavProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [showTimeFilter, setShowTimeFilter] = useState(false);
   const [showRadiusSlider, setShowRadiusSlider] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
-  const [customLocation, setCustomLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [activeFilters, setActiveFilters] = useState<{
-    search?: string;
-    timeToEvent?: { date: Date; hours: number };
-  }>({});
+  const [customLocation, setCustomLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [, setLocation] = useLocation();
 
   // Refs for clickaway handlers
@@ -58,6 +55,14 @@ export default function TopNav({
           setUserLocation({
             lat: position.coords.latitude,
             lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          // Set default location for Netherlands
+          setUserLocation({
+            lat: 52.3676,
+            lng: 4.9041
           });
         }
       );
@@ -84,7 +89,7 @@ export default function TopNav({
     };
   }, []);
 
-  const { data: events = [], refetch } = useQuery({
+  const { data: events = [] } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", searchQuery, userLocation, selectedDate, timeRange, radius],
     queryFn: async () => {
       if (!userLocation) return [];
@@ -103,28 +108,9 @@ export default function TopNav({
     enabled: !!userLocation
   });
 
-  // Effect to update filters and refetch when search or time filters change
-  useEffect(() => {
-    const newFilters = { ...activeFilters };
-
-    if (searchQuery) {
-      newFilters.search = searchQuery;
-    } else {
-      delete newFilters.search;
-    }
-
-    if (showTimeFilter) {
-      newFilters.timeToEvent = { date: selectedDate, hours: timeRange[0] };
-    } else {
-      delete newFilters.timeToEvent;
-    }
-
-    setActiveFilters(newFilters);
-    refetch();
-  }, [searchQuery, selectedDate, timeRange[0], showTimeFilter, radius]);
-
   const filteredAndSortedEvents = events
     .filter(event => {
+      // Text search filter
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase();
         return (
@@ -136,32 +122,29 @@ export default function TopNav({
       }
       return true;
     })
+    .filter(event => {
+      // Date and time range filter
+      const eventDate = new Date(event.startTime);
+      const rangeEnd = addHours(selectedDate, timeRange[0]);
+
+      return isWithinInterval(eventDate, {
+        start: startOfDay(selectedDate),
+        end: endOfDay(rangeEnd)
+      });
+    })
     .map(event => ({
       ...event,
-      distance: userLocation 
+      distance: userLocation
         ? calculateDistance(
-            userLocation.lat, 
-            userLocation.lng, 
-            Number(event.latitude), 
+            userLocation.lat,
+            userLocation.lng,
+            Number(event.latitude),
             Number(event.longitude)
           )
         : Infinity
     }))
-    .filter(event => event.distance <= radius) // Filter events by radius
+    .filter(event => event.distance <= radius)
     .sort((a, b) => a.distance - b.distance);
-
-  const handleViewResults = () => {
-    if (filteredAndSortedEvents.length >= 2) {
-      sessionStorage.setItem('currentSearch', searchQuery);
-      sessionStorage.setItem('mapBounds', JSON.stringify({
-        events: [
-          { lat: Number(filteredAndSortedEvents[0].latitude), lng: Number(filteredAndSortedEvents[0].longitude) },
-          { lat: Number(filteredAndSortedEvents[1].latitude), lng: Number(filteredAndSortedEvents[1].longitude) }
-        ]
-      }));
-    }
-    setShowResults(false);
-  };
 
   const formatTimeRange = (hours: number) => {
     if (hours < 24) return `${hours} uur`;
@@ -209,15 +192,6 @@ export default function TopNav({
             />
             {showResults && searchQuery && (
               <div className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
-                {filteredAndSortedEvents.length > 0 && (
-                  <button
-                    onClick={handleViewResults}
-                    className="w-full p-2 text-left hover:bg-gray-100 text-blue-600 font-medium border-b"
-                  >
-                    <Map className="w-4 h-4 inline-block mr-2" />
-                    Bekijk resultaten {isMapView ? 'op kaart' : 'in lijst'}
-                  </button>
-                )}
                 {filteredAndSortedEvents.map((event) => (
                   <Link key={event.id} href={`/event/${event.id}`}>
                     <div
@@ -238,28 +212,28 @@ export default function TopNav({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button 
-            onClick={() => setShowTimeFilter(!showTimeFilter)} 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            onClick={() => setShowTimeFilter(!showTimeFilter)}
+            variant="ghost"
+            size="icon"
             className={`text-white hover:bg-blue-600 ${showTimeFilter ? 'bg-blue-600' : ''}`}
           >
             <Calendar className="h-5 w-5" />
           </Button>
 
-          <Button 
-            onClick={toggleView} 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            onClick={toggleView}
+            variant="ghost"
+            size="icon"
             className="text-white hover:bg-blue-600"
           >
             {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
           </Button>
 
-          <Button 
-            onClick={toggleFilterSheet} 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            onClick={toggleFilterSheet}
+            variant="ghost"
+            size="icon"
             className="text-white hover:bg-blue-600"
           >
             <Filter className="h-5 w-5" />
@@ -270,11 +244,11 @@ export default function TopNav({
       {/* Filter Summary */}
       <div className="fixed top-14 left-0 right-0 bg-white border-b z-30 py-2 px-4">
         <div className="max-w-xl mx-auto text-sm text-center">
-          <button 
-            onClick={() => setShowTimeFilter(true)} 
+          <button
+            onClick={() => setShowTimeFilter(true)}
             className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
           >
-            Deze week
+            {formatTimeRange(timeRange[0])}
           </button>
           {" "}
           <span className="font-semibold">{filteredAndSortedEvents.length}</span>
@@ -286,15 +260,15 @@ export default function TopNav({
                 className="inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-700 transition-colors"
               >
                 {searchQuery}
-                <X className="h-3 w-3 ml-1"/>
+                <X className="h-3 w-3 ml-1" />
               </button>
               {" "}
             </>
           )}
           events binnen
           {" "}
-          <button 
-            onClick={() => setShowRadiusSlider(!showRadiusSlider)} 
+          <button
+            onClick={() => setShowRadiusSlider(!showRadiusSlider)}
             className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
           >
             {radius} km
@@ -302,7 +276,7 @@ export default function TopNav({
           {" "}
           van
           {" "}
-          <button 
+          <button
             onClick={() => setShowLocationPicker(!showLocationPicker)}
             className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
           >

@@ -14,7 +14,7 @@ const queryClient = new QueryClient()
 export default function App() {
   const [isMapView, setIsMapView] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [radius, setRadius] = React.useState(10); // Add radius state
+  const [radius, setRadius] = React.useState(10);
 
   const toggleView = React.useCallback(() => {
     setIsMapView(prev => !prev);
@@ -47,7 +47,7 @@ export default function App() {
                 radius={radius}
                 onRadiusChange={handleRadiusChange}
               />
-              <div className="absolute inset-0 top-14 bottom-[75px] z-0"> 
+              <div className="absolute inset-0 top-[calc(3.5rem+3rem)] bottom-[75px] z-0">
                 {isMapView ? (
                   <MapView searchQuery={searchQuery} radius={radius} />
                 ) : (
@@ -62,7 +62,7 @@ export default function App() {
           <Route path="/events">
             <div className="h-screen flex flex-col relative">
               <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24">
+              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
                 <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
                 <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
               </div>
@@ -72,7 +72,7 @@ export default function App() {
           <Route path="/favorites">
             <div className="h-screen flex flex-col relative">
               <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24">
+              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
                 <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
                 <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
               </div>
@@ -82,7 +82,7 @@ export default function App() {
           <Route path="/profile">
             <div className="h-screen flex flex-col relative">
               <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24">
+              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
                 <h1 className="text-2xl font-bold mb-6">Profiel</h1>
                 <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
               </div>

@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { Event } from '@shared/schema';
 import { MapPin, Calendar, Euro, Eye } from 'lucide-react';
-import { format } from 'date-fns';
-import { nl } from 'date-fns/locale';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
 import L from 'leaflet';
@@ -12,19 +10,7 @@ import 'leaflet/dist/leaflet.css';
 import CategoryIcon from './CategoryIcon';
 import './leaflet-fix.css';
 import StreetView from '../StreetView/StreetView';
-
-// Fix Leaflet icon issues
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
+import CountdownTimer from './CountdownTimer';
 
 const miniEventIcon = L.divIcon({
   className: 'custom-div-icon',
@@ -63,13 +49,8 @@ export default function EventCard({ event, distance }: EventCardProps) {
       </CardHeader>
 
       <CardContent className="p-4 pt-2">
-        <div className="flex flex-col gap-2 mb-2">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Calendar className="h-3 w-3" />
-            <span>
-              {format(new Date(event.startTime), 'd MMMM yyyy', { locale: nl })}
-            </span>
-          </div>
+        <div className="flex flex-col gap-2 mb-4">
+          <CountdownTimer startTime={event.startTime} />
 
           {event.isPaid && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -85,8 +66,6 @@ export default function EventCard({ event, distance }: EventCardProps) {
             <div className="line-clamp-3 text-sm">
               {event.description || 'Geen beschrijving beschikbaar'}
             </div>
-
-            {/* Removed Icon */}
           </div>
 
           <div className="space-y-2">

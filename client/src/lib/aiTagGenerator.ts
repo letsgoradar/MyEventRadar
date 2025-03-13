@@ -23,9 +23,9 @@ export function suggestCategory(title: string): typeof CATEGORIES[number] | unde
   const titleLower = title.toLowerCase();
 
   // Find the category with the most matching keywords
-  const matchCounts = CATEGORIES.map(category => ({
-    category,
-    matches: CATEGORY_KEYWORDS[category].filter(keyword => titleLower.includes(keyword)).length
+  const matchCounts = Object.entries(CATEGORY_KEYWORDS).map(([category, keywords]) => ({
+    category: category as typeof CATEGORIES[number],
+    matches: keywords.filter(keyword => titleLower.includes(keyword)).length
   }));
 
   const bestMatch = matchCounts.reduce((prev, current) => 

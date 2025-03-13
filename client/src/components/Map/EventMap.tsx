@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
 import { Event } from "@shared/schema";
 import EventMarker from "../Events/EventMarker";

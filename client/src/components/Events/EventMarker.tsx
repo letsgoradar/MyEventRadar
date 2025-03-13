@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Event } from '@shared/schema';
-import { CategoryIcon, CATEGORY_COLORS } from '../CategoryIcon';
+import { CategoryIcon, CATEGORY_COLORS, CATEGORY_ICONS } from '../CategoryIcon'; // Assuming CATEGORY_ICONS is defined here
 import { differenceInHours } from 'date-fns';
+import './event-marker.css';
 
 interface EventMarkerProps {
   event: Event;
@@ -13,10 +14,10 @@ interface EventMarkerProps {
 function createEventIcon(category: string, isStartingSoon: boolean) {
   const color = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || '#94A3B8';
   const size = isStartingSoon ? 24 : 16;
-  const icon = CategoryIcon({ category: category as any, size }).type;
+  const IconComponent = CATEGORY_ICONS[category as keyof typeof CATEGORY_ICONS];
 
   return L.divIcon({
-    className: 'custom-event-marker',
+    className: `custom-event-marker ${isStartingSoon ? 'starting-soon' : ''}`,
     html: `
       <div style="
         background-color: ${color};
@@ -28,10 +29,9 @@ function createEventIcon(category: string, isStartingSoon: boolean) {
         align-items: center;
         justify-content: center;
         color: white;
-        ${isStartingSoon ? 'animation: pulse 2s infinite;' : ''}
       ">
         <svg viewBox="0 0 24 24" width="${size-4}px" height="${size-4}px" fill="currentColor">
-          ${icon.render().props.children.props.d}
+          ${IconComponent().props.children.props.d}
         </svg>
       </div>
     `,
@@ -39,26 +39,6 @@ function createEventIcon(category: string, isStartingSoon: boolean) {
     iconAnchor: [size/2, size/2],
   });
 }
-
-// Add CSS animation for pulsing effect
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes pulse {
-    0% {
-      transform: scale(1);
-      opacity: 1;
-    }
-    50% {
-      transform: scale(1.2);
-      opacity: 0.8;
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-`;
-document.head.appendChild(style);
 
 export default function EventMarker({ event, onClick }: EventMarkerProps) {
   const [isStartingSoon, setIsStartingSoon] = useState(false);

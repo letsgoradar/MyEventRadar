@@ -44,7 +44,7 @@ const miniEventIcon = L.divIcon({
   className: 'custom-div-icon',
   html: `<div style="background-color: #ff4757; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
   iconSize: [12, 12],
-  iconAnchor: [6, 6],
+  iconAnchor: [6, 6]
 });
 
 interface MapViewProps {
@@ -92,9 +92,7 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
       });
 
       const response = await fetch(`/api/events/nearby?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch events');
-      }
+      if (!response.ok) throw new Error('Failed to fetch events');
       return response.json();
     },
     enabled: !!userLocation

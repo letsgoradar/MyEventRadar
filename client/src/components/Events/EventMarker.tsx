@@ -13,10 +13,10 @@ interface EventMarkerProps {
 function createEventIcon(category: string, isStartingSoon: boolean) {
   const color = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || '#94A3B8';
   const size = isStartingSoon ? 24 : 16;
-  const IconComponent = CategoryIcon({ category, size }).type;
-  
+  const icon = CategoryIcon({ category: category as any, size }).type;
+
   return L.divIcon({
-    className: `custom-event-marker ${isStartingSoon ? 'starting-soon' : ''}`,
+    className: 'custom-event-marker',
     html: `
       <div style="
         background-color: ${color};
@@ -30,7 +30,9 @@ function createEventIcon(category: string, isStartingSoon: boolean) {
         color: white;
         ${isStartingSoon ? 'animation: pulse 2s infinite;' : ''}
       ">
-        ${IconComponent}
+        <svg viewBox="0 0 24 24" width="${size-4}px" height="${size-4}px" fill="currentColor">
+          ${icon.render().props.children.props.d}
+        </svg>
       </div>
     `,
     iconSize: [size, size],

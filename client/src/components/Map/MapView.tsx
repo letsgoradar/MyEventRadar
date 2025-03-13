@@ -7,8 +7,6 @@ import L from 'leaflet';
 import React, { useState, useEffect } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
-import { useLocation } from "wouter";
-import { calculateDistance } from '@/lib/utils';
 
 // Get category color helper
 const getCategoryColor = (category: string): string => {
@@ -42,9 +40,10 @@ const createEventIcon = (category: string) => {
 interface MapViewProps {
   searchQuery: string;
   radius?: number;
+  filteredEvents: Event[];
 }
 
-export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
+export default function MapView({ searchQuery, radius = 10, filteredEvents }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
 
@@ -56,7 +55,6 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
             position.coords.latitude,
             position.coords.longitude
           ];
-          console.log('Setting user location:', newLocation); // Debug log
           setUserLocation(newLocation);
         },
         (error) => {
@@ -68,37 +66,6 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
       setUserLocation([51.7656, 5.5314]);
     }
   }, []);
-
-  const { data: events = [] } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", searchQuery, userLocation, radius],
-    queryFn: async () => {
-      if (!userLocation) return [];
-      const params = new URLSearchParams({
-        lat: userLocation[0].toString(),
-        lng: userLocation[1].toString(),
-        radius: radius.toString(),
-        query: searchQuery
-      });
-
-      const response = await fetch(`/api/events/nearby?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch events');
-      return response.json();
-    },
-    enabled: !!userLocation
-  });
-
-  const filteredEvents = events.filter(event => {
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      return (
-        event.title?.toLowerCase().includes(searchLower) ||
-        event.category?.toLowerCase().includes(searchLower) ||
-        event.subcategory?.toLowerCase().includes(searchLower) ||
-        event.description?.toLowerCase().includes(searchLower)
-      );
-    }
-    return true;
-  });
 
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -134,7 +101,7 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
       >
         <TileLayer url={tileUrl} {...tileConfig} />
 
-        {/* User location circle - explicitly set z-index */}
+        {/* User location circle */}
         <Circle
           center={userLocation}
           radius={radius * 1000} // Convert km to meters

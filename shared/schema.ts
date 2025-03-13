@@ -23,7 +23,7 @@ export const events = pgTable("events", {
   category: text("category").notNull(),
   subcategory: text("subcategory"),
   isPaid: boolean("is_paid").default(false),
-  price: decimal("price"), 
+  price: decimal("price"),
   maxParticipants: integer("max_participants"),
   hostId: integer("host_id").notNull(),
   recurrence: text("recurrence").notNull().default('once'),
@@ -39,7 +39,7 @@ export const participants = pgTable("participants", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   eventId: integer("event_id").notNull(),
-  status: text("status").notNull(), 
+  status: text("status").notNull(),
 });
 
 export const savedSearches = pgTable("saved_searches", {
@@ -71,7 +71,10 @@ export const insertEventSchema = z.object({
   location: locationSchema,
   category: z.string().min(1, "Category is required"),
   subcategory: z.string().optional(),
-  startTime: z.string().or(z.date()),
+  startTime: z.string().or(z.date()).transform((val) => {
+    if (!val) throw new Error("Start time is required");
+    return val;
+  }),
   endTime: z.string().or(z.date()).optional().nullable(),
   isPaid: z.boolean().default(false),
   price: z.number().optional().nullable(),

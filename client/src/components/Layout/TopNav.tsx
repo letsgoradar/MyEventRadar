@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Filter, Map, List, Calendar, X } from 'lucide-react';
+import { Filter, Map, List,  X } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -20,6 +20,7 @@ interface TopNavProps {
   onSearch?: (query: string) => void;
   radius?: number;
   onRadiusChange?: (value: number) => void;
+  onFilteredEventsChange?: (events: Event[]) => void;
 }
 
 export default function TopNav({
@@ -30,7 +31,8 @@ export default function TopNav({
   setIsFilterSheetOpen,
   onSearch,
   radius = 10,
-  onRadiusChange
+  onRadiusChange,
+  onFilteredEventsChange
 }: TopNavProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
@@ -162,6 +164,12 @@ export default function TopNav({
     return 720; // Per month
   };
 
+  useEffect(() => {
+    if (onFilteredEventsChange) {
+      onFilteredEventsChange(filteredAndSortedEvents);
+    }
+  }, [filteredAndSortedEvents, onFilteredEventsChange]);
+
   return (
     <>
       <nav className="fixed top-0 w-full h-14 bg-[#0097FB] shadow-md z-50 flex items-center justify-between px-4">
@@ -172,55 +180,44 @@ export default function TopNav({
         </div>
 
         <div className="flex-1 mx-4 max-w-xl relative">
-          <div className="relative w-full">
-            <Input
-              type="text"
-              placeholder="Zoeken..."
-              className="pl-4 w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowResults(true);
-                if (onSearch) {
-                  onSearch(e.target.value);
-                }
-              }}
-              onFocus={() => setShowResults(true)}
-              onBlur={() => {
-                setTimeout(() => setShowResults(false), 200);
-              }}
-            />
-            {showResults && searchQuery && (
-              <div className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
-                {filteredAndSortedEvents.map((event) => (
-                  <Link key={event.id} href={`/event/${event.id}`}>
-                    <div
-                      className="p-2 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => setShowResults(false)}
-                    >
-                      <div className="font-medium">{event.title}</div>
-                      <div className="text-sm text-gray-600 flex justify-between">
-                        <span>{event.category}</span>
-                        <span>{event.distance.toFixed(1)} km</span>
-                      </div>
+          <Input
+            type="text"
+            placeholder="Zoeken..."
+            className="pl-4 w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setShowResults(true);
+              if (onSearch) {
+                onSearch(e.target.value);
+              }
+            }}
+            onFocus={() => setShowResults(true)}
+            onBlur={() => {
+              setTimeout(() => setShowResults(false), 200);
+            }}
+          />
+          {showResults && searchQuery && (
+            <div className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
+              {filteredAndSortedEvents.map((event) => (
+                <Link key={event.id} href={`/event/${event.id}`}>
+                  <div
+                    className="p-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => setShowResults(false)}
+                  >
+                    <div className="font-medium">{event.title}</div>
+                    <div className="text-sm text-gray-600 flex justify-between">
+                      <span>{event.category}</span>
+                      <span>{event.distance.toFixed(1)} km</span>
                     </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            onClick={() => setShowTimeFilter(!showTimeFilter)}
-            variant="ghost"
-            size="icon"
-            className={`text-white hover:bg-blue-600 ${showTimeFilter ? 'bg-blue-600' : ''}`}
-          >
-            <Calendar className="h-5 w-5" />
-          </Button>
-
           <Button
             onClick={toggleView}
             variant="ghost"

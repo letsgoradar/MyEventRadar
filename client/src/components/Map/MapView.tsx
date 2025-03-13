@@ -40,76 +40,6 @@ const createEventIcon = (category: string) => {
   });
 };
 
-function CreateEventMarker() {
-  const [, navigate] = useLocation();
-  const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
-  const [startPoint, setStartPoint] = useState<{ x: number, y: number } | null>(null);
-  const moveThreshold = 10;
-
-  const map = useMapEvents({
-    touchstart: (e) => {
-      if (e.originalEvent.touches.length === 1) {
-        const touch = e.originalEvent.touches[0];
-        setStartPoint({ x: touch.clientX, y: touch.clientY });
-        const pos = L.point(touch.clientX, touch.clientY);
-        const touchLatLng = map.containerPointToLatLng(pos);
-        setPressTimer(setTimeout(() => {
-          navigate(`/create-event?lat=${touchLatLng.lat}&lng=${touchLatLng.lng}&zoom=18`);
-        }, 512));
-      }
-    },
-    touchmove: (e) => {
-      if (startPoint && e.originalEvent.touches.length === 1) {
-        const touch = e.originalEvent.touches[0];
-        const deltaX = Math.abs(touch.clientX - startPoint.x);
-        const deltaY = Math.abs(touch.clientY - startPoint.y);
-        if (deltaX > moveThreshold || deltaY > moveThreshold) {
-          if (pressTimer) {
-            clearTimeout(pressTimer);
-            setPressTimer(null);
-          }
-          setStartPoint(null);
-        }
-      }
-    },
-    touchend: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-      setStartPoint(null);
-    },
-    mousedown: (e) => {
-      setStartPoint({ x: e.originalEvent.clientX, y: e.originalEvent.clientY });
-      setPressTimer(setTimeout(() => {
-        navigate(`/create-event?lat=${e.latlng.lat}&lng=${e.latlng.lng}&zoom=18`);
-      }, 512));
-    },
-    mousemove: (e) => {
-      if (startPoint) {
-        const deltaX = Math.abs(e.originalEvent.clientX - startPoint.x);
-        const deltaY = Math.abs(e.originalEvent.clientY - startPoint.y);
-        if (deltaX > moveThreshold || deltaY > moveThreshold) {
-          if (pressTimer) {
-            clearTimeout(pressTimer);
-            setPressTimer(null);
-          }
-          setStartPoint(null);
-        }
-      }
-    },
-    mouseup: () => {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        setPressTimer(null);
-      }
-      setStartPoint(null);
-    }
-  });
-
-  return null;
-}
-
 interface MapViewProps {
   searchQuery: string;
   radius?: number;
@@ -145,7 +75,7 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
   }, []);
 
   const { data: events = [] } = useQuery({
-    queryKey: ["/api/events/nearby", userLocation],
+    queryKey: ["/api/events/nearby", userLocation, radius],
     queryFn: async () => {
       if (!userLocation) return [];
       const params = new URLSearchParams({
@@ -174,6 +104,15 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
       );
     }
     return true;
+  }).filter(event => {
+    if (!location) return true;
+    const distance = calculateDistance(
+      location.lat,
+      location.lng,
+      Number(event.latitude),
+      Number(event.longitude)
+    );
+    return distance <= radius;
   });
 
   const tileUrl = isSatelliteView
@@ -209,7 +148,6 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
         zoomControl={false}
       >
         <TileLayer url={tileUrl} {...tileConfig} />
-        <CreateEventMarker />
 
         {/* User location circle */}
         <Circle

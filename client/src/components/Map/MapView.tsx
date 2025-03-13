@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import { Satellite } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -41,38 +41,9 @@ interface MapViewProps {
   searchQuery: string;
   radius?: number;
   filteredEvents: Event[];
-  onRadiusChange?: (radius: number) => void;
 }
 
-// Helper function to convert zoom level to approximate radius in km
-const zoomToRadius = (zoom: number): number => {
-  // These values are approximations and can be adjusted
-  const zoomRadiusMap: Record<number, number> = {
-    18: 1,  // Street level
-    17: 2,
-    16: 3,
-    15: 5,
-    14: 7,
-    13: 10, // District level
-    12: 15,
-    11: 20,
-    10: 30,
-    9: 40,
-    8: 50,  // City level
-  };
-  return zoomRadiusMap[zoom] || 50; // Default to max radius
-};
-
-function ZoomHandler({ onZoomEnd }: { onZoomEnd: (zoom: number) => void }) {
-  const map = useMapEvents({
-    zoomend: () => {
-      onZoomEnd(map.getZoom());
-    },
-  });
-  return null;
-}
-
-export default function MapView({ searchQuery, radius = 10, filteredEvents, onRadiusChange }: MapViewProps) {
+export default function MapView({ searchQuery, radius = 10, filteredEvents }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
 
@@ -95,13 +66,6 @@ export default function MapView({ searchQuery, radius = 10, filteredEvents, onRa
       setUserLocation([51.7656, 5.5314]);
     }
   }, []);
-
-  const handleZoomEnd = (zoom: number) => {
-    if (onRadiusChange) {
-      const newRadius = zoomToRadius(zoom);
-      onRadiusChange(newRadius);
-    }
-  };
 
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -135,7 +99,6 @@ export default function MapView({ searchQuery, radius = 10, filteredEvents, onRa
         className="h-full w-full"
         zoomControl={false}
       >
-        <ZoomHandler onZoomEnd={handleZoomEnd} />
         <TileLayer url={tileUrl} {...tileConfig} />
 
         {/* User location circle */}
@@ -147,7 +110,7 @@ export default function MapView({ searchQuery, radius = 10, filteredEvents, onRa
             fillColor: '#0097FB',
             fillOpacity: 0.1,
             weight: 1,
-            pane: 'overlayPane'
+            pane: 'overlayPane' // Ensure it's in the overlay pane
           }}
         />
 

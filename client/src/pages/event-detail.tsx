@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Share2, MapPin, Clock, Euro, User, Eye } from "lucide-react";
+import { Share2, MapPin, Clock, Euro, User, Eye, X } from "lucide-react";
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
@@ -17,6 +17,7 @@ import { useState } from "react";
 export default function EventDetailPage() {
   const params = useParams();
   const eventId = params.id;
+  const [, setLocation] = useLocation();
 
   const { data: event, isLoading, isError } = useQuery<Event>({
     queryKey: [`/api/events/${eventId}`],
@@ -62,111 +63,120 @@ export default function EventDetailPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      <TopNav />
-      <div className="flex-1 overflow-auto pb-24 pt-14">
-        {/* Header Section */}
-        <div className="p-4 space-y-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{event.title}</h1>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="capitalize">
-                  {event.category}
-                </Badge>
-                {event.subcategory && (
-                  <Badge variant="outline" className="capitalize">
-                    {event.subcategory}
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <Button variant="ghost" size="icon" className="shrink-0">
-              <Share2 className="h-5 w-5" />
-            </Button>
-          </div>
-
-          {/* Event Details */}
-          <div className="space-y-4">
-            {/* Date & Time */}
-            <div className="flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <div>{format(new Date(event.startTime), 'EEEE d MMMM yyyy', { locale: nl })}</div>
-                <div className="text-muted-foreground">
-                  {format(new Date(event.startTime), 'HH:mm', { locale: nl })} - 
-                  {format(new Date(event.endTime), 'HH:mm', { locale: nl })}
+    <div className="fixed inset-0 bg-black/50 z-[100] overflow-hidden">
+      <div className="absolute inset-y-0 right-0 w-full md:w-[600px] bg-white shadow-xl animate-slide-left">
+        <div className="h-screen flex flex-col">
+          <TopNav />
+          <div className="flex-1 overflow-auto pb-24 pt-14">
+            {/* Header Section */}
+            <div className="p-4 space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold">{event.title}</h1>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="outline" className="capitalize">
+                      {event.category}
+                    </Badge>
+                    {event.subcategory && (
+                      <Badge variant="outline" className="capitalize">
+                        {event.subcategory}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Location */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">Locatie</h3>
                 <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 px-3"
-                  onClick={() => setShowStreetView(!showStreetView)}
+                  variant="ghost" 
+                  size="icon" 
+                  className="shrink-0"
+                  onClick={() => setLocation('/')}
                 >
-                  <Eye className="h-4 w-4 mr-2" />
-                  {showStreetView ? 'Toon kaart' : 'Toon locatie'}
+                  <X className="h-5 w-5" />
                 </Button>
               </div>
 
-              <div className="relative h-60 bg-muted rounded-md overflow-hidden shadow-lg">
-                {showStreetView ? (
-                  <StreetView 
-                    latitude={Number(event.latitude)} 
-                    longitude={Number(event.longitude)} 
-                  />
-                ) : (
-                  <MapContainer
-                    center={[Number(event.latitude), Number(event.longitude)]}
-                    zoom={15}
-                    className="h-full w-full"
-                    zoomControl={false}
-                  >
-                    <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
-                    <Marker position={[Number(event.latitude), Number(event.longitude)]} />
-                  </MapContainer>
+              {/* Event Details */}
+              <div className="space-y-4">
+                {/* Date & Time */}
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <div>{format(new Date(event.startTime), 'EEEE d MMMM yyyy', { locale: nl })}</div>
+                    <div className="text-muted-foreground">
+                      {format(new Date(event.startTime), 'HH:mm', { locale: nl })} - 
+                      {format(new Date(event.endTime), 'HH:mm', { locale: nl })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-medium">Locatie</h3>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 px-3"
+                      onClick={() => setShowStreetView(!showStreetView)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      {showStreetView ? 'Toon kaart' : 'Toon locatie'}
+                    </Button>
+                  </div>
+
+                  <div className="relative h-60 bg-muted rounded-md overflow-hidden shadow-lg">
+                    {showStreetView ? (
+                      <StreetView 
+                        latitude={Number(event.latitude)} 
+                        longitude={Number(event.longitude)} 
+                      />
+                    ) : (
+                      <MapContainer
+                        center={[Number(event.latitude), Number(event.longitude)]}
+                        zoom={15}
+                        className="h-full w-full"
+                        zoomControl={false}
+                      >
+                        <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+                        <Marker position={[Number(event.latitude), Number(event.longitude)]} />
+                      </MapContainer>
+                    )}
+                  </div>
+                </div>
+
+                {/* Price */}
+                {event.isPaid && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Euro className="h-4 w-4 text-muted-foreground" />
+                    <span>{formatCurrency(event.price || 0)}</span>
+                  </div>
                 )}
+
+                {/* Host */}
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span>Georganiseerd door {event.hostId}</span>
+                </div>
+
+                {/* Description */}
+                <div className="mt-6">
+                  <h2 className="text-lg font-semibold mb-2">Over dit evenement</h2>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {event.description}
+                  </p>
+                </div>
               </div>
-            </div>
-
-            {/* Price */}
-            {event.isPaid && (
-              <div className="flex items-center gap-2 text-sm">
-                <Euro className="h-4 w-4 text-muted-foreground" />
-                <span>{formatCurrency(event.price || 0)}</span>
-              </div>
-            )}
-
-            {/* Host */}
-            <div className="flex items-center gap-2 text-sm">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span>Georganiseerd door {event.hostId}</span>
-            </div>
-
-            {/* Description */}
-            <div className="mt-6">
-              <h2 className="text-lg font-semibold mb-2">Over dit evenement</h2>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {event.description}
-              </p>
             </div>
           </div>
+
+          {/* Fixed Bottom Action */}
+          <div className="fixed bottom-[76px] left-0 right-0 p-4 bg-white border-t md:left-auto md:w-[600px]">
+            <Button className="w-full">
+              {event.isPaid ? 'Koop tickets' : 'Registreren'}
+            </Button>
+          </div>
+          <BottomNav />
         </div>
       </div>
-
-      {/* Fixed Bottom Action */}
-      <div className="fixed bottom-[76px] left-0 right-0 p-4 bg-white border-t">
-        <Button className="w-full">
-          {event.isPaid ? 'Koop tickets' : 'Registreren'}
-        </Button>
-      </div>
-      <BottomNav />
     </div>
   );
 }

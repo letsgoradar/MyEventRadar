@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Filter, Map, List,  X } from 'lucide-react';
+import { Map, List, X } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -14,7 +14,6 @@ import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 interface TopNavProps {
   isMapView?: boolean;
   toggleView?: () => void;
-  toggleFilterSheet?: () => void;
   isFilterSheetOpen?: boolean;
   setIsFilterSheetOpen?: (open: boolean) => void;
   onSearch?: (query: string) => void;
@@ -26,9 +25,6 @@ interface TopNavProps {
 export default function TopNav({
   isMapView,
   toggleView,
-  toggleFilterSheet,
-  isFilterSheetOpen,
-  setIsFilterSheetOpen,
   onSearch,
   radius = 10,
   onRadiusChange,
@@ -187,97 +183,57 @@ export default function TopNav({
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
-              setShowResults(true);
-              if (onSearch) {
-                onSearch(e.target.value);
-              }
-            }}
-            onFocus={() => setShowResults(true)}
-            onBlur={() => {
-              setTimeout(() => setShowResults(false), 200);
+              if (onSearch) onSearch(e.target.value);
             }}
           />
-          {showResults && searchQuery && (
-            <div className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
-              {filteredAndSortedEvents.map((event) => (
-                <Link key={event.id} href={`/event/${event.id}`}>
-                  <div
-                    className="p-2 hover:bg-gray-100 cursor-pointer"
-                    onClick={() => setShowResults(false)}
-                  >
-                    <div className="font-medium">{event.title}</div>
-                    <div className="text-sm text-gray-600 flex justify-between">
-                      <span>{event.category}</span>
-                      <span>{event.distance.toFixed(1)} km</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={toggleView}
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-blue-600"
-          >
-            {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
-          </Button>
-
-          <Button
-            onClick={toggleFilterSheet}
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-blue-600"
-          >
-            <Filter className="h-5 w-5" />
-          </Button>
-        </div>
+        <Button
+          onClick={toggleView}
+          variant="ghost"
+          size="icon"
+          className="text-white hover:bg-blue-600"
+        >
+          {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
+        </Button>
       </nav>
 
-      {/* Filter Summary */}
+      {/* Filter Bar */}
       <div className="fixed top-14 left-0 right-0 bg-white border-b z-30 py-2 px-4">
-        <div className="max-w-xl mx-auto text-sm text-center">
+        <div className="max-w-xl mx-auto flex items-center gap-2 overflow-x-auto">
+          {/* Time Range Filter */}
           <button
             onClick={() => setShowTimeFilter(true)}
-            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
+            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors whitespace-nowrap"
           >
             {formatTimeRange(timeRange[0])}
           </button>
-          {" "}
-          <span className="font-semibold">{filteredAndSortedEvents.length}</span>
-          {" "}
+
+          {/* Search Query Tag */}
           {searchQuery && (
-            <>
-              <button
-                onClick={() => setSearchQuery('')}
-                className="inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-700 transition-colors"
-              >
-                {searchQuery}
-                <X className="h-3 w-3 ml-1" />
-              </button>
-              {" "}
-            </>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-700 transition-colors whitespace-nowrap"
+            >
+              {searchQuery}
+              <X className="h-3 w-3 ml-1" />
+            </button>
           )}
-          events binnen
-          {" "}
+
+          {/* Radius Filter */}
           <button
             onClick={() => setShowRadiusSlider(!showRadiusSlider)}
-            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
+            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors whitespace-nowrap"
           >
             {radius} km
           </button>
-          {" "}
-          van
-          {" "}
+
+          {/* Location Filter */}
           <button
             onClick={() => setShowLocationPicker(!showLocationPicker)}
-            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
+            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors whitespace-nowrap"
           >
-            mijn locatie
+            Mijn locatie
           </button>
         </div>
       </div>

@@ -14,8 +14,6 @@ import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 interface TopNavProps {
   isMapView?: boolean;
   toggleView?: () => void;
-  isFilterSheetOpen?: boolean;
-  setIsFilterSheetOpen?: (open: boolean) => void;
   onSearch?: (query: string) => void;
   radius?: number;
   onRadiusChange?: (value: number) => void;
@@ -45,6 +43,7 @@ export default function TopNav({
   const timeFilterRef = useRef<HTMLDivElement>(null);
   const radiusSliderRef = useRef<HTMLDivElement>(null);
   const locationPickerRef = useRef<HTMLDivElement>(null);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -78,6 +77,9 @@ export default function TopNav({
       }
       if (locationPickerRef.current && !locationPickerRef.current.contains(event.target as Node)) {
         setShowLocationPicker(false);
+      }
+      if (searchResultsRef.current && !searchResultsRef.current.contains(event.target as Node)) {
+        setShowResults(false);
       }
     }
 
@@ -183,9 +185,43 @@ export default function TopNav({
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
+              setShowResults(true);
               if (onSearch) onSearch(e.target.value);
             }}
+            onFocus={() => setShowResults(true)}
           />
+          {showResults && searchQuery && (
+            <div ref={searchResultsRef} className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
+              <button
+                onClick={() => {
+                  setShowResults(false);
+                  if (onSearch) onSearch(searchQuery);
+                }}
+                className="w-full p-2 text-left hover:bg-gray-100 text-blue-600 font-medium border-b"
+              >
+                {isMapView ? (
+                  <Map className="w-4 h-4 inline-block mr-2" />
+                ) : (
+                  <List className="w-4 h-4 inline-block mr-2" />
+                )}
+                Bekijk {filteredAndSortedEvents.length} resultaten
+              </button>
+              {filteredAndSortedEvents.slice(0, 5).map((event) => (
+                <Link key={event.id} href={`/event/${event.id}`}>
+                  <div
+                    className="p-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => setShowResults(false)}
+                  >
+                    <div className="font-medium">{event.title}</div>
+                    <div className="text-sm text-gray-600 flex justify-between">
+                      <span>{event.category}</span>
+                      <span>{event.distance.toFixed(1)} km</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         <Button

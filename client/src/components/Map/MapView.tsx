@@ -124,7 +124,8 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          const newLocation = [position.coords.latitude, position.coords.longitude] as [number, number];
+          setUserLocation(newLocation);
           setLocation({lat: position.coords.latitude, lng: position.coords.longitude});
         }
       );

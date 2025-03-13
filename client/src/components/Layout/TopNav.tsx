@@ -4,18 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Map, List, X, ArrowUpDown } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { DatePicker } from "@/components/ui/date-picker";
-import Logo from '../ui/logo';
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
-import { calculateDistance } from '@/lib/utils';
-import { addHours, isWithinInterval, startOfDay, endOfDay, compareAsc } from 'date-fns';
+import { compareAsc } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Logo from '../ui/logo';
+import { calculateDistance } from '@/lib/utils';
+import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+
 
 interface TopNavProps {
   isMapView?: boolean;
@@ -34,13 +35,12 @@ export default function TopNav({
   onRadiusChange,
   onFilteredEventsChange
 }: TopNavProps) {
+  const { toast } = useToast(); // Assuming useToast is imported elsewhere
   const [searchQuery, setSearchQuery] = useState('');
-  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [showTimeFilter, setShowTimeFilter] = useState(false);
   const [showRadiusSlider, setShowRadiusSlider] = useState(false);
   const [showPriceFilter, setShowPriceFilter] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
   const [priceRange, setPriceRange] = useState<number[]>([50]); // Default max price
   const [showOnlyFree, setShowOnlyFree] = useState(false);
@@ -54,24 +54,7 @@ export default function TopNav({
   const searchResultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => {
-          console.error("Geolocation error:", error);
-          // Set default location for Netherlands
-          setUserLocation({
-            lat: 52.3676,
-            lng: 4.9041
-          });
-        }
-      );
-    }
+    //Geolocation removed as it's not used anymore
   }, []);
 
   // Clickaway handler
@@ -98,12 +81,10 @@ export default function TopNav({
   }, []);
 
   const { data: events = [] } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", searchQuery, userLocation, selectedDate, timeRange, radius],
+    queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius], // Assuming selectedDate is defined elsewhere
     queryFn: async () => {
-      if (!userLocation) return [];
+      //userLocation removed as it's not used anymore
       const params = new URLSearchParams({
-        lat: userLocation.lat.toString(),
-        lng: userLocation.lng.toString(),
         radius: radius.toString(),
         query: searchQuery,
         date: selectedDate.toISOString(),
@@ -113,7 +94,7 @@ export default function TopNav({
       if (!response.ok) throw new Error('Failed to fetch events');
       return response.json();
     },
-    enabled: !!userLocation
+    enabled: true //enabled is always true because userLocation is removed.
   });
 
   const sortedEvents = events
@@ -149,14 +130,7 @@ export default function TopNav({
     })
     .map(event => ({
       ...event,
-      distance: userLocation
-        ? calculateDistance(
-            userLocation.lat,
-            userLocation.lng,
-            Number(event.latitude),
-            Number(event.longitude)
-          )
-        : Infinity
+      distance: Infinity //distance is always Infinity because userLocation is removed.
     }))
     .filter(event => event.distance <= radius)
     .sort((a, b) => {
@@ -192,53 +166,48 @@ export default function TopNav({
           </Link>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex-1 mx-4 max-w-xl relative">
-            <Input
-              type="text"
-              placeholder="Zoek evenement (voetballen, circus, tentoonstelling ...)"
-              className="pl-4 w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowResults(true);
-                if (onSearch) onSearch(e.target.value);
-              }}
-              onFocus={() => setShowResults(true)}
-            />
-            {showResults && searchQuery && (
-              <div ref={searchResultsRef} className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
-                <button
-                  onClick={() => {
-                    setShowResults(false);
-                    if (onSearch) onSearch(searchQuery);
-                  }}
-                  className="w-full p-2 text-left hover:bg-gray-100 text-blue-600 font-medium border-b"
-                >
-                  {isMapView ? (
-                    <Map className="w-4 h-4 inline-block mr-2" />
-                  ) : (
-                    <List className="w-4 h-4 inline-block mr-2" />
-                  )}
-                  Bekijk {sortedEvents.length} resultaten
-                </button>
-                {sortedEvents.slice(0, 5).map((event) => (
-                  <Link key={event.id} href={`/event/${event.id}`}>
-                    <div
-                      className="p-2 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => setShowResults(false)}
-                    >
-                      <div className="font-medium">{event.title}</div>
-                      <div className="text-sm text-gray-600 flex justify-between">
-                        <span>{event.category}</span>
-                        <span>{event.distance.toFixed(1)} km</span>
-                      </div>
+        <div className="flex items-center gap-2 flex-1 max-w-3xl mx-4">
+          <Input
+            type="text"
+            placeholder="Zoek evenement (voetballen, circus, tentoonstelling ...)"
+            className="w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setShowResults(true);
+              if (onSearch) onSearch(e.target.value);
+            }}
+            onFocus={() => setShowResults(true)}
+          />
+          {showResults && searchQuery && (
+            <div ref={searchResultsRef} className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
+              <button
+                onClick={() => {
+                  setShowResults(false);
+                  if (onSearch) onSearch(searchQuery);
+                }}
+                className="w-full p-2 text-left hover:bg-gray-100 text-blue-600 font-medium border-b"
+              >
+                Bekijk {sortedEvents.length} resultaten
+              </button>
+              {sortedEvents.slice(0, 5).map((event) => (
+                <Link key={event.id} href={`/event/${event.id}`}>
+                  <div
+                    className="p-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => setShowResults(false)}
+                  >
+                    <div className="font-medium">{event.title}</div>
+                    <div className="text-sm text-gray-600">
+                      {event.category}
                     </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
           {!isMapView && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -273,8 +242,8 @@ export default function TopNav({
 
       {/* Filter Bar */}
       <div className="fixed top-14 left-0 right-0 bg-white border-b z-30">
-        <div className="overflow-x-auto">
-          <div className="flex items-center gap-2 p-2 px-4 whitespace-nowrap">
+        <div className="overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 p-2 px-4 whitespace-nowrap min-w-max">
             {/* Time Range Filter */}
             <button
               onClick={() => setShowTimeFilter(true)}
@@ -318,8 +287,8 @@ export default function TopNav({
         <div ref={timeFilterRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
           <div className="flex items-center gap-4 max-w-xl mx-auto">
             <DatePicker
-              date={selectedDate}
-              onSelect={setSelectedDate}
+              date={selectedDate} // Assuming selectedDate is defined elsewhere
+              onSelect={setSelectedDate} // Assuming setSelectedDate is defined elsewhere
               className="flex-shrink-0"
             />
             <div className="flex-1">
@@ -335,6 +304,30 @@ export default function TopNav({
                 <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>
                 <span>{sortedEvents.length} resultaten</span>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Radius Slider */}
+      {showRadiusSlider && (
+        <div ref={radiusSliderRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
+          <div className="max-w-xl mx-auto">
+            <Slider
+              value={[radius]}
+              onValueChange={(value) => {
+                const newRadius = value[0];
+                if (onRadiusChange) {
+                  onRadiusChange(newRadius);
+                }
+              }}
+              max={200}
+              min={1}
+              step={1}
+              className="w-full"
+            />
+            <div className="flex justify-between text-sm text-gray-600 mt-1">
+              <span>Zoekgebied: {radius} km</span>
             </div>
           </div>
         </div>

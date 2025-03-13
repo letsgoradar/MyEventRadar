@@ -14,9 +14,13 @@
 }
 
 .custom-event-marker {
-  transition: all 0.3s ease;
+  display: block !important;
 }
 
-.starting-soon {
+.custom-event-marker .marker-inner {
+  background-clip: padding-box;
+}
+
+.custom-event-marker.starting-soon .marker-inner {
   animation: pulse 2s infinite;
 }

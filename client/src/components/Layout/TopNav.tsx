@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Map, List, X } from 'lucide-react';
+import { Map, List, X, ArrowUpDown } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -10,6 +10,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
 import { calculateDistance } from '@/lib/utils';
 import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface TopNavProps {
   isMapView?: boolean;
@@ -38,6 +44,7 @@ export default function TopNav({
   const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
   const [priceRange, setPriceRange] = useState<number[]>([50]); // Default max price
   const [showOnlyFree, setShowOnlyFree] = useState(false);
+  const [sortBy, setSortBy] = useState<'distance' | 'location'>('distance');
   const [, setLocation] = useLocation();
 
   // Refs for clickaway handlers
@@ -109,7 +116,7 @@ export default function TopNav({
     enabled: !!userLocation
   });
 
-  const filteredAndSortedEvents = events
+  const sortedEvents = events
     .filter(event => {
       // Text search filter
       if (searchQuery) {
@@ -153,7 +160,14 @@ export default function TopNav({
         : Infinity
     }))
     .filter(event => event.distance <= radius)
-    .sort((a, b) => a.distance - b.distance);
+    .sort((a, b) => {
+      if (sortBy === 'distance') {
+        return a.distance - b.distance;
+      } else {
+        // Sort by location (north to south)
+        return Number(b.latitude) - Number(a.latitude);
+      }
+    });
 
   const formatTimeRange = (hours: number) => {
     if (hours < 24) return `${hours} uur`;
@@ -173,9 +187,9 @@ export default function TopNav({
 
   useEffect(() => {
     if (onFilteredEventsChange) {
-      onFilteredEventsChange(filteredAndSortedEvents);
+      onFilteredEventsChange(sortedEvents);
     }
-  }, [filteredAndSortedEvents, onFilteredEventsChange]);
+  }, [sortedEvents, onFilteredEventsChange]);
 
   return (
     <>
@@ -213,9 +227,9 @@ export default function TopNav({
                 ) : (
                   <List className="w-4 h-4 inline-block mr-2" />
                 )}
-                Bekijk {filteredAndSortedEvents.length} resultaten
+                Bekijk {sortedEvents.length} resultaten
               </button>
-              {filteredAndSortedEvents.slice(0, 5).map((event) => (
+              {sortedEvents.slice(0, 5).map((event) => (
                 <Link key={event.id} href={`/event/${event.id}`}>
                   <div
                     className="p-2 hover:bg-gray-100 cursor-pointer"
@@ -248,8 +262,30 @@ export default function TopNav({
         <div className="max-w-xl mx-auto flex items-center gap-2 overflow-x-auto">
           {/* Resultaten counter */}
           <div className="text-sm font-medium text-blue-600">
-            {filteredAndSortedEvents.length} evenement{filteredAndSortedEvents.length !== 1 ? 'en' : ''}
+            {sortedEvents.length} evenement{sortedEvents.length !== 1 ? 'en' : ''}
           </div>
+
+          {/* Sort dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 border border-gray-200 hover:bg-gray-100"
+              >
+                <ArrowUpDown className="h-4 w-4 mr-2" />
+                {sortBy === 'distance' ? 'Op afstand' : 'Op locatie'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => setSortBy('distance')}>
+                Op afstand
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortBy('location')}>
+                Op locatie (noord-zuid)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Time Range Filter */}
           <button
@@ -308,7 +344,7 @@ export default function TopNav({
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
                 <span>Radius: {radius} km</span>
-                <span>{filteredAndSortedEvents.length} resultaten</span>
+                <span>{sortedEvents.length} resultaten</span>
               </div>
             </div>
           </div>
@@ -335,7 +371,7 @@ export default function TopNav({
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
                 <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>
-                <span>{filteredAndSortedEvents.length} resultaten</span>
+                <span>{sortedEvents.length} resultaten</span>
               </div>
             </div>
           </div>
@@ -368,7 +404,7 @@ export default function TopNav({
                 />
                 <div className="flex justify-between text-sm text-gray-600 mt-1">
                   <span>Maximale prijs: €{priceRange[0]}</span>
-                  <span>{filteredAndSortedEvents.length} resultaten</span>
+                  <span>{sortedEvents.length} resultaten</span>
                 </div>
               </div>
             )}

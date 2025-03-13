@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Event } from '@shared/schema';
-import { CATEGORY_COLORS, CATEGORY_ICONS } from '../CategoryIcon';
+import { CATEGORY_COLORS, CATEGORY_PATHS } from '../CategoryIcon';
 import { differenceInHours } from 'date-fns';
 import './event-marker.css';
 
@@ -14,7 +14,7 @@ interface EventMarkerProps {
 function createEventIcon(category: string, isStartingSoon: boolean) {
   const color = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || '#94A3B8';
   const size = isStartingSoon ? 24 : 16;
-  const IconComponent = CATEGORY_ICONS[category as keyof typeof CATEGORY_ICONS];
+  const iconPath = CATEGORY_PATHS[category as keyof typeof CATEGORY_PATHS];
 
   return L.divIcon({
     className: `custom-event-marker ${isStartingSoon ? 'starting-soon' : ''}`,
@@ -46,7 +46,7 @@ function createEventIcon(category: string, isStartingSoon: boolean) {
             left: 2px;
           "
         >
-          <path d="${IconComponent({}).props.children.props.d}"/>
+          <path d="${iconPath}"/>
         </svg>
       </div>
     `,

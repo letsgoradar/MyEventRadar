@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import { Satellite } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -29,7 +29,6 @@ const getCategoryColor = (category: string): string => {
   return colorMap[category.toLowerCase()] || '#9E9E9E';
 };
 
-// Create event icon
 const createEventIcon = (category: string) => {
   const color = getCategoryColor(category);
   return L.divIcon({
@@ -40,13 +39,6 @@ const createEventIcon = (category: string) => {
   });
 };
 
-const miniEventIcon = L.divIcon({
-  className: 'custom-div-icon',
-  html: `<div style="background-color: #ff4757; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
-  iconSize: [12, 12],
-  iconAnchor: [6, 6]
-});
-
 interface MapViewProps {
   searchQuery: string;
   radius?: number;
@@ -55,7 +47,6 @@ interface MapViewProps {
 export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
-  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -67,21 +58,18 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
           ];
           console.log('Setting user location:', newLocation); // Debug log
           setUserLocation(newLocation);
-          setLocation({lat: position.coords.latitude, lng: position.coords.longitude});
         },
         (error) => {
           console.error('Geolocation error:', error);
-          // Fallback to default location
           setUserLocation([51.7656, 5.5314]);
         }
       );
     } else {
-      // Fallback to default location if geolocation is not available
       setUserLocation([51.7656, 5.5314]);
     }
   }, []);
 
-  const { data: events = [], refetch } = useQuery({
+  const { data: events = [] } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", searchQuery, userLocation, radius],
     queryFn: async () => {
       if (!userLocation) return [];
@@ -89,6 +77,7 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
         lat: userLocation[0].toString(),
         lng: userLocation[1].toString(),
         radius: radius.toString(),
+        query: searchQuery
       });
 
       const response = await fetch(`/api/events/nearby?${params}`);
@@ -102,22 +91,13 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
       return (
-        event.title.toLowerCase().includes(searchLower) ||
-        event.category.toLowerCase().includes(searchLower) ||
-        (event.subcategory && event.subcategory.toLowerCase().includes(searchLower)) ||
-        (event.description && event.description.toLowerCase().includes(searchLower))
+        event.title?.toLowerCase().includes(searchLower) ||
+        event.category?.toLowerCase().includes(searchLower) ||
+        event.subcategory?.toLowerCase().includes(searchLower) ||
+        event.description?.toLowerCase().includes(searchLower)
       );
     }
     return true;
-  }).filter(event => {
-    if (!location) return true;
-    const distance = calculateDistance(
-      location.lat,
-      location.lng,
-      Number(event.latitude),
-      Number(event.longitude)
-    );
-    return distance <= radius;
   });
 
   const tileUrl = isSatelliteView
@@ -154,15 +134,16 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
       >
         <TileLayer url={tileUrl} {...tileConfig} />
 
-        {/* User location circle */}
+        {/* User location circle - explicitly set z-index */}
         <Circle
           center={userLocation}
-          radius={radius * 1000}
+          radius={radius * 1000} // Convert km to meters
           pathOptions={{
             color: '#0097FB',
             fillColor: '#0097FB',
             fillOpacity: 0.1,
-            weight: 1
+            weight: 1,
+            pane: 'overlayPane' // Ensure it's in the overlay pane
           }}
         />
 
@@ -179,15 +160,12 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
           <Popup>Mijn locatie</Popup>
         </Marker>
 
+        {/* Event markers */}
         {filteredEvents.map(event => {
           const lat = Number(event.latitude);
           const lng = Number(event.longitude);
 
           if (isNaN(lat) || isNaN(lng)) return null;
-
-          const distance = location ?
-            calculateDistance(location.lat, location.lng, lat, lng) :
-            null;
 
           return (
             <Marker
@@ -197,29 +175,19 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
             >
               <Popup className="event-popup" maxWidth={300}>
                 <div className="text-sm pb-1">
-                  <div className="event-card-map">
-                    <div className="font-semibold mb-1 flex items-center gap-1.5">
-                      <div style={{ color: getCategoryColor(event.category) }}>
-                        {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
-                      </div>
-                      <div>{event.title}</div>
+                  <div className="font-semibold mb-1">{event.title}</div>
+                  {event.description && (
+                    <div className="mb-2 text-xs">
+                      {event.description.substring(0, 80)}
+                      {event.description.length > 80 ? '...' : ''}
                     </div>
-                    {event.description && (
-                      <div className="mb-2 text-xs">
-                        {event.description.substring(0, 80)}
-                        {event.description.length > 80 ? '...' : ''}
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center text-xs text-gray-600 mb-1">
-                      <span>{distance !== null ? `${distance.toFixed(1)} km` : ''}</span>
-                    </div>
-                    <Link
-                      to={`/event/${event.id}`}
-                      className="text-blue-600 hover:text-blue-800 underline text-xs"
-                    >
-                      Details bekijken
-                    </Link>
-                  </div>
+                  )}
+                  <Link
+                    to={`/event/${event.id}`}
+                    className="text-blue-600 hover:text-blue-800 underline text-xs"
+                  >
+                    Details bekijken
+                  </Link>
                 </div>
               </Popup>
             </Marker>

@@ -9,7 +9,7 @@ import Logo from '../ui/logo';
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
 import { calculateDistance } from '@/lib/utils';
-import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { addHours, isWithinInterval, startOfDay, endOfDay, compareAsc } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,7 +44,7 @@ export default function TopNav({
   const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
   const [priceRange, setPriceRange] = useState<number[]>([50]); // Default max price
   const [showOnlyFree, setShowOnlyFree] = useState(false);
-  const [sortBy, setSortBy] = useState<'distance' | 'location'>('distance');
+  const [sortBy, setSortBy] = useState<'distance' | 'startTime'>('distance');
   const [, setLocation] = useLocation();
 
   // Refs for clickaway handlers
@@ -124,7 +124,6 @@ export default function TopNav({
         return (
           event.title?.toLowerCase().includes(searchLower) ||
           event.category?.toLowerCase().includes(searchLower) ||
-          event.subcategory?.toLowerCase().includes(searchLower) ||
           event.description?.toLowerCase().includes(searchLower)
         );
       }
@@ -164,8 +163,8 @@ export default function TopNav({
       if (sortBy === 'distance') {
         return a.distance - b.distance;
       } else {
-        // Sort by location (north to south)
-        return Number(b.latitude) - Number(a.latitude);
+        // Sort by start time
+        return compareAsc(new Date(a.startTime), new Date(b.startTime));
       }
     });
 
@@ -176,13 +175,6 @@ export default function TopNav({
     if (hours === 168) return '1 week';
     if (hours < 720) return `${Math.floor(hours / 168)} weken`;
     return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
-  };
-
-  const getStep = (value: number) => {
-    if (value < 24) return 1; // Per hour
-    if (value < 168) return 24; // Per day
-    if (value < 720) return 168; // Per week
-    return 720; // Per month
   };
 
   useEffect(() => {
@@ -200,156 +192,126 @@ export default function TopNav({
           </Link>
         </div>
 
-        <div className="flex-1 mx-4 max-w-xl relative">
-          <Input
-            type="text"
-            placeholder="Zoek evenement (voetballen, circus, tentoonstelling ...)"
-            className="pl-4 w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setShowResults(true);
-              if (onSearch) onSearch(e.target.value);
-            }}
-            onFocus={() => setShowResults(true)}
-          />
-          {showResults && searchQuery && (
-            <div ref={searchResultsRef} className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
-              <button
-                onClick={() => {
-                  setShowResults(false);
-                  if (onSearch) onSearch(searchQuery);
-                }}
-                className="w-full p-2 text-left hover:bg-gray-100 text-blue-600 font-medium border-b"
-              >
-                {isMapView ? (
-                  <Map className="w-4 h-4 inline-block mr-2" />
-                ) : (
-                  <List className="w-4 h-4 inline-block mr-2" />
-                )}
-                Bekijk {sortedEvents.length} resultaten
-              </button>
-              {sortedEvents.slice(0, 5).map((event) => (
-                <Link key={event.id} href={`/event/${event.id}`}>
-                  <div
-                    className="p-2 hover:bg-gray-100 cursor-pointer"
-                    onClick={() => setShowResults(false)}
-                  >
-                    <div className="font-medium">{event.title}</div>
-                    <div className="text-sm text-gray-600 flex justify-between">
-                      <span>{event.category}</span>
-                      <span>{event.distance.toFixed(1)} km</span>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 mx-4 max-w-xl relative">
+            <Input
+              type="text"
+              placeholder="Zoek evenement (voetballen, circus, tentoonstelling ...)"
+              className="pl-4 w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowResults(true);
+                if (onSearch) onSearch(e.target.value);
+              }}
+              onFocus={() => setShowResults(true)}
+            />
+            {showResults && searchQuery && (
+              <div ref={searchResultsRef} className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
+                <button
+                  onClick={() => {
+                    setShowResults(false);
+                    if (onSearch) onSearch(searchQuery);
+                  }}
+                  className="w-full p-2 text-left hover:bg-gray-100 text-blue-600 font-medium border-b"
+                >
+                  {isMapView ? (
+                    <Map className="w-4 h-4 inline-block mr-2" />
+                  ) : (
+                    <List className="w-4 h-4 inline-block mr-2" />
+                  )}
+                  Bekijk {sortedEvents.length} resultaten
+                </button>
+                {sortedEvents.slice(0, 5).map((event) => (
+                  <Link key={event.id} href={`/event/${event.id}`}>
+                    <div
+                      className="p-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => setShowResults(false)}
+                    >
+                      <div className="font-medium">{event.title}</div>
+                      <div className="text-sm text-gray-600 flex justify-between">
+                        <span>{event.category}</span>
+                        <span>{event.distance.toFixed(1)} km</span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+          {!isMapView && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-blue-600"
+                >
+                  <ArrowUpDown className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setSortBy('distance')}>
+                  Op afstand
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortBy('startTime')}>
+                  Op startdatum/tijd
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
+          <Button
+            onClick={toggleView}
+            variant="ghost"
+            size="icon"
+            className="text-white hover:bg-blue-600"
+          >
+            {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
+          </Button>
         </div>
-
-        <Button
-          onClick={toggleView}
-          variant="ghost"
-          size="icon"
-          className="text-white hover:bg-blue-600"
-        >
-          {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
-        </Button>
       </nav>
 
       {/* Filter Bar */}
-      <div className="fixed top-14 left-0 right-0 bg-white border-b z-30 py-2 px-4">
-        <div className="max-w-xl mx-auto flex items-center gap-2 overflow-x-auto">
-          {/* Resultaten counter */}
-          <div className="text-sm font-medium text-blue-600">
-            {sortedEvents.length} evenement{sortedEvents.length !== 1 ? 'en' : ''}
-          </div>
-
-          {/* Sort dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 border border-gray-200 hover:bg-gray-100"
-              >
-                <ArrowUpDown className="h-4 w-4 mr-2" />
-                {sortBy === 'distance' ? 'Op afstand' : 'Op locatie'}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => setSortBy('distance')}>
-                Op afstand
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortBy('location')}>
-                Op locatie (noord-zuid)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Time Range Filter */}
-          <button
-            onClick={() => setShowTimeFilter(true)}
-            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors whitespace-nowrap"
-          >
-            {formatTimeRange(timeRange[0])}
-          </button>
-
-          {/* Search Query Tag */}
-          {searchQuery && (
+      <div className="fixed top-14 left-0 right-0 bg-white border-b z-30">
+        <div className="overflow-x-auto">
+          <div className="flex items-center gap-2 p-2 px-4 whitespace-nowrap">
+            {/* Time Range Filter */}
             <button
-              onClick={() => setSearchQuery('')}
-              className="inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-700 transition-colors whitespace-nowrap"
+              onClick={() => setShowTimeFilter(true)}
+              className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
             >
-              {searchQuery}
-              <X className="h-3 w-3 ml-1" />
+              {formatTimeRange(timeRange[0])}
             </button>
-          )}
 
-          {/* Radius Filter */}
-          <button
-            onClick={() => setShowRadiusSlider(!showRadiusSlider)}
-            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors whitespace-nowrap"
-          >
-            {radius} km
-          </button>
+            {/* Search Query Tag */}
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-700 transition-colors"
+              >
+                {searchQuery}
+                <X className="h-3 w-3 ml-1" />
+              </button>
+            )}
 
-          {/* Price Filter */}
-          <button
-            onClick={() => setShowPriceFilter(!showPriceFilter)}
-            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors whitespace-nowrap"
-          >
-            {showOnlyFree ? 'Gratis' : `Tot €${priceRange[0]}`}
-          </button>
+            {/* Radius Filter */}
+            <button
+              onClick={() => setShowRadiusSlider(!showRadiusSlider)}
+              className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
+            >
+              {radius} km
+            </button>
+
+            {/* Price Filter */}
+            <button
+              onClick={() => setShowPriceFilter(!showPriceFilter)}
+              className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
+            >
+              {showOnlyFree ? 'Gratis' : `Tot €${priceRange[0]}`}
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Radius Slider */}
-      {showRadiusSlider && (
-        <div ref={radiusSliderRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
-          <div className="flex items-center gap-4 max-w-xl mx-auto">
-            <div className="flex-1">
-              <Slider
-                value={[radius]}
-                onValueChange={(value) => {
-                  const newRadius = value[0];
-                  if (onRadiusChange) {
-                    onRadiusChange(newRadius);
-                  }
-                }}
-                max={200}
-                min={1}
-                step={1}
-                className="w-full"
-              />
-              <div className="flex justify-between text-sm text-gray-600 mt-1">
-                <span>Radius: {radius} km</span>
-                <span>{sortedEvents.length} resultaten</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Time-to-event filter */}
       {showTimeFilter && (
@@ -366,7 +328,7 @@ export default function TopNav({
                 onValueChange={setTimeRange}
                 max={720}
                 min={1}
-                step={getStep(timeRange[0])}
+                step={1}
                 className="w-full"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">

@@ -29,17 +29,18 @@ import { apiRequest } from "@/lib/queryClient"
 import React from 'react';
 import TopNav from "@/components/Layout/TopNav";
 import BottomNav from "@/components/Layout/BottomNav";
-import { generateTags, generateDescription } from '@/lib/aiTagGenerator';
+import { generateTags, generateDescription, suggestCategory } from '@/lib/aiTagGenerator';
+import { CATEGORIES } from "@shared/schema";
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
 const DEFAULT_ZOOM = 6 // For Netherlands overview
-const LOCATION_ZOOM = 18 // For specific location
-const MIN_REACH = 1
-const MAX_REACH = 5
+const LOCATION_ZOOM = 16; // Voor 2.5km view
+const MIN_REACH = 1;
+const MAX_REACH = 5;
 
 // Define the schema first
 const createEventFormSchema = z.object({
-  title: z.string().max(30, "Titel mag maximaal 30 karakters bevatten"),
+  title: z.string().max(40, "Titel mag maximaal 40 karakters bevatten"),
   description: z.string(),
   location: z.object({
     lat: z.number(),
@@ -47,7 +48,7 @@ const createEventFormSchema = z.object({
     notificationReach: z.number().min(MIN_REACH).max(MAX_REACH),
   }, { required_error: "Location is required" }),
   category: z.string().min(1, "Category is required"),
-  subcategory: z.string().optional(),
+  secondaryCategory: z.string().optional(),
   startDate: z.string().min(1, "Start date is required"),
   startTime: z.string().min(1, "Start time is required"),
   endDate: z.string().optional(),
@@ -76,7 +77,7 @@ export default function CreateEventPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const [isSatelliteView, setIsSatelliteView] = useState(false);
+  const [isSatelliteView, setIsSatelliteView] = useState(true); // Standaard satelliet view
   const [mapInitialized, setMapInitialized] = useState(false);
 
   // Get location from URL parameters (from long-press)
@@ -107,8 +108,8 @@ export default function CreateEventPage() {
       startTime: format(nextHour, 'HH:mm'),
       endDate: format(defaultEndTime, 'yyyy-MM-dd'),
       endTime: format(defaultEndTime, 'HH:mm'),
-      category: "",
-      subcategory: "",
+      category: undefined,
+      secondaryCategory: undefined,
       isPaid: false,
       price: 0,
       maxParticipants: 0,
@@ -197,7 +198,7 @@ export default function CreateEventPage() {
           notificationReach: data.location.notificationReach,
         },
         category: data.category,
-        subcategory: data.subcategory,
+        secondaryCategory: data.secondaryCategory,
         startTime: startDateTime.toISOString(),
         endTime: endDateTime?.toISOString() || null,
         isPaid: data.isPaid,
@@ -228,26 +229,34 @@ export default function CreateEventPage() {
     }
   }
 
-  // Watch title and category for auto-generating tags and description
+  // Watch title for auto-generating tags and category
   const title = form.watch("title");
-  const category = form.watch("category");
 
   useEffect(() => {
-    if (title && category) {
-      const generatedTags = generateTags(title, category);
-      form.setValue("tags", generatedTags);
+    if (title) {
+      // Suggest category
+      const suggestedCategory = suggestCategory(title);
+      if (suggestedCategory && !form.getValues("category")) {
+        form.setValue("category", suggestedCategory);
+      }
 
-      const generatedDesc = generateDescription({
-        title,
-        category,
-        subcategory: form.getValues("subcategory"),
-      });
+      // Generate tags
+      const category = form.getValues("category");
+      if (category) {
+        const generatedTags = generateTags(title, category);
+        form.setValue("tags", generatedTags);
+      }
 
+      // Generate description
       if (!form.getValues("description")) {
+        const generatedDesc = generateDescription({
+          title,
+          category: form.getValues("category") || '',
+        });
         form.setValue("description", generatedDesc);
       }
     }
-  }, [title, category, form]);
+  }, [title, form]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[100] overflow-hidden">
@@ -275,23 +284,16 @@ export default function CreateEventPage() {
                     name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Event Titel *</FormLabel>
+                        <FormLabel>Titel *</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Input
-                              placeholder="Voer event titel in"
+                              placeholder="Geef je evenement een titel"
                               {...field}
-                              maxLength={30}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                if (e.target.value && category) {
-                                  const tags = generateTags(e.target.value, category);
-                                  form.setValue("tags", tags);
-                                }
-                              }}
+                              maxLength={40}
                             />
                             <span className="absolute right-2 top-2 text-xs text-gray-400">
-                              {field.value.length}/30
+                              {field.value.length}/40
                             </span>
                           </div>
                         </FormControl>
@@ -364,7 +366,6 @@ export default function CreateEventPage() {
                         size="icon"
                         className="absolute top-2 right-2 z-[1000] bg-white/90 hover:bg-white"
                         onClick={() => setIsSatelliteView(!isSatelliteView)}
-                        title={isSatelliteView ? "Switch to Map View" : "Switch to Satellite View"}
                       >
                         <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
                       </Button>
@@ -380,42 +381,27 @@ export default function CreateEventPage() {
                     </div>
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="location.notificationReach"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notification Reach</FormLabel>
-                        <FormControl>
-                          <Slider
-                            min={MIN_REACH}
-                            max={MAX_REACH}
-                            step={0.1}
-                            value={[field.value]}
-                            onValueChange={(vals) => {
-                              const value = vals[0]
-                              field.onChange(value)
-                              setPosition({...position, notificationReach: value})
-                            }}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Notification radius: {field.value} km
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
+                  {/* Category fields */}
                   <FormField
                     control={form.control}
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category *</FormLabel>
-                        <FormControl>
-                          <CategoryPicker {...field} />
-                        </FormControl>
+                        <FormLabel>Categorie *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Kies een categorie" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {CATEGORIES.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -423,25 +409,37 @@ export default function CreateEventPage() {
 
                   <FormField
                     control={form.control}
-                    name="subcategory"
+                    name="secondaryCategory"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Subcategory</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter subcategory" {...field} />
-                        </FormControl>
+                        <FormLabel>Extra categorie (optioneel)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Kies een extra categorie" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {CATEGORIES.filter(cat => cat !== form.getValues("category")).map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
+                  {/* Date/Time fields */}
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="startDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Start Date *</FormLabel>
+                          <FormLabel>Startdatum *</FormLabel>
                           <FormControl>
                             <Input type="date" {...field} />
                           </FormControl>
@@ -455,7 +453,7 @@ export default function CreateEventPage() {
                       name="startTime"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Start Time *</FormLabel>
+                          <FormLabel>Starttijd *</FormLabel>
                           <FormControl>
                             <Input type="time" {...field} />
                           </FormControl>
@@ -471,7 +469,7 @@ export default function CreateEventPage() {
                       name="endDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>End Date</FormLabel>
+                          <FormLabel>Einddatum</FormLabel>
                           <FormControl>
                             <Input type="date" {...field} />
                           </FormControl>
@@ -485,7 +483,7 @@ export default function CreateEventPage() {
                       name="endTime"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>End Time</FormLabel>
+                          <FormLabel>Eindtijd</FormLabel>
                           <FormControl>
                             <Input type="time" {...field} />
                           </FormControl>
@@ -500,11 +498,11 @@ export default function CreateEventPage() {
                     name="recurrence"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Event Frequency</FormLabel>
+                        <FormLabel>Herhaling</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select frequency" />
+                              <SelectValue placeholder="Kies herhaling" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -525,11 +523,11 @@ export default function CreateEventPage() {
                     name="maxParticipants"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Max Participants</FormLabel>
+                        <FormLabel>Maximum aantal deelnemers</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            placeholder="Enter max participants"
+                            placeholder="Onbeperkt"
                             {...field}
                             onChange={e => field.onChange(parseInt(e.target.value))}
                           />
@@ -544,9 +542,12 @@ export default function CreateEventPage() {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Description</FormLabel>
+                        <FormLabel>Omschrijving</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="Enter event description" {...field} />
+                          <Textarea 
+                            placeholder="Beschrijf je evenement" 
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -566,7 +567,7 @@ export default function CreateEventPage() {
                             onChange={e => field.onChange(e.target.checked)}
                           />
                         </FormControl>
-                        <FormLabel>Is this a paid event?</FormLabel>
+                        <FormLabel>Dit is een betaald evenement</FormLabel>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -578,11 +579,11 @@ export default function CreateEventPage() {
                       name="price"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Price per person</FormLabel>
+                          <FormLabel>Prijs per persoon</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
-                              placeholder="Enter price"
+                              placeholder="Voer prijs in"
                               {...field}
                               onChange={e => field.onChange(parseFloat(e.target.value))}
                             />

@@ -2,6 +2,14 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal } fr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const CATEGORIES = [
+  'Sport en spel',
+  'Kunst en Cultuur',
+  'Gezellig en Sociaal',
+  'Leren en Ontdekken',
+  'Vrijwilligerswerk en hulp'
+] as const;
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -21,7 +29,7 @@ export const events = pgTable("events", {
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time"),
   category: text("category").notNull(),
-  subcategory: text("subcategory"),
+  secondaryCategory: text("secondary_category"),
   isPaid: boolean("is_paid").default(false),
   price: decimal("price"),
   maxParticipants: integer("max_participants"),
@@ -67,13 +75,16 @@ const locationSchema = z.object({
 });
 
 export const insertEventSchema = z.object({
-  title: z.string().max(30, "Titel mag maximaal 30 karakters bevatten"),
+  title: z.string().max(40, "Titel mag maximaal 40 karakters bevatten"),
   description: z.string(),
   location: locationSchema,
-  category: z.string().min(1, "Category is required"),
-  subcategory: z.string().optional(),
+  category: z.enum(CATEGORIES, {
+    required_error: "Kies een categorie",
+    invalid_type_error: "Ongeldige categorie"
+  }),
+  secondaryCategory: z.enum(CATEGORIES).optional(),
   startTime: z.string().or(z.date()).transform((val) => {
-    if (!val) throw new Error("Start time is required");
+    if (!val) throw new Error("Starttijd is verplicht");
     return val;
   }),
   endTime: z.string().or(z.date()).optional().nullable(),
@@ -82,7 +93,7 @@ export const insertEventSchema = z.object({
   maxParticipants: z.number().optional(),
   hostId: z.number(),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
-  tags: z.array(z.string()).max(5, "Maximaal 5 tags toegestaan").optional(),
+  tags: z.array(z.string()).max(5, "Maximaal 5 tags toegestaan"),
 });
 
 export const insertFavoriteSchema = createInsertSchema(favorites).pick({

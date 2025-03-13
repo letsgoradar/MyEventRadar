@@ -17,9 +17,7 @@ import {
 import Logo from '../ui/logo';
 import { calculateDistance } from '@/lib/utils';
 import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import DatePicker from 'react-datepicker'; // Added DatePicker import
-import "react-datepicker/dist/react-datepicker.css"; // Added stylesheet import
-
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface TopNavProps {
   isMapView?: boolean;
@@ -50,12 +48,35 @@ export default function TopNav({
   const [sortBy, setSortBy] = useState<'distance' | 'startTime'>('distance');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date()); // Use current date as default
   const [, setLocation] = useLocation();
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Refs for clickaway handlers
   const timeFilterRef = useRef<HTMLDivElement>(null);
   const radiusSliderRef = useRef<HTMLDivElement>(null);
   const priceFilterRef = useRef<HTMLDivElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
+
+  // Get user location
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        () => {
+          console.error("Could not get user location");
+          // Default to center of Netherlands
+          setUserLocation({
+            lat: 52.3676,
+            lng: 4.9041,
+          });
+        }
+      );
+    }
+  }, []);
 
   // Clickaway handler
   useEffect(() => {
@@ -83,7 +104,10 @@ export default function TopNav({
   const { data: events = [] } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius],
     queryFn: async () => {
+      if (!userLocation) return [];
       const params = new URLSearchParams({
+        lat: userLocation.lat.toString(),
+        lng: userLocation.lng.toString(),
         radius: radius.toString(),
         query: searchQuery,
         date: selectedDate.toISOString(),
@@ -93,7 +117,7 @@ export default function TopNav({
       if (!response.ok) throw new Error('Failed to fetch events');
       return response.json();
     },
-    enabled: true
+    enabled: !!userLocation
   });
 
   const sortedEvents = events
@@ -127,6 +151,18 @@ export default function TopNav({
       }
       return true;
     })
+    .map(event => ({
+      ...event,
+      distance: userLocation
+        ? calculateDistance(
+            userLocation.lat,
+            userLocation.lng,
+            Number(event.latitude),
+            Number(event.longitude)
+          )
+        : Infinity
+    }))
+    .filter(event => event.distance <= radius)
     .sort((a, b) => {
       if (sortBy === 'distance') {
         return a.distance - b.distance;
@@ -153,84 +189,86 @@ export default function TopNav({
 
   return (
     <>
-      <nav className="fixed top-0 w-full h-14 bg-[#0097FB] shadow-md z-50 flex items-center justify-between px-4">
-        <div className="flex items-center">
-          <Link href="/" className="flex items-center">
-            <Logo className="w-8 h-8 text-white" />
-          </Link>
-        </div>
+      <nav className="fixed top-0 w-full h-14 bg-[#0097FB] shadow-md z-50">
+        <div className="flex items-center h-full px-4">
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center">
+              <Logo className="w-8 h-8 text-white" />
+            </Link>
+          </div>
 
-        <div className="flex items-center gap-2 flex-1 max-w-3xl mx-4">
-          <Input
-            type="text"
-            placeholder="Zoek evenement (voetballen, circus, tentoonstelling ...)"
-            className="w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setShowResults(true);
-              if (onSearch) onSearch(e.target.value);
-            }}
-            onFocus={() => setShowResults(true)}
-          />
-          {showResults && searchQuery && (
-            <div ref={searchResultsRef} className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60]">
-              <button
-                onClick={() => {
-                  setShowResults(false);
-                  if (onSearch) onSearch(searchQuery);
-                }}
-                className="w-full p-2 text-left hover:bg-gray-100 text-blue-600 font-medium border-b"
-              >
-                Bekijk {sortedEvents.length} resultaten
-              </button>
-              {sortedEvents.slice(0, 5).map((event) => (
-                <Link key={event.id} href={`/event/${event.id}`}>
-                  <div
-                    className="p-2 hover:bg-gray-100 cursor-pointer"
-                    onClick={() => setShowResults(false)}
-                  >
-                    <div className="font-medium">{event.title}</div>
-                    <div className="text-sm text-gray-600">
-                      {event.category}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {!isMapView && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-white hover:bg-blue-600"
+          <div className="flex items-center gap-2 flex-1 max-w-3xl mx-4">
+            <Input
+              type="text"
+              placeholder="Zoek evenement (voetballen, circus, tentoonstelling ...)"
+              className="w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowResults(true);
+                if (onSearch) onSearch(e.target.value);
+              }}
+              onFocus={() => setShowResults(true)}
+            />
+            {showResults && searchQuery && (
+              <div ref={searchResultsRef} className="absolute w-full bg-white rounded-md shadow-lg mt-1 overflow-hidden z-[60] top-full">
+                <button
+                  onClick={() => {
+                    setShowResults(false);
+                    if (onSearch) onSearch(searchQuery);
+                  }}
+                  className="w-full p-2 text-left hover:bg-gray-100 text-blue-600 font-medium border-b"
                 >
-                  <ArrowUpDown className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setSortBy('distance')}>
-                  Op afstand
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy('startTime')}>
-                  Op startdatum/tijd
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          <Button
-            onClick={toggleView}
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-blue-600"
-          >
-            {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
-          </Button>
+                  Bekijk {sortedEvents.length} resultaten
+                </button>
+                {sortedEvents.slice(0, 5).map((event) => (
+                  <Link key={event.id} href={`/event/${event.id}`}>
+                    <div
+                      className="p-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => setShowResults(false)}
+                    >
+                      <div className="font-medium">{event.title}</div>
+                      <div className="text-sm text-gray-600">
+                        {event.category}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!isMapView && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-blue-600"
+                  >
+                    <ArrowUpDown className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setSortBy('distance')}>
+                    Op afstand
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('startTime')}>
+                    Op startdatum/tijd
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <Button
+              onClick={toggleView}
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-blue-600"
+            >
+              {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
+            </Button>
+          </div>
         </div>
       </nav>
 
@@ -281,8 +319,8 @@ export default function TopNav({
         <div ref={timeFilterRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
           <div className="flex items-center gap-4 max-w-xl mx-auto">
             <DatePicker
-              selected={selectedDate}
-              onChange={setSelectedDate}
+              date={selectedDate}
+              onSelect={setSelectedDate}
               className="flex-shrink-0"
             />
             <div className="flex-1">

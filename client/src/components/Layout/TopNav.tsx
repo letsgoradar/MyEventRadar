@@ -17,6 +17,8 @@ interface TopNavProps {
   isFilterSheetOpen?: boolean;
   setIsFilterSheetOpen?: (open: boolean) => void;
   onSearch?: (query: string) => void;
+  radius?: number;
+  onRadiusChange?: (value: number) => void;
 }
 
 export default function TopNav({ 
@@ -25,7 +27,9 @@ export default function TopNav({
   toggleFilterSheet, 
   isFilterSheetOpen,
   setIsFilterSheetOpen,
-  onSearch 
+  onSearch,
+  radius = 10,
+  onRadiusChange
 }: TopNavProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
@@ -35,7 +39,6 @@ export default function TopNav({
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
-  const [radius, setRadius] = useState(10); // Default 10km radius
   const [customLocation, setCustomLocation] = useState<{lat: number, lng: number} | null>(null);
   const [activeFilters, setActiveFilters] = useState<{
     search?: string;
@@ -144,6 +147,7 @@ export default function TopNav({
           )
         : Infinity
     }))
+    .filter(event => event.distance <= radius) // Filter events by radius
     .sort((a, b) => a.distance - b.distance);
 
   const handleViewResults = () => {
@@ -320,7 +324,13 @@ export default function TopNav({
             <div className="flex-1">
               <Slider
                 value={[radius]}
-                onValueChange={(value) => setRadius(value[0])}
+                onValueChange={(value) => {
+                  const newRadius = value[0];
+                  setRadius(newRadius); // Update local state
+                  if (onRadiusChange) {
+                    onRadiusChange(newRadius); // Propagate change externally
+                  }
+                }}
                 max={50}
                 min={1}
                 step={1}

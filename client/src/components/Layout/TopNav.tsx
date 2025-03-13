@@ -287,7 +287,7 @@ export default function TopNav({
                     onRadiusChange(newRadius);
                   }
                 }}
-                max={50}
+                max={200}
                 min={1}
                 step={1}
                 className="w-full"
@@ -320,8 +320,7 @@ export default function TopNav({
                 className="w-full"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
-                <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>
-                <span>{filteredAndSortedEvents.length} resultaten</span>
+                <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>                <span>{filteredAndSortedEvents.length} resultaten</span>
               </div>
             </div>
           </div>

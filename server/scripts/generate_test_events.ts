@@ -13,7 +13,12 @@ const DUTCH_CITIES = [
   { name: 'Tilburg', lat: 51.5719, lng: 5.0722 },
   { name: 'Almere', lat: 52.3508, lng: 5.2647 },
   { name: 'Breda', lat: 51.5719, lng: 4.7683 },
-  { name: 'Nijmegen', lat: 51.8426, lng: 5.8546 }
+  { name: 'Nijmegen', lat: 51.8426, lng: 5.8546 },
+  { name: 'Enschede', lat: 52.2215, lng: 6.8937 },
+  { name: 'Haarlem', lat: 52.3874, lng: 4.6462 },
+  { name: 'Arnhem', lat: 51.9851, lng: 5.8987 },
+  { name: 'Zaanstad', lat: 52.4537, lng: 4.8137 },
+  { name: 'Den Bosch', lat: 51.6998, lng: 5.3049 }
 ];
 
 const EVENT_CATEGORIES = [
@@ -31,29 +36,33 @@ const EVENT_CATEGORIES = [
 ];
 
 const EVENT_TITLES = [
-  'Workshop',
   'Festival',
   'Markt',
   'Concert',
+  'Workshop',
   'Conferentie',
   'Expositie',
   'Beurs',
   'Voorstelling',
   'Wedstrijd',
-  'Training'
+  'Training',
+  'Hackathon',
+  'Meetup',
+  'Seminar',
+  'Lezing'
 ];
 
 const EVENT_DESCRIPTIONS = [
-  'Een unieke gelegenheid om nieuwe mensen te ontmoeten en te netwerken.',
-  'Geniet van een dag vol entertainment, muziek en heerlijk eten.',
-  'Ontdek de nieuwste trends en innovaties in de industrie.',
-  'Een gezellige dag uit voor het hele gezin.',
-  'Leer nieuwe vaardigheden van experts in het veld.',
-  'Een spectaculaire show die je niet mag missen!',
-  'Kom langs en laat je inspireren door de beste sprekers.',
-  'Een dag vol activiteiten en workshops voor jong en oud.',
-  'Ervaar de magie van live optredens en shows.',
-  'Een leerzame ervaring met praktische tips en tricks.'
+  'Een unieke gelegenheid om nieuwe mensen te ontmoeten en te netwerken. Met interessante sprekers, workshops en natuurlijk veel ruimte voor interactie.',
+  'Geniet van een dag vol entertainment, muziek en heerlijk eten. Perfect voor het hele gezin!',
+  'Ontdek de nieuwste trends en innovaties in de industrie. Met experts van over de hele wereld.',
+  'Een gezellige dag uit voor het hele gezin met activiteiten voor jong en oud.',
+  'Leer nieuwe vaardigheden van experts in het veld. Inclusief hands-on workshops.',
+  'Een spectaculaire show die je niet mag missen! Met nationale en internationale artiesten.',
+  'Kom langs en laat je inspireren door de beste sprekers van dit moment.',
+  'Een dag vol activiteiten en workshops voor jong en oud. Voor ieder wat wils!',
+  'Ervaar de magie van live optredens en shows. Een onvergetelijke ervaring.',
+  'Een leerzame ervaring met praktische tips en tricks van experts.'
 ];
 
 function getRandomElement<T>(array: T[]): T {
@@ -76,12 +85,12 @@ function getRandomCoordinates(baseLocation: { lat: number, lng: number }, radius
 }
 
 async function generateTestEvents(count: number) {
-  const events = [];
+  const eventsToCreate = [];
   const now = new Date();
 
   for (let i = 0; i < count; i++) {
     const city = getRandomElement(DUTCH_CITIES);
-    const coords = getRandomCoordinates(city, 20); // 20km radius around city center
+    const coords = getRandomCoordinates(city, 10); // 10km radius around city center
     const category = getRandomElement(EVENT_CATEGORIES);
     const titlePrefix = getRandomElement(EVENT_TITLES);
     const daysFromNow = getRandomInt(1, 30);
@@ -94,7 +103,7 @@ async function generateTestEvents(count: number) {
     const isPaid = Math.random() < 0.3; // 30% chance of being paid
 
     const event = {
-      title: `${titlePrefix} ${category}`,
+      title: `${titlePrefix} ${city.name}`,
       description: getRandomElement(EVENT_DESCRIPTIONS),
       latitude: coords.lat.toString(),
       longitude: coords.lng.toString(),
@@ -110,11 +119,14 @@ async function generateTestEvents(count: number) {
       recurrence: 'once'
     };
 
-    events.push(event);
+    eventsToCreate.push(event);
   }
 
   try {
-    await db.insert(events).into('events');
+    // Clear existing events first
+    await db.delete(events);
+    // Insert new events
+    await db.insert(events).values(eventsToCreate);
     console.log(`Successfully generated ${count} test events`);
   } catch (error) {
     console.error('Error generating test events:', error);

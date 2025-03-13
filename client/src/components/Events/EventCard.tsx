@@ -7,17 +7,20 @@ import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import CategoryIcon from './CategoryIcon';
+import { CategoryIcon, CATEGORY_COLORS } from '../CategoryIcon';
 import './leaflet-fix.css';
 import StreetView from '../StreetView/StreetView';
 import CountdownTimer from './CountdownTimer';
 
-const miniEventIcon = L.divIcon({
-  className: 'custom-div-icon',
-  html: `<div style="background-color: #ff4757; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
-});
+function createEventIcon(category: string) {
+  const color = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || '#94A3B8';
+  return L.divIcon({
+    className: 'custom-div-icon',
+    html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+  });
+}
 
 interface EventCardProps {
   event: Event;
@@ -34,7 +37,7 @@ export default function EventCard({ event, distance }: EventCardProps) {
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-lg font-bold line-clamp-1 flex items-center gap-2">
-              <CategoryIcon category={event.category} size="sm" className="flex-shrink-0" />
+              <CategoryIcon category={event.category} className="flex-shrink-0" />
               {event.title}
             </CardTitle>
             <CardDescription className="flex items-center gap-1 mt-1">
@@ -42,7 +45,10 @@ export default function EventCard({ event, distance }: EventCardProps) {
               <span className="text-xs">{distance.toFixed(1)} km</span>
             </CardDescription>
           </div>
-          <Badge variant="outline" className="bg-primary/10 text-primary text-xs">
+          <Badge variant="outline" style={{ 
+            backgroundColor: `${CATEGORY_COLORS[event.category]}20`,
+            color: CATEGORY_COLORS[event.category]
+          }}>
             {event.category}
           </Badge>
         </div>
@@ -99,7 +105,7 @@ export default function EventCard({ event, distance }: EventCardProps) {
                     url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                     subdomains="abcd"
                   />
-                  <Marker position={eventCoords} icon={miniEventIcon} />
+                  <Marker position={eventCoords} icon={createEventIcon(event.category)} />
                 </MapContainer>
               )}
             </div>

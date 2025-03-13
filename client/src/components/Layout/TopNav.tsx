@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Map, List, X, ArrowUpDown } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import type { Event } from "@shared/schema";
 import { compareAsc } from 'date-fns';
@@ -16,6 +17,8 @@ import {
 import Logo from '../ui/logo';
 import { calculateDistance } from '@/lib/utils';
 import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import DatePicker from 'react-datepicker'; // Added DatePicker import
+import "react-datepicker/dist/react-datepicker.css"; // Added stylesheet import
 
 
 interface TopNavProps {
@@ -35,7 +38,7 @@ export default function TopNav({
   onRadiusChange,
   onFilteredEventsChange
 }: TopNavProps) {
-  const { toast } = useToast(); // Assuming useToast is imported elsewhere
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
   const [showTimeFilter, setShowTimeFilter] = useState(false);
@@ -45,6 +48,7 @@ export default function TopNav({
   const [priceRange, setPriceRange] = useState<number[]>([50]); // Default max price
   const [showOnlyFree, setShowOnlyFree] = useState(false);
   const [sortBy, setSortBy] = useState<'distance' | 'startTime'>('distance');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date()); // Use current date as default
   const [, setLocation] = useLocation();
 
   // Refs for clickaway handlers
@@ -52,10 +56,6 @@ export default function TopNav({
   const radiusSliderRef = useRef<HTMLDivElement>(null);
   const priceFilterRef = useRef<HTMLDivElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    //Geolocation removed as it's not used anymore
-  }, []);
 
   // Clickaway handler
   useEffect(() => {
@@ -81,9 +81,8 @@ export default function TopNav({
   }, []);
 
   const { data: events = [] } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius], // Assuming selectedDate is defined elsewhere
+    queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius],
     queryFn: async () => {
-      //userLocation removed as it's not used anymore
       const params = new URLSearchParams({
         radius: radius.toString(),
         query: searchQuery,
@@ -94,7 +93,7 @@ export default function TopNav({
       if (!response.ok) throw new Error('Failed to fetch events');
       return response.json();
     },
-    enabled: true //enabled is always true because userLocation is removed.
+    enabled: true
   });
 
   const sortedEvents = events
@@ -123,16 +122,11 @@ export default function TopNav({
     .filter(event => {
       // Price filter
       if (showOnlyFree) return !event.isPaid;
-      if (event.isPaid && event.price) {
+      if (event.isPaid && event.price !== null) {
         return event.price <= priceRange[0];
       }
       return true;
     })
-    .map(event => ({
-      ...event,
-      distance: Infinity //distance is always Infinity because userLocation is removed.
-    }))
-    .filter(event => event.distance <= radius)
     .sort((a, b) => {
       if (sortBy === 'distance') {
         return a.distance - b.distance;
@@ -287,8 +281,8 @@ export default function TopNav({
         <div ref={timeFilterRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
           <div className="flex items-center gap-4 max-w-xl mx-auto">
             <DatePicker
-              date={selectedDate} // Assuming selectedDate is defined elsewhere
-              onSelect={setSelectedDate} // Assuming setSelectedDate is defined elsewhere
+              selected={selectedDate}
+              onChange={setSelectedDate}
               className="flex-shrink-0"
             />
             <div className="flex-1">

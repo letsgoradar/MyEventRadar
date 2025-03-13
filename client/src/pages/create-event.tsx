@@ -29,7 +29,7 @@ import { apiRequest } from "@/lib/queryClient"
 import React from 'react';
 import TopNav from "@/components/Layout/TopNav";
 import BottomNav from "@/components/Layout/BottomNav";
-
+import { generateTags, generateDescription } from '@/lib/aiTagGenerator';
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
 const DEFAULT_ZOOM = 6 // For Netherlands overview
@@ -39,7 +39,7 @@ const MAX_REACH = 5
 
 // Define the schema first
 const createEventFormSchema = z.object({
-  title: z.string().min(1, "Title is required"),
+  title: z.string().max(30, "Titel mag maximaal 30 karakters bevatten"),
   description: z.string(),
   location: z.object({
     lat: z.number(),
@@ -57,6 +57,7 @@ const createEventFormSchema = z.object({
   maxParticipants: z.number(),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
   hostId: z.number(),
+  tags: z.array(z.string()).max(5, "Maximaal 5 tags toegestaan"),
 });
 
 const RECURRENCE_OPTIONS = [
@@ -113,6 +114,7 @@ export default function CreateEventPage() {
       maxParticipants: 0,
       recurrence: "once",
       hostId: 1,
+      tags: [],
     },
   });
 
@@ -203,6 +205,7 @@ export default function CreateEventPage() {
         maxParticipants: data.maxParticipants,
         hostId: data.hostId,
         recurrence: data.recurrence,
+        tags: data.tags,
       };
 
       const response = await apiRequest('POST', '/api/events', eventData);
@@ -225,6 +228,27 @@ export default function CreateEventPage() {
     }
   }
 
+  // Watch title and category for auto-generating tags and description
+  const title = form.watch("title");
+  const category = form.watch("category");
+
+  useEffect(() => {
+    if (title && category) {
+      const generatedTags = generateTags(title, category);
+      form.setValue("tags", generatedTags);
+
+      const generatedDesc = generateDescription({
+        title,
+        category,
+        subcategory: form.getValues("subcategory"),
+      });
+
+      if (!form.getValues("description")) {
+        form.setValue("description", generatedDesc);
+      }
+    }
+  }, [title, category, form]);
+
   return (
     <div className="fixed inset-0 bg-black/50 z-[100] overflow-hidden">
       <div className="absolute inset-y-0 right-0 w-full md:w-[600px] bg-white shadow-xl animate-slide-left">
@@ -245,7 +269,7 @@ export default function CreateEventPage() {
 
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  {/* Title field */}
+                  {/* Title field with character count */}
                   <FormField
                     control={form.control}
                     name="title"
@@ -253,8 +277,79 @@ export default function CreateEventPage() {
                       <FormItem>
                         <FormLabel>Event Titel *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Voer event titel in" {...field} />
+                          <div className="relative">
+                            <Input
+                              placeholder="Voer event titel in"
+                              {...field}
+                              maxLength={30}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                if (e.target.value && category) {
+                                  const tags = generateTags(e.target.value, category);
+                                  form.setValue("tags", tags);
+                                }
+                              }}
+                            />
+                            <span className="absolute right-2 top-2 text-xs text-gray-400">
+                              {field.value.length}/30
+                            </span>
+                          </div>
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Tags field */}
+                  <FormField
+                    control={form.control}
+                    name="tags"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tags (max 5)</FormLabel>
+                        <FormControl>
+                          <div className="flex flex-wrap gap-2">
+                            {field.value.map((tag, index) => (
+                              <div
+                                key={index}
+                                className="bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm flex items-center gap-2"
+                              >
+                                {tag}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newTags = field.value.filter((_, i) => i !== index);
+                                    form.setValue("tags", newTags);
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                            {field.value.length < 5 && (
+                              <Input
+                                type="text"
+                                placeholder="Voeg tag toe"
+                                className="!w-auto"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    const input = e.currentTarget;
+                                    const value = input.value.trim();
+                                    if (value && field.value.length < 5) {
+                                      form.setValue("tags", [...field.value, value]);
+                                      input.value = '';
+                                    }
+                                  }
+                                }}
+                              />
+                            )}
+                          </div>
+                        </FormControl>
+                        <FormDescription>
+                          Tags worden automatisch gegenereerd, maar je kunt ze aanpassen
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -499,9 +594,9 @@ export default function CreateEventPage() {
                   )}
 
                   <div className="flex gap-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       className="flex-1"
                       onClick={() => setLocation('/')}
                     >

@@ -33,16 +33,17 @@ export default function TopNav({
   const [showResults, setShowResults] = useState(false);
   const [showTimeFilter, setShowTimeFilter] = useState(false);
   const [showRadiusSlider, setShowRadiusSlider] = useState(false);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showPriceFilter, setShowPriceFilter] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
-  const [customLocation, setCustomLocation] = useState<{ lat: number, lng: number } | null>(null);
+  const [priceRange, setPriceRange] = useState<number[]>([50]); // Default max price
+  const [showOnlyFree, setShowOnlyFree] = useState(false);
   const [, setLocation] = useLocation();
 
   // Refs for clickaway handlers
   const timeFilterRef = useRef<HTMLDivElement>(null);
   const radiusSliderRef = useRef<HTMLDivElement>(null);
-  const locationPickerRef = useRef<HTMLDivElement>(null);
+  const priceFilterRef = useRef<HTMLDivElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,8 +76,8 @@ export default function TopNav({
       if (radiusSliderRef.current && !radiusSliderRef.current.contains(event.target as Node)) {
         setShowRadiusSlider(false);
       }
-      if (locationPickerRef.current && !locationPickerRef.current.contains(event.target as Node)) {
-        setShowLocationPicker(false);
+      if (priceFilterRef.current && !priceFilterRef.current.contains(event.target as Node)) {
+        setShowPriceFilter(false);
       }
       if (searchResultsRef.current && !searchResultsRef.current.contains(event.target as Node)) {
         setShowResults(false);
@@ -132,6 +133,14 @@ export default function TopNav({
         end: endOfDay(rangeEnd)
       });
     })
+    .filter(event => {
+      // Price filter
+      if (showOnlyFree) return !event.isPaid;
+      if (event.isPaid && event.price) {
+        return event.price <= priceRange[0];
+      }
+      return true;
+    })
     .map(event => ({
       ...event,
       distance: userLocation
@@ -180,7 +189,7 @@ export default function TopNav({
         <div className="flex-1 mx-4 max-w-xl relative">
           <Input
             type="text"
-            placeholder="Zoeken..."
+            placeholder="Zoek evenement (voetballen, circus, tentoonstelling ...)"
             className="pl-4 w-full bg-blue-600/20 text-white placeholder:text-blue-100 border-blue-400 focus:border-white focus:ring-0 focus:outline-none"
             value={searchQuery}
             onChange={(e) => {
@@ -237,6 +246,11 @@ export default function TopNav({
       {/* Filter Bar */}
       <div className="fixed top-14 left-0 right-0 bg-white border-b z-30 py-2 px-4">
         <div className="max-w-xl mx-auto flex items-center gap-2 overflow-x-auto">
+          {/* Resultaten counter */}
+          <div className="text-sm font-medium text-blue-600">
+            {filteredAndSortedEvents.length} evenement{filteredAndSortedEvents.length !== 1 ? 'en' : ''}
+          </div>
+
           {/* Time Range Filter */}
           <button
             onClick={() => setShowTimeFilter(true)}
@@ -264,12 +278,12 @@ export default function TopNav({
             {radius} km
           </button>
 
-          {/* Location Filter */}
+          {/* Price Filter */}
           <button
-            onClick={() => setShowLocationPicker(!showLocationPicker)}
+            onClick={() => setShowPriceFilter(!showPriceFilter)}
             className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors whitespace-nowrap"
           >
-            Mijn locatie
+            {showOnlyFree ? 'Gratis' : `Tot €${priceRange[0]}`}
           </button>
         </div>
       </div>
@@ -320,24 +334,44 @@ export default function TopNav({
                 className="w-full"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
-                <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>                <span>{filteredAndSortedEvents.length} resultaten</span>
+                <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>
+                <span>{filteredAndSortedEvents.length} resultaten</span>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Location Picker */}
-      {showLocationPicker && (
-        <div ref={locationPickerRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
-          <div className="max-w-xl mx-auto">
-            <div className="text-sm text-gray-600 mb-2">
-              Kies een andere locatie:
+      {/* Price Filter */}
+      {showPriceFilter && (
+        <div ref={priceFilterRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
+          <div className="flex flex-col gap-4 max-w-xl mx-auto">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showOnlyFree}
+                onChange={(e) => setShowOnlyFree(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm">Alleen gratis evenementen</span>
             </div>
-            {/* Here you would add a location picker component */}
-            <div className="text-sm text-gray-500">
-              Locatie picker functionaliteit komt binnenkort...
-            </div>
+            {!showOnlyFree && (
+              <div className="flex-1">
+                <Slider
+                  value={priceRange}
+                  onValueChange={setPriceRange}
+                  max={200}
+                  min={0}
+                  step={1}
+                  className="w-full"
+                  disabled={showOnlyFree}
+                />
+                <div className="flex justify-between text-sm text-gray-600 mt-1">
+                  <span>Maximale prijs: €{priceRange[0]}</span>
+                  <span>{filteredAndSortedEvents.length} resultaten</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

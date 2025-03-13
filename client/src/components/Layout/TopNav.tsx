@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Filter, Map, List,  X } from 'lucide-react';
+import { Map, List, X } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -26,9 +26,6 @@ interface TopNavProps {
 export default function TopNav({
   isMapView,
   toggleView,
-  toggleFilterSheet,
-  isFilterSheetOpen,
-  setIsFilterSheetOpen,
   onSearch,
   radius = 10,
   onRadiusChange,
@@ -61,7 +58,6 @@ export default function TopNav({
         },
         (error) => {
           console.error("Geolocation error:", error);
-          // Set default location for Netherlands
           setUserLocation({
             lat: 52.3676,
             lng: 4.9041
@@ -148,27 +144,20 @@ export default function TopNav({
     .filter(event => event.distance <= radius)
     .sort((a, b) => a.distance - b.distance);
 
-  const formatTimeRange = (hours: number) => {
-    if (hours < 24) return `${hours} uur`;
-    if (hours === 24) return '1 dag';
-    if (hours < 168) return `${Math.floor(hours / 24)} dagen`;
-    if (hours === 168) return '1 week';
-    if (hours < 720) return `${Math.floor(hours / 168)} weken`;
-    return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
-  };
-
-  const getStep = (value: number) => {
-    if (value < 24) return 1; // Per hour
-    if (value < 168) return 24; // Per day
-    if (value < 720) return 168; // Per week
-    return 720; // Per month
-  };
-
   useEffect(() => {
     if (onFilteredEventsChange) {
       onFilteredEventsChange(filteredAndSortedEvents);
     }
   }, [filteredAndSortedEvents, onFilteredEventsChange]);
+
+  const formatTimeRange = (hours: number) => {
+    if (hours < 24) return `${hours}u`;
+    if (hours === 24) return '1d';
+    if (hours < 168) return `${Math.floor(hours / 24)}d`;
+    if (hours === 168) return '1w';
+    if (hours < 720) return `${Math.floor(hours / 168)}w`;
+    return `${Math.floor(hours / 720)}m`;
+  };
 
   return (
     <>
@@ -226,61 +215,75 @@ export default function TopNav({
           >
             {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
           </Button>
-
-          <Button
-            onClick={toggleFilterSheet}
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-blue-600"
-          >
-            <Filter className="h-5 w-5" />
-          </Button>
         </div>
       </nav>
 
-      {/* Filter Summary */}
+      {/* Filter bar */}
       <div className="fixed top-14 left-0 right-0 bg-white border-b z-30 py-2 px-4">
-        <div className="max-w-xl mx-auto text-sm text-center">
-          <button
-            onClick={() => setShowTimeFilter(true)}
-            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
-          >
-            {formatTimeRange(timeRange[0])}
-          </button>
-          {" "}
-          <span className="font-semibold">{filteredAndSortedEvents.length}</span>
-          {" "}
+        <div className="max-w-xl mx-auto flex items-center gap-2 justify-center">
+          <div className="bg-gray-50 rounded-full border border-gray-200 p-1 flex items-center gap-1">
+            <button
+              onClick={() => setShowTimeFilter(true)}
+              className="px-3 py-1 rounded-full hover:bg-white transition-colors"
+            >
+              {formatTimeRange(timeRange[0])}
+            </button>
+            <button
+              onClick={() => setShowRadiusSlider(!showRadiusSlider)}
+              className="px-3 py-1 rounded-full hover:bg-white transition-colors"
+            >
+              {radius}km
+            </button>
+            <button
+              onClick={() => setShowLocationPicker(!showLocationPicker)}
+              className="px-3 py-1 rounded-full hover:bg-white transition-colors"
+            >
+              hier
+            </button>
+          </div>
+
+          <span className="text-sm text-muted-foreground">
+            {filteredAndSortedEvents.length} events
+          </span>
+
           {searchQuery && (
-            <>
-              <button
-                onClick={() => setSearchQuery('')}
-                className="inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-700 transition-colors"
-              >
-                {searchQuery}
-                <X className="h-3 w-3 ml-1" />
-              </button>
-              {" "}
-            </>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-700 transition-colors"
+            >
+              {searchQuery}
+              <X className="h-3 w-3 ml-1" />
+            </button>
           )}
-          events binnen
-          {" "}
-          <button
-            onClick={() => setShowRadiusSlider(!showRadiusSlider)}
-            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
-          >
-            {radius} km
-          </button>
-          {" "}
-          van
-          {" "}
-          <button
-            onClick={() => setShowLocationPicker(!showLocationPicker)}
-            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
-          >
-            mijn locatie
-          </button>
         </div>
       </div>
+
+      {/* Time filter popover */}
+      {showTimeFilter && (
+        <div ref={timeFilterRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
+          <div className="flex items-center gap-4 max-w-xl mx-auto">
+            <DatePicker
+              date={selectedDate}
+              onSelect={setSelectedDate}
+              className="flex-shrink-0"
+            />
+            <div className="flex-1">
+              <Slider
+                value={timeRange}
+                onValueChange={setTimeRange}
+                max={720}
+                min={1}
+                step={getStep(timeRange[0])}
+                className="w-full"
+              />
+              <div className="flex justify-between text-sm text-gray-600 mt-1">
+                <span>{formatTimeRange(timeRange[0])}</span>
+                <span>{filteredAndSortedEvents.length} resultaten</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Radius Slider */}
       {showRadiusSlider && (
@@ -309,41 +312,10 @@ export default function TopNav({
         </div>
       )}
 
-      {/* Time-to-event filter */}
-      {showTimeFilter && (
-        <div ref={timeFilterRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
-          <div className="flex items-center gap-4 max-w-xl mx-auto">
-            <DatePicker
-              date={selectedDate}
-              onSelect={setSelectedDate}
-              className="flex-shrink-0"
-            />
-            <div className="flex-1">
-              <Slider
-                value={timeRange}
-                onValueChange={setTimeRange}
-                max={720}
-                min={1}
-                step={getStep(timeRange[0])}
-                className="w-full"
-              />
-              <div className="flex justify-between text-sm text-gray-600 mt-1">
-                <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>
-                <span>{filteredAndSortedEvents.length} resultaten</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Location Picker */}
       {showLocationPicker && (
         <div ref={locationPickerRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
           <div className="max-w-xl mx-auto">
-            <div className="text-sm text-gray-600 mb-2">
-              Kies een andere locatie:
-            </div>
-            {/* Here you would add a location picker component */}
             <div className="text-sm text-gray-500">
               Locatie picker functionaliteit komt binnenkort...
             </div>

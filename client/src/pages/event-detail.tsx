@@ -6,13 +6,11 @@ import { Share2, MapPin, Clock, Euro, User, Eye } from "lucide-react";
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
-import TopNav from "@/components/Layout/TopNav";
-import BottomNav from "@/components/Layout/BottomNav";
 import type { Event } from "@shared/schema";
 import { formatCurrency } from "@/lib/utils";
 import StreetView from "@/components/StreetView/StreetView";
 import { useState } from "react";
-
+import FocusLayout from "@/components/Layout/FocusLayout";
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -35,36 +33,31 @@ export default function EventDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="h-screen flex flex-col">
-        <TopNav />
-        <div className="flex-1 p-4">
+      <FocusLayout>
+        <div className="p-4">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-gray-200 rounded w-3/4"></div>
             <div className="h-4 bg-gray-200 rounded w-1/4"></div>
             <div className="h-32 bg-gray-200 rounded"></div>
           </div>
         </div>
-        <BottomNav />
-      </div>
+      </FocusLayout>
     );
   }
 
   if (isError || !event) {
     return (
-      <div className="h-screen flex flex-col">
-        <TopNav />
-        <div className="flex-1 p-4 flex items-center justify-center">
+      <FocusLayout>
+        <div className="p-4 flex items-center justify-center">
           <p className="text-muted-foreground">Evenement niet gevonden</p>
         </div>
-        <BottomNav />
-      </div>
+      </FocusLayout>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      <TopNav />
-      <div className="flex-1 overflow-auto pb-24 pt-14">
+    <FocusLayout>
+      <div className="space-y-4">
         {/* Header Section */}
         <div className="p-4 space-y-4">
           <div className="flex items-start justify-between">
@@ -95,7 +88,7 @@ export default function EventDetailPage() {
                 <div>{format(new Date(event.startTime), 'EEEE d MMMM yyyy', { locale: nl })}</div>
                 <div className="text-muted-foreground">
                   {format(new Date(event.startTime), 'HH:mm', { locale: nl })} - 
-                  {format(new Date(event.endTime), 'HH:mm', { locale: nl })}
+                  {event.endTime && format(new Date(event.endTime), 'HH:mm', { locale: nl })}
                 </div>
               </div>
             </div>
@@ -161,12 +154,11 @@ export default function EventDetailPage() {
       </div>
 
       {/* Fixed Bottom Action */}
-      <div className="fixed bottom-[76px] left-0 right-0 p-4 bg-white border-t">
+      <div className="sticky bottom-0 p-4 bg-white border-t">
         <Button className="w-full">
           {event.isPaid ? 'Koop tickets' : 'Registreren'}
         </Button>
       </div>
-      <BottomNav />
-    </div>
+    </FocusLayout>
   );
 }

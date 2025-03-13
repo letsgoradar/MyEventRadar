@@ -33,12 +33,19 @@ const getCategoryColor = (category: string): string => {
 const createEventIcon = (category: string) => {
   const color = getCategoryColor(category);
   return L.divIcon({
-    className: 'custom-icon',
+    className: 'custom-div-icon',
+    html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
     iconSize: [12, 12],
-    iconAnchor: [6, 6],
-    html: `<div style="width: 12px; height: 12px; border-radius: 50%; border: 1px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2); background-color: ${color};"></div>`
+    iconAnchor: [6, 6]
   });
 };
+
+const miniEventIcon = L.divIcon({
+  className: 'custom-div-icon',
+  html: `<div style="background-color: #ff4757; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
+});
 
 interface MapViewProps {
   searchQuery: string;
@@ -74,8 +81,8 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
     }
   }, []);
 
-  const { data: events = [] } = useQuery({
-    queryKey: ["/api/events/nearby", userLocation, radius],
+  const { data: events = [], refetch } = useQuery({
+    queryKey: ["/api/events/nearby", searchQuery, userLocation, radius],
     queryFn: async () => {
       if (!userLocation) return [];
       const params = new URLSearchParams({

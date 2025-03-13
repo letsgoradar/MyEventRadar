@@ -19,6 +19,7 @@
 
 .custom-event-marker .marker-inner {
   background-clip: padding-box;
+  transition: all 0.3s ease;
 }
 
 .custom-event-marker.starting-soon .marker-inner {

@@ -228,7 +228,7 @@ export default function CreateEventPage() {
   return (
     <div className="h-screen flex flex-col relative">
       <TopNav />
-      <div className="flex-1 overflow-auto p-4 pb-24">
+      <div className="flex-1 overflow-auto p-4 pb-24 pt-[6.5rem]">
         <Card className="p-6 relative">
           <Button
             variant="ghost"

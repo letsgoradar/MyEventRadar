@@ -272,7 +272,7 @@ export default function TopNav({
         <div className="max-w-xl mx-auto text-sm text-center">
           <button 
             onClick={() => setShowTimeFilter(true)} 
-            className="inline hover:text-blue-600 border-b border-dotted border-gray-400"
+            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
           >
             Deze week
           </button>
@@ -281,15 +281,13 @@ export default function TopNav({
           {" "}
           {searchQuery && (
             <>
-              <span className="inline-flex items-center gap-1">
-                "<span className="text-blue-600">{searchQuery}</span>"
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="hover:text-blue-600"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
+              <button
+                onClick={() => setSearchQuery('')}
+                className="inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-700 transition-colors"
+              >
+                {searchQuery}
+                <X className="h-3 w-3 ml-1"/>
+              </button>
               {" "}
             </>
           )}
@@ -297,7 +295,7 @@ export default function TopNav({
           {" "}
           <button 
             onClick={() => setShowRadiusSlider(!showRadiusSlider)} 
-            className="inline hover:text-blue-600 border-b border-dotted border-gray-400"
+            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
           >
             {radius} km
           </button>
@@ -306,7 +304,7 @@ export default function TopNav({
           {" "}
           <button 
             onClick={() => setShowLocationPicker(!showLocationPicker)}
-            className="inline hover:text-blue-600 border-b border-dotted border-gray-400"
+            className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
           >
             mijn locatie
           </button>

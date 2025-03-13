@@ -218,24 +218,20 @@ export default function TopNav({
                     Bekijk resultaten {isMapView ? 'op kaart' : 'in lijst'}
                   </button>
                 )}
-                {filteredAndSortedEvents.length > 0 ? (
-                  filteredAndSortedEvents.map((event) => (
-                    <Link key={event.id} href={`/event/${event.id}`}>
-                      <div
-                        className="p-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => setShowResults(false)}
-                      >
-                        <div className="font-medium">{event.title}</div>
-                        <div className="text-sm text-gray-600 flex justify-between">
-                          <span>{event.category}</span>
-                          <span>{event.distance.toFixed(1)} km</span>
-                        </div>
+                {filteredAndSortedEvents.map((event) => (
+                  <Link key={event.id} href={`/event/${event.id}`}>
+                    <div
+                      className="p-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => setShowResults(false)}
+                    >
+                      <div className="font-medium">{event.title}</div>
+                      <div className="text-sm text-gray-600 flex justify-between">
+                        <span>{event.category}</span>
+                        <span>{event.distance.toFixed(1)} km</span>
                       </div>
-                    </Link>
-                  ))
-                ) : (
-                  <div className="p-2 text-gray-500">Geen resultaten gevonden</div>
-                )}
+                    </div>
+                  </Link>
+                ))}
               </div>
             )}
           </div>
@@ -326,9 +322,8 @@ export default function TopNav({
                 value={[radius]}
                 onValueChange={(value) => {
                   const newRadius = value[0];
-                  setRadius(newRadius); // Update local state
                   if (onRadiusChange) {
-                    onRadiusChange(newRadius); // Propagate change externally
+                    onRadiusChange(newRadius);
                   }
                 }}
                 max={50}
@@ -358,7 +353,7 @@ export default function TopNav({
               <Slider
                 value={timeRange}
                 onValueChange={setTimeRange}
-                max={720} // 1 month
+                max={720}
                 min={1}
                 step={getStep(timeRange[0])}
                 className="w-full"

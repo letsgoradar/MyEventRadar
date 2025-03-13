@@ -116,7 +116,7 @@ interface MapViewProps {
 }
 
 export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
-  const [userLocation, setUserLocation] = useState<[number, number]>([51.7656, 5.5314]);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
 
@@ -124,11 +124,23 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const newLocation = [position.coords.latitude, position.coords.longitude] as [number, number];
+          const newLocation: [number, number] = [
+            position.coords.latitude,
+            position.coords.longitude
+          ];
+          console.log('Setting user location:', newLocation); // Debug log
           setUserLocation(newLocation);
           setLocation({lat: position.coords.latitude, lng: position.coords.longitude});
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          // Fallback to default location
+          setUserLocation([51.7656, 5.5314]);
         }
       );
+    } else {
+      // Fallback to default location if geolocation is not available
+      setUserLocation([51.7656, 5.5314]);
     }
   }, []);
 
@@ -139,7 +151,7 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
       const params = new URLSearchParams({
         lat: userLocation[0].toString(),
         lng: userLocation[1].toString(),
-        radius: "10",
+        radius: radius.toString(),
       });
 
       const response = await fetch(`/api/events/nearby?${params}`);
@@ -148,6 +160,7 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
       }
       return response.json();
     },
+    enabled: !!userLocation
   });
 
   const filteredEvents = events.filter(event => {
@@ -170,6 +183,10 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
   const tileConfig = isSatelliteView
     ? { subdomains: [] }
     : { subdomains: 'abcd' };
+
+  if (!userLocation) {
+    return <div>Loading map...</div>;
+  }
 
   return (
     <div className="h-full relative">
@@ -194,18 +211,30 @@ export default function MapView({ searchQuery, radius = 10 }: MapViewProps) {
         <TileLayer url={tileUrl} {...tileConfig} />
         <CreateEventMarker />
 
-        {userLocation && (
-          <Circle
-            center={userLocation}
-            radius={radius * 1000}
-            pathOptions={{
-              color: '#0097FB',
-              fillColor: '#0097FB',
-              fillOpacity: 0.1,
-              weight: 1
-            }}
-          />
-        )}
+        {/* User location circle */}
+        <Circle
+          center={userLocation}
+          radius={radius * 1000}
+          pathOptions={{
+            color: '#0097FB',
+            fillColor: '#0097FB',
+            fillOpacity: 0.1,
+            weight: 1
+          }}
+        />
+
+        {/* User location marker */}
+        <Marker 
+          position={userLocation}
+          icon={L.divIcon({
+            className: 'user-location-marker',
+            html: `<div style="background-color: #0097FB; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
+          })}
+        >
+          <Popup>Mijn locatie</Popup>
+        </Marker>
 
         {filteredEvents.map(event => {
           const lat = Number(event.latitude);

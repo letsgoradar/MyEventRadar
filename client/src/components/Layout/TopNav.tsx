@@ -283,14 +283,10 @@ export default function TopNav({
         </div>
       </nav>
 
-      {/* Filter Bar */}
+      {/* Filter Bar - resultaten aantal verwijderd */}
       <div className="fixed top-14 left-0 right-0 bg-white border-b z-30">
         <div className="overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2 p-2 px-4 whitespace-nowrap min-w-max">
-            {/* Resultaten count */}
-            <div className="text-sm font-medium text-gray-600">
-              {sortedEvents.length} resultaten
-            </div>
 
             {/* Time Range Filter */}
             <button

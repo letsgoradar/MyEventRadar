@@ -14,18 +14,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import Logo from '../ui/logo';
 import { calculateDistance } from '@/lib/utils';
 import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { DatePicker } from "@/components/ui/date-picker";
-import { CATEGORIES } from '@shared/schema';
 
 interface TopNavProps {
   isMapView?: boolean;
@@ -36,11 +28,13 @@ interface TopNavProps {
   onFilteredEventsChange?: (events: Event[]) => void;
 }
 
+const NEDERLAND_RADIUS = 300; // Maximale afstand voor "Heel Nederland" in km
+
 export default function TopNav({
   isMapView,
   toggleView,
   onSearch,
-  radius = 10,
+  radius = NEDERLAND_RADIUS,
   onRadiusChange,
   onFilteredEventsChange
 }: TopNavProps) {
@@ -55,7 +49,6 @@ export default function TopNav({
   const [showOnlyFree, setShowOnlyFree] = useState(false);
   const [sortBy, setSortBy] = useState<'distance' | 'startTime'>('distance');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [, setLocation] = useLocation();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -71,7 +64,6 @@ export default function TopNav({
         },
         () => {
           console.error("Could not get user location");
-          // Default to center of Netherlands
           setUserLocation({
             lat: 52.3676,
             lng: 4.9041,
@@ -87,39 +79,15 @@ export default function TopNav({
   const priceFilterRef = useRef<HTMLDivElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
 
-  // Clickaway handler
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (timeFilterRef.current && !timeFilterRef.current.contains(event.target as Node)) {
-        setShowTimeFilter(false);
-      }
-      if (radiusSliderRef.current && !radiusSliderRef.current.contains(event.target as Node)) {
-        setShowRadiusSlider(false);
-      }
-      if (priceFilterRef.current && !priceFilterRef.current.contains(event.target as Node)) {
-        setShowPriceFilter(false);
-      }
-      if (searchResultsRef.current && !searchResultsRef.current.contains(event.target as Node)) {
-        setShowResults(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
   const { data: events = [] } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius, selectedCategories],
+    queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius],
     queryFn: async () => {
       if (!userLocation) return [];
       const params = new URLSearchParams({
         lat: userLocation.lat.toString(),
         lng: userLocation.lng.toString(),
         radius: radius.toString(),
-        query: searchQuery,
-        categories: selectedCategories.join(',')
+        query: searchQuery
       });
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) throw new Error('Failed to fetch events');
@@ -135,16 +103,8 @@ export default function TopNav({
         const searchLower = searchQuery.toLowerCase();
         return (
           event.title?.toLowerCase().includes(searchLower) ||
-          event.category?.toLowerCase().includes(searchLower) ||
           event.description?.toLowerCase().includes(searchLower)
         );
-      }
-      return true;
-    })
-    .filter(event => {
-      // Category filter - check of event in geselecteerde categorieën zit
-      if (selectedCategories.length > 0) {
-        return selectedCategories.includes(event.category);
       }
       return true;
     })
@@ -177,12 +137,11 @@ export default function TopNav({
           )
         : Infinity
     }))
-    .filter(event => event.distance <= radius)
+    .filter(event => radius === NEDERLAND_RADIUS || event.distance <= radius)
     .sort((a, b) => {
       if (sortBy === 'distance') {
         return a.distance - b.distance;
       } else {
-        // Sort by start time
         return compareAsc(new Date(a.startTime), new Date(b.startTime));
       }
     });
@@ -192,6 +151,16 @@ export default function TopNav({
       onFilteredEventsChange(sortedEvents);
     }
   }, [sortedEvents, onFilteredEventsChange]);
+
+  // Helper function voor tijd weergave
+  function formatTimeRange(hours: number): string {
+    if (hours < 24) return `${hours} uur`;
+    if (hours === 24) return '1 dag';
+    if (hours < 168) return `${Math.floor(hours / 24)} dagen`;
+    if (hours === 168) return '1 week';
+    if (hours < 720) return `${Math.floor(hours / 168)} weken`;
+    return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
+  }
 
   return (
     <>
@@ -287,30 +256,8 @@ export default function TopNav({
               onClick={() => setShowTimeFilter(true)}
               className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
             >
-              Binnen {timeRange[0]} uur
+              Binnen {formatTimeRange(timeRange[0])}
             </button>
-
-            {/* Multi-select Category Filter */}
-            <Select
-              value={selectedCategories}
-              onValueChange={setSelectedCategories}
-              multiple
-            >
-              <SelectTrigger className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors border-0 h-auto">
-                <SelectValue placeholder={
-                  selectedCategories.length === 0
-                    ? "Alle categorieën"
-                    : `${selectedCategories.length} categorie${selectedCategories.length === 1 ? '' : 'ën'}`
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
 
             {/* Search Query Tag */}
             {searchQuery && (
@@ -323,13 +270,12 @@ export default function TopNav({
               </button>
             )}
 
-
             {/* Radius Filter */}
             <button
               onClick={() => setShowRadiusSlider(!showRadiusSlider)}
               className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
             >
-              {radius} km
+              {radius === NEDERLAND_RADIUS ? 'Heel Nederland' : `${radius} km`} • {sortedEvents.length} resultaten
             </button>
 
             {/* Price Filter */}
@@ -382,13 +328,14 @@ export default function TopNav({
                   onRadiusChange(newRadius);
                 }
               }}
-              max={200}
+              max={NEDERLAND_RADIUS}
               min={1}
               step={1}
               className="w-full"
             />
             <div className="flex justify-between text-sm text-gray-600 mt-1">
-              <span>Zoekgebied: {radius} km</span>
+              <span>Zoekgebied: {radius === NEDERLAND_RADIUS ? 'Heel Nederland' : `${radius} km`}</span>
+              <span>{sortedEvents.length} resultaten</span>
             </div>
           </div>
         </div>
@@ -430,12 +377,3 @@ export default function TopNav({
     </>
   );
 }
-
-const formatTimeRange = (hours: number) => {
-  if (hours < 24) return `${hours} uur`;
-  if (hours === 24) return '1 dag';
-  if (hours < 168) return `${Math.floor(hours / 24)} dagen`;
-  if (hours === 168) return '1 week';
-  if (hours < 720) return `${Math.floor(hours / 168)} weken`;
-  return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
-};

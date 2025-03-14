@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Map, List, X, ArrowUpDown } from 'lucide-react';
@@ -14,10 +14,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import Logo from '../ui/logo';
 import { calculateDistance } from '@/lib/utils';
 import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { DatePicker } from "@/components/ui/date-picker";
+import { CATEGORIES } from '@shared/schema';
 
 interface TopNavProps {
   isMapView?: boolean;
@@ -46,15 +54,10 @@ export default function TopNav({
   const [priceRange, setPriceRange] = useState<number[]>([50]); // Default max price
   const [showOnlyFree, setShowOnlyFree] = useState(false);
   const [sortBy, setSortBy] = useState<'distance' | 'startTime'>('distance');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date()); // Use current date as default
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedCategory, setSelectedCategory] = useState<string>("all"); // "all" voor alle categorieën
   const [, setLocation] = useLocation();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-
-  // Refs for clickaway handlers
-  const timeFilterRef = useRef<HTMLDivElement>(null);
-  const radiusSliderRef = useRef<HTMLDivElement>(null);
-  const priceFilterRef = useRef<HTMLDivElement>(null);
-  const searchResultsRef = useRef<HTMLDivElement>(null);
 
   // Get user location
   useEffect(() => {
@@ -77,6 +80,12 @@ export default function TopNav({
       );
     }
   }, []);
+
+  // Refs for clickaway handlers
+  const timeFilterRef = useRef<HTMLDivElement>(null);
+  const radiusSliderRef = useRef<HTMLDivElement>(null);
+  const priceFilterRef = useRef<HTMLDivElement>(null);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
 
   // Clickaway handler
   useEffect(() => {
@@ -102,7 +111,7 @@ export default function TopNav({
   }, []);
 
   const { data: events = [] } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius],
+    queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius, selectedCategory],
     queryFn: async () => {
       if (!userLocation) return [];
       const params = new URLSearchParams({
@@ -111,7 +120,8 @@ export default function TopNav({
         radius: radius.toString(),
         query: searchQuery,
         date: selectedDate.toISOString(),
-        timeRange: timeRange[0].toString()
+        timeRange: timeRange[0].toString(),
+        category: selectedCategory === "all" ? "" : selectedCategory // Stuur lege string voor alle categorieën
       });
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) throw new Error('Failed to fetch events');
@@ -134,6 +144,13 @@ export default function TopNav({
       return true;
     })
     .filter(event => {
+      // Category filter
+      if (selectedCategory !== "all") {
+        return event.category === selectedCategory;
+      }
+      return true;
+    })
+    .filter(event => {
       // Date and time range filter
       const eventDate = new Date(event.startTime);
       const rangeEnd = addHours(selectedDate, timeRange[0]);
@@ -147,7 +164,7 @@ export default function TopNav({
       // Price filter
       if (showOnlyFree) return !event.isPaid;
       if (event.isPaid && event.price !== null) {
-        return event.price <= priceRange[0];
+        return Number(event.price) <= priceRange[0];
       }
       return true;
     })
@@ -171,15 +188,6 @@ export default function TopNav({
         return compareAsc(new Date(a.startTime), new Date(b.startTime));
       }
     });
-
-  const formatTimeRange = (hours: number) => {
-    if (hours < 24) return `${hours} uur`;
-    if (hours === 24) return '1 dag';
-    if (hours < 168) return `${Math.floor(hours / 24)} dagen`;
-    if (hours === 168) return '1 week';
-    if (hours < 720) return `${Math.floor(hours / 168)} weken`;
-    return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
-  };
 
   useEffect(() => {
     if (onFilteredEventsChange) {
@@ -281,8 +289,26 @@ export default function TopNav({
               onClick={() => setShowTimeFilter(true)}
               className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
             >
-              {formatTimeRange(timeRange[0])}
+              Binnen {timeRange[0]} uur
             </button>
+
+            {/* Category Filter */}
+            <Select 
+              value={selectedCategory} 
+              onValueChange={setSelectedCategory}
+            >
+              <SelectTrigger className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors border-0 h-auto">
+                <SelectValue placeholder="Alle categorieën" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle categorieën</SelectItem>
+                {CATEGORIES.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             {/* Search Query Tag */}
             {searchQuery && (
@@ -291,6 +317,17 @@ export default function TopNav({
                 className="inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-700 transition-colors"
               >
                 {searchQuery}
+                <X className="h-3 w-3 ml-1" />
+              </button>
+            )}
+
+            {/* Category Tag */}
+            {selectedCategory !== "all" && (
+              <button
+                onClick={() => setSelectedCategory("all")}
+                className="inline-flex items-center px-3 py-1 bg-purple-100 hover:bg-purple-200 rounded-full text-purple-700 transition-colors"
+              >
+                {selectedCategory}
                 <X className="h-3 w-3 ml-1" />
               </button>
             )}
@@ -401,3 +438,12 @@ export default function TopNav({
     </>
   );
 }
+
+const formatTimeRange = (hours: number) => {
+    if (hours < 24) return `${hours} uur`;
+    if (hours === 24) return '1 dag';
+    if (hours < 168) return `${Math.floor(hours / 24)} dagen`;
+    if (hours === 168) return '1 week';
+    if (hours < 720) return `${Math.floor(hours / 168)} weken`;
+    return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
+  };

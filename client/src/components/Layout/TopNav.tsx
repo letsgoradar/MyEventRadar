@@ -35,7 +35,7 @@ export default function TopNav({
   isMapView,
   toggleView,
   onSearch,
-  radius = NEDERLAND_RADIUS, // Default naar heel Nederland
+  radius = DEFAULT_RADIUS, // Verander de standaard waarde naar heel Nederland
   onRadiusChange,
   onFilteredEventsChange
 }: TopNavProps) {
@@ -46,9 +46,8 @@ export default function TopNav({
   const [showRadiusSlider, setShowRadiusSlider] = useState(false);
   const [showPriceFilter, setShowPriceFilter] = useState(false);
   const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
-  const [priceRange, setPriceRange] = useState<number[]>([200]); // Hogere default prijs
+  const [priceRange, setPriceRange] = useState<number[]>([50]); // Default max price
   const [showOnlyFree, setShowOnlyFree] = useState(false);
-  const [showAllPrices, setShowAllPrices] = useState(true); // Nieuwe state voor alle prijzen
   const [sortBy, setSortBy] = useState<'distance' | 'startTime'>('distance');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [, setLocation] = useLocation();
@@ -155,7 +154,6 @@ export default function TopNav({
     })
     .filter(event => {
       // Price filter
-      if (showAllPrices) return true;
       if (showOnlyFree) return !event.isPaid;
       if (event.isPaid && event.price !== null) {
         return Number(event.price) <= priceRange[0];
@@ -324,7 +322,7 @@ export default function TopNav({
               onClick={() => handleFilterClick('price')}
               className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
             >
-              {showAllPrices ? 'Alle evenementen' : (showOnlyFree ? 'Gratis' : `Tot €${priceRange[0]}`)}
+              {showOnlyFree ? 'Gratis' : `Tot €${priceRange[0]}`}
             </button>
           </div>
         </div>
@@ -387,32 +385,13 @@ export default function TopNav({
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={showAllPrices}
-                onChange={(e) => {
-                  setShowAllPrices(e.target.checked);
-                  if (e.target.checked) {
-                    setShowOnlyFree(false);
-                  }
-                }}
-                className="w-4 h-4"
-              />
-              <span className="text-sm">Alle evenementen</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
                 checked={showOnlyFree}
-                onChange={(e) => {
-                  setShowOnlyFree(e.target.checked);
-                  if (e.target.checked) {
-                    setShowAllPrices(false);
-                  }
-                }}
+                onChange={(e) => setShowOnlyFree(e.target.checked)}
                 className="w-4 h-4"
               />
               <span className="text-sm">Alleen gratis evenementen</span>
             </div>
-            {!showOnlyFree && !showAllPrices && (
+            {!showOnlyFree && (
               <div className="flex-1">
                 <Slider
                   value={priceRange}
@@ -421,6 +400,7 @@ export default function TopNav({
                   min={0}
                   step={1}
                   className="w-full"
+                  disabled={showOnlyFree}
                 />
                 <div className="flex justify-between text-sm text-gray-600 mt-1">
                   <span>Maximale prijs: €{priceRange[0]}</span>

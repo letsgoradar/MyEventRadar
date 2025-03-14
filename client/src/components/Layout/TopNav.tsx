@@ -251,6 +251,11 @@ export default function TopNav({
       <div className="fixed top-14 left-0 right-0 bg-white border-b z-30">
         <div className="overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2 p-2 px-4 whitespace-nowrap min-w-max">
+            {/* Resultaten count */}
+            <div className="text-sm font-medium text-gray-600">
+              {sortedEvents.length} resultaten
+            </div>
+
             {/* Time Range Filter */}
             <button
               onClick={() => setShowTimeFilter(true)}
@@ -275,7 +280,7 @@ export default function TopNav({
               onClick={() => setShowRadiusSlider(!showRadiusSlider)}
               className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
             >
-              {radius === NEDERLAND_RADIUS ? 'Heel Nederland' : `${radius} km`} • {sortedEvents.length} resultaten
+              {radius === NEDERLAND_RADIUS ? 'Heel Nederland' : `${radius} km`}
             </button>
 
             {/* Price Filter */}
@@ -289,7 +294,7 @@ export default function TopNav({
         </div>
       </div>
 
-      {/* Time-to-event filter */}
+      {/* Time Filter Dialog */}
       {showTimeFilter && (
         <div ref={timeFilterRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
           <div className="flex items-center gap-4 max-w-xl mx-auto">
@@ -309,7 +314,6 @@ export default function TopNav({
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
                 <span>Tijd tot event: {formatTimeRange(timeRange[0])}</span>
-                <span>{sortedEvents.length} resultaten</span>
               </div>
             </div>
           </div>
@@ -335,7 +339,6 @@ export default function TopNav({
             />
             <div className="flex justify-between text-sm text-gray-600 mt-1">
               <span>Zoekgebied: {radius === NEDERLAND_RADIUS ? 'Heel Nederland' : `${radius} km`}</span>
-              <span>{sortedEvents.length} resultaten</span>
             </div>
           </div>
         </div>
@@ -367,7 +370,6 @@ export default function TopNav({
                 />
                 <div className="flex justify-between text-sm text-gray-600 mt-1">
                   <span>Maximale prijs: €{priceRange[0]}</span>
-                  <span>{sortedEvents.length} resultaten</span>
                 </div>
               </div>
             )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Event } from '@shared/schema';
@@ -18,16 +18,16 @@ function createEventIcon(category: keyof typeof CATEGORY_COLORS) {
     className: 'event-marker',
     html: `
       <div style="
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
         background-color: ${color};
         border-radius: 50%;
         border: 2px solid white;
         box-shadow: 0 0 4px rgba(0,0,0,0.2);
       "></div>
     `,
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
   });
 }
 

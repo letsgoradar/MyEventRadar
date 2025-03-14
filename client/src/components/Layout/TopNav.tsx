@@ -353,9 +353,8 @@ export default function TopNav({
             <Slider
               value={[radius]}
               onValueChange={(value) => {
-                const newRadius = value[0];
                 if (onRadiusChange) {
-                  onRadiusChange(newRadius);
+                  onRadiusChange(value[0]);
                 }
               }}
               max={NEDERLAND_RADIUS}

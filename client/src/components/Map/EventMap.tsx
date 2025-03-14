@@ -19,7 +19,7 @@ export default function EventMap({ events, onEventClick, center = [52.3676, 4.90
       {/* Event count overlay */}
       <div className="absolute top-4 left-4 z-[1000] bg-white/90 px-4 py-2 rounded-full shadow-md">
         <span className="font-medium text-blue-600">
-          {events.length} evenement{events.length !== 1 ? 'en' : ''}
+          {events.length} evenement{events.length !== 1 ? 'en' : ''} gevonden
         </span>
       </div>
 

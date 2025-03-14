@@ -55,7 +55,7 @@ export default function TopNav({
   const [showOnlyFree, setShowOnlyFree] = useState(false);
   const [sortBy, setSortBy] = useState<'distance' | 'startTime'>('distance');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedCategory, setSelectedCategory] = useState<string>("all"); // "all" voor alle categorieën
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]); // Nieuwe state voor meerdere categorieën
   const [, setLocation] = useLocation();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -111,7 +111,7 @@ export default function TopNav({
   }, []);
 
   const { data: events = [] } = useQuery<Event[]>({
-    queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius, selectedCategory],
+    queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius, selectedCategories],
     queryFn: async () => {
       if (!userLocation) return [];
       const params = new URLSearchParams({
@@ -121,7 +121,7 @@ export default function TopNav({
         query: searchQuery,
         date: selectedDate.toISOString(),
         timeRange: timeRange[0].toString(),
-        category: selectedCategory === "all" ? "" : selectedCategory // Stuur lege string voor alle categorieën
+        categories: selectedCategories.join(',') // Meerdere categorieën doorgeven
       });
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) throw new Error('Failed to fetch events');
@@ -144,9 +144,9 @@ export default function TopNav({
       return true;
     })
     .filter(event => {
-      // Category filter
-      if (selectedCategory !== "all") {
-        return event.category === selectedCategory;
+      // Category filter - check of event in geselecteerde categorieën zit
+      if (selectedCategories.length > 0) {
+        return selectedCategories.includes(event.category);
       }
       return true;
     })
@@ -292,16 +292,20 @@ export default function TopNav({
               Binnen {timeRange[0]} uur
             </button>
 
-            {/* Category Filter */}
-            <Select 
-              value={selectedCategory} 
-              onValueChange={setSelectedCategory}
+            {/* Multi-select Category Filter */}
+            <Select
+              value={selectedCategories}
+              onValueChange={(value: string[]) => setSelectedCategories(value)}
+              multiple
             >
               <SelectTrigger className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors border-0 h-auto">
-                <SelectValue placeholder="Alle categorieën" />
+                <SelectValue placeholder={
+                  selectedCategories.length === 0
+                    ? "Alle categorieën"
+                    : `${selectedCategories.length} categorie${selectedCategories.length === 1 ? '' : 'ën'}`
+                } />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle categorieën</SelectItem>
                 {CATEGORIES.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
@@ -321,16 +325,6 @@ export default function TopNav({
               </button>
             )}
 
-            {/* Category Tag */}
-            {selectedCategory !== "all" && (
-              <button
-                onClick={() => setSelectedCategory("all")}
-                className="inline-flex items-center px-3 py-1 bg-purple-100 hover:bg-purple-200 rounded-full text-purple-700 transition-colors"
-              >
-                {selectedCategory}
-                <X className="h-3 w-3 ml-1" />
-              </button>
-            )}
 
             {/* Radius Filter */}
             <button
@@ -440,10 +434,10 @@ export default function TopNav({
 }
 
 const formatTimeRange = (hours: number) => {
-    if (hours < 24) return `${hours} uur`;
-    if (hours === 24) return '1 dag';
-    if (hours < 168) return `${Math.floor(hours / 24)} dagen`;
-    if (hours === 168) return '1 week';
-    if (hours < 720) return `${Math.floor(hours / 168)} weken`;
-    return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
-  };
+  if (hours < 24) return `${hours} uur`;
+  if (hours === 24) return '1 dag';
+  if (hours < 168) return `${Math.floor(hours / 24)} dagen`;
+  if (hours === 168) return '1 week';
+  if (hours < 720) return `${Math.floor(hours / 168)} weken`;
+  return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
+};

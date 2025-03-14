@@ -28,13 +28,14 @@ interface TopNavProps {
   onFilteredEventsChange?: (events: Event[]) => void;
 }
 
+const DEFAULT_RADIUS = 25; // Standaard radius in km
 const NEDERLAND_RADIUS = 300; // Maximale afstand voor "Heel Nederland" in km
 
 export default function TopNav({
   isMapView,
   toggleView,
   onSearch,
-  radius = NEDERLAND_RADIUS,
+  radius = DEFAULT_RADIUS, // Verander de standaard waarde
   onRadiusChange,
   onFilteredEventsChange
 }: TopNavProps) {

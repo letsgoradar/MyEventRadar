@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Event } from '@shared/schema';
-import { CATEGORY_COLORS, CATEGORY_PATHS } from '../CategoryIcon';
-import { differenceInHours, format } from 'date-fns';
+import { CATEGORY_COLORS } from '../CategoryIcon';
+import { format } from 'date-fns';
 import './event-marker.css';
 import { Link } from 'wouter';
 
@@ -12,50 +12,30 @@ interface EventMarkerProps {
   onClick?: () => void;
 }
 
-function createEventIcon(category: keyof typeof CATEGORY_COLORS, isStartingSoon: boolean) {
+function createEventIcon(category: keyof typeof CATEGORY_COLORS) {
   const color = CATEGORY_COLORS[category] || '#94A3B8';
-  const iconPath = CATEGORY_PATHS[category];
-  const size = isStartingSoon ? 24 : 20;
-
   return L.divIcon({
-    className: `event-marker ${isStartingSoon ? 'starting-soon' : ''}`,
+    className: 'event-marker',
     html: `
-      <div class="marker-inner" style="
-        width: ${size}px;
-        height: ${size}px;
+      <div style="
+        width: 12px;
+        height: 12px;
         background-color: ${color};
         border-radius: 50%;
         border: 2px solid white;
         box-shadow: 0 0 4px rgba(0,0,0,0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      ">
-        ${iconPath ? `
-          <svg viewBox="0 0 24 24" width="${size-8}" height="${size-8}" style="fill: white">
-            <path d="${iconPath}"/>
-          </svg>
-        ` : ''}
-      </div>
+      "></div>
     `,
-    iconSize: [size, size],
-    iconAnchor: [size/2, size/2],
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
   });
 }
 
 export default function EventMarker({ event, onClick }: EventMarkerProps) {
-  const [isStartingSoon, setIsStartingSoon] = useState(false);
-
-  useEffect(() => {
-    // Check if event starts within the next 2 hours
-    const hoursUntilStart = differenceInHours(new Date(event.startTime), new Date());
-    setIsStartingSoon(hoursUntilStart >= 0 && hoursUntilStart <= 2);
-  }, [event.startTime]);
-
   return (
     <Marker
       position={[Number(event.latitude), Number(event.longitude)]}
-      icon={createEventIcon(event.category as keyof typeof CATEGORY_COLORS, isStartingSoon)}
+      icon={createEventIcon(event.category as keyof typeof CATEGORY_COLORS)}
       eventHandlers={{
         click: onClick
       }}

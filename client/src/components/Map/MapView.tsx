@@ -75,7 +75,7 @@ export default function MapView({
 
       <MapContainer
         center={DEFAULT_CENTER}
-        zoom={8} // Start met een zoom level dat ongeveer 25km radius geeft
+        zoom={9} // Start met een zoom level dat ongeveer 25km radius geeft
         className="h-full w-full"
         zoomControl={false}
         worldCopyJump={true}

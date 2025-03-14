@@ -2,8 +2,8 @@ import { Trophy, Palette, Users, GraduationCap, Heart } from 'lucide-react';
 import { CATEGORIES } from '@shared/schema';
 
 export const CATEGORY_COLORS = {
-  'Sport en spel': '#4F46E5', // indigo-600 (blauw)
-  'Kunst en Cultuur': '#9333EA', // purple-600 (paars)
+  'Sport en spel': '#3B82F6', // blue-500
+  'Kunst en Cultuur': '#8B5CF6', // violet-500 (paars)
   'Gezellig en Sociaal': '#22C55E', // green-500
   'Leren en Ontdekken': '#F97316', // orange-500
   'Vrijwilligerswerk en hulp': '#EF4444', // red-500

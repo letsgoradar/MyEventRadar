@@ -3,12 +3,74 @@ import { events, CATEGORIES } from '../../shared/schema';
 import { addDays, addHours, setHours, setMinutes } from 'date-fns';
 
 // Nederlandse steden met coördinaten
-const CENTER_COORDS = {
-  lat: 52.3676,
-  lng: 4.9041
+const DUTCH_CITIES = [
+  { name: 'Amsterdam', lat: 52.3676, lng: 4.9041 },
+  { name: 'Rotterdam', lat: 51.9225, lng: 4.4792 },
+  { name: 'Den Haag', lat: 52.0705, lng: 4.3007 },
+  { name: 'Utrecht', lat: 52.0907, lng: 5.1214 },
+  { name: 'Eindhoven', lat: 51.4416, lng: 5.4697 },
+  { name: 'Groningen', lat: 53.2194, lng: 6.5665 },
+  { name: 'Tilburg', lat: 51.5719, lng: 5.0722 },
+  { name: 'Almere', lat: 52.3508, lng: 5.2647 },
+  { name: 'Breda', lat: 51.5719, lng: 4.7683 },
+  { name: 'Nijmegen', lat: 51.8426, lng: 5.8546 },
+  { name: 'Enschede', lat: 52.2215, lng: 6.8937 },
+  { name: 'Haarlem', lat: 52.3874, lng: 4.6462 },
+  { name: 'Arnhem', lat: 51.9851, lng: 5.8987 },
+  { name: 'Zaanstad', lat: 52.4537, lng: 4.8137 },
+  { name: 'Den Bosch', lat: 51.6998, lng: 5.3049 }
+];
+
+const EVENT_TITLES = {
+  'Sport en spel': [
+    'Voetbaltoernooi',
+    'Game-avond',
+    'Sportdag',
+    'Tennis clinic',
+    'Schaaktoernooi'
+  ],
+  'Kunst en Cultuur': [
+    'Kunstexpositie',
+    'Theatervoorstelling',
+    'Filmfestival',
+    'Muziekconcert',
+    'Dansvoorstelling'
+  ],
+  'Gezellig en Sociaal': [
+    'Buurtborrel',
+    'Zomerfeest',
+    'Netwerkevent',
+    'Spelletjesavond',
+    'BBQ & Muziek'
+  ],
+  'Leren en Ontdekken': [
+    'Workshop fotografie',
+    'Lezing geschiedenis',
+    'Cursus koken',
+    'Masterclass',
+    'Tech meetup'
+  ],
+  'Vrijwilligerswerk en hulp': [
+    'Buurtschoonmaak',
+    'Voedselbank actie',
+    'Vrijwilligersdag',
+    'Hulp ouderen',
+    'Gemeenschapsproject'
+  ]
 };
 
-const RADIUS_KM = 150;
+const EVENT_DESCRIPTIONS = [
+  'Een unieke gelegenheid om nieuwe mensen te ontmoeten en te netwerken. Met interessante sprekers, workshops en natuurlijk veel ruimte voor interactie.',
+  'Geniet van een dag vol entertainment, muziek en heerlijk eten. Perfect voor het hele gezin!',
+  'Ontdek de nieuwste trends en innovaties in de industrie. Met experts van over de hele wereld.',
+  'Een gezellige dag uit voor het hele gezin met activiteiten voor jong en oud.',
+  'Leer nieuwe vaardigheden van experts in het veld. Inclusief hands-on workshops.',
+  'Een spectaculaire show die je niet mag missen! Met nationale en internationale artiesten.',
+  'Kom langs en laat je inspireren door de beste sprekers van dit moment.',
+  'Een dag vol activiteiten en workshops voor jong en oud. Voor ieder wat wils!',
+  'Ervaar de magie van live optredens en shows. Een onvergetelijke ervaring.',
+  'Een leerzame ervaring met praktische tips en tricks van experts.'
+];
 
 function getRandomElement<T>(array: T[]): T {
   return array[Math.floor(Math.random() * array.length)];
@@ -18,26 +80,15 @@ function getRandomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function getRandomCoordinates(centerLat: number, centerLng: number, radiusKm: number) {
+function getRandomCoordinates(baseLocation: { lat: number, lng: number }, radiusKm: number) {
   // Convert radius from kilometers to degrees (approximate)
   const radiusLat = radiusKm / 111.32;
-  const radiusLng = radiusKm / (111.32 * Math.cos(centerLat * Math.PI / 180));
+  const radiusLng = radiusKm / (111.32 * Math.cos(baseLocation.lat * Math.PI / 180));
 
-  const randomLat = centerLat + (Math.random() - 0.5) * radiusLat * 2;
-  const randomLng = centerLng + (Math.random() - 0.5) * radiusLng * 2;
+  const randomLat = baseLocation.lat + (Math.random() - 0.5) * radiusLat * 2;
+  const randomLng = baseLocation.lng + (Math.random() - 0.5) * radiusLng * 2;
 
   return { lat: randomLat, lng: randomLng };
-}
-
-function generateRandomDescription(): string {
-  const descriptions = [
-    'Een geweldig evenement dat je niet mag missen! Met veel activiteiten en entertainment voor iedereen.',
-    'Kom langs en geniet van deze unieke ervaring. Perfect voor het hele gezin.',
-    'Een spannend evenement met veel verrassingen. Zorg dat je erbij bent!',
-    'Een gezellige dag uit met vrienden en familie. Voor ieder wat wils.',
-    'Ontdek nieuwe dingen en ontmoet interessante mensen op dit speciale evenement.'
-  ];
-  return getRandomElement(descriptions);
 }
 
 async function generateTestEvents(count: number) {
@@ -45,8 +96,10 @@ async function generateTestEvents(count: number) {
   const now = new Date();
 
   for (let i = 0; i < count; i++) {
-    const coords = getRandomCoordinates(CENTER_COORDS.lat, CENTER_COORDS.lng, RADIUS_KM);
+    const city = getRandomElement(DUTCH_CITIES);
+    const coords = getRandomCoordinates(city, 10); // 10km radius around city center
     const category = getRandomElement(CATEGORIES);
+    const titlePrefix = getRandomElement(EVENT_TITLES[category]);
     const daysFromNow = getRandomInt(1, 30);
     const startTime = setMinutes(
       setHours(addDays(now, daysFromNow), getRandomInt(9, 20)),
@@ -56,20 +109,28 @@ async function generateTestEvents(count: number) {
     const endTime = addHours(startTime, duration);
     const isPaid = Math.random() < 0.3; // 30% chance of being paid
 
+    // 30% chance of having a secondary category
+    const hasSecondaryCategory = Math.random() < 0.3;
+    const secondaryCategory = hasSecondaryCategory
+      ? getRandomElement(CATEGORIES.filter(c => c !== category))
+      : null;
+
     const event = {
-      title: `${category} Event #${i + 1}`,
-      description: generateRandomDescription(),
+      title: `${titlePrefix} ${city.name}`,
+      description: getRandomElement(EVENT_DESCRIPTIONS),
       latitude: coords.lat,
       longitude: coords.lng,
       notificationReach: Math.random() * 4 + 1, // 1-5 km
       startTime: startTime,
       endTime: endTime,
       category,
+      secondaryCategory: secondaryCategory,
       isPaid: isPaid,
       price: isPaid ? getRandomInt(5, 50) : null,
       maxParticipants: getRandomInt(20, 200),
       hostId: 1,
-      recurrence: 'once' as const,
+      recurrence: 'once',
+      tags: [] // Tags will be generated by the frontend
     };
 
     eventsToCreate.push(event);
@@ -86,5 +147,5 @@ async function generateTestEvents(count: number) {
   }
 }
 
-// Generate 150 test events
-generateTestEvents(150);
+// Generate 500 test events
+generateTestEvents(500);

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
 import { Event } from "@shared/schema";
-import EventMarker from "../Events/EventMarker";
 import "leaflet/dist/leaflet.css";
 
 interface EventMapProps {
@@ -36,13 +35,6 @@ export default function EventMap({ events, onEventClick, center = [52.3676, 4.90
           }
           {...(isSatelliteView ? { subdomains: [] } : { subdomains: 'abcd' })}
         />
-        {events.map((event) => (
-          <EventMarker
-            key={event.id}
-            event={event}
-            onClick={() => onEventClick?.(event)}
-          />
-        ))}
       </MapContainer>
     </div>
   );

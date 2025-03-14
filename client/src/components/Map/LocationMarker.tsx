@@ -10,14 +10,19 @@ export default function LocationMarker() {
     className: 'my-location-marker',
     html: `
       <div class="relative">
-        <div class="absolute w-6 h-6 bg-blue-500 rounded-full opacity-25 animate-ping"></div>
-        <div class="relative w-6 h-6 bg-blue-500 rounded-full border-2 border-white">
+        <div class="absolute w-4 h-4 bg-blue-500 rounded-full opacity-40 animate-ping" 
+             style="animation-duration: 1s;">
+        </div>
+        <div class="absolute w-4 h-4 bg-blue-500 rounded-full opacity-30 animate-ping" 
+             style="animation-duration: 1.5s; animation-delay: 0.2s;">
+        </div>
+        <div class="relative w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg">
           <div class="absolute inset-0 bg-blue-500 rounded-full animate-pulse"></div>
         </div>
       </div>
     `,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
   });
 
   useEffect(() => {

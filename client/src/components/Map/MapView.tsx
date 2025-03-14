@@ -42,7 +42,7 @@ interface MapViewProps {
 
 export default function MapView({ 
   searchQuery, 
-  radius = 25, 
+  radius = 25,
   filteredEvents, 
   onEventClick,
   onRadiusChange 
@@ -62,15 +62,21 @@ export default function MapView({
   const tileConfig = isSatelliteView
     ? { 
         subdomains: [],
-        // Fix tile gaps
-        noWrap: true,
-        bounds: [[-90, -180], [90, 180]],
+        noWrap: false,
+        maxZoom: 19,
+        maxNativeZoom: 18,
+        tileSize: 256,
+        continuousWorld: true,
+        worldCopyJump: true
       }
     : { 
         subdomains: 'abcd',
-        // Fix tile gaps
-        noWrap: true,
-        bounds: [[-90, -180], [90, 180]],
+        noWrap: false,
+        maxZoom: 19,
+        maxNativeZoom: 18,
+        tileSize: 256,
+        continuousWorld: true,
+        worldCopyJump: true
       };
 
   return (
@@ -92,6 +98,7 @@ export default function MapView({
         zoom={8} // Start met een zoom level dat ongeveer 25km radius geeft
         className="h-full w-full"
         zoomControl={false}
+        worldCopyJump={true}
       >
         <TileLayer url={tileUrl} {...tileConfig} />
         <LocationMarker />

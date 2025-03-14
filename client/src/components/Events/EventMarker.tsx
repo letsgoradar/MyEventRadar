@@ -3,7 +3,7 @@ import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Event } from '@shared/schema';
 import { CATEGORY_COLORS, CATEGORY_ICONS } from '../CategoryIcon';
-import { differenceInHours } from 'date-fns';
+import { differenceInHours, format } from 'date-fns';
 import './event-marker.css';
 import { Link } from 'wouter';
 
@@ -15,18 +15,26 @@ interface EventMarkerProps {
 function createEventIcon(category: keyof typeof CATEGORY_COLORS, isStartingSoon: boolean) {
   const color = CATEGORY_COLORS[category] || '#94A3B8';
   const IconComponent = CATEGORY_ICONS[category];
-  const size = isStartingSoon ? 32 : 24;
-
-  const svg = `
-    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="${size/2}" cy="${size/2}" r="${(size/2)-1}" fill="${color}" stroke="white" stroke-width="2"/>
-      ${IconComponent ? `<path d="${IconComponent}" fill="white" transform="translate(${size/4} ${size/4}) scale(0.5)"/>` : ''}
-    </svg>
-  `;
+  const size = isStartingSoon ? 24 : 20;
 
   return L.divIcon({
     className: `event-marker ${isStartingSoon ? 'starting-soon' : ''}`,
-    html: svg,
+    html: `
+      <div class="marker-inner" style="
+        width: ${size}px;
+        height: ${size}px;
+        background-color: ${color};
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 4px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+      ">
+        ${IconComponent ? `<div style="width: ${size-8}px; height: ${size-8}px;">${IconComponent}</div>` : ''}
+      </div>
+    `,
     iconSize: [size, size],
     iconAnchor: [size/2, size/2],
   });
@@ -50,19 +58,22 @@ export default function EventMarker({ event, onClick }: EventMarkerProps) {
       }}
     >
       <Popup className="event-popup">
-        <div className="text-sm pb-1">
-          <div className="font-semibold mb-1">{event.title}</div>
+        <div className="p-2">
+          <div className="font-semibold text-lg mb-1">{event.title}</div>
+          <div className="text-sm text-gray-600 mb-2">
+            {format(new Date(event.startTime), 'dd MMM yyyy, HH:mm')}
+          </div>
           {event.description && (
-            <div className="mb-2 text-xs text-gray-600">
-              {event.description.substring(0, 80)}
-              {event.description.length > 80 ? '...' : ''}
+            <div className="text-sm text-gray-700 mb-2">
+              {event.description.substring(0, 100)}
+              {event.description.length > 100 ? '...' : ''}
             </div>
           )}
           <Link
             to={`/event/${event.id}`}
-            className="text-blue-600 hover:text-blue-800 underline text-xs"
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
           >
-            Details bekijken
+            Bekijk details →
           </Link>
         </div>
       </Popup>

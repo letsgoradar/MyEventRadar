@@ -29,10 +29,7 @@ export default function Legend({ events, selectedCategories, onToggleCategory }:
         }`}
       >
         <div className="flex items-center justify-between p-3">
-          <h3 className="text-sm font-medium text-center flex-1">
-            {events.length} resultaten
-          </h3>
-          <div className="flex items-center gap-1">
+          {isExpanded && (
             <Button
               variant="ghost"
               size="sm"
@@ -41,15 +38,18 @@ export default function Legend({ events, selectedCategories, onToggleCategory }:
             >
               <Save className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            </Button>
-          </div>
+          )}
+          <h3 className="text-sm font-medium text-center flex-1">
+            {events.length} resultaten
+          </h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </Button>
         </div>
 
         {isExpanded && (

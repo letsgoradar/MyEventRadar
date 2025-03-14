@@ -9,16 +9,29 @@ import LocationMarker from "./LocationMarker";
 import Legend from "./Legend";
 
 const NEDERLAND_RADIUS = 300; // Maximale afstand voor heel Nederland in km
+const LOCAL_RADIUS = 30; // Radius bij inzoomen op eigen locatie in km
 
 // Helper function om radius te berekenen op basis van zoom level
 function calculateRadiusFromZoom(zoom: number): number {
   const zoomToRadius = {
     0: NEDERLAND_RADIUS, 1: 3000, 2: 2000, 3: 1500,
     4: 1000, 5: 750, 6: 500, 7: 250,
-    8: 100, 9: 75, 10: 50, 11: 25,
+    8: 100, 9: 75, 10: 50, 11: LOCAL_RADIUS,
     12: 10, 13: 5, 14: 2, 15: 1
   } as const;
   return zoomToRadius[Math.min(Math.max(zoom, 0), 15) as keyof typeof zoomToRadius] || NEDERLAND_RADIUS;
+}
+
+// Helper function om zoom level te berekenen op basis van radius
+function calculateZoomFromRadius(radius: number): number {
+  const radiusToZoom = {
+    [NEDERLAND_RADIUS]: 7,
+    3000: 1, 2000: 2, 1500: 3,
+    1000: 4, 750: 5, 500: 6, 250: 7,
+    100: 8, 75: 9, 50: 10, [LOCAL_RADIUS]: 11,
+    10: 12, 5: 13, 2: 14, 1: 15
+  };
+  return radiusToZoom[radius as keyof typeof radiusToZoom] || 7;
 }
 
 // Map event handler component
@@ -44,7 +57,7 @@ interface MapViewProps {
 
 export default function MapView({ 
   searchQuery, 
-  radius = NEDERLAND_RADIUS, // Default naar heel Nederland
+  radius = NEDERLAND_RADIUS,
   filteredEvents, 
   onEventClick,
   onRadiusChange 
@@ -54,10 +67,21 @@ export default function MapView({
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const mapRef = useRef<L.Map | null>(null);
 
+  // Update radius when zoom changes
   const handleZoomEnd = (zoom: number) => {
     const newRadius = calculateRadiusFromZoom(zoom);
-    onRadiusChange?.(newRadius);
+    if (onRadiusChange) {
+      onRadiusChange(newRadius);
+    }
   };
+
+  // Update zoom when radius changes
+  useEffect(() => {
+    if (mapRef.current && radius !== undefined) {
+      const newZoom = calculateZoomFromRadius(radius);
+      mapRef.current.setZoom(newZoom);
+    }
+  }, [radius]);
 
   const handleToggleCategory = (category: string) => {
     setSelectedCategories(prev => 
@@ -75,7 +99,9 @@ export default function MapView({
             position.coords.latitude,
             position.coords.longitude
           ];
-          mapRef.current?.flyTo(userPos, 13);
+          // Zoom niveau dat correspondeert met LOCAL_RADIUS (30km)
+          const localZoom = calculateZoomFromRadius(LOCAL_RADIUS);
+          mapRef.current?.flyTo(userPos, localZoom);
         },
         () => {
           console.error("Could not get user location");

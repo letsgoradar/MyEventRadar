@@ -59,26 +59,6 @@ export default function MapView({
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
-  const tileConfig = isSatelliteView
-    ? { 
-        subdomains: [],
-        noWrap: false,
-        maxZoom: 19,
-        maxNativeZoom: 18,
-        tileSize: 256,
-        continuousWorld: true,
-        worldCopyJump: true
-      }
-    : { 
-        subdomains: 'abcd',
-        noWrap: false,
-        maxZoom: 19,
-        maxNativeZoom: 18,
-        tileSize: 256,
-        continuousWorld: true,
-        worldCopyJump: true
-      };
-
   return (
     <div className="h-full relative">
       {/* Map Controls */}
@@ -100,7 +80,12 @@ export default function MapView({
         zoomControl={false}
         worldCopyJump={true}
       >
-        <TileLayer url={tileUrl} {...tileConfig} />
+        <TileLayer 
+          url={tileUrl}
+          {...(isSatelliteView ? {} : { subdomains: 'abcd' })}
+          maxZoom={19}
+          detectRetina={true}
+        />
         <LocationMarker />
         <MapEventHandler onZoomEnd={handleZoomEnd} />
 

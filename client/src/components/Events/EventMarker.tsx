@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Event } from '@shared/schema';
-import { CATEGORY_COLORS, CATEGORY_ICONS } from '../CategoryIcon';
+import { CATEGORY_COLORS, CATEGORY_PATHS } from '../CategoryIcon';
 import { differenceInHours, format } from 'date-fns';
 import './event-marker.css';
 import { Link } from 'wouter';
@@ -14,7 +14,7 @@ interface EventMarkerProps {
 
 function createEventIcon(category: keyof typeof CATEGORY_COLORS, isStartingSoon: boolean) {
   const color = CATEGORY_COLORS[category] || '#94A3B8';
-  const IconComponent = CATEGORY_ICONS[category];
+  const iconPath = CATEGORY_PATHS[category];
   const size = isStartingSoon ? 24 : 20;
 
   return L.divIcon({
@@ -30,9 +30,12 @@ function createEventIcon(category: keyof typeof CATEGORY_COLORS, isStartingSoon:
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
       ">
-        ${IconComponent ? `<div style="width: ${size-8}px; height: ${size-8}px;">${IconComponent}</div>` : ''}
+        ${iconPath ? `
+          <svg viewBox="0 0 24 24" width="${size-8}" height="${size-8}" style="fill: white">
+            <path d="${iconPath}"/>
+          </svg>
+        ` : ''}
       </div>
     `,
     iconSize: [size, size],

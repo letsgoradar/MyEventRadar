@@ -57,7 +57,7 @@ export default function MapView({
 
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   return (
     <div className="h-full relative">
@@ -82,9 +82,9 @@ export default function MapView({
       >
         <TileLayer 
           url={tileUrl}
-          {...(isSatelliteView ? {} : { subdomains: 'abcd' })}
+          {...(isSatelliteView ? {} : { subdomains: 'abc' })}
           maxZoom={19}
-          detectRetina={true}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <LocationMarker />
         <MapEventHandler onZoomEnd={handleZoomEnd} />

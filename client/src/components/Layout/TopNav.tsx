@@ -52,6 +52,12 @@ export default function TopNav({
   const [, setLocation] = useLocation();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
+  // Refs for clickaway handlers
+  const timeFilterRef = useRef<HTMLDivElement>(null);
+  const radiusSliderRef = useRef<HTMLDivElement>(null);
+  const priceFilterRef = useRef<HTMLDivElement>(null);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
+
   // Get user location
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -73,11 +79,38 @@ export default function TopNav({
     }
   }, []);
 
-  // Refs for clickaway handlers
-  const timeFilterRef = useRef<HTMLDivElement>(null);
-  const radiusSliderRef = useRef<HTMLDivElement>(null);
-  const priceFilterRef = useRef<HTMLDivElement>(null);
-  const searchResultsRef = useRef<HTMLDivElement>(null);
+  // Clickaway handler
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      // Sluit alle filters behalve degene waar op geklikt is
+      const target = event.target as Node;
+
+      if (timeFilterRef.current && !timeFilterRef.current.contains(target)) {
+        setShowTimeFilter(false);
+      }
+      if (radiusSliderRef.current && !radiusSliderRef.current.contains(target)) {
+        setShowRadiusSlider(false);
+      }
+      if (priceFilterRef.current && !priceFilterRef.current.contains(target)) {
+        setShowPriceFilter(false);
+      }
+      if (searchResultsRef.current && !searchResultsRef.current.contains(target)) {
+        setShowResults(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Handle filter opening - sluit andere filters
+  const handleFilterClick = (filterName: 'time' | 'radius' | 'price') => {
+    setShowTimeFilter(filterName === 'time');
+    setShowRadiusSlider(filterName === 'radius');
+    setShowPriceFilter(filterName === 'price');
+  };
 
   const { data: events = [] } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius],
@@ -258,7 +291,7 @@ export default function TopNav({
 
             {/* Time Range Filter */}
             <button
-              onClick={() => setShowTimeFilter(true)}
+              onClick={() => handleFilterClick('time')}
               className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
             >
               Binnen {formatTimeRange(timeRange[0])}
@@ -277,7 +310,7 @@ export default function TopNav({
 
             {/* Radius Filter */}
             <button
-              onClick={() => setShowRadiusSlider(!showRadiusSlider)}
+              onClick={() => handleFilterClick('radius')}
               className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
             >
               {radius === NEDERLAND_RADIUS ? 'Heel Nederland' : `${radius} km`}
@@ -285,7 +318,7 @@ export default function TopNav({
 
             {/* Price Filter */}
             <button
-              onClick={() => setShowPriceFilter(!showPriceFilter)}
+              onClick={() => handleFilterClick('price')}
               className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
             >
               {showOnlyFree ? 'Gratis' : `Tot €${priceRange[0]}`}
@@ -378,4 +411,13 @@ export default function TopNav({
       )}
     </>
   );
+}
+
+function formatTimeRange(hours: number): string {
+  if (hours < 24) return `${hours} uur`;
+  if (hours === 24) return '1 dag';
+  if (hours < 168) return `${Math.floor(hours / 24)} dagen`;
+  if (hours === 168) return '1 week';
+  if (hours < 720) return `${Math.floor(hours / 168)} weken`;
+  return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
 }

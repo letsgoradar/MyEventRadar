@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import React, { useState } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
+import EventMarker from "../Events/EventMarker";
 
 interface MapViewProps {
   searchQuery: string;
   radius?: number;
   filteredEvents: Event[];
+  onEventClick?: (event: Event) => void;
 }
 
-export default function MapView({ searchQuery, radius = 10, filteredEvents }: MapViewProps) {
+export default function MapView({ searchQuery, radius = 10, filteredEvents, onEventClick }: MapViewProps) {
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const DEFAULT_CENTER: [number, number] = [52.3676, 4.9041]; // Center of Netherlands
 
@@ -44,6 +46,15 @@ export default function MapView({ searchQuery, radius = 10, filteredEvents }: Ma
         zoomControl={false}
       >
         <TileLayer url={tileUrl} {...tileConfig} />
+
+        {/* Event Markers */}
+        {filteredEvents.map((event) => (
+          <EventMarker
+            key={event.id}
+            event={event}
+            onClick={() => onEventClick?.(event)}
+          />
+        ))}
       </MapContainer>
     </div>
   );

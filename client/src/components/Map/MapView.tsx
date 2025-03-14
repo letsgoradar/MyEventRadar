@@ -6,6 +6,7 @@ import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import EventMarker from "../Events/EventMarker";
 import LocationMarker from "./LocationMarker";
+import Legend from "./Legend";
 
 // Helper function om radius te berekenen op basis van zoom level
 function calculateRadiusFromZoom(zoom: number): number {
@@ -15,8 +16,8 @@ function calculateRadiusFromZoom(zoom: number): number {
     4: 1000, 5: 750, 6: 500, 7: 250,
     8: 100, 9: 75, 10: 50, 11: 25,
     12: 10, 13: 5, 14: 2, 15: 1
-  };
-  return zoomToRadius[Math.min(Math.max(zoom, 0), 15)] || 25;
+  } as const;
+  return zoomToRadius[Math.min(Math.max(zoom, 0), 15) as keyof typeof zoomToRadius] || 25;
 }
 
 // Map event handler component
@@ -98,6 +99,9 @@ export default function MapView({
           />
         ))}
       </MapContainer>
+
+      {/* Legend */}
+      <Legend />
     </div>
   );
 }

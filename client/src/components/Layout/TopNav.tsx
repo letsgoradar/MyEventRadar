@@ -55,7 +55,7 @@ export default function TopNav({
   const [showOnlyFree, setShowOnlyFree] = useState(false);
   const [sortBy, setSortBy] = useState<'distance' | 'startTime'>('distance');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]); // Nieuwe state voor meerdere categorieën
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [, setLocation] = useLocation();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -119,9 +119,7 @@ export default function TopNav({
         lng: userLocation.lng.toString(),
         radius: radius.toString(),
         query: searchQuery,
-        date: selectedDate.toISOString(),
-        timeRange: timeRange[0].toString(),
-        categories: selectedCategories.join(',') // Meerdere categorieën doorgeven
+        categories: selectedCategories.join(',')
       });
       const response = await fetch(`/api/events/nearby?${params}`);
       if (!response.ok) throw new Error('Failed to fetch events');
@@ -295,7 +293,7 @@ export default function TopNav({
             {/* Multi-select Category Filter */}
             <Select
               value={selectedCategories}
-              onValueChange={(value: string[]) => setSelectedCategories(value)}
+              onValueChange={setSelectedCategories}
               multiple
             >
               <SelectTrigger className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors border-0 h-auto">

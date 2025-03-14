@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Event } from '@shared/schema';
-import { CATEGORY_COLORS, CATEGORY_PATHS } from '../CategoryIcon';
+import { CATEGORY_COLORS } from '../CategoryIcon';
 import { differenceInHours } from 'date-fns';
 import './event-marker.css';
 
@@ -14,41 +14,18 @@ interface EventMarkerProps {
 function createEventIcon(category: string, isStartingSoon: boolean) {
   const color = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || '#94A3B8';
   const size = isStartingSoon ? 24 : 16;
-  const iconPath = CATEGORY_PATHS[category as keyof typeof CATEGORY_PATHS];
 
   return L.divIcon({
     className: `custom-event-marker ${isStartingSoon ? 'starting-soon' : ''}`,
     html: `
       <div class="marker-inner" style="
-        position: relative;
         width: ${size}px;
         height: ${size}px;
-      ">
-        <div style="
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-color: ${color};
-          border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 0 4px rgba(0,0,0,0.2);
-        "></div>
-        <svg 
-          viewBox="0 0 24 24" 
-          width="${size-4}px" 
-          height="${size-4}px" 
-          fill="white"
-          style="
-            position: absolute;
-            top: 2px;
-            left: 2px;
-          "
-        >
-          <path d="${iconPath}"/>
-        </svg>
-      </div>
+        background-color: ${color};
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 4px rgba(0,0,0,0.2);
+      "></div>
     `,
     iconSize: [size, size],
     iconAnchor: [size/2, size/2],

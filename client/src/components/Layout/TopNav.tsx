@@ -28,8 +28,7 @@ interface TopNavProps {
   onFilteredEventsChange?: (events: Event[]) => void;
 }
 
-const DEFAULT_RADIUS = 300; // Standaard radius in km (Heel Nederland)
-const NEDERLAND_RADIUS = 300; // Maximale afstand voor "Heel Nederland" in km
+const NEDERLAND_RADIUS = 300; // Maximale afstand voor heel Nederland in km
 
 export default function TopNav({
   isMapView,
@@ -46,19 +45,11 @@ export default function TopNav({
   const [showRadiusSlider, setShowRadiusSlider] = useState(false);
   const [showPriceFilter, setShowPriceFilter] = useState(false);
   const [timeRange, setTimeRange] = useState<number[]>([168]); // Default 1 week (168 hours)
-  const [priceRange, setPriceRange] = useState<number[]>([200]); // Hogere default prijs
-  const [showOnlyFree, setShowOnlyFree] = useState(false);
-  const [showAllPrices, setShowAllPrices] = useState(true); // Nieuwe state voor alle prijzen
+  const [priceRange, setPriceRange] = useState<number[]>([150]); // Default op maximum
   const [sortBy, setSortBy] = useState<'distance' | 'startTime'>('distance');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [, setLocation] = useLocation();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-
-  // Refs for clickaway handlers
-  const timeFilterRef = useRef<HTMLDivElement>(null);
-  const radiusSliderRef = useRef<HTMLDivElement>(null);
-  const priceFilterRef = useRef<HTMLDivElement>(null);
-  const searchResultsRef = useRef<HTMLDivElement>(null);
 
   // Get user location
   useEffect(() => {
@@ -73,8 +64,8 @@ export default function TopNav({
         () => {
           console.error("Could not get user location");
           setUserLocation({
-            lat: 52.3676,
-            lng: 4.9041,
+            lat: 51.5719,
+            lng: 5.0722,
           });
         }
       );
@@ -84,7 +75,6 @@ export default function TopNav({
   // Clickaway handler
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      // Sluit alle filters behalve degene waar op geklikt is
       const target = event.target as Node;
 
       if (timeFilterRef.current && !timeFilterRef.current.contains(target)) {
@@ -106,13 +96,6 @@ export default function TopNav({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  // Handle filter opening - sluit andere filters
-  const handleFilterClick = (filterName: 'time' | 'radius' | 'price') => {
-    setShowTimeFilter(filterName === 'time');
-    setShowRadiusSlider(filterName === 'radius');
-    setShowPriceFilter(filterName === 'price');
-  };
 
   const { data: events = [] } = useQuery<Event[]>({
     queryKey: ["/api/events/nearby", searchQuery, selectedDate, timeRange, radius],
@@ -155,8 +138,6 @@ export default function TopNav({
     })
     .filter(event => {
       // Price filter
-      if (showAllPrices) return true;
-      if (showOnlyFree) return !event.isPaid;
       if (event.isPaid && event.price !== null) {
         return Number(event.price) <= priceRange[0];
       }
@@ -197,6 +178,19 @@ export default function TopNav({
     if (hours < 720) return `${Math.floor(hours / 168)} weken`;
     return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
   }
+
+  // Refs for clickaway handlers
+  const timeFilterRef = useRef<HTMLDivElement>(null);
+  const radiusSliderRef = useRef<HTMLDivElement>(null);
+  const priceFilterRef = useRef<HTMLDivElement>(null);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
+
+  // Handle filter opening - sluit andere filters
+  const handleFilterClick = (filterName: 'time' | 'radius' | 'price') => {
+    setShowTimeFilter(filterName === 'time');
+    setShowRadiusSlider(filterName === 'radius');
+    setShowPriceFilter(filterName === 'price');
+  };
 
   return (
     <>
@@ -320,7 +314,7 @@ export default function TopNav({
               onClick={() => handleFilterClick('price')}
               className="inline-flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
             >
-              {showAllPrices ? 'Alle evenementen' : (showOnlyFree ? 'Gratis' : `Tot €${priceRange[0]}`)}
+              {priceRange[0] >= 150 ? 'Alle evenementen' : `Tot €${priceRange[0]}`}
             </button>
           </div>
         </div>
@@ -397,13 +391,4 @@ export default function TopNav({
       )}
     </>
   );
-}
-
-function formatTimeRange(hours: number): string {
-  if (hours < 24) return `${hours} uur`;
-  if (hours === 24) return '1 dag';
-  if (hours < 168) return `${Math.floor(hours / 24)} dagen`;
-  if (hours === 168) return '1 week';
-  if (hours < 720) return `${Math.floor(hours / 168)} weken`;
-  return `${Math.floor(hours / 720)} maand${hours > 720 ? 'en' : ''}`;
 }

@@ -2,7 +2,7 @@ import { CATEGORIES } from '@shared/schema';
 import { CATEGORY_COLORS } from '../CategoryIcon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, Save } from 'lucide-react';
 import type { Event } from '@shared/schema';
 import { useState } from 'react';
 
@@ -22,22 +22,34 @@ export default function Legend({ events, selectedCategories, onToggleCategory }:
   }, {} as Record<string, number>);
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center" style={{ zIndex: 1000 }}>
       <div 
-        className={`bg-white/90 rounded-lg shadow-lg z-[1000] transition-all duration-300 ${
+        className={`bg-white/90 rounded-lg shadow-lg transition-all duration-300 ${
           isExpanded ? 'w-64' : 'w-auto'
         }`}
       >
         <div className="flex items-center justify-between p-3">
-          <h3 className="text-sm font-medium text-center flex-1">{events.length} resultaten</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-          </Button>
+          <h3 className="text-sm font-medium text-center flex-1">
+            {events.length} resultaten
+          </h3>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              title="Zoekfilters opslaan"
+            >
+              <Save className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
+              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
 
         {isExpanded && (

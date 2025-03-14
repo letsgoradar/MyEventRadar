@@ -8,15 +8,17 @@ import EventMarker from "../Events/EventMarker";
 import LocationMarker from "./LocationMarker";
 import Legend from "./Legend";
 
+const NEDERLAND_RADIUS = 300; // Maximale afstand voor heel Nederland in km
+
 // Helper function om radius te berekenen op basis van zoom level
 function calculateRadiusFromZoom(zoom: number): number {
   const zoomToRadius = {
-    0: 5000, 1: 3000, 2: 2000, 3: 1500,
+    0: NEDERLAND_RADIUS, 1: 3000, 2: 2000, 3: 1500,
     4: 1000, 5: 750, 6: 500, 7: 250,
     8: 100, 9: 75, 10: 50, 11: 25,
     12: 10, 13: 5, 14: 2, 15: 1
   } as const;
-  return zoomToRadius[Math.min(Math.max(zoom, 0), 15) as keyof typeof zoomToRadius] || 25;
+  return zoomToRadius[Math.min(Math.max(zoom, 0), 15) as keyof typeof zoomToRadius] || NEDERLAND_RADIUS;
 }
 
 // Map event handler component
@@ -42,7 +44,7 @@ interface MapViewProps {
 
 export default function MapView({ 
   searchQuery, 
-  radius = 25,
+  radius = NEDERLAND_RADIUS, // Default naar heel Nederland
   filteredEvents, 
   onEventClick,
   onRadiusChange 
@@ -114,7 +116,7 @@ export default function MapView({
 
       <MapContainer
         center={DEFAULT_CENTER}
-        zoom={9}
+        zoom={7} // Start met een zoom level dat heel Nederland laat zien
         className="h-full w-full"
         zoomControl={false}
         worldCopyJump={true}

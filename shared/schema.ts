@@ -3,9 +3,9 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const CATEGORIES = [
-  'Sporten en Spelen',
+  'Sport en spel',
   'Kunst en Cultuur',
-  'Ontmoet en Beleven',
+  'Gezellig en Sociaal',
   'Leren en Ontdekken',
   'Vrijwilligerswerk en hulp'
 ] as const;

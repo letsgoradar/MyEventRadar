@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { MapPin } from 'lucide-react';
 
 export default function LocationMarker() {
   const [position, setPosition] = useState<[number, number] | null>(null);
@@ -17,19 +16,13 @@ export default function LocationMarker() {
         <div class="absolute w-4 h-4 bg-blue-500 rounded-full opacity-30 animate-ping" 
              style="animation-duration: 1.5s; animation-delay: 0.2s;">
         </div>
-        <div class="relative w-4 h-4">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" 
-               class="text-blue-500 transform -translate-x-1/2 -translate-y-1/2">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
+        <div class="relative w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg">
+          <div class="absolute inset-0 bg-blue-500 rounded-full animate-pulse"></div>
         </div>
       </div>
     `,
-    iconSize: [24, 24],
-    iconAnchor: [12, 24]
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
   });
 
   useEffect(() => {
@@ -45,8 +38,8 @@ export default function LocationMarker() {
         },
         () => {
           console.error("Could not get user location");
-          // Default to center of Noord-Brabant
-          const defaultPos: [number, number] = [51.5719, 5.0722];
+          // Default to center of Netherlands
+          const defaultPos: [number, number] = [52.3676, 4.9041];
           setPosition(defaultPos);
           map.flyTo(defaultPos, map.getZoom());
         }

@@ -1,7 +1,7 @@
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import { Satellite } from 'lucide-react';
+import { Satellite, MapPin } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import EventMarker from "../Events/EventMarker";
@@ -10,7 +10,6 @@ import Legend from "./Legend";
 
 // Helper function om radius te berekenen op basis van zoom level
 function calculateRadiusFromZoom(zoom: number): number {
-  // Geschatte radius in km voor elk zoom level
   const zoomToRadius = {
     0: 5000, 1: 3000, 2: 2000, 3: 1500,
     4: 1000, 5: 750, 6: 500, 7: 250,
@@ -49,12 +48,43 @@ export default function MapView({
   onRadiusChange 
 }: MapViewProps) {
   const [isSatelliteView, setIsSatelliteView] = useState(false);
-  const DEFAULT_CENTER: [number, number] = [52.3676, 4.9041]; // Center of Netherlands
+  const DEFAULT_CENTER: [number, number] = [51.5719, 5.0722]; // Center of Noord-Brabant
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const mapRef = useRef<L.Map | null>(null);
 
   const handleZoomEnd = (zoom: number) => {
     const newRadius = calculateRadiusFromZoom(zoom);
     onRadiusChange?.(newRadius);
   };
+
+  const handleToggleCategory = (category: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  const handleReturnToLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userPos: [number, number] = [
+            position.coords.latitude,
+            position.coords.longitude
+          ];
+          mapRef.current?.flyTo(userPos, 13);
+        },
+        () => {
+          console.error("Could not get user location");
+        }
+      );
+    }
+  };
+
+  const filteredByCategory = selectedCategories.length > 0
+    ? filteredEvents.filter(event => selectedCategories.includes(event.category))
+    : filteredEvents;
 
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -72,14 +102,23 @@ export default function MapView({
         >
           <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
         </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="bg-white/90 hover:bg-white h-8 w-8"
+          onClick={handleReturnToLocation}
+        >
+          <MapPin className="h-4 w-4 text-blue-500" />
+        </Button>
       </div>
 
       <MapContainer
         center={DEFAULT_CENTER}
-        zoom={9} // Start met een zoom level dat ongeveer 25km radius geeft
+        zoom={9}
         className="h-full w-full"
         zoomControl={false}
         worldCopyJump={true}
+        ref={mapRef}
       >
         <TileLayer 
           url={tileUrl}
@@ -91,7 +130,7 @@ export default function MapView({
         <MapEventHandler onZoomEnd={handleZoomEnd} />
 
         {/* Event Markers */}
-        {filteredEvents.map((event) => (
+        {filteredByCategory.map((event) => (
           <EventMarker
             key={event.id}
             event={event}
@@ -101,7 +140,11 @@ export default function MapView({
       </MapContainer>
 
       {/* Legend */}
-      <Legend />
+      <Legend 
+        events={filteredEvents}
+        selectedCategories={selectedCategories}
+        onToggleCategory={handleToggleCategory}
+      />
     </div>
   );
 }

@@ -383,50 +383,19 @@ export default function TopNav({
       {/* Price Filter */}
       {showPriceFilter && (
         <div ref={priceFilterRef} className="fixed top-[calc(3.5rem+2.5rem)] left-0 right-0 bg-white shadow-md z-40 p-4">
-          <div className="flex flex-col gap-4 max-w-xl mx-auto">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={showAllPrices}
-                onChange={(e) => {
-                  setShowAllPrices(e.target.checked);
-                  if (e.target.checked) {
-                    setShowOnlyFree(false);
-                  }
-                }}
-                className="w-4 h-4"
-              />
-              <span className="text-sm">Alle evenementen</span>
+          <div className="max-w-xl mx-auto">
+            <Slider
+              value={priceRange}
+              onValueChange={setPriceRange}
+              max={150}
+              min={0}
+              step={5}
+              className="w-full"
+            />
+            <div className="flex justify-between text-sm text-gray-600 mt-1">
+              <span>Gratis evenementen</span>
+              <span>{priceRange[0] >= 150 ? 'Alle evenementen' : `Tot €${priceRange[0]}`}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={showOnlyFree}
-                onChange={(e) => {
-                  setShowOnlyFree(e.target.checked);
-                  if (e.target.checked) {
-                    setShowAllPrices(false);
-                  }
-                }}
-                className="w-4 h-4"
-              />
-              <span className="text-sm">Alleen gratis evenementen</span>
-            </div>
-            {!showOnlyFree && !showAllPrices && (
-              <div className="flex-1">
-                <Slider
-                  value={priceRange}
-                  onValueChange={setPriceRange}
-                  max={200}
-                  min={0}
-                  step={1}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-sm text-gray-600 mt-1">
-                  <span>Maximale prijs: €{priceRange[0]}</span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}

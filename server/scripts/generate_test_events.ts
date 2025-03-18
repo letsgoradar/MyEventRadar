@@ -2,74 +2,74 @@ import { db } from '../db';
 import { events, CATEGORIES } from '../../shared/schema';
 import { addDays, addHours, setHours, setMinutes } from 'date-fns';
 
-// Nederlandse steden met coördinaten
-const DUTCH_CITIES = [
-  { name: 'Amsterdam', lat: 52.3676, lng: 4.9041 },
-  { name: 'Rotterdam', lat: 51.9225, lng: 4.4792 },
-  { name: 'Den Haag', lat: 52.0705, lng: 4.3007 },
-  { name: 'Utrecht', lat: 52.0907, lng: 5.1214 },
-  { name: 'Eindhoven', lat: 51.4416, lng: 5.4697 },
-  { name: 'Groningen', lat: 53.2194, lng: 6.5665 },
-  { name: 'Tilburg', lat: 51.5719, lng: 5.0722 },
-  { name: 'Almere', lat: 52.3508, lng: 5.2647 },
-  { name: 'Breda', lat: 51.5719, lng: 4.7683 },
-  { name: 'Nijmegen', lat: 51.8426, lng: 5.8546 },
-  { name: 'Enschede', lat: 52.2215, lng: 6.8937 },
-  { name: 'Haarlem', lat: 52.3874, lng: 4.6462 },
-  { name: 'Arnhem', lat: 51.9851, lng: 5.8987 },
-  { name: 'Zaanstad', lat: 52.4537, lng: 4.8137 },
-  { name: 'Den Bosch', lat: 51.6998, lng: 5.3049 }
-];
+// Oss coordinates
+const OSS_COORDINATES = { lat: 51.7650, lng: 5.5279 };
 
 const EVENT_TITLES = {
   'Sport en spel': [
-    'Voetbaltoernooi',
-    'Game-avond',
-    'Sportdag',
+    'Voetbaltoernooi OSS', 
+    'Schaaktoernooi Bibliotheek',
+    'Fietspuzzeltocht',
+    'Bootcamp in het park',
+    'Zaalvoetbalcompetitie',
     'Tennis clinic',
-    'Schaaktoernooi'
+    'Hardloopevenement',
+    'Zwemwedstrijd De Warande',
+    'Volleybaltoernooi'
   ],
   'Kunst en Cultuur': [
-    'Kunstexpositie',
-    'Theatervoorstelling',
-    'Filmfestival',
-    'Muziekconcert',
+    'Expositie Museum Jan Cunen',
+    'Theatervoorstelling De Lievekamp',
+    'Kunstmarkt Centrum',
+    'Muziekfestival Oss',
+    'Open Podium TalentenTheater',
+    'Filmavond Cultuurpodium',
+    'Poëzieavond Bibliotheek',
     'Dansvoorstelling'
   ],
   'Gezellig en Sociaal': [
-    'Buurtborrel',
-    'Zomerfeest',
-    'Netwerkevent',
-    'Spelletjesavond',
-    'BBQ & Muziek'
+    'Buurtborrel Ruwaard',
+    'Zomerfeest Centrum',
+    'Netwerkborrel Ondernemers',
+    'Spelletjesavond De Groene Engel',
+    'BBQ & Muziek Festival',
+    'Vrijdagmiddagborrel',
+    'Buurtfeest Schadewijk',
+    'Koopavond Centrum'
   ],
   'Leren en Ontdekken': [
-    'Workshop fotografie',
-    'Lezing geschiedenis',
-    'Cursus koken',
-    'Masterclass',
-    'Tech meetup'
+    'Workshop Fotografie',
+    'Lezing Stadsarchief',
+    'Cursus Brabantse Keuken',
+    'Masterclass Ondernemen',
+    'Tech Meetup Pivot Park',
+    'Taalcafé Bibliotheek',
+    'Natuurexcursie Maashorst',
+    'Historische Stadswandeling'
   ],
   'Vrijwilligerswerk en hulp': [
-    'Buurtschoonmaak',
-    'Voedselbank actie',
-    'Vrijwilligersdag',
-    'Hulp ouderen',
-    'Gemeenschapsproject'
+    'Buurtschoonmaak Oss-Zuid',
+    'Voedselbank Actiedag',
+    'NLdoet in Oss',
+    'Repair Café',
+    'Hulp Ouderen Dag',
+    'Dierenasiel Open Dag',
+    'Vrijwilligersmarkt',
+    'Buurtpreventie Meeting'
   ]
 };
 
 const EVENT_DESCRIPTIONS = [
-  'Een unieke gelegenheid om nieuwe mensen te ontmoeten en te netwerken. Met interessante sprekers, workshops en natuurlijk veel ruimte voor interactie.',
-  'Geniet van een dag vol entertainment, muziek en heerlijk eten. Perfect voor het hele gezin!',
-  'Ontdek de nieuwste trends en innovaties in de industrie. Met experts van over de hele wereld.',
-  'Een gezellige dag uit voor het hele gezin met activiteiten voor jong en oud.',
-  'Leer nieuwe vaardigheden van experts in het veld. Inclusief hands-on workshops.',
-  'Een spectaculaire show die je niet mag missen! Met nationale en internationale artiesten.',
+  'Een unieke gelegenheid om elkaar te ontmoeten in het hart van Oss. Met interessante activiteiten en natuurlijk volop ruimte voor gezelligheid.',
+  'Geniet van een dag vol entertainment en heerlijk eten. Perfect voor het hele gezin!',
+  'Ontdek de nieuwste ontwikkelingen in onze regio. Met lokale experts en ondernemers.',
+  'Een gezellige dag uit voor jong en oud met activiteiten voor iedereen.',
+  'Leer nieuwe vaardigheden van ervaren professionals uit de regio.',
+  'Een spectaculaire show met lokale en regionale artiesten.',
   'Kom langs en laat je inspireren door de beste sprekers van dit moment.',
-  'Een dag vol activiteiten en workshops voor jong en oud. Voor ieder wat wils!',
-  'Ervaar de magie van live optredens en shows. Een onvergetelijke ervaring.',
-  'Een leerzame ervaring met praktische tips en tricks van experts.'
+  'Een dag vol activiteiten en workshops. Voor ieder wat wils!',
+  'Ervaar de Brabantse gezelligheid tijdens dit unieke evenement.',
+  'Een leerzame ervaring met praktische tips van lokale experts.'
 ];
 
 function getRandomElement<T>(array: T[]): T {
@@ -80,13 +80,13 @@ function getRandomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function getRandomCoordinates(baseLocation: { lat: number, lng: number }, radiusKm: number) {
+function getRandomCoordinates(radiusKm: number) {
   // Convert radius from kilometers to degrees (approximate)
   const radiusLat = radiusKm / 111.32;
-  const radiusLng = radiusKm / (111.32 * Math.cos(baseLocation.lat * Math.PI / 180));
+  const radiusLng = radiusKm / (111.32 * Math.cos(OSS_COORDINATES.lat * Math.PI / 180));
 
-  const randomLat = baseLocation.lat + (Math.random() - 0.5) * radiusLat * 2;
-  const randomLng = baseLocation.lng + (Math.random() - 0.5) * radiusLng * 2;
+  const randomLat = OSS_COORDINATES.lat + (Math.random() - 0.5) * radiusLat * 2;
+  const randomLng = OSS_COORDINATES.lng + (Math.random() - 0.5) * radiusLng * 2;
 
   return { lat: randomLat, lng: randomLng };
 }
@@ -96,10 +96,10 @@ async function generateTestEvents(count: number) {
   const now = new Date();
 
   for (let i = 0; i < count; i++) {
-    const city = getRandomElement(DUTCH_CITIES);
-    const coords = getRandomCoordinates(city, 10); // 10km radius around city center
+    const coords = getRandomCoordinates(50); // 50km radius around Oss
     const category = getRandomElement(CATEGORIES);
-    const titlePrefix = getRandomElement(EVENT_TITLES[category]);
+    const titleOptions = EVENT_TITLES[category];
+    const titlePrefix = getRandomElement(titleOptions);
     const daysFromNow = getRandomInt(1, 30);
     const startTime = setMinutes(
       setHours(addDays(now, daysFromNow), getRandomInt(9, 20)),
@@ -116,21 +116,21 @@ async function generateTestEvents(count: number) {
       : null;
 
     const event = {
-      title: `${titlePrefix} ${city.name}`,
+      title: titlePrefix,
       description: getRandomElement(EVENT_DESCRIPTIONS),
-      latitude: coords.lat,
-      longitude: coords.lng,
-      notificationReach: Math.random() * 4 + 1, // 1-5 km
-      startTime: startTime,
-      endTime: endTime,
+      latitude: String(coords.lat),
+      longitude: String(coords.lng),
+      notificationReach: String(Math.random() * 4 + 1), // 1-5 km
+      startTime,
+      endTime,
       category,
-      secondaryCategory: secondaryCategory,
-      isPaid: isPaid,
-      price: isPaid ? getRandomInt(5, 50) : null,
+      secondaryCategory,
+      isPaid,
+      price: isPaid ? String(getRandomInt(5, 50)) : null,
       maxParticipants: getRandomInt(20, 200),
       hostId: 1,
       recurrence: 'once',
-      tags: [] // Tags will be generated by the frontend
+      tags: []
     };
 
     eventsToCreate.push(event);
@@ -141,11 +141,11 @@ async function generateTestEvents(count: number) {
     await db.delete(events);
     // Insert new events
     await db.insert(events).values(eventsToCreate);
-    console.log(`Successfully generated ${count} test events`);
+    console.log(`Successfully generated ${count} test events around Oss`);
   } catch (error) {
     console.error('Error generating test events:', error);
   }
 }
 
-// Generate 500 test events
-generateTestEvents(500);
+// Generate 200 test events
+generateTestEvents(200);

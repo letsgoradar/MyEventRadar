@@ -20,11 +20,11 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
 interface EventListProps {
   searchQuery: string;
+  radius?: number;
 }
 
-function EventList({ searchQuery }: EventListProps) {
+function EventList({ searchQuery, radius = 25 }: EventListProps) {
   const { location } = useLocation();
-  const [radius, setRadius] = useState(10);
   const [filteredEvents, setFilteredEvents] = useState<Array<Event & { distance: number }>>([]);
 
   const { data: events = [], isLoading, isError, error } = useQuery({
@@ -32,7 +32,7 @@ function EventList({ searchQuery }: EventListProps) {
     queryFn: async () => {
       if (!location) return [];
       try {
-        return fetchEventsByRadius(location.lat, location.lng, radius);
+        return await fetchEventsByRadius(location.lat, location.lng, radius);
       } catch (err) {
         console.error("Failed to fetch events:", err);
         return [];
@@ -49,7 +49,7 @@ function EventList({ searchQuery }: EventListProps) {
     if (!events || !location) return;
 
     // Calculate distance for each event and sort by distance
-    const eventsWithDistance = events.map((event: Event) => ({
+    const eventsWithDistance = events.map((event) => ({
       ...event,
       distance: calculateDistance(
         location.lat,
@@ -75,10 +75,6 @@ function EventList({ searchQuery }: EventListProps) {
 
     setFilteredEvents(filtered);
   }, [events, searchQuery, location]);
-
-  const incrementRadius = useCallback(() => {
-    setRadius(prev => prev + 5);
-  }, []);
 
   if (isLoading) {
     return (
@@ -123,22 +119,16 @@ function EventList({ searchQuery }: EventListProps) {
       {filteredEvents.length === 0 ? (
         <div className="text-center py-8">
           {events.length > 0 ? (
-            <div className="p-4 flex flex-col items-center">
+            <div className="p-4">
               <p className="mb-4 text-center">
                 Er zijn evenementen beschikbaar, maar ze voldoen niet aan je zoekopdracht.
               </p>
-              <Button onClick={() => incrementRadius()}>
-                Zoekbereik vergroten ({radius} km → {radius + 5} km)
-              </Button>
             </div>
           ) : (
-            <div className="p-4 flex flex-col items-center">
+            <div className="p-4">
               <p className="mb-4 text-center">
                 Geen evenementen gevonden in de buurt.
               </p>
-              <Button onClick={incrementRadius}>
-                Zoekbereik vergroten ({radius} km → {radius + 5} km)
-              </Button>
             </div>
           )}
         </div>

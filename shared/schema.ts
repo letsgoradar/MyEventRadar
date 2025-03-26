@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   avatar: text("avatar"),
   googleId: text("google_id"),
+  role: text("role").default("user").notNull(),
 });
 
 export const events = pgTable("events", {
@@ -65,6 +66,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   avatar: true,
   googleId: true,
+  role: true,
 });
 
 const locationSchema = z.object({

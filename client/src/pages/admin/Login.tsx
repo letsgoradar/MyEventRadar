@@ -65,13 +65,20 @@ const AdminLogin: React.FC = () => {
       });
     },
     onSuccess: (data) => {
+      console.log('Login successful, received data:', data);
       if (data.role === 'admin') {
+        console.log('Admin role verified, redirecting to dashboard');
         toast({
           title: 'Ingelogd als administrator',
           description: 'Je bent succesvol ingelogd als administrator.',
         });
-        setLocation('/admin/dashboard');
+        // Add a slight delay before redirecting to ensure toast is shown
+        setTimeout(() => {
+          console.log('Executing redirect to /admin/dashboard');
+          setLocation('/admin/dashboard');
+        }, 500);
       } else {
+        console.log('User is not admin, role:', data.role);
         toast({
           variant: 'destructive',
           title: 'Geen toegang',

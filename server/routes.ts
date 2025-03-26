@@ -3,18 +3,32 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertEventSchema, insertParticipantSchema, insertSavedSearchSchema } from "@shared/schema";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { isAuthenticated, isAdmin } from "./middleware/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const data = insertUserSchema.parse(req.body);
+      // Hash the password before storing
+      const passwordHash = await bcrypt.hash(req.body.password, 10);
+      
+      const data = insertUserSchema.parse({
+        ...req.body,
+        password: passwordHash
+      });
+      
       const existingUser = await storage.getUserByEmail(data.email);
       if (existingUser) {
         return res.status(400).json({ message: "Email already registered" });
       }
+      
       const user = await storage.createUser(data);
-      res.json(user);
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ message: error.errors });
@@ -22,6 +36,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ message: "Internal server error" });
       }
     }
+  });
+  
+  // Login route
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      const user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      
+      if (!passwordMatch) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Store user in session
+      req.session.user = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      };
+      
+      // Remove password from response
+      const { password: _, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Logout route
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Could not log out" });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ message: "Logged out successfully" });
+    });
+  });
+  
+  // Get current user
+  app.get("/api/auth/me", isAuthenticated, (req, res) => {
+    res.json(req.user);
   });
 
   // Event routes
@@ -186,6 +255,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       lastRequestTime = Date.now();
 
+      // Set a timeout for the fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10`,
         {
@@ -194,9 +267,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             'Accept': 'application/json',
             'Accept-Language': 'en'
           },
-          timeout: 5000
+          signal: controller.signal
         }
       );
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         console.error("Geocoding error status:", response.status);
@@ -253,7 +328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const events = await storage.getEventsByHostId(userId); // Assumed function in storage
+      const events = await storage.getEventsByHost(userId);
       return res.json(events);
     } catch (error) {
       console.error('Error fetching user\'s hosted events:', error);
@@ -270,11 +345,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const events = await storage.getEventsByUserId(userId); // Assumed function in storage
-      return res.json(events);
+      // Get the events where the user is a participant
+      const participantEvents = await storage.getEventsForParticipant(userId);
+      return res.json(participantEvents);
     } catch (error) {
       console.error('Error fetching user\'s participating events:', error);
       return res.status(500).json({ error: 'Failed to fetch participating events' });
+    }
+  });
+  
+  // ====== ADMIN ROUTES ======
+  
+  // Get all users (admin only)
+  app.get('/api/admin/users', isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      // Remove passwords from the response
+      const usersWithoutPasswords = users.map(user => {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Get all events (admin only)
+  app.get('/api/admin/events', isAdmin, async (req, res) => {
+    try {
+      const events = await storage.getAllEvents();
+      res.json(events);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Update event (admin only)
+  app.put('/api/admin/events/:id', isAdmin, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      const event = await storage.getEvent(eventId);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      const updatedEvent = await storage.updateEvent(eventId, req.body);
+      res.json(updatedEvent);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: error.errors });
+      } else {
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  });
+  
+  // Delete event (admin only)
+  app.delete('/api/admin/events/:id', isAdmin, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      await storage.deleteEvent(eventId);
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Get statistics (admin only)
+  app.get('/api/admin/statistics', isAdmin, async (req, res) => {
+    try {
+      const userCount = await storage.getUserCount();
+      const eventCount = await storage.getEventCount();
+      const participantCount = await storage.getParticipantCount();
+      
+      const statistics = {
+        users: userCount,
+        events: eventCount,
+        participants: participantCount,
+      };
+      
+      res.json(statistics);
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 

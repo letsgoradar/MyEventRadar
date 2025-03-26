@@ -5,6 +5,9 @@ if (!process.env.NODE_ENV) {
 console.log("Starting server with NODE_ENV:", process.env.NODE_ENV);
 
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import cookieParser from "cookie-parser";
+import { attachUser } from "./middleware/auth";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -22,6 +25,21 @@ const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunctio
 // Setup middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+
+// Setup session
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'eventapp-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Attach user to request if authenticated
+app.use(attachUser);
 
 // Add startup timestamp
 const startTime = Date.now();

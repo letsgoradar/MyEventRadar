@@ -31,6 +31,8 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  getUserCount(): Promise<number>;
 
   // Event operations
   createEvent(event: InsertEvent): Promise<Event>;
@@ -38,6 +40,10 @@ export interface IStorage {
   getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]>;
   getEventsByHost(hostId: number): Promise<Event[]>;
   clearEvents(): Promise<void>; // Added clearEvents method
+  getAllEvents(): Promise<Event[]>;
+  updateEvent(id: number, event: Partial<Event>): Promise<Event>;
+  deleteEvent(id: number): Promise<void>;
+  getEventCount(): Promise<number>;
 
   // Favorite operations
   addFavorite(favorite: InsertFavorite): Promise<Favorite>;
@@ -48,6 +54,8 @@ export interface IStorage {
   addParticipant(participant: InsertParticipant): Promise<Participant>;
   removeParticipant(userId: number, eventId: number): Promise<void>;
   getEventParticipants(eventId: number): Promise<User[]>;
+  getEventsForParticipant(userId: number): Promise<Event[]>;
+  getParticipantCount(): Promise<number>;
 
   // SavedSearch operations
   saveSavedSearch(search: InsertSavedSearch): Promise<SavedSearch>;
@@ -268,6 +276,71 @@ export class PgStorage implements IStorage {
   async removeSavedSearch(id: number): Promise<void> {
     return this.withRetry(async () => {
       await db.delete(savedSearches).where(eq(savedSearches.id, id));
+    });
+  }
+  
+  // Admin methods
+  async getAllUsers(): Promise<User[]> {
+    return this.withRetry(async () => {
+      return db.select().from(users);
+    });
+  }
+  
+  async getUserCount(): Promise<number> {
+    return this.withRetry(async () => {
+      const result = await db.select({ count: count() }).from(users);
+      return result[0].count;
+    });
+  }
+  
+  async getAllEvents(): Promise<Event[]> {
+    return this.withRetry(async () => {
+      return db.select().from(events);
+    });
+  }
+  
+  async updateEvent(id: number, eventData: Partial<Event>): Promise<Event> {
+    return this.withRetry(async () => {
+      const [result] = await db
+        .update(events)
+        .set(eventData)
+        .where(eq(events.id, id))
+        .returning();
+      return result;
+    });
+  }
+  
+  async deleteEvent(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(events).where(eq(events.id, id));
+    });
+  }
+  
+  async getEventCount(): Promise<number> {
+    return this.withRetry(async () => {
+      const result = await db.select({ count: count() }).from(events);
+      return result[0].count;
+    });
+  }
+  
+  async getEventsForParticipant(userId: number): Promise<Event[]> {
+    return this.withRetry(async () => {
+      const result = await db
+        .select({
+          event: events
+        })
+        .from(participants)
+        .where(eq(participants.userId, userId))
+        .innerJoin(events, eq(events.id, participants.eventId));
+      
+      return result.map(r => r.event);
+    });
+  }
+  
+  async getParticipantCount(): Promise<number> {
+    return this.withRetry(async () => {
+      const result = await db.select({ count: count() }).from(participants);
+      return result[0].count;
     });
   }
 

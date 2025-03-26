@@ -16,12 +16,15 @@ const AdminNav: React.FC = () => {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const logoutMutation = useMutation({
+  interface LogoutResponse {
+    message: string;
+  }
+
+  const logoutMutation = useMutation<LogoutResponse, Error>({
     mutationFn: async () => {
-      const response = await apiRequest('/api/auth/logout', {
+      return await apiRequest<LogoutResponse>('/api/auth/logout', {
         method: 'POST',
       });
-      return response;
     },
     onSuccess: () => {
       toast({
@@ -30,7 +33,8 @@ const AdminNav: React.FC = () => {
       });
       setLocation('/admin/login');
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Logout error:', error);
       toast({
         variant: 'destructive',
         title: 'Uitloggen mislukt',

@@ -8,6 +8,8 @@ import { EventList } from "@/components/EventList"
 import CreateEventPage from "@/pages/create-event"
 import EventDetailPage from "@/pages/event-detail"
 import BottomNav from "@/components/Layout/BottomNav"
+import { AdminDashboard, AdminLogin } from "@/pages/admin"
+import AdminAuthGuard from "@/components/Admin/AuthGuard"
 import type { Event } from "@shared/schema"
 
 const queryClient = new QueryClient()
@@ -38,6 +40,17 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <div className="h-screen flex flex-col relative">
         <Switch>
+          {/* Admin Routes */}
+          <Route path="/admin/login">
+            <AdminLogin />
+          </Route>
+          <Route path="/admin/dashboard">
+            <AdminAuthGuard>
+              <AdminDashboard />
+            </AdminAuthGuard>
+          </Route>
+          
+          {/* Regular Routes */}
           <Route path="/create-event">
             <CreateEventPage />
           </Route>

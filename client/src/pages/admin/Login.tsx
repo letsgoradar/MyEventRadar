@@ -50,13 +50,19 @@ const AdminLogin: React.FC = () => {
     },
   });
 
-  const loginMutation = useMutation({
+  interface LoginResponse {
+    id: number;
+    username: string;
+    email: string;
+    role: string;
+  }
+
+  const loginMutation = useMutation<LoginResponse, Error, LoginFormValues>({
     mutationFn: async (data: LoginFormValues) => {
-      const response = await apiRequest('/api/auth/login', {
+      return await apiRequest<LoginResponse>('/api/auth/login', {
         method: 'POST',
         data,
       });
-      return response;
     },
     onSuccess: (data) => {
       if (data.role === 'admin') {
@@ -74,6 +80,7 @@ const AdminLogin: React.FC = () => {
       }
     },
     onError: (error) => {
+      console.error('Login error:', error);
       toast({
         variant: 'destructive',
         title: 'Inloggen mislukt',

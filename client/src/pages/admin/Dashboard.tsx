@@ -41,41 +41,69 @@ const Dashboard: React.FC = () => {
   const { toast } = useToast();
   const [currentTab, setCurrentTab] = useState('overview');
 
+  // Define types for the API responses
+  interface Statistics {
+    users: number;
+    events: number;
+    participants: number;
+  }
+
   // Fetch statistics
-  const { data: statistics, isLoading: statsLoading } = useQuery({
+  const statisticsQuery = useQuery<Statistics>({
     queryKey: ['/api/admin/statistics'],
-    onError: () => {
+  });
+  const statistics = statisticsQuery.data || { users: 0, events: 0, participants: 0 };
+  const statsLoading = statisticsQuery.isLoading;
+
+  // Log errors if they occur
+  React.useEffect(() => {
+    if (statisticsQuery.error) {
+      console.error('Error loading statistics:', statisticsQuery.error);
       toast({
         title: 'Fout bij het ophalen van statistieken',
         description: 'Er is een probleem opgetreden bij het ophalen van de statistieken.',
         variant: 'destructive',
       });
-    },
-  });
+    }
+  }, [statisticsQuery.error, toast]);
 
   // Fetch users
-  const { data: users, isLoading: usersLoading } = useQuery({
+  const usersQuery = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
-    onError: () => {
+  });
+  const users = usersQuery.data || [];
+  const usersLoading = usersQuery.isLoading;
+
+  // Log errors if they occur
+  React.useEffect(() => {
+    if (usersQuery.error) {
+      console.error('Error loading users:', usersQuery.error);
       toast({
         title: 'Fout bij het ophalen van gebruikers',
         description: 'Er is een probleem opgetreden bij het ophalen van de gebruikers.',
         variant: 'destructive',
       });
-    },
-  });
+    }
+  }, [usersQuery.error, toast]);
 
   // Fetch events
-  const { data: events, isLoading: eventsLoading } = useQuery({
+  const eventsQuery = useQuery<Event[]>({
     queryKey: ['/api/admin/events'],
-    onError: () => {
+  });
+  const events = eventsQuery.data || [];
+  const eventsLoading = eventsQuery.isLoading;
+
+  // Log errors if they occur
+  React.useEffect(() => {
+    if (eventsQuery.error) {
+      console.error('Error loading events:', eventsQuery.error);
       toast({
         title: 'Fout bij het ophalen van evenementen',
         description: 'Er is een probleem opgetreden bij het ophalen van de evenementen.',
         variant: 'destructive',
       });
-    },
-  });
+    }
+  }, [eventsQuery.error, toast]);
 
   const statisticsData = [
     { name: 'Gebruikers', value: statistics?.users || 0 },

@@ -11,7 +11,14 @@ const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
   const [_, setLocation] = useLocation();
   const [isChecking, setIsChecking] = useState(true);
 
-  const { data: user, isLoading, error } = useQuery({
+  interface UserResponse {
+    id: number;
+    username: string;
+    email: string;
+    role: string;
+  }
+
+  const { data: user, isLoading, error } = useQuery<UserResponse>({
     queryKey: ['/api/auth/me'],
     retry: 1,
   });
@@ -21,9 +28,11 @@ const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
       setIsChecking(false);
       
       if (error || !user) {
+        console.log('User not authenticated, redirecting to login');
         setLocation('/admin/login');
       } else if (user.role !== 'admin') {
         // User is authenticated but not an admin
+        console.log('User is not an admin, redirecting to home');
         setLocation('/');
       }
     }

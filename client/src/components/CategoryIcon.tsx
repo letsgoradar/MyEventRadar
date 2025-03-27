@@ -33,12 +33,18 @@ interface CategoryIconProps {
 }
 
 export function CategoryIcon({ category, className = "", size = 20 }: CategoryIconProps) {
-  const Icon = CATEGORY_ICONS[category];
+  // Default to first category if the provided category is invalid
+  const validCategory = Object.keys(CATEGORY_ICONS).includes(category) 
+    ? category 
+    : 'Sport en spel' as typeof CATEGORIES[number];
+  
+  const Icon = CATEGORY_ICONS[validCategory];
+  
   return (
     <Icon
       size={size}
       className={`${className}`}
-      style={{ color: CATEGORY_COLORS[category] }}
+      style={{ color: CATEGORY_COLORS[validCategory] }}
     />
   );
 }

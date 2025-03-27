@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatDate(date: string | Date, formatStr: string): string {
+export function formatDate(date: string | Date | null | undefined, formatStr: string): string {
   if (!date) return "Onbekend";
 
   try {
@@ -16,6 +16,17 @@ export function formatDate(date: string | Date, formatStr: string): string {
   } catch (error) {
     console.error("Error formatting date:", error);
     return "Ongeldige datum";
+  }
+}
+
+export function formatDateTime(dateTimeStr: string | Date | null | undefined): string {
+  if (!dateTimeStr) return "Onbekend";
+  
+  try {
+    return formatDate(dateTimeStr, "d MMMM yyyy 'om' HH:mm 'uur'");
+  } catch (error) {
+    console.error("Error formatting date time:", error);
+    return "Ongeldige datum/tijd";
   }
 }
 

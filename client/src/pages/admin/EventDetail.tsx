@@ -273,7 +273,7 @@ const EventDetailPage: React.FC = () => {
                   
                   {event.isPaid && (
                     <Badge variant="default" className="bg-green-600">
-                      € {event.price?.toFixed(2) || '0.00'}
+                      € {event?.price ? (typeof event.price === 'number' ? event.price.toFixed(2) : Number(event.price).toFixed(2)) : '0.00'}
                     </Badge>
                   )}
                 </div>
@@ -285,7 +285,7 @@ const EventDetailPage: React.FC = () => {
                     <div>
                       <p className="text-sm font-medium">Start Datum/Tijd</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatDateTime(event.startTime.toString())}
+                        {formatDateTime(event?.startTime)}
                       </p>
                     </div>
                   </div>
@@ -295,7 +295,7 @@ const EventDetailPage: React.FC = () => {
                     <div>
                       <p className="text-sm font-medium">Eind Datum/Tijd</p>
                       <p className="text-sm text-muted-foreground">
-                        {event.endTime ? formatDateTime(event.endTime.toString()) : 'Geen eindtijd'}
+                        {formatDateTime(event?.endTime)}
                       </p>
                     </div>
                   </div>
@@ -305,7 +305,7 @@ const EventDetailPage: React.FC = () => {
                     <div>
                       <p className="text-sm font-medium">Locatie</p>
                       <p className="text-sm text-muted-foreground">
-                        {event.location}
+                        {event?.address || `${event?.latitude}, ${event?.longitude}`}
                       </p>
                     </div>
                   </div>
@@ -410,14 +410,20 @@ const EventDetailPage: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="h-80 bg-muted rounded-md flex items-center justify-center">
-                <iframe
-                  title="Event Location"
-                  width="100%"
-                  height="100%"
-                  frameBorder="0"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(event.longitude) - 0.01},${parseFloat(event.latitude) - 0.01},${parseFloat(event.longitude) + 0.01},${parseFloat(event.latitude) + 0.01}&layer=mapnik&marker=${event.latitude},${event.longitude}`}
-                  style={{ borderRadius: 'inherit' }}
-                />
+                {event?.latitude && event?.longitude ? (
+                  <iframe
+                    title="Event Location"
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(event.longitude) - 0.01},${Number(event.latitude) - 0.01},${Number(event.longitude) + 0.01},${Number(event.latitude) + 0.01}&layer=mapnik&marker=${event.latitude},${event.longitude}`}
+                    style={{ borderRadius: 'inherit' }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-muted-foreground">Geen locatie beschikbaar</p>
+                  </div>
+                )}
               </CardContent>
               <CardFooter className="justify-end">
                 <TooltipProvider>
@@ -426,7 +432,8 @@ const EventDetailPage: React.FC = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => window.open(`https://www.openstreetmap.org/?mlat=${event.latitude}&mlon=${event.longitude}#map=15/${event.latitude}/${event.longitude}`, '_blank')}
+                        disabled={!event?.latitude || !event?.longitude}
+                        onClick={() => event?.latitude && event?.longitude && window.open(`https://www.openstreetmap.org/?mlat=${event.latitude}&mlon=${event.longitude}#map=15/${event.latitude}/${event.longitude}`, '_blank')}
                       >
                         Bekijk op OpenStreetMap
                       </Button>

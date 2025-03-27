@@ -41,14 +41,14 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
       if (user && (user.role === 'admin' || user.role === 'moderator')) {
         apiRequest('/api/admin/log-activity', {
           method: 'POST',
-          data: JSON.stringify({
+          data: {
             userId: user.id,
             activityType: 'login',
             details: { 
               section: 'admin_panel',
               role: user.role
             }
-          })
+          }
         }).catch(err => {
           console.error('Failed to log admin login:', err);
         });

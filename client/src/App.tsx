@@ -47,6 +47,9 @@ export default function App() {
           <Route path="/login">
             <AdminLogin />
           </Route>
+          <Route path="/admin/login">
+            <AdminLogin />
+          </Route>
           <Route path="/admin">
             <AuthGuard>
               <AdminDashboard />

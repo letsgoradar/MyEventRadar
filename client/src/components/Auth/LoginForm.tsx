@@ -42,8 +42,8 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
-      password: '',
+      email: 'admin@example.com',
+      password: 'admin123',
     },
   });
 
@@ -56,19 +56,21 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
         headers: {
           'Content-Type': 'application/json'
         },
-        body: data
+        data: data
       });
 
+      console.log('Login response:', response);
+      
       // Log activity
       await apiRequest('/api/admin/log-activity', {
         method: 'POST',
-        data: JSON.stringify({
-          userId: response.user.id,
+        data: {
+          userId: response.id, // Changed from response.user.id to response.id
           activityType: 'login',
           details: { 
             section: 'admin_panel'
           }
-        })
+        }
       });
 
       toast({
@@ -77,7 +79,7 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
       });
 
       if (onSuccess) {
-        onSuccess(response.user);
+        onSuccess(response);
       } else {
         // Redirect to admin dashboard
         window.location.href = redirectPath;

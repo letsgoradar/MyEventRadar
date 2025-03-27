@@ -27,6 +27,9 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
   // Fetch the current user
   const { data: user, isError, error } = useQuery<User>({
     queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      return await apiRequest('/api/auth/me');
+    },
     retry: false,
   });
   

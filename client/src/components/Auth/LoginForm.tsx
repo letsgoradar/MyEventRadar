@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/ui/logo';
 
 const loginSchema = z.object({
-  username: z.string().min(1, 'Gebruikersnaam is verplicht'),
+  email: z.string().email('Voer een geldig e-mailadres in'),
   password: z.string().min(1, 'Wachtwoord is verplicht'),
 });
 
@@ -113,15 +113,16 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="username">Gebruikersnaam</Label>
+            <Label htmlFor="email">E-mailadres</Label>
             <Input
-              id="username"
-              placeholder="Voer je gebruikersnaam in"
-              {...register('username')}
+              id="email"
+              type="email"
+              placeholder="Voer je e-mailadres in"
+              {...register('email')}
               disabled={isLoading}
             />
-            {errors.username && (
-              <p className="text-sm text-red-500">{errors.username.message}</p>
+            {errors.email && (
+              <p className="text-sm text-red-500">{errors.email.message}</p>
             )}
           </div>
           <div className="space-y-2">

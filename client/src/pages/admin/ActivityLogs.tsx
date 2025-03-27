@@ -96,6 +96,7 @@ const ActivityLogs: React.FC = () => {
   // Fetch activity logs data
   const { data, isLoading, error } = useQuery<ActivityLogsResponse>({
     queryKey: ['/api/admin/activity-logs', { page, limit, ...filter }],
+    placeholderData: keepPreviousData => keepPreviousData,
   });
   
   // Handle search

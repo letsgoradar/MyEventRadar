@@ -180,7 +180,7 @@ const AdminUsers: React.FC = () => {
   // Fetch users data
   const { data, isLoading, error } = useQuery<UsersResponse>({
     queryKey: ['/api/admin/users', page, limit, filter],
-    keepPreviousData: true,
+    placeholderData: keepPreviousData => keepPreviousData,
   });
   
   // Create user mutation

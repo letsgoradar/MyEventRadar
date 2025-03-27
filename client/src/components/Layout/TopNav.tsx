@@ -334,7 +334,7 @@ export default function TopNav({
           <div className="flex items-center gap-4 max-w-xl mx-auto">
             <DatePicker
               date={selectedDate}
-              onSelect={setSelectedDate}
+              onSelect={(date: Date | undefined) => setSelectedDate(date ?? new Date())}
               className="flex-shrink-0"
             />
             <div className="flex-1">

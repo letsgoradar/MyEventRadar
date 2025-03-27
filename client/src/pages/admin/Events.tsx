@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import AdminNav from '@/components/Layout/AdminNav';
 import { 
   CalendarDays, 
+  Calendar,
   MapPin, 
   Search, 
   PlusCircle, 
@@ -129,7 +130,7 @@ const AdminEvents: React.FC = () => {
   // Fetch events data
   const { data, isLoading, error } = useQuery<EventsResponse>({
     queryKey: ['/api/admin/events', page, limit, filter],
-    keepPreviousData: true,
+    placeholderData: keepPreviousData => keepPreviousData,
   });
   
   // Delete event mutation
@@ -466,7 +467,7 @@ const AdminEvents: React.FC = () => {
                                     className="flex items-center gap-2"
                                     onClick={() => window.open(`/event/${event.id}`, '_blank')}
                                   >
-                                    <Eye className="h-4 w-4" />
+                                    <EyeIcon className="h-4 w-4" />
                                     <span>Bekijken</span>
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="flex items-center gap-2">
@@ -613,7 +614,7 @@ const AdminEvents: React.FC = () => {
                                   className="flex items-center gap-2"
                                   onClick={() => window.open(`/event/${event.id}`, '_blank')}
                                 >
-                                  <Eye className="h-4 w-4" />
+                                  <EyeIcon className="h-4 w-4" />
                                   <span>Bekijken</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem className="flex items-center gap-2">
@@ -827,7 +828,7 @@ function Label({ htmlFor, children }: { htmlFor: string, children: React.ReactNo
   );
 }
 
-function Eye(props: React.SVGProps<SVGSVGElement>) {
+function EyeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}

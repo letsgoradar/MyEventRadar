@@ -13,29 +13,40 @@ export async function apiRequest<T = any>(
     method?: string;
     data?: unknown;
     headers?: Record<string, string>;
+    responseType?: 'json' | 'blob' | 'text';
   } = {},
 ): Promise<T> {
   const method = options.method || 'GET';
+  const responseType = options.responseType || 'json';
   const headers = {
-    ...(options.data ? { "Content-Type": "application/json" } : {}),
+    ...(options.data && !options.headers?.['Content-Type'] ? { "Content-Type": "application/json" } : {}),
     ...options.headers,
   };
 
   const res = await fetch(url, {
     method,
     headers,
-    body: options.data ? JSON.stringify(options.data) : undefined,
+    body: options.data ? 
+      (options.headers?.['Content-Type'] === 'multipart/form-data' ? options.data as FormData : JSON.stringify(options.data)) 
+      : undefined,
     credentials: "include",
   });
 
   await throwIfResNotOk(res);
+  
   try {
-    // Try to parse as JSON
-    const contentType = res.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return await res.json();
+    if (responseType === 'blob') {
+      return await res.blob() as unknown as T;
+    } else if (responseType === 'text') {
+      return await res.text() as unknown as T;
+    } else {
+      // Default to JSON
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await res.json();
+      }
+      return res as unknown as T;
     }
-    return res as unknown as T;
   } catch (e) {
     return res as unknown as T;
   }

@@ -34,7 +34,7 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  
+
   const {
     register,
     handleSubmit,
@@ -46,16 +46,19 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
       password: '',
     },
   });
-  
+
   const onSubmit = async (data: LoginFormData) => {
     try {
       setIsLoading(true);
-      
+
       const response = await apiRequest('/api/auth/login', {
         method: 'POST',
-        data: JSON.stringify(data),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: data
       });
-      
+
       // Log activity
       await apiRequest('/api/admin/log-activity', {
         method: 'POST',
@@ -67,12 +70,12 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
           }
         })
       });
-      
+
       toast({
         title: 'Ingelogd!',
         description: 'Je bent succesvol ingelogd.',
       });
-      
+
       if (onSuccess) {
         onSuccess(response.user);
       } else {
@@ -81,7 +84,7 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
       }
     } catch (error) {
       console.error('Login error:', error);
-      
+
       toast({
         title: 'Inloggen mislukt',
         description: 'Controleer je gebruikersnaam en wachtwoord en probeer opnieuw.',
@@ -91,11 +94,11 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
       setIsLoading(false);
     }
   };
-  
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
-  
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="space-y-1">

@@ -10,6 +10,21 @@ export const CATEGORIES = [
   'Vrijwilligerswerk en hulp'
 ] as const;
 
+export const ACTIVITY_TYPES = [
+  'login',
+  'logout',
+  'create_event',
+  'update_event',
+  'delete_event',
+  'join_event',
+  'leave_event',
+  'favorite_event',
+  'unfavorite_event',
+  'create_user',
+  'update_user',
+  'admin_action'
+] as const;
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -58,6 +73,18 @@ export const savedSearches = pgTable("saved_searches", {
   name: text("name").notNull(),
   filters: jsonb("filters").notNull(),
   pushEnabled: boolean("push_enabled").default(true),
+});
+
+export const activityLogs = pgTable("activity_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  activityType: text("activity_type").notNull(),
+  entityId: integer("entity_id"),
+  entityType: text("entity_type"),
+  details: jsonb("details"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -116,6 +143,16 @@ export const insertSavedSearchSchema = createInsertSchema(savedSearches).pick({
   pushEnabled: true,
 });
 
+export const insertActivityLogSchema = createInsertSchema(activityLogs).pick({
+  userId: true,
+  activityType: true,
+  entityId: true,
+  entityType: true,
+  details: true,
+  ipAddress: true,
+  userAgent: true,
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Event = typeof events.$inferSelect;
@@ -126,3 +163,5 @@ export type Participant = typeof participants.$inferSelect;
 export type InsertParticipant = z.infer<typeof insertParticipantSchema>;
 export type SavedSearch = typeof savedSearches.$inferSelect;
 export type InsertSavedSearch = z.infer<typeof insertSavedSearchSchema>;
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;

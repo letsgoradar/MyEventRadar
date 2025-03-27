@@ -8,8 +8,12 @@ import { EventList } from "@/components/EventList"
 import CreateEventPage from "@/pages/create-event"
 import EventDetailPage from "@/pages/event-detail"
 import BottomNav from "@/components/Layout/BottomNav"
-import { AdminDashboard, AdminLogin } from "@/pages/admin"
-import AdminAuthGuard from "@/components/Admin/AuthGuard"
+import AdminDashboard from "@/pages/admin/Dashboard"
+import AdminEvents from "@/pages/admin/Events"
+import AdminUsers from "@/pages/admin/Users"
+import ActivityLogs from "@/pages/admin/ActivityLogs"
+import AdminLogin from "@/pages/admin/Login"
+import AuthGuard from "@/components/Admin/AuthGuard"
 import type { Event } from "@shared/schema"
 import { queryClient } from "@/lib/queryClient"
 
@@ -40,13 +44,28 @@ export default function App() {
       <div className="h-screen flex flex-col relative">
         <Switch>
           {/* Admin Routes */}
-          <Route path="/admin/login">
+          <Route path="/login">
             <AdminLogin />
           </Route>
-          <Route path="/admin/dashboard">
-            <AdminAuthGuard>
+          <Route path="/admin">
+            <AuthGuard>
               <AdminDashboard />
-            </AdminAuthGuard>
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/events">
+            <AuthGuard>
+              <AdminEvents />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/users">
+            <AuthGuard>
+              <AdminUsers />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/activity-logs">
+            <AuthGuard>
+              <ActivityLogs />
+            </AuthGuard>
           </Route>
           
           {/* Regular Routes */}

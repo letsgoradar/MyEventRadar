@@ -436,6 +436,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Log activity (can be called from any authenticated route)
+  app.post('/api/admin/log-activity', isAuthenticated, async (req, res) => {
+    try {
+      const log = req.body;
+      
+      // Add IP and user agent information
+      log.ipAddress = req.ip;
+      log.userAgent = req.get('User-Agent');
+      
+      const result = await storage.logActivity(log);
+      res.json(result);
+    } catch (error) {
+      console.error('Error logging activity:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Get activity logs (admin only)
+  app.get('/api/admin/activity-logs', isAdmin, async (req, res) => {
+    try {
+      const { limit, offset, userId, activityType } = req.query;
+      
+      const options: any = {};
+      if (limit) options.limit = parseInt(limit as string);
+      if (offset) options.offset = parseInt(offset as string);
+      if (userId) options.userId = parseInt(userId as string);
+      if (activityType) options.activityType = activityType as string;
+      
+      const logs = await storage.getActivityLogs(options);
+      const count = await storage.getActivityLogCount();
+      
+      res.json({
+        logs,
+        count,
+        limit: options.limit,
+        offset: options.offset
+      });
+    } catch (error) {
+      console.error('Error fetching activity logs:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Get a single user (admin only)
+  app.get('/api/admin/users/:id', isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Update a user (admin only)
+  app.put('/api/admin/users/:id', isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const userData = req.body;
+      
+      // Hash the password if provided
+      if (userData.password) {
+        userData.password = await bcrypt.hash(userData.password, 10);
+      }
+      
+      const user = await storage.updateUser(userId, userData);
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Delete a user (admin only)
+  app.delete('/api/admin/users/:id', isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      await storage.deleteUser(userId);
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Import CSV users (admin only)
+  app.post('/api/admin/import/users', isAdmin, async (req, res) => {
+    try {
+      const users = req.body;
+      
+      if (!Array.isArray(users) || users.length === 0) {
+        return res.status(400).json({ message: "Invalid data format. Expected array of users." });
+      }
+      
+      // Hash passwords for all users
+      const usersWithHashedPasswords = await Promise.all(
+        users.map(async (user) => ({
+          ...user,
+          password: await bcrypt.hash(user.password, 10)
+        }))
+      );
+      
+      const importedUsers = await storage.importUsers(usersWithHashedPasswords);
+      
+      // Remove passwords from response
+      const usersWithoutPasswords = importedUsers.map(user => {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
+      
+      res.json({
+        message: `Successfully imported ${importedUsers.length} users`,
+        users: usersWithoutPasswords
+      });
+    } catch (error) {
+      console.error('Error importing users:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Import CSV events (admin only)
+  app.post('/api/admin/import/events', isAdmin, async (req, res) => {
+    try {
+      const events = req.body;
+      
+      if (!Array.isArray(events) || events.length === 0) {
+        return res.status(400).json({ message: "Invalid data format. Expected array of events." });
+      }
+      
+      const importedEvents = await storage.importEvents(events);
+      
+      res.json({
+        message: `Successfully imported ${importedEvents.length} events`,
+        events: importedEvents
+      });
+    } catch (error) {
+      console.error('Error importing events:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

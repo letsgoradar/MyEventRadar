@@ -7,6 +7,7 @@ import {
   favorites,
   participants,
   savedSearches,
+  activityLogs,
   type User,
   type InsertUser,
   type Event,
@@ -17,6 +18,8 @@ import {
   type InsertParticipant,
   type SavedSearch,
   type InsertSavedSearch,
+  type ActivityLog,
+  type InsertActivityLog,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
@@ -33,6 +36,9 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   getUserCount(): Promise<number>;
+  updateUser(id: number, userData: Partial<User>): Promise<User>;
+  deleteUser(id: number): Promise<void>;
+  importUsers(users: InsertUser[]): Promise<User[]>;
 
   // Event operations
   createEvent(event: InsertEvent): Promise<Event>;
@@ -44,6 +50,7 @@ export interface IStorage {
   updateEvent(id: number, event: Partial<Event>): Promise<Event>;
   deleteEvent(id: number): Promise<void>;
   getEventCount(): Promise<number>;
+  importEvents(events: InsertEvent[]): Promise<Event[]>;
 
   // Favorite operations
   addFavorite(favorite: InsertFavorite): Promise<Favorite>;
@@ -61,6 +68,11 @@ export interface IStorage {
   saveSavedSearch(search: InsertSavedSearch): Promise<SavedSearch>;
   getSavedSearchesByUser(userId: number): Promise<SavedSearch[]>;
   removeSavedSearch(id: number): Promise<void>;
+  
+  // Activity Log operations
+  logActivity(log: InsertActivityLog): Promise<ActivityLog>;
+  getActivityLogs(options?: { limit?: number; offset?: number; userId?: number; activityType?: string }): Promise<ActivityLog[]>;
+  getActivityLogCount(): Promise<number>;
 }
 
 export class PgStorage implements IStorage {
@@ -97,7 +109,7 @@ export class PgStorage implements IStorage {
           startTime: new Date(insertEvent.startTime),
           endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
           category: insertEvent.category,
-          subcategory: insertEvent.subcategory || null,
+          secondaryCategory: insertEvent.secondaryCategory || null,
           isPaid: insertEvent.isPaid || false,
           price: insertEvent.price || null,
           maxParticipants: insertEvent.maxParticipants || null,
@@ -340,6 +352,113 @@ export class PgStorage implements IStorage {
   async getParticipantCount(): Promise<number> {
     return this.withRetry(async () => {
       const result = await db.select({ count: count() }).from(participants);
+      return result[0].count;
+    });
+  }
+  
+  // User management methods
+  async updateUser(id: number, userData: Partial<User>): Promise<User> {
+    return this.withRetry(async () => {
+      const [result] = await db
+        .update(users)
+        .set(userData)
+        .where(eq(users.id, id))
+        .returning();
+      return result;
+    });
+  }
+  
+  async deleteUser(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(users).where(eq(users.id, id));
+    });
+  }
+  
+  async importUsers(newUsers: InsertUser[]): Promise<User[]> {
+    return this.withRetry(async () => {
+      const results = [];
+      
+      // Process users in batches to avoid large transactions
+      for (const user of newUsers) {
+        try {
+          // Check if user with same email already exists
+          const existingUser = await this.getUserByEmail(user.email);
+          
+          if (existingUser) {
+            // Update existing user instead of creating a duplicate
+            const updatedUser = await this.updateUser(existingUser.id, user);
+            results.push(updatedUser);
+          } else {
+            // Create new user
+            const createdUser = await this.createUser(user);
+            results.push(createdUser);
+          }
+        } catch (error) {
+          console.error('Error importing user:', error);
+          // Continue with next user instead of failing the entire import
+        }
+      }
+      
+      return results;
+    });
+  }
+  
+  // Event import
+  async importEvents(newEvents: InsertEvent[]): Promise<Event[]> {
+    return this.withRetry(async () => {
+      const results = [];
+      
+      // Process events in batches to avoid large transactions
+      for (const event of newEvents) {
+        try {
+          const createdEvent = await this.createEvent(event);
+          results.push(createdEvent);
+        } catch (error) {
+          console.error('Error importing event:', error);
+          // Continue with next event instead of failing the entire import
+        }
+      }
+      
+      return results;
+    });
+  }
+  
+  // Activity logging methods
+  async logActivity(log: InsertActivityLog): Promise<ActivityLog> {
+    return this.withRetry(async () => {
+      const [result] = await db.insert(activityLogs).values(log).returning();
+      return result;
+    });
+  }
+  
+  async getActivityLogs(options: { limit?: number; offset?: number; userId?: number; activityType?: string } = {}): Promise<ActivityLog[]> {
+    return this.withRetry(async () => {
+      // Using any to resolve type issues with Drizzle's query builder
+      let query: any = db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt));
+      
+      if (options.userId) {
+        query = query.where(eq(activityLogs.userId, options.userId));
+      }
+      
+      if (options.activityType) {
+        query = query.where(eq(activityLogs.activityType, options.activityType));
+      }
+      
+      if (options.limit) {
+        query = query.limit(options.limit);
+      }
+      
+      if (options.offset) {
+        query = query.offset(options.offset);
+      }
+      
+      return query;
+    });
+  }
+  
+  async getActivityLogCount(): Promise<number> {
+    return this.withRetry(async () => {
+      const result = await db.select({ count: count() }).from(activityLogs);
       return result[0].count;
     });
   }

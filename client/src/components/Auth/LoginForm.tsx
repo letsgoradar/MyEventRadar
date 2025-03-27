@@ -1,112 +1,171 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Logo } from '@/components/ui/logo';
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  username: z.string().min(1, 'Gebruikersnaam is verplicht'),
+  password: z.string().min(1, 'Wachtwoord is verplicht'),
 });
 
-export default function LoginForm() {
+type LoginFormData = z.infer<typeof loginSchema>;
+
+interface LoginFormProps {
+  redirectPath?: string;
+  onSuccess?: (user: any) => void;
+}
+
+export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps) {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
-  const form = useForm<z.infer<typeof loginSchema>>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      username: '',
+      password: '',
     },
   });
-
-  async function onSubmit(values: z.infer<typeof loginSchema>) {
+  
+  const onSubmit = async (data: LoginFormData) => {
     try {
-      const response = await apiRequest("POST", "/api/auth/login", values);
-      toast({
-        title: "Success",
-        description: "Successfully logged in",
+      setIsLoading(true);
+      
+      const response = await apiRequest('/api/auth/login', {
+        method: 'POST',
+        data: JSON.stringify(data),
       });
+      
+      // Log activity
+      await apiRequest('/api/admin/log-activity', {
+        method: 'POST',
+        data: JSON.stringify({
+          userId: response.user.id,
+          activityType: 'login',
+          details: { 
+            section: 'admin_panel'
+          }
+        })
+      });
+      
+      toast({
+        title: 'Ingelogd!',
+        description: 'Je bent succesvol ingelogd.',
+      });
+      
+      if (onSuccess) {
+        onSuccess(response.user);
+      } else {
+        // Redirect to admin dashboard
+        window.location.href = redirectPath;
+      }
     } catch (error) {
+      console.error('Login error:', error);
+      
       toast({
-        title: "Error",
-        description: "Invalid email or password",
-        variant: "destructive",
+        title: 'Inloggen mislukt',
+        description: 'Controleer je gebruikersnaam en wachtwoord en probeer opnieuw.',
+        variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
-  }
-
+  };
+  
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+  
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter your email" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input
-                  type="password"
-                  placeholder="Enter your password"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <Button type="submit" className="w-full">
-          Log in
-        </Button>
-
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              Or continue with
-            </span>
-          </div>
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader className="space-y-1">
+        <div className="flex justify-center mb-6">
+          <Logo className="h-12 w-12" />
         </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={() => {
-            // TODO: Implement Google login
-          }}
-        >
-          Continue with Google
-        </Button>
+        <CardTitle className="text-2xl text-center">Inloggen</CardTitle>
+        <CardDescription className="text-center">
+          Log in om toegang te krijgen tot het beheerderspaneel
+        </CardDescription>
+      </CardHeader>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="username">Gebruikersnaam</Label>
+            <Input
+              id="username"
+              placeholder="Voer je gebruikersnaam in"
+              {...register('username')}
+              disabled={isLoading}
+            />
+            {errors.username && (
+              <p className="text-sm text-red-500">{errors.username.message}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Wachtwoord</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Voer je wachtwoord in"
+                {...register('password')}
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
+                onClick={togglePasswordVisibility}
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            {errors.password && (
+              <p className="text-sm text-red-500">{errors.password.message}</p>
+            )}
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Inloggen...
+              </>
+            ) : (
+              'Inloggen'
+            )}
+          </Button>
+        </CardFooter>
       </form>
-    </Form>
+    </Card>
   );
 }

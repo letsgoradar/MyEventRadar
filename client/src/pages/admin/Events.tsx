@@ -17,7 +17,8 @@ import {
   Filter,
   ChevronDown,
   MoreHorizontal,
-  Loader2
+  Loader2,
+  Info
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { format } from 'date-fns';
@@ -149,13 +150,13 @@ const AdminEvents: React.FC = () => {
       // Log activity
       apiRequest('/api/admin/log-activity', {
         method: 'POST',
-        data: JSON.stringify({
+        data: {
           activityType: 'delete_event',
           details: { 
             eventId: selectedEvent?.id,
             title: selectedEvent?.title
           }
-        })
+        }
       });
     },
     onError: (error) => {
@@ -192,13 +193,13 @@ const AdminEvents: React.FC = () => {
       // Log activity
       apiRequest('/api/admin/log-activity', {
         method: 'POST',
-        data: JSON.stringify({
+        data: {
           activityType: 'admin_action',
           details: { 
             action: 'import_events',
             count: data.imported
           }
-        })
+        }
       });
     },
     onError: (error) => {
@@ -271,12 +272,12 @@ const AdminEvents: React.FC = () => {
       // Log activity
       apiRequest('/api/admin/log-activity', {
         method: 'POST',
-        data: JSON.stringify({
+        data: {
           activityType: 'admin_action',
           details: { 
             action: 'export_events',
           }
-        })
+        }
       });
       
       toast({

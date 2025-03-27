@@ -128,9 +128,8 @@ const AdminEvents: React.FC = () => {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   
   // Fetch events data
-  const { data, isLoading, error } = useQuery<EventsResponse>({
-    queryKey: ['/api/admin/events', page, limit, filter],
-    placeholderData: keepPreviousData => keepPreviousData,
+  const { data, isLoading, error } = useQuery<Event[]>({
+    queryKey: ['/api/admin/events'],
   });
   
   // Delete event mutation
@@ -296,11 +295,16 @@ const AdminEvents: React.FC = () => {
   
   // Format date
   const formatEventDate = (dateString: string) => {
-    return format(new Date(dateString), 'd MMMM yyyy', { locale: nl });
+    try {
+      return format(new Date(dateString), 'd MMMM yyyy', { locale: nl });
+    } catch (e) {
+      console.error("Date formatting error:", e);
+      return "Onbekende datum";
+    }
   };
   
   // Calculate total pages
-  const totalPages = data?.total ? Math.ceil(data.total / limit) : 0;
+  const totalPages = data ? Math.ceil(data.length / limit) : 0;
   
   return (
     <div className="h-screen flex flex-col">
@@ -422,8 +426,8 @@ const AdminEvents: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data?.events && data.events.length > 0 ? (
-                        data.events.map((event) => (
+                      {data && data.length > 0 ? (
+                        data.map((event) => (
                           <TableRow key={event.id}>
                             <TableCell className="font-medium">{event.title}</TableCell>
                             <TableCell>
@@ -540,10 +544,10 @@ const AdminEvents: React.FC = () => {
                   </Table>
                 )}
               </CardContent>
-              {data?.total && data.total > 0 && (
+              {data && data.length > 0 && (
                 <CardFooter className="flex justify-between p-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Toont {(page - 1) * limit + 1} - {Math.min(page * limit, data.total)} van {data.total} evenementen
+                    Toont {(page - 1) * limit + 1} - {Math.min(page * limit, data.length)} van {data.length} evenementen
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -580,8 +584,8 @@ const AdminEvents: React.FC = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {data?.events && data.events.length > 0 ? (
-                    data.events.map((event) => (
+                  {data && data.length > 0 ? (
+                    data.map((event) => (
                       <Card key={event.id} className="overflow-hidden">
                         <div 
                           className="h-32 bg-muted" 
@@ -705,10 +709,10 @@ const AdminEvents: React.FC = () => {
                   )}
                 </div>
                 
-                {data?.total && data.total > 0 && (
+                {data && data.length > 0 && (
                   <div className="flex justify-between items-center mt-6">
                     <div className="text-sm text-muted-foreground">
-                      Toont {(page - 1) * limit + 1} - {Math.min(page * limit, data.total)} van {data.total} evenementen
+                      Toont {(page - 1) * limit + 1} - {Math.min(page * limit, data.length)} van {data.length} evenementen
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -738,7 +742,7 @@ const AdminEvents: React.FC = () => {
       
       {/* CSV Import Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Importeer Evenementen</DialogTitle>
             <DialogDescription>
@@ -748,7 +752,7 @@ const AdminEvents: React.FC = () => {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            <div className="grid w-full max-w-sm items-center gap-1.5">
+            <div className="grid w-full items-center gap-1.5">
               <Label htmlFor="csv">CSV Bestand</Label>
               <div className="flex gap-2">
                 <Input 
@@ -781,14 +785,30 @@ const AdminEvents: React.FC = () => {
               </div>
             )}
             
-            <div className="bg-muted rounded-md p-3">
+            <div className="bg-muted rounded-md p-4">
               <h4 className="font-medium mb-2">CSV-indeling voorbeeld:</h4>
-              <p className="text-xs font-mono text-muted-foreground whitespace-nowrap overflow-x-auto">
-                title,description,startDate,endDate,location,category,lat,lng,hostId,price
-              </p>
-              <p className="text-xs font-mono text-muted-foreground whitespace-nowrap overflow-x-auto mt-1">
-                Zomerfestival,Een gezellig festival,2023-07-20T14:00:00,2023-07-20T22:00:00,Stadspark Oss,Gezellig en Sociaal,51.7656,5.5314,1,10.50
-              </p>
+              <div className="overflow-x-auto">
+                <p className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                  title,description,startDate,endDate,location,category,lat,lng,hostId,price
+                </p>
+                <p className="text-xs font-mono text-muted-foreground whitespace-nowrap mt-2">
+                  Zomerfestival,Een gezellig festival,2023-07-20T14:00:00,2023-07-20T22:00:00,Stadspark Oss,Gezellig en Sociaal,51.7656,5.5314,1,10.50
+                </p>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 dark:bg-blue-950 rounded-md p-4 border border-blue-200 dark:border-blue-800">
+              <h4 className="font-medium text-blue-800 dark:text-blue-300 flex items-center mb-2">
+                <Info className="h-4 w-4 mr-2" />
+                Instructies voor CSV Import
+              </h4>
+              <ul className="list-disc list-inside space-y-1 text-sm text-blue-700 dark:text-blue-400">
+                <li>Zorg dat alle kolommen (title, description, etc.) aanwezig zijn</li>
+                <li>Datums moeten in het formaat <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">YYYY-MM-DDThh:mm:ss</code> zijn</li>
+                <li>Categorie moet een van de beschikbare categorieën zijn</li>
+                <li>Coördinaten (lat, lng) moeten decimale getallen zijn</li>
+                <li>HostId moet een bestaande gebruikers-ID zijn</li>
+              </ul>
             </div>
           </div>
           

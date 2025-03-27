@@ -86,8 +86,8 @@ const eventFormSchema = z.object({
     required_error: 'Selecteer een categorie',
   }),
   secondaryCategory: z.enum(CATEGORIES).optional().nullable(),
-  location: z.string()
-    .min(3, { message: 'Locatie moet minimaal 3 tekens bevatten' }),
+  address: z.string()
+    .min(3, { message: 'Adres moet minimaal 3 tekens bevatten' }),
   latitude: z.string(),
   longitude: z.string(),
   notificationReach: z.string().default('1'),
@@ -123,7 +123,7 @@ const EventForm: React.FC = () => {
       description: '',
       category: CATEGORIES[0],
       secondaryCategory: null,
-      location: '',
+      address: '',
       latitude: '51.765',
       longitude: '5.526',
       notificationReach: '1',
@@ -173,7 +173,7 @@ const EventForm: React.FC = () => {
         description: event.description,
         category: event.category as any,
         secondaryCategory: event.secondaryCategory as any,
-        location: event.location || '',
+        address: event.address || '',
         latitude: event.latitude?.toString() || '51.765',
         longitude: event.longitude?.toString() || '5.526',
         notificationReach: event.notificationReach?.toString() || '1',
@@ -659,7 +659,7 @@ const EventForm: React.FC = () => {
                   <CardContent className="space-y-4">
                     <FormField
                       control={form.control}
-                      name="location"
+                      name="address"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Locatie Naam</FormLabel>

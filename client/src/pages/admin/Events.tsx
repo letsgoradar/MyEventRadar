@@ -103,7 +103,7 @@ import {
 interface EventsFilter {
   category: string;
   searchQuery: string;
-  sortBy: 'newest' | 'oldest' | 'title' | 'category' | 'location';
+  sortBy: 'newest' | 'oldest' | 'title' | 'category' | 'address';
   timeFrame: 'all' | 'upcoming' | 'past' | 'today';
 }
 
@@ -149,7 +149,7 @@ const AdminEvents: React.FC = () => {
         event => 
           event.title.toLowerCase().includes(query) ||
           event.description.toLowerCase().includes(query) ||
-          event.location?.toLowerCase().includes(query) ||
+          event.address?.toLowerCase().includes(query) ||
           event.category.toLowerCase().includes(query)
       );
     }
@@ -186,10 +186,10 @@ const AdminEvents: React.FC = () => {
     // Apply sorting
     switch (filter.sortBy) {
       case 'newest':
-        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        filtered.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
         break;
       case 'oldest':
-        filtered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        filtered.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
         break;
       case 'title':
         filtered.sort((a, b) => a.title.localeCompare(b.title));
@@ -197,8 +197,8 @@ const AdminEvents: React.FC = () => {
       case 'category':
         filtered.sort((a, b) => a.category.localeCompare(b.category));
         break;
-      case 'location':
-        filtered.sort((a, b) => (a.location || '').localeCompare(b.location || ''));
+      case 'address':
+        filtered.sort((a, b) => (a.address || '').localeCompare(b.address || ''));
         break;
     }
     
@@ -550,7 +550,7 @@ const AdminEvents: React.FC = () => {
                     <SelectItem value="oldest">Oudste eerst</SelectItem>
                     <SelectItem value="title">Titel (A-Z)</SelectItem>
                     <SelectItem value="category">Categorie</SelectItem>
-                    <SelectItem value="location">Locatie</SelectItem>
+                    <SelectItem value="address">Locatie</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -658,7 +658,7 @@ const AdminEvents: React.FC = () => {
                             <TableCell>
                               <div className="flex items-center gap-1.5">
                                 <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                                <span className="truncate max-w-[150px]">{event.location}</span>
+                                <span className="truncate max-w-[150px]">{event.address}</span>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -872,7 +872,7 @@ const AdminEvents: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-                            <span className="truncate">{event.location}</span>
+                            <span className="truncate">{event.address}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <User className="h-3.5 w-3.5" />
@@ -997,7 +997,7 @@ const AdminEvents: React.FC = () => {
               <ul className="list-disc pl-5 space-y-1">
                 <li>title (verplicht)</li>
                 <li>description (verplicht)</li>
-                <li>location (verplicht)</li>
+                <li>address (verplicht)</li>
                 <li>category (verplicht)</li>
                 <li>latitude (verplicht)</li>
                 <li>longitude (verplicht)</li>

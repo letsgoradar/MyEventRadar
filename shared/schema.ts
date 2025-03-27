@@ -41,6 +41,7 @@ export const events = pgTable("events", {
   description: text("description").notNull(),
   latitude: decimal("latitude").notNull(),
   longitude: decimal("longitude").notNull(),
+  address: text("address"),
   notificationReach: decimal("notification_reach").notNull(),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time"),

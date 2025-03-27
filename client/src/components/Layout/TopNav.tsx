@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Logo from '../ui/logo';
+import { Logo } from '../ui/logo';
 import { calculateDistance } from '@/lib/utils';
 import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { DatePicker } from "@/components/ui/date-picker";

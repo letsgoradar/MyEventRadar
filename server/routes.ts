@@ -421,13 +421,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/statistics', isAdmin, async (req, res) => {
     try {
       const userCount = await storage.getUserCount();
-      const eventCount = await storage.getEventCount();
-      const participantCount = await storage.getParticipantCount();
+      const eventsCount = await storage.getEventCount();
+      const participantsCount = await storage.getParticipantCount();
+      const activityLogs = await storage.getActivityLogs({ limit: 100 });
+      const activityLogsCount = await storage.getActivityLogCount();
+      
+      // Get recent events
+      const allEvents = await storage.getAllEvents();
+      const recentEvents = allEvents
+        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+        .slice(0, 5)
+        .map(event => ({
+          id: event.id,
+          title: event.title,
+          date: new Date(event.startTime).toLocaleDateString('nl-NL', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          }),
+          category: event.category
+        }));
+      
+      // Get top users
+      const users = await storage.getAllUsers();
+      const topUsers = users
+        .filter(user => user.role !== 'admin') // Filter out admin users
+        .slice(0, 5)
+        .map(user => ({
+          id: user.id,
+          username: user.username,
+          eventsHosted: 0, // We'll update this in the next step
+          eventsParticipated: 0 // We'll update this in the next step
+        }));
+      
+      // Populate hosted events count (this is just a placeholder - we'll fix this later)
       
       const statistics = {
-        users: userCount,
-        events: eventCount,
-        participants: participantCount,
+        userCount,
+        eventsCount,
+        participantsCount,
+        activityLogsCount,
+        recentEvents,
+        topUsers
       };
       
       res.json(statistics);

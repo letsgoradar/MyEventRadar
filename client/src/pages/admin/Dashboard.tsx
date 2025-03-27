@@ -43,9 +43,9 @@ interface DashboardStats {
 const AdminDashboard: React.FC = () => {
   // Query to get dashboard stats
   const { data, isLoading, error } = useQuery<DashboardStats>({
-    queryKey: ['/api/admin/dashboard'],
+    queryKey: ['/api/admin/statistics'],
     queryFn: async () => {
-      const response = await apiRequest('/api/admin/dashboard');
+      const response = await apiRequest('/api/admin/statistics');
       return response;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

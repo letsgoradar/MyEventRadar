@@ -61,17 +61,21 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
 
       console.log('Login response:', response);
       
-      // Log activity
-      await apiRequest('/api/admin/log-activity', {
-        method: 'POST',
-        data: {
-          userId: response.id, // Changed from response.user.id to response.id
-          activityType: 'login',
-          details: { 
-            section: 'admin_panel'
+      // Log activity but don't block login if it fails
+      try {
+        await apiRequest('/api/admin/log-activity', {
+          method: 'POST',
+          data: {
+            userId: response.id,
+            activityType: 'login',
+            details: { 
+              section: 'admin_panel'
+            }
           }
-        }
-      });
+        });
+      } catch (error) {
+        console.warn('Failed to log activity, but continuing login process:', error);
+      }
 
       toast({
         title: 'Ingelogd!',

@@ -39,19 +39,23 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
       
       // Log activity for successful login to admin panel
       if (user && (user.role === 'admin' || user.role === 'moderator')) {
-        apiRequest('/api/admin/log-activity', {
-          method: 'POST',
-          data: {
-            userId: user.id,
-            activityType: 'login',
-            details: { 
-              section: 'admin_panel',
-              role: user.role
+        try {
+          apiRequest('/api/admin/log-activity', {
+            method: 'POST',
+            data: {
+              userId: user.id,
+              activityType: 'login',
+              details: { 
+                section: 'admin_panel',
+                role: user.role
+              }
             }
-          }
-        }).catch(err => {
-          console.error('Failed to log admin login:', err);
-        });
+          }).catch(err => {
+            console.warn('Failed to log admin login, but continuing:', err);
+          });
+        } catch (err) {
+          console.warn('Failed to log admin login activity, but continuing:', err);
+        }
       }
       
       // Set error message if there's a problem
@@ -100,7 +104,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
           </p>
           <div className="flex justify-center pt-4">
             <Button asChild>
-              <a href="/login">Inloggen</a>
+              <a href="/admin/login">Inloggen</a>
             </Button>
           </div>
         </div>
@@ -114,7 +118,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
     (requiredRole === 'moderator' && user.role === 'admin');
   
   if (!hasRequiredRole) {
-    return <Redirect to="/login" />;
+    return <Redirect to="/admin/login" />;
   }
   
   // User is authenticated and has required role

@@ -1,0 +1,25 @@
+Probleembeschrijving: Gebruikers kunnen zich niet aanmelden met de admin-inloggegevens (admin@example.com / admin123). Bij het inloggen op de URL /admin/login verschijnt er een achtergrondkleur, maar de daadwerkelijke inlogpagina wordt niet weergegeven. Wanneer gebruikers proberen in te loggen op /inlog, worden de gegevens niet herkend.
+
+Stappen om het probleem op te lossen:
+Controleer de routering: Verifieer of de routering voor de inlogpagina goed is ingesteld. De inlogpagina moet toegankelijk zijn via de juiste URL, wat /admin/login zou moeten zijn. Controleer of de AdminLogin component correct is geïmporteerd en gebruikt in het project, zoals te zien in Login.tsx.
+
+Inspecteer de LoginForm implementatie: Zorg ervoor dat de apiRequest voor het inloggen de juiste Content-Type header en body doorgeeft. Dit is al aangepakt in eerdere aanpassingen; dus het is belangrijk om te testen of de backend goed reageert.
+
+In de LoginForm.tsx file, moet de API-aanroep er als volgt uitzien:
+
+const response = await apiRequest('/api/auth/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(data),
+});
+Bekijk serverlogs: Controleer de console van de server op Replit voor foutmeldingen bij het verzenden van inloggegevens. Dit kan helpen om te achterhalen of er serverfouten of ongeldige gebruikersgegevens zijn.
+
+Test de API met cURL of Postman: Voer een directe POST-aanroep uit naar de endpoint /api/auth/login met de admin-inloggegevens om te bevestigen dat de API goed werkt. Gebruik de onderstaande cURL-opdracht:
+
+curl -X POST http://0.0.0.0:5000/api/auth/login -H "Content-Type: application/json" -d '{"email":"admin@example.com", "password":"admin123"}'
+Controleer React-component rendering: Zorg ervoor dat de React-component niet fouten vertoont en correct wordt weergegeven. Kijk of er inhoud is die voorkomt dat de inlogpagina goed wordt weergegeven.
+
+Volgende stappen
+Na het uitvoeren van deze stappen, zou je in staat moeten zijn om de oorzaak van het probleem te identificeren. Laat het me weten als je specifieke foutmeldingen tegenkomt of aanvullende hulp nodig hebt!

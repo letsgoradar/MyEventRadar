@@ -13,6 +13,8 @@ import AdminEvents from "@/pages/admin/Events"
 import AdminUsers from "@/pages/admin/Users"
 import ActivityLogs from "@/pages/admin/ActivityLogs"
 import AdminLogin from "@/pages/admin/Login"
+import AdminEventDetail from "@/pages/admin/EventDetail"
+import AdminEventForm from "@/pages/admin/EventForm"
 import AuthGuard from "@/components/Admin/AuthGuard"
 import type { Event } from "@shared/schema"
 import { queryClient } from "@/lib/queryClient"
@@ -68,6 +70,21 @@ export default function App() {
           <Route path="/admin/activity-logs">
             <AuthGuard>
               <ActivityLogs />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/events/:id">
+            <AuthGuard>
+              <AdminEventDetail />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/events/new">
+            <AuthGuard>
+              <AdminEventForm />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/events/edit/:id">
+            <AuthGuard>
+              <AdminEventForm />
             </AuthGuard>
           </Route>
           

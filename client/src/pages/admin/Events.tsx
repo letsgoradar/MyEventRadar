@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import AdminNav from '@/components/Layout/AdminNav';
@@ -13,17 +14,24 @@ import {
   User, 
   Download, 
   Upload,
+  Eye,
   X,
   Filter,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   MoreHorizontal,
   Loader2,
-  Info
+  Info,
+  Check,
+  List,
+  LayoutGrid,
+  ArrowUpDown
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { CATEGORIES } from '@shared/schema';
+import { CATEGORIES, Event } from '@shared/schema';
 import { CategoryIcon, getCategoryColor } from '@/components/CategoryIcon';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -51,6 +59,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -81,44 +90,34 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  location: string;
-  category: string;
-  lat: number;
-  lng: number;
-  hostId: number;
-  image?: string;
-  price?: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface EventsResponse {
-  events: Event[];
-  total: number;
-}
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface EventsFilter {
   category: string;
   searchQuery: string;
-  sortBy: 'newest' | 'oldest' | 'title' | 'category';
+  sortBy: 'newest' | 'oldest' | 'title' | 'category' | 'location';
+  timeFrame: 'all' | 'upcoming' | 'past' | 'today';
 }
 
 const AdminEvents: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   
   // State for filters and pagination
   const [filter, setFilter] = useState<EventsFilter>({
     category: 'all',
     searchQuery: '',
     sortBy: 'newest',
+    timeFrame: 'all'
   });
   
   const [page, setPage] = useState(1);
@@ -127,11 +126,93 @@ const AdminEvents: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [view, setView] = useState<'list' | 'grid'>('list');
   
   // Fetch events data
-  const { data, isLoading, error } = useQuery<Event[]>({
+  const { data: allEvents, isLoading, error } = useQuery<Event[]>({
     queryKey: ['/api/admin/events'],
+    queryFn: async () => {
+      return await apiRequest('/api/admin/events');
+    }
   });
+  
+  // Filter and sort events
+  const filteredEvents = React.useMemo(() => {
+    if (!allEvents) return [];
+    
+    let filtered = [...allEvents];
+    
+    // Apply search filter
+    if (filter.searchQuery) {
+      const query = filter.searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        event => 
+          event.title.toLowerCase().includes(query) ||
+          event.description.toLowerCase().includes(query) ||
+          event.location?.toLowerCase().includes(query) ||
+          event.category.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply category filter
+    if (filter.category !== 'all') {
+      filtered = filtered.filter(
+        event => event.category === filter.category || event.secondaryCategory === filter.category
+      );
+    }
+    
+    // Apply time filter
+    const now = new Date();
+    switch (filter.timeFrame) {
+      case 'upcoming':
+        filtered = filtered.filter(event => new Date(event.startTime) > now);
+        break;
+      case 'past':
+        filtered = filtered.filter(event => new Date(event.startTime) < now);
+        break;
+      case 'today':
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        filtered = filtered.filter(event => {
+          const eventDate = new Date(event.startTime);
+          return eventDate >= today && eventDate < tomorrow;
+        });
+        break;
+    }
+    
+    // Apply sorting
+    switch (filter.sortBy) {
+      case 'newest':
+        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+      case 'oldest':
+        filtered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        break;
+      case 'title':
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'category':
+        filtered.sort((a, b) => a.category.localeCompare(b.category));
+        break;
+      case 'location':
+        filtered.sort((a, b) => (a.location || '').localeCompare(b.location || ''));
+        break;
+    }
+    
+    return filtered;
+  }, [allEvents, filter]);
+  
+  // Paginate events
+  const paginatedEvents = React.useMemo(() => {
+    const startIndex = (page - 1) * limit;
+    return filteredEvents.slice(startIndex, startIndex + limit);
+  }, [filteredEvents, page, limit]);
+  
+  // Calculate total pages
+  const totalPages = Math.ceil(filteredEvents.length / limit);
   
   // Delete event mutation
   const deleteMutation = useMutation({
@@ -152,8 +233,9 @@ const AdminEvents: React.FC = () => {
         method: 'POST',
         data: {
           activityType: 'delete_event',
+          entityType: 'event',
+          entityId: selectedEvent?.id,
           details: { 
-            eventId: selectedEvent?.id,
             title: selectedEvent?.title
           }
         }
@@ -230,6 +312,18 @@ const AdminEvents: React.FC = () => {
     setPage(1); // Reset to first page
   };
   
+  // Clear all filters
+  const clearFilters = () => {
+    setFilter({
+      category: 'all',
+      searchQuery: '',
+      sortBy: 'newest',
+      timeFrame: 'all'
+    });
+    setSearchInput('');
+    setPage(1);
+  };
+  
   // Handle CSV file upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -304,8 +398,15 @@ const AdminEvents: React.FC = () => {
     }
   };
   
-  // Calculate total pages
-  const totalPages = data ? Math.ceil(data.length / limit) : 0;
+  // Format date and time
+  const formatEventDateTime = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'd MMMM yyyy, HH:mm', { locale: nl });
+    } catch (e) {
+      console.error("Date formatting error:", e);
+      return "Onbekende datum/tijd";
+    }
+  };
   
   return (
     <div className="h-screen flex flex-col">
@@ -333,93 +434,198 @@ const AdminEvents: React.FC = () => {
               Exporteer CSV
             </Button>
             
-            <Button className="flex items-center gap-2">
+            <Button 
+              className="flex items-center gap-2"
+              onClick={() => navigate('/admin/events/new')}
+            >
               <PlusCircle className="h-4 w-4" />
               Nieuw Evenement
             </Button>
           </div>
         </div>
         
-        <Tabs defaultValue="list" className="mb-6">
-          <TabsList>
-            <TabsTrigger value="list">Lijst Weergave</TabsTrigger>
-            <TabsTrigger value="cards">Kaart Weergave</TabsTrigger>
-          </TabsList>
-          
-          {/* Search and filter */}
-          <div className="flex flex-col md:flex-row gap-4 my-6">
-            <div className="flex-1 flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Zoek op titel, locatie of beschrijving"
-                  className="pl-10"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-              </div>
-              <Button onClick={handleSearch}>Zoeken</Button>
-            </div>
-            
-            <div className="flex gap-2">
-              <Select
-                value={filter.category}
-                onValueChange={(value) => handleFilterChange('category', value)}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Categorie" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle Categorieën</SelectItem>
-                  {CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {/* Filter section */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Filter & Zoeken</CardTitle>
               
-              <Select
-                value={filter.sortBy}
-                onValueChange={(value) => handleFilterChange('sortBy', value as any)}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sorteer op" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest">Nieuwste eerst</SelectItem>
-                  <SelectItem value="oldest">Oudste eerst</SelectItem>
-                  <SelectItem value="title">Titel (A-Z)</SelectItem>
-                  <SelectItem value="category">Categorie</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className="flex gap-1 cursor-pointer">
+                  {filteredEvents.length} resultaten
+                </Badge>
+                
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 gap-1 text-xs"
+                  onClick={clearFilters}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  <span>Wis filters</span>
+                </Button>
+                
+                <div className="flex border rounded-md">
+                  <Button
+                    variant={view === 'list' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8 rounded-r-none"
+                    onClick={() => setView('list')}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={view === 'grid' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8 rounded-l-none"
+                    onClick={() => setView('grid')}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Zoek op titel, locatie of beschrijving"
+                    className="pl-10"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  />
+                </div>
+                <Button onClick={handleSearch}>Zoeken</Button>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                <Select
+                  value={filter.category}
+                  onValueChange={(value) => handleFilterChange('category', value)}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Categorie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle Categorieën</SelectItem>
+                    {CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        <div className="flex items-center gap-2">
+                          <CategoryIcon category={category as any} size={16} />
+                          <span>{category}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select
+                  value={filter.timeFrame}
+                  onValueChange={(value) => handleFilterChange('timeFrame', value)}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Periode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle Evenementen</SelectItem>
+                    <SelectItem value="upcoming">Aankomende Evenementen</SelectItem>
+                    <SelectItem value="past">Afgelopen Evenementen</SelectItem>
+                    <SelectItem value="today">Vandaag</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select
+                  value={filter.sortBy}
+                  onValueChange={(value) => handleFilterChange('sortBy', value as any)}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sorteer op" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Nieuwste eerst</SelectItem>
+                    <SelectItem value="oldest">Oudste eerst</SelectItem>
+                    <SelectItem value="title">Titel (A-Z)</SelectItem>
+                    <SelectItem value="category">Categorie</SelectItem>
+                    <SelectItem value="location">Locatie</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select
+                  value={limit.toString()}
+                  onValueChange={(value) => {
+                    setLimit(parseInt(value));
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Aantal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 per pagina</SelectItem>
+                    <SelectItem value="25">25 per pagina</SelectItem>
+                    <SelectItem value="50">50 per pagina</SelectItem>
+                    <SelectItem value="100">100 per pagina</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Loading state */}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-          
-          <TabsContent value="list">
-            <Card>
-              <CardHeader className="p-4">
-                <CardTitle className="text-xl">Evenementen</CardTitle>
-                <CardDescription>
-                  Beheer alle evenementen in het systeem.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                {isLoading ? (
-                  <div className="flex justify-center items-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : error ? (
-                  <div className="p-6 text-center text-red-500">
-                    <p>Er is een fout opgetreden bij het laden van de evenementen.</p>
-                  </div>
-                ) : (
+        ) : error ? (
+          <div className="p-6 text-center text-red-500">
+            <p>Er is een fout opgetreden bij het laden van de evenementen.</p>
+          </div>
+        ) : (
+          <>
+            {/* List view */}
+            {view === 'list' && (
+              <Card>
+                <CardContent className="p-0">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Titel</TableHead>
-                        <TableHead>Categorie</TableHead>
+                        <TableHead className="w-[300px]">
+                          <div className="flex items-center gap-1">
+                            Titel 
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5"
+                              onClick={() => handleFilterChange(
+                                'sortBy', 
+                                filter.sortBy === 'title' ? 'category' : 'title'
+                              )}
+                            >
+                              <ArrowUpDown className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableHead>
+                        <TableHead>
+                          <div className="flex items-center gap-1">
+                            Categorie
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5"
+                              onClick={() => handleFilterChange(
+                                'sortBy', 
+                                filter.sortBy === 'category' ? 'title' : 'category'
+                              )}
+                            >
+                              <ArrowUpDown className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableHead>
                         <TableHead>Locatie</TableHead>
                         <TableHead>Datum</TableHead>
                         <TableHead>Organisator</TableHead>
@@ -427,8 +633,8 @@ const AdminEvents: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data && data.length > 0 ? (
-                        data.map((event) => (
+                      {paginatedEvents.length > 0 ? (
+                        paginatedEvents.map((event) => (
                           <TableRow key={event.id}>
                             <TableCell className="font-medium">{event.title}</TableCell>
                             <TableCell>
@@ -438,6 +644,15 @@ const AdminEvents: React.FC = () => {
                                   size={16} 
                                 />
                                 <span>{event.category}</span>
+                                
+                                {event.secondaryCategory && (
+                                  <Badge 
+                                    variant="secondary" 
+                                    className="ml-1 text-xs"
+                                  >
+                                    {event.secondaryCategory}
+                                  </Badge>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -449,7 +664,7 @@ const AdminEvents: React.FC = () => {
                             <TableCell>
                               <div className="flex items-center gap-1.5">
                                 <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                                <span>{formatEventDate(event.startDate)}</span>
+                                <span>{formatEventDate(event.startTime.toString())}</span>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -470,12 +685,15 @@ const AdminEvents: React.FC = () => {
                                   <DropdownMenuLabel>Acties</DropdownMenuLabel>
                                   <DropdownMenuItem 
                                     className="flex items-center gap-2"
-                                    onClick={() => window.open(`/event/${event.id}`, '_blank')}
+                                    onClick={() => navigate(`/admin/events/${event.id}`)}
                                   >
-                                    <EyeIcon className="h-4 w-4" />
-                                    <span>Bekijken</span>
+                                    <Eye className="h-4 w-4" />
+                                    <span>Details</span>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem className="flex items-center gap-2">
+                                  <DropdownMenuItem 
+                                    className="flex items-center gap-2"
+                                    onClick={() => navigate(`/admin/events/edit/${event.id}`)}
+                                  >
                                     <Edit className="h-4 w-4" />
                                     <span>Bewerken</span>
                                   </DropdownMenuItem>
@@ -483,7 +701,7 @@ const AdminEvents: React.FC = () => {
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                       <DropdownMenuItem
-                                        className="flex items-center gap-2 text-red-500"
+                                        className="flex items-center gap-2 text-destructive"
                                         onSelect={(e) => {
                                           e.preventDefault();
                                           setSelectedEvent(event);
@@ -506,12 +724,8 @@ const AdminEvents: React.FC = () => {
                                       <AlertDialogFooter>
                                         <AlertDialogCancel>Annuleren</AlertDialogCancel>
                                         <AlertDialogAction
-                                          className="bg-red-500 hover:bg-red-600"
-                                          onClick={() => {
-                                            if (selectedEvent) {
-                                              deleteMutation.mutate(selectedEvent.id);
-                                            }
-                                          }}
+                                          className="bg-destructive hover:bg-destructive/90"
+                                          onClick={() => deleteMutation.mutate(event.id)}
                                         >
                                           {deleteMutation.isPending ? (
                                             <>
@@ -534,281 +748,264 @@ const AdminEvents: React.FC = () => {
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8">
                             <div className="flex flex-col items-center justify-center text-muted-foreground">
-                              <Calendar className="h-12 w-12 mb-2 opacity-20" />
-                              <p>Geen evenementen gevonden</p>
-                              <p className="text-sm">Probeer andere zoekfilters of voeg nieuwe evenementen toe</p>
+                              <Calendar className="h-12 w-12 mb-3 opacity-20" />
+                              <p className="font-medium">Geen evenementen gevonden</p>
+                              <p className="text-sm">
+                                Probeer andere zoekfilters of maak een nieuw evenement aan
+                              </p>
+                              <Button 
+                                variant="outline" 
+                                className="mt-4"
+                                onClick={() => navigate('/admin/events/new')}
+                              >
+                                <PlusCircle className="h-4 w-4 mr-2" />
+                                Nieuw Evenement
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
                       )}
                     </TableBody>
                   </Table>
-                )}
-              </CardContent>
-              {data && data.length > 0 && (
-                <CardFooter className="flex justify-between p-4 border-t">
-                  <div className="text-sm text-muted-foreground">
-                    Toont {(page - 1) * limit + 1} - {Math.min(page * limit, data.length)} van {data.length} evenementen
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((old) => Math.max(old - 1, 1))}
-                      disabled={page === 1}
-                    >
-                      Vorige
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((old) => (old < totalPages ? old + 1 : old))}
-                      disabled={page === totalPages}
-                    >
-                      Volgende
-                    </Button>
-                  </div>
-                </CardFooter>
-              )}
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="cards">
-            {isLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : error ? (
-              <div className="p-6 text-center text-red-500">
-                <p>Er is een fout opgetreden bij het laden van de evenementen.</p>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {data && data.length > 0 ? (
-                    data.map((event) => (
-                      <Card key={event.id} className="overflow-hidden">
-                        <div 
-                          className="h-32 bg-muted" 
-                          style={{
-                            backgroundColor: getCategoryColor(event.category as any),
-                            opacity: 0.3
-                          }}
-                        />
-                        <CardHeader className="pb-3">
-                          <div className="flex justify-between">
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Grid view */}
+            {view === 'grid' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {paginatedEvents.length > 0 ? (
+                  paginatedEvents.map((event) => (
+                    <Card key={event.id} className="overflow-hidden">
+                      <div 
+                        className="h-3 w-full" 
+                        style={{ backgroundColor: getCategoryColor(event.category as any) }}
+                      />
+                      <CardHeader className="p-4 pb-2">
+                        <div className="flex justify-between items-start">
+                          <div>
                             <Badge 
-                              variant="secondary"
-                              className="mb-2 flex items-center gap-1 w-fit"
+                              variant="outline" 
+                              className="mb-2 flex items-center gap-1"
+                              style={{
+                                backgroundColor: `${getCategoryColor(event.category as any)}10`,
+                                borderColor: `${getCategoryColor(event.category as any)}40`,
+                              }}
                             >
-                              <CategoryIcon 
-                                category={event.category as any} 
-                                size={12} 
-                              />
+                              <CategoryIcon category={event.category as any} size={12} />
                               {event.category}
                             </Badge>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Open menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem 
-                                  className="flex items-center gap-2"
-                                  onClick={() => window.open(`/event/${event.id}`, '_blank')}
-                                >
-                                  <EyeIcon className="h-4 w-4" />
-                                  <span>Bekijken</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="flex items-center gap-2">
-                                  <Edit className="h-4 w-4" />
-                                  <span>Bewerken</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem
-                                      className="flex items-center gap-2 text-red-500"
-                                      onSelect={(e) => {
-                                        e.preventDefault();
-                                        setSelectedEvent(event);
-                                      }}
+                            <CardTitle className="text-base line-clamp-1">{event.title}</CardTitle>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                className="flex items-center gap-2"
+                                onClick={() => navigate(`/admin/events/${event.id}`)}
+                              >
+                                <Eye className="h-4 w-4" />
+                                <span>Details</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="flex items-center gap-2"
+                                onClick={() => navigate(`/admin/events/edit/${event.id}`)}
+                              >
+                                <Edit className="h-4 w-4" />
+                                <span>Bewerken</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem
+                                    className="flex items-center gap-2 text-destructive"
+                                    onSelect={(e) => {
+                                      e.preventDefault();
+                                      setSelectedEvent(event);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span>Verwijderen</span>
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Weet je zeker dat je dit evenement wilt verwijderen?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Deze actie kan niet ongedaan worden gemaakt.
+                                      Alle gegevens van dit evenement worden permanent verwijderd.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive hover:bg-destructive/90"
+                                      onClick={() => deleteMutation.mutate(event.id)}
                                     >
-                                      <Trash2 className="h-4 w-4" />
-                                      <span>Verwijderen</span>
-                                    </DropdownMenuItem>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Weet je zeker dat je dit evenement wilt verwijderen?
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Deze actie kan niet ongedaan worden gemaakt.
-                                        Alle gegevens van dit evenement worden permanent verwijderd.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        className="bg-red-500 hover:bg-red-600"
-                                        onClick={() => {
-                                          if (selectedEvent) {
-                                            deleteMutation.mutate(selectedEvent.id);
-                                          }
-                                        }}
-                                      >
-                                        {deleteMutation.isPending ? (
-                                          <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Verwijderen...
-                                          </>
-                                        ) : (
-                                          'Verwijderen'
-                                        )}
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                          <CardTitle className="line-clamp-1">{event.title}</CardTitle>
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                      {deleteMutation.isPending ? (
+                                        <>
+                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                          Verwijderen...
+                                        </>
+                                      ) : (
+                                        'Verwijderen'
+                                      )}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <div className="text-sm space-y-2 text-muted-foreground">
+                          <div className="flex items-center gap-1.5">
                             <CalendarDays className="h-3.5 w-3.5" />
-                            <span>{formatEventDate(event.startDate)}</span>
+                            <span>{formatEventDate(event.startTime.toString())}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
-                            <MapPin className="h-3.5 w-3.5" />
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
                             <span className="truncate">{event.location}</span>
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm line-clamp-2">{event.description}</p>
-                        </CardContent>
-                        <CardFooter className="flex justify-between pt-0">
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1.5">
                             <User className="h-3.5 w-3.5" />
                             <span>Host ID: {event.hostId}</span>
                           </div>
-                          <Button variant="outline" size="sm" onClick={() => window.open(`/event/${event.id}`, '_blank')}>
-                            Bekijken
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="col-span-full text-center py-12">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <Calendar className="h-16 w-16 mb-4 opacity-20" />
-                        <p className="text-lg">Geen evenementen gevonden</p>
-                        <p className="text-sm">Probeer andere zoekfilters of voeg nieuwe evenementen toe</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {data && data.length > 0 && (
-                  <div className="flex justify-between items-center mt-6">
-                    <div className="text-sm text-muted-foreground">
-                      Toont {(page - 1) * limit + 1} - {Math.min(page * limit, data.length)} van {data.length} evenementen
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((old) => Math.max(old - 1, 1))}
-                        disabled={page === 1}
-                      >
-                        Vorige
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((old) => (old < totalPages ? old + 1 : old))}
-                        disabled={page === totalPages}
-                      >
-                        Volgende
-                      </Button>
-                    </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="p-4 pt-0 flex justify-between">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="w-full"
+                          onClick={() => navigate(`/admin/events/${event.id}`)}
+                        >
+                          Details
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="col-span-full flex flex-col items-center justify-center text-muted-foreground py-12">
+                    <Calendar className="h-16 w-16 mb-4 opacity-20" />
+                    <p className="font-medium text-lg">Geen evenementen gevonden</p>
+                    <p className="text-sm mb-6">
+                      Probeer andere zoekfilters of maak een nieuw evenement aan
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => navigate('/admin/events/new')}
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Nieuw Evenement
+                    </Button>
                   </div>
                 )}
-              </>
+              </div>
             )}
-          </TabsContent>
-        </Tabs>
+            
+            {/* Pagination */}
+            {filteredEvents.length > 0 && (
+              <div className="mt-6 flex justify-between items-center">
+                <div className="text-sm text-muted-foreground">
+                  Toont {(page - 1) * limit + 1}-{Math.min(page * limit, filteredEvents.length)} van {filteredEvents.length} resultaten
+                </div>
+                
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setPage(Math.max(1, page - 1))}
+                        disabled={page === 1}
+                      />
+                    </PaginationItem>
+                    
+                    {[...Array(totalPages)].map((_, i) => {
+                      const pageNum = i + 1;
+                      // Only show a few pages around the current page
+                      if (
+                        pageNum === 1 || 
+                        pageNum === totalPages ||
+                        (pageNum >= page - 1 && pageNum <= page + 1)
+                      ) {
+                        return (
+                          <PaginationItem key={pageNum}>
+                            <PaginationLink
+                              isActive={pageNum === page}
+                              onClick={() => setPage(pageNum)}
+                            >
+                              {pageNum}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      } else if (
+                        (pageNum === page - 2 && pageNum > 1) || 
+                        (pageNum === page + 2 && pageNum < totalPages)
+                      ) {
+                        return (
+                          <PaginationItem key={pageNum}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        );
+                      }
+                      return null;
+                    })}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setPage(Math.min(totalPages, page + 1))}
+                        disabled={page === totalPages}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </>
+        )}
       </div>
       
-      {/* CSV Import Dialog */}
+      {/* Import Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Importeer Evenementen</DialogTitle>
             <DialogDescription>
-              Upload een CSV-bestand met evenementen om te importeren. 
-              Het bestand moet de juiste kolomnamen bevatten.
+              Upload een CSV-bestand met evenementen om te importeren.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="csv">CSV Bestand</Label>
-              <div className="flex gap-2">
-                <Input 
-                  id="csv" 
-                  type="file" 
-                  accept=".csv" 
-                  onChange={handleFileChange}
-                />
-                {csvFile && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setCsvFile(null)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Accepteert alleen .csv bestanden
-              </p>
-            </div>
+          <div className="grid gap-4 py-4">
+            <label className="flex flex-col gap-2">
+              <span>CSV-bestand</span>
+              <Input 
+                type="file" 
+                accept=".csv" 
+                onChange={handleFileChange} 
+              />
+            </label>
             
-            {csvFile && (
-              <div className="text-sm">
-                <p>Geselecteerd bestand: <span className="font-medium">{csvFile.name}</span></p>
-                <p className="text-muted-foreground">
-                  Grootte: {(csvFile.size / 1024).toFixed(1)} KB
-                </p>
-              </div>
-            )}
-            
-            <div className="bg-muted rounded-md p-4">
-              <h4 className="font-medium mb-2">CSV-indeling voorbeeld:</h4>
-              <div className="overflow-x-auto">
-                <p className="text-xs font-mono text-muted-foreground whitespace-nowrap">
-                  title,description,startDate,endDate,location,category,lat,lng,hostId,price
-                </p>
-                <p className="text-xs font-mono text-muted-foreground whitespace-nowrap mt-2">
-                  Zomerfestival,Een gezellig festival,2023-07-20T14:00:00,2023-07-20T22:00:00,Stadspark Oss,Gezellig en Sociaal,51.7656,5.5314,1,10.50
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-blue-50 dark:bg-blue-950 rounded-md p-4 border border-blue-200 dark:border-blue-800">
-              <h4 className="font-medium text-blue-800 dark:text-blue-300 flex items-center mb-2">
-                <Info className="h-4 w-4 mr-2" />
-                Instructies voor CSV Import
-              </h4>
-              <ul className="list-disc list-inside space-y-1 text-sm text-blue-700 dark:text-blue-400">
-                <li>Zorg dat alle kolommen (title, description, etc.) aanwezig zijn</li>
-                <li>Datums moeten in het formaat <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">YYYY-MM-DDThh:mm:ss</code> zijn</li>
-                <li>Categorie moet een van de beschikbare categorieën zijn</li>
-                <li>Coördinaten (lat, lng) moeten decimale getallen zijn</li>
-                <li>HostId moet een bestaande gebruikers-ID zijn</li>
+            <div className="text-sm text-muted-foreground">
+              <p className="font-medium mb-1">Het CSV-bestand moet de volgende kolommen bevatten:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>title (verplicht)</li>
+                <li>description (verplicht)</li>
+                <li>location (verplicht)</li>
+                <li>category (verplicht)</li>
+                <li>latitude (verplicht)</li>
+                <li>longitude (verplicht)</li>
+                <li>startTime (verplicht, ISO-formaat)</li>
+                <li>endTime (optioneel, ISO-formaat)</li>
+                <li>hostId (optioneel)</li>
+                <li>price (optioneel)</li>
+                <li>tags (optioneel, komma-gescheiden)</li>
               </ul>
             </div>
           </div>
@@ -836,37 +1033,5 @@ const AdminEvents: React.FC = () => {
     </div>
   );
 };
-
-// Add missing components needed for the form
-function Label({ htmlFor, children }: { htmlFor: string, children: React.ReactNode }) {
-  return (
-    <label 
-      htmlFor={htmlFor} 
-      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-    >
-      {children}
-    </label>
-  );
-}
-
-function EyeIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
 
 export default AdminEvents;

@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Event, CATEGORIES } from '@shared/schema';
 import * as z from 'zod';
 import { format } from 'date-fns';
+import { nl } from 'date-fns/locale';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 

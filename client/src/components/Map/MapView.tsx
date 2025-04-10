@@ -1,7 +1,7 @@
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import { Satellite } from 'lucide-react';
+import { Satellite, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
 import EventMarker from "../Events/EventMarker";
@@ -20,14 +20,38 @@ function calculateRadiusFromZoom(zoom: number): number {
 }
 
 // Map event handler component
-function MapEventHandler({ onZoomEnd }: { onZoomEnd: (zoom: number) => void }) {
+function MapEventHandler({ 
+  onZoomEnd, 
+  highlightedEventId = null,
+  events = []
+}: { 
+  onZoomEnd: (zoom: number) => void;
+  highlightedEventId?: number | null;
+  events?: Event[];
+}) {
   const map = useMap();
+  const prevHighlightRef = useRef<number | null>(null);
 
   useEffect(() => {
     map.on('zoomend', () => {
       onZoomEnd(map.getZoom());
     });
   }, [map, onZoomEnd]);
+
+  // Handle highlighting events
+  useEffect(() => {
+    if (highlightedEventId && highlightedEventId !== prevHighlightRef.current) {
+      // Find event with this ID
+      const event = events.find(e => e.id === highlightedEventId);
+      if (event && event.latitude && event.longitude) {
+        map.setView([event.latitude, event.longitude], 14, {
+          animate: true,
+          duration: 0.5
+        });
+      }
+      prevHighlightRef.current = highlightedEventId;
+    }
+  }, [highlightedEventId, events, map]);
 
   return null;
 }
@@ -38,6 +62,7 @@ interface MapViewProps {
   filteredEvents: Event[];
   onEventClick?: (event: Event) => void;
   onRadiusChange?: (radius: number) => void;
+  highlightedEventId?: number | null;
 }
 
 export default function MapView({ 
@@ -45,10 +70,12 @@ export default function MapView({
   radius = 25,
   filteredEvents, 
   onEventClick,
-  onRadiusChange 
+  onRadiusChange,
+  highlightedEventId
 }: MapViewProps) {
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const DEFAULT_CENTER: [number, number] = [52.3676, 4.9041]; // Center of Netherlands
+  const mapRef = useRef(null);
 
   const handleZoomEnd = (zoom: number) => {
     const newRadius = calculateRadiusFromZoom(zoom);
@@ -71,6 +98,22 @@ export default function MapView({
         >
           <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
         </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="bg-white/90 hover:bg-white h-8 w-8"
+          onClick={() => mapRef.current?.zoomIn()}
+        >
+          <ZoomIn className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="bg-white/90 hover:bg-white h-8 w-8"
+          onClick={() => mapRef.current?.zoomOut()}
+        >
+          <ZoomOut className="h-4 w-4" />
+        </Button>
       </div>
 
       <MapContainer
@@ -79,6 +122,7 @@ export default function MapView({
         className="h-full w-full"
         zoomControl={false}
         worldCopyJump={true}
+        ref={mapRef}
       >
         <TileLayer 
           url={tileUrl}
@@ -87,7 +131,11 @@ export default function MapView({
           detectRetina={true}
         />
         <LocationMarker />
-        <MapEventHandler onZoomEnd={handleZoomEnd} />
+        <MapEventHandler 
+          onZoomEnd={handleZoomEnd} 
+          highlightedEventId={highlightedEventId}
+          events={filteredEvents}
+        />
 
         {/* Event Markers */}
         {filteredEvents.map((event) => (
@@ -95,6 +143,7 @@ export default function MapView({
             key={event.id}
             event={event}
             onClick={() => onEventClick?.(event)}
+            isHighlighted={event.id === highlightedEventId}
           />
         ))}
       </MapContainer>

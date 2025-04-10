@@ -3,8 +3,6 @@ import { Event } from "@shared/schema";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import SplitView from "./SplitView";
-import MapView from "@/components/Map/MapView";
-import { EventList } from "@/components/EventList";
 
 interface WebLayoutProps {
   children?: React.ReactNode;
@@ -25,7 +23,7 @@ export function WebLayout({
   onRadiusChange: propOnRadiusChange,
   onFilteredEventsChange: propOnFilteredEventsChange
 }: WebLayoutProps) {
-  const [isMapView, setIsMapView] = React.useState(true);
+  // In de web-omgeving gebruiken we altijd de split view (geen toggle)
   const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
   const [radius, setRadius] = React.useState(propRadius || 10);
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>(propFilteredEvents || []);
@@ -54,10 +52,6 @@ export function WebLayout({
     }
   }, [propFilteredEvents, selectedCategories]);
 
-  const toggleView = React.useCallback(() => {
-    setIsMapView(prev => !prev);
-  }, []);
-
   const handleSearch = React.useCallback((query: string) => {
     setSearchQuery(query);
     propOnSearch?.(query);
@@ -77,10 +71,7 @@ export function WebLayout({
     setSelectedCategories(categories);
   }, []);
 
-  // Geen mobiele weergave meer voor /web - wordt afgehandeld via /app route
-  // Alleen desktop layout
-
-  // Desktop layout (with sidebar and split view)
+  // Alleen desktop layout met sidebar en split view
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />

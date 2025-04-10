@@ -60,16 +60,16 @@ export default function MapView({
     : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
   return (
-    <div className="h-full relative">
+    <div className="h-full relative z-0">
       {/* Map Controls */}
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
         <Button
           variant="outline"
           size="icon"
-          className="bg-white/90 hover:bg-white h-8 w-8"
+          className="bg-white/90 hover:bg-white h-10 w-10 shadow-md"
           onClick={() => setIsSatelliteView(!isSatelliteView)}
         >
-          <Satellite className={`h-4 w-4 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
+          <Satellite className={`h-5 w-5 ${isSatelliteView ? 'text-primary' : 'text-muted-foreground'}`} />
         </Button>
       </div>
 

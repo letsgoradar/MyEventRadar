@@ -4,10 +4,15 @@ import EventCard from "@/components/Events/EventCard"
 import { useIsMobile } from "@/hooks/use-mobile"
 import type { Event } from "@shared/schema"
 
+// Uitgebreide Event interface met distance property
+interface EventWithDistance extends Event {
+  distance?: number;
+}
+
 interface EventListProps {
   searchQuery: string;
   radius: number;
-  filteredEvents: Event[];
+  filteredEvents: EventWithDistance[];
   gridView?: boolean;
 }
 
@@ -33,7 +38,7 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
             <EventCard 
               key={event.id} 
               event={event} 
-              distance={event.distance as number | undefined}
+              distance={event.distance}
               gridView={true}
             />
           ))}
@@ -49,7 +54,7 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
         <EventCard 
           key={event.id} 
           event={event} 
-          distance={event.distance as number | undefined}
+          distance={event.distance}
           gridView={false}
         />
       ))}

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import AdminNav from '@/components/Layout/AdminNav';
 import { Event } from '@shared/schema';
-import { format } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { CategoryIcon, getCategoryColor } from '@/components/CategoryIcon';
 import { useToast } from '@/hooks/use-toast';
@@ -131,8 +131,23 @@ const EventDetailPage: React.FC = () => {
     if (!dateTimeStr) {
       return "Onbekende datum/tijd";
     }
+    
     try {
-      return format(new Date(dateTimeStr), 'd MMMM yyyy, HH:mm', { locale: nl });
+      // Voor ISO string formaat (komt van API)
+      if (typeof dateTimeStr === 'string') {
+        const date = parseISO(dateTimeStr);
+        if (isValid(date)) {
+          return format(date, 'd MMMM yyyy, HH:mm', { locale: nl });
+        }
+      }
+      
+      // Probeer normale datum constructie
+      const date = new Date(dateTimeStr);
+      if (isValid(date)) {
+        return format(date, 'd MMMM yyyy, HH:mm', { locale: nl });
+      }
+      
+      return "Onbekende datum/tijd";
     } catch (e) {
       console.error("Date formatting error:", e);
       return "Onbekende datum/tijd";

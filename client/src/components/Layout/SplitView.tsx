@@ -5,7 +5,6 @@ import { EventList } from '@/components/EventList';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MoveHorizontal, Map, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLocalStorage } from '@/hooks/use-local-storage';
 import type { Event } from '@shared/schema';
 
 interface SplitViewProps {
@@ -24,14 +23,8 @@ export default function SplitView({
   onRadiusChange
 }: SplitViewProps) {
   const isMobile = useIsMobile();
-  const [layout, setLayout] = useLocalStorage<'horizontal' | 'vertical'>(
-    'split-layout',
-    'horizontal'
-  );
-  const [defaultSizes, setDefaultSizes] = useLocalStorage<number[]>(
-    'split-sizes',
-    [40, 60]
-  );
+  const [layout, setLayout] = useState<'horizontal' | 'vertical'>('horizontal');
+  const [defaultSizes, setDefaultSizes] = useState<number[]>([40, 60]);
   const [isCollapsed, setIsCollapsed] = useState<'left' | 'right' | null>(null);
   const [activePanel, setActivePanel] = useState<'map' | 'list' | null>(null);
   const [hoveredEvent, setHoveredEvent] = useState<number | null>(null);

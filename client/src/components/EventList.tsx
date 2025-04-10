@@ -54,7 +54,7 @@ export function EventList({
         >
           <EventCard 
             event={event} 
-            distance={event.distance}
+            distance={event.distance || 0}
             isSelected={selectedEvent === event.id}
           />
         </div>

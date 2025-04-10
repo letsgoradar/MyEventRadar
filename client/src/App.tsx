@@ -8,6 +8,7 @@ import { EventList } from "@/components/EventList"
 import CreateEventPage from "@/pages/create-event"
 import EventDetailPage from "@/pages/event-detail"
 import BottomNav from "@/components/Layout/BottomNav"
+import WebLayout from "@/components/Layout/WebLayout"
 import AdminDashboard from "@/pages/admin/Dashboard"
 import AdminEvents from "@/pages/admin/Events"
 import AdminUsers from "@/pages/admin/Users"
@@ -88,64 +89,43 @@ export default function App() {
             </AuthGuard>
           </Route>
           
-          {/* Regular Routes */}
+          {/* Regular Routes using new WebLayout */}
+          <Route path="/">
+            <WebLayout />
+          </Route>
           <Route path="/create-event">
-            <CreateEventPage />
+            <WebLayout>
+              <CreateEventPage />
+            </WebLayout>
           </Route>
           <Route path="/event/:id">
-            <EventDetailPage />
-          </Route>
-          <Route path="/">
-            <>
-              <TopNav 
-                isMapView={isMapView}
-                toggleView={toggleView}
-                onSearch={handleSearch}
-                radius={radius}
-                onRadiusChange={handleRadiusChange}
-                onFilteredEventsChange={handleFilteredEventsChange}
-              />
-              <div className="absolute inset-0 top-[calc(3.5rem+3rem)] bottom-[75px] z-0">
-                {isMapView ? (
-                  <MapView searchQuery={searchQuery} radius={radius} filteredEvents={filteredEvents} />
-                ) : (
-                  <div className="h-full overflow-auto pt-4">
-                    <EventList searchQuery={searchQuery} radius={radius} filteredEvents={filteredEvents} />
-                  </div>
-                )}
-              </div>
-              <BottomNav />
-            </>
+            <WebLayout>
+              <EventDetailPage />
+            </WebLayout>
           </Route>
           <Route path="/events">
-            <div className="h-screen flex flex-col relative">
-              <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
+            <WebLayout>
+              <div className="h-full overflow-auto p-4">
                 <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
                 <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
               </div>
-              <BottomNav />
-            </div>
+            </WebLayout>
           </Route>
           <Route path="/favorites">
-            <div className="h-screen flex flex-col relative">
-              <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
+            <WebLayout>
+              <div className="h-full overflow-auto p-4">
                 <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
                 <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
               </div>
-              <BottomNav />
-            </div>
+            </WebLayout>
           </Route>
           <Route path="/profile">
-            <div className="h-screen flex flex-col relative">
-              <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
+            <WebLayout>
+              <div className="h-full overflow-auto p-4">
                 <h1 className="text-2xl font-bold mb-6">Profiel</h1>
                 <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
               </div>
-              <BottomNav />
-            </div>
+            </WebLayout>
           </Route>
         </Switch>
         <Toaster />

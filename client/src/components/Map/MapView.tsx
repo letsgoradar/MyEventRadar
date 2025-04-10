@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import React, { useState, useEffect, useRef } from 'react';
 import type { Event } from "@shared/schema";
 import './leaflet-fix.css';
+import L from 'leaflet';
 import EventMarker from "../Events/EventMarker";
 import LocationMarker from "./LocationMarker";
 
 // Helper function om radius te berekenen op basis van zoom level
 function calculateRadiusFromZoom(zoom: number): number {
   // Geschatte radius in km voor elk zoom level
-  const zoomToRadius = {
+  const zoomToRadius: Record<number, number> = {
     0: 5000, 1: 3000, 2: 2000, 3: 1500,
     4: 1000, 5: 750, 6: 500, 7: 250,
     8: 100, 9: 75, 10: 50, 11: 25,
@@ -44,7 +45,7 @@ function MapEventHandler({
       // Find event with this ID
       const event = events.find(e => e.id === highlightedEventId);
       if (event && event.latitude && event.longitude) {
-        map.setView([event.latitude, event.longitude], 14, {
+        map.setView([Number(event.latitude), Number(event.longitude)], 14, {
           animate: true,
           duration: 0.5
         });
@@ -75,11 +76,39 @@ export default function MapView({
 }: MapViewProps) {
   const [isSatelliteView, setIsSatelliteView] = useState(false);
   const DEFAULT_CENTER: [number, number] = [52.3676, 4.9041]; // Center of Netherlands
-  const mapRef = useRef(null);
+  const [zoomLevel, setZoomLevel] = useState(9);
+  const mapRef = useRef<L.Map | null>(null);
 
   const handleZoomEnd = (zoom: number) => {
+    setZoomLevel(zoom);
     const newRadius = calculateRadiusFromZoom(zoom);
     onRadiusChange?.(newRadius);
+  };
+
+  // Custom map control component to access map instance
+  const MapControls = () => {
+    const map = useMap();
+    
+    // Store the map instance in ref
+    useEffect(() => {
+      if (map) {
+        mapRef.current = map;
+      }
+    }, [map]);
+    
+    return null;
+  };
+
+  const handleZoomIn = () => {
+    if (mapRef.current) {
+      mapRef.current.zoomIn();
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapRef.current) {
+      mapRef.current.zoomOut();
+    }
   };
 
   const tileUrl = isSatelliteView
@@ -102,7 +131,7 @@ export default function MapView({
           variant="outline"
           size="icon"
           className="bg-white/90 hover:bg-white h-8 w-8"
-          onClick={() => mapRef.current?.zoomIn()}
+          onClick={handleZoomIn}
         >
           <ZoomIn className="h-4 w-4" />
         </Button>
@@ -110,7 +139,7 @@ export default function MapView({
           variant="outline"
           size="icon"
           className="bg-white/90 hover:bg-white h-8 w-8"
-          onClick={() => mapRef.current?.zoomOut()}
+          onClick={handleZoomOut}
         >
           <ZoomOut className="h-4 w-4" />
         </Button>
@@ -118,11 +147,10 @@ export default function MapView({
 
       <MapContainer
         center={DEFAULT_CENTER}
-        zoom={9} // Start met een zoom level dat ongeveer 25km radius geeft
+        zoom={zoomLevel} // Start met een zoom level dat ongeveer 25km radius geeft
         className="h-full w-full"
         zoomControl={false}
         worldCopyJump={true}
-        ref={mapRef}
       >
         <TileLayer 
           url={tileUrl}
@@ -131,6 +159,7 @@ export default function MapView({
           detectRetina={true}
         />
         <LocationMarker />
+        <MapControls />
         <MapEventHandler 
           onZoomEnd={handleZoomEnd} 
           highlightedEventId={highlightedEventId}

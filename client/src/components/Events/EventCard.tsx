@@ -12,7 +12,6 @@ import './leaflet-fix.css';
 import StreetView from '../StreetView/StreetView';
 import CountdownTimer from './CountdownTimer';
 import { Link } from 'wouter';
-import { cn } from '@/lib/utils';
 
 function createEventIcon(category: string) {
   const color = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || '#94A3B8';
@@ -26,23 +25,16 @@ function createEventIcon(category: string) {
 
 interface EventCardProps {
   event: Event;
-  distance?: number;
-  isSelected?: boolean;
+  distance: number;
 }
 
-export default function EventCard({ event, distance = 0, isSelected = false }: EventCardProps) {
+export default function EventCard({ event, distance }: EventCardProps) {
   const [showStreetView, setShowStreetView] = useState(false);
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
-  
-  // Bereken een glow kleur op basis van de categorie
-  const glowColor = CATEGORY_COLORS[event.category as keyof typeof CATEGORY_COLORS] || '#94A3B8';
 
   return (
     <Link href={`/event/${event.id}`}>
-      <Card className={cn(
-        "overflow-hidden transition-all hover:shadow-md cursor-pointer",
-        isSelected && `ring-2 ring-offset-2 ring-${glowColor} shadow-lg`
-      )}>
+      <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer">
         <CardHeader className="p-4 pb-0">
           <div className="flex justify-between items-start">
             <div>

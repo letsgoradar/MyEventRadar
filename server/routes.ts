@@ -489,6 +489,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get all events (admin only)
+  app.get('/api/admin/events', isAdmin, async (req, res) => {
+    try {
+      const events = await storage.getAllEvents();
+      res.json(events);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Get activity logs (admin only)
   app.get('/api/admin/activity-logs', isAdmin, async (req, res) => {
     try {

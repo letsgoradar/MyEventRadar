@@ -94,8 +94,8 @@ const EventDetail = () => {
 
   return (
     <WebLayout>
-      <div className="flex-1 py-8 px-6">
-        <div className="max-w-5xl mx-auto">
+      <div className="flex-1 pb-12">
+        <div className="max-w-5xl mx-auto overflow-visible">
           <div className="mb-6 flex items-center">
             <Button variant="ghost" asChild className="mr-4">
               <Link href="/web">

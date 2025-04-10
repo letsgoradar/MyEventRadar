@@ -49,7 +49,7 @@ export function SplitView({
       </ResizablePanel>
       <ResizableHandle withHandle className="z-10" />
       <ResizablePanel defaultSize={50} minSize={30}>
-        <div className="h-full overflow-auto">
+        <div className="h-full overflow-y-auto pb-20">
           <EventList 
             searchQuery={searchQuery} 
             radius={radius} 

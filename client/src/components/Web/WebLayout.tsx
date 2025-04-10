@@ -85,9 +85,9 @@ export function WebLayout({
           onCategoriesChange={handleCategoriesChange}
           hideViewToggle={true} // Hide the toggle button in web view
         />
-        <div className="flex-1 relative">
+        <div className="flex-1 relative overflow-hidden">
           {children ? (
-            <div className="h-full overflow-auto p-6">{children}</div>
+            <div className="h-full overflow-y-auto p-6 pb-20">{children}</div>
           ) : (
             <SplitView 
               searchQuery={searchQuery}

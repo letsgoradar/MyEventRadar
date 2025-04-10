@@ -248,8 +248,8 @@ const CreateEvent = () => {
 
   return (
     <WebLayout>
-      <div className="flex-1 py-8 px-6">
-        <div className="max-w-5xl mx-auto">
+      <div className="flex-1 pb-12">
+        <div className="max-w-5xl mx-auto overflow-visible">
           <div className="flex items-center mb-8">
             <Button variant="ghost" asChild className="mr-4">
               <Link href="/web">

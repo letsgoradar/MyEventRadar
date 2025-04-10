@@ -19,6 +19,7 @@ import AdminEventForm from "@/pages/admin/EventForm"
 import AuthGuard from "@/components/Admin/AuthGuard"
 import { WebLayout } from "@/components/Web/WebLayout"
 import { useIsMobile } from "@/hooks/use-mobile"
+import ModeToggle from "@/components/Web/ModeToggle"
 import type { Event } from "@shared/schema"
 import { queryClient } from "@/lib/queryClient"
 
@@ -30,12 +31,28 @@ export default function App() {
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
   const [isWebVersion, setIsWebVersion] = React.useState(false);
 
-  // Check if we should use the web version based on URL parameter
+  // Check if we should use the web version based on URL parameter or localStorage
   React.useEffect(() => {
+    // Check URL parameter first
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('web') === 'true') {
+    const webParam = urlParams.get('web');
+    
+    if (webParam === 'true') {
       setIsWebVersion(true);
+      // Store preference in localStorage
+      localStorage.setItem('useWebVersion', 'true');
+    } else if (webParam === 'false') {
+      setIsWebVersion(false);
+      localStorage.setItem('useWebVersion', 'false');
+    } else {
+      // Check localStorage if URL param is not present
+      const storedPref = localStorage.getItem('useWebVersion');
+      if (storedPref === 'true') {
+        setIsWebVersion(true);
+      }
     }
+    
+    console.log('Web version enabled:', webParam === 'true' || localStorage.getItem('useWebVersion') === 'true');
   }, []);
 
   const toggleView = React.useCallback(() => {
@@ -142,6 +159,7 @@ export default function App() {
           </Route>
         </Switch>
         <Toaster />
+        <ModeToggle />
       </QueryClientProvider>
     );
   }

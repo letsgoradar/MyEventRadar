@@ -25,7 +25,7 @@ function createEventIcon(category: string) {
 
 interface EventCardProps {
   event: Event;
-  distance: number;
+  distance?: number;
 }
 
 export default function EventCard({ event, distance }: EventCardProps) {
@@ -44,7 +44,11 @@ export default function EventCard({ event, distance }: EventCardProps) {
               </CardTitle>
               <CardDescription className="flex items-center gap-1 mt-1 text-gray-500">
                 <MapPin className="h-3 w-3" />
-                <span className="text-xs">{distance.toFixed(1)} km</span>
+                <span className="text-xs">
+                  {distance !== undefined && typeof distance === 'number' 
+                    ? `${distance.toFixed(1)} km` 
+                    : 'Afstand onbekend'}
+                </span>
               </CardDescription>
             </div>
             <Badge variant="outline" style={{ 

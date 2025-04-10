@@ -2,9 +2,6 @@ import * as React from "react";
 import MapView from "@/components/Map/MapView";
 import { EventList } from "@/components/EventList";
 import { Event } from "@shared/schema";
-import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "@/hooks/useLocation";
-import { fetchEventsByRadius } from "@/lib/api";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -26,50 +23,15 @@ export function SplitView({
   onRadiusChange,
   onFilteredEventsChange 
 }: SplitViewProps) {
-  const { location, isLoadingLocation } = useLocation();
   const [activeEventId, setActiveEventId] = React.useState<number | null>(null);
 
-  // Query events
-  const { data: events = [], isLoading } = useQuery<Event[]>({
-    queryKey: ["events", location?.lat, location?.lng, radius],
-    queryFn: () => 
-      location 
-        ? fetchEventsByRadius(location.lat, location.lng, radius) 
-        : Promise.resolve([]),
-    enabled: !!location,
-  });
-
-  // Apply filters (search)
-  React.useEffect(() => {
-    // Filter events based on search query
-    const filtered = events.filter((event: Event) => {
-      if (!searchQuery) return true;
-      const query = searchQuery.toLowerCase();
-      return (
-        event.title.toLowerCase().includes(query) ||
-        (event.description && event.description.toLowerCase().includes(query)) ||
-        (event.location && event.location.toLowerCase().includes(query)) ||
-        (event.category && event.category.toLowerCase().includes(query))
-      );
-    });
-
-    // Sort by distance
-    const sorted = [...filtered].sort((a: Event, b: Event) => {
-      return (a.distance || Infinity) - (b.distance || Infinity);
-    });
-
-    // Update filtered events
-    onFilteredEventsChange?.(sorted);
-  }, [events, searchQuery, onFilteredEventsChange]);
-
-  // Event click handlers
-  const handleEventClick = (event: Event) => {
+  const handleEventClick = React.useCallback((event: Event) => {
     setActiveEventId(event.id);
-  };
+  }, []);
 
-  const handleRadiusChange = (newRadius: number) => {
+  const handleRadiusChange = React.useCallback((newRadius: number) => {
     onRadiusChange?.(newRadius);
-  };
+  }, [onRadiusChange]);
 
   return (
     <ResizablePanelGroup direction="horizontal" className="h-full">

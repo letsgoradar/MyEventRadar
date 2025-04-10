@@ -60,13 +60,31 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      mode: 'cors',
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+      console.warn('Authentication required for', queryKey[0]);
+      // Redirect to login if we get a 401
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        console.log('Redirecting to login due to auth failure');
+        window.location.href = '/admin/login';
+      }
       return null;
     }
 
-    await throwIfResNotOk(res);
+    if (!res.ok) {
+      if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        console.log('Redirecting to login due to auth failure');
+        window.location.href = '/admin/login';
+      }
+      await throwIfResNotOk(res);
+    }
+    
     return await res.json();
   };
 

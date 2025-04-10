@@ -10,13 +10,15 @@ import LocationMarker from "./LocationMarker";
 // Helper function om radius te berekenen op basis van zoom level
 function calculateRadiusFromZoom(zoom: number): number {
   // Geschatte radius in km voor elk zoom level
-  const zoomToRadius = {
+  const zoomToRadius: Record<number, number> = {
     0: 5000, 1: 3000, 2: 2000, 3: 1500,
     4: 1000, 5: 750, 6: 500, 7: 250,
     8: 100, 9: 75, 10: 50, 11: 25,
     12: 10, 13: 5, 14: 2, 15: 1
   };
-  return zoomToRadius[Math.min(Math.max(zoom, 0), 15)] || 25;
+  
+  const safeZoom = Math.min(Math.max(Math.round(zoom), 0), 15);
+  return zoomToRadius[safeZoom] || 25;
 }
 
 // Map event handler component

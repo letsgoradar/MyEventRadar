@@ -35,7 +35,9 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   const userLocation = { lat: 51.77344, lng: 5.537792 }; // Voorbeeld gebruikerslocatie
 
   // Bepaal of er een evenement afbeelding beschikbaar is
-  const hasEventImage = false; // Bij een echt systeem zou dit een check zijn of er een afbeelding is
+  // Voor nu alle evenementen zonder afbeelding tonen met een kaart
+  // Later kan dit uitgebreid worden met een controle of er echt afbeeldingen zijn
+  const hasEventImage = false;
 
   if (gridView) {
     return (

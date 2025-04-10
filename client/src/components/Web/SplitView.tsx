@@ -34,10 +34,10 @@ export function SplitView({
   }, [onRadiusChange]);
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full">
+    <ResizablePanelGroup direction="horizontal" className="h-full z-0">
       <ResizablePanel defaultSize={50} minSize={30}>
-        <div className="h-full relative">
-          {/* Zorg ervoor dat de map onder de header komt */}
+        <div className="h-full relative overflow-hidden">
+          {/* Kaartcomponent met z-index 0 zodat deze onder de header blijft */}
           <MapView 
             searchQuery={searchQuery} 
             radius={radius} 
@@ -47,7 +47,7 @@ export function SplitView({
           />
         </div>
       </ResizablePanel>
-      <ResizableHandle withHandle />
+      <ResizableHandle withHandle className="z-10" />
       <ResizablePanel defaultSize={50} minSize={30}>
         <div className="h-full overflow-auto">
           <EventList 

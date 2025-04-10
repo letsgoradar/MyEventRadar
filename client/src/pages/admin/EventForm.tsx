@@ -8,8 +8,31 @@ import AdminNav from '@/components/Layout/AdminNav';
 import { useToast } from '@/hooks/use-toast';
 import { Event, CATEGORIES } from '@shared/schema';
 import * as z from 'zod';
-import { format } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { nl } from 'date-fns/locale';
+
+// Helper function to safely format dates
+const safeFormatDate = (value: any, formatStr: string = "d MMMM yyyy, HH:mm") => {
+  if (!value) return "";
+  
+  try {
+    if (typeof value === 'string') {
+      // Try to parse ISO date string
+      const date = parseISO(value);
+      if (isValid(date)) {
+        return format(date, formatStr, { locale: nl });
+      }
+    } else if (value instanceof Date && isValid(value)) {
+      return format(value, formatStr, { locale: nl });
+    }
+    
+    // Fallback
+    return "Ongeldige datum";
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return "Ongeldige datum";
+  }
+};
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 

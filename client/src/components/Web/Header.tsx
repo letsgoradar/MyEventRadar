@@ -8,6 +8,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@shared/schema";
@@ -163,12 +169,28 @@ export function Header({
       </div>
 
       <div className="hidden md:flex items-center gap-5">
-        <Button variant="outline" asChild className="h-12 px-6 text-base">
-          <Link href="/admin/login">Inloggen</Link>
-        </Button>
         <Button asChild className="h-12 px-6 text-base">
           <Link href="/web/create-event">Nieuw Evenement</Link>
         </Button>
+        
+        <Link href="/web/profile" className="relative">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-primary/20 hover:border-primary/50 transition-colors">
+                  <img 
+                    src="/images/default-user.svg" 
+                    alt="Profielfoto" 
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Mijn Profiel</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </Link>
       </div>
     </div>
   );

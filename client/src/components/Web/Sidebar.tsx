@@ -22,7 +22,6 @@ export function Sidebar() {
     { path: "/web", icon: <MdHome className="h-5 w-5" />, label: "Home" },
     { path: "/web/events", icon: <MdEvent className="h-5 w-5" />, label: "Mijn Evenementen" },
     { path: "/web/favorites", icon: <MdFavorite className="h-5 w-5" />, label: "Favorieten" },
-    { path: "/web/profile", icon: <MdAccountCircle className="h-5 w-5" />, label: "Profiel" },
   ];
 
   return (

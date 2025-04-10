@@ -22,6 +22,9 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import ModeToggle from "@/components/Web/ModeToggle"
 import type { Event } from "@shared/schema"
 import { queryClient } from "@/lib/queryClient"
+// Nieuwe webversie componenten
+import CreateEvent from "@/pages/Web/create-event"
+import EventDetail from "@/pages/Web/event-detail"
 
 export default function App() {
   const isMobile = useIsMobile();
@@ -127,14 +130,10 @@ export default function App() {
           
           {/* Web Version Routes - both /web prefix and direct routes */}
           <Route path="/web/create-event">
-            <WebLayout>
-              <CreateEventPage />
-            </WebLayout>
+            <CreateEvent />
           </Route>
           <Route path="/web/event/:id">
-            <WebLayout>
-              <EventDetailPage />
-            </WebLayout>
+            <EventDetail />
           </Route>
           <Route path="/web/events">
             <WebLayout>

@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLocation } from '@/hooks/useLocation';
-import { useNavigate } from 'wouter';
+import { useLocation as useWouterLocation } from 'wouter';
 import { insertEventSchema } from '@shared/schema';
 import { CATEGORIES } from '@shared/schema';
 import { useMutation } from '@tanstack/react-query';
@@ -97,7 +97,7 @@ const LocationPicker = ({
 
 const CreateEvent = () => {
   const { location } = useLocation();
-  const navigate = useNavigate();
+  const [, setLocation] = useWouterLocation();
   const { toast } = useToast();
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -156,7 +156,7 @@ const CreateEvent = () => {
         title: "Evenement aangemaakt",
         description: "Je evenement is succesvol aangemaakt."
       });
-      navigate('/web');
+      setLocation('/web');
     },
     onError: (error: Error) => {
       toast({

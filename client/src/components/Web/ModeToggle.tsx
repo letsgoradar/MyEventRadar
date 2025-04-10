@@ -5,30 +5,47 @@ import { MdDevices, MdSmartphone } from "react-icons/md";
 
 export function ModeToggle() {
   const isMobile = useIsMobile();
-  const [isWebMode, setIsWebMode] = React.useState(true);
+  const [isWebMode, setIsWebMode] = React.useState<boolean | null>(null);
 
   React.useEffect(() => {
-    // Check if web version is enabled in localStorage
-    const storedPref = localStorage.getItem('useWebVersion');
-    setIsWebMode(storedPref === 'true');
+    // Check if we're in web mode (from URL or localStorage)
+    const urlParams = new URLSearchParams(window.location.search);
+    const webParam = urlParams.get('web');
+    
+    if (webParam !== null) {
+      // URL parameter takes precedence
+      setIsWebMode(webParam === 'true');
+    } else {
+      // Fallback to localStorage
+      const storedPref = localStorage.getItem('useWebVersion');
+      setIsWebMode(storedPref === 'true');
+    }
   }, []);
 
   const toggleMode = () => {
-    const newMode = !isWebMode;
-    setIsWebMode(newMode);
+    if (isWebMode === null) return;
     
+    const newMode = !isWebMode;
     // Store preference and redirect
     localStorage.setItem('useWebVersion', newMode ? 'true' : 'false');
     
+    // Change URL without full page reload
+    const currentUrl = new URL(window.location.href);
     if (newMode) {
-      window.location.href = '/?web=true';
+      currentUrl.searchParams.set('web', 'true');
     } else {
-      window.location.href = '/';
+      currentUrl.searchParams.delete('web');
     }
+    
+    window.history.pushState({}, '', currentUrl.toString());
+    
+    // Force a page reload to refresh the UI
+    window.location.href = currentUrl.toString();
   };
 
-  if (isMobile) {
-    return null; // Don't show on mobile devices
+  // Don't render if mode not determined yet or on mobile
+  if (isWebMode === null || isMobile) {
+    return null;
   }
 
   return (

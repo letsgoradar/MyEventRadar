@@ -39,7 +39,7 @@ export default function EventCard({ event, distance }: EventCardProps) {
           <div className="flex justify-between items-start">
             <div>
               <CardTitle className="text-lg font-bold line-clamp-1 flex items-center gap-2">
-                <CategoryIcon category={event.category} className="flex-shrink-0" />
+                <CategoryIcon category={event.category as any} className="flex-shrink-0" />
                 {event.title}
               </CardTitle>
               <CardDescription className="flex items-center gap-1 mt-1 text-gray-500">
@@ -52,8 +52,8 @@ export default function EventCard({ event, distance }: EventCardProps) {
               </CardDescription>
             </div>
             <Badge variant="outline" style={{ 
-              backgroundColor: `${CATEGORY_COLORS[event.category as keyof typeof CATEGORY_COLORS]}20`,
-              color: CATEGORY_COLORS[event.category as keyof typeof CATEGORY_COLORS]
+              backgroundColor: `${getCategoryColor(event.category as any)}20`,
+              color: getCategoryColor(event.category as any)
             }}>
               {event.category}
             </Badge>

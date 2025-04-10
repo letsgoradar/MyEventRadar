@@ -11,14 +11,41 @@ import TopNav from "@/components/Layout/TopNav";
 
 interface WebLayoutProps {
   children?: React.ReactNode;
+  searchQuery?: string;
+  radius?: number;
+  filteredEvents?: Event[];
+  onSearch?: (query: string) => void;
+  onRadiusChange?: (radius: number) => void;
+  onFilteredEventsChange?: (events: Event[]) => void;
 }
 
-export function WebLayout({ children }: WebLayoutProps) {
+export function WebLayout({ 
+  children,
+  searchQuery: propSearchQuery,
+  radius: propRadius,
+  filteredEvents: propFilteredEvents,
+  onSearch: propOnSearch,
+  onRadiusChange: propOnRadiusChange,
+  onFilteredEventsChange: propOnFilteredEventsChange
+}: WebLayoutProps) {
   const isMobile = useIsMobile();
   const [isMapView, setIsMapView] = React.useState(true);
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [radius, setRadius] = React.useState(10);
-  const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
+  const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
+  const [radius, setRadius] = React.useState(propRadius || 10);
+  const [filteredEvents, setFilteredEvents] = React.useState<Event[]>(propFilteredEvents || []);
+
+  // Update state when props change
+  React.useEffect(() => {
+    if (propSearchQuery !== undefined) setSearchQuery(propSearchQuery);
+  }, [propSearchQuery]);
+
+  React.useEffect(() => {
+    if (propRadius !== undefined) setRadius(propRadius);
+  }, [propRadius]);
+
+  React.useEffect(() => {
+    if (propFilteredEvents) setFilteredEvents(propFilteredEvents);
+  }, [propFilteredEvents]);
 
   const toggleView = React.useCallback(() => {
     setIsMapView(prev => !prev);
@@ -26,15 +53,18 @@ export function WebLayout({ children }: WebLayoutProps) {
 
   const handleSearch = React.useCallback((query: string) => {
     setSearchQuery(query);
-  }, []);
+    propOnSearch?.(query);
+  }, [propOnSearch]);
 
   const handleRadiusChange = React.useCallback((value: number) => {
     setRadius(value);
-  }, []);
+    propOnRadiusChange?.(value);
+  }, [propOnRadiusChange]);
 
   const handleFilteredEventsChange = React.useCallback((events: Event[]) => {
     setFilteredEvents(events);
-  }, []);
+    propOnFilteredEventsChange?.(events);
+  }, [propOnFilteredEventsChange]);
 
   // Mobile layout (reuses existing components)
   if (isMobile) {

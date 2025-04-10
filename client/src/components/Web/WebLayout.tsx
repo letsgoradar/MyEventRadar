@@ -106,11 +106,12 @@ export function WebLayout({
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <Header 
-          isMapView={isMapView}
-          toggleView={toggleView}
+          isMapView={true} // Always true in web view since we're using SplitView
+          toggleView={() => {}} // Empty function since we don't need this in web view
           onSearch={handleSearch}
           radius={radius}
           onRadiusChange={handleRadiusChange}
+          hideViewToggle={true} // Hide the toggle button in web view
         />
         <div className="flex-1">
           {children ? (

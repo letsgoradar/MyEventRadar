@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Event } from '@shared/schema';
 import { MapPin, Calendar, Euro, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import './leaflet-fix.css';
 import StreetView from '../StreetView/StreetView';
 import CountdownTimer from './CountdownTimer';
 import { Link } from 'wouter';
+import { useLocation } from '@/hooks/useLocation';
 
 function createEventIcon(category: string) {
   const color = getCategoryColor(category as any);
@@ -23,6 +24,24 @@ function createEventIcon(category: string) {
   });
 }
 
+// Functie om afstand tussen twee coördinaten te berekenen (Haversine formule)
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Radius van de aarde in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c; // Afstand in km
+  return parseFloat(distance.toFixed(1));
+}
+
+function deg2rad(deg: number): number {
+  return deg * (Math.PI / 180);
+}
+
 interface EventCardProps {
   event: Event;
   distance?: number;
@@ -32,7 +51,27 @@ interface EventCardProps {
 export default function EventCard({ event, distance, gridView = false }: EventCardProps) {
   const [showStreetView, setShowStreetView] = useState(false);
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
-  const userLocation = { lat: 51.77344, lng: 5.537792 }; // Voorbeeld gebruikerslocatie
+  
+  // Haal de huidige locatie op
+  const { location } = useLocation();
+  
+  // State voor berekende afstand
+  const [calculatedDistance, setCalculatedDistance] = useState<number | undefined>(distance);
+  
+  // Update afstand wanneer locatie verandert of distance prop verandert
+  useEffect(() => {
+    if (distance !== undefined) {
+      setCalculatedDistance(distance);
+    } else if (location) {
+      const dist = calculateDistance(
+        location.lat,
+        location.lng,
+        Number(event.latitude),
+        Number(event.longitude)
+      );
+      setCalculatedDistance(dist);
+    }
+  }, [location, distance, event.latitude, event.longitude]);
 
   // Bepaal of er een evenement afbeelding beschikbaar is
   // Voor nu alle evenementen zonder afbeelding tonen met een kaart
@@ -51,30 +90,34 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                 <span className="text-gray-400">Event afbeelding</span>
               </div>
             ) : (
-              // Als er geen afbeelding is, toon een kaart met een route naar het evenement
+              // Als er geen afbeelding is, toon een kaart met een route naar het evenement als achtergrond
               <div className="h-full w-full">
-                <MapContainer 
-                  center={eventCoords} 
-                  zoom={14} 
-                  scrollWheelZoom={false}
-                  zoomControl={false}
-                  attributionControl={false}
-                  dragging={false}
-                  style={{ height: '100%', width: '100%' }}
-                >
-                  <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                    subdomains="abcd"
-                  />
-                  <Marker position={eventCoords} icon={createEventIcon(event.category)} />
-                  
-                  {/* Hier zou je een route of cirkel kunnen toevoegen naar de gebruiker */}
-                </MapContainer>
+                <div className="absolute inset-0 z-0">
+                  <MapContainer 
+                    center={eventCoords} 
+                    zoom={14} 
+                    scrollWheelZoom={false}
+                    zoomControl={false}
+                    attributionControl={false}
+                    dragging={false}
+                    style={{ height: '100%', width: '100%' }}
+                  >
+                    <TileLayer
+                      url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                      subdomains="abcd"
+                      opacity={0.7} // Maak de kaart iets transparanter
+                    />
+                    <Marker position={eventCoords} icon={createEventIcon(event.category)} />
+                  </MapContainer>
+                </div>
+                
+                {/* Semi-transparante overlay over de gehele kaart voor beter leesbaarheid */}
+                <div className="absolute inset-0 bg-black/20 z-10"></div>
               </div>
             )}
             
-            {/* Overlay met categorie en afstand */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 text-white">
+            {/* Overlay met categorie en afstand - nu met hogere z-index en beter contrast */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-white z-20">
               <div className="flex justify-between items-center">
                 <Badge style={{ 
                   backgroundColor: getCategoryColor(event.category as any),
@@ -83,10 +126,10 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                   {event.category}
                 </Badge>
                 
-                <div className="bg-black/40 px-2 py-1 rounded-full flex items-center text-xs">
+                <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs font-medium shadow-sm">
                   <MapPin className="h-3 w-3 mr-1" />
-                  {distance !== undefined && typeof distance === 'number' 
-                    ? `${distance.toFixed(1)} km` 
+                  {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
+                    ? `${calculatedDistance.toFixed(1)} km` 
                     : 'Afstand onbekend'}
                 </div>
               </div>
@@ -146,8 +189,8 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
               <CardDescription className="flex items-center gap-1 mt-1 text-gray-500">
                 <MapPin className="h-3 w-3" />
                 <span className="text-xs">
-                  {distance !== undefined && typeof distance === 'number' 
-                    ? `${distance.toFixed(1)} km` 
+                  {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
+                    ? `${calculatedDistance.toFixed(1)} km` 
                     : 'Afstand onbekend'}
                 </span>
               </CardDescription>

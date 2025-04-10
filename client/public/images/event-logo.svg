@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <!-- Achtergrond cirkel -->
-  <circle cx="50" cy="50" r="45" fill="#4f46e5" />
+  <!-- Achtergrond cirkel met de lichtblauwe kleur uit het thema -->
+  <circle cx="50" cy="50" r="45" fill="#6EA8CD" />
   
   <!-- Locatie pin icon gestileerd -->
   <path d="M50 20c-14 0-25 11-25 25 0 18 25 35 25 35s25-17 25-35c0-14-11-25-25-25zm0 35c-5.5 0-10-4.5-10-10s4.5-10 10-10 10 4.5 10 10-4.5 10-10 10z" 
         fill="white" />
   
-  <!-- Klein streepje voor een E (van Event) links -->
-  <rect x="26" y="60" width="10" height="4" rx="2" fill="white" />
+  <!-- Kalender icon integratie boven de pin -->
+  <rect x="38" y="14" width="24" height="4" rx="2" fill="white" />
+  <rect x="42" y="10" width="4" height="8" rx="2" fill="white" />
+  <rect x="54" y="10" width="4" height="8" rx="2" fill="white" />
   
-  <!-- Klein streepje voor een E (van Event) rechts -->
-  <rect x="64" y="60" width="10" height="4" rx="2" fill="white" />
+  <!-- Event tekst gestileerd onderin -->
+  <rect x="30" y="70" width="40" height="4" rx="2" fill="white" />
+  <rect x="35" y="76" width="30" height="4" rx="2" fill="white" />
 </svg>

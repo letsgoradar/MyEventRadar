@@ -33,40 +33,46 @@ export function Sidebar() {
       )}
     >
       <div className={cn(
-        "flex items-center justify-between transition-all duration-300",
-        isExpanded ? "p-4" : "p-2"
+        "flex flex-col items-center transition-all duration-300",
+        isExpanded ? "p-4" : "p-3"
       )}>
         {isExpanded ? (
-          <div className="flex items-center">
-            <img 
-              src="/images/event-logo.svg" 
-              alt="EventApp Logo" 
-              className="w-8 h-8 mr-2" 
-            />
-            <h1 className="text-xl font-bold">EventApp</h1>
-          </div>
+          <>
+            <div className="flex flex-col items-center mb-2">
+              <img 
+                src="/images/event-logo.svg" 
+                alt="EventApp Logo" 
+                className="w-10 h-10" 
+              />
+              <h1 className="text-xl font-bold mt-2">EventApp</h1>
+            </div>
+            <Button variant="ghost" size="sm" className="p-1 w-full" onClick={toggleExpanded}>
+              <MdChevronLeft className="h-5 w-5" />
+            </Button>
+          </>
         ) : (
-          <div className="w-full flex justify-center">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <img 
-                    src="/images/event-logo.svg" 
-                    alt="EventApp Logo" 
-                    className="w-8 h-8" 
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p>EventApp</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+          <>
+            <div className="w-full flex justify-center mb-3">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <img 
+                      src="/images/event-logo.svg" 
+                      alt="EventApp Logo" 
+                      className="w-10 h-10" 
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>EventApp</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Button variant="ghost" size="sm" className="p-1 w-full" onClick={toggleExpanded}>
+              <MdChevronRight className="h-5 w-5" />
+            </Button>
+          </>
         )}
-        
-        <Button variant="ghost" size="sm" className="p-1" onClick={toggleExpanded}>
-          {isExpanded ? <MdChevronLeft className="h-5 w-5" /> : <MdChevronRight className="h-5 w-5" />}
-        </Button>
       </div>
       
       <nav className={cn(

@@ -127,7 +127,10 @@ const EventDetailPage: React.FC = () => {
     deleteMutation.mutate(eventId);
   };
 
-  const formatDateTime = (dateTimeStr: string) => {
+  const formatDateTime = (dateTimeStr: string | null | undefined) => {
+    if (!dateTimeStr) {
+      return "Onbekende datum/tijd";
+    }
     try {
       return format(new Date(dateTimeStr), 'd MMMM yyyy, HH:mm', { locale: nl });
     } catch (e) {
@@ -273,7 +276,7 @@ const EventDetailPage: React.FC = () => {
                   
                   {event.isPaid && (
                     <Badge variant="default" className="bg-green-600">
-                      € {event?.price ? (typeof event.price === 'number' ? event.price.toFixed(2) : Number(event.price).toFixed(2)) : '0.00'}
+                      € {parseFloat((event?.price?.toString() || '0')).toFixed(2)}
                     </Badge>
                   )}
                 </div>
@@ -285,7 +288,7 @@ const EventDetailPage: React.FC = () => {
                     <div>
                       <p className="text-sm font-medium">Start Datum/Tijd</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatDateTime(event?.startTime)}
+                        {formatDateTime(event?.startTime?.toString())}
                       </p>
                     </div>
                   </div>
@@ -295,7 +298,7 @@ const EventDetailPage: React.FC = () => {
                     <div>
                       <p className="text-sm font-medium">Eind Datum/Tijd</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatDateTime(event?.endTime)}
+                        {formatDateTime(event?.endTime?.toString())}
                       </p>
                     </div>
                   </div>
@@ -410,7 +413,7 @@ const EventDetailPage: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="h-80 bg-muted rounded-md flex items-center justify-center">
-                {event?.latitude && event?.longitude ? (
+                {event?.latitude && event?.longitude && !isNaN(Number(event.latitude)) && !isNaN(Number(event.longitude)) ? (
                   <iframe
                     title="Event Location"
                     width="100%"

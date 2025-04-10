@@ -49,6 +49,7 @@ const createEventFormSchema = insertEventSchema
     startTime: z.date().min(new Date(), { message: 'Startdatum moet in de toekomst liggen' }),
     endTime: z.date(),
     maxParticipants: z.number().nullable().optional(),
+    hasMaxParticipants: z.boolean().default(false),
   })
   .refine((data) => data.endTime > data.startTime, {
     message: 'Einddatum moet na startdatum liggen',
@@ -113,6 +114,7 @@ const CreateEvent = () => {
       isPaid: false,
       price: undefined,
       maxParticipants: undefined,
+      hasMaxParticipants: false,
       latitude: location?.lat ?? 51.7767,
       longitude: location?.lng ?? 5.5345,
       startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // tomorrow
@@ -133,7 +135,7 @@ const CreateEvent = () => {
       const formattedData = {
         ...apiData,
         price: data.isPaid && data.price ? Number(data.price) : null,
-        maxParticipants: data.maxParticipants ? Number(data.maxParticipants) : null,
+        maxParticipants: data.hasMaxParticipants && data.maxParticipants ? Number(data.maxParticipants) : null,
       };
       
       const response = await fetch('/api/events', {
@@ -392,22 +394,50 @@ const CreateEvent = () => {
                         
                         <FormField
                           control={form.control}
-                          name="maxParticipants"
+                          name="hasMaxParticipants"
                           render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Maximum aantal deelnemers</FormLabel>
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 mb-4">
+                              <div className="space-y-0.5">
+                                <FormLabel className="text-base">Beperkt aantal deelnemers</FormLabel>
+                                <FormDescription>
+                                  Beperk het maximaal aantal deelnemers voor dit evenement
+                                </FormDescription>
+                              </div>
                               <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min={1}
-                                  placeholder="Aantal deelnemers" 
-                                  {...field} 
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
                                 />
                               </FormControl>
-                              <FormMessage />
                             </FormItem>
                           )}
                         />
+                        
+                        {form.watch('hasMaxParticipants') && (
+                          <FormField
+                            control={form.control}
+                            name="maxParticipants"
+                            render={({ field: { value, onChange, ...fieldProps } }) => (
+                              <FormItem>
+                                <FormLabel>Maximum aantal deelnemers</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    min={1}
+                                    placeholder="Aantal deelnemers" 
+                                    value={value === undefined || value === null ? "" : value}
+                                    onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                    {...fieldProps} 
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Geef aan hoeveel mensen maximaal kunnen deelnemen
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
                       </div>
                       
                       <div className="space-y-4">
@@ -436,7 +466,7 @@ const CreateEvent = () => {
                           <FormField
                             control={form.control}
                             name="price"
-                            render={({ field }) => (
+                            render={({ field: { value, onChange, ...fieldProps } }) => (
                               <FormItem>
                                 <FormLabel>Prijs (EUR)</FormLabel>
                                 <FormControl>
@@ -445,7 +475,9 @@ const CreateEvent = () => {
                                     min={0}
                                     step={0.01}
                                     placeholder="0.00"
-                                    {...field}
+                                    value={value === undefined || value === null ? "" : value}
+                                    onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                    {...fieldProps}
                                   />
                                 </FormControl>
                                 <FormDescription>

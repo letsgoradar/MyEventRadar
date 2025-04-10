@@ -3,7 +3,7 @@ import { CATEGORIES } from '@shared/schema';
 
 export const CATEGORY_COLORS = {
   'Sport en spel': '#3B82F6', // blue-500
-  'Kunst en Cultuur': '#EAB308', // yellow-500 (geel)
+  'Kunst en Cultuur': '#FACC15', // yellow-400 (helderder geel)
   'Gezellig en Sociaal': '#22C55E', // green-500
   'Leren en Ontdekken': '#F97316', // orange-500
   'Vrijwilligerswerk en hulp': '#EF4444', // red-500

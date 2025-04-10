@@ -48,6 +48,7 @@ const createEventFormSchema = insertEventSchema
     imageFile: z.any().optional(),
     startTime: z.date().min(new Date(), { message: 'Startdatum moet in de toekomst liggen' }),
     endTime: z.date(),
+    maxParticipants: z.number().nullable().optional(),
   })
   .refine((data) => data.endTime > data.startTime, {
     message: 'Einddatum moet na startdatum liggen',

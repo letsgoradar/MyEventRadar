@@ -8,11 +8,11 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 w-full flex items-center justify-between bg-white border-t border-gray-200 px-4 py-2 z-50">
-      <Link href="/" className="flex-1">
+      <Link href="/app" className="flex-1">
         <Button
           variant="ghost"
           className="w-full py-6 hover:bg-gray-100"
-          data-active={location === '/'}
+          data-active={location === '/app' || location === '/'}
         >
           <div className="flex flex-col items-center">
             <Home className="w-6 h-6 mb-1" />
@@ -21,11 +21,11 @@ export default function BottomNav() {
         </Button>
       </Link>
 
-      <Link href="/events" className="flex-1">
+      <Link href="/app/events" className="flex-1">
         <Button
           variant="ghost"
           className="w-full py-6 hover:bg-gray-100"
-          data-active={location === '/events'}
+          data-active={location === '/app/events' || location === '/events'}
         >
           <div className="flex flex-col items-center">
             <Calendar className="w-6 h-6 mb-1" />
@@ -34,7 +34,7 @@ export default function BottomNav() {
         </Button>
       </Link>
 
-      <Link href="/create-event" className="flex-1">
+      <Link href="/app/create-event" className="flex-1">
         <Button
           variant="default"
           className="w-full h-[62px] flex flex-col items-center justify-center bg-[#0097FB] hover:bg-[#0087e1] text-white transform -translate-y-2 rounded-lg shadow-md"
@@ -44,11 +44,11 @@ export default function BottomNav() {
         </Button>
       </Link>
 
-      <Link href="/favorites" className="flex-1">
+      <Link href="/app/favorites" className="flex-1">
         <Button
           variant="ghost"
           className="w-full py-6 hover:bg-gray-100"
-          data-active={location === '/favorites'}
+          data-active={location === '/app/favorites' || location === '/favorites'}
         >
           <div className="flex flex-col items-center">
             <Heart className="w-6 h-6 mb-1" />
@@ -57,11 +57,11 @@ export default function BottomNav() {
         </Button>
       </Link>
 
-      <Link href="/profile" className="flex-1">
+      <Link href="/app/profile" className="flex-1">
         <Button
           variant="ghost"
           className="w-full py-6 hover:bg-gray-100"
-          data-active={location === '/profile'}
+          data-active={location === '/app/profile' || location === '/profile'}
         >
           <div className="flex flex-col items-center">
             <User className="w-6 h-6 mb-1" />

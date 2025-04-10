@@ -31,29 +31,35 @@ export default function App() {
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
   const [isWebVersion, setIsWebVersion] = React.useState(false);
 
-  // Check if we should use the web version based on URL parameter or localStorage
+  // Check for URL path to determine interface type and redirect if needed
   React.useEffect(() => {
-    // Check URL parameter first
-    const urlParams = new URLSearchParams(window.location.search);
-    const webParam = urlParams.get('web');
+    const path = window.location.pathname;
     
-    if (webParam === 'true') {
+    // Set web version based on URL path
+    if (path.startsWith('/web')) {
       setIsWebVersion(true);
-      // Store preference in localStorage
       localStorage.setItem('useWebVersion', 'true');
-    } else if (webParam === 'false') {
+    } else if (path.startsWith('/app')) {
       setIsWebVersion(false);
       localStorage.setItem('useWebVersion', 'false');
-    } else {
-      // Check localStorage if URL param is not present
+    } else if (path === '/') {
+      // Redirect home page to /web or /app based on user preference or device
+      const storedPref = localStorage.getItem('useWebVersion');
+      if (storedPref === 'true' || (!storedPref && !isMobile)) {
+        window.location.href = '/web';
+      } else {
+        window.location.href = '/app';
+      }
+    } else if (!path.startsWith('/admin')) {
+      // For other paths that don't start with /web, /app, or /admin, check localStorage
       const storedPref = localStorage.getItem('useWebVersion');
       if (storedPref === 'true') {
         setIsWebVersion(true);
       }
     }
     
-    console.log('Web version enabled:', webParam === 'true' || localStorage.getItem('useWebVersion') === 'true');
-  }, []);
+    console.log('Web version enabled:', path.startsWith('/web') || localStorage.getItem('useWebVersion') === 'true');
+  }, [isMobile]);
 
   const toggleView = React.useCallback(() => {
     setIsMapView(prev => !prev);
@@ -119,7 +125,46 @@ export default function App() {
             </AuthGuard>
           </Route>
           
-          {/* Web Version Routes with WebLayout */}
+          {/* Web Version Routes - both /web prefix and direct routes */}
+          <Route path="/web/create-event">
+            <WebLayout>
+              <CreateEventPage />
+            </WebLayout>
+          </Route>
+          <Route path="/web/event/:id">
+            <WebLayout>
+              <EventDetailPage />
+            </WebLayout>
+          </Route>
+          <Route path="/web/events">
+            <WebLayout>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
+                <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
+              </div>
+            </WebLayout>
+          </Route>
+          <Route path="/web/favorites">
+            <WebLayout>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
+                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
+              </div>
+            </WebLayout>
+          </Route>
+          <Route path="/web/profile">
+            <WebLayout>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold mb-6">Profiel</h1>
+                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
+              </div>
+            </WebLayout>
+          </Route>
+          <Route path="/web">
+            <WebPage />
+          </Route>
+          
+          {/* Default Web Routes - for backwards compatibility */}
           <Route path="/create-event">
             <WebLayout>
               <CreateEventPage />
@@ -212,14 +257,14 @@ export default function App() {
             </AuthGuard>
           </Route>
           
-          {/* Regular Routes */}
-          <Route path="/create-event">
+          {/* Mobile App Routes with /app prefix */}
+          <Route path="/app/create-event">
             <CreateEventPage />
           </Route>
-          <Route path="/event/:id">
+          <Route path="/app/event/:id">
             <EventDetailPage />
           </Route>
-          <Route path="/">
+          <Route path="/app">
             <>
               <TopNav 
                 isMapView={isMapView}
@@ -240,6 +285,44 @@ export default function App() {
               </div>
               <BottomNav />
             </>
+          </Route>
+          <Route path="/app/events">
+            <div className="h-screen flex flex-col relative">
+              <TopNav />
+              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
+                <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
+                <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
+              </div>
+              <BottomNav />
+            </div>
+          </Route>
+          <Route path="/app/favorites">
+            <div className="h-screen flex flex-col relative">
+              <TopNav />
+              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
+                <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
+                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
+              </div>
+              <BottomNav />
+            </div>
+          </Route>
+          <Route path="/app/profile">
+            <div className="h-screen flex flex-col relative">
+              <TopNav />
+              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
+                <h1 className="text-2xl font-bold mb-6">Profiel</h1>
+                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
+              </div>
+              <BottomNav />
+            </div>
+          </Route>
+
+          {/* Legacy routes - for backwards compatibility */}
+          <Route path="/create-event">
+            <CreateEventPage />
+          </Route>
+          <Route path="/event/:id">
+            <EventDetailPage />
           </Route>
           <Route path="/events">
             <div className="h-screen flex flex-col relative">
@@ -270,6 +353,28 @@ export default function App() {
               </div>
               <BottomNav />
             </div>
+          </Route>
+          <Route path="/">
+            <>
+              <TopNav 
+                isMapView={isMapView}
+                toggleView={toggleView}
+                onSearch={handleSearch}
+                radius={radius}
+                onRadiusChange={handleRadiusChange}
+                onFilteredEventsChange={handleFilteredEventsChange}
+              />
+              <div className="absolute inset-0 top-[calc(3.5rem+3rem)] bottom-[75px] z-0">
+                {isMapView ? (
+                  <MapView searchQuery={searchQuery} radius={radius} filteredEvents={filteredEvents} />
+                ) : (
+                  <div className="h-full overflow-auto pt-4">
+                    <EventList searchQuery={searchQuery} radius={radius} filteredEvents={filteredEvents} />
+                  </div>
+                )}
+              </div>
+              <BottomNav />
+            </>
           </Route>
         </Switch>
         <Toaster />

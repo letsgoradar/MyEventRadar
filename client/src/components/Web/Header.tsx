@@ -164,10 +164,10 @@ export function Header({
 
       <div className="hidden md:flex items-center gap-4">
         <Button variant="outline" asChild>
-          <Link href="/login">Inloggen</Link>
+          <Link href="/admin/login">Inloggen</Link>
         </Button>
         <Button asChild>
-          <Link href="/create-event">Nieuw Evenement</Link>
+          <Link href="/web/create-event">Nieuw Evenement</Link>
         </Button>
       </div>
     </div>

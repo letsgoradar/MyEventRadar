@@ -12,10 +12,10 @@ export function Sidebar() {
   };
 
   const navItems = [
-    { path: "/", icon: <MdHome className="h-5 w-5" />, label: "Home" },
-    { path: "/events", icon: <MdEvent className="h-5 w-5" />, label: "Mijn Evenementen" },
-    { path: "/favorites", icon: <MdFavorite className="h-5 w-5" />, label: "Favorieten" },
-    { path: "/profile", icon: <MdAccountCircle className="h-5 w-5" />, label: "Profiel" },
+    { path: "/web", icon: <MdHome className="h-5 w-5" />, label: "Home" },
+    { path: "/web/events", icon: <MdEvent className="h-5 w-5" />, label: "Mijn Evenementen" },
+    { path: "/web/favorites", icon: <MdFavorite className="h-5 w-5" />, label: "Favorieten" },
+    { path: "/web/profile", icon: <MdAccountCircle className="h-5 w-5" />, label: "Profiel" },
   ];
 
   return (
@@ -42,7 +42,7 @@ export function Sidebar() {
       
       <div className="p-4">
         <Button asChild className="w-full flex gap-2 items-center">
-          <Link href="/create-event">
+          <Link href="/web/create-event">
             <MdAdd className="h-5 w-5" />
             <span>Nieuw Evenement</span>
           </Link>

@@ -35,8 +35,9 @@ export function SplitView({
 
   return (
     <ResizablePanelGroup direction="horizontal" className="h-full">
-      <ResizablePanel defaultSize={60} minSize={30}>
-        <div className="h-full">
+      <ResizablePanel defaultSize={50} minSize={30}>
+        <div className="h-full relative">
+          {/* Zorg ervoor dat de map onder de header komt */}
           <MapView 
             searchQuery={searchQuery} 
             radius={radius} 
@@ -47,12 +48,13 @@ export function SplitView({
         </div>
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={40} minSize={30}>
+      <ResizablePanel defaultSize={50} minSize={30}>
         <div className="h-full overflow-auto">
           <EventList 
             searchQuery={searchQuery} 
             radius={radius} 
             filteredEvents={filteredEvents} 
+            gridView={true} // Gebruik de nieuwe grid weergave
           />
         </div>
       </ResizablePanel>

@@ -66,13 +66,13 @@ export function Header({
   };
 
   return (
-    <div className="h-20 border-b border-border bg-background flex items-center px-4 justify-between">
-      <div className="flex items-center gap-4 w-full max-w-md">
+    <div className="h-30 border-b border-border bg-background flex items-center px-6 justify-between">
+      <div className="flex items-center gap-6 w-full max-w-lg">
         <div className="relative flex-1">
-          <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+          <MdSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-6 w-6" />
           <Input
             placeholder="Zoek evenementen..."
-            className="pl-10 h-11 text-base"
+            className="pl-12 h-14 text-base rounded-lg shadow-sm"
             value={searchQuery}
             onChange={handleSearchChange}
           />
@@ -80,20 +80,20 @@ export function Header({
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button size="icon" variant="outline" className="h-11 w-11">
-              <MdTune className="h-5 w-5" />
+            <Button size="icon" variant="outline" className="h-14 w-14 rounded-lg">
+              <MdTune className="h-6 w-6" />
               {selectedCategories.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center text-xs">
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center text-xs">
                   {selectedCategories.length}
                 </span>
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[350px]" align="end">
-            <div className="space-y-6">
+          <PopoverContent className="w-[400px]" align="end">
+            <div className="space-y-6 p-2">
               <div>
-                <h4 className="font-medium mb-3">Filters</h4>
-                <div className="space-y-2">
+                <h4 className="font-medium mb-3 text-lg">Filters</h4>
+                <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Afstand</span>
                     <span className="text-sm text-muted-foreground">
@@ -110,8 +110,8 @@ export function Header({
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <h4 className="font-medium">Categorieën</h4>
+              <div className="space-y-3">
+                <h4 className="font-medium text-lg">Categorieën</h4>
                 <div className="flex flex-wrap gap-2">
                   {CATEGORIES.map(category => (
                     <Button 
@@ -121,7 +121,7 @@ export function Header({
                       size="sm"
                       onClick={() => toggleCategory(category)}
                     >
-                      <CategoryIcon category={category as any} size={16} />
+                      <CategoryIcon category={category as any} size={18} />
                       <span className="text-sm">{category}</span>
                     </Button>
                   ))}
@@ -150,23 +150,23 @@ export function Header({
             size="icon"
             variant="outline"
             onClick={toggleView}
-            className="h-11 w-11"
+            className="h-14 w-14 rounded-lg"
             title={isMapView ? "Lijstweergave" : "Kaartweergave"}
           >
             {isMapView ? (
-              <MdViewList className="h-5 w-5" />
+              <MdViewList className="h-6 w-6" />
             ) : (
-              <MdMap className="h-5 w-5" />
+              <MdMap className="h-6 w-6" />
             )}
           </Button>
         )}
       </div>
 
-      <div className="hidden md:flex items-center gap-4">
-        <Button variant="outline" asChild>
+      <div className="hidden md:flex items-center gap-5">
+        <Button variant="outline" asChild className="h-12 px-6 text-base">
           <Link href="/admin/login">Inloggen</Link>
         </Button>
-        <Button asChild>
+        <Button asChild className="h-12 px-6 text-base">
           <Link href="/web/create-event">Nieuw Evenement</Link>
         </Button>
       </div>

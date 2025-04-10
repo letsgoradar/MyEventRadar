@@ -1,13 +1,10 @@
 import * as React from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { Event } from "@shared/schema";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import SplitView from "./SplitView";
 import MapView from "@/components/Map/MapView";
 import { EventList } from "@/components/EventList";
-import BottomNav from "@/components/Layout/BottomNav";
-import TopNav from "@/components/Layout/TopNav";
 
 interface WebLayoutProps {
   children?: React.ReactNode;
@@ -28,7 +25,6 @@ export function WebLayout({
   onRadiusChange: propOnRadiusChange,
   onFilteredEventsChange: propOnFilteredEventsChange
 }: WebLayoutProps) {
-  const isMobile = useIsMobile();
   const [isMapView, setIsMapView] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
   const [radius, setRadius] = React.useState(propRadius || 10);
@@ -81,39 +77,8 @@ export function WebLayout({
     setSelectedCategories(categories);
   }, []);
 
-  // Mobile layout (reuses existing components)
-  if (isMobile) {
-    return (
-      <div className="h-screen flex flex-col relative">
-        <TopNav 
-          isMapView={isMapView}
-          toggleView={toggleView}
-          onSearch={handleSearch}
-          radius={radius}
-          onRadiusChange={handleRadiusChange}
-          onFilteredEventsChange={handleFilteredEventsChange}
-        />
-        <div className="absolute inset-0 top-[calc(3.5rem+3rem)] bottom-[75px] z-0">
-          {isMapView ? (
-            <MapView 
-              searchQuery={searchQuery} 
-              radius={radius} 
-              filteredEvents={filteredEvents} 
-            />
-          ) : (
-            <div className="h-full overflow-auto pt-4">
-              <EventList 
-                searchQuery={searchQuery} 
-                radius={radius} 
-                filteredEvents={filteredEvents} 
-              />
-            </div>
-          )}
-        </div>
-        <BottomNav />
-      </div>
-    );
-  }
+  // Geen mobiele weergave meer voor /web - wordt afgehandeld via /app route
+  // Alleen desktop layout
 
   // Desktop layout (with sidebar and split view)
   return (

@@ -1,37 +1,17 @@
 import * as React from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { MdHome, MdEvent, MdFavorite, MdAccountCircle, MdAdd, MdChevronRight, MdChevronLeft, MdMenu, MdClose } from "react-icons/md";
+import { MdHome, MdEvent, MdFavorite, MdAccountCircle, MdAdd, MdChevronRight, MdChevronLeft } from "react-icons/md";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function Sidebar() {
   const [location] = useLocation();
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const [isPinned, setIsPinned] = React.useState(false);
   
-  // When toggling expanded state and not pinned, we'll auto-collapse after navigation
-  const expandSidebar = () => {
-    if (!isPinned) {
-      setIsExpanded(true);
-    }
-  };
-  
-  const collapseSidebar = () => {
-    if (!isPinned) {
-      setIsExpanded(false);
-    }
-  };
-  
+  // Sidebar wordt standaard uitgeklapt bij klikken op pijltje
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
-  };
-  
-  const togglePinned = () => {
-    setIsPinned(!isPinned);
-    if (!isPinned) {
-      setIsExpanded(true);
-    }
   };
 
   const isActive = (path: string) => {
@@ -49,23 +29,32 @@ export function Sidebar() {
     <div 
       className={cn(
         "h-screen bg-card border-r border-border flex flex-col transition-all duration-300 z-20 relative",
-        isExpanded ? (isPinned ? "w-64" : "w-64") : "w-16"
+        isExpanded ? "w-64" : "w-16"
       )}
-      onMouseEnter={expandSidebar}
-      onMouseLeave={collapseSidebar}
     >
       <div className={cn(
         "flex items-center justify-between transition-all duration-300",
         isExpanded ? "p-4" : "p-2"
       )}>
         {isExpanded ? (
-          <h1 className="text-2xl font-bold">EventApp</h1>
+          <div className="flex items-center">
+            <img 
+              src="/images/event-logo.svg" 
+              alt="EventApp Logo" 
+              className="w-8 h-8 mr-2" 
+            />
+            <h1 className="text-xl font-bold">EventApp</h1>
+          </div>
         ) : (
           <div className="w-full flex justify-center">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="text-2xl font-bold">E</span>
+                  <img 
+                    src="/images/event-logo.svg" 
+                    alt="EventApp Logo" 
+                    className="w-8 h-8" 
+                  />
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   <p>EventApp</p>
@@ -79,20 +68,6 @@ export function Sidebar() {
           {isExpanded ? <MdChevronLeft className="h-5 w-5" /> : <MdChevronRight className="h-5 w-5" />}
         </Button>
       </div>
-      
-      {isExpanded && (
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className={cn(
-            "mx-2 mb-2 flex items-center",
-            isPinned ? "bg-accent" : ""
-          )}
-          onClick={togglePinned}
-        >
-          {isPinned ? "Losmaken" : "Vastzetten"}
-        </Button>
-      )}
       
       <nav className={cn(
         "flex-1 py-4 space-y-1",
@@ -112,7 +87,6 @@ export function Sidebar() {
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground hover:bg-accent"
                       )}
-                      onClick={collapseSidebar}
                     >
                       {item.icon}
                       {isExpanded && <span className="ml-3">{item.label}</span>}

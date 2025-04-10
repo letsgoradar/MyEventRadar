@@ -21,26 +21,8 @@ import type { Event } from "@shared/schema"
 import { queryClient } from "@/lib/queryClient"
 
 export default function App() {
-  const [isMapView, setIsMapView] = React.useState(true);
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [radius, setRadius] = React.useState(10);
-  const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
-
-  const toggleView = React.useCallback(() => {
-    setIsMapView(prev => !prev);
-  }, []);
-
-  const handleSearch = React.useCallback((query: string) => {
-    setSearchQuery(query);
-  }, []);
-
-  const handleRadiusChange = React.useCallback((value: number) => {
-    setRadius(value);
-  }, []);
-
-  const handleFilteredEventsChange = React.useCallback((events: Event[]) => {
-    setFilteredEvents(events);
-  }, []);
+  // App component is nu vooral verantwoordelijk voor routing
+  // De oude state variabelen zijn verplaatst naar WebLayout
 
   return (
     <QueryClientProvider client={queryClient}>

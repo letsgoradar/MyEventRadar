@@ -26,26 +26,69 @@ export default function LocationMarker() {
   });
 
   useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newPos: [number, number] = [
-            position.coords.latitude,
-            position.coords.longitude
-          ];
-          setPosition(newPos);
-          map.flyTo(newPos, map.getZoom());
-        },
-        () => {
-          console.error("Could not get user location");
-          // Default to center of Netherlands
-          const defaultPos: [number, number] = [52.3676, 4.9041];
-          setPosition(defaultPos);
-          map.flyTo(defaultPos, map.getZoom());
-        }
-      );
-    }
-  }, [map]);
+    let isMounted = true;
+    
+    // Wacht even voordat we de locatie opvragen om er zeker van te zijn dat de map volledig is geïnitialiseerd
+    const timer = setTimeout(() => {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            if (!isMounted) return;
+            
+            const newPos: [number, number] = [
+              position.coords.latitude,
+              position.coords.longitude
+            ];
+            setPosition(newPos);
+            
+            try {
+              if (map) {
+                // Veiligere manier om te controleren of de map is geladen
+                // zonder gebruik te maken van interne _loaded property
+                setTimeout(() => {
+                  try {
+                    map.flyTo(newPos, map.getZoom());
+                  } catch (innerError) {
+                    console.error("Delayed flyTo error:", innerError);
+                  }
+                }, 500);
+              }
+            } catch (error) {
+              console.error("Map flyTo error:", error);
+            }
+          },
+          () => {
+            if (!isMounted) return;
+            
+            console.error("Could not get user location");
+            // Default to center of Netherlands
+            const defaultPos: [number, number] = [52.3676, 4.9041];
+            setPosition(defaultPos);
+            
+            try {
+              if (map) {
+                // Veiligere manier om te controleren of de map is geladen
+                setTimeout(() => {
+                  try {
+                    map.flyTo(defaultPos, map.getZoom());
+                  } catch (innerError) {
+                    console.error("Delayed flyTo error:", innerError);
+                  }
+                }, 500);
+              }
+            } catch (error) {
+              console.error("Map flyTo error:", error);
+            }
+          }
+        );
+      }
+    }, 1000);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, []);
 
   return position === null ? null : (
     <Marker 

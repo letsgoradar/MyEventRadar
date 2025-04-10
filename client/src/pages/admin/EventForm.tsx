@@ -85,7 +85,7 @@ const eventFormSchema = z.object({
   category: z.enum(CATEGORIES, {
     required_error: 'Selecteer een categorie',
   }),
-  secondaryCategory: z.enum(CATEGORIES).optional().nullable(),
+  secondaryCategory: z.enum([...CATEGORIES, "none"]).optional().nullable(),
   address: z.string()
     .min(3, { message: 'Adres moet minimaal 3 tekens bevatten' }),
   latitude: z.string(),
@@ -403,9 +403,9 @@ const EventForm: React.FC = () => {
                           <FormItem>
                             <FormLabel>Secundaire Categorie (optioneel)</FormLabel>
                             <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value || undefined}
-                              value={field.value || undefined}
+                              onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                              defaultValue={field.value || "none"}
+                              value={field.value || "none"}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -413,7 +413,7 @@ const EventForm: React.FC = () => {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">Geen</SelectItem>
+                                <SelectItem value="none">Geen</SelectItem>
                                 {CATEGORIES.map((category) => (
                                   <SelectItem key={category} value={category}>
                                     <div className="flex items-center gap-2">

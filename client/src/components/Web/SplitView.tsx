@@ -30,7 +30,7 @@ export function SplitView({
   const [activeEventId, setActiveEventId] = React.useState<number | null>(null);
 
   // Query events
-  const { data: events = [], isLoading } = useQuery({
+  const { data: events = [], isLoading } = useQuery<Event[]>({
     queryKey: ["events", location?.lat, location?.lng, radius],
     queryFn: () => 
       location 
@@ -42,7 +42,7 @@ export function SplitView({
   // Apply filters (search)
   React.useEffect(() => {
     // Filter events based on search query
-    const filtered = events.filter(event => {
+    const filtered = events.filter((event: Event) => {
       if (!searchQuery) return true;
       const query = searchQuery.toLowerCase();
       return (
@@ -54,7 +54,7 @@ export function SplitView({
     });
 
     // Sort by distance
-    const sorted = [...filtered].sort((a, b) => {
+    const sorted = [...filtered].sort((a: Event, b: Event) => {
       return (a.distance || Infinity) - (b.distance || Infinity);
     });
 

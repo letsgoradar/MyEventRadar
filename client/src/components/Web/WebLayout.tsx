@@ -45,8 +45,18 @@ export function WebLayout({
   }, [propRadius]);
 
   React.useEffect(() => {
-    if (propFilteredEvents) setFilteredEvents(propFilteredEvents);
-  }, [propFilteredEvents]);
+    if (propFilteredEvents) {
+      // Filter events based on selected categories
+      if (selectedCategories.length > 0) {
+        const filtered = propFilteredEvents.filter(event => 
+          selectedCategories.includes(event.category)
+        );
+        setFilteredEvents(filtered);
+      } else {
+        setFilteredEvents(propFilteredEvents);
+      }
+    }
+  }, [propFilteredEvents, selectedCategories]);
 
   const toggleView = React.useCallback(() => {
     setIsMapView(prev => !prev);
@@ -116,6 +126,7 @@ export function WebLayout({
           onSearch={handleSearch}
           radius={radius}
           onRadiusChange={handleRadiusChange}
+          onCategoriesChange={handleCategoriesChange}
           hideViewToggle={true} // Hide the toggle button in web view
         />
         <div className="flex-1">

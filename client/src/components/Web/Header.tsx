@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "wouter";
-import { MdSearch, MdTune } from "react-icons/md";
+import { MdSearch, MdTune, MdMap, MdViewList } from "react-icons/md";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +28,7 @@ interface HeaderProps {
   onSearch?: (query: string) => void;
   radius?: number;
   onRadiusChange?: (value: number) => void;
+  onCategoriesChange?: (categories: string[]) => void;
   hideViewToggle?: boolean;
 }
 
@@ -37,6 +38,7 @@ export function Header({
   onSearch,
   radius = 10,
   onRadiusChange,
+  onCategoriesChange,
   hideViewToggle = false,
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -53,11 +55,13 @@ export function Header({
 
   const toggleCategory = (category: string) => {
     setSelectedCategories(prev => {
-      if (prev.includes(category)) {
-        return prev.filter(cat => cat !== category);
-      } else {
-        return [...prev, category];
-      }
+      const newCategories = prev.includes(category)
+        ? prev.filter(cat => cat !== category)
+        : [...prev, category];
+        
+      // Stuur de categoriewijziging door naar de parent
+      onCategoriesChange?.(newCategories);
+      return newCategories;
     });
   };
 
@@ -128,7 +132,10 @@ export function Header({
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => setSelectedCategories([])}
+                  onClick={() => {
+                    setSelectedCategories([]);
+                    onCategoriesChange?.([]);
+                  }}
                 >
                   Filters wissen
                 </Button>
@@ -136,6 +143,23 @@ export function Header({
             </div>
           </PopoverContent>
         </Popover>
+
+        {/* Toon de kaart/lijst schakelaar alleen indien niet verborgen */}
+        {!hideViewToggle && (
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={toggleView}
+            className="h-11 w-11"
+            title={isMapView ? "Lijstweergave" : "Kaartweergave"}
+          >
+            {isMapView ? (
+              <MdViewList className="h-5 w-5" />
+            ) : (
+              <MdMap className="h-5 w-5" />
+            )}
+          </Button>
+        )}
       </div>
 
       <div className="hidden md:flex items-center gap-4">

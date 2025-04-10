@@ -33,6 +33,7 @@ export function WebLayout({
   const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
   const [radius, setRadius] = React.useState(propRadius || 10);
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>(propFilteredEvents || []);
+  const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
 
   // Update state when props change
   React.useEffect(() => {
@@ -65,6 +66,10 @@ export function WebLayout({
     setFilteredEvents(events);
     propOnFilteredEventsChange?.(events);
   }, [propOnFilteredEventsChange]);
+  
+  const handleCategoriesChange = React.useCallback((categories: string[]) => {
+    setSelectedCategories(categories);
+  }, []);
 
   // Mobile layout (reuses existing components)
   if (isMobile) {

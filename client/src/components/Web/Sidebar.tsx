@@ -48,7 +48,7 @@ export function Sidebar() {
   return (
     <div 
       className={cn(
-        "h-screen bg-card border-r border-border flex flex-col transition-all duration-300",
+        "h-screen bg-card border-r border-border flex flex-col transition-all duration-300 z-20 relative",
         isExpanded ? (isPinned ? "w-64" : "w-64") : "w-16"
       )}
       onMouseEnter={expandSidebar}

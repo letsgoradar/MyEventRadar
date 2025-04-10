@@ -66,7 +66,7 @@ export function Header({
   };
 
   return (
-    <div className="h-30 border-b border-border bg-background flex items-center px-6 justify-between">
+    <div className="h-30 border-b border-border bg-background flex items-center px-6 justify-between z-20 relative">
       <div className="flex items-center gap-6 w-full max-w-lg">
         <div className="relative flex-1">
           <MdSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-6 w-6" />

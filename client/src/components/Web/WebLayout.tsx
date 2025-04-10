@@ -117,9 +117,9 @@ export function WebLayout({
 
   // Desktop layout (with sidebar and split view)
   return (
-    <div className="h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative">
         <Header 
           isMapView={true} // Always true in web view since we're using SplitView
           toggleView={() => {}} // Empty function since we don't need this in web view
@@ -129,7 +129,7 @@ export function WebLayout({
           onCategoriesChange={handleCategoriesChange}
           hideViewToggle={true} // Hide the toggle button in web view
         />
-        <div className="flex-1">
+        <div className="flex-1 relative">
           {children ? (
             <div className="h-full overflow-auto p-6">{children}</div>
           ) : (

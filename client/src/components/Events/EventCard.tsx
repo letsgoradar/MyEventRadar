@@ -7,14 +7,14 @@ import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { CategoryIcon, CATEGORY_COLORS } from '../CategoryIcon';
+import { CategoryIcon, CATEGORY_COLORS, getCategoryColor } from '../CategoryIcon';
 import './leaflet-fix.css';
 import StreetView from '../StreetView/StreetView';
 import CountdownTimer from './CountdownTimer';
 import { Link } from 'wouter';
 
 function createEventIcon(category: string) {
-  const color = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || '#94A3B8';
+  const color = getCategoryColor(category as any);
   return L.divIcon({
     className: 'custom-div-icon',
     html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,

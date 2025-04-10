@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Event } from '@shared/schema';
-import { CATEGORY_COLORS } from '../CategoryIcon';
+import { CATEGORY_COLORS, getCategoryColor } from '../CategoryIcon';
 import { format } from 'date-fns';
 import './event-marker.css';
 import { Link } from 'wouter';
@@ -12,8 +12,8 @@ interface EventMarkerProps {
   onClick?: () => void;
 }
 
-function createEventIcon(category: keyof typeof CATEGORY_COLORS) {
-  const color = CATEGORY_COLORS[category] || '#94A3B8';
+function createEventIcon(category: string) {
+  const color = getCategoryColor(category as any);
   return L.divIcon({
     className: 'event-marker',
     html: `
@@ -35,7 +35,7 @@ export default function EventMarker({ event, onClick }: EventMarkerProps) {
   return (
     <Marker
       position={[Number(event.latitude), Number(event.longitude)]}
-      icon={createEventIcon(event.category as keyof typeof CATEGORY_COLORS)}
+      icon={createEventIcon(event.category)}
       eventHandlers={{
         click: onClick
       }}

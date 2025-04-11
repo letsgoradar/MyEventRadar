@@ -293,6 +293,24 @@ const CreateEvent = () => {
                               <Input 
                                 placeholder="Geef je evenement een titel" 
                                 {...field} 
+                                onChange={(e) => {
+                                  // Originele onChange aanroepen
+                                  field.onChange(e);
+                                  
+                                  // Als er al een beschrijving is, kan er een categorie worden voorgesteld
+                                  setTimeout(() => {
+                                    const description = form.getValues('description');
+                                    if (description && description.length > 5 && e.target.value.length > 3) {
+                                      const combinedText = `${e.target.value} ${description}`;
+                                      const suggestedCategory = suggestCategory(combinedText);
+                                      
+                                      // Als we een categorie kunnen suggereren en er nog geen is, doe dat dan
+                                      if (suggestedCategory && !form.getValues('category')) {
+                                        form.setValue('category', suggestedCategory);
+                                      }
+                                    }
+                                  }, 300);
+                                }}
                                 onBlur={handleTitleBlur}
                               />
                             </FormControl>
@@ -315,14 +333,25 @@ const CreateEvent = () => {
                                 placeholder="Beschrijf wat mensen kunnen verwachten" 
                                 className="min-h-[120px]"
                                 {...field} 
-                                onBlur={() => {
-                                  // Automatisch categorie voorstellen op basis van titel en beschrijving
+                                onChange={(e) => {
+                                  // Zorg ervoor dat de originele onChange wordt aangeroepen
+                                  field.onChange(e);
+                                  
+                                  // Direct categorie voorstellen op basis van titel en beschrijving
                                   const title = form.getValues('title');
-                                  const description = form.getValues('description');
-                                  if (title && description && !form.getValues('category')) {
-                                    const suggestedCategory = suggestCategory(title + " " + description);
-                                    if (suggestedCategory) {
-                                      form.setValue('category', suggestedCategory);
+                                  const description = e.target.value;
+                                  
+                                  // Combineer data voor categoriesuggestie
+                                  if (title && description && description.length > 5) {
+                                    const combinedText = `${title} ${description}`;
+                                    const suggestedCategory = suggestCategory(combinedText);
+                                    
+                                    // Als we een categorie kunnen suggereren, doe dat dan
+                                    if (suggestedCategory && !form.getValues('category')) {
+                                      // Vertraag de update even om te voorkomen dat het te snel gebeurt
+                                      setTimeout(() => {
+                                        form.setValue('category', suggestedCategory);
+                                      }, 300);
                                     }
                                   }
                                 }}
@@ -346,13 +375,15 @@ const CreateEvent = () => {
                               <Select
                                 onValueChange={(value) => {
                                   field.onChange(value);
-                                  // Bij wijziging van categorie eventueel ook de prompt updaten
-                                  const title = form.getValues('title');
-                                  const description = form.getValues('description');
-                                  if (title) {
-                                    // Trigger automatisch bijwerken van AI prompt
-                                    form.trigger('title');
-                                  }
+                                  
+                                  // Direct de ImageGenerator component bijwerken als die wordt weergegeven
+                                  // Dit triggert de useEffect in ImageGenerator die de prompt zal updaten
+                                  
+                                  // Wacht even zodat de categorie update kan worden verwerkt
+                                  setTimeout(() => {
+                                    // Update eventuele andere velden die afhankelijk zijn van de categorie
+                                    form.trigger(['title', 'description']);
+                                  }, 100);
                                 }}
                                 defaultValue={field.value}
                               >

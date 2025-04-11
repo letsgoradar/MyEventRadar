@@ -60,6 +60,18 @@ router.post('/', async (req: Request, res: Response) => {
     if (!response.ok) {
       const errorData = await response.json();
       console.error('OpenAI API error:', errorData);
+      
+      // Controleer op specifieke fouten zoals billing limiet
+      if (errorData && typeof errorData === 'object' && 'error' in errorData && 
+          errorData.error && typeof errorData.error === 'object' && 'code' in errorData.error && 
+          errorData.error.code === 'billing_hard_limit_reached') {
+        console.warn('OpenAI API billing limit reached, returning default image');
+        return res.json({ 
+          imageUrl: DEFAULT_IMAGE_URL,
+          message: 'OpenAI API billing limiet bereikt. Standaard afbeelding gebruikt.'
+        });
+      }
+      
       throw new Error(`OpenAI API responded with status ${response.status}`);
     }
 

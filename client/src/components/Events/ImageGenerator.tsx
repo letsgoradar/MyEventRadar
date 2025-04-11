@@ -94,17 +94,29 @@ export function ImageGenerator({
         body: JSON.stringify({ prompt }),
       });
 
-      if (!response.ok) {
+      const data = await response.json();
+      
+      // Controleer of er een fout is of een default afbeelding is geretourneerd
+      if (!response.ok && !data.imageUrl) {
         throw new Error("Failed to generate image");
       }
 
-      const data = await response.json();
+      // Als er een bericht is, toon dat aan de gebruiker
+      if (data.message) {
+        toast({
+          title: "Let op",
+          description: data.message,
+          variant: "default",
+        });
+      }
+
+      // Update de afbeelding met wat er is teruggekomen
       setGeneratedImage(data.imageUrl);
       onImageGenerated(data.imageUrl);
       
       toast({
         title: "Afbeelding gegenereerd",
-        description: "De AI heeft een afbeelding voor je evenement gemaakt",
+        description: "Een afbeelding is toegevoegd aan je evenement",
       });
     } catch (error) {
       console.error("Error generating image:", error);

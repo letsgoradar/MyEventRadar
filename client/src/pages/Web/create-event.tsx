@@ -290,14 +290,13 @@ const CreateEvent = () => {
                             alt="Event preview" 
                             className="w-full h-full object-cover"
                           />
-                          <Button 
-                            variant="destructive" 
-                            size="icon" 
-                            className="absolute top-2 right-2" 
+                          <button 
+                            type="button"
+                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-700 text-white p-1 rounded-full"
                             onClick={removeImage}
                           >
                             <X className="h-4 w-4" />
-                          </Button>
+                          </button>
                         </div>
                       ) : (
                         <div className="space-y-4">

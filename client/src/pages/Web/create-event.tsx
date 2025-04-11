@@ -331,7 +331,7 @@ const CreateEvent = () => {
           </div>
           
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {/* Linker kolom - Afbeelding en basisgegevens */}
                 <div className="md:col-span-2 space-y-6">
@@ -752,11 +752,29 @@ const CreateEvent = () => {
                 <Button 
                   type="button" 
                   disabled={createEventMutation.isPending}
-                  onClick={(e) => {
+                  onClick={() => {
                     console.log('Submit button clicked');
-                    e.preventDefault();
-                    // Handmatig de form submission triggeren
-                    form.handleSubmit(onSubmit)();
+                    try {
+                      // Verzamel de formuliergegevens
+                      const formData = form.getValues();
+                      console.log('Form data:', formData);
+                      
+                      // Toon een toast als bevestiging van de klik
+                      toast({
+                        title: "Evenement wordt aangemaakt...",
+                        description: "Bezig met verwerken van het formulier"
+                      });
+                      
+                      // Voer onSubmit uit met de huidige formulierwaarden
+                      onSubmit(formData);
+                    } catch (error) {
+                      console.error('Error in form submission:', error);
+                      toast({
+                        title: "Fout bij verwerken formulier",
+                        description: "Er is een probleem opgetreden bij het verwerken van het formulier",
+                        variant: "destructive"
+                      });
+                    }
                   }}
                 >
                   {createEventMutation.isPending ? 'Bezig met opslaan...' : 'Evenement aanmaken'}

@@ -48,6 +48,7 @@ import L from 'leaflet';
 const createEventFormSchema = insertEventSchema
   .extend({
     imageFile: z.any().optional(),
+    imageUrl: z.string().optional(), // Toegevoegd voor AI gegenereerde afbeeldingen
     startTime: z.date().min(new Date(), { message: 'Startdatum moet in de toekomst liggen' }),
     endTime: z.date(),
     maxParticipants: z.number().nullable().optional(),
@@ -67,7 +68,19 @@ const LocationPicker = ({
   defaultPosition?: [number, number], 
   onChange: (lat: number, lng: number) => void 
 }) => {
-  const [markerPosition, setMarkerPosition] = useState<[number, number]>(defaultPosition);
+  // Zorg ervoor dat we altijd geldige coördinaten gebruiken
+  const validDefaultPosition: [number, number] = Array.isArray(defaultPosition) && 
+    defaultPosition.length === 2 && 
+    typeof defaultPosition[0] === 'number' && 
+    typeof defaultPosition[1] === 'number' ? 
+    defaultPosition : [51.7767, 5.5345];
+  
+  const [markerPosition, setMarkerPosition] = useState<[number, number]>(validDefaultPosition);
+  
+  // Roep onChange aan bij initialisatie
+  useEffect(() => {
+    onChange(validDefaultPosition[0], validDefaultPosition[1]);
+  }, []);
   
   const MapEvents = () => {
     useMapEvents({
@@ -202,8 +215,14 @@ const CreateEvent = () => {
   
   // Functie om locatie te updaten
   const handleLocationChange = (lat: number, lng: number) => {
-    form.setValue('latitude', lat);
-    form.setValue('longitude', lng);
+    // Update het locatie-object met nieuwe coördinaten
+    const currentLocation = form.getValues('location') || {};
+    form.setValue('location', { 
+      ...currentLocation, 
+      lat, 
+      lng,
+      notificationReach: currentLocation.notificationReach || 5.0
+    });
   };
   
   // Functie om afbeelding te verwerken
@@ -246,7 +265,7 @@ const CreateEvent = () => {
   // Functie om een AI gegenereerde afbeelding te verwerken
   const handleAIGeneratedImage = (imageUrl: string) => {
     setImagePreview(imageUrl);
-    // We slaan de URL op in plaats van een bestand
+    // Nu hebben we een imageUrl veld in het schema toegevoegd
     form.setValue('imageUrl', imageUrl);
   };
   
@@ -665,7 +684,7 @@ const CreateEvent = () => {
                       <div className="flex items-center mt-4 text-sm text-muted-foreground">
                         <MapPin className="h-4 w-4 mr-2" />
                         <span>
-                          Lat: {form.watch('latitude').toFixed(6)}, Lng: {form.watch('longitude').toFixed(6)}
+                          Lat: {(form.watch('location')?.lat || 0).toFixed(6)}, Lng: {(form.watch('location')?.lng || 0).toFixed(6)}
                         </span>
                       </div>
                     </CardContent>

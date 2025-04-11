@@ -81,10 +81,10 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
     return (
       <Link href={`/web/event/${event.id}`}>
         <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col">
-          {/* Afbeelding bovenaan als vierkante tegel met overlay voor categorie en afstand */}
-          <div className="relative aspect-square overflow-hidden">
+          {/* Afbeelding bovenaan met overlay voor categorie en afstand */}
+          <div className="relative h-48 overflow-hidden">
             {hasEventImage ? (
-              // Toon de afbeelding van het evenement in tegelformaat
+              // Toon de afbeelding van het evenement
               <div className="h-full w-full">
                 <img 
                   src={(event as any).imageUrl} 
@@ -254,16 +254,9 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                 </Button>
               </div>
 
-              <div className="h-[150px] w-[150px] aspect-square min-h-[100px] md:min-w-[150px] md:max-w-[200px] rounded-md overflow-hidden shadow-sm event-card-map">
+              <div className="h-[150px] min-h-[100px] md:min-w-[150px] md:max-w-[200px] rounded-md overflow-hidden shadow-sm event-card-map">
                 {showStreetView ? (
                   <StreetView latitude={eventCoords[0]} longitude={eventCoords[1]} />
-                ) : hasEventImage ? (
-                  // Toon de afbeelding van het evenement als vierkante tegel
-                  <img 
-                    src={(event as any).imageUrl} 
-                    alt={event.title} 
-                    className="h-full w-full object-cover"
-                  />
                 ) : (
                   <MapContainer 
                     center={eventCoords} 

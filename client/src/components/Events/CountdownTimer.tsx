@@ -8,18 +8,23 @@ interface CountdownTimerProps {
 
 export default function CountdownTimer({ startTime }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState('');
+  const [isSoon, setIsSoon] = useState(false);
 
   useEffect(() => {
     function updateTimer() {
       const now = new Date();
       const eventDate = new Date(startTime);
       const timeDiff = eventDate.getTime() - now.getTime();
+      const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
 
       if (timeDiff <= 0) {
         setTimeLeft('Event is begonnen');
+        setIsSoon(true);
         return;
       }
 
+      // Check of het event binnen 12 uur begint
+      setIsSoon(timeDiff < TWELVE_HOURS_MS);
       setTimeLeft(formatDistance(eventDate, now, { addSuffix: true, locale: nl }));
     }
 
@@ -40,7 +45,7 @@ export default function CountdownTimer({ startTime }: CountdownTimerProps) {
           minute: '2-digit'
         })}
       </div>
-      <div className="text-sm font-medium text-blue-600">
+      <div className={`text-sm font-medium ${isSoon ? 'text-red-600' : 'text-blue-600'}`}>
         {timeLeft}
       </div>
     </div>

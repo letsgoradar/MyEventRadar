@@ -74,8 +74,8 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   }, [location, distance, event.latitude, event.longitude]);
 
   // Bepaal of er een evenement afbeelding beschikbaar is
-  // Controleer de imageUrl, als die er is, dan is er een afbeelding
-  const hasEventImage = !!event.imageUrl;
+  // Controleer of er een imageUrl is als property van het event object
+  const hasEventImage = !!(event as any).imageUrl;
 
   if (gridView) {
     return (
@@ -87,7 +87,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
               // Toon de afbeelding van het evenement
               <div className="h-full w-full">
                 <img 
-                  src={event.imageUrl} 
+                  src={(event as any).imageUrl} 
                   alt={event.title} 
                   className="h-full w-full object-cover"
                 />
@@ -141,10 +141,18 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
           
           {/* Content voor de kaart */}
           <CardHeader className="p-4 pb-2 flex-1">
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <CategoryIcon category={event.category as any} className="flex-shrink-0" />
+            <CardTitle className="text-lg font-bold">
               {event.title}
             </CardTitle>
+            
+            <div className="flex items-center gap-2 mt-1 text-gray-500">
+              <CategoryIcon category={event.category as any} className="flex-shrink-0 h-4 w-4" />
+              <div className="text-xs">
+                {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
+                  ? `${calculatedDistance.toFixed(1)} km` 
+                  : 'Afstand onbekend'}
+              </div>
+            </div>
             
             <div className="mt-2">
               <CountdownTimer startTime={event.startTime} />
@@ -185,17 +193,19 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
         <CardHeader className="p-4 pb-0">
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-lg font-bold line-clamp-1 flex items-center gap-2">
-                <CategoryIcon category={event.category as any} className="flex-shrink-0" />
+              <CardTitle className="text-lg font-bold line-clamp-1">
                 {event.title}
               </CardTitle>
-              <CardDescription className="flex items-center gap-1 mt-1 text-gray-500">
-                <MapPin className="h-3 w-3" />
-                <span className="text-xs">
-                  {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                    ? `${calculatedDistance.toFixed(1)} km` 
-                    : 'Afstand onbekend'}
-                </span>
+              <CardDescription className="flex items-center gap-2 mt-1 text-gray-500">
+                <CategoryIcon category={event.category as any} className="flex-shrink-0 h-4 w-4" />
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  <span className="text-xs">
+                    {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
+                      ? `${calculatedDistance.toFixed(1)} km` 
+                      : 'Afstand onbekend'}
+                  </span>
+                </div>
               </CardDescription>
             </div>
             <Badge variant="outline" style={{ 

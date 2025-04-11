@@ -146,12 +146,23 @@ export function ImageGenerator({
         // Als er een API error is (buiten timeout/retry), toon duidelijk bericht
         if (data.error) {
           console.error("API error:", data.error);
-          toast({
-            title: "Afbeeldingsgeneratie niet beschikbaar",
-            description: data.message || "Er is een probleem met de afbeeldingsgeneratie. Probeer het later opnieuw.",
-            variant: "destructive",
-            duration: 5000,
-          });
+          
+          // Check voor specifieke fouten zoals payload te groot
+          if (response.status === 413 || (data.error && data.error.includes("too large"))) {
+            toast({
+              title: "Afbeelding te groot",
+              description: "De gegenereerde afbeelding is te groot. Probeer een kortere prompt te gebruiken of wacht even voor een nieuwe poging.",
+              variant: "destructive",
+              duration: 8000,
+            });
+          } else {
+            toast({
+              title: "Afbeeldingsgeneratie niet beschikbaar",
+              description: data.message || "Er is een probleem met de afbeeldingsgeneratie. Probeer het later opnieuw.",
+              variant: "destructive",
+              duration: 5000,
+            });
+          }
           throw new Error(data.error);
         }
         throw new Error("Failed to generate image");
@@ -208,8 +219,8 @@ export function ImageGenerator({
         </div>
         <p className="text-sm text-muted-foreground mb-4">
           {isAutoPrompt 
-            ? "Een optimale prompt is automatisch gegenereerd op basis van je evenementgegevens"
-            : "Beschrijf zelf de gewenste afbeelding voor je evenement"}
+            ? "Een optimale prompt is automatisch gegenereerd op basis van je evenementgegevens. De afbeelding wordt vierkant gegenereerd voor optimale weergave in de evenementlijst."
+            : "Beschrijf zelf de gewenste afbeelding voor je evenement. De afbeelding wordt vierkant gegenereerd."}
         </p>
       </div>
 

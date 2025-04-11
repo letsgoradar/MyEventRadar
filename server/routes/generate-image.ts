@@ -37,8 +37,14 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
     
+    // Kort de prompt in tot een maximale lengte om problemen met grote payloads te voorkomen
+    const maxPromptLength = 500;
+    const trimmedPrompt = prompt.length > maxPromptLength 
+      ? prompt.substring(0, maxPromptLength) + "..." 
+      : prompt;
+    
     // Optimaliseer de prompt voor betere resultaten met Stable Diffusion
-    const enhancedPrompt = `Fotorealistische afbeelding voor een Nederlands evenement: ${prompt}. Professionele fotografie stijl, hoge kwaliteit, gedetailleerd, realistische weergave, 4K.`;
+    const enhancedPrompt = `Fotorealistische afbeelding voor een Nederlands evenement: ${trimmedPrompt}. Professionele fotografie stijl, hoge kwaliteit, vierkant formaat.`;
     
     console.log(`Genereren van afbeelding met Hugging Face (${HF_MODEL_ID}), prompt:`, enhancedPrompt);
     

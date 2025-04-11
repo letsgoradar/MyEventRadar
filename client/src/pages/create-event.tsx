@@ -571,6 +571,54 @@ export default function CreateEventPage() {
                       </FormItem>
                     )}
                   />
+                  
+                  {/* Afbeelding genereren of uploaden */}
+                  <div className="space-y-4">
+                    <FormLabel>Afbeelding</FormLabel>
+                    
+                    <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
+                      <TabsList className="w-full">
+                        <TabsTrigger value="ai" className="flex-1">AI genereren</TabsTrigger>
+                      </TabsList>
+                      
+                      <TabsContent value="ai" className="mt-4">
+                        {imagePreview ? (
+                          <div className="relative">
+                            <img
+                              src={imagePreview}
+                              alt="Gegenereerde afbeelding"
+                              className="w-full aspect-square object-cover rounded-md"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-2 right-2"
+                              onClick={() => {
+                                setImagePreview(null);
+                                form.setValue('imageUrl', undefined);
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <ImageGenerator
+                            title={form.getValues("title") || ""}
+                            category={form.getValues("category") || ""}
+                            description={form.getValues("description") || ""}
+                            onImageGenerated={handleAIGeneratedImage}
+                          />
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                    
+                    {form.formState.errors.imageUrl && (
+                      <p className="text-sm text-destructive">
+                        Een afbeelding is verplicht voor je evenement
+                      </p>
+                    )}
+                  </div>
 
                   <FormField
                     control={form.control}

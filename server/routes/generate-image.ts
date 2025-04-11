@@ -47,10 +47,10 @@ router.post('/', async (req: Request, res: Response) => {
       inputs: enhancedPrompt,
       parameters: {
         negative_prompt: "lage kwaliteit, onscherp, wazig, vervormd, onrealistisch, cartoon, tekening, schilderij, tekst, handschrift, watermark",
-        num_inference_steps: 25,  // Iets minder stappen voor snellere generatie
-        guidance_scale: 7.5,      // Balans tussen creativiteit en prompt-getrouwheid
-        width: 512,              // Kleinere afbeeldingsbreedte (was standaard 1024)
-        height: 512,             // Kleinere afbeeldingshoogte (was standaard 1024)
+        num_inference_steps: 20,  // Minder stappen voor nog snellere generatie
+        guidance_scale: 7.0,      // Iets meer vrijheid voor het model
+        width: 256,              // Nog kleinere tegelformaat afbeelding
+        height: 256,             // Vierkant formaat voor tegels
       },
       options: {
         use_cache: true,

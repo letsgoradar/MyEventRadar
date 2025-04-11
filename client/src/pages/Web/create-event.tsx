@@ -252,8 +252,8 @@ const CreateEvent = () => {
     }
   };
   
-  // Functie om een AI gegenereerde afbeelding te verwerken
-  const handleAIGeneratedImage = (imageUrl: string) => {
+  // Functie om een categorie-afbeelding te verwerken
+  const handleCategoryImage = (imageUrl: string) => {
     setImagePreview(imageUrl);
     // We slaan de URL op in plaats van een bestand
     form.setValue('imageUrl', imageUrl);
@@ -401,7 +401,7 @@ const CreateEvent = () => {
                           <CategoryImageSelector
                             title={form.watch('title') || ''}
                             category={form.watch('category') || null}
-                            onImageSelected={handleAIGeneratedImage}
+                            onImageSelected={handleCategoryImage}
                             onUploadClick={() => document.getElementById('image-upload')?.click()}
                           />
                         )}

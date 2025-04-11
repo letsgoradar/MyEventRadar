@@ -11,7 +11,7 @@ import { useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
-import { CategoryImageSelector } from '@/components/Events/CategoryImageSelector';
+import { ImageGenerator } from '@/components/Events/ImageGenerator';
 import {
   Form,
   FormControl,
@@ -48,14 +48,10 @@ import L from 'leaflet';
 const createEventFormSchema = insertEventSchema
   .extend({
     imageFile: z.any().optional(),
-    imageUrl: z.string().optional(),
     startTime: z.date().min(new Date(), { message: 'Startdatum moet in de toekomst liggen' }),
     endTime: z.date(),
     maxParticipants: z.number().nullable().optional(),
     hasMaxParticipants: z.boolean().default(false),
-    latitude: z.number(),
-    longitude: z.number(),
-    notificationReach: z.number().default(5.0),
   })
   .refine((data) => data.endTime > data.startTime, {
     message: 'Einddatum moet na startdatum liggen',
@@ -116,18 +112,13 @@ const CreateEvent = () => {
     defaultValues: {
       title: '',
       description: '',
-      category: undefined, // Geen categorie bij default
+      category: 'Gezellig en Sociaal',
       isPaid: false,
       price: undefined,
       maxParticipants: undefined,
       hasMaxParticipants: false,
       latitude: location?.lat ?? 51.7767,
       longitude: location?.lng ?? 5.5345,
-      location: {
-        lat: location?.lat ?? 51.7767,
-        lng: location?.lng ?? 5.5345,
-        notificationReach: 5.0,
-      },
       startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // tomorrow
       endTime: new Date(Date.now() + 26 * 60 * 60 * 1000), // tomorrow + 2 hours
       tags: [],
@@ -206,13 +197,6 @@ const CreateEvent = () => {
   const handleLocationChange = (lat: number, lng: number) => {
     form.setValue('latitude', lat);
     form.setValue('longitude', lng);
-    // Update ook het location object voor API-compatibiliteit
-    const currentLocation = form.getValues('location');
-    form.setValue('location', {
-      ...currentLocation,
-      lat,
-      lng
-    });
   };
   
   // Functie om afbeelding te verwerken
@@ -252,8 +236,8 @@ const CreateEvent = () => {
     }
   };
   
-  // Functie om een categorie-afbeelding te verwerken
-  const handleCategoryImage = (imageUrl: string) => {
+  // Functie om een AI gegenereerde afbeelding te verwerken
+  const handleAIGeneratedImage = (imageUrl: string) => {
     setImagePreview(imageUrl);
     // We slaan de URL op in plaats van een bestand
     form.setValue('imageUrl', imageUrl);
@@ -293,45 +277,78 @@ const CreateEvent = () => {
                 <div className="md:col-span-2 space-y-6">
                   <Card>
                     <CardHeader>
+                      <CardTitle className="text-xl">Afbeelding</CardTitle>
+                      <CardDescription>
+                        Voeg een afbeelding toe voor je evenement om het aantrekkelijker te maken
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {imagePreview ? (
+                        <div className="relative h-60 w-full rounded-md overflow-hidden">
+                          <img 
+                            src={imagePreview} 
+                            alt="Event preview" 
+                            className="w-full h-full object-cover"
+                          />
+                          <Button 
+                            variant="destructive" 
+                            size="icon" 
+                            className="absolute top-2 right-2" 
+                            onClick={removeImage}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <Tabs defaultValue="ai">
+                            <TabsList className="grid w-full grid-cols-2">
+                              <TabsTrigger value="ai">AI Genereren</TabsTrigger>
+                              <TabsTrigger value="upload">Uploaden</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="ai" className="py-4">
+                              <ImageGenerator
+                                title={form.watch('title') || ''}
+                                category={form.watch('category') || ''}
+                                description={form.watch('description') || ''}
+                                onImageGenerated={handleAIGeneratedImage}
+                              />
+                            </TabsContent>
+                            <TabsContent value="upload" className="py-4">
+                              <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md">
+                                <Image className="h-10 w-10 text-muted-foreground mb-2" />
+                                <p className="text-sm text-muted-foreground mb-4">
+                                  Sleep een afbeelding hierheen of klik om te bladeren
+                                </p>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => document.getElementById('image-upload')?.click()}
+                                >
+                                  Selecteer afbeelding
+                                </Button>
+                                <input
+                                  id="image-upload"
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={handleImageChange}
+                                />
+                              </div>
+                            </TabsContent>
+                          </Tabs>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader>
                       <CardTitle className="text-xl">Basisinformatie</CardTitle>
                       <CardDescription>
                         Vul de basisinformatie voor je evenement in
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      {/* 1. Categorie selecteren */}
-                      <FormField
-                        control={form.control}
-                        name="category"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Categorie</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecteer een categorie" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {CATEGORIES.map((category) => (
-                                  <SelectItem key={category} value={category}>
-                                    {category}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormDescription>
-                              Kies een categorie voor je evenement
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* 2. Titel */}
                       <FormField
                         control={form.control}
                         name="title"
@@ -353,7 +370,6 @@ const CreateEvent = () => {
                         )}
                       />
                       
-                      {/* 3. Omschrijving */}
                       <FormField
                         control={form.control}
                         name="description"
@@ -375,145 +391,132 @@ const CreateEvent = () => {
                         )}
                       />
                       
-                      {/* 4. Afbeelding met navigatie */}
-                      <div className="space-y-2">
-                        <FormLabel>Afbeelding</FormLabel>
-                        <FormDescription>
-                          We selecteren automatisch een relevante afbeelding op basis van de categorie
-                        </FormDescription>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="category"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Categorie</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecteer een categorie" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {CATEGORIES.map((category) => (
+                                    <SelectItem key={category} value={category}>
+                                      {category}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                         
-                        {imagePreview ? (
-                          <div className="relative h-60 w-full rounded-md overflow-hidden">
-                            <img 
-                              src={imagePreview} 
-                              alt="Event preview" 
-                              className="w-full h-full object-cover"
-                            />
-                            <button 
-                              type="button"
-                              className="absolute top-2 right-2 bg-red-500 hover:bg-red-700 text-white p-1 rounded-full"
-                              onClick={removeImage}
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <CategoryImageSelector
-                            title={form.watch('title') || ''}
-                            category={form.watch('category') || null}
-                            onImageSelected={handleCategoryImage}
-                            onUploadClick={() => document.getElementById('image-upload')?.click()}
+                        <FormField
+                          control={form.control}
+                          name="hasMaxParticipants"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 mb-4">
+                              <div className="space-y-0.5">
+                                <FormLabel className="text-base">Beperkt aantal deelnemers</FormLabel>
+                                <FormDescription>
+                                  Beperk het maximaal aantal deelnemers voor dit evenement
+                                </FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {form.watch('hasMaxParticipants') && (
+                          <FormField
+                            control={form.control}
+                            name="maxParticipants"
+                            render={({ field: { value, onChange, ...fieldProps } }) => (
+                              <FormItem>
+                                <FormLabel>Maximum aantal deelnemers</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    min={1}
+                                    placeholder="Aantal deelnemers" 
+                                    value={value === undefined || value === null ? "" : value}
+                                    onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                    {...fieldProps} 
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Geef aan hoeveel mensen maximaal kunnen deelnemen
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
                           />
                         )}
-                        
-                        {/* 5. Optie voor eigen afbeelding upload */}
-                        <input
-                          id="image-upload"
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleImageChange}
-                        />
                       </div>
                       
-                      {/* 6. Betaald event ja/nee */}
-                      <FormField
-                        control={form.control}
-                        name="isPaid"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                            <div className="space-y-0.5">
-                              <FormLabel className="text-base">Betaald evenement</FormLabel>
-                              <FormDescription>
-                                Zet dit aan als deelnemers moeten betalen
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* Toon prijsveld indien betaald event */}
-                      {form.watch('isPaid') && (
+                      <div className="space-y-4">
                         <FormField
                           control={form.control}
-                          name="price"
-                          render={({ field: { value, onChange, ...fieldProps } }) => (
-                            <FormItem>
-                              <FormLabel>Prijs (EUR)</FormLabel>
+                          name="isPaid"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                              <div className="space-y-0.5">
+                                <FormLabel className="text-base">Betaald evenement</FormLabel>
+                                <FormDescription>
+                                  Zet dit aan als deelnemers moeten betalen
+                                </FormDescription>
+                              </div>
                               <FormControl>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step={0.01}
-                                  placeholder="0.00"
-                                  value={value === undefined || value === null ? "" : value}
-                                  onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-                                  {...fieldProps}
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
                                 />
                               </FormControl>
-                              <FormDescription>
-                                De prijs per deelnemer in euro's
-                              </FormDescription>
-                              <FormMessage />
                             </FormItem>
                           )}
                         />
-                      )}
-                      
-                      {/* 7. Deelnemers: maximum ja/nee */}
-                      <FormField
-                        control={form.control}
-                        name="hasMaxParticipants"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                            <div className="space-y-0.5">
-                              <FormLabel className="text-base">Maximum aantal deelnemers</FormLabel>
-                              <FormDescription>
-                                Stel een maximum in voor het aantal deelnemers
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
+                        
+                        {form.watch('isPaid') && (
+                          <FormField
+                            control={form.control}
+                            name="price"
+                            render={({ field: { value, onChange, ...fieldProps } }) => (
+                              <FormItem>
+                                <FormLabel>Prijs (EUR)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step={0.01}
+                                    placeholder="0.00"
+                                    value={value === undefined || value === null ? "" : value}
+                                    onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                    {...fieldProps}
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  De prijs per deelnemer in euro's
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         )}
-                      />
-                      
-                      {/* Toon maximaal deelnemersveld indien nodig */}
-                      {form.watch('hasMaxParticipants') && (
-                        <FormField
-                          control={form.control}
-                          name="maxParticipants"
-                          render={({ field: { value, onChange, ...fieldProps } }) => (
-                            <FormItem>
-                              <FormLabel>Maximum aantal deelnemers</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min={1}
-                                  placeholder="Aantal deelnemers" 
-                                  value={value === undefined || value === null ? "" : value}
-                                  onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-                                  {...fieldProps} 
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Geef aan hoeveel mensen maximaal kunnen deelnemen
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -569,17 +572,13 @@ const CreateEvent = () => {
                     </CardHeader>
                     <CardContent>
                       <LocationPicker 
-                        defaultPosition={[
-                          form.getValues('latitude') || 51.7767, 
-                          form.getValues('longitude') || 5.5345
-                        ]}
+                        defaultPosition={[form.getValues('latitude'), form.getValues('longitude')]}
                         onChange={handleLocationChange}
                       />
                       <div className="flex items-center mt-4 text-sm text-muted-foreground">
                         <MapPin className="h-4 w-4 mr-2" />
                         <span>
-                          Lat: {form.getValues('latitude')?.toFixed(6) || '51.7767'}, 
-                          Lng: {form.getValues('longitude')?.toFixed(6) || '5.5345'}
+                          Lat: {form.watch('latitude').toFixed(6)}, Lng: {form.watch('longitude').toFixed(6)}
                         </span>
                       </div>
                     </CardContent>

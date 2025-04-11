@@ -57,6 +57,10 @@ const createEventFormSchema = insertEventSchema
   .refine((data) => data.endTime > data.startTime, {
     message: 'Einddatum moet na startdatum liggen',
     path: ['endTime'],
+  })
+  .refine((data) => !!data.imageFile || !!data.imageUrl, {
+    message: 'Een afbeelding is verplicht. Upload een eigen afbeelding of genereer er een.',
+    path: ['imageFile'],
   });
 
 type CreateEventFormValues = z.infer<typeof createEventFormSchema>;
@@ -148,8 +152,8 @@ const CreateEvent = () => {
     mutationFn: async (data: any) => { // We gebruiken 'any' voor type flexibiliteit
       console.log("Data ontvangen in mutatiefunctie:", data);
       
-      // Verwijder image file van data voor API verzoek
-      const { imageFile, hasMaxParticipants, imageUrl, ...apiData } = data;
+      // Verwijder image file van data voor API verzoek, maar behoud imageUrl
+      const { imageFile, hasMaxParticipants, ...apiData } = data;
       
       // Zorg ervoor dat numerieke velden juist worden geconverteerd
       // En voeg ontbrekende verplichte velden toe als ze ontbreken
@@ -160,6 +164,8 @@ const CreateEvent = () => {
         price: data.isPaid && data.price ? Number(data.price) : null,
         // Zorg dat maxParticipants altijd een nummer is (0 indien niet ingesteld)
         maxParticipants: data.hasMaxParticipants && data.maxParticipants ? Number(data.maxParticipants) : 0,
+        // Voeg de imageUrl toe voor het geval het een gegenereerde afbeelding is
+        imageUrl: data.imageUrl || null,
       };
       
       console.log('Versturen van evenement data:', formattedData);
@@ -480,9 +486,9 @@ const CreateEvent = () => {
                       {/* Afbeelding sectie direct na categorie */}
                       <Card className="mt-6">
                         <CardHeader>
-                          <CardTitle className="text-xl">Afbeelding</CardTitle>
+                          <CardTitle className="text-xl">Afbeelding (verplicht)</CardTitle>
                           <CardDescription>
-                            Voeg een afbeelding toe voor je evenement om het aantrekkelijker te maken
+                            Een afbeelding is verplicht. Upload een eigen afbeelding of laat er een genereren.
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -698,7 +704,10 @@ const CreateEvent = () => {
                     </CardHeader>
                     <CardContent>
                       <LocationPicker 
-                        defaultPosition={[form.getValues('latitude'), form.getValues('longitude')]}
+                        defaultPosition={[
+                          form.getValues('location')?.lat || 51.7767, 
+                          form.getValues('location')?.lng || 5.5345
+                        ]}
                         onChange={handleLocationChange}
                       />
                       <div className="flex items-center mt-4 text-sm text-muted-foreground">

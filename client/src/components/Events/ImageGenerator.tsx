@@ -280,16 +280,20 @@ export function ImageGenerator({
         )}
 
         {isGenerating && (
-          <div className="text-center text-sm text-muted-foreground space-y-1">
-            <p>Het kan 15-45 seconden duren om een afbeelding te genereren</p>
-            <p>Bij eerste gebruik moet het AI model geladen worden (tot 1 minuut)</p>
-            <p>Hugging Face AI wordt gebruikt (gratis, onbeperkt)</p>
-            <div className="flex items-center justify-center pt-2">
+          <div className="text-center text-sm space-y-2">
+            <div className="text-muted-foreground space-y-1">
+              <p>Het kan 15-45 seconden duren om een afbeelding te genereren</p>
+              <p>Bij eerste gebruik moet het AI model geladen worden (tot 2 minuten)</p>
+              <p>De afbeelding wordt rechtstreeks gegenereerd door Hugging Face AI</p>
+            </div>
+            
+            <div className="flex flex-col items-center justify-center gap-1 pt-2">
               <div className="animate-pulse flex space-x-2">
                 <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
                 <div className="h-2 w-2 bg-blue-600 rounded-full animation-delay-200"></div>
                 <div className="h-2 w-2 bg-blue-600 rounded-full animation-delay-400"></div>
               </div>
+              <p className="text-xs text-blue-600 font-medium mt-1">Afbeelding wordt gegenereerd...</p>
             </div>
           </div>
         )}

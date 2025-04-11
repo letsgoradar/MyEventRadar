@@ -131,14 +131,27 @@ const CreateEvent = () => {
   const createEventMutation = useMutation({
     mutationFn: async (data: CreateEventFormValues) => {
       // Verwijder image file van data voor API verzoek
-      const { imageFile, ...apiData } = data;
+      const { imageFile, latitude, longitude, ...apiData } = data;
+      
+      // Vorm de locatie-object zoals API verwacht
+      const location = {
+        lat: latitude,
+        lng: longitude,
+        notificationReach: data.notificationReach
+      };
       
       // Zorg ervoor dat numerieke velden juist worden geconverteerd
+      // En voeg ontbrekende verplichte velden toe
       const formattedData = {
         ...apiData,
+        location, // Locatie in juiste formaat
+        hostId: 1, // Standaard host ID (ingelogde gebruiker of admin)
+        tags: data.tags || [], // Zorg dat tags altijd een array is
         price: data.isPaid && data.price ? Number(data.price) : null,
         maxParticipants: data.hasMaxParticipants && data.maxParticipants ? Number(data.maxParticipants) : null,
       };
+      
+      console.log('Versturen van evenement data:', formattedData);
       
       const response = await fetch('/api/events', {
         method: 'POST',

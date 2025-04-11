@@ -6,7 +6,7 @@ import { useLocation } from "wouter"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { X, Satellite } from "lucide-react"
+import { X, Satellite, Image as ImageIcon } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { CategoryPicker } from "@/components/CategoryPicker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format, addHours, setMinutes, setSeconds, setMilliseconds } from "date-fns"
 import * as z from 'zod'
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
@@ -31,6 +32,7 @@ import TopNav from "@/components/Layout/TopNav";
 import BottomNav from "@/components/Layout/BottomNav";
 import { generateTags, generateDescription, suggestCategory } from '@/lib/aiTagGenerator';
 import { CATEGORIES } from "@shared/schema";
+import { ImageGenerator } from "@/components/Events/ImageGenerator";
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
 const DEFAULT_ZOOM = 6 // For Netherlands overview
@@ -59,6 +61,7 @@ const createEventFormSchema = z.object({
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
   hostId: z.number(),
   tags: z.array(z.string()).max(5, "Maximaal 5 tags toegestaan"),
+  imageUrl: z.string().optional(), // Voor AI-gegenereerde afbeeldingen
 });
 
 const RECURRENCE_OPTIONS = [
@@ -79,6 +82,8 @@ export default function CreateEventPage() {
   const queryClient = useQueryClient();
   const [isSatelliteView, setIsSatelliteView] = useState(true); // Standaard satelliet view
   const [mapInitialized, setMapInitialized] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState<string>("basic");
 
   // Get location from URL parameters (from long-press)
   const params = new URLSearchParams(window.location.search || "");
@@ -97,6 +102,12 @@ export default function CreateEventPage() {
 
   const [position, setPosition] = useState(initialPosition);
   const [zoom, setZoom] = useState(urlZoom ? parseInt(urlZoom) : DEFAULT_ZOOM);
+  
+  // Functie om een AI gegenereerde afbeelding te verwerken
+  const handleAIGeneratedImage = (imageUrl: string) => {
+    setImagePreview(imageUrl);
+    form.setValue('imageUrl', imageUrl);
+  };
 
   const form = useForm<z.infer<typeof createEventFormSchema>>({
     resolver: zodResolver(createEventFormSchema),
@@ -207,9 +218,16 @@ export default function CreateEventPage() {
         hostId: data.hostId,
         recurrence: data.recurrence,
         tags: data.tags,
+        imageUrl: data.imageUrl || null,
       };
 
-      const response = await apiRequest('POST', '/api/events', eventData);
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+      });
 
       queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
 

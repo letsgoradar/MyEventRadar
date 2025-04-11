@@ -98,21 +98,31 @@ export function ImageGenerator({
       const data = await response.json();
       
       // Controleer of het model nog aan het laden is (202 status)
-      if (response.status === 202 && data.retry && retryAttempt < 5) {
+      if (response.status === 202 && data.retry && retryAttempt < 8) {
         // Toon een bericht bij de eerste poging
         if (retryAttempt === 0) {
           toast({
             title: "Even geduld",
             description: data.message || "Het AI-model wordt geladen, dit kan even duren...",
-            duration: 5000,
+            duration: 8000,
+          });
+        } else if (retryAttempt === 4) {
+          // Extra feedback na meerdere pogingen
+          toast({
+            title: "AI model wordt geladen",
+            description: "We blijven proberen... Dit kan tot 1 minuut duren bij het eerste gebruik.",
+            duration: 8000,
           });
         }
         
-        // Automatisch opnieuw proberen na 3 seconden
-        console.log(`Wachten op AI model (poging ${retryAttempt + 1}/5)...`);
+        // Bepaal wachttijd, verhoog geleidelijk
+        const waitTime = retryAttempt < 3 ? 5000 : 8000; // Langere wachttijden na de eerste pogingen
+        
+        // Automatisch opnieuw proberen
+        console.log(`Wachten op AI model (poging ${retryAttempt + 1}/8)... Volgende poging over ${waitTime/1000} seconden`);
         setTimeout(() => {
           generateImage(retryAttempt + 1);
-        }, 3000);
+        }, waitTime);
         return;
       }
       
@@ -146,7 +156,7 @@ export function ImageGenerator({
         variant: "destructive",
       });
     } finally {
-      if (retryAttempt === 0 || retryAttempt >= 5) {
+      if (retryAttempt === 0 || retryAttempt >= 8) {
         setIsGenerating(false);
       }
     }
@@ -245,9 +255,11 @@ export function ImageGenerator({
         )}
 
         {isGenerating && (
-          <div className="text-center text-sm text-muted-foreground">
-            <p>Het kan 15-30 seconden duren om een afbeelding te genereren</p>
-            <p className="mt-1">Hugging Face AI wordt gebruikt (gratis, onbeperkt)</p>
+          <div className="text-center text-sm text-muted-foreground space-y-1">
+            <p>Het kan 15-45 seconden duren om een afbeelding te genereren</p>
+            <p>Bij eerste gebruik moet het AI model geladen worden (tot 1 minuut)</p>
+            <p>Hugging Face AI wordt gebruikt (gratis, onbeperkt)</p>
+            <p className="mt-2 italic">Je ontvangt een locatiemarker als fallback</p>
           </div>
         )}
       </div>

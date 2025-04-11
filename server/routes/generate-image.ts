@@ -7,7 +7,17 @@ const router = Router();
 // Configure environment
 const HUGGING_FACE_API_KEY = process.env.HUGGING_FACE_API_KEY;
 // Default image URL als er geen API key is of als de generatie faalt
-const DEFAULT_IMAGE_URL = '/images/event-logo.svg';
+const DEFAULT_IMAGE_URL = '/images/event-marker-default.svg';
+
+// SVG locatie marker als dataURL
+const LOCATION_MARKER_SVG = `data:image/svg+xml;base64,${Buffer.from(`
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" fill="none">
+  <circle cx="60" cy="60" r="60" fill="#F3F4F6" opacity="0.9"/>
+  <path d="M60 30C48.95 30 40 38.95 40 50C40 65 60 90 60 90C60 90 80 65 80 50C80 38.95 71.05 30 60 30ZM60 57.5C55.85 57.5 52.5 54.15 52.5 50C52.5 45.85 55.85 42.5 60 42.5C64.15 42.5 67.5 45.85 67.5 50C67.5 54.15 64.15 57.5 60 57.5Z" fill="#4F46E5"/>
+</svg>
+`).toString('base64')}`;
+
+// Gebruik LOCATION_MARKER_SVG als fallback image
 
 // Configuratie voor Hugging Face modellen
 const HF_MODEL_ID = 'stabilityai/stable-diffusion-xl-base-1.0'; // Goed algemeen model voor evenementen
@@ -29,8 +39,8 @@ router.post('/', async (req: Request, res: Response) => {
     if (!HUGGING_FACE_API_KEY) {
       console.warn('Geen Hugging Face API key gevonden, standaard afbeelding wordt geretourneerd');
       return res.json({ 
-        imageUrl: DEFAULT_IMAGE_URL,
-        message: 'Standaard afbeelding geretourneerd omdat er geen Hugging Face API key is geconfigureerd.'
+        imageUrl: LOCATION_MARKER_SVG,
+        message: 'Standaard locatiemarker geretourneerd omdat er geen Hugging Face API key is geconfigureerd.'
       });
     }
     
@@ -91,7 +101,7 @@ router.post('/', async (req: Request, res: Response) => {
     // Stuur een fallback afbeelding terug als er een fout optreedt
     res.status(500).json({ 
       error: 'Fout bij het genereren van de afbeelding',
-      imageUrl: DEFAULT_IMAGE_URL
+      imageUrl: LOCATION_MARKER_SVG
     });
   }
 });

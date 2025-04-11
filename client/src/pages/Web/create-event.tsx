@@ -11,7 +11,7 @@ import { useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
-import { ImageGenerator } from '@/components/Events/ImageGenerator';
+import { CategoryImageSelector } from '@/components/Events/CategoryImageSelector';
 import {
   Form,
   FormControl,
@@ -303,15 +303,14 @@ const CreateEvent = () => {
                         <div className="space-y-4">
                           <Tabs defaultValue="ai">
                             <TabsList className="grid w-full grid-cols-2">
-                              <TabsTrigger value="ai">AI Genereren</TabsTrigger>
+                              <TabsTrigger value="ai">Voorgedefinieerde afbeeldingen</TabsTrigger>
                               <TabsTrigger value="upload">Uploaden</TabsTrigger>
                             </TabsList>
                             <TabsContent value="ai" className="py-4">
-                              <ImageGenerator
+                              <CategoryImageSelector
                                 title={form.watch('title') || ''}
                                 category={form.watch('category') || ''}
-                                description={form.watch('description') || ''}
-                                onImageGenerated={handleAIGeneratedImage}
+                                onImageSelected={handleAIGeneratedImage}
                               />
                             </TabsContent>
                             <TabsContent value="upload" className="py-4">

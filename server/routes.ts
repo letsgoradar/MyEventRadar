@@ -5,6 +5,7 @@ import { insertUserSchema, insertEventSchema, insertParticipantSchema, insertSav
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { isAuthenticated, isAdmin } from "./middleware/auth";
+import generateImageRouter from "./routes/generate-image";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes

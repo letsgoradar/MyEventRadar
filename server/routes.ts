@@ -667,6 +667,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Registreer de route voor het genereren van afbeeldingen
+  app.use("/api/generate-image", generateImageRouter);
 
   const httpServer = createServer(app);
   return httpServer;

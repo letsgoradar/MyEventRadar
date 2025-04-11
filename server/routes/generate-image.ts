@@ -1,6 +1,13 @@
 import { Router, Request, Response } from 'express';
 import fetch from 'node-fetch';
 
+// Define the OpenAI API response type
+interface OpenAIImageResponse {
+  data: Array<{
+    url: string;
+  }>;
+}
+
 // Setup router
 const router = Router();
 
@@ -56,7 +63,7 @@ router.post('/', async (req: Request, res: Response) => {
       throw new Error(`OpenAI API responded with status ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as OpenAIImageResponse;
     const imageUrl = data.data[0].url;
 
     // Stuur de gegenereerde afbeelding URL terug naar de client

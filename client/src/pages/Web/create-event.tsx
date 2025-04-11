@@ -11,6 +11,7 @@ import { useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
+import { ImageGenerator } from '@/components/Events/ImageGenerator';
 import {
   Form,
   FormControl,
@@ -31,6 +32,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, ChevronLeft, Image, MapPin, X } from 'lucide-react';
 import { Link } from 'wouter';
 import { DateTimePicker } from '@/components/date-time-picker';
@@ -234,11 +236,19 @@ const CreateEvent = () => {
     }
   };
   
+  // Functie om een AI gegenereerde afbeelding te verwerken
+  const handleAIGeneratedImage = (imageUrl: string) => {
+    setImagePreview(imageUrl);
+    // We slaan de URL op in plaats van een bestand
+    form.setValue('imageUrl', imageUrl);
+  };
+  
   // Functie om afbeelding te verwijderen
   const removeImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
     form.setValue('imageFile', undefined);
+    form.setValue('imageUrl', undefined);
   };
   
   // Formulier indienen
@@ -290,24 +300,42 @@ const CreateEvent = () => {
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md">
-                          <Image className="h-10 w-10 text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground mb-4">
-                            Sleep een afbeelding hierheen of klik om te bladeren
-                          </p>
-                          <Button
-                            variant="outline"
-                            onClick={() => document.getElementById('image-upload')?.click()}
-                          >
-                            Selecteer afbeelding
-                          </Button>
-                          <input
-                            id="image-upload"
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleImageChange}
-                          />
+                        <div className="space-y-4">
+                          <Tabs defaultValue="ai">
+                            <TabsList className="grid w-full grid-cols-2">
+                              <TabsTrigger value="ai">AI Genereren</TabsTrigger>
+                              <TabsTrigger value="upload">Uploaden</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="ai" className="py-4">
+                              <ImageGenerator
+                                title={form.watch('title') || ''}
+                                category={form.watch('category') || ''}
+                                description={form.watch('description') || ''}
+                                onImageGenerated={handleAIGeneratedImage}
+                              />
+                            </TabsContent>
+                            <TabsContent value="upload" className="py-4">
+                              <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md">
+                                <Image className="h-10 w-10 text-muted-foreground mb-2" />
+                                <p className="text-sm text-muted-foreground mb-4">
+                                  Sleep een afbeelding hierheen of klik om te bladeren
+                                </p>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => document.getElementById('image-upload')?.click()}
+                                >
+                                  Selecteer afbeelding
+                                </Button>
+                                <input
+                                  id="image-upload"
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={handleImageChange}
+                                />
+                              </div>
+                            </TabsContent>
+                          </Tabs>
                         </div>
                       )}
                     </CardContent>

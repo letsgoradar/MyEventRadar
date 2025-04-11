@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Upload } from "lucide-react";
 import { CATEGORIES } from '@shared/schema';
-import { getCategoryImages, DEFAULT_IMAGE } from '@/lib/categoryImages';
+import { generateSVGForCategory } from '@/lib/categoryImages';
 
 interface CategoryImageSelectorProps {
   title: string;
@@ -20,19 +20,27 @@ export function CategoryImageSelector({
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   const [images, setImages] = useState<string[]>([]);
 
-  // Bij verandering van categorie, update de beschikbare afbeeldingen
+  // Bij verandering van categorie, genereer nieuwe afbeeldingsvarianten
   useEffect(() => {
     if (category) {
-      const categoryImages = getCategoryImages(category);
-      setImages(categoryImages);
+      // We gebruiken nu de SVG generator voor 5 varianten
+      const generatedImages = [
+        generateSVGForCategory(category, title + " - Style 1"),
+        generateSVGForCategory(category, title + " - Style 2"),
+        generateSVGForCategory(category, title + " - Style 3"),
+        generateSVGForCategory(category, title + " - Style 4"),
+        generateSVGForCategory(category, title + " - Style 5"),
+      ];
+      
+      setImages(generatedImages);
       setCurrentImageIndex(0);
       
       // Selecteer automatisch de eerste afbeelding
-      if (categoryImages.length > 0) {
-        onImageSelected(categoryImages[0]);
+      if (generatedImages.length > 0) {
+        onImageSelected(generatedImages[0]);
       }
     }
-  }, [category, onImageSelected]);
+  }, [category, title, onImageSelected]);
 
   // Navigeer naar de volgende afbeelding
   const nextImage = () => {

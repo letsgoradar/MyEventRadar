@@ -74,9 +74,8 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   }, [location, distance, event.latitude, event.longitude]);
 
   // Bepaal of er een evenement afbeelding beschikbaar is
-  // Voor nu alle evenementen zonder afbeelding tonen met een kaart
-  // Later kan dit uitgebreid worden met een controle of er echt afbeeldingen zijn
-  const hasEventImage = false;
+  // Controleer de imageUrl, als die er is, dan is er een afbeelding
+  const hasEventImage = !!event.imageUrl;
 
   if (gridView) {
     return (
@@ -85,9 +84,13 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
           {/* Afbeelding bovenaan met overlay voor categorie en afstand */}
           <div className="relative h-48 overflow-hidden">
             {hasEventImage ? (
-              // Als er een afbeelding zou zijn, toon die hier
-              <div className="bg-gray-200 h-full w-full flex items-center justify-center">
-                <span className="text-gray-400">Event afbeelding</span>
+              // Toon de afbeelding van het evenement
+              <div className="h-full w-full">
+                <img 
+                  src={event.imageUrl} 
+                  alt={event.title} 
+                  className="h-full w-full object-cover"
+                />
               </div>
             ) : (
               // Als er geen afbeelding is, toon een kaart met een route naar het evenement als achtergrond

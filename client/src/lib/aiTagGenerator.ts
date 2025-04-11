@@ -10,29 +10,75 @@ const EVENT_TEMPLATES = [
   "Een bijzondere {category} ervaring: {description}",
 ];
 
-// Category keywords mapping
+// Uitgebreide woordenlijsten per categorie voor betere suggesties
 const CATEGORY_KEYWORDS = {
-  'Sport en spel': ['sport', 'spel', 'voetbal', 'tennis', 'game', 'gaming', 'spelen', 'wedstrijd', 'competitie', 'toernooi'],
-  'Kunst en Cultuur': ['kunst', 'cultuur', 'museum', 'theater', 'film', 'muziek', 'dans', 'expositie', 'tentoonstelling', 'concert'],
-  'Gezellig en Sociaal': ['borrel', 'feest', 'festival', 'meetup', 'sociaal', 'gezellig', 'samen', 'ontmoeting', 'netwerk'],
-  'Leren en Ontdekken': ['workshop', 'lezing', 'cursus', 'training', 'seminar', 'leren', 'ontdekken', 'kennis', 'ontwikkeling'],
-  'Vrijwilligerswerk en hulp': ['vrijwilliger', 'hulp', 'ondersteuning', 'charity', 'goed doel', 'gemeenschap', 'helpen']
+  'Sport en spel': [
+    'sport', 'spel', 'toernooi', 'wedstrijd', 'marathon', 'race', 'tennis', 'voetbal', 
+    'hardlopen', 'zwemmen', 'fietsen', 'yoga', 'fitness', 'wandelen', 'gymnastiek', 
+    'schaak', 'dammen', 'bordspel', 'kaartspel', 'game', 'gaming', 'esports', 'clinic',
+    'training', 'competitie', 'match', 'atletiek', 'volleybal', 'basketbal', 'hockey'
+  ],
+  'Kunst en Cultuur': [
+    'kunst', 'muziek', 'theater', 'concert', 'voorstelling', 'expositie', 'museum', 'cultuur',
+    'film', 'bioscoop', 'tentoonstelling', 'schilderen', 'dans', 'ballet', 'opera', 'toneel',
+    'festival', 'literatuur', 'poëzie', 'fotografie', 'creatief', 'tekenen', 'kunstenaar',
+    'gitaar', 'piano', 'band', 'galerie', 'cultureel', 'boeken', 'schrijver', 'literair'
+  ],
+  'Gezellig en Sociaal': [
+    'borrel', 'feest', 'sociaal', 'ontmoeting', 'meeting', 'netwerken', 'café', 'pub',
+    'drinken', 'uitgaan', 'cocktail', 'receptie', 'bijeenkomst', 'samenzijn', 'barbecue', 'bbq',
+    'diner', 'lunch', 'brunch', 'tasting', 'proeverij', 'gezellig', 'vrienden', 'netwerk',
+    'bier', 'wijn', 'happy hour', 'café', 'terras', 'avond', 'samen', 'dating', 'ontmoet'
+  ],
+  'Leren en Ontdekken': [
+    'lezing', 'workshop', 'cursus', 'leren', 'educatie', 'kennis', 'seminar', 'conferentie',
+    'masterclass', 'studie', 'training', 'ontwikkeling', 'webinar', 'presentatie', 'college',
+    'informatief', 'educatief', 'technologie', 'wetenschap', 'meetup', 'tech', 'boek',
+    'innovatie', 'onderzoek', 'data', 'taal', 'geschiedenis', 'ontdekken', 'skills', 'vaardigheid'
+  ],
+  'Vrijwilligerswerk en hulp': [
+    'vrijwilliger', 'hulp', 'inzameling', 'actie', 'donatie', 'ondersteuning', 'bijdragen',
+    'helpen', 'liefdadigheid', 'goed doel', 'collecte', 'goededoel', 'gemeenschap', 'bijstand',
+    'sociaal werk', 'maatschappelijk', 'assistentie', 'zorg', 'ouderen', 'milieu', 'natuur',
+    'schoonmaak', 'buurt', 'samenleving', 'gemeenschap', 'voedselbank', 'hulpbehoevend', 'samen'
+  ],
 };
 
-export function suggestCategory(title: string): typeof CATEGORIES[number] | undefined {
-  const titleLower = title.toLowerCase();
-
-  // Find the category with the most matching keywords
-  const matchCounts = Object.entries(CATEGORY_KEYWORDS).map(([category, keywords]) => ({
-    category: category as typeof CATEGORIES[number],
-    matches: keywords.filter(keyword => titleLower.includes(keyword)).length
-  }));
-
-  const bestMatch = matchCounts.reduce((prev, current) => 
-    current.matches > prev.matches ? current : prev
-  );
-
-  return bestMatch.matches > 0 ? bestMatch.category : undefined;
+/**
+ * Suggereert een categorie op basis van tekst (titel en/of beschrijving)
+ * Gebruikt een uitgebreide woordenlijst en slimme scoring om een passende categorie te vinden
+ */
+export function suggestCategory(text: string): typeof CATEGORIES[number] | undefined {
+  if (!text || text.trim() === '') return undefined;
+  
+  const textLower = text.toLowerCase();
+  
+  // Bereken scores voor elke categorie
+  const scores = CATEGORIES.map(category => {
+    const keywords = CATEGORY_KEYWORDS[category];
+    let score = 0;
+    
+    // Tel exacte matches (hele woorden) dubbel
+    for (const keyword of keywords) {
+      // Check op exacte woord-grenzen met regex
+      const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+      const exactMatches = (textLower.match(regex) || []).length;
+      score += exactMatches * 2;
+      
+      // Gedeeltelijke matches tellen minder zwaar
+      if (exactMatches === 0 && textLower.includes(keyword)) {
+        score += 1;
+      }
+    }
+    
+    return { category, score };
+  });
+  
+  // Sorteer op score en kies de hoogste
+  scores.sort((a, b) => b.score - a.score);
+  
+  // Alleen een categorie teruggeven als er minstens 1 match is
+  return scores[0].score > 0 ? scores[0].category : undefined;
 }
 
 export function generateTags(title: string, category: string): string[] {

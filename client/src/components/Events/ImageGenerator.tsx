@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Loader2, ImageIcon, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -118,63 +119,103 @@ export function ImageGenerator({
   };
 
   return (
-    <Card className="mb-4">
-      <CardContent className="pt-6">
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-lg font-medium mb-2">Genereer een afbeelding met AI</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Beschrijf de gewenste afbeelding voor je evenement en laat de AI deze genereren
-            </p>
-          </div>
-
-          <Textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Beschrijf de afbeelding die je wilt genereren..."
-            className="min-h-[100px]"
-          />
-
-          <div className="flex items-center space-x-2">
-            <Button
-              onClick={generateImage}
-              disabled={isGenerating || !prompt}
-              className="flex-1"
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-medium">Genereer een afbeelding met AI</h3>
+          <div className="flex items-center gap-2">
+            <Switch 
+              checked={isAutoPrompt}
+              onCheckedChange={setIsAutoPrompt}
+              id="auto-prompt"
+            />
+            <label 
+              htmlFor="auto-prompt"
+              className="text-sm text-muted-foreground cursor-pointer"
             >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Bezig met genereren...
-                </>
-              ) : (
-                <>
-                  <ImageIcon className="mr-2 h-4 w-4" />
-                  Genereer afbeelding
-                </>
-              )}
-            </Button>
-            {generatedImage && (
-              <Button
-                variant="outline"
-                onClick={() => generateImage()}
-                disabled={isGenerating}
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            )}
+              Auto-prompt
+            </label>
           </div>
-
-          {generatedImage && (
-            <div className="relative h-60 w-full rounded-md overflow-hidden mt-4 border">
-              <img
-                src={generatedImage}
-                alt="Generated event image"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
         </div>
-      </CardContent>
-    </Card>
+        <p className="text-sm text-muted-foreground mb-4">
+          {isAutoPrompt 
+            ? "Een optimale prompt is automatisch gegenereerd op basis van je evenementgegevens"
+            : "Beschrijf zelf de gewenste afbeelding voor je evenement"}
+        </p>
+      </div>
+
+      <div className="relative">
+        <Textarea
+          value={prompt}
+          onChange={(e) => {
+            setPrompt(e.target.value);
+            // Als de gebruiker handmatig typt, schakel auto-prompt uit
+            if (isAutoPrompt && e.target.value !== prompt) {
+              setIsAutoPrompt(false);
+            }
+          }}
+          placeholder="Beschrijf de afbeelding die je wilt genereren..."
+          className="min-h-[100px] pr-20"
+        />
+        {title && category && !isAutoPrompt && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="absolute right-2 top-2"
+            onClick={() => setIsAutoPrompt(true)}
+            title="Herstel automatische prompt"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      <div className="flex flex-col space-y-4">
+        <Button
+          onClick={generateImage}
+          disabled={isGenerating || !prompt}
+          className="w-full"
+          size="lg"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Bezig met genereren...
+            </>
+          ) : (
+            <>
+              <ImageIcon className="mr-2 h-5 w-5" />
+              Genereer afbeelding
+            </>
+          )}
+        </Button>
+
+        {generatedImage && (
+          <div className="relative h-60 w-full rounded-md overflow-hidden mt-4 border">
+            <img
+              src={generatedImage}
+              alt="Generated event image"
+              className="w-full h-full object-cover"
+            />
+            <Button 
+              variant="outline"
+              size="sm"
+              className="absolute bottom-2 right-2 bg-background opacity-80 hover:opacity-100"
+              onClick={() => generateImage()}
+              disabled={isGenerating}
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Nieuwe versie
+            </Button>
+          </div>
+        )}
+
+        {isGenerating && (
+          <div className="text-center text-sm text-muted-foreground">
+            <p>Het kan tot 10-15 seconden duren om een afbeelding te genereren</p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

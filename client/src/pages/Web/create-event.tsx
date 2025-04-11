@@ -145,15 +145,17 @@ const CreateEvent = () => {
   
   // Event creation mutation
   const createEventMutation = useMutation({
-    mutationFn: async (data: CreateEventFormValues) => {
+    mutationFn: async (data: any) => { // We gebruiken 'any' voor type flexibiliteit
+      console.log("Data ontvangen in mutatiefunctie:", data);
+      
       // Verwijder image file van data voor API verzoek
       const { imageFile, hasMaxParticipants, imageUrl, ...apiData } = data;
       
       // Zorg ervoor dat numerieke velden juist worden geconverteerd
-      // En voeg ontbrekende verplichte velden toe
+      // En voeg ontbrekende verplichte velden toe als ze ontbreken
       const formattedData = {
         ...apiData,
-        hostId: 1, // Standaard host ID (ingelogde gebruiker of admin)
+        hostId: data.hostId || 1, // Gebruik hostId als het aanwezig is, anders gebruik de standaardwaarde
         tags: data.tags || [], // Zorg dat tags altijd een array is
         price: data.isPaid && data.price ? Number(data.price) : null,
         maxParticipants: data.hasMaxParticipants && data.maxParticipants ? Number(data.maxParticipants) : null,
@@ -302,10 +304,17 @@ const CreateEvent = () => {
       return;
     }
     
+    // Zorg ervoor dat hostId is ingesteld voordat we de mutatie uitvoeren
+    // Dit is verplicht volgens het server-side schema
+    const completeData = {
+      ...data,
+      hostId: 1, // Standaard host ID (ingelogde gebruiker of admin)
+    };
+    
     // Als er geen validatiefouten zijn, probeer de mutatie uit te voeren
     try {
-      console.log('Mutatie uitvoeren met data:', data);
-      createEventMutation.mutate(data);
+      console.log('Mutatie uitvoeren met data:', completeData);
+      createEventMutation.mutate(completeData);
     } catch (err) {
       console.error('Fout bij het uitvoeren van createEventMutation:', err);
       toast({

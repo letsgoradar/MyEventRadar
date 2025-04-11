@@ -23,8 +23,8 @@ const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunctio
 };
 
 // Setup middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '10mb' })); // Verhoogde limiet voor grotere JSON payloads (base64-afbeeldingen)
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 app.use(cookieParser());
 
 // Setup session

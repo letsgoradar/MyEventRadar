@@ -49,6 +49,8 @@ router.post('/', async (req: Request, res: Response) => {
         negative_prompt: "lage kwaliteit, onscherp, wazig, vervormd, onrealistisch, cartoon, tekening, schilderij, tekst, handschrift, watermark",
         num_inference_steps: 30,  // Hogere kwaliteit door meer stappen
         guidance_scale: 7.5,      // Balans tussen creativiteit en prompt-getrouwheid
+        width: 512,              // Vierkante afbeeldingen voor tegels
+        height: 512,
       },
       options: {
         use_cache: true,

@@ -260,7 +260,7 @@ export function ImageGenerator({
         </Button>
 
         {generatedImage && (
-          <div className="relative h-60 w-full rounded-md overflow-hidden mt-4 border">
+          <div className="relative aspect-square w-full max-w-[300px] mx-auto rounded-md overflow-hidden mt-4 border">
             <img
               src={generatedImage}
               alt="Generated event image"

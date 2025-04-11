@@ -277,72 +277,6 @@ const CreateEvent = () => {
                 <div className="md:col-span-2 space-y-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-xl">Afbeelding</CardTitle>
-                      <CardDescription>
-                        Voeg een afbeelding toe voor je evenement om het aantrekkelijker te maken
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {imagePreview ? (
-                        <div className="relative h-60 w-full rounded-md overflow-hidden">
-                          <img 
-                            src={imagePreview} 
-                            alt="Event preview" 
-                            className="w-full h-full object-cover"
-                          />
-                          <Button 
-                            variant="destructive" 
-                            size="icon" 
-                            className="absolute top-2 right-2" 
-                            onClick={removeImage}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <Tabs defaultValue="ai">
-                            <TabsList className="grid w-full grid-cols-2">
-                              <TabsTrigger value="ai">AI Genereren</TabsTrigger>
-                              <TabsTrigger value="upload">Uploaden</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="ai" className="py-4">
-                              <ImageGenerator
-                                title={form.watch('title') || ''}
-                                category={form.watch('category') || ''}
-                                description={form.watch('description') || ''}
-                                onImageGenerated={handleAIGeneratedImage}
-                              />
-                            </TabsContent>
-                            <TabsContent value="upload" className="py-4">
-                              <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md">
-                                <Image className="h-10 w-10 text-muted-foreground mb-2" />
-                                <p className="text-sm text-muted-foreground mb-4">
-                                  Sleep een afbeelding hierheen of klik om te bladeren
-                                </p>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => document.getElementById('image-upload')?.click()}
-                                >
-                                  Selecteer afbeelding
-                                </Button>
-                                <input
-                                  id="image-upload"
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={handleImageChange}
-                                />
-                              </div>
-                            </TabsContent>
-                          </Tabs>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader>
                       <CardTitle className="text-xl">Basisinformatie</CardTitle>
                       <CardDescription>
                         Vul de basisinformatie voor je evenement in
@@ -381,6 +315,17 @@ const CreateEvent = () => {
                                 placeholder="Beschrijf wat mensen kunnen verwachten" 
                                 className="min-h-[120px]"
                                 {...field} 
+                                onBlur={() => {
+                                  // Automatisch categorie voorstellen op basis van titel en beschrijving
+                                  const title = form.getValues('title');
+                                  const description = form.getValues('description');
+                                  if (title && description && !form.getValues('category')) {
+                                    const suggestedCategory = suggestCategory(title + " " + description);
+                                    if (suggestedCategory) {
+                                      form.setValue('category', suggestedCategory);
+                                    }
+                                  }
+                                }}
                               />
                             </FormControl>
                             <FormDescription>
@@ -399,7 +344,16 @@ const CreateEvent = () => {
                             <FormItem>
                               <FormLabel>Categorie</FormLabel>
                               <Select
-                                onValueChange={field.onChange}
+                                onValueChange={(value) => {
+                                  field.onChange(value);
+                                  // Bij wijziging van categorie eventueel ook de prompt updaten
+                                  const title = form.getValues('title');
+                                  const description = form.getValues('description');
+                                  if (title) {
+                                    // Trigger automatisch bijwerken van AI prompt
+                                    form.trigger('title');
+                                  }
+                                }}
                                 defaultValue={field.value}
                               >
                                 <FormControl>
@@ -419,6 +373,77 @@ const CreateEvent = () => {
                             </FormItem>
                           )}
                         />
+                        
+                      </div>
+                      
+                      {/* Afbeelding sectie direct na categorie */}
+                      <Card className="mt-6">
+                        <CardHeader>
+                          <CardTitle className="text-xl">Afbeelding</CardTitle>
+                          <CardDescription>
+                            Voeg een afbeelding toe voor je evenement om het aantrekkelijker te maken
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {imagePreview ? (
+                            <div className="relative h-60 w-full rounded-md overflow-hidden">
+                              <img 
+                                src={imagePreview} 
+                                alt="Event preview" 
+                                className="w-full h-full object-cover"
+                              />
+                              <Button 
+                                variant="destructive" 
+                                size="icon" 
+                                className="absolute top-2 right-2" 
+                                onClick={removeImage}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              <Tabs defaultValue="ai">
+                                <TabsList className="grid w-full grid-cols-2">
+                                  <TabsTrigger value="ai">AI Genereren</TabsTrigger>
+                                  <TabsTrigger value="upload">Uploaden</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="ai" className="py-4">
+                                  <ImageGenerator
+                                    title={form.watch('title') || ''}
+                                    category={form.watch('category') || ''}
+                                    description={form.watch('description') || ''}
+                                    onImageGenerated={handleAIGeneratedImage}
+                                  />
+                                </TabsContent>
+                                <TabsContent value="upload" className="py-4">
+                                  <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md">
+                                    <Image className="h-10 w-10 text-muted-foreground mb-2" />
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                      Sleep een afbeelding hierheen of klik om te bladeren
+                                    </p>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => document.getElementById('image-upload')?.click()}
+                                    >
+                                      Selecteer afbeelding
+                                    </Button>
+                                    <input
+                                      id="image-upload"
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={handleImageChange}
+                                    />
+                                  </div>
+                                </TabsContent>
+                              </Tabs>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         
                         <FormField
                           control={form.control}

@@ -21,19 +21,56 @@ export function ImageGenerator({
   const [isGenerating, setIsGenerating] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isAutoPrompt, setIsAutoPrompt] = useState(true); // Standaard staat auto-prompt aan
   const { toast } = useToast();
 
-  // Generate default prompt based on event information
+  // Generate rich prompt based on event information
   React.useEffect(() => {
-    if (title && category) {
-      let defaultPrompt = `Een foto van een ${category.toLowerCase()} evenement getiteld "${title}"`;
-      if (description) {
-        // Voeg de eerste 100 karakters van de beschrijving toe aan de prompt als die bestaat
-        defaultPrompt += `, ${description.substring(0, 100)}`;
+    if (title && category && isAutoPrompt) {
+      // Maak een rijke, gedetailleerde prompt
+      let autoPrompt = `Een professionele foto voor een ${category.toLowerCase()} evenement in Nederland genaamd "${title}"`;
+      
+      // Locatie en omgeving toevoegen
+      const locationWords = ["buiten", "binnen", "park", "zaal", "theater", "centrum", "stad", "natuur", "plein"];
+      const randomLocationWord = locationWords[Math.floor(Math.random() * locationWords.length)];
+      
+      // Sfeer toevoegen
+      const moodWords = ["gezellig", "levendig", "warm", "uitnodigend", "energiek", "enthousiast", "ontspannen"];
+      const randomMoodWord = moodWords[Math.floor(Math.random() * moodWords.length)];
+      
+      // Voeg deze elementen toe aan de prompt
+      autoPrompt += `, in een ${randomLocationWord} met een ${randomMoodWord} sfeer`;
+      
+      // Voeg beschrijving toe als die er is
+      if (description && description.length > 5) {
+        // Extract key phrases from description
+        const maxDescriptionLength = 80;
+        const descriptionSnippet = description.length > maxDescriptionLength 
+          ? description.substring(0, maxDescriptionLength) + "..."
+          : description;
+        
+        autoPrompt += `. Activiteiten omvatten: ${descriptionSnippet}`;
       }
-      setPrompt(defaultPrompt);
+      
+      // Voeg enkele visuele details toe op basis van categorie
+      if (category === "Sport en spel") {
+        autoPrompt += ". Met actieve mensen, sportuitrusting en beweging.";
+      } else if (category === "Kunst en Cultuur") {
+        autoPrompt += ". Met kunstwerken, expositieruimte en creatieve sfeer.";
+      } else if (category === "Gezellig en Sociaal") {
+        autoPrompt += ". Met mensen die gezellig samenkomen, eten, drinken en converseren.";
+      } else if (category === "Leren en Ontdekken") {
+        autoPrompt += ". Met leermaterialen, een educatieve setting en nieuwsgierige deelnemers.";
+      } else if (category === "Vrijwilligerswerk en hulp") {
+        autoPrompt += ". Met vrijwilligers die samenwerken en anderen helpen.";
+      }
+      
+      // Voeg fotografie-specifieke details toe
+      autoPrompt += " Fotografische stijl: heldere belichting, scherpe focus, levendige kleuren, professionele kwaliteit.";
+      
+      setPrompt(autoPrompt);
     }
-  }, [title, category, description]);
+  }, [title, category, description, isAutoPrompt]);
 
   const generateImage = async () => {
     if (!prompt) {

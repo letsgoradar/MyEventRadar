@@ -77,11 +77,7 @@ export default function EventDetailPage() {
                     <Badge variant="outline" className="capitalize">
                       {event.category}
                     </Badge>
-                    {event.subcategory && (
-                      <Badge variant="outline" className="capitalize">
-                        {event.subcategory}
-                      </Badge>
-                    )}
+                    {/* Secundaire categorie is momenteel niet in het schema */}
                   </div>
                 </div>
                 <Button 
@@ -93,6 +89,17 @@ export default function EventDetailPage() {
                   <X className="h-5 w-5" />
                 </Button>
               </div>
+              
+              {/* Event Image (if available) */}
+              {event.imageUrl && (
+                <div className="relative w-full aspect-square overflow-hidden rounded-lg mb-4">
+                  <img 
+                    src={event.imageUrl} 
+                    alt={event.title} 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
 
               {/* Event Details */}
               <div className="space-y-4">
@@ -103,7 +110,7 @@ export default function EventDetailPage() {
                     <div>{format(new Date(event.startTime), 'EEEE d MMMM yyyy', { locale: nl })}</div>
                     <div className="text-muted-foreground">
                       {format(new Date(event.startTime), 'HH:mm', { locale: nl })} - 
-                      {format(new Date(event.endTime), 'HH:mm', { locale: nl })}
+                      {event.endTime ? format(new Date(event.endTime), 'HH:mm', { locale: nl }) : 'onbekende eindtijd'}
                     </div>
                   </div>
                 </div>

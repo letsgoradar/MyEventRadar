@@ -284,6 +284,14 @@ const CreateEvent = () => {
     
     // Debug eventuele validatiefouten
     const formState = form.formState;
+    console.log('Form state:', formState);
+    
+    // Toon een toast om te bevestigen dat de submit functie wordt aangeroepen
+    toast({
+      title: "Formulier verzenden...",
+      description: "Bezig met het verwerken van het formulier"
+    });
+    
     if (formState.errors && Object.keys(formState.errors).length > 0) {
       console.error('Formulier validatiefouten:', formState.errors);
       toast({
@@ -296,6 +304,7 @@ const CreateEvent = () => {
     
     // Als er geen validatiefouten zijn, probeer de mutatie uit te voeren
     try {
+      console.log('Mutatie uitvoeren met data:', data);
       createEventMutation.mutate(data);
     } catch (err) {
       console.error('Fout bij het uitvoeren van createEventMutation:', err);
@@ -741,8 +750,14 @@ const CreateEvent = () => {
                   <Link href="/web">Annuleren</Link>
                 </Button>
                 <Button 
-                  type="submit" 
+                  type="button" 
                   disabled={createEventMutation.isPending}
+                  onClick={(e) => {
+                    console.log('Submit button clicked');
+                    e.preventDefault();
+                    // Handmatig de form submission triggeren
+                    form.handleSubmit(onSubmit)();
+                  }}
                 >
                   {createEventMutation.isPending ? 'Bezig met opslaan...' : 'Evenement aanmaken'}
                 </Button>

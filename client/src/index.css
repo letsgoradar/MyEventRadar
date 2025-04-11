@@ -26,6 +26,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  /* Animatie vertraging voor loading indicators */
+  .animation-delay-200 {
+    animation-delay: 0.2s;
+  }
+  .animation-delay-400 {
+    animation-delay: 0.4s;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

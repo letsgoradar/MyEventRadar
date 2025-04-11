@@ -98,55 +98,80 @@ export function ImageGenerator({
       const data = await response.json();
       
       // Controleer of het model nog aan het laden is (202 status)
-      if (response.status === 202 && data.retry && retryAttempt < 8) {
-        // Toon een bericht bij de eerste poging
+      if (response.status === 202 && data.retry && retryAttempt < 12) {
+        // Verschillende berichten bij verschillende fases van retries
         if (retryAttempt === 0) {
           toast({
-            title: "Even geduld",
-            description: data.message || "Het AI-model wordt geladen, dit kan even duren...",
+            title: "AI-model wordt geladen",
+            description: data.message || "Even geduld terwijl we het model laden, dit kan even duren...",
             duration: 8000,
           });
-        } else if (retryAttempt === 4) {
-          // Extra feedback na meerdere pogingen
+        } else if (retryAttempt === 5) {
+          // Extra feedback halfweg de pogingen
           toast({
-            title: "AI model wordt geladen",
+            title: "Model wordt nog steeds geladen",
             description: "We blijven proberen... Dit kan tot 1 minuut duren bij het eerste gebruik.",
+            duration: 8000,
+          });
+        } else if (retryAttempt === 9) {
+          // Laatste waarschuwing
+          toast({
+            title: "Laatste pogingen",
+            description: "Het duurt wat langer dan verwacht. We doen nog enkele pogingen...",
             duration: 8000,
           });
         }
         
-        // Bepaal wachttijd, verhoog geleidelijk
-        const waitTime = retryAttempt < 3 ? 5000 : 8000; // Langere wachttijden na de eerste pogingen
+        // Bepaal wachttijd, verhoog geleidelijk voor betere prestaties
+        // Eerste pogingen: korte wachttijden, latere pogingen: langere wachttijden
+        let waitTime = 5000; // standaard 5 seconden
+        if (retryAttempt < 4) {
+          waitTime = 5000;
+        } else if (retryAttempt < 8) {
+          waitTime = 8000;
+        } else {
+          waitTime = 10000; // Langere wachttijden bij latere pogingen
+        }
         
-        // Automatisch opnieuw proberen
-        console.log(`Wachten op AI model (poging ${retryAttempt + 1}/8)... Volgende poging over ${waitTime/1000} seconden`);
+        // Automatisch opnieuw proberen met logging
+        console.log(`Wachten op AI model (poging ${retryAttempt + 1}/12)... Volgende poging over ${waitTime/1000} seconden`);
         setTimeout(() => {
           generateImage(retryAttempt + 1);
         }, waitTime);
         return;
       }
       
-      // Controleer of er een fout is of een default afbeelding is geretourneerd
-      if (!response.ok && !data.imageUrl) {
+      // Bij niet-retryable fouten
+      if (!response.ok) {
+        // Als er een API error is (buiten timeout/retry), toon duidelijk bericht
+        if (data.error) {
+          console.error("API error:", data.error);
+          toast({
+            title: "Afbeeldingsgeneratie niet beschikbaar",
+            description: data.message || "Er is een probleem met de afbeeldingsgeneratie. Probeer het later opnieuw.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          throw new Error(data.error);
+        }
         throw new Error("Failed to generate image");
       }
 
-      // Als er een bericht is, toon dat aan de gebruiker
-      if (data.message) {
-        toast({
-          title: "Let op",
-          description: data.message,
-          variant: "default",
-        });
+      // Als we hier zijn, hebben we een succesvolle afbeelding gegenereerd
+      // Controleer of we een imageUrl hebben ontvangen
+      if (!data.imageUrl) {
+        throw new Error("No image URL received");
       }
 
       // Update de afbeelding met wat er is teruggekomen
       setGeneratedImage(data.imageUrl);
       onImageGenerated(data.imageUrl);
       
+      // Toon een succesmelding
       toast({
         title: "Afbeelding gegenereerd",
         description: "Een afbeelding is toegevoegd aan je evenement via Hugging Face AI",
+        variant: "default",
       });
     } catch (error) {
       console.error("Error generating image:", error);
@@ -156,7 +181,7 @@ export function ImageGenerator({
         variant: "destructive",
       });
     } finally {
-      if (retryAttempt === 0 || retryAttempt >= 8) {
+      if (retryAttempt === 0 || retryAttempt >= 12) {
         setIsGenerating(false);
       }
     }
@@ -259,7 +284,13 @@ export function ImageGenerator({
             <p>Het kan 15-45 seconden duren om een afbeelding te genereren</p>
             <p>Bij eerste gebruik moet het AI model geladen worden (tot 1 minuut)</p>
             <p>Hugging Face AI wordt gebruikt (gratis, onbeperkt)</p>
-            <p className="mt-2 italic">Je ontvangt een locatiemarker als fallback</p>
+            <div className="flex items-center justify-center pt-2">
+              <div className="animate-pulse flex space-x-2">
+                <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
+                <div className="h-2 w-2 bg-blue-600 rounded-full animation-delay-200"></div>
+                <div className="h-2 w-2 bg-blue-600 rounded-full animation-delay-400"></div>
+              </div>
+            </div>
           </div>
         )}
       </div>

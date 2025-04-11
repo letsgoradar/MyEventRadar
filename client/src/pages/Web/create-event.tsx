@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { WebLayout } from '@/components/Web/WebLayout';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -78,7 +78,8 @@ const LocationPicker = ({
   const [markerPosition, setMarkerPosition] = useState<[number, number]>(validDefaultPosition);
   
   // Roep onChange aan bij initialisatie
-  useEffect(() => {
+  // We maken gebruik van React.useEffect om zeker te zijn dat het geïmporteerd is
+  React.useEffect(() => {
     onChange(validDefaultPosition[0], validDefaultPosition[1]);
   }, []);
   

@@ -117,13 +117,15 @@ const CreateEvent = () => {
       price: undefined,
       maxParticipants: undefined,
       hasMaxParticipants: false,
-      latitude: location?.lat ?? 51.7767,
-      longitude: location?.lng ?? 5.5345,
+      location: {
+        lat: location?.lat ?? 51.7767,
+        lng: location?.lng ?? 5.5345,
+        notificationReach: 5.0,
+      },
       startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // tomorrow
       endTime: new Date(Date.now() + 26 * 60 * 60 * 1000), // tomorrow + 2 hours
       tags: [],
       recurrence: 'once',
-      notificationReach: 5.0,
     },
   });
   
@@ -131,20 +133,12 @@ const CreateEvent = () => {
   const createEventMutation = useMutation({
     mutationFn: async (data: CreateEventFormValues) => {
       // Verwijder image file van data voor API verzoek
-      const { imageFile, latitude, longitude, ...apiData } = data;
-      
-      // Vorm de locatie-object zoals API verwacht
-      const location = {
-        lat: latitude,
-        lng: longitude,
-        notificationReach: data.notificationReach
-      };
+      const { imageFile, hasMaxParticipants, imageUrl, ...apiData } = data;
       
       // Zorg ervoor dat numerieke velden juist worden geconverteerd
       // En voeg ontbrekende verplichte velden toe
       const formattedData = {
         ...apiData,
-        location, // Locatie in juiste formaat
         hostId: 1, // Standaard host ID (ingelogde gebruiker of admin)
         tags: data.tags || [], // Zorg dat tags altijd een array is
         price: data.isPaid && data.price ? Number(data.price) : null,
@@ -266,7 +260,31 @@ const CreateEvent = () => {
   
   // Formulier indienen
   const onSubmit = (data: CreateEventFormValues) => {
-    createEventMutation.mutate(data);
+    console.log('Formulier verzenden:', data);
+    
+    // Debug eventuele validatiefouten
+    const formState = form.formState;
+    if (formState.errors && Object.keys(formState.errors).length > 0) {
+      console.error('Formulier validatiefouten:', formState.errors);
+      toast({
+        title: "Validatiefout",
+        description: "Controleer alle verplichte velden en probeer opnieuw",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Als er geen validatiefouten zijn, probeer de mutatie uit te voeren
+    try {
+      createEventMutation.mutate(data);
+    } catch (err) {
+      console.error('Fout bij het uitvoeren van createEventMutation:', err);
+      toast({
+        title: "Fout bij aanmaken evenement",
+        description: "Er is een onverwachte fout opgetreden. Probeer het opnieuw.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

@@ -1,24 +1,21 @@
 import { Router, Request, Response } from 'express';
 import fetch from 'node-fetch';
 
-// Define the OpenAI API response type
-interface OpenAIImageResponse {
-  data: Array<{
-    url: string;
-  }>;
-}
-
 // Setup router
 const router = Router();
 
 // Configure environment
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const HUGGING_FACE_API_KEY = process.env.HUGGING_FACE_API_KEY;
 // Default image URL als er geen API key is of als de generatie faalt
 const DEFAULT_IMAGE_URL = '/images/event-logo.svg';
 
+// Configuratie voor Hugging Face modellen
+const HF_MODEL_ID = 'stabilityai/stable-diffusion-xl-base-1.0'; // Goed algemeen model voor evenementen
+const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL_ID}`;
+
 /**
  * POST /api/generate-image
- * Genereert een afbeelding met behulp van OpenAI DALL-E API
+ * Genereert een afbeelding met behulp van Hugging Face API
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
@@ -28,58 +25,66 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Prompt is vereist' });
     }
 
-    // Check if we have an OpenAI API key
-    if (!OPENAI_API_KEY) {
-      console.warn('Geen OpenAI API key gevonden, standaard afbeelding wordt geretourneerd');
+    // Check if we have a Hugging Face API key
+    if (!HUGGING_FACE_API_KEY) {
+      console.warn('Geen Hugging Face API key gevonden, standaard afbeelding wordt geretourneerd');
       return res.json({ 
         imageUrl: DEFAULT_IMAGE_URL,
-        message: 'Standaard afbeelding geretourneerd omdat er geen OpenAI API key is geconfigureerd.'
+        message: 'Standaard afbeelding geretourneerd omdat er geen Hugging Face API key is geconfigureerd.'
       });
     }
     
-    // Optimaliseer de prompt voor betere resultaten met DALL-E
-    const enhancedPrompt = `Een fotorealistische afbeelding voor een Nederlands evenement: ${prompt}. Stijl: professionele fotografie, levendige kleuren, realistische weergave.`;
+    // Optimaliseer de prompt voor betere resultaten met Stable Diffusion
+    const enhancedPrompt = `Fotorealistische afbeelding voor een Nederlands evenement: ${prompt}. Professionele fotografie stijl, levendige kleuren, hoge kwaliteit, gedetailleerd, realistische weergave.`;
     
-    // Maak een API-verzoek naar OpenAI
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+    console.log('Genereren van afbeelding met Hugging Face, prompt:', enhancedPrompt);
+    
+    // Hugging Face API parameters
+    const parameters = {
+      inputs: enhancedPrompt,
+      parameters: {
+        negative_prompt: "lage kwaliteit, onscherp, wazig, vervormd, onrealistisch, cartoon, tekening, schilderij",
+        num_inference_steps: 30,  // Voor betere kwaliteit
+        guidance_scale: 7.5,      // Balans tussen creativiteit en prompt-getrouwheid
+      },
+      options: {
+        use_cache: true,
+        wait_for_model: true
+      }
+    };
+    
+    // Maak API-verzoek naar Hugging Face Inference API
+    const response = await fetch(HF_API_URL, {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${HUGGING_FACE_API_KEY}`,
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
-      body: JSON.stringify({
-        prompt: enhancedPrompt,
-        model: "dall-e-3", // of een ander beschikbaar model
-        n: 1,
-        size: "1024x1024",
-        quality: "standard",
-        response_format: "url",
-      }),
+      body: JSON.stringify(parameters),
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('OpenAI API error:', errorData);
-      
-      // Controleer op specifieke fouten zoals billing limiet
-      if (errorData && typeof errorData === 'object' && 'error' in errorData && 
-          errorData.error && typeof errorData.error === 'object' && 'code' in errorData.error && 
-          errorData.error.code === 'billing_hard_limit_reached') {
-        console.warn('OpenAI API billing limit reached, returning default image');
-        return res.json({ 
-          imageUrl: DEFAULT_IMAGE_URL,
-          message: 'OpenAI API billing limiet bereikt. Standaard afbeelding gebruikt.'
-        });
-      }
-      
-      throw new Error(`OpenAI API responded with status ${response.status}`);
+    
+    // Als het model nog aan het laden is, geeft Hugging Face een 503 terug
+    if (response.status === 503) {
+      console.log('Model wordt geladen, probeer opnieuw...');
+      return res.status(202).json({ 
+        message: 'Het AI-model wordt geladen, probeer het over enkele seconden opnieuw.',
+        retry: true
+      });
     }
 
-    const data = await response.json() as OpenAIImageResponse;
-    const imageUrl = data.data[0].url;
+    if (!response.ok) {
+      console.error('Hugging Face API error:', response.status, await response.text());
+      throw new Error(`Hugging Face API responded with status ${response.status}`);
+    }
 
-    // Stuur de gegenereerde afbeelding URL terug naar de client
-    res.json({ imageUrl });
+    // Hugging Face retourneert direct een binaire afbeelding
+    const imageBuffer = await response.buffer();
+    
+    // Base64 encoded image
+    const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+    
+    // Stuur de gegenereerde afbeelding als base64 string terug naar de client
+    res.json({ imageUrl: base64Image });
   } catch (error) {
     console.error('Error generating image:', error);
     

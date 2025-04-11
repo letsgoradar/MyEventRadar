@@ -73,7 +73,7 @@ export function ImageGenerator({
     }
   }, [title, category, description, isAutoPrompt]);
 
-  const generateImage = async () => {
+  const generateImage = async (retryAttempt = 0) => {
     if (!prompt) {
       toast({
         title: "Voer een prompt in",
@@ -86,7 +86,8 @@ export function ImageGenerator({
     setIsGenerating(true);
     
     try {
-      const response = await fetch("/api/generate-image", {
+      // Voeg een timestamp toe om caching te voorkomen
+      const response = await fetch(`/api/generate-image?t=${Date.now()}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -95,6 +96,25 @@ export function ImageGenerator({
       });
 
       const data = await response.json();
+      
+      // Controleer of het model nog aan het laden is (202 status)
+      if (response.status === 202 && data.retry && retryAttempt < 5) {
+        // Toon een bericht bij de eerste poging
+        if (retryAttempt === 0) {
+          toast({
+            title: "Even geduld",
+            description: data.message || "Het AI-model wordt geladen, dit kan even duren...",
+            duration: 5000,
+          });
+        }
+        
+        // Automatisch opnieuw proberen na 3 seconden
+        console.log(`Wachten op AI model (poging ${retryAttempt + 1}/5)...`);
+        setTimeout(() => {
+          generateImage(retryAttempt + 1);
+        }, 3000);
+        return;
+      }
       
       // Controleer of er een fout is of een default afbeelding is geretourneerd
       if (!response.ok && !data.imageUrl) {
@@ -116,7 +136,7 @@ export function ImageGenerator({
       
       toast({
         title: "Afbeelding gegenereerd",
-        description: "Een afbeelding is toegevoegd aan je evenement",
+        description: "Een afbeelding is toegevoegd aan je evenement via Hugging Face AI",
       });
     } catch (error) {
       console.error("Error generating image:", error);
@@ -126,7 +146,9 @@ export function ImageGenerator({
         variant: "destructive",
       });
     } finally {
-      setIsGenerating(false);
+      if (retryAttempt === 0 || retryAttempt >= 5) {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -184,7 +206,7 @@ export function ImageGenerator({
 
       <div className="flex flex-col space-y-4">
         <Button
-          onClick={generateImage}
+          onClick={() => generateImage()}
           disabled={isGenerating || !prompt}
           className="w-full"
           size="lg"
@@ -224,7 +246,8 @@ export function ImageGenerator({
 
         {isGenerating && (
           <div className="text-center text-sm text-muted-foreground">
-            <p>Het kan tot 10-15 seconden duren om een afbeelding te genereren</p>
+            <p>Het kan 15-30 seconden duren om een afbeelding te genereren</p>
+            <p className="mt-1">Hugging Face AI wordt gebruikt (gratis, onbeperkt)</p>
           </div>
         )}
       </div>

@@ -158,7 +158,8 @@ const CreateEvent = () => {
         hostId: data.hostId || 1, // Gebruik hostId als het aanwezig is, anders gebruik de standaardwaarde
         tags: data.tags || [], // Zorg dat tags altijd een array is
         price: data.isPaid && data.price ? Number(data.price) : null,
-        maxParticipants: data.hasMaxParticipants && data.maxParticipants ? Number(data.maxParticipants) : null,
+        // Zorg dat maxParticipants altijd een nummer is (0 indien niet ingesteld)
+        maxParticipants: data.hasMaxParticipants && data.maxParticipants ? Number(data.maxParticipants) : 0,
       };
       
       console.log('Versturen van evenement data:', formattedData);

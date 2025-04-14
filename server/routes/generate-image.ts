@@ -37,8 +37,8 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
     
-    // Optimaliseer de prompt voor kwalitatief goede, maar niet te grote afbeeldingen
-    const enhancedPrompt = `Fotorealistische afbeelding voor een Nederlands evenement: ${prompt}. Professionele fotografie stijl, hoge kwaliteit, gedetailleerd.`;
+    // Optimaliseer de prompt voor fotorealistische afbeeldingen met slechts essentiële details
+    const enhancedPrompt = `Fotorealistische foto van ${prompt}. Mensen in beeld, hoogwaardige fotografie, scherpe details, lichte achtergrond.`;
     
     console.log(`Genereren van afbeelding met Hugging Face (${HF_MODEL_ID}), prompt:`, enhancedPrompt);
     
@@ -46,11 +46,11 @@ router.post('/', async (req: Request, res: Response) => {
     const parameters = {
       inputs: enhancedPrompt,
       parameters: {
-        negative_prompt: "lage kwaliteit, onscherp, wazig, vervormd, onrealistisch, cartoon, tekening, schilderij, tekst, handschrift, watermark",
-        num_inference_steps: 28,  // Betere kwaliteit dan 25, maar niet zo zwaar als 30
-        guidance_scale: 7.5,      // Balans tussen creativiteit en prompt-getrouwheid
-        width: 768,              // Betere kwaliteit dan 512, maar niet zo groot als 1024
-        height: 768,             // Betere kwaliteit dan 512, maar niet zo groot als 1024
+        negative_prompt: "abstract, cartoon, illustratie, tekening, schilderij, 3d, tekst, watermark, logo, abstracte vormen, onscherp, wazig, vervormingen, lage kwaliteit",
+        num_inference_steps: 35,  // Hogere kwaliteit door meer stappen
+        guidance_scale: 8.5,      // Hogere waarde voor meer nauwkeurigheid en minder creativiteit
+        width: 832,              // Betere kwaliteit, zonder te groot te worden
+        height: 832,             // Betere kwaliteit, zonder te groot te worden
       },
       options: {
         use_cache: true,

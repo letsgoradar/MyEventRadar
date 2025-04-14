@@ -64,8 +64,7 @@ export function App2BottomNav() {
     <div className="fixed bottom-0 left-0 right-0 bg-background border-t z-50">
       <div className="flex items-center justify-between p-1 relative">
         {navItems.map((item, index) => (
-          <Link key={index} href={item.href}>
-            <a className="w-full">
+          <Link key={index} href={item.href} className="w-full">
               <div 
                 className={cn(
                   "flex flex-col items-center justify-center py-1 px-2", 
@@ -89,17 +88,14 @@ export function App2BottomNav() {
                   {item.label}
                 </span>
               </div>
-            </a>
           </Link>
         ))}
       </div>
       
       {/* Web version switcher */}
       <div className="absolute right-3 -top-10 bg-secondary rounded-full h-8 w-8 flex items-center justify-center">
-        <Link href={getWebPath()}>
-          <a className="text-secondary-foreground hover:text-primary-foreground">
-            <ExternalLink className="h-4 w-4" />
-          </a>
+        <Link href={getWebPath()} className="text-secondary-foreground hover:text-primary-foreground">
+          <ExternalLink className="h-4 w-4" />
         </Link>
       </div>
     </div>

@@ -79,10 +79,8 @@ export function App2EventsPage() {
             ) : (
               <div className="space-y-4">
                 {hostedEvents.map((event) => (
-                  <Link key={event.id} href={`/app2/event/${event.id}`}>
-                    <a className="block">
-                      <EventCard event={event} />
-                    </a>
+                  <Link key={event.id} href={`/app2/event/${event.id}`} className="block">
+                    <EventCard event={event} />
                   </Link>
                 ))}
               </div>
@@ -97,10 +95,8 @@ export function App2EventsPage() {
             ) : (
               <div className="space-y-4">
                 {joinedEvents.map((event) => (
-                  <Link key={event.id} href={`/app2/event/${event.id}`}>
-                    <a className="block">
-                      <EventCard event={event} />
-                    </a>
+                  <Link key={event.id} href={`/app2/event/${event.id}`} className="block">
+                    <EventCard event={event} />
                   </Link>
                 ))}
               </div>

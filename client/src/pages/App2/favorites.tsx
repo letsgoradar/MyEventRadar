@@ -54,10 +54,8 @@ export function App2FavoritesPage() {
         ) : (
           <div className="space-y-4">
             {favoriteEvents.map((event) => (
-              <Link key={event.id} href={`/app2/event/${event.id}`}>
-                <a className="block">
-                  <EventCard event={event} onEventClick={() => {}} />
-                </a>
+              <Link key={event.id} href={`/app2/event/${event.id}`} className="block">
+                <EventCard event={event} />
               </Link>
             ))}
           </div>

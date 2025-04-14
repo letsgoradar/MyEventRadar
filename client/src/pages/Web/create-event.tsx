@@ -235,130 +235,172 @@ const CreateEvent = () => {
     });
   };
   
+  // Maximaal aantal toegestane afbeeldingen
+  const MAX_IMAGES = 5;
+
   // Functie om afbeelding te resizen en verwerken
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      
-      // Controleer of bestand een afbeelding is
-      if (!file.type.startsWith('image/')) {
+    if (e.target.files && e.target.files.length > 0) {
+      // Check of we het maximum aantal afbeeldingen niet overschrijden
+      if (imagePreviews.length + e.target.files.length > MAX_IMAGES) {
         toast({
-          title: "Ongeldig bestandstype",
-          description: "Alleen afbeeldingen worden ondersteund.",
+          title: "Te veel afbeeldingen",
+          description: `Je kunt maximaal ${MAX_IMAGES} afbeeldingen uploaden.`,
           variant: "destructive"
         });
         return;
       }
       
-      // Eerste validatie van bestandsgrootte
-      if (file.size > 10 * 1024 * 1024) { // 10MB als initiële check
+      // Loop door alle geselecteerde bestanden
+      Array.from(e.target.files).forEach((file) => {
+        // Controleer of bestand een afbeelding is
+        if (!file.type.startsWith('image/')) {
+          toast({
+            title: "Ongeldig bestandstype",
+            description: "Alleen afbeeldingen worden ondersteund.",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        // Eerste validatie van bestandsgrootte
+        if (file.size > 10 * 1024 * 1024) { // 10MB als initiële check
+          toast({
+            title: "Bestand te groot",
+            description: "De afbeelding mag maximaal 10MB groot zijn.",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        // Toon een laadbericht
         toast({
-          title: "Bestand te groot",
-          description: "De afbeelding mag maximaal 10MB groot zijn.",
-          variant: "destructive"
+          title: "Afbeelding optimaliseren",
+          description: "De afbeelding wordt geoptimaliseerd...",
         });
-        return;
-      }
-      
-      // Toon een laadbericht
-      toast({
-        title: "Afbeelding optimaliseren",
-        description: "De afbeelding wordt geoptimaliseerd...",
-      });
-      
-      // Maak een afbeeldingselement aan om te gebruiken voor resizing
-      const img = new Image();
-      const reader = new FileReader();
-      
-      reader.onload = (readerEvent) => {
-        img.onload = () => {
-          // Bepaal de grootte om naar te resizen
-          // Behoud de aspect ratio, maar beperk de max dimensie tot 1200px
-          const MAX_WIDTH = 1200;
-          const MAX_HEIGHT = 1200;
-          let width = img.width;
-          let height = img.height;
-          
-          // Bereken nieuwe dimensies
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height = Math.round(height * (MAX_WIDTH / width));
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width = Math.round(width * (MAX_HEIGHT / height));
-              height = MAX_HEIGHT;
-            }
-          }
-          
-          // Maak een canvas aan om de afbeelding te resizen
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          
-          // Teken de afbeelding op het canvas
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            toast({
-              title: "Fout bij optimaliseren",
-              description: "Er is een probleem opgetreden bij het optimaliseren van de afbeelding.",
-              variant: "destructive"
-            });
+        
+        // Maak een afbeeldingselement aan om te gebruiken voor resizing
+        const img = new Image();
+        const reader = new FileReader();
+        
+        reader.onload = (readerEvent) => {
+          if (!readerEvent.target || typeof readerEvent.target.result !== 'string') {
             return;
           }
           
-          ctx.drawImage(img, 0, 0, width, height);
+          img.onload = () => {
+            // Bepaal de grootte om naar te resizen
+            // Behoud de aspect ratio, maar beperk de max dimensie tot 1200px
+            const MAX_WIDTH = 1200;
+            const MAX_HEIGHT = 1200;
+            let width = img.width;
+            let height = img.height;
+            
+            // Bereken nieuwe dimensies
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height = Math.round(height * (MAX_WIDTH / width));
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width = Math.round(width * (MAX_HEIGHT / height));
+                height = MAX_HEIGHT;
+              }
+            }
+            
+            // Maak een canvas aan om de afbeelding te resizen
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Teken de afbeelding op het canvas
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              toast({
+                title: "Fout bij optimaliseren",
+                description: "Er is een probleem opgetreden bij het optimaliseren van de afbeelding.",
+                variant: "destructive"
+              });
+              return;
+            }
+            
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Converteer naar JPEG met 85% kwaliteit voor een goede balans
+            const optimizedImageUrl = canvas.toDataURL('image/jpeg', 0.85);
+            
+            // Voeg deze toe aan de previews
+            setImagePreviews(prev => [...prev, optimizedImageUrl]);
+            
+            // Converteer data URL naar Blob/File voor opslag
+            const byteString = atob(optimizedImageUrl.split(',')[1]);
+            const mimeString = optimizedImageUrl.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            
+            for (let i = 0; i < byteString.length; i++) {
+              ia[i] = byteString.charCodeAt(i);
+            }
+            
+            const optimizedBlob = new Blob([ab], { type: mimeString });
+            const optimizedFile = new File([optimizedBlob], file.name, { type: 'image/jpeg' });
+            
+            // Voeg toe aan geselecteerde afbeeldingen
+            setSelectedImages(prev => [...prev, optimizedFile]);
+            
+            // Update het formulier met de eerste afbeelding als hoofdafbeelding
+            if (imagePreviews.length === 0) {
+              form.setValue('imageUrl', optimizedImageUrl);
+              form.setValue('imageFile', optimizedFile);
+            }
+            
+            toast({
+              title: "Afbeelding geoptimaliseerd",
+              description: "De afbeelding is succesvol geoptimaliseerd en klaar voor gebruik.",
+            });
+          };
           
-          // Converteer naar JPEG met 85% kwaliteit voor een goede balans
-          const optimizedImageUrl = canvas.toDataURL('image/jpeg', 0.85);
-          
-          // Gebruik deze als preview
-          setImagePreview(optimizedImageUrl);
-          form.setValue('imageUrl', optimizedImageUrl);
-          
-          // Converteer data URL naar Blob/File voor opslag
-          const byteString = atob(optimizedImageUrl.split(',')[1]);
-          const mimeString = optimizedImageUrl.split(',')[0].split(':')[1].split(';')[0];
-          const ab = new ArrayBuffer(byteString.length);
-          const ia = new Uint8Array(ab);
-          
-          for (let i = 0; i < byteString.length; i++) {
-            ia[i] = byteString.charCodeAt(i);
-          }
-          
-          const optimizedBlob = new Blob([ab], { type: mimeString });
-          const optimizedFile = new File([optimizedBlob], file.name, { type: 'image/jpeg' });
-          
-          setSelectedImage(optimizedFile);
-          form.setValue('imageFile', optimizedFile);
-          
-          toast({
-            title: "Afbeelding geoptimaliseerd",
-            description: "De afbeelding is succesvol geoptimaliseerd en klaar voor gebruik.",
-          });
+          img.src = readerEvent.target.result;
         };
         
-        img.src = readerEvent.target?.result as string;
-      };
-      
-      reader.readAsDataURL(file);
+        reader.readAsDataURL(file);
+      });
     }
   };
   
   // Functie om een AI gegenereerde afbeelding te verwerken
   const handleAIGeneratedImage = (imageUrl: string) => {
-    setImagePreview(imageUrl);
-    // Nu hebben we een imageUrl veld in het schema toegevoegd
-    form.setValue('imageUrl', imageUrl);
+    // Voeg toe aan de previews
+    setImagePreviews(prev => [...prev, imageUrl]);
+    
+    // Als dit de eerste afbeelding is, gebruik deze als hoofdafbeelding
+    if (imagePreviews.length === 0) {
+      form.setValue('imageUrl', imageUrl);
+    }
   };
   
-  // Functie om afbeelding te verwijderen
-  const removeImage = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
-    form.setValue('imageFile', undefined);
-    form.setValue('imageUrl', undefined);
+  // Functie om een bepaalde afbeelding te verwijderen
+  const removeImage = (index: number) => {
+    // Verwijder preview en bestand uit de arrays
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    
+    // Als we de hoofdafbeelding verwijderen, update formulier
+    if (index === 0) {
+      // Als er nog andere afbeeldingen zijn, gebruik de nieuwe eerste
+      if (imagePreviews.length > 1) {
+        const newMainImage = imagePreviews[1]; // De nieuwe eerste afbeelding na verwijdering
+        form.setValue('imageUrl', newMainImage);
+        if (selectedImages.length > 1) {
+          form.setValue('imageFile', selectedImages[1]);
+        }
+      } else {
+        // Anders, wis de hoofdafbeelding
+        form.setValue('imageFile', undefined);
+        form.setValue('imageUrl', undefined);
+      }
+    }
   };
   
   // Formulier indienen
@@ -566,21 +608,85 @@ const CreateEvent = () => {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          {imagePreview ? (
-                            <div className="relative h-60 w-full rounded-md overflow-hidden">
-                              <img 
-                                src={imagePreview} 
-                                alt="Event preview" 
-                                className="w-full h-full object-cover"
-                              />
-                              <Button 
-                                variant="destructive" 
-                                size="icon" 
-                                className="absolute top-2 right-2" 
-                                onClick={removeImage}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
+                          {imagePreviews.length > 0 ? (
+                            <div className="space-y-4">
+                              <div className="relative h-60 w-full rounded-md overflow-hidden">
+                                <img 
+                                  src={imagePreviews[0]} 
+                                  alt="Hoofdafbeelding evenement" 
+                                  className="w-full h-full object-cover"
+                                />
+                                <Button 
+                                  variant="destructive" 
+                                  size="icon" 
+                                  className="absolute top-2 right-2" 
+                                  onClick={() => removeImage(0)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              
+                              {/* Extra afbeeldingen (max 5) */}
+                              {imagePreviews.length > 1 && (
+                                <div>
+                                  <h4 className="text-sm font-medium mb-2">Extra afbeeldingen</h4>
+                                  <div className="grid grid-cols-4 gap-2">
+                                    {imagePreviews.slice(1).map((preview, index) => (
+                                      <div key={index} className="relative h-20 rounded-md overflow-hidden">
+                                        <img 
+                                          src={preview} 
+                                          alt={`Evenement afbeelding ${index + 2}`} 
+                                          className="w-full h-full object-cover"
+                                        />
+                                        <Button 
+                                          variant="destructive" 
+                                          size="icon" 
+                                          className="absolute top-1 right-1 h-5 w-5" 
+                                          onClick={() => removeImage(index + 1)}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                    
+                                    {/* Upload knop voor extra afbeeldingen */}
+                                    {imagePreviews.length < MAX_IMAGES && (
+                                      <div 
+                                        className="relative h-20 border-2 border-dashed border-border rounded-md flex items-center justify-center cursor-pointer"
+                                        onClick={() => document.getElementById('additional-image-upload')?.click()}
+                                      >
+                                        <Plus className="h-5 w-5 text-muted-foreground" />
+                                        <input
+                                          id="additional-image-upload"
+                                          type="file"
+                                          accept="image/*"
+                                          className="hidden"
+                                          onChange={handleImageChange}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Toon upload knop als we nog niet het maximum hebben bereikt */}
+                              {imagePreviews.length === 1 && imagePreviews.length < MAX_IMAGES && (
+                                <Button
+                                  variant="outline"
+                                  className="w-full"
+                                  onClick={() => document.getElementById('additional-image-upload')?.click()}
+                                >
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Voeg nog een afbeelding toe ({imagePreviews.length}/{MAX_IMAGES})
+                                  <input
+                                    id="additional-image-upload"
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleImageChange}
+                                  />
+                                </Button>
+                              )}
                             </div>
                           ) : (
                             <div className="space-y-4">

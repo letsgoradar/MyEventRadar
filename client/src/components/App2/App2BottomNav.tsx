@@ -1,64 +1,79 @@
 import * as React from "react";
-import { useLocation, Link } from "wouter";
-import { Home, Calendar, Heart, User, Plus, ExternalLink } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import {
+  HomeIcon,
+  Map,
+  Search,
+  Heart,
+  PlusCircle,
+  User,
+  ExternalLink
+} from "lucide-react";
+
+// Helper om de huidige web URL voor dezelfde pagina te krijgen
+const getWebPath = () => {
+  const location = window.location.pathname;
+  if (location.startsWith("/app2/event/")) {
+    const eventId = location.split("/").pop();
+    return `/web/event/${eventId}`;
+  } else if (location.includes("/create-event")) {
+    return "/web/create-event";
+  } else if (location.includes("/favorites")) {
+    return "/web/favorites";
+  } else if (location.includes("/profile")) {
+    return "/web/profile";
+  } else {
+    return "/web";
+  }
+};
 
 export function App2BottomNav() {
   const [location] = useLocation();
   
-  // Function to check if a route is active
-  const isActive = (route: string) => {
-    if (route === '/app2' && location === '/app2') {
-      return true;
-    }
-    return location.startsWith(route) && route !== '/app2';
-  };
+  // Check of deze pagina ook in de webversie beschikbaar is
+  const webVersionEnabled = React.useMemo(() => {
+    return !location.includes("/app2/search");
+  }, [location]);
   
-  // Navigation items with icons and labels
-  const navItems = [
-    { 
-      href: "/app2", 
-      icon: Home, 
-      label: "Home",
-      isActive: isActive("/app2")
-    },
-    { 
-      href: "/app2/events", 
-      icon: Calendar, 
-      label: "Evenementen",
-      isActive: isActive("/app2/events")
-    },
-    { 
-      href: "/app2/create-event", 
-      icon: Plus, 
-      label: "Toevoegen",
-      isPrimary: true,
-      isActive: isActive("/app2/create-event")
-    },
-    { 
-      href: "/app2/favorites", 
-      icon: Heart, 
-      label: "Favorieten",
-      isActive: isActive("/app2/favorites")
-    },
-    { 
-      href: "/app2/profile", 
-      icon: User, 
-      label: "Profiel",
-      isActive: isActive("/app2/profile")
-    },
-  ];
+  React.useEffect(() => {
+    console.log("Web version enabled:", webVersionEnabled);
+  }, [webVersionEnabled]);
 
-  // Get web version path for switcher
-  const getWebPath = () => {
-    if (location === '/app2') return '/web';
-    if (location.startsWith('/app2/event/')) {
-      const id = location.split('/').pop();
-      return `/web/event/${id}`;
-    }
-    // Replace /app2 with /web for other paths
-    return location.replace('/app2', '/web');
-  };
+  // Navigatie items configuratie
+  const navItems = React.useMemo(() => [
+    {
+      label: "Evenementen",
+      href: "/app2",
+      icon: HomeIcon,
+      isActive: location === "/app2" || location === "/app2/",
+    },
+    {
+      label: "Zoeken",
+      href: "/app2/search",
+      icon: Search,
+      isActive: location.includes("/app2/search"),
+    },
+    {
+      label: "Aanmaken",
+      href: "/app2/create-event",
+      icon: PlusCircle,
+      isActive: location.includes("/app2/create-event"),
+      isPrimary: true,
+    },
+    {
+      label: "Favorieten",
+      href: "/app2/favorites",
+      icon: Heart,
+      isActive: location.includes("/app2/favorites"),
+    },
+    {
+      label: "Profiel",
+      href: "/app2/profile",
+      icon: User,
+      isActive: location.includes("/app2/profile"),
+    },
+  ], [location]);
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-background border-t z-50">

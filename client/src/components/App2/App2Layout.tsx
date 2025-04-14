@@ -1,257 +1,139 @@
 import * as React from "react";
-import { Event } from "@shared/schema";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { ChevronDown, ChevronUp, List, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
-import { CATEGORIES } from "@shared/schema";
-import { SearchIcon, X, ListFilter, MapIcon, List, LayoutGrid, FilterX } from "lucide-react";
-import { EventList } from "@/components/EventList";
+import { Card } from "@/components/ui/card";
 import MapView from "@/components/Map/MapView";
-import { App2BottomNav } from "./App2BottomNav";
-import { useLocation } from "@/hooks/useLocation";
+import App2BottomNav from "./App2BottomNav";
+import { Event } from "@shared/schema";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface App2LayoutProps {
-  children?: React.ReactNode;
-  searchQuery?: string;
-  radius?: number;
+  children: React.ReactNode;
+  title: string;
+  showMap?: boolean;
   filteredEvents?: Event[];
-  onSearch?: (value: string) => void;
-  onRadiusChange?: (value: number) => void;
-  onFilteredEventsChange?: (events: Event[]) => void;
+  header?: React.ReactNode;
+  isLoading?: boolean;
 }
 
 export function App2Layout({
   children,
-  searchQuery = "",
-  radius = 10,
+  title,
+  showMap = false,
   filteredEvents = [],
-  onSearch,
-  onRadiusChange,
-  onFilteredEventsChange,
+  header,
+  isLoading = false,
 }: App2LayoutProps) {
-  const [showMap, setShowMap] = React.useState(true);
-  const [showFilters, setShowFilters] = React.useState(false);
-  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
-  const [gridView, setGridView] = React.useState(false);
-  const [tempSearchQuery, setTempSearchQuery] = React.useState(searchQuery);
-  const { location } = useLocation();
-
-  // Handle search input change
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTempSearchQuery(e.target.value);
-  };
-
-  // Handle search submission
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (onSearch) {
-      onSearch(tempSearchQuery);
+  const [view, setView] = React.useState<"list" | "map">("list");
+  const [mapExpanded, setMapExpanded] = React.useState<boolean>(false);
+  
+  // Geef voorkeur aan de kaartweergave als showMap=true
+  React.useEffect(() => {
+    if (showMap && view === "list") {
+      setView("map");
     }
+  }, [showMap]);
+  
+  // Functie om te schakelen tussen lijsten kaartweergave
+  const toggleView = () => {
+    setView(prev => prev === "list" ? "map" : "list");
   };
-
-  // Clear search
-  const handleClearSearch = () => {
-    setTempSearchQuery("");
-    if (onSearch) {
-      onSearch("");
-    }
+  
+  // Functie om de kaart uit te vouwen of in te klappen
+  const toggleMapExpanded = () => {
+    setMapExpanded(prev => !prev);
   };
-
-  // Handle radius change
-  const handleRadiusChange = (value: number[]) => {
-    if (onRadiusChange) {
-      onRadiusChange(value[0]);
-    }
-  };
-
-  // Handle category selection
-  const handleCategoryChange = (category: string | null) => {
-    setSelectedCategory(category);
-    
-    // If callback for filtered events is provided, filter events by category
-    if (onFilteredEventsChange && filteredEvents) {
-      if (category === null) {
-        // If category is null, use the original filtered events
-        onFilteredEventsChange(filteredEvents);
-      } else {
-        // Filter events by the selected category
-        const categoryFilteredEvents = filteredEvents.filter(
-          (event) => event.category === category
-        );
-        onFilteredEventsChange(categoryFilteredEvents);
-      }
-    }
-  };
-
-  // Handle filter reset
-  const handleFilterReset = () => {
-    setSelectedCategory(null);
-    if (onRadiusChange) {
-      onRadiusChange(10);
-    }
-    if (onSearch) {
-      onSearch("");
-    }
-    setTempSearchQuery("");
-  };
-
-  // If children are provided, render them inside the layout
-  if (children) {
-    return (
-      <div className="flex flex-col min-h-screen">
-        <div className="flex-1 overflow-auto pb-16">
-          {children}
-        </div>
-        <App2BottomNav />
-      </div>
-    );
-  }
-
-  // Otherwise, render the main event list/map view
+  
+  // Bereken de hoogte van de kaart op basis van de expandedstatus
+  const mapHeight = mapExpanded ? "h-[60vh]" : "h-[30vh]";
+  
+  // Maak de inhoud van de pagina op basis van de gekozen weergave
   return (
-    <div className="flex flex-col min-h-screen">
-      <div className="px-4 pt-4 pb-2 space-y-4">
-        <form onSubmit={handleSearchSubmit} className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            className="pl-9 pr-9"
-            placeholder="Zoek evenementen..."
-            value={tempSearchQuery}
-            onChange={handleSearchChange}
-          />
-          {tempSearchQuery && (
+    <div className="flex flex-col min-h-screen bg-background pb-16">
+      {/* Header met titel */}
+      <header className="sticky top-0 z-10 bg-background border-b">
+        <div className="container py-3">
+          <h1 className="text-xl font-semibold">{title}</h1>
+          {header}
+        </div>
+      </header>
+      
+      {/* Kaart/lijst-weergave knoppen */}
+      <div className="container mt-2">
+        <div className="flex space-x-2 mb-2">
+          <Button
+            variant={view === "list" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setView("list")}
+            className="flex-1"
+          >
+            <List className="h-4 w-4 mr-2" />
+            Lijst
+          </Button>
+          <Button
+            variant={view === "map" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setView("map")}
+            className="flex-1"
+          >
+            <Map className="h-4 w-4 mr-2" />
+            Kaart
+          </Button>
+        </div>
+      </div>
+      
+      {/* Kaart weergave */}
+      {view === "map" && (
+        <div className="flex-1">
+          <div className={cn("w-full transition-all", mapHeight)}>
+            <MapView filteredEvents={filteredEvents} />
+          </div>
+          <div className="container">
             <Button
-              type="button"
               variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
-              onClick={handleClearSearch}
+              className="w-full flex items-center justify-center py-1"
+              onClick={toggleMapExpanded}
             >
-              <X className="h-4 w-4" />
+              {mapExpanded ? (
+                <>
+                  <ChevronUp className="h-4 w-4 mr-2" />
+                  Kaart verkleinen
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-4 w-4 mr-2" />
+                  Kaart vergroten
+                </>
+              )}
             </Button>
-          )}
-        </form>
-
-        <div className="flex justify-between">
-          <Tabs defaultValue={showMap ? "map" : "list"} className="w-full">
-            <TabsList className="w-full grid grid-cols-2">
-              <TabsTrigger 
-                value="map" 
-                onClick={() => setShowMap(true)}
-                className="flex items-center gap-1.5"
-              >
-                <MapIcon className="h-4 w-4" />
-                <span>Kaart</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="list" 
-                onClick={() => setShowMap(false)}
-                className="flex items-center gap-1.5"
-              >
-                <List className="h-4 w-4" />
-                <span>Lijst</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
-          <div className="flex items-center gap-2 ml-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setShowFilters(!showFilters)}
-              className={showFilters ? "border-primary text-primary" : ""}
-            >
-              <ListFilter className="h-4 w-4" />
-            </Button>
-            {!showMap && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setGridView(!gridView)}
-                className={gridView ? "border-primary text-primary" : ""}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-            )}
           </div>
         </div>
-
-        {showFilters && (
-          <div className="space-y-4 py-2 border-t border-b">
-            <div>
-              <div className="flex justify-between mb-2">
-                <h3 className="text-sm font-medium">Afstand: {radius} km</h3>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 text-xs px-2"
-                  onClick={handleFilterReset}
-                >
-                  <FilterX className="h-3 w-3 mr-1" />
-                  Reset
-                </Button>
-              </div>
-              <Slider
-                value={[radius]}
-                min={1}
-                max={50}
-                step={1}
-                onValueChange={handleRadiusChange}
-              />
-            </div>
-            
-            <div>
-              <h3 className="text-sm font-medium mb-2">Categorieën</h3>
-              <div className="flex flex-wrap gap-1">
-                <Badge
-                  variant={selectedCategory === null ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => handleCategoryChange(null)}
-                >
-                  Alle
-                </Badge>
-                {CATEGORIES.map((category) => (
-                  <Badge
-                    key={category}
-                    variant={selectedCategory === category ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => handleCategoryChange(category)}
-                  >
-                    {category}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+      )}
+      
+      {/* Lijst weergave - kinderen worden gerenderd */}
+      <div className={cn("container pb-4", view === "map" && "pt-2")}>
+        {view === "list" && 
+          <div className="space-y-4">
+            {children}
           </div>
-        )}
+        }
+        {view === "map" && !mapExpanded && 
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        }
       </div>
-
-      <div className="flex-1 pb-16">
-        {showMap ? (
-          <div className="h-full">
-            <MapView 
-              searchQuery={searchQuery} 
-              radius={radius} 
-              filteredEvents={filteredEvents}
-            />
-          </div>
-        ) : (
-          <div className="p-4">
-            <EventList 
-              searchQuery={searchQuery} 
-              radius={radius} 
-              filteredEvents={filteredEvents}
-              gridView={gridView}
-            />
-          </div>
-        )}
-      </div>
-
+      
+      {/* Bottom navigation */}
       <App2BottomNav />
     </div>
   );
 }
-
-export default App2Layout;

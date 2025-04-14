@@ -659,7 +659,10 @@ const CreateEvent = () => {
                                     {imagePreviews.length < MAX_IMAGES && (
                                       <div 
                                         className="relative h-20 border-2 border-dashed border-border rounded-md flex items-center justify-center cursor-pointer"
-                                        onClick={() => document.getElementById('additional-image-upload')?.click()}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          document.getElementById('additional-image-upload')?.click();
+                                        }}
                                       >
                                         <Plus className="h-5 w-5 text-muted-foreground" />
                                         <input
@@ -679,8 +682,12 @@ const CreateEvent = () => {
                               {imagePreviews.length === 1 && imagePreviews.length < MAX_IMAGES && (
                                 <Button
                                   variant="outline"
+                                  type="button"
                                   className="w-full"
-                                  onClick={() => document.getElementById('additional-image-upload')?.click()}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    document.getElementById('additional-image-upload')?.click();
+                                  }}
                                 >
                                   <Plus className="mr-2 h-4 w-4" />
                                   Voeg nog een afbeelding toe ({imagePreviews.length}/{MAX_IMAGES})
@@ -717,7 +724,11 @@ const CreateEvent = () => {
                                     </p>
                                     <Button
                                       variant="outline"
-                                      onClick={() => document.getElementById('image-upload')?.click()}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        document.getElementById('image-upload')?.click();
+                                      }}
                                     >
                                       Selecteer afbeelding
                                     </Button>

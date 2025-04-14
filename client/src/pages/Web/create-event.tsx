@@ -121,8 +121,8 @@ const CreateEvent = () => {
   const { location } = useLocation();
   const [, setLocation] = useWouterLocation();
   const { toast } = useToast();
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   
   // Form setup
   const form = useForm<CreateEventFormValues>({
@@ -727,9 +727,10 @@ const CreateEvent = () => {
                   </Card>
                 </div>
                 
-                {/* Rechter kolom - Datum/tijd en locatie (volgorde omgedraaid) */}
+                {/* Rechter kolom - Gewijzigde volgorde: Datum/tijd, Tags en daarna pas Locatie helemaal onderaan */}
                 <div className="space-y-6">
-                  <Card>
+                  {/* Datum en tijd kaart */}
+                  <Card className="relative" style={{ zIndex: 100 }}>
                     <CardHeader>
                       <CardTitle className="text-xl">Datum en tijd</CardTitle>
                       <CardDescription>
@@ -748,7 +749,7 @@ const CreateEvent = () => {
                               setDate={field.onChange}
                               placement="top"
                               label=""
-                              className="z-50"
+                              className="relative z-50"
                             />
                             <FormDescription>
                               Datum en tijd waarop het evenement begint
@@ -769,7 +770,7 @@ const CreateEvent = () => {
                               setDate={field.onChange}
                               placement="top"
                               label=""
-                              className="z-40"
+                              className="relative z-40"
                             />
                             <FormDescription>
                               Datum en tijd waarop het evenement eindigt
@@ -781,31 +782,8 @@ const CreateEvent = () => {
                     </CardContent>
                   </Card>
                   
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-xl">Locatie</CardTitle>
-                      <CardDescription>
-                        Klik op de kaart om de locatie te kiezen
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <LocationPicker 
-                        defaultPosition={[
-                          form.getValues('location')?.lat || 51.7767, 
-                          form.getValues('location')?.lng || 5.5345
-                        ]}
-                        onChange={handleLocationChange}
-                      />
-                      <div className="flex items-center mt-4 text-sm text-muted-foreground">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        <span>
-                          Lat: {(form.watch('location')?.lat || 0).toFixed(6)}, Lng: {(form.watch('location')?.lng || 0).toFixed(6)}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
+                  {/* Tags kaart */}
+                  <Card className="relative" style={{ zIndex: 90 }}>
                     <CardHeader>
                       <CardTitle className="flex justify-between items-center">
                         <span className="text-xl">Tags</span>
@@ -847,6 +825,33 @@ const CreateEvent = () => {
                       />
                     </CardContent>
                   </Card>
+                  
+                  {/* Locatie kaart - nu helemaal onderaan */}
+                  <Card className="relative" style={{ zIndex: 10 }}>
+                    <CardHeader>
+                      <CardTitle className="text-xl">Locatie</CardTitle>
+                      <CardDescription>
+                        Klik op de kaart om de locatie te kiezen
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <LocationPicker 
+                        defaultPosition={[
+                          form.getValues('location')?.lat || 51.7767, 
+                          form.getValues('location')?.lng || 5.5345
+                        ]}
+                        onChange={handleLocationChange}
+                      />
+                      <div className="flex items-center mt-4 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        <span>
+                          Lat: {(form.watch('location')?.lat || 0).toFixed(6)}, Lng: {(form.watch('location')?.lng || 0).toFixed(6)}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+
                 </div>
               </div>
               

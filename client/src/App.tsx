@@ -1,7 +1,7 @@
 import * as React from "react"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { Toaster } from '@/components/ui/toaster'
-import { Link, Route, Switch } from "wouter"
+import { Link, Route, Switch, useLocation, useParams } from "wouter"
 import TopNav from "@/components/Layout/TopNav"
 import MapView from "@/components/Map/MapView"
 import { EventList } from "@/components/EventList"
@@ -22,9 +22,25 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import ModeToggle from "@/components/Web/ModeToggle"
 import type { Event } from "@shared/schema"
 import { queryClient } from "@/lib/queryClient"
-// Nieuwe webversie componenten
+// Webversie componenten
 import CreateEvent from "@/pages/Web/create-event"
 import EventDetail from "@/pages/Web/event-detail"
+// App2 componenten (nieuwe mobiele versie)
+import App2HomePage from "@/pages/App2"
+import App2EventDetail from "@/pages/App2/event-detail"
+import App2CreateEvent from "@/pages/App2/create-event"
+import App2EventsPage from "@/pages/App2/events"
+import App2FavoritesPage from "@/pages/App2/favorites"
+import App2ProfilePage from "@/pages/App2/profile"
+
+// Helper component voor redirects
+function AppRedirect({ to }: { to: string }) {
+  React.useEffect(() => {
+    window.location.href = to;
+  }, [to]);
+  
+  return null;
+}
 
 export default function App() {
   const isMobile = useIsMobile();
@@ -208,7 +224,121 @@ export default function App() {
     );
   }
 
-  // Original mobile version
+  // If we're on a mobile device (small screen), we'll show App2 (enhanced mobile experience)
+  // This automatically activates the new enhanced mobile experience on small screens
+  if (isMobile) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Switch>
+          {/* Admin Routes */}
+          <Route path="/login">
+            <AdminLogin />
+          </Route>
+          <Route path="/admin/login">
+            <AdminLogin />
+          </Route>
+          <Route path="/admin">
+            <AuthGuard>
+              <AdminDashboard />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/events">
+            <AuthGuard>
+              <AdminEvents />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/users">
+            <AuthGuard>
+              <AdminUsers />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/activity-logs">
+            <AuthGuard>
+              <ActivityLogs />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/events/:id">
+            <AuthGuard>
+              <AdminEventDetail />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/events/new">
+            <AuthGuard>
+              <AdminEventForm />
+            </AuthGuard>
+          </Route>
+          <Route path="/admin/events/edit/:id">
+            <AuthGuard>
+              <AdminEventForm />
+            </AuthGuard>
+          </Route>
+          
+          {/* App2 Routes - Enhanced Mobile Experience */}
+          <Route path="/app2/create-event">
+            <App2CreateEvent />
+          </Route>
+          <Route path="/app2/event/:id">
+            <App2EventDetail />
+          </Route>
+          <Route path="/app2/events">
+            <App2EventsPage />
+          </Route>
+          <Route path="/app2/favorites">
+            <App2FavoritesPage />
+          </Route>
+          <Route path="/app2/profile">
+            <App2ProfilePage />
+          </Route>
+          <Route path="/app2">
+            <App2HomePage />
+          </Route>
+          
+          {/* Original App Routes - we redirect these to App2 */}
+          <Route path="/app/create-event">
+            <AppRedirect to="/app2/create-event" />
+          </Route>
+          <Route path="/app/event/:id">
+            {({ id }) => <AppRedirect to={`/app2/event/${id}`} />}
+          </Route>
+          <Route path="/app/events">
+            <AppRedirect to="/app2/events" />
+          </Route>
+          <Route path="/app/favorites">
+            <AppRedirect to="/app2/favorites" />
+          </Route>
+          <Route path="/app/profile">
+            <AppRedirect to="/app2/profile" />
+          </Route>
+          <Route path="/app">
+            <AppRedirect to="/app2" />
+          </Route>
+          
+          {/* Legacy routes - for backwards compatibility */}
+          <Route path="/create-event">
+            <App2CreateEvent />
+          </Route>
+          <Route path="/event/:id">
+            {(params) => <App2EventDetail />}
+          </Route>
+          <Route path="/events">
+            <App2EventsPage />
+          </Route>
+          <Route path="/favorites">
+            <App2FavoritesPage />
+          </Route>
+          <Route path="/profile">
+            <App2ProfilePage />
+          </Route>
+          <Route path="/">
+            <App2HomePage />
+          </Route>
+        </Switch>
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+  
+  // Original mobile version (fallback for larger screens that don't get the web experience)
   return (
     <QueryClientProvider client={queryClient}>
       <div className="h-screen flex flex-col relative">

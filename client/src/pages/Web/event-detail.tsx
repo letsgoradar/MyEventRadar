@@ -262,7 +262,7 @@ const EventDetail = () => {
                         <div>
                           <h3 className="text-sm font-medium text-muted-foreground">Tags</h3>
                           <div className="flex flex-wrap gap-2 mt-2">
-                            {event.tags.map(tag => (
+                            {event.tags.map((tag: string) => (
                               <Badge key={tag} variant="secondary">{tag}</Badge>
                             ))}
                           </div>

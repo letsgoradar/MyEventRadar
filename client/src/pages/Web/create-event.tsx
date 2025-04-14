@@ -235,7 +235,7 @@ const CreateEvent = () => {
     });
   };
   
-  // Functie om afbeelding te verwerken
+  // Functie om afbeelding te resizen en verwerken
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -250,24 +250,98 @@ const CreateEvent = () => {
         return;
       }
       
-      // Controleer bestandsgrootte (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
+      // Eerste validatie van bestandsgrootte
+      if (file.size > 10 * 1024 * 1024) { // 10MB als initiële check
         toast({
           title: "Bestand te groot",
-          description: "De afbeelding mag maximaal 5MB groot zijn.",
+          description: "De afbeelding mag maximaal 10MB groot zijn.",
           variant: "destructive"
         });
         return;
       }
       
-      setSelectedImage(file);
-      form.setValue('imageFile', file);
+      // Toon een laadbericht
+      toast({
+        title: "Afbeelding optimaliseren",
+        description: "De afbeelding wordt geoptimaliseerd...",
+      });
       
-      // Maak een preview URL
+      // Maak een afbeeldingselement aan om te gebruiken voor resizing
+      const img = new Image();
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
+      
+      reader.onload = (readerEvent) => {
+        img.onload = () => {
+          // Bepaal de grootte om naar te resizen
+          // Behoud de aspect ratio, maar beperk de max dimensie tot 1200px
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 1200;
+          let width = img.width;
+          let height = img.height;
+          
+          // Bereken nieuwe dimensies
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = Math.round(height * (MAX_WIDTH / width));
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = Math.round(width * (MAX_HEIGHT / height));
+              height = MAX_HEIGHT;
+            }
+          }
+          
+          // Maak een canvas aan om de afbeelding te resizen
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Teken de afbeelding op het canvas
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            toast({
+              title: "Fout bij optimaliseren",
+              description: "Er is een probleem opgetreden bij het optimaliseren van de afbeelding.",
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Converteer naar JPEG met 85% kwaliteit voor een goede balans
+          const optimizedImageUrl = canvas.toDataURL('image/jpeg', 0.85);
+          
+          // Gebruik deze als preview
+          setImagePreview(optimizedImageUrl);
+          form.setValue('imageUrl', optimizedImageUrl);
+          
+          // Converteer data URL naar Blob/File voor opslag
+          const byteString = atob(optimizedImageUrl.split(',')[1]);
+          const mimeString = optimizedImageUrl.split(',')[0].split(':')[1].split(';')[0];
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          
+          const optimizedBlob = new Blob([ab], { type: mimeString });
+          const optimizedFile = new File([optimizedBlob], file.name, { type: 'image/jpeg' });
+          
+          setSelectedImage(optimizedFile);
+          form.setValue('imageFile', optimizedFile);
+          
+          toast({
+            title: "Afbeelding geoptimaliseerd",
+            description: "De afbeelding is succesvol geoptimaliseerd en klaar voor gebruik.",
+          });
+        };
+        
+        img.src = readerEvent.target?.result as string;
       };
+      
       reader.readAsDataURL(file);
     }
   };
@@ -653,7 +727,7 @@ const CreateEvent = () => {
                   </Card>
                 </div>
                 
-                {/* Rechter kolom - Locatie, datum en tijd */}
+                {/* Rechter kolom - Datum/tijd en locatie (volgorde omgedraaid) */}
                 <div className="space-y-6">
                   <Card>
                     <CardHeader>
@@ -662,7 +736,7 @@ const CreateEvent = () => {
                         Wanneer vindt het evenement plaats?
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-6">
                       <FormField
                         control={form.control}
                         name="startTime"
@@ -672,7 +746,13 @@ const CreateEvent = () => {
                             <DateTimePicker
                               date={field.value}
                               setDate={field.onChange}
+                              placement="top"
+                              label=""
+                              className="z-50"
                             />
+                            <FormDescription>
+                              Datum en tijd waarop het evenement begint
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -687,7 +767,13 @@ const CreateEvent = () => {
                             <DateTimePicker
                               date={field.value}
                               setDate={field.onChange}
+                              placement="top"
+                              label=""
+                              className="z-40"
                             />
+                            <FormDescription>
+                              Datum en tijd waarop het evenement eindigt
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}

@@ -280,7 +280,7 @@ const CreateEvent = () => {
         });
         
         // Maak een afbeeldingselement aan om te gebruiken voor resizing
-        const img = new Image() as HTMLImageElement;
+        const img = document.createElement('img');
         const reader = new FileReader();
         
         reader.onload = (readerEvent) => {
@@ -620,7 +620,10 @@ const CreateEvent = () => {
                                   variant="destructive" 
                                   size="icon" 
                                   className="absolute top-2 right-2" 
-                                  onClick={() => removeImage(0)}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    removeImage(0);
+                                  }}
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
@@ -642,7 +645,10 @@ const CreateEvent = () => {
                                           variant="destructive" 
                                           size="icon" 
                                           className="absolute top-1 right-1 h-5 w-5" 
-                                          onClick={() => removeImage(index + 1)}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            removeImage(index + 1);
+                                          }}
                                         >
                                           <X className="h-3 w-3" />
                                         </Button>

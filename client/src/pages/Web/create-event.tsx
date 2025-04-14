@@ -33,7 +33,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, ChevronLeft, Image, MapPin, X } from 'lucide-react';
+import { Calendar, ChevronLeft, Image, MapPin, X, Plus } from 'lucide-react';
 import { Link } from 'wouter';
 import { DateTimePicker } from '@/components/date-time-picker';
 import { useToast } from '@/hooks/use-toast';
@@ -280,7 +280,7 @@ const CreateEvent = () => {
         });
         
         // Maak een afbeeldingselement aan om te gebruiken voor resizing
-        const img = new Image();
+        const img = new Image() as HTMLImageElement;
         const reader = new FileReader();
         
         reader.onload = (readerEvent) => {

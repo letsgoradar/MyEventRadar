@@ -84,7 +84,7 @@ export function DateTimePicker({
             {buttonFormat ? buttonFormat : <span>Selecteer {mode === "time" ? "tijd" : "datum"}</span>}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start" side={placement}>
+        <PopoverContent className="w-auto p-0 z-[9999]" align="start" side={placement}>
           {mode !== "time" && (
             <Calendar
               mode="single"

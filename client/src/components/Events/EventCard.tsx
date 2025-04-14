@@ -190,94 +190,107 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   return (
     <Link href={`/web/event/${event.id}`}>
       <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer">
-        <CardHeader className="p-4 pb-0">
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-lg font-bold line-clamp-1">
-                {event.title}
-              </CardTitle>
-              <CardDescription className="flex items-center gap-2 mt-1 text-gray-500">
-                <CategoryIcon category={event.category as any} className="flex-shrink-0 h-4 w-4" />
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  <span className="text-xs">
-                    {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                      ? `${calculatedDistance.toFixed(1)} km` 
-                      : 'Afstand onbekend'}
-                  </span>
-                </div>
-              </CardDescription>
-            </div>
-            <Badge variant="outline" style={{ 
-              backgroundColor: `${getCategoryColor(event.category as any)}20`,
-              color: getCategoryColor(event.category as any)
-            }}>
+        <div className="flex flex-col md:flex-row">
+          {/* Afbeelding links */}
+          <div className="md:w-1/3 h-[180px] md:h-auto relative">
+            {hasEventImage ? (
+              <img 
+                src={(event as any).imageUrl} 
+                alt={event.title} 
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="h-full w-full relative">
+                <MapContainer 
+                  center={eventCoords} 
+                  zoom={14} 
+                  scrollWheelZoom={false}
+                  zoomControl={false}
+                  attributionControl={false}
+                  dragging={false}
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                    subdomains="abcd"
+                  />
+                  <Marker position={eventCoords} icon={createEventIcon(event.category)} />
+                </MapContainer>
+              </div>
+            )}
+            
+            {/* Categorie badge overlay */}
+            <Badge 
+              variant="outline" 
+              className="absolute top-2 left-2"
+              style={{ 
+                backgroundColor: `${getCategoryColor(event.category as any)}90`,
+                color: 'white'
+              }}
+            >
               {event.category}
             </Badge>
           </div>
-        </CardHeader>
-
-        <CardContent className="p-4 pt-2">
-          <div className="flex flex-col gap-2 mb-4">
-            <CountdownTimer startTime={event.startTime} />
-
-            {event.isPaid && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Euro className="h-3 w-3" />
-                <span>{Number(event.price).toFixed(2)} EUR</span>
+          
+          {/* Content rechts */}
+          <div className="md:w-2/3 flex flex-col">
+            <CardHeader className="p-4 pb-0">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-lg font-bold line-clamp-1">
+                    {event.title}
+                  </CardTitle>
+                  <CardDescription className="flex items-center gap-2 mt-1 text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      <span className="text-xs">
+                        {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
+                          ? `${calculatedDistance.toFixed(1)} km` 
+                          : 'Afstand onbekend'}
+                      </span>
+                    </div>
+                  </CardDescription>
+                </div>
               </div>
-            )}
-          </div>
+            </CardHeader>
 
-          {/* Responsive layout - side by side on larger screens */}
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="line-clamp-3 text-sm">
-                {event.description || 'Geen beschrijving beschikbaar'}
-              </div>
-            </div>
+            <CardContent className="p-4 pt-2 flex-1 flex flex-col">
+              <div className="flex flex-col gap-2 mb-4">
+                <CountdownTimer startTime={event.startTime} />
 
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">Locatie</h3>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 px-2 text-xs"
-                  onClick={(e) => {
-                    e.preventDefault(); // Voorkom navigatie naar event detail
-                    setShowStreetView(!showStreetView);
-                  }}
-                >
-                  <Eye className="h-3 w-3 mr-1" />
-                  {showStreetView ? 'Toon kaart' : 'Toon locatie'}
-                </Button>
-              </div>
-
-              <div className="h-[150px] min-h-[100px] md:min-w-[150px] md:max-w-[200px] rounded-md overflow-hidden shadow-sm event-card-map">
-                {showStreetView ? (
-                  <StreetView latitude={eventCoords[0]} longitude={eventCoords[1]} />
-                ) : (
-                  <MapContainer 
-                    center={eventCoords} 
-                    zoom={14} 
-                    scrollWheelZoom={false}
-                    zoomControl={false}
-                    attributionControl={false}
-                    dragging={false}
-                    style={{ height: '100%', width: '100%' }}
-                  >
-                    <TileLayer
-                      url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                      subdomains="abcd"
-                    />
-                    <Marker position={eventCoords} icon={createEventIcon(event.category)} />
-                  </MapContainer>
+                {event.isPaid && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Euro className="h-3 w-3" />
+                    <span>{Number(event.price).toFixed(2)} EUR</span>
+                  </div>
                 )}
               </div>
-            </div>
+
+              <div className="flex-1">
+                <div className="line-clamp-3 text-sm">
+                  {event.description || 'Geen beschrijving beschikbaar'}
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center text-sm text-muted-foreground mt-4">
+                <div className="flex items-center">
+                  <Calendar className="h-4 w-4 mr-1" />
+                  {new Date(event.startTime).toLocaleDateString('nl-NL', {
+                    day: 'numeric',
+                    month: 'short'
+                  })}
+                </div>
+                
+                <div className="flex items-center">
+                  {new Date(event.startTime).toLocaleTimeString('nl-NL', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </div>
+              </div>
+            </CardContent>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </Link>
   );

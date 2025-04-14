@@ -15,6 +15,11 @@ interface App2LayoutProps {
   filteredEvents?: Event[];
   header?: React.ReactNode;
   isLoading?: boolean;
+  searchQuery?: string;
+  radius?: number;
+  onSearch?: React.Dispatch<React.SetStateAction<string>>;
+  onRadiusChange?: React.Dispatch<React.SetStateAction<number>>;
+  onFilteredEventsChange?: React.Dispatch<React.SetStateAction<Event[]>>;
 }
 
 export function App2Layout({
@@ -24,6 +29,11 @@ export function App2Layout({
   filteredEvents = [],
   header,
   isLoading = false,
+  searchQuery,
+  radius,
+  onSearch,
+  onRadiusChange,
+  onFilteredEventsChange,
 }: App2LayoutProps) {
   const [view, setView] = React.useState<"list" | "map">("list");
   const [mapExpanded, setMapExpanded] = React.useState<boolean>(false);

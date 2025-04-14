@@ -38,7 +38,7 @@ export function App2EventDetail() {
 
   if (isLoading) {
     return (
-      <App2Layout>
+      <App2Layout title="Evenement">
         <div className="p-4">
           <div className="animate-pulse space-y-4">
             <div className="h-48 bg-gray-200 rounded-md" />
@@ -57,7 +57,7 @@ export function App2EventDetail() {
 
   if (error || !event) {
     return (
-      <App2Layout>
+      <App2Layout title="Evenement niet gevonden">
         <div className="p-4">
           <div className="text-center py-8">
             <AlertCircle className="h-12 w-12 mx-auto text-red-500 mb-4" />
@@ -158,7 +158,7 @@ export function App2EventDetail() {
   const eventImages = [event.imageUrl].filter(Boolean) as string[];
   
   return (
-    <App2Layout>
+    <App2Layout title={event.title}>
       <div className="pb-20">
         <div className="sticky top-0 bg-background z-10 flex items-center justify-between p-4 border-b">
           <Button variant="ghost" size="icon" asChild>

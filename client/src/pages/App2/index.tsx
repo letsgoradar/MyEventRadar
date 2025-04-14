@@ -40,13 +40,19 @@ export function App2HomePage() {
 
   return (
     <App2Layout
+      title="Evenementen"
       searchQuery={searchQuery}
       radius={radius}
       filteredEvents={filteredEvents}
       onSearch={setSearchQuery}
       onRadiusChange={setRadius}
       onFilteredEventsChange={setFilteredEvents}
-    />
+      showMap={true}
+    >
+      <div>
+        {/* Hier kunnen we eventueel andere elementen toevoegen naast de kaart */}
+      </div>
+    </App2Layout>
   );
 }
 

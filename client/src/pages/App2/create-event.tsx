@@ -374,7 +374,7 @@ export function App2CreateEvent() {
   };
 
   return (
-    <App2Layout>
+    <App2Layout title="Nieuw Evenement">
       <div className="pb-20">
         <div className="sticky top-0 bg-background z-10 flex items-center p-4 border-b">
           <Button variant="ghost" size="icon" asChild className="mr-4">
@@ -382,7 +382,6 @@ export function App2CreateEvent() {
               <ChevronLeft className="h-5 w-5" />
             </Link>
           </Button>
-          <h1 className="text-lg font-bold">Nieuw Evenement</h1>
         </div>
 
         <div className="p-4">

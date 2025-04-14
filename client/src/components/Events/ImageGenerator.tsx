@@ -28,19 +28,19 @@ export function ImageGenerator({
   // Generate rich prompt based on event information
   React.useEffect(() => {
     if (title && category && isAutoPrompt) {
-      // Maak een rijke, gedetailleerde prompt
-      let autoPrompt = `Een professionele foto voor een ${category.toLowerCase()} evenement in Nederland genaamd "${title}"`;
+      // Maak een hoogwaardige, gedetailleerde prompt
+      let autoPrompt = `Een realistische, professionele foto voor een ${category.toLowerCase()} evenement in Nederland genaamd "${title}"`;
       
-      // Locatie en omgeving toevoegen
-      const locationWords = ["buiten", "binnen", "park", "zaal", "theater", "centrum", "stad", "natuur", "plein"];
+      // Locatie en omgeving toevoegen met meer variatie
+      const locationWords = ["buiten", "binnen", "park", "zaal", "theater", "centrum", "stad", "natuur", "plein", "evenementenzaal", "conferentieruimte", "festivalterrein"];
       const randomLocationWord = locationWords[Math.floor(Math.random() * locationWords.length)];
       
-      // Sfeer toevoegen
-      const moodWords = ["gezellig", "levendig", "warm", "uitnodigend", "energiek", "enthousiast", "ontspannen"];
+      // Sfeer en kwaliteit toevoegen
+      const moodWords = ["gezellig", "levendig", "warm", "uitnodigend", "energiek", "enthousiast", "ontspannen", "feestelijk", "inspirerend"];
       const randomMoodWord = moodWords[Math.floor(Math.random() * moodWords.length)];
       
-      // Voeg deze elementen toe aan de prompt
-      autoPrompt += `, in een ${randomLocationWord} met een ${randomMoodWord} sfeer`;
+      // Voeg deze elementen toe aan de prompt met meer details voor betere resultaten
+      autoPrompt += `, in een ${randomLocationWord} met een ${randomMoodWord} sfeer, met goede belichting`;
       
       // Voeg beschrijving toe als die er is
       if (description && description.length > 5) {

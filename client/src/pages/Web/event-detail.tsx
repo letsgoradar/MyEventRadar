@@ -152,22 +152,11 @@ const EventDetail = () => {
               </div>
 
               <div className="relative h-[300px] overflow-hidden rounded-lg bg-muted">
-                {event.imageUrl ? (
-                  // Toon de afbeelding als die beschikbaar is
-                  <img 
-                    src={event.imageUrl} 
-                    alt={event.title} 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  // Fallback wanneer er geen afbeelding is
-                  <>
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/40"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-white text-lg font-medium">Geen afbeelding beschikbaar</span>
-                    </div>
-                  </>
-                )}
+                {/* Event image zou hier getoond worden als die er was */}
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/40"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-white text-lg font-medium">Evenement afbeelding</span>
+                </div>
               </div>
 
               <div>
@@ -263,7 +252,7 @@ const EventDetail = () => {
                         <div>
                           <h3 className="text-sm font-medium text-muted-foreground">Tags</h3>
                           <div className="flex flex-wrap gap-2 mt-2">
-                            {event.tags.map((tag: string) => (
+                            {event.tags.map(tag => (
                               <Badge key={tag} variant="secondary">{tag}</Badge>
                             ))}
                           </div>

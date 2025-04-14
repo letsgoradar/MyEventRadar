@@ -37,14 +37,8 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
     
-    // Kort de prompt in tot een maximale lengte om problemen met grote payloads te voorkomen
-    const maxPromptLength = 500;
-    const trimmedPrompt = prompt.length > maxPromptLength 
-      ? prompt.substring(0, maxPromptLength) + "..." 
-      : prompt;
-    
-    // Optimaliseer de prompt voor betere resultaten met Stable Diffusion
-    const enhancedPrompt = `Fotorealistische afbeelding voor een Nederlands evenement: ${trimmedPrompt}. Professionele fotografie stijl, hoge kwaliteit, vierkant formaat.`;
+    // Optimaliseer de prompt voor eenvoudigere, kleinere afbeeldingen
+    const enhancedPrompt = `Eenvoudige afbeelding voor een Nederlands evenement: ${prompt}. Moderne stijl, nette weergave, simpel ontwerp.`;
     
     console.log(`Genereren van afbeelding met Hugging Face (${HF_MODEL_ID}), prompt:`, enhancedPrompt);
     
@@ -53,10 +47,10 @@ router.post('/', async (req: Request, res: Response) => {
       inputs: enhancedPrompt,
       parameters: {
         negative_prompt: "lage kwaliteit, onscherp, wazig, vervormd, onrealistisch, cartoon, tekening, schilderij, tekst, handschrift, watermark",
-        num_inference_steps: 30,  // Hogere kwaliteit door meer stappen
+        num_inference_steps: 25,  // Iets minder stappen voor snellere generatie
         guidance_scale: 7.5,      // Balans tussen creativiteit en prompt-getrouwheid
-        width: 512,              // Vierkante afbeeldingen voor tegels
-        height: 512,
+        width: 512,              // Kleinere afbeeldingsbreedte (was standaard 1024)
+        height: 512,             // Kleinere afbeeldingshoogte (was standaard 1024)
       },
       options: {
         use_cache: true,

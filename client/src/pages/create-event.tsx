@@ -6,7 +6,7 @@ import { useLocation } from "wouter"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { X, Satellite, Image as ImageIcon } from "lucide-react"
+import { X, Satellite } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -21,7 +21,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { CategoryPicker } from "@/components/CategoryPicker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format, addHours, setMinutes, setSeconds, setMilliseconds } from "date-fns"
 import * as z from 'zod'
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
@@ -32,7 +31,6 @@ import TopNav from "@/components/Layout/TopNav";
 import BottomNav from "@/components/Layout/BottomNav";
 import { generateTags, generateDescription, suggestCategory } from '@/lib/aiTagGenerator';
 import { CATEGORIES } from "@shared/schema";
-import { ImageGenerator } from "@/components/Events/ImageGenerator";
 
 const DEFAULT_CENTER = [52.1326, 5.2913] // Center of Netherlands
 const DEFAULT_ZOOM = 6 // For Netherlands overview
@@ -61,7 +59,6 @@ const createEventFormSchema = z.object({
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
   hostId: z.number(),
   tags: z.array(z.string()).max(5, "Maximaal 5 tags toegestaan"),
-  imageUrl: z.string().optional(), // Voor AI-gegenereerde afbeeldingen
 });
 
 const RECURRENCE_OPTIONS = [
@@ -82,8 +79,6 @@ export default function CreateEventPage() {
   const queryClient = useQueryClient();
   const [isSatelliteView, setIsSatelliteView] = useState(true); // Standaard satelliet view
   const [mapInitialized, setMapInitialized] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState<string>("basic");
 
   // Get location from URL parameters (from long-press)
   const params = new URLSearchParams(window.location.search || "");
@@ -102,12 +97,6 @@ export default function CreateEventPage() {
 
   const [position, setPosition] = useState(initialPosition);
   const [zoom, setZoom] = useState(urlZoom ? parseInt(urlZoom) : DEFAULT_ZOOM);
-  
-  // Functie om een AI gegenereerde afbeelding te verwerken
-  const handleAIGeneratedImage = (imageUrl: string) => {
-    setImagePreview(imageUrl);
-    form.setValue('imageUrl', imageUrl);
-  };
 
   const form = useForm<z.infer<typeof createEventFormSchema>>({
     resolver: zodResolver(createEventFormSchema),
@@ -218,16 +207,9 @@ export default function CreateEventPage() {
         hostId: data.hostId,
         recurrence: data.recurrence,
         tags: data.tags,
-        imageUrl: data.imageUrl || null,
       };
 
-      const response = await fetch('/api/events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(eventData),
-      });
+      const response = await apiRequest('POST', '/api/events', eventData);
 
       queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
 
@@ -571,54 +553,6 @@ export default function CreateEventPage() {
                       </FormItem>
                     )}
                   />
-                  
-                  {/* Afbeelding genereren of uploaden */}
-                  <div className="space-y-4">
-                    <FormLabel>Afbeelding</FormLabel>
-                    
-                    <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-                      <TabsList className="w-full">
-                        <TabsTrigger value="ai" className="flex-1">AI genereren</TabsTrigger>
-                      </TabsList>
-                      
-                      <TabsContent value="ai" className="mt-4">
-                        {imagePreview ? (
-                          <div className="relative">
-                            <img
-                              src={imagePreview}
-                              alt="Gegenereerde afbeelding"
-                              className="w-full aspect-square object-cover rounded-md"
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute top-2 right-2"
-                              onClick={() => {
-                                setImagePreview(null);
-                                form.setValue('imageUrl', undefined);
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <ImageGenerator
-                            title={form.getValues("title") || ""}
-                            category={form.getValues("category") || ""}
-                            description={form.getValues("description") || ""}
-                            onImageGenerated={handleAIGeneratedImage}
-                          />
-                        )}
-                      </TabsContent>
-                    </Tabs>
-                    
-                    {form.formState.errors.imageUrl && (
-                      <p className="text-sm text-destructive">
-                        Een afbeelding is verplicht voor je evenement
-                      </p>
-                    )}
-                  </div>
 
                   <FormField
                     control={form.control}

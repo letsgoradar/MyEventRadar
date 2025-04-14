@@ -82,7 +82,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
       <Link href={`/web/event/${event.id}`}>
         <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col">
           {/* Afbeelding bovenaan met overlay voor categorie en afstand */}
-          <div className="relative aspect-square overflow-hidden">
+          <div className="relative h-48 overflow-hidden">
             {hasEventImage ? (
               // Toon de afbeelding van het evenement
               <div className="h-full w-full">
@@ -239,32 +239,23 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">{hasEventImage ? 'Afbeelding' : 'Locatie'}</h3>
-                {!hasEventImage && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 px-2 text-xs"
-                    onClick={(e) => {
-                      e.preventDefault(); // Voorkom navigatie naar event detail
-                      setShowStreetView(!showStreetView);
-                    }}
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    {showStreetView ? 'Toon kaart' : 'Toon locatie'}
-                  </Button>
-                )}
+                <h3 className="text-sm font-medium">Locatie</h3>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 px-2 text-xs"
+                  onClick={(e) => {
+                    e.preventDefault(); // Voorkom navigatie naar event detail
+                    setShowStreetView(!showStreetView);
+                  }}
+                >
+                  <Eye className="h-3 w-3 mr-1" />
+                  {showStreetView ? 'Toon kaart' : 'Toon locatie'}
+                </Button>
               </div>
 
               <div className="h-[150px] min-h-[100px] md:min-w-[150px] md:max-w-[200px] rounded-md overflow-hidden shadow-sm event-card-map">
-                {hasEventImage ? (
-                  // Toon de afbeelding van het evenement
-                  <img 
-                    src={(event as any).imageUrl} 
-                    alt={event.title} 
-                    className="h-full w-full object-cover"
-                  />
-                ) : showStreetView ? (
+                {showStreetView ? (
                   <StreetView latitude={eventCoords[0]} longitude={eventCoords[1]} />
                 ) : (
                   <MapContainer 

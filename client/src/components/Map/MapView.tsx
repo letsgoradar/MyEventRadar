@@ -54,9 +54,10 @@ interface MapViewProps {
   searchQuery?: string;
   radius?: number;
   filteredEvents?: Event[];
+  hideZoomControls?: boolean;
 }
 
-export default function MapView({ searchQuery = "", radius = 10, filteredEvents }: MapViewProps) {
+export default function MapView({ searchQuery = "", radius = 10, filteredEvents, hideZoomControls = false }: MapViewProps) {
   // State voor locatie van gebruiker
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
   const [eventsData, setEventsData] = React.useState<Event[]>([]);
@@ -181,7 +182,7 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
         center={userLocation}
         zoom={13}
         style={{ height: "100%", width: "100%" }}
-        zoomControl={true}
+        zoomControl={!hideZoomControls}
         className="z-10 map-container"
         attributionControl={false}
       >

@@ -253,7 +253,7 @@ export function App2Layout({
         <div className="flex justify-between items-center mb-3">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button variant="outline" size="sm" className="gap-1 relative z-10">
                 <Sliders className="h-4 w-4" />
                 Filters
                 {selectedCategories.length > 0 && (
@@ -328,11 +328,11 @@ export function App2Layout({
         </div>
       </div>
       
-      {/* Kaart weergave - nu altijd volledig getoond en doorlopend onder de filter en zoekbalk */}
+      {/* Kaart weergave - nu volledig vanaf zoekbalk tot bottom navigatie */}
       {view === "map" && (
         <div className="flex-1">
-          <div className="w-full h-[calc(100vh-16rem)] absolute inset-0 top-0 pt-[8.5rem] z-0">
-            <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} />
+          <div className="w-full h-[calc(100vh-11rem)] absolute inset-0 top-0 pt-[6.5rem] z-0">
+            <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} hideZoomControls={true} />
           </div>
         </div>
       )}

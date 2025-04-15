@@ -51,7 +51,8 @@ interface UserProfile {
   name: string;
   email: string;
   phone: string;
-  avatar: string | null;
+  avatar?: string | null;
+  photoUrl?: string | null;
   joinedAt: string;
   location: string;
   bio: string;
@@ -62,10 +63,11 @@ export function App2ProfilePage() {
   const [isDarkMode, setIsDarkMode] = React.useState(false);
 
   // Haal gebruikersgegevens op van de API
-  const { data: user, isLoading } = useQuery<UserProfile>({
+  const { data: user = dummyUser as UserProfile, isLoading } = useQuery<UserProfile>({
     queryKey: ['/api/current-user'],
-    enabled: true,
-    placeholderData: dummyUser as UserProfile // Fallback als data nog niet geladen is
+    enabled: true, 
+    // Als er geen data is geladen, gebruik dummyUser als fallback
+    placeholderData: dummyUser as UserProfile
   });
 
   const [notifications, setNotifications] = React.useState({

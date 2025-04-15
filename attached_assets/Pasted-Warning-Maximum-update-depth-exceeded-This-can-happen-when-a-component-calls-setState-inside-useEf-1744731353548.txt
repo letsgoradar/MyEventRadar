@@ -1,0 +1,16 @@
+Warning: Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn&#x27;t have a dependency array, or one of the dependencies changes on every render.
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-QZXW3H44.js?v=93ceaf35:1980:13
+    at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-popover.js?v=93ceaf35:118:13
+    at Provider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-LSQNWB54.js?v=93ceaf35:38:15)
+    at Provider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-QZXW3H44.js?v=93ceaf35:1915:15)
+    at Popper (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-QZXW3H44.js?v=93ceaf35:1972:11)
+    at Popover (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-popover.js?v=93ceaf35:67:5)
+    at div
+    at div
+    at div
+    at App2Layout (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/components/App2/App2Layout.tsx?t=1744731183365:35:3)
+    at App2HomePage (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/pages/App2/index.tsx?t=1744731183365:25:47)
+    at Route (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=93ceaf35:323:16)
+    at Switch (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=93ceaf35:379:17)
+    at QueryClientProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=93ceaf35:2805:3)
+    at App (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/App.tsx?t=1744731206157&v=CYcSeD2irTGagemjTqFOz:55:20)

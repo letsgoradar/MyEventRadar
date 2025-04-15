@@ -116,10 +116,7 @@ export function App2ProfilePage() {
                       localStorage.setItem('profilePhotoUrl', absolutePhotoUrl);
                       console.log("Saved to localStorage from profile page:", absolutePhotoUrl);
                       
-                      // Force reload om de profielfoto in de header bij te werken
-                      setTimeout(() => {
-                        window.location.reload();
-                      }, 500);
+                      // Er is geen reload meer nodig dankzij onze verbeterde state handling in App2Layout
                     }
                     
                     toast({

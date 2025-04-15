@@ -158,23 +158,20 @@ export function App2Layout({
   
   // Effect om localStorage te checken voor updates tijdens navigatie
   React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const checkLocalStorage = () => {
-      if (typeof window !== 'undefined') {
-        const storedPhotoUrl = localStorage.getItem('profilePhotoUrl');
-        setSavedPhotoUrl(prev => {
-          if (prev !== storedPhotoUrl && storedPhotoUrl) {
-            console.log("Updating photo from localStorage:", storedPhotoUrl);
-            return storedPhotoUrl;
-          }
-          return prev;
-        });
+      const storedPhotoUrl = localStorage.getItem('profilePhotoUrl');
+      if (storedPhotoUrl && storedPhotoUrl !== savedPhotoUrl) {
+        console.log("Updating photo from localStorage:", storedPhotoUrl);
+        setSavedPhotoUrl(storedPhotoUrl);
       }
     };
     
     // Check bij focus van venster (terugnavigatie)
     window.addEventListener('focus', checkLocalStorage);
     return () => window.removeEventListener('focus', checkLocalStorage);
-  }, []);
+  }, [savedPhotoUrl]);
   
   // Hanteer profielfoto update
   const handleProfilePhotoUpdate = (photoUrl: string) => {
@@ -259,7 +256,7 @@ export function App2Layout({
           </div>
           
           {/* Filter tags */}
-          <div className="flex flex-wrap gap-2 mb-3">
+          <div className="flex flex-wrap gap-2 mb-3 relative z-10">
             {searchQuery && (
               <Badge className="flex gap-1 items-center bg-primary/10 hover:bg-primary/20 text-primary border-none">
                 <span className="truncate">{searchQuery}</span>
@@ -296,82 +293,84 @@ export function App2Layout({
             ))}
           </div>
           
-          {/* Filters popover */}
-          <div className="flex justify-between items-center mb-3">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1 relative z-10">
-                  <Sliders className="h-4 w-4" />
-                  Filters
-                  {selectedCategories.length > 0 && (
-                    <Badge className="ml-1 text-xs h-5 min-w-5 flex items-center justify-center bg-primary text-primary-foreground">
-                      {selectedCategories.length}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-4" sideOffset={5}>
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Afstand: {formatRadius(radius)}</h3>
-                    <div className="px-1">
-                      <Slider
-                        value={[radius]}
-                        min={1}
-                        max={300}
-                        step={1}
-                        onValueChange={handleRadiusChange}
-                        className="mb-1"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>1 km</span>
-                        <span>Nederland</span>
+          {/* Filters popover - memoized om rerendering te voorkomen */}
+          <div className="flex justify-between items-center mb-3 relative z-10">
+            {React.useMemo(() => (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <Sliders className="h-4 w-4" />
+                    Filters
+                    {selectedCategories.length > 0 && (
+                      <Badge className="ml-1 text-xs h-5 min-w-5 flex items-center justify-center bg-primary text-primary-foreground">
+                        {selectedCategories.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[280px] p-4" sideOffset={5} forceMount={false}>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">Afstand: {formatRadius(radius)}</h3>
+                      <div className="px-1">
+                        <Slider
+                          value={[radius]}
+                          min={1}
+                          max={300}
+                          step={1}
+                          onValueChange={handleRadiusChange}
+                          className="mb-1"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>1 km</span>
+                          <span>Nederland</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Categorieën</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      {CATEGORIES.map((category) => {
-                        const isSelected = selectedCategories.includes(category);
-                        return (
-                          <Button
-                            key={category}
-                            size="sm"
-                            variant="outline"
-                            className={cn(
-                              "h-auto py-1 px-2 text-xs justify-start gap-1",
-                              isSelected && "bg-primary text-primary-foreground"
-                            )}
-                            onClick={() => toggleCategory(category)}
-                          >
-                            <CategoryIcon category={category} size={14} />
-                            <span className="truncate">{category}</span>
-                          </Button>
-                        );
-                      })}
+                    
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">Categorieën</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {CATEGORIES.map((category) => {
+                          const isSelected = selectedCategories.includes(category);
+                          return (
+                            <Button
+                              key={category}
+                              size="sm"
+                              variant="outline"
+                              className={cn(
+                                "h-auto py-1 px-2 text-xs justify-start gap-1",
+                                isSelected && "bg-primary text-primary-foreground"
+                              )}
+                              onClick={() => toggleCategory(category)}
+                            >
+                              <CategoryIcon category={category} size={14} />
+                              <span className="truncate">{category}</span>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    <div className="pt-2 flex justify-end gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSelectedCategories([])}
+                      >
+                        Reset
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={applyFilters}
+                      >
+                        Toepassen
+                      </Button>
                     </div>
                   </div>
-                  
-                  <div className="pt-2 flex justify-end gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setSelectedCategories([])}
-                    >
-                      Reset
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      onClick={applyFilters}
-                    >
-                      Toepassen
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+            ), [radius, selectedCategories, toggleCategory, formatRadius, applyFilters, handleRadiusChange])}
           </div>
         </div>
       )}

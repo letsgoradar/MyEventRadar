@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays } from "lucide-react";
+import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
+import ProfilePhotoUpload from "./ProfilePhotoUpload";
+import { useQuery } from "@tanstack/react-query";
 
 interface App2LayoutProps {
   children: React.ReactNode;
@@ -131,6 +133,17 @@ export function App2Layout({
     });
   };
   
+  // Haal gebruiker en profielfoto op
+  const { data: user } = useQuery({
+    queryKey: ['/api/current-user'],
+  });
+
+  // Hanteer profielfoto update
+  const handleProfilePhotoUpdate = (photoUrl: string) => {
+    // Foto is al opgeslagen op de server; React Query zal automatisch de cache vernieuwen
+    // We zouden hier lokaal de cache kunnen updaten als we direct feedback willen zonder te wachten op een nieuwe request
+  };
+  
   // Maak de inhoud van de pagina op basis van de gekozen weergave
   return (
     <div className="flex flex-col min-h-screen bg-background pb-16">
@@ -146,11 +159,17 @@ export function App2Layout({
             </svg>
             <h1 className="text-xl font-semibold">{title}</h1>
           </div>
-          <a href="/app2/profile" className="cursor-pointer">
-            <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium">
-              JD
-            </div>
-          </a>
+          <Link href="/app2/profile" className="cursor-pointer">
+            <Avatar className="h-8 w-8 border-2 border-primary">
+              {user?.photoUrl ? (
+                <AvatarImage src={user.photoUrl} alt="Profielfoto" />
+              ) : (
+                <AvatarFallback>
+                  <User className="h-4 w-4" />
+                </AvatarFallback>
+              )}
+            </Avatar>
+          </Link>
           {header}
         </div>
       </header>

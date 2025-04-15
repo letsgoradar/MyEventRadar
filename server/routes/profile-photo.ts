@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { storage } from '../storage';
+import { storage as appStorage } from '../storage';
 import { isAuthenticated } from '../middleware/auth';
 import multer from 'multer';
 import path from 'path';
@@ -64,7 +64,7 @@ router.post('/', isAuthenticated, upload.single('photo'), async (req: Request, r
     const relativePath = `/uploads/profile-photos/${req.file.filename}`;
     
     // Update gebruiker record met nieuwe foto URL
-    const updatedUser = await storage.updateUser(userId, {
+    const updatedUser = await appStorage.updateUser(userId, {
       photoUrl: relativePath
     });
     

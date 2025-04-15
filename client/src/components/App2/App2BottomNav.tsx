@@ -43,16 +43,10 @@ export function App2BottomNav() {
   // Navigatie items configuratie
   const navItems = React.useMemo(() => [
     {
-      label: "Evenementen",
+      label: "Live",
       href: "/app2",
       icon: HomeIcon,
       isActive: location === "/app2" || location === "/app2/",
-    },
-    {
-      label: "Zoeken",
-      href: "/app2/search",
-      icon: Search,
-      isActive: location.includes("/app2/search"),
     },
     {
       label: "Aanmaken",
@@ -66,12 +60,6 @@ export function App2BottomNav() {
       href: "/app2/favorites",
       icon: Heart,
       isActive: location.includes("/app2/favorites"),
-    },
-    {
-      label: "Profiel",
-      href: "/app2/profile",
-      icon: User,
-      isActive: location.includes("/app2/profile"),
     },
   ], [location]);
 

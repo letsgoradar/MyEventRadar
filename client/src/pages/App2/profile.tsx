@@ -31,6 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import ProfilePhotoUpload from "@/components/App2/ProfilePhotoUpload";
 
 // Dummy gebruikersgegevens (normaal gesproken zou dit uit een API komen)
 const dummyUser = {
@@ -93,12 +94,17 @@ export function App2ProfilePage() {
           <TabsContent value="profile">
             <Card className="mb-4">
               <CardContent className="pt-6 flex flex-col items-center">
-                <Avatar className="h-24 w-24 mb-4">
-                  <AvatarImage src="/images/default-user.svg" alt={user.name} />
-                  <AvatarFallback>
-                    {user.name.split(" ").map((n: string) => n[0]).join("")}
-                  </AvatarFallback>
-                </Avatar>
+                <ProfilePhotoUpload 
+                  currentPhotoUrl={user.avatar}
+                  onPhotoUploaded={(photoUrl) => {
+                    toast({
+                      title: "Profielfoto bijgewerkt",
+                      description: "Je profielfoto is succesvol bijgewerkt."
+                    });
+                  }}
+                  size="lg"
+                  showUploadButton={true}
+                />
                 <h2 className="text-xl font-bold">{user.name}</h2>
                 <p className="text-muted-foreground">{user.location}</p>
                 

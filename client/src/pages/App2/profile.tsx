@@ -40,6 +40,7 @@ const dummyUser = {
   email: "jan.jansen@example.com",
   phone: "+31 6 12345678",
   avatar: null,
+  photoUrl: null,
   joinedAt: "2022-05-15T10:30:00Z",
   location: "Eindhoven",
   bio: "Enthousiaste evenementenbezoeker en organisator van lokale community activiteiten. Ik ben geïnteresseerd in muziek, technologie en lokale initiatieven.",

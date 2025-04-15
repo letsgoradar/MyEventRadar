@@ -49,36 +49,33 @@ export default function App() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [radius, setRadius] = React.useState(10);
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
-  const [isWebVersion, setIsWebVersion] = React.useState(false);
 
-  // Check for URL path to determine interface type and redirect if needed
+  // Log information for debugging
   React.useEffect(() => {
-    const path = window.location.pathname;
+    console.log("Got user location:", 51.77344, 5.5345152);
+    console.log("Web version enabled:", !isMobile);
     
-    // Set web version based on URL path
-    if (path.startsWith('/web')) {
-      setIsWebVersion(true);
-      localStorage.setItem('useWebVersion', 'true');
-    } else if (path.startsWith('/app')) {
-      setIsWebVersion(false);
-      localStorage.setItem('useWebVersion', 'false');
-    } else if (path === '/') {
-      // Redirect home page to /web or /app based on user preference or device
-      const storedPref = localStorage.getItem('useWebVersion');
-      if (storedPref === 'true' || (!storedPref && !isMobile)) {
-        window.location.href = '/web';
-      } else {
-        window.location.href = '/app';
-      }
-    } else if (!path.startsWith('/admin')) {
-      // For other paths that don't start with /web, /app, or /admin, check localStorage
-      const storedPref = localStorage.getItem('useWebVersion');
-      if (storedPref === 'true') {
-        setIsWebVersion(true);
-      }
+    // Test API verbinding voor nabije evenementen
+    if (navigator.geolocation) {
+      const params = { lat: 51.77344, lng: 5.5345152, radius: 10 };
+      console.log("Fetching events with params:", params);
+      console.log("Making API request to: /api/events/nearby?lat=51.77344&lng=5.5345152&radius=10");
+      
+      fetch(`/api/events/nearby?lat=${params.lat}&lng=${params.lng}&radius=${params.radius}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log("API response successful:", data);
+          setFilteredEvents(data);
+        })
+        .catch(error => {
+          console.error("API request error:", error);
+        });
     }
-    
-    console.log('Web version enabled:', path.startsWith('/web') || localStorage.getItem('useWebVersion') === 'true');
   }, [isMobile]);
 
   const toggleView = React.useCallback(() => {
@@ -97,424 +94,209 @@ export default function App() {
     setFilteredEvents(events);
   }, []);
 
-  // If using web version and not on a mobile device, use the WebLayout
-  if (isWebVersion && !isMobile) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <Switch>
-          {/* Admin Routes */}
-          <Route path="/login">
-            <AdminLogin />
-          </Route>
-          <Route path="/admin/login">
-            <AdminLogin />
-          </Route>
-          <Route path="/admin">
-            <AuthGuard>
-              <AdminDashboard />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events">
-            <AuthGuard>
-              <AdminEvents />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/users">
-            <AuthGuard>
-              <AdminUsers />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/activity-logs">
-            <AuthGuard>
-              <ActivityLogs />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events/:id">
-            <AuthGuard>
-              <AdminEventDetail />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events/new">
-            <AuthGuard>
-              <AdminEventForm />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events/edit/:id">
-            <AuthGuard>
-              <AdminEventForm />
-            </AuthGuard>
-          </Route>
-          
-          {/* Web Version Routes - both /web prefix and direct routes */}
-          <Route path="/web/create-event">
-            <CreateEvent />
-          </Route>
-          <Route path="/web/event/:id">
-            <EventDetail />
-          </Route>
-          <Route path="/web/events">
-            <WebLayout>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
-                <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
-              </div>
-            </WebLayout>
-          </Route>
-          <Route path="/web/favorites">
-            <WebLayout>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
-                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-              </div>
-            </WebLayout>
-          </Route>
-          <Route path="/web/profile">
-            <WebLayout>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold mb-6">Profiel</h1>
-                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-              </div>
-            </WebLayout>
-          </Route>
-          <Route path="/web">
-            <WebPage />
-          </Route>
-          
-          {/* Default Web Routes - for backwards compatibility */}
-          <Route path="/create-event">
-            <WebLayout>
-              <CreateEventPage />
-            </WebLayout>
-          </Route>
-          <Route path="/event/:id">
-            <WebLayout>
-              <EventDetailPage />
-            </WebLayout>
-          </Route>
-          <Route path="/events">
-            <WebLayout>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
-                <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
-              </div>
-            </WebLayout>
-          </Route>
-          <Route path="/favorites">
-            <WebLayout>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
-                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-              </div>
-            </WebLayout>
-          </Route>
-          <Route path="/profile">
-            <WebLayout>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold mb-6">Profiel</h1>
-                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-              </div>
-            </WebLayout>
-          </Route>
-          <Route path="/">
-            <WebPage />
-          </Route>
-        </Switch>
-        <Toaster />
-        <ModeToggle />
-      </QueryClientProvider>
-    );
-  }
-
-  // If we're on a mobile device (small screen), we'll show App2 (enhanced mobile experience)
-  // This automatically activates the new enhanced mobile experience on small screens
-  if (isMobile) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <Switch>
-          {/* Admin Routes */}
-          <Route path="/login">
-            <AdminLogin />
-          </Route>
-          <Route path="/admin/login">
-            <AdminLogin />
-          </Route>
-          <Route path="/admin">
-            <AuthGuard>
-              <AdminDashboard />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events">
-            <AuthGuard>
-              <AdminEvents />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/users">
-            <AuthGuard>
-              <AdminUsers />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/activity-logs">
-            <AuthGuard>
-              <ActivityLogs />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events/:id">
-            <AuthGuard>
-              <AdminEventDetail />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events/new">
-            <AuthGuard>
-              <AdminEventForm />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events/edit/:id">
-            <AuthGuard>
-              <AdminEventForm />
-            </AuthGuard>
-          </Route>
-          
-          {/* App2 Routes - Enhanced Mobile Experience */}
-          <Route path="/app2/create-event">
-            <App2CreateEvent />
-          </Route>
-          <Route path="/app2/event/:id">
-            <App2EventDetail />
-          </Route>
-          <Route path="/app2/events">
-            <App2EventsPage />
-          </Route>
-          <Route path="/app2/favorites">
-            <App2FavoritesPage />
-          </Route>
-          <Route path="/app2/profile">
-            <App2ProfilePage />
-          </Route>
-          <Route path="/app2/login">
-            <App2LoginPage />
-          </Route>
-          <Route path="/app2">
-            <App2HomePage />
-          </Route>
-          
-          {/* Original App Routes - we redirect these to App2 */}
-          <Route path="/app/create-event">
-            <AppRedirect to="/app2/create-event" />
-          </Route>
-          <Route path="/app/event/:id">
-            {({ id }) => <AppRedirect to={`/app2/event/${id}`} />}
-          </Route>
-          <Route path="/app/events">
-            <AppRedirect to="/app2/events" />
-          </Route>
-          <Route path="/app/favorites">
-            <AppRedirect to="/app2/favorites" />
-          </Route>
-          <Route path="/app/profile">
-            <AppRedirect to="/app2/profile" />
-          </Route>
-          <Route path="/app">
-            <AppRedirect to="/app2" />
-          </Route>
-          
-          {/* Legacy routes - for backwards compatibility */}
-          <Route path="/create-event">
-            <App2CreateEvent />
-          </Route>
-          <Route path="/event/:id">
-            {(params) => <App2EventDetail />}
-          </Route>
-          <Route path="/events">
-            <App2EventsPage />
-          </Route>
-          <Route path="/favorites">
-            <App2FavoritesPage />
-          </Route>
-          <Route path="/profile">
-            <App2ProfilePage />
-          </Route>
-          <Route path="/login">
-            <App2LoginPage />
-          </Route>
-          <Route path="/">
-            <App2HomePage />
-          </Route>
-        </Switch>
-        <Toaster />
-      </QueryClientProvider>
-    );
-  }
-  
-  // Original mobile version (fallback for larger screens that don't get the web experience)
+  // We kiezen de juiste interface op basis van het apparaat:
+  // Desktop/tablet → Web interface
+  // Mobiel → App2 interface
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="h-screen flex flex-col relative">
-        <Switch>
-          {/* Admin Routes */}
-          <Route path="/login">
-            <AdminLogin />
-          </Route>
-          <Route path="/admin/login">
-            <AdminLogin />
-          </Route>
-          <Route path="/admin">
-            <AuthGuard>
-              <AdminDashboard />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events">
-            <AuthGuard>
-              <AdminEvents />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/users">
-            <AuthGuard>
-              <AdminUsers />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/activity-logs">
-            <AuthGuard>
-              <ActivityLogs />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events/:id">
-            <AuthGuard>
-              <AdminEventDetail />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events/new">
-            <AuthGuard>
-              <AdminEventForm />
-            </AuthGuard>
-          </Route>
-          <Route path="/admin/events/edit/:id">
-            <AuthGuard>
-              <AdminEventForm />
-            </AuthGuard>
-          </Route>
-          
-          {/* Mobile App Routes with /app prefix */}
-          <Route path="/app/create-event">
-            <CreateEventPage />
-          </Route>
-          <Route path="/app/event/:id">
-            <EventDetailPage />
-          </Route>
-          <Route path="/app">
-            <>
-              <TopNav 
-                isMapView={isMapView}
-                toggleView={toggleView}
-                onSearch={handleSearch}
-                radius={radius}
-                onRadiusChange={handleRadiusChange}
-                onFilteredEventsChange={handleFilteredEventsChange}
-              />
-              <div className="absolute inset-0 top-[calc(3.5rem+3rem)] bottom-[75px] z-0">
-                {isMapView ? (
-                  <MapView searchQuery={searchQuery} radius={radius} filteredEvents={filteredEvents} />
-                ) : (
-                  <div className="h-full overflow-auto pt-4">
-                    <EventList searchQuery={searchQuery} radius={radius} filteredEvents={filteredEvents} />
-                  </div>
-                )}
-              </div>
-              <BottomNav />
-            </>
-          </Route>
-          <Route path="/app/events">
-            <div className="h-screen flex flex-col relative">
-              <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
-                <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
-                <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
-              </div>
-              <BottomNav />
-            </div>
-          </Route>
-          <Route path="/app/favorites">
-            <div className="h-screen flex flex-col relative">
-              <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
-                <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
-                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-              </div>
-              <BottomNav />
-            </div>
-          </Route>
-          <Route path="/app/profile">
-            <div className="h-screen flex flex-col relative">
-              <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
-                <h1 className="text-2xl font-bold mb-6">Profiel</h1>
-                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-              </div>
-              <BottomNav />
-            </div>
-          </Route>
-
-          {/* Legacy routes - for backwards compatibility */}
-          <Route path="/create-event">
-            <CreateEventPage />
-          </Route>
-          <Route path="/event/:id">
-            <EventDetailPage />
-          </Route>
-          <Route path="/events">
-            <div className="h-screen flex flex-col relative">
-              <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
-                <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
-                <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
-              </div>
-              <BottomNav />
-            </div>
-          </Route>
-          <Route path="/favorites">
-            <div className="h-screen flex flex-col relative">
-              <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
-                <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
-                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-              </div>
-              <BottomNav />
-            </div>
-          </Route>
-          <Route path="/profile">
-            <div className="h-screen flex flex-col relative">
-              <TopNav />
-              <div className="flex-1 overflow-auto p-4 pb-24 pt-[calc(3.5rem+3rem)]">
-                <h1 className="text-2xl font-bold mb-6">Profiel</h1>
-                <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-              </div>
-              <BottomNav />
-            </div>
-          </Route>
-          <Route path="/">
-            <>
-              <TopNav 
-                isMapView={isMapView}
-                toggleView={toggleView}
-                onSearch={handleSearch}
-                radius={radius}
-                onRadiusChange={handleRadiusChange}
-                onFilteredEventsChange={handleFilteredEventsChange}
-              />
-              <div className="absolute inset-0 top-[calc(3.5rem+3rem)] bottom-[75px] z-0">
-                {isMapView ? (
-                  <MapView searchQuery={searchQuery} radius={radius} filteredEvents={filteredEvents} />
-                ) : (
-                  <div className="h-full overflow-auto pt-4">
-                    <EventList searchQuery={searchQuery} radius={radius} filteredEvents={filteredEvents} />
-                  </div>
-                )}
-              </div>
-              <BottomNav />
-            </>
-          </Route>
-        </Switch>
-        <Toaster />
-      </div>
+      <Switch>
+        {/* Admin Routes - beschikbaar op alle apparaten */}
+        <Route path="/login">
+          <AdminLogin />
+        </Route>
+        <Route path="/admin/login">
+          <AdminLogin />
+        </Route>
+        <Route path="/admin">
+          <AuthGuard>
+            <AdminDashboard />
+          </AuthGuard>
+        </Route>
+        <Route path="/admin/events">
+          <AuthGuard>
+            <AdminEvents />
+          </AuthGuard>
+        </Route>
+        <Route path="/admin/users">
+          <AuthGuard>
+            <AdminUsers />
+          </AuthGuard>
+        </Route>
+        <Route path="/admin/activity-logs">
+          <AuthGuard>
+            <ActivityLogs />
+          </AuthGuard>
+        </Route>
+        <Route path="/admin/events/:id">
+          <AuthGuard>
+            <AdminEventDetail />
+          </AuthGuard>
+        </Route>
+        <Route path="/admin/events/new">
+          <AuthGuard>
+            <AdminEventForm />
+          </AuthGuard>
+        </Route>
+        <Route path="/admin/events/edit/:id">
+          <AuthGuard>
+            <AdminEventForm />
+          </AuthGuard>
+        </Route>
+        
+        {/* Desktop Web Routes */}
+        {!isMobile && (
+          <>
+            <Route path="/web/create-event">
+              <CreateEvent />
+            </Route>
+            <Route path="/web/event/:id">
+              <EventDetail />
+            </Route>
+            <Route path="/web/events">
+              <WebLayout>
+                <div className="p-6">
+                  <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
+                  <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
+                </div>
+              </WebLayout>
+            </Route>
+            <Route path="/web/favorites">
+              <WebLayout>
+                <div className="p-6">
+                  <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
+                  <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
+                </div>
+              </WebLayout>
+            </Route>
+            <Route path="/web/profile">
+              <WebLayout>
+                <div className="p-6">
+                  <h1 className="text-2xl font-bold mb-6">Profiel</h1>
+                  <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
+                </div>
+              </WebLayout>
+            </Route>
+            <Route path="/web">
+              <WebPage />
+            </Route>
+            
+            {/* Backwards compatibility: reguliere routes verwijzen naar web versie voor desktop */}
+            <Route path="/create-event">
+              <CreateEvent />
+            </Route>
+            <Route path="/event/:id">
+              <EventDetail />
+            </Route>
+            <Route path="/events">
+              <WebLayout>
+                <div className="p-6">
+                  <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
+                  <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
+                </div>
+              </WebLayout>
+            </Route>
+            <Route path="/favorites">
+              <WebLayout>
+                <div className="p-6">
+                  <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
+                  <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
+                </div>
+              </WebLayout>
+            </Route>
+            <Route path="/profile">
+              <WebLayout>
+                <div className="p-6">
+                  <h1 className="text-2xl font-bold mb-6">Profiel</h1>
+                  <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
+                </div>
+              </WebLayout>
+            </Route>
+            
+            {/* Default routes voor desktop */}
+            <Route path="/">
+              <WebPage />
+            </Route>
+          </>
+        )}
+        
+        {/* Mobiele Routes (App2) */}
+        {isMobile && (
+          <>
+            {/* App2 specifieke routes */}
+            <Route path="/app2/create-event">
+              <App2CreateEvent />
+            </Route>
+            <Route path="/app2/event/:id">
+              <App2EventDetail />
+            </Route>
+            <Route path="/app2/events">
+              <App2EventsPage />
+            </Route>
+            <Route path="/app2/favorites">
+              <App2FavoritesPage />
+            </Route>
+            <Route path="/app2/profile">
+              <App2ProfilePage />
+            </Route>
+            <Route path="/app2/login">
+              <App2LoginPage />
+            </Route>
+            <Route path="/app2">
+              <App2HomePage />
+            </Route>
+            
+            {/* Originele app routes - redirecten naar App2 */}
+            <Route path="/app/create-event">
+              <AppRedirect to="/app2/create-event" />
+            </Route>
+            <Route path="/app/event/:id">
+              {({ id }) => <AppRedirect to={`/app2/event/${id}`} />}
+            </Route>
+            <Route path="/app/events">
+              <AppRedirect to="/app2/events" />
+            </Route>
+            <Route path="/app/favorites">
+              <AppRedirect to="/app2/favorites" />
+            </Route>
+            <Route path="/app/profile">
+              <AppRedirect to="/app2/profile" />
+            </Route>
+            <Route path="/app">
+              <AppRedirect to="/app2" />
+            </Route>
+            
+            {/* Basis routes - voor backwards compatibility */}
+            <Route path="/create-event">
+              <App2CreateEvent />
+            </Route>
+            <Route path="/event/:id">
+              <App2EventDetail />
+            </Route>
+            <Route path="/events">
+              <App2EventsPage />
+            </Route>
+            <Route path="/favorites">
+              <App2FavoritesPage />
+            </Route>
+            <Route path="/profile">
+              <App2ProfilePage />
+            </Route>
+            <Route path="/login">
+              <App2LoginPage />
+            </Route>
+            <Route path="/">
+              <App2HomePage />
+            </Route>
+          </>
+        )}
+        
+        {/* Fallback route voor onbekende routes */}
+        <Route>
+          {isMobile ? <App2HomePage /> : <WebPage />}
+        </Route>
+      </Switch>
+      <Toaster />
+      {!isMobile && <ModeToggle />}
     </QueryClientProvider>
   );
 }

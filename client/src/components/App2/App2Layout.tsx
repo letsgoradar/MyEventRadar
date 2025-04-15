@@ -152,7 +152,7 @@ export function App2Layout({
   return (
     <div className="flex flex-col min-h-screen bg-background pb-16">
       {/* Header met titel */}
-      <header className="sticky top-0 z-20 bg-background border-b">
+      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b">
         <div className="container py-3 px-4 flex justify-between items-center">
           <div className="flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary mr-2">
@@ -328,10 +328,10 @@ export function App2Layout({
         </div>
       </div>
       
-      {/* Kaart weergave - nu altijd volledig getoond zonder vergroten/verkleinen knop */}
+      {/* Kaart weergave - nu altijd volledig getoond en doorlopend onder de filter en zoekbalk */}
       {view === "map" && (
         <div className="flex-1">
-          <div className="w-full h-[calc(100vh-16rem)]">
+          <div className="w-full h-[calc(100vh-16rem)] absolute inset-0 top-0 pt-[8.5rem] -z-10">
             <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} />
           </div>
         </div>

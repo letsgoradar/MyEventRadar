@@ -54,23 +54,26 @@ export function App2Layout({
     }
   }, [filteredEvents, originalEvents]);
   
-  // Wanneer een categorie wordt toegevoegd of verwijderd, moeten we de gefilterde evenementen bijwerken
-  React.useEffect(() => {
-    if (onFilteredEventsChange && originalEvents.length > 0) {
-      if (selectedCategories.length === 0) {
-        // Als er geen categorieën geselecteerd zijn, toon alle originele evenementen
-        onFilteredEventsChange(originalEvents);
-        return;
-      }
-      
-      // Filter evenementen op basis van geselecteerde categorieën
-      const newFilteredEvents = originalEvents.filter(event => 
-        selectedCategories.includes(event.category as typeof CATEGORIES[number])
-      );
-      
-      onFilteredEventsChange(newFilteredEvents);
+  // Filter events gebaseerd op geselecteerde categorieën, maar update niet de state
+  const displayedEvents = React.useMemo(() => {
+    // Als er geen originele events zijn, gebruik de gefilterde events direct
+    if (originalEvents.length === 0) return filteredEvents;
+    
+    // Als er geen categorieën geselecteerd zijn, toon alle originele evenementen
+    if (selectedCategories.length === 0) return originalEvents;
+    
+    // Filter evenementen op basis van geselecteerde categorieën
+    return originalEvents.filter(event => 
+      selectedCategories.includes(event.category as typeof CATEGORIES[number])
+    );
+  }, [selectedCategories, originalEvents, filteredEvents]);
+  
+  // Update gefilterde events alleen wanneer de gebruiker op Toepassen klikt
+  const applyFilters = React.useCallback(() => {
+    if (onFilteredEventsChange) {
+      onFilteredEventsChange(displayedEvents);
     }
-  }, [selectedCategories, originalEvents, onFilteredEventsChange]);
+  }, [displayedEvents, onFilteredEventsChange]);
   
   // Geef voorkeur aan de kaartweergave als showMap=true
   React.useEffect(() => {
@@ -239,6 +242,22 @@ export function App2Layout({
                     })}
                   </div>
                 </div>
+                
+                <div className="pt-2 flex justify-end gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setSelectedCategories([])}
+                  >
+                    Reset
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    onClick={applyFilters}
+                  >
+                    Toepassen
+                  </Button>
+                </div>
               </div>
             </PopoverContent>
           </Popover>
@@ -268,7 +287,7 @@ export function App2Layout({
       {view === "map" && (
         <div className="flex-1">
           <div className={cn("w-full transition-all", mapHeight)}>
-            <MapView filteredEvents={filteredEvents} />
+            <MapView filteredEvents={displayedEvents} />
           </div>
           <div className="container px-4">
             <Button

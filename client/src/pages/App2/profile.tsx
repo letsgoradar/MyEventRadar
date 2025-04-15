@@ -44,12 +44,24 @@ const dummyUser = {
   bio: "Enthousiaste evenementenbezoeker en organisator van lokale community activiteiten. Ik ben geïnteresseerd in muziek, technologie en lokale initiatieven.",
 };
 
+// Type definitie voor de gebruiker
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  avatar: string | null;
+  joinedAt: string;
+  location: string;
+  bio: string;
+}
+
 export function App2ProfilePage() {
   const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = React.useState(false);
 
   // Zou normaal een API call zijn
-  const { data: user = dummyUser, isLoading } = useQuery({
+  const { data: user = dummyUser as UserProfile, isLoading } = useQuery<UserProfile>({
     queryKey: ['/api/user/profile'],
     enabled: false // We gebruiken dummy data voor nu
   });
@@ -84,7 +96,7 @@ export function App2ProfilePage() {
                 <Avatar className="h-24 w-24 mb-4">
                   <AvatarImage src="/images/default-user.svg" alt={user.name} />
                   <AvatarFallback>
-                    {user.name.split(" ").map(n => n[0]).join("")}
+                    {user.name.split(" ").map((n: string) => n[0]).join("")}
                   </AvatarFallback>
                 </Avatar>
                 <h2 className="text-xl font-bold">{user.name}</h2>

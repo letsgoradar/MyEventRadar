@@ -1,12 +1,17 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, List, Map } from "lucide-react";
+import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import MapView from "@/components/Map/MapView";
 import App2BottomNav from "./App2BottomNav";
-import { Event } from "@shared/schema";
+import { Event, CATEGORIES } from "@shared/schema";
 import { AnimatePresence, motion } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 
 interface App2LayoutProps {
   children: React.ReactNode;
@@ -29,14 +34,15 @@ export function App2Layout({
   filteredEvents = [],
   header,
   isLoading = false,
-  searchQuery,
-  radius,
+  searchQuery = "",
+  radius = 10,
   onSearch,
   onRadiusChange,
   onFilteredEventsChange,
 }: App2LayoutProps) {
   const [view, setView] = React.useState<"list" | "map">("list");
   const [mapExpanded, setMapExpanded] = React.useState<boolean>(false);
+  const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
   
   // Geef voorkeur aan de kaartweergave als showMap=true
   React.useEffect(() => {
@@ -58,38 +64,173 @@ export function App2Layout({
   // Bereken de hoogte van de kaart op basis van de expandedstatus
   const mapHeight = mapExpanded ? "h-[60vh]" : "h-[30vh]";
   
+  // Functie voor formatteren van de radius-weergave
+  const formatRadius = (value: number) => {
+    if (value >= 300) {
+      return "Heel Nederland";
+    }
+    if (value === 1) {
+      return "1 km";
+    }
+    return `${value} km`;
+  };
+  
+  // Functie voor het bijwerken van de zoektekst
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onSearch) {
+      onSearch(e.target.value);
+    }
+  };
+  
+  // Functie voor het bijwerken van de radius
+  const handleRadiusChange = (value: number[]) => {
+    if (onRadiusChange) {
+      onRadiusChange(value[0]);
+    }
+  };
+  
+  // Functie voor het toevoegen/verwijderen van een categorie
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev => {
+      return prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category];
+    });
+  };
+  
   // Maak de inhoud van de pagina op basis van de gekozen weergave
   return (
     <div className="flex flex-col min-h-screen bg-background pb-16">
       {/* Header met titel */}
       <header className="sticky top-0 z-10 bg-background border-b">
-        <div className="container py-3">
+        <div className="container py-3 px-4">
           <h1 className="text-xl font-semibold">{title}</h1>
           {header}
         </div>
       </header>
       
-      {/* Kaart/lijst-weergave knoppen */}
-      <div className="container mt-2">
-        <div className="flex space-x-2 mb-2">
-          <Button
-            variant={view === "list" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setView("list")}
-            className="flex-1"
-          >
-            <List className="h-4 w-4 mr-2" />
-            Lijst
-          </Button>
-          <Button
-            variant={view === "map" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setView("map")}
-            className="flex-1"
-          >
-            <Map className="h-4 w-4 mr-2" />
-            Kaart
-          </Button>
+      {/* Zoekbalk */}
+      <div className="container mt-2 px-4">
+        <div className="relative mb-3">
+          <Input
+            placeholder="Zoek evenementen..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="pl-9 pr-4 h-10 w-full border-gray-300"
+          />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+        </div>
+        
+        {/* Filter tags */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {searchQuery && (
+            <Badge className="flex gap-1 items-center bg-primary/10 hover:bg-primary/20 text-primary border-none">
+              <span className="truncate">{searchQuery}</span>
+              <X 
+                className="h-3 w-3 cursor-pointer" 
+                onClick={() => onSearch && onSearch("")}
+              />
+            </Badge>
+          )}
+          
+          {radius && radius !== 10 && (
+            <Badge className="flex gap-1 items-center bg-primary/10 hover:bg-primary/20 text-primary border-none">
+              <span>{formatRadius(radius)}</span>
+              <X 
+                className="h-3 w-3 cursor-pointer" 
+                onClick={() => onRadiusChange && onRadiusChange(10)}
+              />
+            </Badge>
+          )}
+          
+          {selectedCategories.map(category => (
+            <Badge 
+              key={category}
+              className="flex gap-1 items-center"
+              style={{ backgroundColor: getCategoryColor(category), color: 'white' }}
+            >
+              <CategoryIcon category={category} size={12} className="text-white" />
+              <span>{category}</span>
+              <X 
+                className="h-3 w-3 cursor-pointer text-white" 
+                onClick={() => toggleCategory(category)}
+              />
+            </Badge>
+          ))}
+        </div>
+        
+        {/* Filters popover */}
+        <div className="flex justify-between items-center mb-3">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1">
+                <Sliders className="h-4 w-4" />
+                Filters
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[280px] p-4">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Afstand</h3>
+                  <div className="px-1">
+                    <Slider
+                      defaultValue={[radius]}
+                      min={1}
+                      max={300}
+                      step={1}
+                      onValueChange={handleRadiusChange}
+                      className="mb-1"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>1 km</span>
+                      <span>{formatRadius(radius)}</span>
+                      <span>Nederland</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Categorieën</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {CATEGORIES.map((category) => (
+                      <Button
+                        key={category}
+                        size="sm"
+                        variant="outline"
+                        className={cn(
+                          "h-auto py-1 px-2 text-xs justify-start gap-1",
+                          selectedCategories.includes(category) && "bg-primary text-primary-foreground"
+                        )}
+                        onClick={() => toggleCategory(category)}
+                      >
+                        <CategoryIcon category={category} size={14} />
+                        <span className="truncate">{category}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+          
+          <div className="flex space-x-2">
+            <Button
+              variant={view === "list" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setView("list")}
+              className="h-9 px-3"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={view === "map" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setView("map")}
+              className="h-9 px-3"
+            >
+              <Map className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
       

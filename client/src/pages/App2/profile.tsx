@@ -1,7 +1,7 @@
 import * as React from "react";
 import { App2Layout } from "@/components/App2/App2Layout";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/queryClient";
 import {
   Card,
   CardContent,

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, User, Upload } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ProfilePhotoUploadProps {
   currentPhotoUrl?: string | null;
@@ -64,18 +65,12 @@ export default function ProfilePhotoUpload({
       const formData = new FormData();
       formData.append('photo', file);
       
-      // Upload de afbeelding
-      const response = await fetch('/api/profile-photo', {
+      // Upload de afbeelding met apiRequest
+      const data = await apiRequest('/api/profile-photo', {
         method: 'POST',
-        body: formData,
-        credentials: 'include', // Belangrijk voor het meesturen van sessie cookies
+        data: formData,
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
-      if (!response.ok) {
-        throw new Error('Uploaden mislukt');
-      }
-      
-      const data = await response.json();
       
       // Clean up preview URL
       URL.revokeObjectURL(objectUrl);

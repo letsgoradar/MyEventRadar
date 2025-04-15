@@ -27,7 +27,7 @@ export async function apiRequest<T = any>(
     method,
     headers,
     body: options.data ? 
-      (options.headers?.['Content-Type'] === 'multipart/form-data' ? options.data as FormData : JSON.stringify(options.data)) 
+      (headers['Content-Type'] === 'multipart/form-data' || options.data instanceof FormData ? options.data as FormData : JSON.stringify(options.data)) 
       : undefined,
     credentials: "include",
   });

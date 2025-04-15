@@ -134,19 +134,23 @@ export function App2Layout({
   // Maak de inhoud van de pagina op basis van de gekozen weergave
   return (
     <div className="flex flex-col min-h-screen bg-background pb-16">
-      {/* Header met titel, logo en profiel */}
+      {/* Header met titel */}
       <header className="sticky top-0 z-20 bg-background border-b">
         <div className="container py-3 px-4 flex justify-between items-center">
           <div className="flex items-center">
-            <CalendarDays className="h-6 w-6 text-primary mr-2" />
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary mr-2">
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+              <line x1="16" x2="16" y1="2" y2="6" />
+              <line x1="8" x2="8" y1="2" y2="6" />
+              <line x1="3" x2="21" y1="10" y2="10" />
+            </svg>
             <h1 className="text-xl font-semibold">{title}</h1>
           </div>
-          <Link href="/app2/profile">
-            <Avatar className="h-8 w-8 cursor-pointer">
-              <AvatarImage src="/images/default-user.svg" alt="Gebruiker" />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
-          </Link>
+          <a href="/app2/profile" className="cursor-pointer">
+            <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium">
+              JD
+            </div>
+          </a>
           {header}
         </div>
       </header>

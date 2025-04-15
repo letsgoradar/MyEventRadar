@@ -375,16 +375,19 @@ export function App2CreateEvent() {
 
   return (
     <App2Layout title="Nieuw Evenement">
-      <div className="pb-20">
-        <div className="sticky top-0 bg-background z-10 flex items-center p-4 border-b">
-          <Button variant="ghost" size="icon" asChild className="mr-4">
+      <div className="flex flex-col h-full">
+        {/* Terug knop in header */}
+        <div className="mb-4">
+          <Button variant="ghost" size="sm" asChild className="gap-1">
             <Link href="/app2">
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-4 w-4" />
+              <span>Terug</span>
             </Link>
           </Button>
         </div>
-
-        <div className="p-4">
+        
+        {/* Scrollbare inhoud */}
+        <div className="pb-20 overflow-y-auto flex-1">
           <Form {...form}>
             <form className="space-y-6">
               <Card>
@@ -817,7 +820,7 @@ export function App2CreateEvent() {
                 </CardContent>
               </Card>
               
-              <div className="fixed bottom-20 left-0 right-0 p-4 bg-background border-t">
+              <div className="sticky bottom-20 left-0 right-0 p-4 bg-background border-t mt-8">
                 <Button 
                   type="button" 
                   className="w-full"

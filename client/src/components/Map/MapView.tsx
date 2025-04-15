@@ -110,7 +110,7 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
       <MapContainer
         center={userLocation}
         zoom={13}
-        style={{ height: "100%", width: "100%", background: "#f8f9fa" }}
+        style={{ height: "100%", width: "100%", background: "#fff9c4" }}
         zoomControl={true}
         className="z-10"
       >

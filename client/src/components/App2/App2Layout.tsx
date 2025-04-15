@@ -52,10 +52,10 @@ export function App2Layout({
   
   // Sla de originele evenementen op wanneer ze voor het eerst binnenkomen
   React.useEffect(() => {
-    if (filteredEvents.length > 0 && originalEvents.length === 0) {
+    if (filteredEvents.length > 0) {
       setOriginalEvents(filteredEvents);
     }
-  }, [filteredEvents, originalEvents]);
+  }, [filteredEvents]);
   
   // Filter events gebaseerd op geselecteerde categorieën, maar update niet de state
   const displayedEvents = React.useMemo(() => {
@@ -69,7 +69,7 @@ export function App2Layout({
     return originalEvents.filter(event => 
       selectedCategories.includes(event.category as typeof CATEGORIES[number])
     );
-  }, [selectedCategories, originalEvents, filteredEvents]);
+  }, [selectedCategories, originalEvents]);
   
   // Update gefilterde events alleen wanneer de gebruiker op Toepassen klikt
   const applyFilters = React.useCallback(() => {

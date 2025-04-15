@@ -101,6 +101,10 @@ export function App2ProfilePage() {
                 <ProfilePhotoUpload 
                   currentPhotoUrl={user?.photoUrl || user?.avatar}
                   onPhotoUploaded={(photoUrl) => {
+                    // Sla de URL op in localStorage voor persistentie tussen pagina's
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('profilePhotoUrl', photoUrl);
+                    }
                     toast({
                       title: "Profielfoto bijgewerkt",
                       description: "Je profielfoto is succesvol bijgewerkt."

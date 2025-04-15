@@ -84,6 +84,7 @@ export default function ProfilePhotoUpload({
         description: "Je profielfoto is succesvol bijgewerkt",
       });
     } catch (error) {
+      // Log gedetailleerde error informatie
       console.error("Upload error:", error);
       
       // Meer gedetailleerde foutmelding
@@ -91,6 +92,18 @@ export default function ProfilePhotoUpload({
       
       if (error instanceof Error) {
         errorMsg = error.message || errorMsg;
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+        
+        // Probeer meer informatie te loggen als het een Axios error is
+        if ('response' in error) {
+          // @ts-ignore
+          const axiosError = error.response?.data;
+          console.error("Response data:", axiosError);
+          if (axiosError?.message) {
+            errorMsg = axiosError.message;
+          }
+        }
       }
       
       toast({

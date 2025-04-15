@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertUserSchema, insertEventSchema, insertParticipantSchema, insertSavedSearchSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { isAuthenticated, isAdmin } from "./middleware/auth";
+import { isAuthenticated, isAdmin, attachUser } from "./middleware/auth";
 import generateImageRouter from "./routes/generate-image";
 import profilePhotoRouter from "./routes/profile-photo";
 
@@ -93,6 +93,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current user
   app.get("/api/auth/me", isAuthenticated, (req, res) => {
     res.json(req.user);
+  });
+  
+  // Check if user is authenticated - voor alle gebruikers
+  app.get("/api/auth/check", attachUser, (req, res) => {
+    if (req.user) {
+      res.json({
+        authenticated: true,
+        user: req.user
+      });
+    } else {
+      res.json({
+        authenticated: false,
+        user: null
+      });
+    }
   });
   
   // Haal volledige gebruikersgegevens op inclusief profielfoto

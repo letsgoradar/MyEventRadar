@@ -87,66 +87,56 @@ export function App2LoginForm({ redirectPath = '/app2', onSuccess }: App2LoginFo
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
-            <FormField
-              control={register('email')}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mailadres</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="naam@voorbeeld.nl" 
-                      {...field}
-                      type="email"
-                      disabled={isLoading}
-                      autoComplete="email"
-                    />
-                  </FormControl>
-                  {errors.email && <FormMessage>{errors.email.message}</FormMessage>}
-                </FormItem>
+            <div className="space-y-2">
+              <FormLabel htmlFor="email">E-mailadres</FormLabel>
+              <Input 
+                id="email"
+                placeholder="naam@voorbeeld.nl" 
+                {...register('email')}
+                type="email"
+                disabled={isLoading}
+                autoComplete="email"
+              />
+              {errors.email && (
+                <p className="text-sm text-red-500">{errors.email.message}</p>
               )}
-            />
+            </div>
 
-            <FormField
-              control={register('password')}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Wachtwoord</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        placeholder="••••••••"
-                        {...field}
-                        type={showPassword ? 'text' : 'password'}
-                        disabled={isLoading}
-                        autoComplete="current-password"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowPassword(!showPassword)}
-                        tabIndex={-1}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <span className="sr-only">
-                          {showPassword ? 'Verberg wachtwoord' : 'Toon wachtwoord'}
-                        </span>
-                      </Button>
-                    </div>
-                  </FormControl>
-                  {errors.password && <FormMessage>{errors.password.message}</FormMessage>}
-                </FormItem>
+            <div className="space-y-2">
+              <FormLabel htmlFor="password">Wachtwoord</FormLabel>
+              <div className="relative">
+                <Input
+                  id="password"
+                  placeholder="••••••••"
+                  {...register('password')}
+                  type={showPassword ? 'text' : 'password'}
+                  disabled={isLoading}
+                  autoComplete="current-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className="sr-only">
+                    {showPassword ? 'Verberg wachtwoord' : 'Toon wachtwoord'}
+                  </span>
+                </Button>
+              </div>
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
               )}
-            />
+            </div>
           </div>
 
           <Button
@@ -169,7 +159,7 @@ export function App2LoginForm({ redirectPath = '/app2', onSuccess }: App2LoginFo
               </>
             )}
           </Button>
-        </Form>
+        </form>
       </CardContent>
       <CardFooter className="flex flex-col space-y-4">
         <div className="text-center text-sm">

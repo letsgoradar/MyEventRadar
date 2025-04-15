@@ -28,6 +28,7 @@ import EventDetail from "@/pages/Web/event-detail"
 // App2 componenten (nieuwe mobiele versie)
 import App2HomePage from "@/pages/App2"
 import App2EventDetail from "@/pages/App2/event-detail"
+import App2LoginPage from "@/pages/App2/login"
 import App2CreateEvent from "@/pages/App2/create-event"
 import App2EventsPage from "@/pages/App2/events"
 import App2FavoritesPage from "@/pages/App2/favorites"
@@ -288,6 +289,9 @@ export default function App() {
           </Route>
           <Route path="/app2/profile">
             <App2ProfilePage />
+          </Route>
+          <Route path="/app2/login">
+            <App2LoginPage />
           </Route>
           <Route path="/app2">
             <App2HomePage />

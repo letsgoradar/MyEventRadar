@@ -80,16 +80,26 @@ export default function ProfilePhotoUpload({
       // Clean up preview URL
       URL.revokeObjectURL(objectUrl);
       
-      // Set definitieve URL en callback
-      setPreviewUrl(data.photoUrl);
+      console.log("Server response data:", data);
+      
+      // Verwerk de URL - zorg voor een absolute URL
+      const absolutePhotoUrl = data.photoUrl.startsWith('http') 
+        ? data.photoUrl 
+        : window.location.origin + data.photoUrl;
+      
+      console.log("Absolute photo URL:", absolutePhotoUrl);
+      
+      // Set definitieve URL met absolute URL
+      setPreviewUrl(absolutePhotoUrl);
       
       // Sla de photoUrl op in localStorage voor persistentie tussen pagina's
       if (typeof window !== 'undefined') {
-        localStorage.setItem('profilePhotoUrl', data.photoUrl);
+        localStorage.setItem('profilePhotoUrl', absolutePhotoUrl);
+        console.log("Saved to localStorage:", absolutePhotoUrl);
       }
       
-      // Roep de callback aan
-      onPhotoUploaded(data.photoUrl);
+      // Roep de callback aan met de absolute URL
+      onPhotoUploaded(absolutePhotoUrl);
       
       toast({
         title: "Foto geüpload",

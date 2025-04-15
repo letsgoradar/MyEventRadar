@@ -86,7 +86,10 @@ export function App2ProfilePage() {
   };
 
   return (
-    <App2Layout title="Profiel">
+    <App2Layout title="Profiel" header={
+      // Dummy header component om App2Layout re-rendering te triggeren bij profielfoto update
+      <div className="hidden"></div>
+    }>
       <div className="pb-20 h-full overflow-auto">
         
         <Tabs defaultValue="profile">
@@ -101,10 +104,24 @@ export function App2ProfilePage() {
                 <ProfilePhotoUpload 
                   currentPhotoUrl={user?.photoUrl || user?.avatar}
                   onPhotoUploaded={(photoUrl) => {
+                    console.log("Profile page received photo URL:", photoUrl);
+                    
+                    // Converteer naar absolute URL indien nodig
+                    const absolutePhotoUrl = photoUrl.startsWith('http') 
+                      ? photoUrl 
+                      : window.location.origin + photoUrl;
+                    
                     // Sla de URL op in localStorage voor persistentie tussen pagina's
                     if (typeof window !== 'undefined') {
-                      localStorage.setItem('profilePhotoUrl', photoUrl);
+                      localStorage.setItem('profilePhotoUrl', absolutePhotoUrl);
+                      console.log("Saved to localStorage from profile page:", absolutePhotoUrl);
+                      
+                      // Force reload om de profielfoto in de header bij te werken
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 500);
                     }
+                    
                     toast({
                       title: "Profielfoto bijgewerkt",
                       description: "Je profielfoto is succesvol bijgewerkt."

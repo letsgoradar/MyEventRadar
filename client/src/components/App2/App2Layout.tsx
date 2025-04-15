@@ -142,14 +142,50 @@ export function App2Layout({
     enabled: true,
   });
 
-  // Laad de profielfoto uit localStorage (indien beschikbaar)
-  const savedPhotoUrl = typeof window !== 'undefined' ? localStorage.getItem('profilePhotoUrl') : null;
+  // Laad de profielfoto uit localStorage (indien beschikbaar) in een state
+  const [savedPhotoUrl, setSavedPhotoUrl] = React.useState<string | null>(null);
+  
+  // Effect om localStorage te checken voor een profielfoto bij het laden
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedPhotoUrl = localStorage.getItem('profilePhotoUrl');
+      console.log("Loading from localStorage:", storedPhotoUrl);
+      if (storedPhotoUrl) {
+        setSavedPhotoUrl(storedPhotoUrl);
+      }
+    }
+  }, []);
+  
+  // Effect om localStorage te checken voor updates tijdens navigatie
+  React.useEffect(() => {
+    const checkLocalStorage = () => {
+      if (typeof window !== 'undefined') {
+        const storedPhotoUrl = localStorage.getItem('profilePhotoUrl');
+        setSavedPhotoUrl(prev => {
+          if (prev !== storedPhotoUrl && storedPhotoUrl) {
+            console.log("Updating photo from localStorage:", storedPhotoUrl);
+            return storedPhotoUrl;
+          }
+          return prev;
+        });
+      }
+    };
+    
+    // Check bij focus van venster (terugnavigatie)
+    window.addEventListener('focus', checkLocalStorage);
+    return () => window.removeEventListener('focus', checkLocalStorage);
+  }, []);
   
   // Hanteer profielfoto update
   const handleProfilePhotoUpdate = (photoUrl: string) => {
+    console.log("handleProfilePhotoUpdate called with:", photoUrl);
+    // Update de state zodat het direct zichtbaar is
+    setSavedPhotoUrl(photoUrl);
+    
     // Sla de URL op in localStorage zodat deze bewaard blijft tussen pagina's
     if (typeof window !== 'undefined') {
       localStorage.setItem('profilePhotoUrl', photoUrl);
+      console.log("Saved to localStorage from Layout:", photoUrl);
     }
   };
   

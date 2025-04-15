@@ -66,10 +66,11 @@ export default function ProfilePhotoUpload({
       formData.append('photo', file);
       
       // Upload de afbeelding met apiRequest
+      // Laat de browser de Content-Type header automatisch instellen
       const data = await apiRequest('/api/profile-photo', {
         method: 'POST',
         data: formData,
-        headers: { 'Content-Type': 'multipart/form-data' }
+        // Geen Content-Type header instellen voor FormData
       });
       
       // Clean up preview URL
@@ -84,9 +85,17 @@ export default function ProfilePhotoUpload({
       });
     } catch (error) {
       console.error("Upload error:", error);
+      
+      // Meer gedetailleerde foutmelding
+      let errorMsg = "Er is iets misgegaan bij het uploaden van je foto";
+      
+      if (error instanceof Error) {
+        errorMsg = error.message || errorMsg;
+      }
+      
       toast({
         title: "Upload mislukt",
-        description: "Er is iets misgegaan bij het uploaden van je foto",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {

@@ -18,16 +18,24 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   const method = options.method || 'GET';
   const responseType = options.responseType || 'json';
-  const headers = {
-    ...(options.data && !options.headers?.['Content-Type'] ? { "Content-Type": "application/json" } : {}),
-    ...options.headers,
-  };
+  
+  // FormData behandeling: verwijder de Content-Type header bij FormData requests
+  // zodat de browser deze automatisch kan instellen met de juiste boundary
+  let headers = { ...options.headers };
+  
+  if (options.data instanceof FormData) {
+    // Bij FormData explixiet GEEN Content-Type instellen, zodat de browser dit automatisch doet
+    delete headers['Content-Type'];
+  } else if (options.data && !headers['Content-Type']) {
+    // Bij niet-FormData requests, standaard application/json gebruiken
+    headers['Content-Type'] = 'application/json';
+  }
 
   const res = await fetch(url, {
     method,
     headers,
     body: options.data ? 
-      (headers['Content-Type'] === 'multipart/form-data' || options.data instanceof FormData ? options.data as FormData : JSON.stringify(options.data)) 
+      (options.data instanceof FormData ? options.data : JSON.stringify(options.data)) 
       : undefined,
     credentials: "include",
   });

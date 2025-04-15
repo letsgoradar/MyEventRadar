@@ -65,9 +65,10 @@ export default function ProfilePhotoUpload({
       formData.append('photo', file);
       
       // Upload de afbeelding
-      const response = await fetch('/api/users/profile-photo', {
+      const response = await fetch('/api/profile-photo', {
         method: 'POST',
         body: formData,
+        credentials: 'include', // Belangrijk voor het meesturen van sessie cookies
       });
       
       if (!response.ok) {

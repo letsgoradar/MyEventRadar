@@ -133,9 +133,20 @@ export function App2Layout({
     });
   };
   
+  // Typedefinitie voor gebruiker
+  interface UserData {
+    id: number;
+    username: string;
+    email: string;
+    photoUrl?: string;
+    avatar?: string;
+    role: string;
+  }
+  
   // Haal gebruiker en profielfoto op
-  const { data: user } = useQuery({
+  const { data: user = {} as UserData } = useQuery<UserData>({
     queryKey: ['/api/current-user'],
+    enabled: true,
   });
 
   // Hanteer profielfoto update

@@ -65,7 +65,8 @@ router.post('/', isAuthenticated, upload.single('photo'), async (req: Request, r
     
     // Update gebruiker record met nieuwe foto URL
     const updatedUser = await appStorage.updateUser(userId, {
-      photoUrl: relativePath
+      photoUrl: relativePath,
+      avatar: relativePath // Update beide velden voor backward compatibility
     });
     
     res.status(200).json({ 

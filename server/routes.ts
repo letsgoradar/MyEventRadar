@@ -94,6 +94,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/me", isAuthenticated, (req, res) => {
     res.json(req.user);
   });
+  
+  // Haal volledige gebruikersgegevens op inclusief profielfoto
+  app.get("/api/current-user", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Niet geautoriseerd" });
+      }
+      
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Gebruiker niet gevonden" });
+      }
+      
+      // Verwijder wachtwoord uit de response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      res.status(500).json({ message: "Interne serverfout" });
+    }
+  });
 
   // Event routes
   app.post("/api/events", async (req, res) => {

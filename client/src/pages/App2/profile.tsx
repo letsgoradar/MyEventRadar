@@ -61,10 +61,11 @@ export function App2ProfilePage() {
   const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = React.useState(false);
 
-  // Zou normaal een API call zijn
-  const { data: user = dummyUser as UserProfile, isLoading } = useQuery<UserProfile>({
-    queryKey: ['/api/user/profile'],
-    enabled: false // We gebruiken dummy data voor nu
+  // Haal gebruikersgegevens op van de API
+  const { data: user, isLoading } = useQuery<UserProfile>({
+    queryKey: ['/api/current-user'],
+    enabled: true,
+    placeholderData: dummyUser as UserProfile // Fallback als data nog niet geladen is
   });
 
   const [notifications, setNotifications] = React.useState({
@@ -95,7 +96,7 @@ export function App2ProfilePage() {
             <Card className="mb-4">
               <CardContent className="pt-6 flex flex-col items-center">
                 <ProfilePhotoUpload 
-                  currentPhotoUrl={user.avatar}
+                  currentPhotoUrl={user?.photoUrl || user?.avatar}
                   onPhotoUploaded={(photoUrl) => {
                     toast({
                       title: "Profielfoto bijgewerkt",

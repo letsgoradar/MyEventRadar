@@ -60,6 +60,7 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
   const [eventsData, setEventsData] = React.useState<Event[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
+  const [mapStyle, setMapStyle] = React.useState<'default' | 'satellite' | 'dark' | 'minimal' | 'colorful'>('default');
   
   // Als de gebruiker locatie gegeven is, haal deze op
   React.useEffect(() => {
@@ -106,23 +107,90 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
   
   // Render de kaart
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full relative">
+      {/* Kaartstijl selector */}
+      <div className="absolute top-4 right-4 z-30 bg-white rounded-md shadow-lg p-2">
+        <div className="flex flex-col space-y-2">
+          <Button 
+            size="sm" 
+            variant={mapStyle === 'default' ? "default" : "outline"}
+            onClick={() => setMapStyle('default')}
+            className="text-xs px-3 py-1 h-auto"
+          >
+            Standaard
+          </Button>
+          <Button 
+            size="sm" 
+            variant={mapStyle === 'satellite' ? "default" : "outline"}
+            onClick={() => setMapStyle('satellite')}
+            className="text-xs px-3 py-1 h-auto"
+          >
+            Satelliet
+          </Button>
+          <Button 
+            size="sm" 
+            variant={mapStyle === 'dark' ? "default" : "outline"}
+            onClick={() => setMapStyle('dark')}
+            className="text-xs px-3 py-1 h-auto"
+          >
+            Donker
+          </Button>
+          <Button 
+            size="sm" 
+            variant={mapStyle === 'minimal' ? "default" : "outline"}
+            onClick={() => setMapStyle('minimal')}
+            className="text-xs px-3 py-1 h-auto"
+          >
+            Minimaal
+          </Button>
+          <Button 
+            size="sm" 
+            variant={mapStyle === 'colorful' ? "default" : "outline"}
+            onClick={() => setMapStyle('colorful')}
+            className="text-xs px-3 py-1 h-auto"
+          >
+            Kleurrijk
+          </Button>
+        </div>
+      </div>
+      
       <MapContainer
         center={userLocation}
         zoom={13}
-        style={{ height: "100%", width: "100%", background: "#fff9c4" }}
+        style={{ height: "100%", width: "100%" }}
         zoomControl={true}
-        className="z-10"
+        className="z-10 map-container"
+        attributionControl={false}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <TileLayer
-          attribution='&copy; <a href="https://www.esri.com">Esri</a>'
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          opacity={0.25}
-        />
+        {/* Meerdere stijlkeuzes voor kaartlagen */}
+        {mapStyle === 'default' && (
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            subdomains="abcd"
+          />
+        )}
+        {mapStyle === 'satellite' && (
+          <TileLayer
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          />
+        )}
+        {mapStyle === 'dark' && (
+          <TileLayer
+            url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}{r}.png"
+            subdomains="abcd"
+          />
+        )}
+        {mapStyle === 'minimal' && (
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            subdomains="abcd"
+          />
+        )}
+        {mapStyle === 'colorful' && (
+          <TileLayer
+            url="https://tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"
+          />
+        )}
         
         {/* Marker voor gebruiker locatie */}
         <Marker 

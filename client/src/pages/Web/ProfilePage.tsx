@@ -103,7 +103,7 @@ export function WebProfilePage() {
                       description: "Je profielfoto is succesvol bijgewerkt."
                     });
                   }}
-                  size="xl"
+                  size="lg"
                   showUploadButton={true}
                 />
                 <h2 className="text-xl font-bold mt-4">{user.name}</h2>

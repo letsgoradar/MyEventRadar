@@ -21,7 +21,11 @@ export default function ProfilePhotoUpload({
 }: ProfilePhotoUploadProps) {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(currentPhotoUrl || null);
+  
+  // Probeer eerst de opgeslagen foto uit localStorage te halen
+  const savedPhotoUrl = typeof window !== 'undefined' ? localStorage.getItem('profilePhotoUrl') : null;
+  const [previewUrl, setPreviewUrl] = useState<string | null>(currentPhotoUrl || savedPhotoUrl || null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Bepaal avatar grootte op basis van size prop
@@ -77,6 +81,14 @@ export default function ProfilePhotoUpload({
       URL.revokeObjectURL(objectUrl);
       
       // Set definitieve URL en callback
+      setPreviewUrl(data.photoUrl);
+      
+      // Sla de photoUrl op in localStorage voor persistentie tussen pagina's
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('profilePhotoUrl', data.photoUrl);
+      }
+      
+      // Roep de callback aan
       onPhotoUploaded(data.photoUrl);
       
       toast({

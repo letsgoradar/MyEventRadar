@@ -118,7 +118,7 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents,
   
   // Render de kaart
   return (
-    <div className="h-full w-full relative">
+    <div className="h-full w-full relative flex-1 overflow-hidden">
       {/* Kaartstijl selector met dropdown */}
       <div className="absolute top-4 right-4 z-[150]">
         <div className="relative" ref={layerMenuRef}>

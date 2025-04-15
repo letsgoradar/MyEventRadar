@@ -1,0 +1,76 @@
+/* Leaflet kaart stijlen */
+
+/* Popup stijlen */
+.leaflet-popup-content-wrapper {
+  border-radius: 0.5rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+  max-width: 280px;
+}
+
+.leaflet-popup-close-button {
+  z-index: 10;
+  color: #666;
+  font-size: 16px;
+}
+
+.leaflet-popup-tip {
+  background-color: white;
+}
+
+/* Markers stijlen */
+.custom-div-icon, .custom-user-icon {
+  background: transparent;
+  border: none;
+}
+
+/* Zoom controls */
+.leaflet-control-zoom {
+  border: none !important;
+  margin: 15px !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: white !important;
+  color: #666 !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 16px !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.leaflet-control-zoom a:first-child {
+  border-top-left-radius: 6px !important;
+  border-top-right-radius: 6px !important;
+  border-bottom: none !important;
+}
+
+.leaflet-control-zoom a:last-child {
+  border-bottom-left-radius: 6px !important;
+  border-bottom-right-radius: 6px !important;
+}
+
+/* Kaart container */
+.leaflet-container {
+  font-family: var(--font-sans);
+  border-radius: 0;
+}
+
+/* Aanpassing voor mobiele weergave */
+@media (max-width: 768px) {
+  .leaflet-popup-content {
+    max-width: 260px;
+  }
+  
+  .leaflet-control-zoom {
+    margin: 10px !important;
+  }
+}

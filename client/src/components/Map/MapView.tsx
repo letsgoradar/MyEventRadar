@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, Clock, Euro } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import "./map-styles.css";
 
 // Fix voor Leaflet iconen in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;

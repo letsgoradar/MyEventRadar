@@ -42,7 +42,7 @@ export function App2Layout({
 }: App2LayoutProps) {
   const [view, setView] = React.useState<"list" | "map">("list");
   const [mapExpanded, setMapExpanded] = React.useState<boolean>(false);
-  const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   
   // Geef voorkeur aan de kaartweergave als showMap=true
   React.useEffect(() => {
@@ -90,11 +90,11 @@ export function App2Layout({
   };
   
   // Functie voor het toevoegen/verwijderen van een categorie
-  const toggleCategory = (category: string) => {
+  const toggleCategory = (category: typeof CATEGORIES[number]) => {
     setSelectedCategories(prev => {
       return prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category];
+        ? prev.filter(c => c !== category) as typeof CATEGORIES[number][]
+        : [...prev, category] as typeof CATEGORIES[number][];
     });
   };
   
@@ -174,7 +174,7 @@ export function App2Layout({
                   <h3 className="text-sm font-medium mb-2">Afstand</h3>
                   <div className="px-1">
                     <Slider
-                      defaultValue={[radius]}
+                      value={[radius]}
                       min={1}
                       max={300}
                       step={1}
@@ -240,7 +240,7 @@ export function App2Layout({
           <div className={cn("w-full transition-all", mapHeight)}>
             <MapView filteredEvents={filteredEvents} />
           </div>
-          <div className="container">
+          <div className="container px-4">
             <Button
               variant="ghost"
               className="w-full flex items-center justify-center py-1"
@@ -263,7 +263,7 @@ export function App2Layout({
       )}
       
       {/* Lijst weergave - kinderen worden gerenderd */}
-      <div className={cn("container pb-4", view === "map" && "pt-2")}>
+      <div className={cn("container pb-4 px-4", view === "map" && "pt-2")}>
         {view === "list" && 
           <div className="space-y-4">
             {children}

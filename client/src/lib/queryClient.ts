@@ -69,18 +69,27 @@ export const getQueryFn: <T>(options: {
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       console.warn('Authentication required for', queryKey[0]);
-      // Redirect to login if we get a 401
+      // Redirect to appropriate login page based on current path
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        console.log('Redirecting to login due to auth failure');
-        window.location.href = '/admin/login';
+        console.log('Authentication required, but continuing without redirect for most endpoints');
+        // Alleen redirecten voor admin pagina's, niet voor app2
+        if (window.location.pathname.includes('/admin')) {
+          console.log('Redirecting to admin login due to auth failure');
+          window.location.href = '/admin/login';
+        }
       }
       return null;
     }
 
     if (!res.ok) {
       if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        console.log('Redirecting to login due to auth failure');
-        window.location.href = '/admin/login';
+        // Alleen redirecten voor admin pagina's, niet voor app2
+        if (window.location.pathname.includes('/admin')) {
+          console.log('Redirecting to admin login due to auth failure');
+          window.location.href = '/admin/login';
+        } else {
+          console.log('Authentication required, but continuing without redirect');
+        }
       }
       await throwIfResNotOk(res);
     }

@@ -329,6 +329,9 @@ export default function App() {
           <Route path="/profile">
             <App2ProfilePage />
           </Route>
+          <Route path="/login">
+            <App2LoginPage />
+          </Route>
           <Route path="/">
             <App2HomePage />
           </Route>

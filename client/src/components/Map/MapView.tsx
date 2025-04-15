@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Calendar, MapPin, Clock, Euro } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import "./map-styles.css";
+import { useOutsideClick } from "@/hooks/use-outside-click";
 
 // Fix voor Leaflet iconen in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -61,6 +62,15 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
   const [eventsData, setEventsData] = React.useState<Event[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [mapStyle, setMapStyle] = React.useState<'default' | 'satellite' | 'dark' | 'minimal' | 'colorful'>('default');
+  const [showLayerOptions, setShowLayerOptions] = React.useState(false);
+  
+  // Referentie naar de dropdown menu voor outside click handling
+  const layerMenuRef = React.useRef<HTMLDivElement>(null);
+  
+  // Sluit de layer options als er buiten wordt geklikt
+  useOutsideClick(layerMenuRef, () => {
+    if (showLayerOptions) setShowLayerOptions(false);
+  });
   
   // Als de gebruiker locatie gegeven is, haal deze op
   React.useEffect(() => {
@@ -108,45 +118,62 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
   // Render de kaart
   return (
     <div className="h-full w-full relative">
-      {/* Kaartstijl selector met layer icoon */}
-      <div className="absolute top-4 right-4 z-30 bg-white rounded-md shadow-lg p-2">
-        <Button 
-          size="sm" 
-          variant="ghost"
-          className="flex items-center justify-center mb-2 p-1"
-          title="Kaartstijlen"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-layers">
-            <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/>
-            <path d="m22 12-8.6 3.91a2 2 0 0 1-1.74 0L3 12"/>
-            <path d="m22 17-8.6 3.91a2 2 0 0 1-1.74 0L3 17"/>
-          </svg>
-        </Button>
-        <div className="flex flex-col space-y-2">
+      {/* Kaartstijl selector met dropdown */}
+      <div className="absolute top-4 right-4 z-30">
+        <div className="relative" ref={layerMenuRef}>
           <Button 
             size="sm" 
-            variant={mapStyle === 'default' ? "default" : "outline"}
-            onClick={() => setMapStyle('default')}
-            className="text-xs px-3 py-1 h-auto"
+            variant="secondary"
+            className="flex items-center justify-center p-1 shadow-md"
+            title="Kaartstijlen"
+            onClick={() => setShowLayerOptions(!showLayerOptions)}
           >
-            Normaal
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-layers">
+              <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/>
+              <path d="m22 12-8.6 3.91a2 2 0 0 1-1.74 0L3 12"/>
+              <path d="m22 17-8.6 3.91a2 2 0 0 1-1.74 0L3 17"/>
+            </svg>
           </Button>
-          <Button 
-            size="sm" 
-            variant={mapStyle === 'minimal' ? "default" : "outline"}
-            onClick={() => setMapStyle('minimal')}
-            className="text-xs px-3 py-1 h-auto"
-          >
-            Licht
-          </Button>
-          <Button 
-            size="sm" 
-            variant={mapStyle === 'satellite' ? "default" : "outline"}
-            onClick={() => setMapStyle('satellite')}
-            className="text-xs px-3 py-1 h-auto"
-          >
-            Satelliet
-          </Button>
+          
+          {showLayerOptions && (
+            <div className="absolute top-full right-0 mt-2 bg-white rounded-md shadow-lg p-2">
+              <div className="flex flex-col space-y-2">
+                <Button 
+                  size="sm" 
+                  variant={mapStyle === 'default' ? "default" : "outline"}
+                  onClick={() => {
+                    setMapStyle('default');
+                    setShowLayerOptions(false);
+                  }}
+                  className="text-xs px-3 py-1 h-auto"
+                >
+                  Normaal
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant={mapStyle === 'minimal' ? "default" : "outline"}
+                  onClick={() => {
+                    setMapStyle('minimal');
+                    setShowLayerOptions(false);
+                  }}
+                  className="text-xs px-3 py-1 h-auto"
+                >
+                  Licht
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant={mapStyle === 'satellite' ? "default" : "outline"}
+                  onClick={() => {
+                    setMapStyle('satellite');
+                    setShowLayerOptions(false);
+                  }}
+                  className="text-xs px-3 py-1 h-auto"
+                >
+                  Satelliet
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       

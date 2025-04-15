@@ -45,7 +45,6 @@ export function App2Layout({
   onFilteredEventsChange,
 }: App2LayoutProps) {
   const [view, setView] = React.useState<"list" | "map">("list");
-  const [mapExpanded, setMapExpanded] = React.useState<boolean>(false);
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   
   // Bewaar de oorspronkelijke evenementen
@@ -91,13 +90,7 @@ export function App2Layout({
     setView(prev => prev === "list" ? "map" : "list");
   };
   
-  // Functie om de kaart uit te vouwen of in te klappen
-  const toggleMapExpanded = () => {
-    setMapExpanded(prev => !prev);
-  };
-  
-  // Bereken de hoogte van de kaart op basis van de expandedstatus
-  const mapHeight = mapExpanded ? "h-[60vh]" : "h-[30vh]";
+  // Geen toggleMapExpanded en mapHeight meer nodig aangezien de kaart nu altijd volledig wordt getoond
   
   // Functie voor formatteren van de radius-weergave
   const formatRadius = (value: number) => {
@@ -335,30 +328,11 @@ export function App2Layout({
         </div>
       </div>
       
-      {/* Kaart weergave */}
+      {/* Kaart weergave - nu altijd volledig getoond zonder vergroten/verkleinen knop */}
       {view === "map" && (
         <div className="flex-1">
-          <div className={cn("w-full transition-all", mapHeight)}>
-            <MapView filteredEvents={displayedEvents} />
-          </div>
-          <div className="container px-4">
-            <Button
-              variant="ghost"
-              className="w-full flex items-center justify-center py-1"
-              onClick={toggleMapExpanded}
-            >
-              {mapExpanded ? (
-                <>
-                  <ChevronUp className="h-4 w-4 mr-2" />
-                  Kaart verkleinen
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-4 w-4 mr-2" />
-                  Kaart vergroten
-                </>
-              )}
-            </Button>
+          <div className="w-full h-[calc(100vh-16rem)]">
+            <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} />
           </div>
         </div>
       )}
@@ -370,7 +344,7 @@ export function App2Layout({
             {children}
           </div>
         }
-        {view === "map" && !mapExpanded && 
+        {view === "map" && 
           <AnimatePresence>
             <motion.div
               initial={{ opacity: 0, y: 10 }}

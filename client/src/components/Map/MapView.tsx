@@ -119,7 +119,7 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
   return (
     <div className="h-full w-full relative">
       {/* Kaartstijl selector met dropdown */}
-      <div className="absolute top-4 right-4 z-30">
+      <div className="absolute top-4 right-4 z-[150]">
         <div className="relative" ref={layerMenuRef}>
           <Button 
             size="sm" 
@@ -136,7 +136,7 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
           </Button>
           
           {showLayerOptions && (
-            <div className="absolute top-full right-0 mt-2 bg-white rounded-md shadow-lg p-2">
+            <div className="absolute top-full right-0 mt-2 bg-white dark:bg-zinc-800 rounded-md shadow-lg p-2 z-[200]">
               <div className="flex flex-col space-y-2">
                 <Button 
                   size="sm" 
@@ -145,7 +145,7 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
                     setMapStyle('default');
                     setShowLayerOptions(false);
                   }}
-                  className="text-xs px-3 py-1 h-auto"
+                  className="text-xs px-3 py-1 h-auto whitespace-nowrap"
                 >
                   Normaal
                 </Button>
@@ -156,7 +156,7 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
                     setMapStyle('minimal');
                     setShowLayerOptions(false);
                   }}
-                  className="text-xs px-3 py-1 h-auto"
+                  className="text-xs px-3 py-1 h-auto whitespace-nowrap"
                 >
                   Licht
                 </Button>
@@ -167,7 +167,7 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
                     setMapStyle('satellite');
                     setShowLayerOptions(false);
                   }}
-                  className="text-xs px-3 py-1 h-auto"
+                  className="text-xs px-3 py-1 h-auto whitespace-nowrap"
                 >
                   Satelliet
                 </Button>

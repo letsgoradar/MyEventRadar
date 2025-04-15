@@ -331,7 +331,7 @@ export function App2Layout({
       {/* Kaart weergave - nu altijd volledig getoond en doorlopend onder de filter en zoekbalk */}
       {view === "map" && (
         <div className="flex-1">
-          <div className="w-full h-[calc(100vh-16rem)] absolute inset-0 top-0 pt-[8.5rem] -z-10">
+          <div className="w-full h-[calc(100vh-16rem)] absolute inset-0 top-0 pt-[8.5rem] z-0">
             <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} />
           </div>
         </div>

@@ -6,6 +6,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { isAuthenticated, isAdmin } from "./middleware/auth";
 import generateImageRouter from "./routes/generate-image";
+import profilePhotoRouter from "./routes/profile-photo";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -670,6 +671,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registreer de route voor het genereren van afbeeldingen
   app.use("/api/generate-image", generateImageRouter);
+  
+  // Registreer de route voor het uploaden van profielfoto's
+  app.use("/api/profile-photo", profilePhotoRouter);
 
   const httpServer = createServer(app);
   return httpServer;

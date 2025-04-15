@@ -142,10 +142,15 @@ export function App2Layout({
     enabled: true,
   });
 
+  // Laad de profielfoto uit localStorage (indien beschikbaar)
+  const savedPhotoUrl = typeof window !== 'undefined' ? localStorage.getItem('profilePhotoUrl') : null;
+  
   // Hanteer profielfoto update
   const handleProfilePhotoUpdate = (photoUrl: string) => {
-    // Foto is al opgeslagen op de server; React Query zal automatisch de cache vernieuwen
-    // We zouden hier lokaal de cache kunnen updaten als we direct feedback willen zonder te wachten op een nieuwe request
+    // Sla de URL op in localStorage zodat deze bewaard blijft tussen pagina's
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('profilePhotoUrl', photoUrl);
+    }
   };
   
   // Bepaal of we op de profielpagina zijn
@@ -168,7 +173,9 @@ export function App2Layout({
           </div>
           <Link href="/app2/profile" className="cursor-pointer">
             <Avatar className="h-8 w-8 border-2 border-primary">
-              {user?.photoUrl ? (
+              {savedPhotoUrl ? (
+                <AvatarImage src={savedPhotoUrl} alt="Profielfoto" />
+              ) : user?.photoUrl ? (
                 <AvatarImage src={user.photoUrl} alt="Profielfoto" />
               ) : (
                 <AvatarFallback>
@@ -335,8 +342,8 @@ export function App2Layout({
       
       {/* Kaart weergave - exact tussen de navigatiebalken */}
       {view === "map" && !isProfilePage && (
-        <div className="flex-1">
-          <div className="w-full h-[calc(100vh-11rem)] absolute inset-0 top-[4.25rem] z-0 border-t border-b border-border">
+        <div className="flex-1 app2-layout">
+          <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[56px] z-0 border-t border-b-0 border-border">
             <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} hideZoomControls={true} />
           </div>
         </div>

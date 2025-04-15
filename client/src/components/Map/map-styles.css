@@ -84,8 +84,10 @@
 
 /* Zorg dat de kaart naadloos aansluit op de navigatiebalk */
 .app2-layout .map-container {
-  top: 56px !important; /* Hoogte van de topnav */
-  bottom: 56px !important; /* Hoogte van de bottomnav */
+  top: 0 !important; /* Niet nodig omdat de container al goed gepositioneerd is */
+  bottom: 0 !important; /* Niet nodig omdat de container al goed gepositioneerd is */
+  height: 100% !important;
+  z-index: 1; /* Zorg dat de kaart onder de ui-elementen blijft */
 }
 
 /* Aanpassing voor mobiele weergave */

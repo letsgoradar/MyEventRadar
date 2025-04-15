@@ -9,6 +9,7 @@ import CreateEventPage from "@/pages/create-event"
 import EventDetailPage from "@/pages/event-detail"
 import BottomNav from "@/components/Layout/BottomNav"
 import WebPage from "@/pages/Web"
+import WebProfilePage from "@/pages/Web/ProfilePage"
 import AdminDashboard from "@/pages/admin/Dashboard"
 import AdminEvents from "@/pages/admin/Events"
 import AdminUsers from "@/pages/admin/Users"
@@ -169,12 +170,7 @@ export default function App() {
               </WebLayout>
             </Route>
             <Route path="/web/profile">
-              <WebLayout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold mb-6">Profiel</h1>
-                  <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-                </div>
-              </WebLayout>
+              <WebProfilePage />
             </Route>
             <Route path="/web">
               <WebPage />
@@ -204,12 +200,7 @@ export default function App() {
               </WebLayout>
             </Route>
             <Route path="/profile">
-              <WebLayout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold mb-6">Profiel</h1>
-                  <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-                </div>
-              </WebLayout>
+              <WebProfilePage />
             </Route>
             
             {/* Default routes voor desktop */}

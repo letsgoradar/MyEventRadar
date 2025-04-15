@@ -87,10 +87,10 @@ export function App2ProfilePage() {
 
   return (
     <App2Layout title="Profiel">
-      <div className="pb-20">
+      <div className="pb-20 h-full overflow-auto">
         
         <Tabs defaultValue="profile">
-          <TabsList className="w-full mb-4">
+          <TabsList className="w-full mb-4 sticky top-0 bg-background z-10">
             <TabsTrigger value="profile" className="flex-1">Profiel</TabsTrigger>
             <TabsTrigger value="settings" className="flex-1">Instellingen</TabsTrigger>
           </TabsList>

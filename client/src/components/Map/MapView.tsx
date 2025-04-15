@@ -108,8 +108,20 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
   // Render de kaart
   return (
     <div className="h-full w-full relative">
-      {/* Kaartstijl selector */}
+      {/* Kaartstijl selector met layer icoon */}
       <div className="absolute top-4 right-4 z-30 bg-white rounded-md shadow-lg p-2">
+        <Button 
+          size="sm" 
+          variant="ghost"
+          className="flex items-center justify-center mb-2 p-1"
+          title="Kaartstijlen"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-layers">
+            <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/>
+            <path d="m22 12-8.6 3.91a2 2 0 0 1-1.74 0L3 12"/>
+            <path d="m22 17-8.6 3.91a2 2 0 0 1-1.74 0L3 17"/>
+          </svg>
+        </Button>
         <div className="flex flex-col space-y-2">
           <Button 
             size="sm" 
@@ -117,7 +129,15 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
             onClick={() => setMapStyle('default')}
             className="text-xs px-3 py-1 h-auto"
           >
-            Standaard
+            Normaal
+          </Button>
+          <Button 
+            size="sm" 
+            variant={mapStyle === 'minimal' ? "default" : "outline"}
+            onClick={() => setMapStyle('minimal')}
+            className="text-xs px-3 py-1 h-auto"
+          >
+            Licht
           </Button>
           <Button 
             size="sm" 
@@ -126,30 +146,6 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
             className="text-xs px-3 py-1 h-auto"
           >
             Satelliet
-          </Button>
-          <Button 
-            size="sm" 
-            variant={mapStyle === 'dark' ? "default" : "outline"}
-            onClick={() => setMapStyle('dark')}
-            className="text-xs px-3 py-1 h-auto"
-          >
-            Donker
-          </Button>
-          <Button 
-            size="sm" 
-            variant={mapStyle === 'minimal' ? "default" : "outline"}
-            onClick={() => setMapStyle('minimal')}
-            className="text-xs px-3 py-1 h-auto"
-          >
-            Minimaal
-          </Button>
-          <Button 
-            size="sm" 
-            variant={mapStyle === 'colorful' ? "default" : "outline"}
-            onClick={() => setMapStyle('colorful')}
-            className="text-xs px-3 py-1 h-auto"
-          >
-            Kleurrijk
           </Button>
         </div>
       </div>

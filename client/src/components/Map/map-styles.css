@@ -62,7 +62,7 @@
 .leaflet-container {
   font-family: var(--font-sans);
   border-radius: 0;
-  background-color: #fff9c4 !important; /* Gele achtergrond */
+  background-color: #f5f5f5 !important;
 }
 
 /* Aanpassing voor mobiele weergave */

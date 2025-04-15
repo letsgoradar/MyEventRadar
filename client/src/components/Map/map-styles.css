@@ -82,6 +82,12 @@
   bottom: 0;
 }
 
+/* Zorg dat de kaart naadloos aansluit op de navigatiebalk */
+.app2-layout .map-container {
+  top: 56px !important; /* Hoogte van de topnav */
+  bottom: 56px !important; /* Hoogte van de bottomnav */
+}
+
 /* Aanpassing voor mobiele weergave */
 @media (max-width: 768px) {
   .leaflet-popup-content {

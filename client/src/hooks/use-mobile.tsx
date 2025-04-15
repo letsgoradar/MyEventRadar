@@ -7,7 +7,8 @@ export function useIsMobile() {
     // Check if window is defined (browser environment)
     if (typeof window !== "undefined") {
       const checkIsMobile = () => {
-        setIsMobile(window.innerWidth < 768);
+        // Tablets moeten de webversie gebruiken, alleen telefoons (< 640px) krijgen de app versie
+        setIsMobile(window.innerWidth < 640);
       };
 
       // Initial check

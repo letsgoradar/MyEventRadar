@@ -287,7 +287,6 @@ export default function App() {
         </Route>
       </Switch>
       <Toaster />
-      {!isMobile && <ModeToggle />}
     </QueryClientProvider>
   );
 }

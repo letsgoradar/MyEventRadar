@@ -44,7 +44,7 @@ export function App2FavoritesPage() {
 
   return (
     <App2Layout title="Favorieten">
-      <div className="p-4 pb-20">
+      <div className="pb-20">
         
         {isLoading ? (
           <LoadingState />

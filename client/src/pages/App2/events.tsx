@@ -54,7 +54,7 @@ export function App2EventsPage() {
 
   return (
     <App2Layout title="Mijn Evenementen">
-      <div className="p-4 pb-20">
+      <div className="pb-20">
         <div className="flex justify-between items-center mb-4">
           <Button size="sm" asChild>
             <Link href="/app2/create-event">

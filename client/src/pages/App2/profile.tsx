@@ -70,7 +70,7 @@ export function App2ProfilePage() {
 
   return (
     <App2Layout title="Profiel">
-      <div className="p-4 pb-20">
+      <div className="pb-20">
         
         <Tabs defaultValue="profile">
           <TabsList className="w-full mb-4">

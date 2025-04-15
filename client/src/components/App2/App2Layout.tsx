@@ -44,6 +44,34 @@ export function App2Layout({
   const [mapExpanded, setMapExpanded] = React.useState<boolean>(false);
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   
+  // Bewaar de oorspronkelijke evenementen
+  const [originalEvents, setOriginalEvents] = React.useState<Event[]>([]);
+  
+  // Sla de originele evenementen op wanneer ze voor het eerst binnenkomen
+  React.useEffect(() => {
+    if (filteredEvents.length > 0 && originalEvents.length === 0) {
+      setOriginalEvents(filteredEvents);
+    }
+  }, [filteredEvents, originalEvents]);
+  
+  // Wanneer een categorie wordt toegevoegd of verwijderd, moeten we de gefilterde evenementen bijwerken
+  React.useEffect(() => {
+    if (onFilteredEventsChange && originalEvents.length > 0) {
+      if (selectedCategories.length === 0) {
+        // Als er geen categorieën geselecteerd zijn, toon alle originele evenementen
+        onFilteredEventsChange(originalEvents);
+        return;
+      }
+      
+      // Filter evenementen op basis van geselecteerde categorieën
+      const newFilteredEvents = originalEvents.filter(event => 
+        selectedCategories.includes(event.category as typeof CATEGORIES[number])
+      );
+      
+      onFilteredEventsChange(newFilteredEvents);
+    }
+  }, [selectedCategories, originalEvents, onFilteredEventsChange]);
+  
   // Geef voorkeur aan de kaartweergave als showMap=true
   React.useEffect(() => {
     if (showMap && view === "list") {
@@ -168,10 +196,10 @@ export function App2Layout({
                 Filters
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-4">
+            <PopoverContent className="w-[280px] p-4" sideOffset={5}>
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-medium mb-2">Afstand</h3>
+                  <h3 className="text-sm font-medium mb-2">Afstand: {formatRadius(radius)}</h3>
                   <div className="px-1">
                     <Slider
                       value={[radius]}
@@ -183,7 +211,6 @@ export function App2Layout({
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>1 km</span>
-                      <span>{formatRadius(radius)}</span>
                       <span>Nederland</span>
                     </div>
                   </div>
@@ -192,21 +219,24 @@ export function App2Layout({
                 <div>
                   <h3 className="text-sm font-medium mb-2">Categorieën</h3>
                   <div className="grid grid-cols-2 gap-2">
-                    {CATEGORIES.map((category) => (
-                      <Button
-                        key={category}
-                        size="sm"
-                        variant="outline"
-                        className={cn(
-                          "h-auto py-1 px-2 text-xs justify-start gap-1",
-                          selectedCategories.includes(category) && "bg-primary text-primary-foreground"
-                        )}
-                        onClick={() => toggleCategory(category)}
-                      >
-                        <CategoryIcon category={category} size={14} />
-                        <span className="truncate">{category}</span>
-                      </Button>
-                    ))}
+                    {CATEGORIES.map((category) => {
+                      const isSelected = selectedCategories.includes(category);
+                      return (
+                        <Button
+                          key={category}
+                          size="sm"
+                          variant="outline"
+                          className={cn(
+                            "h-auto py-1 px-2 text-xs justify-start gap-1",
+                            isSelected && "bg-primary text-primary-foreground"
+                          )}
+                          onClick={() => toggleCategory(category)}
+                        >
+                          <CategoryIcon category={category} size={14} />
+                          <span className="truncate">{category}</span>
+                        </Button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

@@ -1,6 +1,8 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X } from "lucide-react";
+import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import MapView from "@/components/Map/MapView";
@@ -132,24 +134,54 @@ export function App2Layout({
   // Maak de inhoud van de pagina op basis van de gekozen weergave
   return (
     <div className="flex flex-col min-h-screen bg-background pb-16">
-      {/* Header met titel */}
-      <header className="sticky top-0 z-10 bg-background border-b">
-        <div className="container py-3 px-4">
-          <h1 className="text-xl font-semibold">{title}</h1>
+      {/* Header met titel, logo en profiel */}
+      <header className="sticky top-0 z-20 bg-background border-b">
+        <div className="container py-3 px-4 flex justify-between items-center">
+          <div className="flex items-center">
+            <CalendarDays className="h-6 w-6 text-primary mr-2" />
+            <h1 className="text-xl font-semibold">{title}</h1>
+          </div>
+          <Link href="/app2/profile">
+            <Avatar className="h-8 w-8 cursor-pointer">
+              <AvatarImage src="/images/default-user.svg" alt="Gebruiker" />
+              <AvatarFallback>JD</AvatarFallback>
+            </Avatar>
+          </Link>
           {header}
         </div>
       </header>
       
-      {/* Zoekbalk */}
+      {/* Zoekbalk en weergaveknoppen */}
       <div className="container mt-2 px-4">
-        <div className="relative mb-3">
-          <Input
-            placeholder="Zoek evenementen..."
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="pl-9 pr-4 h-10 w-full border-gray-300"
-          />
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+        <div className="flex gap-2 mb-3">
+          <div className="relative flex-1">
+            <Input
+              placeholder="Zoek evenementen..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="pl-9 pr-4 h-10 w-full border-gray-300"
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+          </div>
+          
+          <div className="flex gap-1">
+            <Button
+              variant={view === "list" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setView("list")}
+              className="h-10 px-3"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={view === "map" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setView("map")}
+              className="h-10 px-3"
+            >
+              <Map className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
         {/* Filter tags */}
@@ -197,6 +229,11 @@ export function App2Layout({
               <Button variant="outline" size="sm" className="gap-1">
                 <Sliders className="h-4 w-4" />
                 Filters
+                {selectedCategories.length > 0 && (
+                  <Badge className="ml-1 text-xs h-5 min-w-5 flex items-center justify-center bg-primary text-primary-foreground">
+                    {selectedCategories.length}
+                  </Badge>
+                )}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[280px] p-4" sideOffset={5}>
@@ -261,25 +298,6 @@ export function App2Layout({
               </div>
             </PopoverContent>
           </Popover>
-          
-          <div className="flex space-x-2">
-            <Button
-              variant={view === "list" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setView("list")}
-              className="h-9 px-3"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={view === "map" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setView("map")}
-              className="h-9 px-3"
-            >
-              <Map className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
       

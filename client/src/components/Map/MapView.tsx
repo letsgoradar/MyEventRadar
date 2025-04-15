@@ -110,12 +110,18 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents 
       <MapContainer
         center={userLocation}
         zoom={13}
-        style={{ height: "100%", width: "100%" }}
-        zoomControl={false}
+        style={{ height: "100%", width: "100%", background: "#f8f9fa" }}
+        zoomControl={true}
+        className="z-10"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <TileLayer
+          attribution='&copy; <a href="https://www.esri.com">Esri</a>'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          opacity={0.25}
         />
         
         {/* Marker voor gebruiker locatie */}

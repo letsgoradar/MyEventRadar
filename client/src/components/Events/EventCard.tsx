@@ -127,7 +127,10 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-white z-20">
               <div className="flex justify-between items-start">
                 <div className="flex-1 truncate mr-2">
-                  <h3 className="text-sm font-medium truncate">{event.title}</h3>
+                  <div className="flex items-center gap-1.5">
+                    <CategoryIcon category={event.category as any} className="h-4 w-4 flex-shrink-0" />
+                    <h3 className="text-base font-semibold truncate">{event.title}</h3>
+                  </div>
                 </div>
                 
                 <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs font-medium shadow-sm flex-shrink-0">
@@ -222,8 +225,9 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
             
             {/* Titel preview overlay - alleen in lijstweergave */}
             <div className="absolute top-2 left-2 right-2 z-10">
-              <div className="truncate text-sm font-medium text-white bg-black/60 px-2 py-1 rounded shadow">
-                {event.title}
+              <div className="flex items-center gap-1.5 text-white bg-black/60 px-2 py-1 rounded shadow">
+                <CategoryIcon category={event.category as any} className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate text-base font-semibold">{event.title}</span>
               </div>
             </div>
           </div>

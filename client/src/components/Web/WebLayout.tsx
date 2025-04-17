@@ -76,16 +76,21 @@ export function WebLayout({
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col relative w-[calc(100vw-260px)]">
-        <Header 
-          isMapView={true} // Always true in web view since we're using SplitView
-          toggleView={() => {}} // Empty function since we don't need this in web view
-          onSearch={handleSearch}
-          radius={radius}
-          onRadiusChange={handleRadiusChange}
-          onCategoriesChange={handleCategoriesChange}
-          hideViewToggle={true} // Hide the toggle button in web view
-        />
-        <div className="flex-1 relative">
+        {/* Header in een eigen fixed container */}
+        <div className="sticky top-0 left-0 right-0 z-[100]">
+          <Header 
+            isMapView={true} // Always true in web view since we're using SplitView
+            toggleView={() => {}} // Empty function since we don't need this in web view
+            onSearch={handleSearch}
+            radius={radius}
+            onRadiusChange={handleRadiusChange}
+            onCategoriesChange={handleCategoriesChange}
+            hideViewToggle={true} // Hide the toggle button in web view
+          />
+        </div>
+        
+        {/* Content container met vaste top margin zodat de kaart niet onder de header komt */}
+        <div className="flex-1 relative overflow-hidden">
           {children ? (
             <div className="h-full overflow-y-auto p-4 pb-20 max-w-screen-2xl mx-auto">{children}</div>
           ) : (

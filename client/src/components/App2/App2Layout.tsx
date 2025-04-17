@@ -359,20 +359,63 @@ export function App2Layout({
                         </CommandItem>
                       </CommandGroup>
                       
+                      {/* Matching events */}
+                      {displayedEvents.length > 0 && (
+                        <CommandGroup heading="Overeenkomende evenementen">
+                          {displayedEvents
+                            .filter(event => 
+                              event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              event.description?.toLowerCase().includes(searchQuery.toLowerCase())
+                            )
+                            .slice(0, 5) // Toon maximaal 5 overeenkomende evenementen
+                            .map(event => (
+                              <Link href={`/app2/event/${event.id}`} key={event.id}>
+                                <CommandItem 
+                                  className="p-2 cursor-pointer hover:bg-slate-100"
+                                  onSelect={() => {}} // Dummy handler zodat onSelect niet afgevuurd wordt
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <CategoryIcon category={event.category as typeof CATEGORIES[number]} className="h-4 w-4" />
+                                    <div className="flex-1 flex flex-col">
+                                      <span className="font-medium text-sm">{event.title}</span>
+                                      <span className="text-xs text-muted-foreground truncate">
+                                        {new Date(event.startTime).toLocaleDateString('nl-NL', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </CommandItem>
+                              </Link>
+                            ))
+                          }
+                        </CommandGroup>
+                      )}
+                      
                       <CommandGroup heading="Recente zoekacties">
-                        {/* Hier zou je recente zoekacties kunnen tonen, bijv. vanuit localStorage */}
-                        <CommandItem className="p-2 cursor-pointer hover:bg-slate-100">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span>Festival</span>
-                          </div>
-                        </CommandItem>
-                        <CommandItem className="p-2 cursor-pointer hover:bg-slate-100">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span>Workshop</span>
-                          </div>
-                        </CommandItem>
+                        {/* Toon de laatste 2 zoekacties uit localStorage */}
+                        {(() => {
+                          // Haal recente zoekacties op uit localStorage
+                          const recentSearches = localStorage.getItem('recentSearches') 
+                            ? JSON.parse(localStorage.getItem('recentSearches') || '[]')
+                            : [];
+                          
+                          return recentSearches.slice(0, 2).map((search: string, index: number) => (
+                            <CommandItem 
+                              key={index}
+                              onSelect={() => onSearch && onSearch(search)}
+                              className="p-2 cursor-pointer hover:bg-slate-100"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                <span>{search}</span>
+                              </div>
+                            </CommandItem>
+                          ));
+                        })()}
                       </CommandGroup>
                     </CommandList>
                   </Command>

@@ -39,9 +39,49 @@ function MapCenter({ lat, lng, shouldFlyTo = false }: { lat: number; lng: number
   return null;
 }
 
+// Component om events bij te werken op basis van het huidige zoomniveau en grenzen
+function MapEventLoader({ 
+  onBoundsChange, 
+  onZoomChange 
+}: { 
+  onBoundsChange: (bounds: L.LatLngBounds) => void; 
+  onZoomChange: (zoom: number) => void;
+}) {
+  const map = useMap();
+  
+  // Eerste keer initialiseren
+  React.useEffect(() => {
+    if (map) {
+      // Stuur huidige bounds en zoom level
+      onBoundsChange(map.getBounds());
+      onZoomChange(map.getZoom());
+      
+      // Eventlisteners voor het bijwerken bij veranderingen
+      const handleMoveEnd = () => {
+        onBoundsChange(map.getBounds());
+      };
+      
+      const handleZoomEnd = () => {
+        onZoomChange(map.getZoom());
+        onBoundsChange(map.getBounds());
+      };
+      
+      map.on('moveend', handleMoveEnd);
+      map.on('zoomend', handleZoomEnd);
+      
+      return () => {
+        map.off('moveend', handleMoveEnd);
+        map.off('zoomend', handleZoomEnd);
+      };
+    }
+  }, [map, onBoundsChange, onZoomChange]);
+  
+  return null;
+}
+
 // Functie om categorie-specifieke markers te maken
-function createEventIcon(category: string) {
-  const color = getCategoryColor(category as any);
+function createEventIcon(category: string, isExpired: boolean = false) {
+  const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
   return L.divIcon({
     className: 'custom-div-icon',
     html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
@@ -64,6 +104,9 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents,
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [mapStyle, setMapStyle] = React.useState<'default' | 'satellite' | 'dark' | 'minimal' | 'colorful'>('default');
   const [showLayerOptions, setShowLayerOptions] = React.useState(false);
+  const [currentBounds, setCurrentBounds] = React.useState<L.LatLngBounds | null>(null);
+  const [currentZoom, setCurrentZoom] = React.useState<number>(13);
+  const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(true);
   
   // Referentie naar de dropdown menu voor outside click handling
   const layerMenuRef = React.useRef<HTMLDivElement>(null);
@@ -90,10 +133,17 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents,
   }, []);
   
   // Als er filteredEvents zijn, gebruik die; anders fetch events op basis van locatie en radius
-  const { data: fetchedEvents, isLoading } = useQuery<Event[]>({
+  const { data: fetchedEvents, isLoading, refetch } = useQuery<Event[]>({
     queryKey: ['/api/events/nearby', userLocation[0], userLocation[1], radius, searchQuery],
     enabled: !filteredEvents && userLocation[0] !== 0 && userLocation[1] !== 0,
   });
+  
+  // Refetch events wanneer de kaartgrenzen significant zijn gewijzigd
+  React.useEffect(() => {
+    if (currentBounds && !filteredEvents) {
+      refetch();
+    }
+  }, [currentBounds, refetch, filteredEvents]);
   
   // Update events data als filteredEvents of fetchedEvents wijzigen
   React.useEffect(() => {
@@ -104,23 +154,58 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents,
     }
   }, [filteredEvents, fetchedEvents]);
   
-  // Format events voor gebruik op de kaart
+  // Controleer of een event is verlopen
+  const isEventExpired = (event: Event): boolean => {
+    return new Date(event.endTime || event.startTime) < new Date();
+  };
+  
+  // Format events voor gebruik op de kaart en filter op basis van huidige kaartgrenzen en expired status
   const formattedEvents = React.useMemo(() => {
-    return eventsData.map(event => ({
-      id: event.id,
-      title: event.title,
-      coords: [Number(event.latitude), Number(event.longitude)] as [number, number],
-      category: event.category,
-      startTime: event.startTime,
-      event
-    }));
-  }, [eventsData]);
+    if (!eventsData) return [];
+    
+    return eventsData
+      .filter(event => {
+        // Filter verlopen events op basis van de showExpiredEvents instelling
+        if (!showExpiredEvents && isEventExpired(event)) {
+          return false;
+        }
+        
+        // Als er geen bounds zijn, toon alle events
+        if (!currentBounds) return true;
+        
+        // Check of het event binnen de huidige kaartgrenzen valt
+        const eventLatLng = L.latLng(Number(event.latitude), Number(event.longitude));
+        return currentBounds.contains(eventLatLng);
+      })
+      .map(event => ({
+        id: event.id,
+        title: event.title,
+        coords: [Number(event.latitude), Number(event.longitude)] as [number, number],
+        category: event.category,
+        startTime: event.startTime,
+        expired: isEventExpired(event),
+        event
+      }));
+  }, [eventsData, currentBounds, showExpiredEvents]);
   
   // Render de kaart
   return (
     <div className="h-full w-full relative flex-1 overflow-hidden">
-      {/* Kaartstijl selector met dropdown */}
-      <div className="absolute top-4 right-4 z-[150]">
+      {/* Filter controls voor kaartstijl en verlopen events */}
+      <div className="absolute top-4 right-4 z-[150] flex flex-col gap-2">
+        {/* Event filters */}
+        <Button 
+          size="sm" 
+          variant={showExpiredEvents ? "default" : "outline"}
+          className="flex items-center justify-center gap-1 shadow-md text-xs font-medium"
+          title="Toon verlopen events"
+          onClick={() => setShowExpiredEvents(!showExpiredEvents)}
+        >
+          <Clock className="h-3.5 w-3.5" />
+          <span>Verlopen events</span>
+        </Button>
+
+        {/* Kaartstijl selector met dropdown */}
         <div className="relative" ref={layerMenuRef}>
           <Button 
             size="sm" 
@@ -238,7 +323,7 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents,
           <Marker 
             key={event.id}
             position={event.coords}
-            icon={createEventIcon(event.category)}
+            icon={createEventIcon(event.category, event.expired)}
             eventHandlers={{
               click: () => {
                 setSelectedEvent(event.event);
@@ -270,6 +355,11 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents,
                       })}
                     </span>
                   </div>
+                  {event.expired && (
+                    <div className="mt-1 text-xs text-red-500 font-medium">
+                      Dit evenement is verlopen
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter className="p-2 pt-0">
                   <Button asChild size="sm" className="w-full">
@@ -285,6 +375,12 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents,
         
         {/* Component om kaart te centreren op gebruiker */}
         <MapCenter lat={userLocation[0]} lng={userLocation[1]} />
+        
+        {/* Component om events bij te werken bij in/uitzoomen en verschuiven van de kaart */}
+        <MapEventLoader 
+          onBoundsChange={bounds => setCurrentBounds(bounds)} 
+          onZoomChange={zoom => setCurrentZoom(zoom)} 
+        />
       </MapContainer>
       
       {/* Overlay voor geselecteerd event (optioneel) */}

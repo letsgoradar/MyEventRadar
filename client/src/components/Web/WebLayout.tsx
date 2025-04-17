@@ -90,9 +90,9 @@ export function WebLayout({
         </div>
         
         {/* Content container met vaste top margin zodat de kaart niet onder de header komt */}
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 relative overflow-hidden" style={{ zIndex: 50 }}>
           {children ? (
-            <div className="h-full overflow-y-auto p-4 pb-20 max-w-screen-2xl mx-auto">{children}</div>
+            <div className="h-full overflow-y-auto p-4 pb-20 max-w-screen-2xl mx-auto" style={{ position: 'relative', zIndex: 50 }}>{children}</div>
           ) : (
             <SplitView 
               searchQuery={searchQuery}

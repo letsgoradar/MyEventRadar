@@ -227,12 +227,13 @@ const EventDetail = () => {
                     </TabsContent>
                     
                     <TabsContent value="streetview">
-                      <div className="h-[300px] w-full rounded-md overflow-hidden mb-3 relative">
+                      <div 
+                        className="h-[300px] w-full rounded-md overflow-hidden mb-3 relative event-detail-streetview"
+                        style={{ position: 'relative', zIndex: 5 }}
+                      >
                         <StreetView
                           latitude={eventCoords[0]}
                           longitude={eventCoords[1]}
-                          style={{ position: 'relative', zIndex: 5 }}
-                          className="event-detail-streetview"
                         />
                       </div>
                     </TabsContent>

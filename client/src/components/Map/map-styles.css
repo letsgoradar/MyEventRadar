@@ -71,6 +71,14 @@
   z-index: 10;
 }
 
+/* Uitzondering voor event detail pagina kaart */
+.event-detail-map .leaflet-container {
+  position: relative !important;
+  z-index: 1 !important;
+  border-radius: 8px;
+  height: 300px !important;
+}
+
 /* Zorg dat de map-container de volledige beschikbare ruimte vult */
 .map-container {
   height: 100% !important;
@@ -80,6 +88,12 @@
   left: 0;
   right: 0;
   bottom: 0;
+}
+
+/* Uitzondering voor event detail pagina map-container */
+.event-detail-map {
+  position: relative !important;
+  height: 300px !important;
 }
 
 /* Zorg dat de kaart naadloos aansluit op de navigatiebalk */

@@ -119,28 +119,32 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                 </div>
                 
                 {/* Semi-transparante overlay over de gehele kaart voor beter leesbaarheid - alleen in tegelweergave (gridView), niet in kaartweergave */}
-                <div className="absolute inset-0 bg-black/20 z-10"></div>
+                {window.location.pathname.includes('/web') && (
+                  <div className="absolute inset-0 bg-black/20 z-10"></div>
+                )}
               </div>
             )}
             
             {/* Overlay met titel preview en afstand - alleen in tegelweergave (gridView), niet in kaartweergave */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-white z-20">
-              <div className="flex justify-between items-start">
-                <div className="flex-1 truncate mr-2">
-                  <div className="flex items-center gap-1.5">
-                    <CategoryIcon category={event.category as any} className="h-4 w-4 flex-shrink-0" />
-                    <h3 className="text-lg font-semibold truncate">{event.title}</h3>
+            {window.location.pathname.includes('/web') && (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-white z-20">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 truncate mr-2">
+                    <div className="flex items-center gap-1.5">
+                      <CategoryIcon category={event.category as any} className="h-4 w-4 flex-shrink-0" />
+                      <h3 className="text-lg font-semibold truncate">{event.title}</h3>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs font-medium shadow-sm flex-shrink-0">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
+                      ? `${calculatedDistance.toFixed(1)} km` 
+                      : 'Afstand onbekend'}
                   </div>
                 </div>
-                
-                <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs font-medium shadow-sm flex-shrink-0">
-                  <MapPin className="h-3 w-3 mr-1" />
-                  {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                    ? `${calculatedDistance.toFixed(1)} km` 
-                    : 'Afstand onbekend'}
-                </div>
               </div>
-            </div>
+            )}
           </div>
           
           {/* Content voor de kaart */}
@@ -223,13 +227,15 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
               </div>
             )}
             
-            {/* Titel preview overlay - alleen in lijstweergave, niet op kaart*/}
-            <div className="absolute top-2 left-2 right-2 z-10">
-              <div className="flex items-center gap-1.5 text-white bg-black/60 px-2 py-1 rounded shadow">
-                <CategoryIcon category={event.category as any} className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate text-lg font-semibold">{event.title}</span>
+            {/* Titel preview overlay - alleen in lijstweergave, niet op de kaart zelf */}
+            {window.location.pathname.includes('/web') && (
+              <div className="absolute top-2 left-2 right-2 z-10">
+                <div className="flex items-center gap-1.5 text-white bg-black/60 px-2 py-1 rounded shadow">
+                  <CategoryIcon category={event.category as any} className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate text-lg font-semibold">{event.title}</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           
           {/* Content rechts */}

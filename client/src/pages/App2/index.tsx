@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "@/hooks/useLocation";
 import { fetchEventsByRadius } from "@/lib/api";
 import { Event } from "@shared/schema";
+import { EventList } from "@/components/EventList";
 
 export function App2HomePage() {
   const [searchQuery, setSearchQuery] = React.useState("");

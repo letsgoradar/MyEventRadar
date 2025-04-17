@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User } from "lucide-react";
+import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { 
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 import ProfilePhotoUpload from "./ProfilePhotoUpload";
 import { useQuery } from "@tanstack/react-query";
@@ -226,13 +234,53 @@ export function App2Layout({
         <div className="container mt-2 px-4">
           <div className="flex gap-2 mb-3">
             <div className="relative flex-1">
-              <Input
-                placeholder="Zoek evenementen..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="pl-9 pr-4 h-10 w-full border-gray-300"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <div className="relative">
+                <Input
+                  placeholder="Zoek evenementen..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="pl-9 pr-4 h-10 w-full border-gray-300"
+                  onKeyDown={(e) => e.key === "Enter" && onSearch && onSearch(searchQuery)}
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                
+                {/* Live zoekresultaten dropdown */}
+                {searchQuery.trim() !== "" && (
+                  <Command className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white">
+                    <CommandList>
+                      <CommandGroup>
+                        <CommandItem 
+                          onSelect={() => onSearch && onSearch(searchQuery)}
+                          className="p-2 cursor-pointer hover:bg-slate-100"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Search className="h-4 w-4 text-muted-foreground" />
+                            <span className="flex-1">
+                              Zoek naar "<strong>{searchQuery}</strong>"
+                            </span>
+                          </div>
+                        </CommandItem>
+                      </CommandGroup>
+                      
+                      <CommandGroup heading="Recente zoekacties">
+                        {/* Hier zou je recente zoekacties kunnen tonen, bijv. vanuit localStorage */}
+                        <CommandItem className="p-2 cursor-pointer hover:bg-slate-100">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span>Festival</span>
+                          </div>
+                        </CommandItem>
+                        <CommandItem className="p-2 cursor-pointer hover:bg-slate-100">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span>Workshop</span>
+                          </div>
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                )}
+              </div>
             </div>
             
             <div className="flex gap-1">
@@ -308,7 +356,7 @@ export function App2Layout({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[280px] p-4" sideOffset={5} forceMount={false}>
+                <PopoverContent className="w-[280px] p-4" sideOffset={5}>
                   <div className="space-y-4">
                     <div>
                       <h3 className="text-sm font-medium mb-2">Afstand: {formatRadius(radius)}</h3>

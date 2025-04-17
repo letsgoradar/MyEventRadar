@@ -49,10 +49,36 @@ export function Header({
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
+  const [searchResults, setSearchResults] = React.useState<any[]>([]);
+  const [showSearchResults, setShowSearchResults] = React.useState(false);
+
+  // Mock demo data for search results dropdown - in real implementation this would come from API
+  React.useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setSearchResults([]);
+      return;
+    }
+    
+    // Simulate search results based on query
+    const demoResults = [
+      { id: 1, title: `${searchQuery} Festival`, category: "Kunst en Cultuur" },
+      { id: 2, title: `Workshop ${searchQuery}`, category: "Educatie" },
+      { id: 3, title: `${searchQuery} Markt`, category: "Markten" },
+    ];
+    
+    setSearchResults(demoResults);
+  }, [searchQuery]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    onSearch?.(e.target.value);
+    const query = e.target.value;
+    setSearchQuery(query);
+    setShowSearchResults(query.trim() !== "");
+    // We don't call onSearch here immediately, only when a selection is made or search is executed
+  };
+  
+  const handleSearchSubmit = (value: string) => {
+    setShowSearchResults(false);
+    onSearch?.(value || searchQuery);
   };
 
   const handleRadiusChange = (value: number[]) => {
@@ -75,13 +101,52 @@ export function Header({
     <div className="h-30 border-b border-border bg-background flex items-center px-6 justify-between z-50 sticky top-0 left-0 right-0 pointer-events-auto">
       <div className="flex items-center gap-6 w-full max-w-lg">
         <div className="relative flex-1">
-          <MdSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-6 w-6" />
-          <Input
-            placeholder="Zoek evenementen..."
-            className="pl-12 h-14 text-base rounded-lg shadow-sm"
-            value={searchQuery}
-            onChange={handleSearchChange}
-          />
+          <MdSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-6 w-6 z-10" />
+          <div className="relative">
+            <Input
+              placeholder="Zoek evenementen..."
+              className="pl-12 h-12 text-base rounded-md shadow-sm"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit("")}
+            />
+            
+            {/* Live zoekresultaten dropdown */}
+            {showSearchResults && searchResults.length > 0 && (
+              <Command className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white">
+                <CommandList>
+                  <CommandGroup>
+                    <CommandItem 
+                      onSelect={() => handleSearchSubmit("")}
+                      className="p-2 cursor-pointer hover:bg-slate-100"
+                    >
+                      <div className="flex items-center gap-2">
+                        <MdSearch className="text-muted-foreground" />
+                        <span className="flex-1">
+                          Zoek naar "<strong>{searchQuery}</strong>"
+                        </span>
+                      </div>
+                    </CommandItem>
+                  </CommandGroup>
+                  
+                  <CommandGroup heading="Evenementen">
+                    {searchResults.map(result => (
+                      <CommandItem 
+                        key={result.id}
+                        onSelect={() => handleSearchSubmit(result.title)}
+                        className="p-2 cursor-pointer hover:bg-slate-100"
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{result.title}</span>
+                          <span className="text-sm text-muted-foreground">{result.category}</span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            )}
+          </div>
         </div>
 
         <Popover>

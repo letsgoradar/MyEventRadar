@@ -48,14 +48,24 @@ function MapEventLoader({
   onZoomChange: (zoom: number) => void;
 }) {
   const map = useMap();
+  
+  // Gebruik refs om eerdere waarden te onthouden en onnodige updates te voorkomen
   const prevBoundsRef = React.useRef<L.LatLngBounds | null>(null);
   const prevZoomRef = React.useRef<number | null>(null);
+  const onBoundsChangeRef = React.useRef(onBoundsChange);
+  const onZoomChangeRef = React.useRef(onZoomChange);
   
-  // Eerste keer initialiseren en alleen bijwerken bij significante wijzigingen
+  // Update refs wanneer callbacks veranderen (zonder hernieuwde registratie van event handlers)
+  React.useEffect(() => {
+    onBoundsChangeRef.current = onBoundsChange;
+    onZoomChangeRef.current = onZoomChange;
+  }, [onBoundsChange, onZoomChange]);
+  
+  // Initialiseer eventHandlers en stuur eerste waarden (slechts één keer bij mount)
   React.useEffect(() => {
     if (!map) return;
     
-    // Hulpfunctie om bounds te vergelijken
+    // Hulpfunctie om bounds te vergelijken met een tolerantiedrempel
     const areBoundsDifferent = (a: L.LatLngBounds | null, b: L.LatLngBounds): boolean => {
       if (!a) return true;
       
@@ -74,64 +84,91 @@ function MapEventLoader({
       );
     };
     
-    // Initialiseer met huidige waarden (alleen bij eerste render)
-    const currentBounds = map.getBounds();
-    const currentZoom = map.getZoom();
+    // Bij eerste render, stuur initiële waarden
+    const sendInitialValues = () => {
+      try {
+        const currentBounds = map.getBounds();
+        const currentZoom = map.getZoom();
+        
+        // Alleen versturen als de kaart volledig geladen is
+        if (currentBounds && currentZoom) {
+          // Update de refs
+          prevBoundsRef.current = currentBounds;
+          prevZoomRef.current = currentZoom;
+          
+          // Stuur initiële waarden
+          onBoundsChangeRef.current(currentBounds);
+          onZoomChangeRef.current(currentZoom);
+          
+          console.log("Initiële map bounds en zoom ingesteld");
+        }
+      } catch (err) {
+        // Soms is de kaart nog niet volledig geladen
+        console.log("Kaart nog niet volledig geladen, initiële waarden uitgesteld");
+      }
+    };
     
-    if (!prevBoundsRef.current) {
-      onBoundsChange(currentBounds);
-      prevBoundsRef.current = currentBounds;
-    }
+    // Geef de kaart even tijd om te laden
+    const initTimer = setTimeout(sendInitialValues, 100);
     
-    if (prevZoomRef.current === null) {
-      onZoomChange(currentZoom);
-      prevZoomRef.current = currentZoom;
-    }
-    
-    // Eventlisteners voor het bijwerken bij veranderingen
+    // Handler voor bewegingen van de kaart
     const handleMoveEnd = () => {
-      const newBounds = map.getBounds();
-      if (areBoundsDifferent(prevBoundsRef.current, newBounds)) {
-        onBoundsChange(newBounds);
-        prevBoundsRef.current = newBounds;
+      try {
+        const newBounds = map.getBounds();
+        if (newBounds && areBoundsDifferent(prevBoundsRef.current, newBounds)) {
+          onBoundsChangeRef.current(newBounds);
+          prevBoundsRef.current = newBounds;
+        }
+      } catch (err) {
+        console.error("Fout bij bounds update:", err);
       }
     };
     
+    // Handler voor zoom acties
     const handleZoomEnd = () => {
-      const newZoom = map.getZoom();
-      const newBounds = map.getBounds();
-      
-      if (newZoom !== prevZoomRef.current) {
-        onZoomChange(newZoom);
-        prevZoomRef.current = newZoom;
-      }
-      
-      if (areBoundsDifferent(prevBoundsRef.current, newBounds)) {
-        onBoundsChange(newBounds);
-        prevBoundsRef.current = newBounds;
+      try {
+        const newZoom = map.getZoom();
+        const newBounds = map.getBounds();
+        
+        // Update zoom niveau als dat veranderd is
+        if (newZoom !== undefined && newZoom !== prevZoomRef.current) {
+          onZoomChangeRef.current(newZoom);
+          prevZoomRef.current = newZoom;
+        }
+        
+        // Update bounds na zoomen
+        if (newBounds && areBoundsDifferent(prevBoundsRef.current, newBounds)) {
+          onBoundsChangeRef.current(newBounds);
+          prevBoundsRef.current = newBounds;
+        }
+      } catch (err) {
+        console.error("Fout bij zoom update:", err);
       }
     };
     
+    // Registreer event handlers
     map.on('moveend', handleMoveEnd);
     map.on('zoomend', handleZoomEnd);
     
+    // Cleanup functie
     return () => {
+      clearTimeout(initTimer);
       map.off('moveend', handleMoveEnd);
       map.off('zoomend', handleZoomEnd);
     };
-  }, [map]); // Alleen map als dependency, niet onBoundsChange of onZoomChange
+  }, [map]); // Alleen afhankelijk van map, niet van callback functies
   
   return null;
 }
 
-// Functie om categorie-specifieke markers te maken
+// Functie om categorie-specifieke markers te maken - alleen stippen, geen overlay tekst
 function createEventIcon(category: string, isExpired: boolean = false) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
   return L.divIcon({
     className: 'custom-div-icon',
-    html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
+    html: `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
   });
 }
 
@@ -140,9 +177,18 @@ interface MapViewProps {
   radius?: number;
   filteredEvents?: Event[];
   hideZoomControls?: boolean;
+  onEventClick?: (event: Event) => void;
+  onRadiusChange?: (radius: number) => void;
 }
 
-export default function MapView({ searchQuery = "", radius = 10, filteredEvents, hideZoomControls = false }: MapViewProps) {
+export default function MapView({ 
+  searchQuery = "", 
+  radius = 10, 
+  filteredEvents, 
+  hideZoomControls = false,
+  onEventClick,
+  onRadiusChange: propOnRadiusChange 
+}: MapViewProps) {
   // State voor locatie van gebruiker
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
   const [eventsData, setEventsData] = React.useState<Event[]>([]);
@@ -187,8 +233,16 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents,
   React.useEffect(() => {
     if (currentBounds && !filteredEvents) {
       refetch();
+      
+      // Als er een radius change handler is, stuur de nieuwe radius door
+      if (propOnRadiusChange && currentZoom) {
+        // Bereken een radius op basis van het huidige zoom niveau
+        // Hoe verder uitgezoomd, hoe groter de radius
+        const calculatedRadius = Math.max(5, Math.round(20 / (currentZoom * 0.4)));
+        propOnRadiusChange(calculatedRadius);
+      }
     }
-  }, [currentBounds, refetch, filteredEvents]);
+  }, [currentBounds, refetch, filteredEvents, propOnRadiusChange, currentZoom]);
   
   // Update events data als filteredEvents of fetchedEvents wijzigen
   React.useEffect(() => {
@@ -372,6 +426,9 @@ export default function MapView({ searchQuery = "", radius = 10, filteredEvents,
             eventHandlers={{
               click: () => {
                 setSelectedEvent(event.event);
+                if (onEventClick) {
+                  onEventClick(event.event);
+                }
               }
             }}
           >

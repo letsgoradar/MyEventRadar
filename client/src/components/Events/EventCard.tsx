@@ -59,8 +59,13 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   // State voor berekende afstand
   const [calculatedDistance, setCalculatedDistance] = useState<number | undefined>(distance);
   
-  // Controleer of het evenement verlopen is
-  const isExpired = event.endTime ? new Date(event.endTime) < new Date() : false;
+  // Controleer de status van het evenement (bezig, verlopen, toekomstig)
+  const now = new Date();
+  const startTime = new Date(event.startTime);
+  const endTime = event.endTime ? new Date(event.endTime) : new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // Default 2 uur
+  
+  const isExpired = endTime < now;
+  const isOngoing = startTime <= now && endTime >= now;
   
   // Update afstand wanneer locatie verandert of distance prop verandert
   useEffect(() => {
@@ -163,7 +168,21 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
             </div>
             
             <div className="mt-2">
-              <CountdownTimer startTime={event.startTime} />
+              {isOngoing && (
+                <div className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
+                  <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
+                  Event is nu bezig
+                </div>
+              )}
+              {isExpired && (
+                <div className="bg-red-100 text-red-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
+                  <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
+                  Event is verlopen
+                </div>
+              )}
+              {!isOngoing && !isExpired && (
+                <CountdownTimer startTime={event.startTime} />
+              )}
             </div>
           </CardHeader>
           
@@ -262,7 +281,21 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
 
             <CardContent className="p-4 pt-2 flex-1 flex flex-col">
               <div className="flex flex-col gap-2 mb-4">
-                <CountdownTimer startTime={event.startTime} />
+                {isOngoing && (
+                  <div className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
+                    Event is nu bezig
+                  </div>
+                )}
+                {isExpired && (
+                  <div className="bg-red-100 text-red-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
+                    <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
+                    Event is verlopen
+                  </div>
+                )}
+                {!isOngoing && !isExpired && (
+                  <CountdownTimer startTime={event.startTime} />
+                )}
 
                 {event.isPaid && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">

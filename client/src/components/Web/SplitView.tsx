@@ -34,31 +34,37 @@ export function SplitView({
   }, [onRadiusChange]);
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full z-0">
-      <ResizablePanel defaultSize={50} minSize={30}>
-        <div className="h-full relative overflow-hidden">
-          {/* Kaartcomponent met z-index 0 zodat deze onder de header blijft */}
-          <MapView 
-            searchQuery={searchQuery} 
-            radius={radius} 
-            filteredEvents={filteredEvents}
-            onEventClick={handleEventClick}
-            onRadiusChange={handleRadiusChange}
-          />
-        </div>
-      </ResizablePanel>
-      <ResizableHandle withHandle className="z-10" />
-      <ResizablePanel defaultSize={50} minSize={30}>
-        <div className="h-full overflow-y-auto pb-20">
-          <EventList 
-            searchQuery={searchQuery} 
-            radius={radius} 
-            filteredEvents={filteredEvents} 
-            gridView={true} // Gebruik de nieuwe grid weergave
-          />
-        </div>
-      </ResizablePanel>
-    </ResizablePanelGroup>
+    <div className="h-full">
+      <ResizablePanelGroup direction="horizontal" className="h-full">
+        {/* Linker paneel: kaartweergave */}
+        <ResizablePanel defaultSize={50} minSize={30} className="relative">
+          <div className="h-full overflow-hidden">
+            <MapView 
+              searchQuery={searchQuery} 
+              radius={radius} 
+              filteredEvents={filteredEvents}
+              onEventClick={handleEventClick}
+              onRadiusChange={handleRadiusChange}
+            />
+          </div>
+        </ResizablePanel>
+        
+        {/* Scheidingshandvat */}
+        <ResizableHandle withHandle className="z-50 bg-primary" />
+        
+        {/* Rechter paneel: lijst/grid weergave */}
+        <ResizablePanel defaultSize={50} minSize={30} className="relative">
+          <div className="h-full overflow-y-auto pb-20 px-4 pt-4">
+            <EventList 
+              searchQuery={searchQuery} 
+              radius={radius} 
+              filteredEvents={filteredEvents} 
+              gridView={true} // Gebruik de nieuwe grid weergave
+            />
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   );
 }
 

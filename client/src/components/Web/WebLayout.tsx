@@ -75,7 +75,7 @@ export function WebLayout({
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col relative max-w-[calc(100vw-260px)] mx-auto">
+      <div className="flex-1 flex flex-col relative w-[calc(100vw-260px)]">
         <Header 
           isMapView={true} // Always true in web view since we're using SplitView
           toggleView={() => {}} // Empty function since we don't need this in web view
@@ -85,9 +85,9 @@ export function WebLayout({
           onCategoriesChange={handleCategoriesChange}
           hideViewToggle={true} // Hide the toggle button in web view
         />
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 relative border-t border-border">
           {children ? (
-            <div className="h-full overflow-y-auto p-2 pb-20 max-w-screen-2xl mx-auto">{children}</div>
+            <div className="h-full overflow-y-auto p-4 pb-20 max-w-screen-2xl mx-auto">{children}</div>
           ) : (
             <SplitView 
               searchQuery={searchQuery}

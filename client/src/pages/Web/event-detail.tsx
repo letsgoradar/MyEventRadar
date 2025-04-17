@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,6 +26,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import 'leaflet/dist/leaflet.css';
 import '@/components/Events/leaflet-fix.css';
 
+// Importeer L van leaflet
+import L from 'leaflet';
+
 // Nodig voor het Marker icoon
 function createEventIcon(category: string) {
   const color = getCategoryColor(category as any);
@@ -36,9 +39,6 @@ function createEventIcon(category: string) {
     iconAnchor: [6, 6],
   });
 }
-
-// Importeer L van leaflet
-import L from 'leaflet';
 
 const EventDetail = () => {
   const { id } = useParams();

@@ -25,6 +25,104 @@ import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 import ProfilePhotoUpload from "./ProfilePhotoUpload";
 import { useQuery } from "@tanstack/react-query";
 
+// Filters component om de Popover te isoleren en re-rendering problemen te voorkomen
+interface FiltersPopoverProps {
+  radius: number;
+  selectedCategories: string[];
+  onCategoriesChange: (categories: string[]) => void;
+  onRadiusChange: (values: number[]) => void;
+  formatRadius: (radius: number) => string;
+  applyFilters: () => void;
+  toggleCategory: (category: string) => void;
+}
+
+// Memoized component om de "Maximum update depth exceeded" waarschuwing te voorkomen
+const FiltersPopover = React.memo(({
+  radius,
+  selectedCategories,
+  formatRadius,
+  onRadiusChange,
+  toggleCategory,
+  applyFilters
+}: FiltersPopoverProps) => {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1">
+          <Sliders className="h-4 w-4" />
+          Filters
+          {selectedCategories.length > 0 && (
+            <Badge className="ml-1 text-xs h-5 min-w-5 flex items-center justify-center bg-primary text-primary-foreground">
+              {selectedCategories.length}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] p-4" sideOffset={5}>
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-medium mb-2">Afstand: {formatRadius(radius)}</h3>
+            <div className="px-1">
+              <Slider
+                value={[radius]}
+                min={1}
+                max={300}
+                step={1}
+                onValueChange={onRadiusChange}
+                className="mb-1"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>1 km</span>
+                <span>Nederland</span>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <h3 className="text-sm font-medium mb-2">Categorieën</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {CATEGORIES.map((category) => {
+                const isSelected = selectedCategories.includes(category);
+                return (
+                  <Button
+                    key={category}
+                    size="sm"
+                    variant="outline"
+                    className={cn(
+                      "h-auto py-1 px-2 text-xs justify-start gap-1",
+                      isSelected && "bg-primary text-primary-foreground"
+                    )}
+                    onClick={() => toggleCategory(category)}
+                  >
+                    <CategoryIcon category={category} size={14} />
+                    <span className="truncate">{category}</span>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+          
+          <div className="pt-2 flex justify-end gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onRadiusChange([10]) /* Default radius herstellen */}
+            >
+              Reset
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={applyFilters}
+            >
+              Toepassen
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+});
+
 interface App2LayoutProps {
   children: React.ReactNode;
   title: string;
@@ -341,82 +439,17 @@ export function App2Layout({
             ))}
           </div>
           
-          {/* Filters popover - terug naar de originele implementatie omdat de andere een error gaf */}
+          {/* Filters popover - memoized component om re-rendering problemen te voorkomen */}
           <div className="flex justify-between items-center mb-3 relative z-10">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1">
-                  <Sliders className="h-4 w-4" />
-                  Filters
-                  {selectedCategories.length > 0 && (
-                    <Badge className="ml-1 text-xs h-5 min-w-5 flex items-center justify-center bg-primary text-primary-foreground">
-                      {selectedCategories.length}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-4" sideOffset={5}>
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Afstand: {formatRadius(radius)}</h3>
-                    <div className="px-1">
-                      <Slider
-                        value={[radius]}
-                        min={1}
-                        max={300}
-                        step={1}
-                        onValueChange={handleRadiusChange}
-                        className="mb-1"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>1 km</span>
-                        <span>Nederland</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Categorieën</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      {CATEGORIES.map((category) => {
-                        const isSelected = selectedCategories.includes(category);
-                        return (
-                          <Button
-                            key={category}
-                            size="sm"
-                            variant="outline"
-                            className={cn(
-                              "h-auto py-1 px-2 text-xs justify-start gap-1",
-                              isSelected && "bg-primary text-primary-foreground"
-                            )}
-                            onClick={() => toggleCategory(category)}
-                          >
-                            <CategoryIcon category={category} size={14} />
-                            <span className="truncate">{category}</span>
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  
-                  <div className="pt-2 flex justify-end gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setSelectedCategories([])}
-                    >
-                      Reset
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      onClick={applyFilters}
-                    >
-                      Toepassen
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+            <FiltersPopover 
+              radius={radius}
+              selectedCategories={selectedCategories}
+              onCategoriesChange={setSelectedCategories}
+              onRadiusChange={handleRadiusChange}
+              formatRadius={formatRadius}
+              applyFilters={applyFilters}
+              toggleCategory={toggleCategory}
+            />
           </div>
         </div>
       )}

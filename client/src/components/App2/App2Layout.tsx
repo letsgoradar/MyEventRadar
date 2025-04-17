@@ -28,12 +28,11 @@ import { useQuery } from "@tanstack/react-query";
 // Filters component om de Popover te isoleren en re-rendering problemen te voorkomen
 interface FiltersPopoverProps {
   radius: number;
-  selectedCategories: string[];
-  onCategoriesChange: (categories: string[]) => void;
+  selectedCategories: typeof CATEGORIES[number][];
   onRadiusChange: (values: number[]) => void;
   formatRadius: (radius: number) => string;
   applyFilters: () => void;
-  toggleCategory: (category: string) => void;
+  toggleCategory: (category: typeof CATEGORIES[number]) => void;
 }
 
 // Memoized component om de "Maximum update depth exceeded" waarschuwing te voorkomen
@@ -444,7 +443,6 @@ export function App2Layout({
             <FiltersPopover 
               radius={radius}
               selectedCategories={selectedCategories}
-              onCategoriesChange={setSelectedCategories}
               onRadiusChange={handleRadiusChange}
               formatRadius={formatRadius}
               applyFilters={applyFilters}

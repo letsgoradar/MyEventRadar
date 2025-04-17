@@ -98,7 +98,7 @@ export function Header({
   };
 
   return (
-    <div className="h-20 border-b border-border bg-background flex items-center px-4 justify-between z-50 sticky top-0 left-0 right-0 pointer-events-auto">
+    <div className="h-20 border-b border-border bg-background flex items-center px-4 justify-between z-[100] sticky top-0 left-0 right-0 pointer-events-auto shadow-sm">
       <div className="flex items-center gap-4 w-full max-w-lg">
         <div className="relative flex-1">
           <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />

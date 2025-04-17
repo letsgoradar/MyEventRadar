@@ -38,7 +38,7 @@ export function SplitView({
       {/* Voeg een horizontale scheidingslijn toe tussen header en content */}
       <div className="w-full h-[1px] bg-border"></div>
       
-      <div className="flex-1">
+      <div className="flex-1 relative z-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Linker paneel: kaartweergave */}
           <ResizablePanel defaultSize={50} minSize={30} className="relative">

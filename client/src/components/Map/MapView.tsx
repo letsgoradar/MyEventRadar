@@ -289,7 +289,7 @@ export default function MapView({
   
   // Render de kaart
   return (
-    <div className="h-full w-full relative flex-1 overflow-hidden">
+    <div className="h-full w-full relative flex-1 overflow-hidden z-0">
       {/* Filter controls voor kaartstijl en verlopen events */}
       <div className="absolute top-4 right-4 z-[150] flex flex-col gap-2">
         {/* Event filters */}

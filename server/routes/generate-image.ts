@@ -30,10 +30,11 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Check if we have a Hugging Face API key
     if (!HUGGING_FACE_API_KEY) {
-      console.error('Geen Hugging Face API key gevonden');
+      console.error('Geen Hugging Face API key gevonden in environment variables');
       return res.status(503).json({ 
-        error: 'Configuratiefout',
-        message: 'Afbeeldingsgeneratie is tijdelijk niet beschikbaar. Configuratiefout: geen API-sleutel.'
+        error: 'API-sleutel ontbreekt',
+        message: 'Afbeeldingsgeneratie is niet beschikbaar omdat de Hugging Face API-sleutel ontbreekt.',
+        missing_api_key: true
       });
     }
     

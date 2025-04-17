@@ -157,7 +157,7 @@ const EventDetail = () => {
                 {/* Toon de afbeelding als deze beschikbaar is, anders een placeholder */}
                 {event.imageUrl ? (
                   <img 
-                    src={event.imageUrl} 
+                    src={event.imageUrl || ''} 
                     alt={event.title}
                     className="w-full h-full object-cover"
                   />

@@ -138,12 +138,24 @@ export function ImageGenerator({
         // Als er een API error is (buiten timeout/retry), toon duidelijk bericht
         if (data.error) {
           console.error("API error:", data.error);
-          toast({
-            title: "Afbeeldingsgeneratie niet beschikbaar",
-            description: data.message || "Er is een probleem met de afbeeldingsgeneratie. Probeer het later opnieuw.",
-            variant: "destructive",
-            duration: 5000,
-          });
+          
+          // Speciale melding voor ontbrekende API-sleutel
+          if (data.missing_api_key) {
+            toast({
+              title: "API-sleutel ontbreekt",
+              description: "De Hugging Face API-sleutel is niet geconfigureerd. Neem contact op met de beheerder om afbeeldingsgeneratie te activeren.",
+              variant: "destructive",
+              duration: 8000,
+            });
+          } else {
+            toast({
+              title: "Afbeeldingsgeneratie niet beschikbaar",
+              description: data.message || "Er is een probleem met de afbeeldingsgeneratie. Probeer het later opnieuw.",
+              variant: "destructive",
+              duration: 5000,
+            });
+          }
+          
           throw new Error(data.error);
         }
         throw new Error("Failed to generate image");
@@ -152,6 +164,12 @@ export function ImageGenerator({
       // Als we hier zijn, hebben we een succesvolle afbeelding gegenereerd
       // Controleer of we een imageUrl hebben ontvangen
       if (!data.imageUrl) {
+        console.error("Geen imageUrl ontvangen in de API response");
+        toast({
+          title: "Afbeeldingsgeneratie fout",
+          description: "Er is een probleem opgetreden bij het verwerken van de gegenereerde afbeelding",
+          variant: "destructive",
+        });
         throw new Error("No image URL received");
       }
 

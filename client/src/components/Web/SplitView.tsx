@@ -34,36 +34,41 @@ export function SplitView({
   }, [onRadiusChange]);
 
   return (
-    <div className="h-full">
-      <ResizablePanelGroup direction="horizontal" className="h-full">
-        {/* Linker paneel: kaartweergave */}
-        <ResizablePanel defaultSize={50} minSize={30} className="relative">
-          <div className="h-full overflow-hidden">
-            <MapView 
-              searchQuery={searchQuery} 
-              radius={radius} 
-              filteredEvents={filteredEvents}
-              onEventClick={handleEventClick}
-              onRadiusChange={handleRadiusChange}
-            />
-          </div>
-        </ResizablePanel>
-        
-        {/* Scheidingshandvat */}
-        <ResizableHandle withHandle className="z-50 bg-primary" />
-        
-        {/* Rechter paneel: lijst/grid weergave */}
-        <ResizablePanel defaultSize={50} minSize={30} className="relative">
-          <div className="h-full overflow-y-auto pb-20 px-4 pt-4">
-            <EventList 
-              searchQuery={searchQuery} 
-              radius={radius} 
-              filteredEvents={filteredEvents} 
-              gridView={true} // Gebruik de nieuwe grid weergave
-            />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+    <div className="flex flex-col h-full">
+      {/* Voeg een horizontale scheidingslijn toe tussen header en content */}
+      <div className="w-full h-[1px] bg-border"></div>
+      
+      <div className="flex-1">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          {/* Linker paneel: kaartweergave */}
+          <ResizablePanel defaultSize={50} minSize={30} className="relative">
+            <div className="h-full overflow-hidden">
+              <MapView 
+                searchQuery={searchQuery} 
+                radius={radius} 
+                filteredEvents={filteredEvents}
+                onEventClick={handleEventClick}
+                onRadiusChange={handleRadiusChange}
+              />
+            </div>
+          </ResizablePanel>
+          
+          {/* Scheidingshandvat */}
+          <ResizableHandle withHandle className="z-50 bg-primary" />
+          
+          {/* Rechter paneel: lijst/grid weergave */}
+          <ResizablePanel defaultSize={50} minSize={30} className="relative">
+            <div className="h-full overflow-y-auto pb-20 px-4 pt-4">
+              <EventList 
+                searchQuery={searchQuery} 
+                radius={radius} 
+                filteredEvents={filteredEvents} 
+                gridView={true} // Gebruik de nieuwe grid weergave
+              />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
     </div>
   );
 }

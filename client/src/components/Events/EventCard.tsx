@@ -1,29 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Event } from '@shared/schema';
-import { MapPin, Calendar, Euro, Eye } from 'lucide-react';
+import { MapPin, Calendar, Euro, Eye, Image } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { CategoryIcon, CATEGORY_COLORS, getCategoryColor } from '../CategoryIcon';
-import './leaflet-fix.css';
-import StreetView from '../StreetView/StreetView';
 import CountdownTimer from './CountdownTimer';
 import { Link } from 'wouter';
 import { useLocation } from '@/hooks/useLocation';
+import placeholderImage from '@/assets/placeholder-event.svg';
 
-function createEventIcon(category: string, isExpired: boolean = false) {
-  // Gebruik lichtgrijs voor verlopen evenementen, anders de categorie kleur
-  const color = isExpired ? '#BBBBBB' : getCategoryColor(category as any);
-  return L.divIcon({
-    className: 'custom-div-icon',
-    html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
-  });
-}
+// Functie voor event icon wordt alleen nog op de kaart gebruikt, niet meer in de cards
+// Deze functie wordt hier behouden voor TypeScript compatibiliteit, maar niet gebruikt in cards
 
 // Functie om afstand tussen twee coördinaten te berekenen (Haversine formule)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -102,31 +90,12 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                 />
               </div>
             ) : (
-              // Als er geen afbeelding is, toon een kaart met een route naar het evenement als achtergrond
-              <div className="h-full w-full">
-                <div className="absolute inset-0 z-0">
-                  <MapContainer 
-                    center={eventCoords} 
-                    zoom={14} 
-                    scrollWheelZoom={false}
-                    zoomControl={false}
-                    attributionControl={false}
-                    dragging={false}
-                    style={{ height: '100%', width: '100%' }}
-                  >
-                    <TileLayer
-                      url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                      subdomains="abcd"
-                      opacity={0.7} // Maak de kaart iets transparanter
-                    />
-                    <Marker position={eventCoords} icon={createEventIcon(event.category, isExpired)} />
-                  </MapContainer>
+              // Als er geen afbeelding is, toon een placeholder
+              <div className="h-full w-full bg-gray-100 flex items-center justify-center">
+                <div className="flex flex-col items-center justify-center text-gray-500">
+                  <Image className="h-8 w-8 mb-2 opacity-50" />
+                  <span className="text-xs text-center">Geen afbeelding beschikbaar</span>
                 </div>
-                
-                {/* Semi-transparante overlay over de gehele kaart voor beter leesbaarheid - alleen in tegelweergave (gridView), niet in kaartweergave */}
-                {window.location.pathname.includes('/web') && (
-                  <div className="absolute inset-0 bg-black/20 z-10"></div>
-                )}
               </div>
             )}
             

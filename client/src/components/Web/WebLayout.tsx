@@ -85,7 +85,7 @@ export function WebLayout({
           onCategoriesChange={handleCategoriesChange}
           hideViewToggle={true} // Hide the toggle button in web view
         />
-        <div className="flex-1 relative border-t border-border">
+        <div className="flex-1 relative">
           {children ? (
             <div className="h-full overflow-y-auto p-4 pb-20 max-w-screen-2xl mx-auto">{children}</div>
           ) : (

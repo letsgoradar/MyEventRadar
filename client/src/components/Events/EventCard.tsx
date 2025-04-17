@@ -14,8 +14,9 @@ import CountdownTimer from './CountdownTimer';
 import { Link } from 'wouter';
 import { useLocation } from '@/hooks/useLocation';
 
-function createEventIcon(category: string) {
-  const color = getCategoryColor(category as any);
+function createEventIcon(category: string, isExpired: boolean = false) {
+  // Gebruik lichtgrijs voor verlopen evenementen, anders de categorie kleur
+  const color = isExpired ? '#BBBBBB' : getCategoryColor(category as any);
   return L.divIcon({
     className: 'custom-div-icon',
     html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
@@ -57,6 +58,9 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   
   // State voor berekende afstand
   const [calculatedDistance, setCalculatedDistance] = useState<number | undefined>(distance);
+  
+  // Controleer of het evenement verlopen is
+  const isExpired = event.endTime ? new Date(event.endTime) < new Date() : false;
   
   // Update afstand wanneer locatie verandert of distance prop verandert
   useEffect(() => {
@@ -110,7 +114,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                       subdomains="abcd"
                       opacity={0.7} // Maak de kaart iets transparanter
                     />
-                    <Marker position={eventCoords} icon={createEventIcon(event.category)} />
+                    <Marker position={eventCoords} icon={createEventIcon(event.category, isExpired)} />
                   </MapContainer>
                 </div>
                 
@@ -119,17 +123,14 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
               </div>
             )}
             
-            {/* Overlay met categorie en afstand - nu met hogere z-index en beter contrast */}
+            {/* Overlay met titel preview en afstand - nu met hogere z-index en beter contrast */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-white z-20">
-              <div className="flex justify-between items-center">
-                <Badge style={{ 
-                  backgroundColor: getCategoryColor(event.category as any),
-                  color: 'white'
-                }}>
-                  {event.category}
-                </Badge>
+              <div className="flex justify-between items-start">
+                <div className="flex-1 truncate mr-2">
+                  <h3 className="text-sm font-medium truncate">{event.title}</h3>
+                </div>
                 
-                <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs font-medium shadow-sm">
+                <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs font-medium shadow-sm flex-shrink-0">
                   <MapPin className="h-3 w-3 mr-1" />
                   {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
                     ? `${calculatedDistance.toFixed(1)} km` 
@@ -214,22 +215,17 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                     url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                     subdomains="abcd"
                   />
-                  <Marker position={eventCoords} icon={createEventIcon(event.category)} />
+                  <Marker position={eventCoords} icon={createEventIcon(event.category, isExpired)} />
                 </MapContainer>
               </div>
             )}
             
-            {/* Categorie badge overlay */}
-            <Badge 
-              variant="outline" 
-              className="absolute top-2 left-2"
-              style={{ 
-                backgroundColor: `${getCategoryColor(event.category as any)}90`,
-                color: 'white'
-              }}
-            >
-              {event.category}
-            </Badge>
+            {/* Titel preview overlay - alleen in lijstweergave */}
+            <div className="absolute top-2 left-2 right-2 z-10">
+              <div className="truncate text-sm font-medium text-white bg-black/60 px-2 py-1 rounded shadow">
+                {event.title}
+              </div>
+            </div>
           </div>
           
           {/* Content rechts */}

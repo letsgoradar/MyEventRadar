@@ -203,12 +203,16 @@ const EventDetail = () => {
                     </TabsList>
                     
                     <TabsContent value="map">
-                      <div className="h-[300px] w-full rounded-md overflow-hidden mb-3">
+                      <div className="h-[300px] w-full rounded-md overflow-hidden mb-3 relative">
                         <MapContainer
                           center={eventCoords}
                           zoom={14}
-                          scrollWheelZoom={true}
-                          style={{ height: '100%', width: '100%' }}
+                          scrollWheelZoom={false}
+                          dragging={false}
+                          zoomControl={false}
+                          doubleClickZoom={false}
+                          style={{ height: '100%', width: '100%', position: 'relative', zIndex: 5 }}
+                          className="event-detail-map"
                         >
                           <TileLayer
                             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
@@ -223,10 +227,12 @@ const EventDetail = () => {
                     </TabsContent>
                     
                     <TabsContent value="streetview">
-                      <div className="h-[300px] w-full rounded-md overflow-hidden mb-3">
+                      <div className="h-[300px] w-full rounded-md overflow-hidden mb-3 relative">
                         <StreetView
                           latitude={eventCoords[0]}
                           longitude={eventCoords[1]}
+                          style={{ position: 'relative', zIndex: 5 }}
+                          className="event-detail-streetview"
                         />
                       </div>
                     </TabsContent>

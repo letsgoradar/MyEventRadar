@@ -42,7 +42,7 @@ function createEventIcon(category: string) {
 
 const EventDetail = () => {
   const { id } = useParams();
-  const [showStreetView, setShowStreetView] = useState(false);
+  // We gebruiken useState hier niet meer
   
   // Fetch event details
   const { data: event, isLoading, error } = useQuery({
@@ -54,6 +54,8 @@ const EventDetail = () => {
       }
       return response.json();
     },
+    // Verbetering: stelt de query-caching in voor betere prestaties
+    staleTime: 5 * 60 * 1000, // 5 minuten
   });
 
   if (isLoading) {

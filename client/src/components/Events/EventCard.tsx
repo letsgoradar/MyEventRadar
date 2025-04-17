@@ -68,8 +68,8 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   }, [location, distance, event.latitude, event.longitude]);
 
   // Bepaal of er een evenement afbeelding beschikbaar is
-  // Controleer of er een imageUrl is als property van het event object
-  const hasEventImage = !!(event as any).imageUrl;
+  // Het imageUrl veld kan null of undefined zijn, dus we moeten controleren of het bestaat
+  const hasEventImage = !!event.imageUrl;
 
   if (gridView) {
     return (
@@ -81,7 +81,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
               // Toon de afbeelding van het evenement
               <div className="h-full w-full">
                 <img 
-                  src={(event as any).imageUrl} 
+                  src={event.imageUrl || ''} 
                   alt={event.title} 
                   className="h-full w-full object-cover"
                 />
@@ -188,7 +188,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
           <div className="md:w-1/3 h-[180px] md:h-auto relative">
             {hasEventImage ? (
               <img 
-                src={(event as any).imageUrl} 
+                src={event.imageUrl || ''} 
                 alt={event.title} 
                 className="h-full w-full object-cover"
               />

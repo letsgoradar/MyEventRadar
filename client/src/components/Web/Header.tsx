@@ -98,14 +98,14 @@ export function Header({
   };
 
   return (
-    <div className="h-30 border-b border-border bg-background flex items-center px-6 justify-between z-50 sticky top-0 left-0 right-0 pointer-events-auto">
-      <div className="flex items-center gap-6 w-full max-w-lg">
+    <div className="h-20 border-b border-border bg-background flex items-center px-4 justify-between z-50 sticky top-0 left-0 right-0 pointer-events-auto">
+      <div className="flex items-center gap-4 w-full max-w-lg">
         <div className="relative flex-1">
-          <MdSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-6 w-6 z-10" />
+          <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
           <div className="relative">
             <Input
               placeholder="Zoek evenementen..."
-              className="pl-12 h-12 text-base rounded-md shadow-sm"
+              className="pl-10 h-10 text-base rounded-md shadow-sm"
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit("")}

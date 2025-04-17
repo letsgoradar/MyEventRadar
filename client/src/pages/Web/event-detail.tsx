@@ -154,7 +154,7 @@ const EventDetail = () => {
               </div>
 
               <div className="relative h-[300px] overflow-hidden rounded-lg bg-muted">
-                {/* Toon de afbeelding als deze beschikbaar is, anders een placeholder */}
+                {/* Toon de afbeelding als deze beschikbaar is, anders een placeholder met Generate button */}
                 {event.imageUrl ? (
                   <img 
                     src={event.imageUrl || ''} 
@@ -164,8 +164,11 @@ const EventDetail = () => {
                 ) : (
                   <>
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/40"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-white text-lg font-medium">Geen afbeelding beschikbaar</span>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4 gap-4">
+                      <span className="text-white text-lg font-medium text-center">Geen afbeelding beschikbaar</span>
+                      <a href={`/web/create-event?edit=${event.id}`} className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-colors">
+                        Evenement bewerken om afbeelding toe te voegen
+                      </a>
                     </div>
                   </>
                 )}

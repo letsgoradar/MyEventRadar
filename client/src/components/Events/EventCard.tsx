@@ -10,9 +10,6 @@ import { Link } from 'wouter';
 import { useLocation } from '@/hooks/useLocation';
 import placeholderImage from '@/assets/placeholder-event.svg';
 
-// Functie voor event icon wordt alleen nog op de kaart gebruikt, niet meer in de cards
-// Deze functie wordt hier behouden voor TypeScript compatibiliteit, maar niet gebruikt in cards
-
 // Functie om afstand tussen twee coördinaten te berekenen (Haversine formule)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Radius van de aarde in km
@@ -196,22 +193,12 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="h-full w-full relative">
-                <MapContainer 
-                  center={eventCoords} 
-                  zoom={14} 
-                  scrollWheelZoom={false}
-                  zoomControl={false}
-                  attributionControl={false}
-                  dragging={false}
-                  style={{ height: '100%', width: '100%' }}
-                >
-                  <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                    subdomains="abcd"
-                  />
-                  <Marker position={eventCoords} icon={createEventIcon(event.category, isExpired)} />
-                </MapContainer>
+              // Als er geen afbeelding is, toon een placeholder
+              <div className="h-full w-full bg-gray-100 flex items-center justify-center">
+                <div className="flex flex-col items-center justify-center text-gray-500">
+                  <Image className="h-8 w-8 mb-2 opacity-50" />
+                  <span className="text-xs text-center">Geen afbeelding beschikbaar</span>
+                </div>
               </div>
             )}
             

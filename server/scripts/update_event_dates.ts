@@ -1,13 +1,13 @@
 import { db } from "../db";
 import { events } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 // Functie om een willekeurige datum te genereren tussen startDate en endDate
-function getRandomDate(startDate: Date, endDate: Date): string {
+function getRandomDate(startDate: Date, endDate: Date): Date {
   const startTime = startDate.getTime();
   const endTime = endDate.getTime();
   const randomTime = startTime + Math.random() * (endTime - startTime);
-  return new Date(randomTime).toISOString();
+  return new Date(randomTime);
 }
 
 // Functie om een willekeurige duur in uren te genereren (tussen 1 en 8 uur)
@@ -31,23 +31,22 @@ async function updateEventDates() {
     // Loop door alle events en update hun datums
     for (const event of allEvents) {
       try {
-        // Genereer een willekeurige start datum (in ISO string formaat voor PostgreSQL)
+        // Genereer een willekeurige start datum
         const newStartDate = getRandomDate(startDate, endDate);
         
         // Genereer een willekeurige duur
         const durationHours = getRandomDuration();
         
         // Bereken de einddatum op basis van de startdatum + duur
-        const startDateObj = new Date(newStartDate);
-        const newEndDate = new Date(startDateObj.getTime() + durationHours * 60 * 60 * 1000).toISOString();
+        const newEndDate = new Date(newStartDate.getTime() + durationHours * 60 * 60 * 1000);
         
-        // Update het event in de database
-        await db.update(events)
-          .set({
-            startTime: newStartDate,
-            endTime: newEndDate
-          })
-          .where(eq(events.id, event.id));
+        // Update het event in de database met sql raw 
+        await db.execute(
+          sql`UPDATE events SET 
+            start_time = ${newStartDate.toISOString()}, 
+            end_time = ${newEndDate.toISOString()} 
+            WHERE id = ${event.id}`
+        );
         
         updateCount++;
         

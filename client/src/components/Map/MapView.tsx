@@ -48,33 +48,78 @@ function MapEventLoader({
   onZoomChange: (zoom: number) => void;
 }) {
   const map = useMap();
+  const prevBoundsRef = React.useRef<L.LatLngBounds | null>(null);
+  const prevZoomRef = React.useRef<number | null>(null);
   
-  // Eerste keer initialiseren
+  // Eerste keer initialiseren en alleen bijwerken bij significante wijzigingen
   React.useEffect(() => {
-    if (map) {
-      // Stuur huidige bounds en zoom level
-      onBoundsChange(map.getBounds());
-      onZoomChange(map.getZoom());
+    if (!map) return;
+    
+    // Hulpfunctie om bounds te vergelijken
+    const areBoundsDifferent = (a: L.LatLngBounds | null, b: L.LatLngBounds): boolean => {
+      if (!a) return true;
       
-      // Eventlisteners voor het bijwerken bij veranderingen
-      const handleMoveEnd = () => {
-        onBoundsChange(map.getBounds());
-      };
+      // Vergelijk de grenzen met een kleine tolerantie
+      const nw1 = a.getNorthWest();
+      const se1 = a.getSouthEast();
+      const nw2 = b.getNorthWest();
+      const se2 = b.getSouthEast();
       
-      const handleZoomEnd = () => {
-        onZoomChange(map.getZoom());
-        onBoundsChange(map.getBounds());
-      };
-      
-      map.on('moveend', handleMoveEnd);
-      map.on('zoomend', handleZoomEnd);
-      
-      return () => {
-        map.off('moveend', handleMoveEnd);
-        map.off('zoomend', handleZoomEnd);
-      };
+      const tolerance = 0.001; // ongeveer 100m
+      return (
+        Math.abs(nw1.lat - nw2.lat) > tolerance ||
+        Math.abs(nw1.lng - nw2.lng) > tolerance ||
+        Math.abs(se1.lat - se2.lat) > tolerance ||
+        Math.abs(se1.lng - se2.lng) > tolerance
+      );
+    };
+    
+    // Initialiseer met huidige waarden (alleen bij eerste render)
+    const currentBounds = map.getBounds();
+    const currentZoom = map.getZoom();
+    
+    if (!prevBoundsRef.current) {
+      onBoundsChange(currentBounds);
+      prevBoundsRef.current = currentBounds;
     }
-  }, [map, onBoundsChange, onZoomChange]);
+    
+    if (prevZoomRef.current === null) {
+      onZoomChange(currentZoom);
+      prevZoomRef.current = currentZoom;
+    }
+    
+    // Eventlisteners voor het bijwerken bij veranderingen
+    const handleMoveEnd = () => {
+      const newBounds = map.getBounds();
+      if (areBoundsDifferent(prevBoundsRef.current, newBounds)) {
+        onBoundsChange(newBounds);
+        prevBoundsRef.current = newBounds;
+      }
+    };
+    
+    const handleZoomEnd = () => {
+      const newZoom = map.getZoom();
+      const newBounds = map.getBounds();
+      
+      if (newZoom !== prevZoomRef.current) {
+        onZoomChange(newZoom);
+        prevZoomRef.current = newZoom;
+      }
+      
+      if (areBoundsDifferent(prevBoundsRef.current, newBounds)) {
+        onBoundsChange(newBounds);
+        prevBoundsRef.current = newBounds;
+      }
+    };
+    
+    map.on('moveend', handleMoveEnd);
+    map.on('zoomend', handleZoomEnd);
+    
+    return () => {
+      map.off('moveend', handleMoveEnd);
+      map.off('zoomend', handleZoomEnd);
+    };
+  }, [map]); // Alleen map als dependency, niet onBoundsChange of onZoomChange
   
   return null;
 }

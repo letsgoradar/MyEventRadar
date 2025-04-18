@@ -5,11 +5,21 @@
   z-index: 0 !important;
 }
 
-/* Zorg ervoor dat de eventkaarten in map-view een achtergrond hebben en niet doorschijnen */
+/* Wanneer in map-weergave, zorg dat event cards niet zichtbaar zijn */
+.app2-layout.map-view .event-card {
+  display: none !important;
+}
+
+/* Wanneer in list-weergave, zorg dat de kaart niet zichtbaar is */
+.app2-layout.list-view .map-container {
+  display: none !important;
+}
+
+/* Zorg ervoor dat de eventkaarten in list-view een achtergrond hebben en niet doorschijnen */
 .app2-layout .event-card {
   position: relative;
   background-color: white; 
-  z-index: 50 !important;
+  z-index: 10;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 

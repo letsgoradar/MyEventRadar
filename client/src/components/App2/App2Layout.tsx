@@ -306,7 +306,7 @@ export function App2Layout({
   
   // Maak de inhoud van de pagina op basis van de gekozen weergave
   return (
-    <div className="flex flex-col min-h-screen bg-background pb-16">
+    <div className={`flex flex-col min-h-screen bg-background pb-16 app2-layout ${view === "map" ? "map-view" : "list-view"}`}>
       {/* Header met titel */}
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b">
         <div className="container py-3 px-4 flex justify-between items-center">
@@ -530,8 +530,8 @@ export function App2Layout({
       
       {/* Kaart weergave - exact tussen de navigatiebalken */}
       {view === "map" && !isProfilePage && (
-        <div className="flex-1 app2-layout">
-          <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[56px] z-0 border-t border-b-0 border-border">
+        <div className="flex-1">
+          <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[56px] z-0 border-t border-b-0 border-border map-container">
             <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} hideZoomControls={true} />
           </div>
         </div>

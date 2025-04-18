@@ -595,18 +595,26 @@ export function App2Layout({
             ))}
           </div>
           
-          {/* Filters popover - memoized component om re-rendering problemen te voorkomen */}
+          {/* Filters en sorteer buttons - memoized component om re-rendering problemen te voorkomen */}
           <div className="flex justify-between items-center mb-3 relative z-10">
-            <FiltersPopover 
-              radius={radius}
-              selectedCategories={selectedCategories}
-              showExpiredEvents={showExpiredEvents}
-              onRadiusChange={handleRadiusChange}
-              formatRadius={formatRadius}
-              applyFilters={applyFilters}
-              toggleCategory={toggleCategory}
-              toggleShowExpiredEvents={toggleShowExpiredEvents}
-            />
+            <div className="flex items-center gap-2">
+              <FiltersPopover 
+                radius={radius}
+                selectedCategories={selectedCategories}
+                showExpiredEvents={showExpiredEvents}
+                onRadiusChange={handleRadiusChange}
+                formatRadius={formatRadius}
+                applyFilters={applyFilters}
+                toggleCategory={toggleCategory}
+                toggleShowExpiredEvents={toggleShowExpiredEvents}
+              />
+              
+              {/* Sorteerknop direct naast filterknop */}
+              <SortMenu 
+                sortOrder={sortOrder}
+                setSortOrder={setSortOrder}
+              />
+            </div>
           </div>
         </div>
       )}

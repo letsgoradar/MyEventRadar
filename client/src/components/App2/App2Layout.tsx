@@ -341,26 +341,6 @@ export function App2Layout({
             <h1 className="text-xl font-semibold">{title}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-              onClick={() => {
-                logoutMutation.mutate(undefined, {
-                  onSuccess: () => {
-                    // Doorsturen naar welkomstpagina na uitloggen
-                    setLocation('/app2/welcome');
-                    toast({
-                      title: "Uitgelogd",
-                      description: "Je bent succesvol uitgelogd.",
-                    });
-                  }
-                });
-              }}
-            >
-              <LogOut className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Uitloggen</span>
-            </Button>
             <Link href="/app2/profile" className="cursor-pointer">
               <Avatar className="h-8 w-8 border-2 border-primary">
                 {savedPhotoUrl ? (

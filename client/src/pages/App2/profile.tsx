@@ -32,6 +32,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import ProfilePhotoUpload from "@/components/App2/ProfilePhotoUpload";
+import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
 
 // Dummy gebruikersgegevens (normaal gesproken zou dit uit een API komen)
 const dummyUser = {
@@ -62,10 +64,12 @@ interface UserProfile {
 export function App2ProfilePage() {
   const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const { user: authUser, logoutMutation } = useAuth();
+  const [, setLocation] = useLocation();
 
   // Haal gebruikersgegevens op van de API
   const { data: user = dummyUser as UserProfile, isLoading } = useQuery<UserProfile>({
-    queryKey: ['/api/current-user'],
+    queryKey: ['/api/user'],
     enabled: true, 
     // Als er geen data is geladen, gebruik dummyUser als fallback
     placeholderData: dummyUser as UserProfile
@@ -79,9 +83,15 @@ export function App2ProfilePage() {
   });
 
   const handleLogout = () => {
-    toast({
-      title: "Uitgelogd",
-      description: "Je bent succesvol uitgelogd.",
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        // Doorsturen naar welkomstpagina na uitloggen
+        setLocation('/app2/welcome');
+        toast({
+          title: "Uitgelogd",
+          description: "Je bent succesvol uitgelogd.",
+        });
+      }
     });
   };
 

@@ -85,7 +85,7 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
     const isApp2 = window.location.pathname.includes('/app2');
     
     return (
-      <div className="pb-4 flex justify-end items-center">
+      <div className="pb-2 flex justify-end items-center">
         {/* Filter en sorteer knoppen groeperen naast elkaar */}
         <div className="flex items-center gap-2">
           <DropdownMenu>
@@ -167,9 +167,9 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
 
   // Standaard lijstweergave
   return (
-    <div className="p-4 event-list-container">
+    <div className="px-4 pt-2 pb-4 event-list-container">
       {renderFilterControls()}
-      <div className="space-y-4 event-list-bg">
+      <div className="space-y-3 event-list-bg">
         {processedEvents.map((event) => (
           <EventCard 
             key={event.id} 

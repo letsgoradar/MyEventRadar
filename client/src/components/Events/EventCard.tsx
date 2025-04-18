@@ -121,7 +121,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                   <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs font-medium shadow-sm flex-shrink-0">
                     <MapPin className="h-3 w-3 mr-1" />
                     {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                      ? `${calculatedDistance.toFixed(1)} km` 
+                      ? `${calculatedDistance.toFixed(1)} km van jouw huidige locatie` 
                       : 'Afstand onbekend'}
                   </div>
                 </div>
@@ -139,7 +139,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
               <CategoryIcon category={event.category as any} className="flex-shrink-0 h-4 w-4" />
               <div className="text-xs">
                 {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                  ? `${calculatedDistance.toFixed(1)} km` 
+                  ? `${calculatedDistance.toFixed(1)} km van jouw huidige locatie` 
                   : 'Afstand onbekend'}
               </div>
             </div>
@@ -260,7 +260,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                 <MapPin className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm">
                   {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                    ? `${calculatedDistance.toFixed(1)} km` 
+                    ? `${calculatedDistance.toFixed(1)} km van jouw huidige locatie` 
                     : 'Afstand onbekend'}
                 </span>
               </div>
@@ -359,7 +359,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                       <MapPin className="h-3 w-3" />
                       <span className="text-xs">
                         {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                          ? `${calculatedDistance.toFixed(1)} km` 
+                          ? `${calculatedDistance.toFixed(1)} km van jouw huidige locatie` 
                           : 'Afstand onbekend'}
                       </span>
                     </div>
@@ -400,7 +400,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                 )}
               </div>
 
-              <div className="flex justify-between items-center text-sm text-muted-foreground mt-4">
+              <div className="flex justify-between items-center text-sm text-muted-foreground mt-2">
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 mr-1" />
                   <span>

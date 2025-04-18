@@ -32,10 +32,12 @@ import { useToast } from "@/hooks/use-toast";
 interface FiltersPopoverProps {
   radius: number;
   selectedCategories: typeof CATEGORIES[number][];
+  showExpiredEvents: boolean; 
   onRadiusChange: (values: number[]) => void;
   formatRadius: (radius: number) => string;
   applyFilters: () => void;
   toggleCategory: (category: typeof CATEGORIES[number]) => void;
+  toggleShowExpiredEvents: () => void;
 }
 
 // Memoized component om de "Maximum update depth exceeded" waarschuwing te voorkomen
@@ -163,6 +165,8 @@ export function App2Layout({
   // Standaard tegelweergave (list) in plaats van kaartweergave (map)
   const [view, setView] = React.useState<"list" | "map">("list");
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
+  // Standaard geen verlopen evenementen tonen
+  const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   
   // Bewaar de oorspronkelijke evenementen
   const [originalEvents, setOriginalEvents] = React.useState<Event[]>([]);

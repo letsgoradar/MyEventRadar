@@ -47,9 +47,13 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven of in App2
   const useGridLayout = isApp2 || (!isMobile && gridView) || (isMobile && gridView);
   
-  // Verberg EventList component volledig wanneer op kaartweergave in App2
+  // In App2 kaartweergave alleen de sorteerknop tonen
   if (isApp2MapView) {
-    return null;
+    return (
+      <div className="absolute top-0 right-0 mt-4 mr-4 z-30">
+        {renderFilterControls()}
+      </div>
+    );
   }
   
   // Filter en sorteer de evenementen
@@ -81,14 +85,6 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   
   // Toon filters boven de lijst
   const renderFilterControls = () => {
-    // Check of we op de App2 pagina zijn
-    const isApp2 = window.location.pathname.includes('/app2');
-    
-    // In App2 gebruiken we de sorteerknop die al in de App2Layout is toegevoegd
-    if (isApp2) {
-      return null;
-    }
-    
     return (
       <div className="pb-2 flex justify-end items-center">
         {/* Filter en sorteer knoppen groeperen naast elkaar */}
@@ -117,6 +113,24 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
                 <MapPin className="h-4 w-4 mr-2" />
                 Afstand
               </DropdownMenuItem>
+              
+              {/* Verberg verlopen evenementen optie (alleen voor App2) */}
+              {window.location.pathname.includes('/app2') && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Filters</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    className={cn("cursor-pointer flex items-center gap-2")}
+                    onClick={() => setHideExpired(!hideExpired)}
+                  >
+                    <div className={cn("h-4 w-4 rounded border flex items-center justify-center", 
+                      hideExpired ? "bg-primary border-primary" : "border-gray-300")}>
+                      {hideExpired && <span className="text-white text-xs">✓</span>}
+                    </div>
+                    <span>Verberg verlopen evenementen</span>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

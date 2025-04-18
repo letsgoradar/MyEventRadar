@@ -204,19 +204,28 @@ export function App2Layout({
     }
   }, [filteredEvents]);
   
-  // Filter events gebaseerd op geselecteerde categorieën, maar update niet de state
+  // Filter events gebaseerd op geselecteerde categorieën en verlopen evenementen
   const displayedEvents = React.useMemo(() => {
     // Als er geen originele events zijn, gebruik de gefilterde events direct
     if (originalEvents.length === 0) return filteredEvents;
     
-    // Als er geen categorieën geselecteerd zijn, toon alle originele evenementen
-    if (selectedCategories.length === 0) return originalEvents;
+    let filtered = originalEvents;
     
-    // Filter evenementen op basis van geselecteerde categorieën
-    return originalEvents.filter(event => 
-      selectedCategories.includes(event.category as typeof CATEGORIES[number])
-    );
-  }, [selectedCategories, originalEvents]);
+    // Filter op basis van categorieën als er categorieën geselecteerd zijn
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(event => 
+        selectedCategories.includes(event.category as typeof CATEGORIES[number])
+      );
+    }
+    
+    // Filter verlopen evenementen als ze niet getoond moeten worden
+    if (!showExpiredEvents) {
+      const now = new Date();
+      filtered = filtered.filter(event => new Date(event.endTime) > now);
+    }
+    
+    return filtered;
+  }, [selectedCategories, originalEvents, showExpiredEvents]);
   
   // Update gefilterde events alleen wanneer de gebruiker op Toepassen klikt
   const applyFilters = React.useCallback(() => {
@@ -591,10 +600,12 @@ export function App2Layout({
             <FiltersPopover 
               radius={radius}
               selectedCategories={selectedCategories}
+              showExpiredEvents={showExpiredEvents}
               onRadiusChange={handleRadiusChange}
               formatRadius={formatRadius}
               applyFilters={applyFilters}
               toggleCategory={toggleCategory}
+              toggleShowExpiredEvents={toggleShowExpiredEvents}
             />
           </div>
         </div>

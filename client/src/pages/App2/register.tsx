@@ -1,27 +1,43 @@
 import React from 'react';
 import { App2RegisterForm } from '@/components/App2/RegisterForm';
+import { App2Layout } from '@/components/App2/App2Layout';
+import { useAuth } from '@/hooks/use-auth';
 import { useLocation } from 'wouter';
+import { Loader2 } from 'lucide-react';
 
-export function App2RegisterPage() {
-  // We kunnen eventuele query parameters gebruiken om de redirect URL te bepalen
-  const [location] = useLocation();
-  const redirectPath = new URLSearchParams(location.split('?')[1]).get('redirect') || '/app2';
+export default function App2RegisterPage() {
+  const { user, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  // Redirect to app home if user is already logged in
+  React.useEffect(() => {
+    if (user) {
+      navigate('/app2');
+    }
+  }, [user, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-border" />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="bg-primary text-primary-foreground py-4 px-4 text-center">
-        <h1 className="text-xl font-bold">Registreren</h1>
-      </header>
-      
-      {/* Content */}
-      <main className="flex-1 p-4 flex items-center justify-center">
-        <div className="w-full max-w-md">
-          <App2RegisterForm redirectPath={redirectPath} />
+    <App2Layout hideBottomNav hideBackButton>
+      <div className="container mx-auto p-4 flex flex-col h-[90vh] items-center justify-center">
+        <div className="flex flex-col w-full max-w-md space-y-6">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold tracking-tight">Account aanmaken</h1>
+            <p className="text-muted-foreground mt-2">
+              Maak een account aan om evenementen te vinden en te maken in jouw buurt
+            </p>
+          </div>
+          
+          <App2RegisterForm />
         </div>
-      </main>
-    </div>
+      </div>
+    </App2Layout>
   );
 }
-
-export default App2RegisterPage;

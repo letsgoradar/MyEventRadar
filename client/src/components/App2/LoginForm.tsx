@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/hooks/use-auth';
 
 // Schema for login form validation
 const loginSchema = z.object({
@@ -26,9 +26,9 @@ interface App2LoginFormProps {
 
 export function App2LoginForm({ redirectPath = '/app2', onSuccess }: App2LoginFormProps) {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [, navigate] = useLocation();
+  const { loginMutation } = useAuth();
 
   const {
     register,
@@ -43,39 +43,14 @@ export function App2LoginForm({ redirectPath = '/app2', onSuccess }: App2LoginFo
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    try {
-      setIsLoading(true);
-
-      const response = await apiRequest('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        data: data
-      });
-
-      console.log('Login response:', response);
-
-      toast({
-        title: 'Ingelogd!',
-        description: 'Je bent succesvol ingelogd.',
-      });
-
-      if (onSuccess) {
-        onSuccess(response);
+    loginMutation.mutate(data, {
+      onSuccess: (user) => {
+        if (onSuccess) {
+          onSuccess(user);
+        }
+        navigate(redirectPath);
       }
-
-      navigate(redirectPath);
-    } catch (error) {
-      console.error('Login error:', error);
-      toast({
-        title: 'Inloggen mislukt',
-        description: 'Controleer je e-mailadres en wachtwoord.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   return (
@@ -96,7 +71,7 @@ export function App2LoginForm({ redirectPath = '/app2', onSuccess }: App2LoginFo
                 placeholder="naam@voorbeeld.nl" 
                 {...register('email')}
                 type="email"
-                disabled={isLoading}
+                disabled={loginMutation.isPending}
                 autoComplete="email"
               />
               {errors.email && (
@@ -112,7 +87,7 @@ export function App2LoginForm({ redirectPath = '/app2', onSuccess }: App2LoginFo
                   placeholder="••••••••"
                   {...register('password')}
                   type={showPassword ? 'text' : 'password'}
-                  disabled={isLoading}
+                  disabled={loginMutation.isPending}
                   autoComplete="current-password"
                 />
                 <Button
@@ -142,9 +117,9 @@ export function App2LoginForm({ redirectPath = '/app2', onSuccess }: App2LoginFo
           <Button
             type="submit"
             className="w-full mt-6"
-            disabled={isLoading}
+            disabled={loginMutation.isPending}
           >
-            {isLoading ? (
+            {loginMutation.isPending ? (
               <>
                 <span className="mr-2">Inloggen...</span>
                 <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

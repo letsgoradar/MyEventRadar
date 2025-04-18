@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -9,6 +9,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
+import { MapTransition } from "./MapTransition";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Schema voor login
 const loginSchema = z.object({
@@ -26,6 +28,8 @@ export function LoginForm() {
   const { loginMutation } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [animateMap, setAnimateMap] = useState(false);
+  const [showForm, setShowForm] = useState(true);
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -38,9 +42,20 @@ export function LoginForm() {
   const onSubmit = async (data: LoginFormValues) => {
     loginMutation.mutate(data, {
       onSuccess: () => {
-        setLocation("/app2");
+        // Start de animatie bij succesvol inloggen
+        setAnimateMap(true);
+        setShowForm(false);
+        
+        // De redirect naar /app2 gebeurt na de animatie (in MapTransition.onComplete)
       }
     });
+  };
+
+  const handleAnimationComplete = () => {
+    // Navigeer naar de app na afronding van de animatie
+    setTimeout(() => {
+      setLocation("/app2");
+    }, 500); // Korte vertraging om de animatie af te laten lopen
   };
 
   const goToForgotPassword = () => {

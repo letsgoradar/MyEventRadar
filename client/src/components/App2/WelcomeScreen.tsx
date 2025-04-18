@@ -106,14 +106,14 @@ export function WelcomeScreen() {
 
   return (
     <div className="relative w-full h-full flex flex-col">
-      {/* Kaart als achtergrond (wordt donker weergegeven) */}
+      {/* Kaart als achtergrond (wordt donker weergegeven maar tekst blijft leesbaar) */}
       <div className="absolute inset-0 z-0">
-        <div className={`w-full h-full ${locationStep === 'loaded' ? 'blur-[2px]' : ''} brightness-[0.35] opacity-90`}>
+        <div className="w-full h-full brightness-[0.45] opacity-90">
           {locationStep === 'loaded' && (
             <div id="map-container" className="w-full h-full">
               <MapContainer
                 center={userLocation}
-                zoom={13}
+                zoom={9}
                 style={{ height: "100%", width: "100%" }}
                 zoomControl={false}
                 attributionControl={false}

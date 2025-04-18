@@ -160,8 +160,7 @@ export function App2Layout({
   showBackButton = false,
   backTo = "/app2",
 }: App2LayoutProps) {
-  type ViewType = "list" | "map";
-  const [view, setView] = React.useState<ViewType>("list");
+  const [view, setView] = React.useState<string>("list");
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   
   // Bewaar de oorspronkelijke evenementen
@@ -462,7 +461,8 @@ export function App2Layout({
                 variant="outline"
                 size="sm"
                 onClick={() => setView("list")}
-                className={`h-10 px-3 ${view === "list" ? "bg-primary text-white" : ""}`}
+                className="h-10 px-3"
+                style={{ backgroundColor: view === "list" ? "var(--primary)" : "", color: view === "list" ? "white" : "" }}
               >
                 <List className="h-4 w-4" />
               </Button>
@@ -470,7 +470,8 @@ export function App2Layout({
                 variant="outline"
                 size="sm"
                 onClick={() => setView("map")}
-                className={`h-10 px-3 ${view === "map" ? "bg-primary text-white" : ""}`}
+                className="h-10 px-3"
+                style={{ backgroundColor: view === "map" ? "var(--primary)" : "", color: view === "map" ? "white" : "" }}
               >
                 <Map className="h-4 w-4" />
               </Button>

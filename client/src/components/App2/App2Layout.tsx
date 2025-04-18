@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock, LogOut } from "lucide-react";
+import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock, LogOut, SortAsc, MapPin } from "lucide-react";
 import "./app2-styles.css";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
@@ -15,6 +15,14 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   Command,
   CommandEmpty,
@@ -193,6 +201,8 @@ export function App2Layout({
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   // Standaard geen verlopen evenementen tonen
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
+  // Sortering van evenementen (tijd of afstand)
+  const [sortBy, setSortBy] = React.useState<"time" | "distance">("time");
   
   // Bewaar de oorspronkelijke evenementen
   const [originalEvents, setOriginalEvents] = React.useState<Event[]>([]);
@@ -595,18 +605,48 @@ export function App2Layout({
             ))}
           </div>
           
-          {/* Filters component - memoized component om re-rendering problemen te voorkomen */}
+          {/* Filters en sorteer knoppen op dezelfde hoogte */}
           <div className="flex justify-between items-center mb-3 relative z-10">
-            <FiltersPopover 
-              radius={radius}
-              selectedCategories={selectedCategories}
-              showExpiredEvents={showExpiredEvents}
-              onRadiusChange={handleRadiusChange}
-              formatRadius={formatRadius}
-              applyFilters={applyFilters}
-              toggleCategory={toggleCategory}
-              toggleShowExpiredEvents={toggleShowExpiredEvents}
-            />
+            <div className="flex items-center gap-2">
+              <FiltersPopover 
+                radius={radius}
+                selectedCategories={selectedCategories}
+                showExpiredEvents={showExpiredEvents}
+                onRadiusChange={handleRadiusChange}
+                formatRadius={formatRadius}
+                applyFilters={applyFilters}
+                toggleCategory={toggleCategory}
+                toggleShowExpiredEvents={toggleShowExpiredEvents}
+              />
+              
+              {/* SortMenu component van de EventList wordt hier direct gebruikt */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <SortAsc className="h-4 w-4" />
+                    <span className="hidden sm:inline">Sorteren</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Sorteer op</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className={cn("cursor-pointer", sortBy === "time" && "font-semibold")}
+                    onClick={() => setSortBy("time")}
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Tijd tot aanvang
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className={cn("cursor-pointer", sortBy === "distance" && "font-semibold")}
+                    onClick={() => setSortBy("distance")}
+                  >
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Afstand
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       )}

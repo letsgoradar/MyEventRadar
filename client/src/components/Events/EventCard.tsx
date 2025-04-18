@@ -82,9 +82,13 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   // Het imageUrl veld kan null of undefined zijn, dus we moeten controleren of het bestaat
   const hasEventImage = !!event.imageUrl;
 
+  // Bepaal de juiste routering op basis van de huidige URL
+  const isApp2 = window.location.pathname.includes('/app2');
+  const detailLink = isApp2 ? `/app2/event/${event.id}` : `/web/event/${event.id}`;
+
   if (gridView) {
     return (
-      <Link href={`/web/event/${event.id}`}>
+      <Link href={detailLink}>
         <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col event-card">
           {/* Afbeelding bovenaan met overlay voor categorie en afstand */}
           <div className="relative h-48 overflow-hidden">
@@ -314,7 +318,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
 
   // De originele web lijstweergave (voor /web/ routes)
   return (
-    <Link href={`/web/event/${event.id}`}>
+    <Link href={detailLink}>
       <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer event-card">
         <div className="flex flex-col md:flex-row">
           {/* Afbeelding links */}

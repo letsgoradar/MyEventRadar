@@ -1,21 +1,31 @@
 /* App2 specifieke stijlaanpassingen */
 
-/* Zorg ervoor dat de lijst met evenementen boven de kaart komt in de app view */
-.app2-layout .event-list-container {
-  position: relative;
-  z-index: 10; /* Hoger dan de kaart (1) zodat de lijst boven de kaart verschijnt */
+/* Zorg ervoor dat de kaart in app-view altijd onder de content blijft in map view */
+.app2-layout .leaflet-container {
+  z-index: 0 !important;
 }
 
-/* Zorg ervoor dat inhoud van lijstitems altijd boven de kaart blijft in app view */
+/* Zorg ervoor dat de eventkaarten in map-view een achtergrond hebben en niet doorschijnen */
 .app2-layout .event-card {
   position: relative;
-  z-index: 10;
-  background-color: white; /* Zorg ervoor dat de kaart niet doorschijnt */
+  background-color: white; 
+  z-index: 50 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-/* Geef de eventlist container een achtergrond zodat de kaart er niet doorheen schijnt */
-.app2-layout .event-list-bg {
-  background-color: white;
+/* In map-view krijgt de content een hogere z-index dan de kaart */
+.app2-layout .map-view-content {
   position: relative;
-  z-index: 5;
+  z-index: 50;
+  background-color: transparent;
+}
+
+/* Geef ook de eventuele popovers een hogere z-index */
+.app2-layout .leaflet-popup {
+  z-index: 100 !important;
+}
+
+/* Maar de controls moeten wel zichtbaar blijven */
+.app2-layout .leaflet-control {
+  z-index: 100 !important;
 }

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock } from "lucide-react";
+import "./app2-styles.css";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -521,7 +522,7 @@ export function App2Layout({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="space-y-4"
+              className="space-y-4 map-view-content"
             >
               {children}
             </motion.div>

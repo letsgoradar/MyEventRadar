@@ -615,49 +615,51 @@ export function App2Layout({
             ))}
           </div>
           
-          {/* Filters en sorteer knoppen op dezelfde hoogte */}
-          <div className="flex justify-between items-center mb-3 relative z-10">
-            <div className="flex items-center gap-2">
-              <FiltersPopover 
-                radius={radius}
-                selectedCategories={selectedCategories}
-                showExpiredEvents={showExpiredEvents}
-                onRadiusChange={handleRadiusChange}
-                formatRadius={formatRadius}
-                applyFilters={applyFilters}
-                toggleCategory={toggleCategory}
-                toggleShowExpiredEvents={toggleShowExpiredEvents}
-              />
-              
-              {/* SortMenu component van de EventList wordt hier direct gebruikt */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <SortAsc className="h-4 w-4" />
-                    <span className="hidden sm:inline">Sorteren</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Sorteer op</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className={cn("cursor-pointer", sortBy === "time" && "font-semibold")}
-                    onClick={() => setSortBy("time")}
-                  >
-                    <Clock className="h-4 w-4 mr-2" />
-                    Tijd tot aanvang
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className={cn("cursor-pointer", sortBy === "distance" && "font-semibold")}
-                    onClick={() => setSortBy("distance")}
-                  >
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Afstand
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+          {/* Filters en sorteer knoppen op dezelfde hoogte - alleen in lijstweergave tonen */}
+          {view === "list" && (
+            <div className="flex justify-between items-center mb-3 relative z-10">
+              <div className="flex items-center gap-2">
+                <FiltersPopover 
+                  radius={radius}
+                  selectedCategories={selectedCategories}
+                  showExpiredEvents={showExpiredEvents}
+                  onRadiusChange={handleRadiusChange}
+                  formatRadius={formatRadius}
+                  applyFilters={applyFilters}
+                  toggleCategory={toggleCategory}
+                  toggleShowExpiredEvents={toggleShowExpiredEvents}
+                />
+                
+                {/* SortMenu component voor sortering */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1">
+                      <SortAsc className="h-4 w-4" />
+                      <span className="hidden sm:inline">Sorteren</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Sorteer op</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className={cn("cursor-pointer", sortBy === "time" && "font-semibold")}
+                      onClick={() => setSortBy("time")}
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      Tijd tot aanvang
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className={cn("cursor-pointer", sortBy === "distance" && "font-semibold")}
+                      onClick={() => setSortBy("distance")}
+                    >
+                      <MapPin className="h-4 w-4 mr-2" />
+                      Afstand
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
       

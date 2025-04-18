@@ -84,6 +84,11 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
     // Check of we op de App2 pagina zijn
     const isApp2 = window.location.pathname.includes('/app2');
     
+    // In App2 gebruiken we de sorteerknop die al in de App2Layout is toegevoegd
+    if (isApp2) {
+      return null;
+    }
+    
     return (
       <div className="pb-2 flex justify-end items-center">
         {/* Filter en sorteer knoppen groeperen naast elkaar */}
@@ -112,23 +117,6 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
                 <MapPin className="h-4 w-4 mr-2" />
                 Afstand
               </DropdownMenuItem>
-              
-              {isApp2 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Filters</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    className={cn("cursor-pointer flex items-center gap-2")}
-                    onClick={() => setHideExpired(!hideExpired)}
-                  >
-                    <div className={cn("h-4 w-4 rounded border flex items-center justify-center", 
-                      hideExpired ? "bg-primary border-primary" : "border-gray-300")}>
-                      {hideExpired && <span className="text-white text-xs">✓</span>}
-                    </div>
-                    <span>Verberg verlopen evenementen</span>
-                  </DropdownMenuItem>
-                </>
-              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -1,45 +1,31 @@
-import React from 'react';
-import { App2Layout } from '@/components/App2/App2Layout';
-import { App2LoginForm } from '@/components/App2/LoginForm';
-import { useAuth } from '@/hooks/use-auth';
-import { useLocation } from 'wouter';
-import { Loader2 } from 'lucide-react';
+import React from "react";
+import { LoginForm } from "@/components/App2/LoginForm";
+import { App2Layout } from "@/components/App2/App2Layout";
+import { useAuth } from "@/hooks/use-auth";
+import { Redirect } from "wouter";
 
-export default function App2LoginPage() {
-  const { user, isLoading } = useAuth();
-  const [, navigate] = useLocation();
+export default function LoginPage() {
+  const { user } = useAuth();
 
-  // Redirect to app home if user is already logged in
-  React.useEffect(() => {
-    if (user) {
-      navigate('/app2');
-    }
-  }, [user, navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-border" />
-      </div>
-    );
+  // Als een gebruiker al is ingelogd, stuur ze naar de hoofdpagina
+  if (user) {
+    return <Redirect to="/app2" />;
   }
 
   return (
     <App2Layout 
       title="Inloggen" 
-      hideBottomNav={true} 
-      hideBackButton={true}
+      hideBottomNav 
+      showBackButton
+      backTo="/app2/welcome"
     >
-      <div className="container mx-auto p-4 flex flex-col h-[90vh] items-center justify-center">
-        <div className="flex flex-col w-full max-w-md space-y-6">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">Inloggen</h1>
-            <p className="text-muted-foreground mt-2">
-              Log in om toegang te krijgen tot je account
-            </p>
-          </div>
-          
-          <App2LoginForm redirectPath="/app2" />
+      <div className="flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <h1 className="text-2xl font-bold mb-2 text-center">Welkom terug</h1>
+          <p className="text-muted-foreground text-center mb-6">
+            Log in om evenementen te ontdekken
+          </p>
+          <LoginForm />
         </div>
       </div>
     </App2Layout>

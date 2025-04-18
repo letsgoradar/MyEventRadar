@@ -5,19 +5,10 @@ import { Separator } from "@/components/ui/separator";
 import { FaGoogle, FaApple } from "react-icons/fa";
 import { Mail, Lock } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuth } from "@/hooks/use-auth";
 
 export function WelcomeScreen() {
   const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
-  const { user } = useAuth();
-  
-  // Als de gebruiker al is ingelogd, doorsturen naar de hoofdpagina
-  React.useEffect(() => {
-    if (user) {
-      setLocation("/app2");
-    }
-  }, [user, setLocation]);
 
   const handleGoogleLogin = () => {
     // TODO: Implementeer Google login

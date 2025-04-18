@@ -1,5 +1,5 @@
 import * as React from "react";
-import { SortAsc, Clock, MapPin } from "lucide-react";
+import { SortAsc, SortDesc, Clock, MapPin, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,41 +8,116 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
+// Type voor sorteerrichting
+export type SortDirection = "asc" | "desc";
+
+// Type voor sorteeroptie
+export type SortField = "time" | "distance";
+
+// Props voor SortMenu component
 interface SortMenuProps {
-  sortBy: "time" | "distance";
-  setSortBy: React.Dispatch<React.SetStateAction<"time" | "distance">>;
+  sortField: SortField;
+  sortDirection: SortDirection;
+  setSortField: React.Dispatch<React.SetStateAction<SortField>>;
+  setSortDirection: React.Dispatch<React.SetStateAction<SortDirection>>;
   className?: string;
+  visible?: boolean;
 }
 
-export function SortMenu({ sortBy, setSortBy, className }: SortMenuProps) {
+// Functie om sorteerrichtingicon te bepalen
+const getSortIcon = (direction: SortDirection) => {
+  return direction === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+};
+
+export function SortMenu({ 
+  sortField, 
+  sortDirection, 
+  setSortField, 
+  setSortDirection, 
+  className,
+  visible = true 
+}: SortMenuProps) {
+  // Als de component niet zichtbaar moet zijn, toon deze niet
+  if (!visible) return null;
+  
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className={cn("gap-1", className)}>
-          <SortAsc className="h-4 w-4" />
+          {sortDirection === "asc" ? (
+            <SortAsc className="h-4 w-4" />
+          ) : (
+            <SortDesc className="h-4 w-4" />
+          )}
           <span className="hidden sm:inline">Sorteren</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Sorteer op</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-[200px]">
+        <DropdownMenuLabel>Sorteeropties</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className={cn("cursor-pointer", sortBy === "time" && "font-semibold")}
-          onClick={() => setSortBy("time")}
-        >
-          <Clock className="h-4 w-4 mr-2" />
-          Tijd tot aanvang
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className={cn("cursor-pointer", sortBy === "distance" && "font-semibold")}
-          onClick={() => setSortBy("distance")}
-        >
-          <MapPin className="h-4 w-4 mr-2" />
-          Afstand
-        </DropdownMenuItem>
+        
+        {/* Sorteerveldsectie */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <span className="font-medium">Sorteer op</span>
+            <span className="ml-auto text-xs text-muted-foreground">
+              {sortField === "time" ? "Tijd tot aanvang" : "Afstand"}
+            </span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                className={cn("cursor-pointer", sortField === "time" && "font-semibold")}
+                onClick={() => setSortField("time")}
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Tijd tot aanvang
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={cn("cursor-pointer", sortField === "distance" && "font-semibold")}
+                onClick={() => setSortField("distance")}
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                Afstand
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+        
+        {/* Sorteerrichtingsectie */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <span className="font-medium">Volgorde</span>
+            <span className="ml-auto text-xs text-muted-foreground flex items-center">
+              {sortDirection === "asc" ? "Oplopend" : "Aflopend"} {getSortIcon(sortDirection)}
+            </span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                className={cn("cursor-pointer", sortDirection === "asc" && "font-semibold")}
+                onClick={() => setSortDirection("asc")}
+              >
+                <ArrowUp className="h-4 w-4 mr-2" />
+                Oplopend
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={cn("cursor-pointer", sortDirection === "desc" && "font-semibold")}
+                onClick={() => setSortDirection("desc")}
+              >
+                <ArrowDown className="h-4 w-4 mr-2" />
+                Aflopend
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -9,8 +9,13 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import MapView from "@/components/Map/MapView";
 import App2BottomNav from "./App2BottomNav";
-import { SortMenu } from "./SortMenuComponent";
-import { Event, CATEGORIES } from "@shared/schema";
+import { SortMenu, SortDirection, SortField } from "./SortMenuComponent";
+import { Event as BaseEvent, CATEGORIES } from "@shared/schema";
+
+// Uitgebreide Event interface met distance property
+interface Event extends BaseEvent {
+  distance?: number;
+}
 import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -204,8 +209,9 @@ export function App2Layout({
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   // Standaard geen verlopen evenementen tonen
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
-  // Sortering van evenementen (tijd of afstand)
-  const [sortBy, setSortBy] = React.useState<"time" | "distance">("time");
+  // Sortering van evenementen 
+  const [sortField, setSortField] = React.useState<SortField>("time");
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>("asc");
   
   // Bewaar de oorspronkelijke evenementen
   const [originalEvents, setOriginalEvents] = React.useState<Event[]>([]);
@@ -240,21 +246,25 @@ export function App2Layout({
       });
     }
     
-    // Sorteer evenementen op basis van de geselecteerde sorteermethode
-    if (sortBy === "time") {
-      filtered = [...filtered].sort((a, b) => {
-        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-      });
-    } else if (sortBy === "distance") {
-      // Sorteer op afstand als die informatie beschikbaar is
-      filtered = [...filtered].sort((a, b) => {
+    // Sorteer evenementen op basis van de geselecteerde sorteermethode en -richting
+    filtered = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      // Bepaal vergelijking op basis van sorteeroptie
+      if (sortField === "time") {
+        comparison = new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+      } else if (sortField === "distance") {
+        // Controleer of afstand beschikbaar is
         if (a.distance === undefined || b.distance === undefined) return 0;
-        return (a.distance || 0) - (b.distance || 0);
-      });
-    }
+        comparison = (a.distance || 0) - (b.distance || 0);
+      }
+      
+      // Pas sorteervolgorde toe (oplopend of aflopend)
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
     
     return filtered;
-  }, [selectedCategories, originalEvents, showExpiredEvents, sortBy]);
+  }, [selectedCategories, originalEvents, showExpiredEvents, sortField, sortDirection]);
   
   // Update gefilterde events alleen wanneer de gebruiker op Toepassen klikt
   const applyFilters = React.useCallback(() => {

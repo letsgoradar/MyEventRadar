@@ -1,9 +1,9 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock } from "lucide-react";
+import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock, LogOut } from "lucide-react";
 import "./app2-styles.css";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import MapView from "@/components/Map/MapView";
@@ -25,6 +25,8 @@ import {
 import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 import ProfilePhotoUpload from "./ProfilePhotoUpload";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 // Filters component om de Popover te isoleren en re-rendering problemen te voorkomen
 interface FiltersPopoverProps {
@@ -250,11 +252,10 @@ export function App2Layout({
     role: string;
   }
   
-  // Haal gebruiker en profielfoto op
-  const { data: user = {} as UserData } = useQuery<UserData>({
-    queryKey: ['/api/current-user'],
-    enabled: true,
-  });
+  // Gebruik de useAuth hook voor authenticatie en logout functionaliteit
+  const { user, logoutMutation } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   // Laad de profielfoto uit localStorage (indien beschikbaar) in een state
   const [savedPhotoUrl, setSavedPhotoUrl] = React.useState<string | null>(null);
@@ -339,19 +340,41 @@ export function App2Layout({
             )}
             <h1 className="text-xl font-semibold">{title}</h1>
           </div>
-          <Link href="/app2/profile" className="cursor-pointer">
-            <Avatar className="h-8 w-8 border-2 border-primary">
-              {savedPhotoUrl ? (
-                <AvatarImage src={savedPhotoUrl} alt="Profielfoto" />
-              ) : user?.photoUrl ? (
-                <AvatarImage src={user.photoUrl} alt="Profielfoto" />
-              ) : (
-                <AvatarFallback>
-                  <User className="h-4 w-4" />
-                </AvatarFallback>
-              )}
-            </Avatar>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+              onClick={() => {
+                logoutMutation.mutate(undefined, {
+                  onSuccess: () => {
+                    // Doorsturen naar welkomstpagina na uitloggen
+                    setLocation('/app2/welcome');
+                    toast({
+                      title: "Uitgelogd",
+                      description: "Je bent succesvol uitgelogd.",
+                    });
+                  }
+                });
+              }}
+            >
+              <LogOut className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Uitloggen</span>
+            </Button>
+            <Link href="/app2/profile" className="cursor-pointer">
+              <Avatar className="h-8 w-8 border-2 border-primary">
+                {savedPhotoUrl ? (
+                  <AvatarImage src={savedPhotoUrl} alt="Profielfoto" />
+                ) : user?.photoUrl ? (
+                  <AvatarImage src={user.photoUrl} alt="Profielfoto" />
+                ) : (
+                  <AvatarFallback>
+                    <User className="h-4 w-4" />
+                  </AvatarFallback>
+                )}
+              </Avatar>
+            </Link>
+          </div>
           {header}
         </div>
       </header>

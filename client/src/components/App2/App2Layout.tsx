@@ -125,7 +125,7 @@ const FiltersPopover = React.memo(({
 
 interface App2LayoutProps {
   children: React.ReactNode;
-  title: string;
+  title?: string;
   showMap?: boolean;
   filteredEvents?: Event[];
   header?: React.ReactNode;
@@ -135,6 +135,8 @@ interface App2LayoutProps {
   onSearch?: React.Dispatch<React.SetStateAction<string>>;
   onRadiusChange?: React.Dispatch<React.SetStateAction<number>>;
   onFilteredEventsChange?: React.Dispatch<React.SetStateAction<Event[]>>;
+  hideBottomNav?: boolean;
+  hideBackButton?: boolean;
 }
 
 export function App2Layout({

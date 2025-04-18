@@ -1,108 +1,65 @@
-import * as React from "react";
+import React from "react";
 import { Link, useLocation } from "wouter";
+import { Home, Map, List, User, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  HomeIcon,
-  Map,
-  Search,
-  Heart,
-  PlusCircle,
-  User,
-  ExternalLink
-} from "lucide-react";
 
-// Helper om de huidige web URL voor dezelfde pagina te krijgen
-const getWebPath = () => {
-  const location = window.location.pathname;
-  if (location.startsWith("/app2/event/")) {
-    const eventId = location.split("/").pop();
-    return `/web/event/${eventId}`;
-  } else if (location.includes("/create-event")) {
-    return "/web/create-event";
-  } else if (location.includes("/favorites")) {
-    return "/web/favorites";
-  } else if (location.includes("/profile")) {
-    return "/web/profile";
-  } else {
-    return "/web";
-  }
-};
+interface NavItem {
+  path: string;
+  label: string;
+  icon: React.ReactNode;
+}
 
-export function App2BottomNav() {
+export default function App2BottomNav() {
   const [location] = useLocation();
-  
-  // Check of deze pagina ook in de webversie beschikbaar is
-  const webVersionEnabled = React.useMemo(() => {
-    return !location.includes("/app2/search");
-  }, [location]);
-  
-  React.useEffect(() => {
-    console.log("Web version enabled:", webVersionEnabled);
-  }, [webVersionEnabled]);
 
-  // Navigatie items configuratie
-  const navItems = React.useMemo(() => [
+  const navItems: NavItem[] = [
     {
-      label: "Live",
-      href: "/app2",
-      icon: HomeIcon,
-      isActive: location === "/app2" || location === "/app2/",
+      path: "/app2",
+      label: "Home",
+      icon: <Home size={20} />
     },
     {
-      label: "Aanmaken",
-      href: "/app2/create-event",
-      icon: PlusCircle,
-      isActive: location.includes("/app2/create-event"),
-      isPrimary: true,
+      path: "/app2/map",
+      label: "Kaart",
+      icon: <Map size={20} />
     },
     {
+      path: "/app2/list",
+      label: "Lijst",
+      icon: <List size={20} />
+    },
+    {
+      path: "/app2/favorites",
       label: "Favorieten",
-      href: "/app2/favorites",
-      icon: Heart,
-      isActive: location.includes("/app2/favorites"),
+      icon: <Heart size={20} />
     },
-  ], [location]);
+    {
+      path: "/app2/profile",
+      label: "Profiel",
+      icon: <User size={20} />
+    }
+  ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-background border-t z-50">
-      <div className="flex items-center justify-between p-1 relative">
-        {navItems.map((item, index) => (
-          <Link key={index} href={item.href} className="w-full">
-              <div 
-                className={cn(
-                  "flex flex-col items-center justify-center py-1 px-2", 
-                  item.isActive 
-                    ? "text-primary" 
-                    : "text-muted-foreground hover:text-foreground",
-                  item.isPrimary && "relative"
-                )}
-              >
-                {item.isPrimary ? (
-                  <div className="absolute -top-5 bg-primary text-primary-foreground rounded-full p-2 shadow-lg">
-                    <item.icon className="h-5 w-5" />
-                  </div>
-                ) : (
-                  <item.icon className="h-5 w-5" />
-                )}
-                <span className={cn(
-                  "text-xs mt-1", 
-                  item.isPrimary && "mt-3",
-                )}>
-                  {item.label}
-                </span>
-              </div>
+    <nav className="bottom-nav">
+      <div className="flex justify-around items-center">
+        {navItems.map((item) => (
+          <Link 
+            key={item.path} 
+            href={item.path}
+          >
+            <a className={cn(
+              "flex flex-col items-center justify-center px-2 py-1 text-xs",
+              location === item.path 
+                ? "text-primary font-medium" 
+                : "text-muted-foreground"
+            )}>
+              {item.icon}
+              <span className="mt-1">{item.label}</span>
+            </a>
           </Link>
         ))}
       </div>
-      
-      {/* Web version switcher */}
-      <div className="absolute right-3 -top-10 bg-secondary rounded-full h-8 w-8 flex items-center justify-center">
-        <Link href={getWebPath()} className="text-secondary-foreground hover:text-primary-foreground">
-          <ExternalLink className="h-4 w-4" />
-        </Link>
-      </div>
-    </div>
+    </nav>
   );
 }
-
-export default App2BottomNav;

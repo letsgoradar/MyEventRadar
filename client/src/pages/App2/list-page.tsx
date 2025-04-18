@@ -127,12 +127,10 @@ export default function App2ListPage() {
       </div>
 
       {/* Lijst weergave */}
-      <div className="flex-1 overflow-auto pb-16">
+      <div className="flex-1 overflow-auto pb-16 list-view-only">
         <EventList
-          events={filteredEvents}
-          isLoading={isLoading}
-          radius={radius}
           searchQuery={searchQuery}
+          radius={radius}
         />
       </div>
 

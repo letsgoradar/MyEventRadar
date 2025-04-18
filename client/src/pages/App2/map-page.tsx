@@ -80,7 +80,7 @@ export default function App2MapPage() {
       </header>
 
       {/* Kaartweergave - beslaat volledig scherm onder header */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative map-view-only">
         <div className="absolute inset-0">
           <MapView 
             filteredEvents={filteredEvents} 

@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import MapView from "@/components/Map/MapView";
 import App2BottomNav from "./App2BottomNav";
+import { SortMenu } from "./SortMenuComponent";
 import { Event, CATEGORIES } from "@shared/schema";
 import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -49,43 +50,7 @@ interface FiltersPopoverProps {
   toggleShowExpiredEvents: () => void;
 }
 
-// SortMenu component
-interface SortMenuProps {
-  sortBy: "time" | "distance";
-  setSortBy: React.Dispatch<React.SetStateAction<"time" | "distance">>;
-  className?: string;
-}
 
-const SortMenu = React.memo(({ sortBy, setSortBy, className }: SortMenuProps) => {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className={cn("gap-1", className)}>
-          <SortAsc className="h-4 w-4" />
-          <span className="hidden sm:inline">Sorteren</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Sorteer op</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className={cn("cursor-pointer", sortBy === "time" && "font-semibold")}
-          onClick={() => setSortBy("time")}
-        >
-          <Clock className="h-4 w-4 mr-2" />
-          Tijd tot aanvang
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className={cn("cursor-pointer", sortBy === "distance" && "font-semibold")}
-          onClick={() => setSortBy("distance")}
-        >
-          <MapPin className="h-4 w-4 mr-2" />
-          Afstand
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-});
 
 // Memoized component om de "Maximum update depth exceeded" waarschuwing te voorkomen
 const FiltersPopover = React.memo(({

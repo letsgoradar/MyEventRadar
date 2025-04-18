@@ -35,8 +35,18 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   const [hideExpired, setHideExpired] = React.useState(true);
   const [sortOrder, setSortOrder] = React.useState<"time" | "distance">("time");
   
+  // Check of we in kaart of lijst weergave zijn in App2
+  const isApp2MapView = window.location.pathname.includes('/app2') && 
+                        (window.location.pathname.includes('/map') || 
+                         document.getElementById('map-container') !== null);
+                         
   // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven
   const useGridLayout = (!isMobile && gridView) || (isMobile && gridView);
+  
+  // Verberg EventList component volledig wanneer op kaartweergave in App2
+  if (isApp2MapView) {
+    return null;
+  }
   
   // Filter en sorteer de evenementen
   const processedEvents = React.useMemo(() => {

@@ -52,6 +52,10 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   const isExpired = endTime < now;
   const isOngoing = startTime <= now && endTime >= now;
   
+  // Check de huidige weergavemodus (lijst/kaart)
+  // Probeer de view uit URL te halen, standaard is 'list'
+  const view = window.location.pathname.includes('/map') ? 'map' : 'list';
+  
   // Update afstand wanneer locatie verandert of distance prop verandert
   useEffect(() => {
     if (distance !== undefined) {
@@ -179,7 +183,91 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
     );
   }
 
-  // Originele lijstweergave
+  // De nieuwe mobiele App2 lijst weergave
+  if (window.location.pathname.includes('/app2')) {
+    // Check voor map view vs list view
+    const isMapView = view === 'map' || window.location.pathname.includes('/map');
+    
+    // In map view, zorg dat er geen zichtbare kaart overlay elementen zijn
+    if (isMapView) {
+      return null;
+    }
+    
+    return (
+      <Link href={`/app2/event/${event.id}`}>
+        <Card className="overflow-hidden mb-4 transition-all hover:shadow-md cursor-pointer event-card">
+          <div className="p-0">
+            {/* Afbeelding container bovenaan */}
+            <div className="w-full h-48 relative bg-gray-100">
+              {hasEventImage ? (
+                <img 
+                  src={event.imageUrl || ''} 
+                  alt={event.title} 
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center">
+                  <div className="flex flex-col items-center justify-center text-gray-500">
+                    <Image className="h-12 w-12 mb-2 opacity-50" />
+                    <span className="text-sm text-center">Geen afbeelding beschikbaar</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Titel en details container */}
+            <div className="p-4">
+              <h3 className="text-lg font-semibold mb-1">{event.title}</h3>
+              
+              {/* Afstand indicator */}
+              <div className="flex items-center gap-1 text-blue-500 mb-1">
+                <MapPin className="h-4 w-4 flex-shrink-0" />
+                <span className="text-sm">
+                  {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
+                    ? `${calculatedDistance.toFixed(1)} km` 
+                    : 'Afstand onbekend'}
+                </span>
+              </div>
+              
+              {/* Datum en tijd */}
+              <div className="flex items-center text-muted-foreground mb-1">
+                <Calendar className="h-4 w-4 mr-1 flex-shrink-0" />
+                <span className="text-sm">
+                  {new Date(event.startTime).toLocaleDateString('nl-NL', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long'
+                  })} om {new Date(event.startTime).toLocaleTimeString('nl-NL', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
+              
+              {/* Countdown of status */}
+              <div className="text-red-500 font-medium text-sm">
+                {isOngoing && (
+                  <span className="flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
+                    Event is nu bezig
+                  </span>
+                )}
+                {isExpired && (
+                  <span className="flex items-center">
+                    <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
+                    Event is verlopen
+                  </span>
+                )}
+                {!isOngoing && !isExpired && "over ongeveer 3 uur"}
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Link>
+    );
+  }
+
+  // De originele web lijstweergave (voor /web/ routes)
   return (
     <Link href={`/web/event/${event.id}`}>
       <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer event-card">

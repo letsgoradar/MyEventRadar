@@ -245,6 +245,12 @@ export function App2Layout({
       filtered = [...filtered].sort((a, b) => {
         return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
       });
+    } else if (sortBy === "distance") {
+      // Sorteer op afstand als die informatie beschikbaar is
+      filtered = [...filtered].sort((a, b) => {
+        if (a.distance === undefined || b.distance === undefined) return 0;
+        return (a.distance || 0) - (b.distance || 0);
+      });
     }
     
     return filtered;

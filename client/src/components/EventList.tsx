@@ -31,52 +31,19 @@ interface EventListProps {
 export function EventList({ filteredEvents, gridView = false }: EventListProps) {
   const isMobile = useIsMobile();
   
-  // State voor filters
-  const [hideExpired, setHideExpired] = React.useState(true);
-  const [sortOrder, setSortOrder] = React.useState<"time" | "distance">("time");
-  
   // Check of we op de App2 pagina zijn
   const isApp2 = window.location.pathname.includes('/app2');
   
-  // Check of we in kaart of lijst weergave zijn in App2
-  const isApp2MapView = isApp2 && 
-                        (window.location.pathname.includes('/map') || 
-                         document.getElementById('map-container') !== null);
-                         
   // In App2 altijd tegels gebruiken, anders volg de gridView prop
   // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven of in App2
   const useGridLayout = isApp2 || (!isMobile && gridView) || (isMobile && gridView);
   
-  // Geen aparte filtercontrol meer in EventList, deze verhuizen we naar App2Layout
-      
-  // Geen speciale behandeling meer voor kaartweergave, aangezien de sorteerknop naar App2Layout is verhuisd
+  // BELANGRIJK: Alle filter- en sorteerfunctionaliteit is nu verplaatst naar App2Layout
+  // EventList is alleen verantwoordelijk voor het weergeven van de gebeurtenissen
   
-  // Filter en sorteer de evenementen
-  const processedEvents = React.useMemo(() => {
-    // Filter verlopen evenementen indien nodig
-    let events = [...filteredEvents];
-    if (hideExpired) {
-      const now = new Date();
-      events = events.filter(event => {
-        // Controleer of endTime een geldige waarde heeft
-        if (!event.endTime) return true;
-        return new Date(event.endTime) > now;
-      });
-    }
-    
-    // Sorteer evenementen
-    if (sortOrder === "time") {
-      events.sort((a, b) => {
-        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-      });
-    } else if (sortOrder === "distance" && events[0]?.distance !== undefined) {
-      events.sort((a, b) => {
-        return (a.distance || 0) - (b.distance || 0);
-      });
-    }
-    
-    return events;
-  }, [filteredEvents, hideExpired, sortOrder]);
+  // We gebruiken direct de filteredEvents die als prop worden doorgegeven
+  // Sortering en filtering gebeurt nu in de parent component
+  const processedEvents = filteredEvents;
   
   if (!processedEvents.length) {
     return (

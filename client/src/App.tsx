@@ -218,6 +218,20 @@ export default function App() {
         {/* Mobiele Routes (App2) */}
         {isMobile && (
           <>
+            {/* Auth routes - deze moeten als eerste worden gedefinieerd */}
+            <Route path="/app2/welcome">
+              <App2WelcomePage />
+            </Route>
+            <Route path="/app2/login">
+              <App2LoginPage />
+            </Route>
+            <Route path="/app2/register">
+              <App2RegisterPage />
+            </Route>
+            <Route path="/app2/forgot-password">
+              <App2ForgotPasswordPage />
+            </Route>
+            
             {/* App2 specifieke routes */}
             <Route path="/app2/create-event">
               <App2CreateEvent />
@@ -233,18 +247,6 @@ export default function App() {
             </Route>
             <Route path="/app2/profile">
               <App2ProfilePage />
-            </Route>
-            <Route path="/app2/login">
-              <App2LoginPage />
-            </Route>
-            <Route path="/app2/register">
-              <App2RegisterPage />
-            </Route>
-            <Route path="/app2/welcome">
-              <App2WelcomePage />
-            </Route>
-            <Route path="/app2/forgot-password">
-              <App2ForgotPasswordPage />
             </Route>
             <Route path="/app2">
               <App2HomePage />

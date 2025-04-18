@@ -51,6 +51,8 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   
   const isExpired = endTime < now;
   const isOngoing = startTime <= now && endTime >= now;
+  const isStartingSoon = !isOngoing && !isExpired && 
+                       (startTime.getTime() - now.getTime()) < 24 * 60 * 60 * 1000;
   
   // Check de huidige weergavemodus (lijst/kaart)
   // Probeer de view uit URL te halen, standaard is 'list'
@@ -155,28 +157,35 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                   Event is verlopen
                 </div>
               )}
-              {!isOngoing && !isExpired && (
+              {!isOngoing && !isExpired && !isStartingSoon && (
                 <CountdownTimer startTime={event.startTime} />
+              )}
+              {isStartingSoon && (
+                <div className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
+                  <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
+                  Start binnen 24 uur
+                </div>
               )}
             </div>
           </CardHeader>
           
           <CardContent className="p-4 pt-0">
-            <div className="line-clamp-2 text-sm mb-4">
-              {event.description || 'Geen beschrijving beschikbaar'}
-            </div>
-            
             <div className="flex justify-between items-center text-sm text-muted-foreground">
               <div className="flex items-center">
                 <Calendar className="h-4 w-4 mr-1" />
-                {new Date(event.startTime).toLocaleDateString('nl-NL', {
-                  day: 'numeric',
-                  month: 'short'
-                })}
+                <span>
+                  {new Date(event.startTime).toLocaleDateString('nl-NL', {
+                    day: 'numeric',
+                    month: 'short'
+                  })} om {new Date(event.startTime).toLocaleTimeString('nl-NL', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
               </div>
               
               {event.isPaid && (
-                <div className="flex items-center">
+                <div className="flex items-center ml-auto">
                   <Euro className="h-4 w-4 mr-1" />
                   <span>{Number(event.price).toFixed(2)} EUR</span>
                 </div>
@@ -373,8 +382,14 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                     Event is verlopen
                   </div>
                 )}
-                {!isOngoing && !isExpired && (
+                {!isOngoing && !isExpired && !isStartingSoon && (
                   <CountdownTimer startTime={event.startTime} />
+                )}
+                {isStartingSoon && (
+                  <div className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
+                    Start binnen 24 uur
+                  </div>
                 )}
 
                 {event.isPaid && (
@@ -385,26 +400,18 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                 )}
               </div>
 
-              <div className="flex-1">
-                <div className="line-clamp-3 text-sm">
-                  {event.description || 'Geen beschrijving beschikbaar'}
-                </div>
-              </div>
-              
               <div className="flex justify-between items-center text-sm text-muted-foreground mt-4">
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 mr-1" />
-                  {new Date(event.startTime).toLocaleDateString('nl-NL', {
-                    day: 'numeric',
-                    month: 'short'
-                  })}
-                </div>
-                
-                <div className="flex items-center">
-                  {new Date(event.startTime).toLocaleTimeString('nl-NL', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+                  <span>
+                    {new Date(event.startTime).toLocaleDateString('nl-NL', {
+                      day: 'numeric',
+                      month: 'short'
+                    })} om {new Date(event.startTime).toLocaleTimeString('nl-NL', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
                 </div>
               </div>
             </CardContent>

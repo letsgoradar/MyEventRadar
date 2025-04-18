@@ -160,7 +160,8 @@ export function App2Layout({
   showBackButton = false,
   backTo = "/app2",
 }: App2LayoutProps) {
-  const [view, setView] = React.useState<"list" | "map">("list");
+  type ViewType = "list" | "map";
+  const [view, setView] = React.useState<ViewType>("list");
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   
   // Bewaar de oorspronkelijke evenementen
@@ -359,8 +360,8 @@ export function App2Layout({
         </div>
       </header>
       
-      {/* Zoekbalk en weergaveknoppen - alleen tonen als niet op profielpagina */}
-      {!isProfilePage && (
+      {/* Zoekbalk en weergaveknoppen - alleen tonen in lijstweergave en niet op profielpagina */}
+      {!isProfilePage && view === "list" && (
         <div className="container mt-2 px-4">
           <div className="flex gap-2 mb-3">
             <div className="relative flex-1">
@@ -458,18 +459,18 @@ export function App2Layout({
             
             <div className="flex gap-1">
               <Button
-                variant={view === "list" ? "default" : "outline"}
+                variant="outline"
                 size="sm"
                 onClick={() => setView("list")}
-                className="h-10 px-3"
+                className={`h-10 px-3 ${view === "list" ? "bg-primary text-white" : ""}`}
               >
                 <List className="h-4 w-4" />
               </Button>
               <Button
-                variant={view === "map" ? "default" : "outline"}
+                variant="outline"
                 size="sm"
                 onClick={() => setView("map")}
-                className="h-10 px-3"
+                className={`h-10 px-3 ${view === "map" ? "bg-primary text-white" : ""}`}
               >
                 <Map className="h-4 w-4" />
               </Button>
@@ -533,6 +534,50 @@ export function App2Layout({
         <div className="flex-1">
           <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[56px] z-0 border-t border-b-0 border-border map-container">
             <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} hideZoomControls={true} />
+            
+            {/* Zoekbalk en filterknoppen op de kaartweergave */}
+            <div className="map-controls">
+              <div className="flex-1 bg-white rounded-lg shadow-md overflow-hidden flex items-center">
+                <Input
+                  placeholder="Zoek evenementen..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="pl-9 h-10 w-full border-0 focus-visible:ring-0"
+                  onKeyDown={(e) => e.key === "Enter" && onSearch && onSearch(searchQuery)}
+                />
+                <Search className="absolute left-3 h-4 w-4 text-gray-500" />
+              </div>
+              
+              <FiltersPopover 
+                radius={radius}
+                selectedCategories={selectedCategories}
+                onRadiusChange={handleRadiusChange}
+                formatRadius={formatRadius}
+                applyFilters={applyFilters}
+                toggleCategory={toggleCategory}
+              />
+              
+              <div className="view-toggle flex border-2 border-background">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setView("list")}
+                  className="h-10 w-10 p-0 rounded-none"
+                  style={{ backgroundColor: view === "list" ? "var(--primary)" : "", color: view === "list" ? "white" : "" }}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setView("map")}
+                  className="h-10 w-10 p-0 rounded-none"
+                  style={{ backgroundColor: view === "map" ? "var(--primary)" : "", color: view === "map" ? "white" : "" }}
+                >
+                  <Map className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

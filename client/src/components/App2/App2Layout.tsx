@@ -160,6 +160,7 @@ export function App2Layout({
   showBackButton = false,
   backTo = "/app2",
 }: App2LayoutProps) {
+  // Standaard tegelweergave (list) in plaats van kaartweergave (map)
   const [view, setView] = React.useState<"list" | "map">("list");
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   
@@ -411,21 +412,23 @@ export function App2Layout({
                       
                       {/* Matching events */}
                       {displayedEvents.length > 0 && (
-                        <CommandGroup heading="Overeenkomende evenementen">
-                          {displayedEvents
-                            .filter(event => 
+                        <CommandGroup heading="Overeenkomende evenementen" className="py-2">
+                          {(() => {
+                            // Filter events die overeenkomen met de zoekopdracht
+                            const matchingEvents = displayedEvents.filter(event => 
                               event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                               event.description?.toLowerCase().includes(searchQuery.toLowerCase())
-                            )
-                            .slice(0, 5) // Toon maximaal 5 overeenkomende evenementen
-                            .map(event => (
+                            );
+                            
+                            // Toon maximaal 5 overeenkomende evenementen
+                            return matchingEvents.slice(0, 5).map(event => (
                               <Link href={`/app2/event/${event.id}`} key={event.id}>
                                 <CommandItem 
-                                  className="p-2 cursor-pointer hover:bg-slate-100"
+                                  className="py-3 px-2 cursor-pointer hover:bg-slate-100"
                                   onSelect={() => {}} // Dummy handler zodat onSelect niet afgevuurd wordt
                                 >
                                   <div className="flex items-center gap-2">
-                                    <CategoryIcon category={event.category as typeof CATEGORIES[number]} className="h-4 w-4" />
+                                    <CategoryIcon category={event.category as typeof CATEGORIES[number]} className="h-5 w-5" />
                                     <div className="flex-1 flex flex-col">
                                       <span className="font-medium text-sm">{event.title}</span>
                                       <span className="text-xs text-muted-foreground truncate">
@@ -440,8 +443,25 @@ export function App2Layout({
                                   </div>
                                 </CommandItem>
                               </Link>
-                            ))
-                          }
+                            ));
+                          })()}
+                          
+                          {/* Toon aantal resultaten indien meer dan 5 */}
+                          {(() => {
+                            const matchingEventsCount = displayedEvents.filter(event => 
+                              event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              event.description?.toLowerCase().includes(searchQuery.toLowerCase())
+                            ).length;
+                            
+                            if (matchingEventsCount > 5) {
+                              return (
+                                <div className="text-xs text-muted-foreground px-3 py-2 border-t border-border">
+                                  + {matchingEventsCount - 5} meer evenementen
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                         </CommandGroup>
                       )}
                       

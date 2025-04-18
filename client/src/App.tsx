@@ -38,6 +38,8 @@ import App2FavoritesPage from "@/pages/App2/favorites"
 import App2ProfilePage from "@/pages/App2/profile"
 import App2WelcomePage from "@/pages/App2/welcome"
 import App2ForgotPasswordPage from "@/pages/App2/forgot-password"
+import App2MapPage from "@/pages/App2/map-page"
+import App2ListPage from "@/pages/App2/list-page"
 
 // Helper component voor redirects
 function AppRedirect({ to }: { to: string }) {
@@ -248,8 +250,14 @@ export default function App() {
             <Route path="/app2/profile">
               <App2ProfilePage />
             </Route>
+            <Route path="/app2/map">
+              <App2MapPage />
+            </Route>
+            <Route path="/app2/list">
+              <App2ListPage />
+            </Route>
             <Route path="/app2">
-              <App2HomePage />
+              <App2MapPage />
             </Route>
             
             {/* Originele app routes - redirecten naar App2 */}

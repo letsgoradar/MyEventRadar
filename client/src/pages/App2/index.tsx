@@ -55,36 +55,12 @@ export function App2HomePage() {
       onFilteredEventsChange={setFilteredEvents}
       showMap={true}
     >
-      {/* Toon knoppen om tussen lijst- en tegelweergave te schakelen */}
-      <div className="flex justify-end mb-4">
-        <div className="border rounded-md flex">
-          <Button
-            variant={!gridView ? "secondary" : "ghost"}
-            size="sm"
-            className="h-9 w-9 p-0 rounded-r-none"
-            onClick={() => setGridView(false)}
-            title="Lijstweergave"
-          >
-            <List className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={gridView ? "secondary" : "ghost"}
-            size="sm"
-            className="h-9 w-9 p-0 rounded-l-none"
-            onClick={() => setGridView(true)}
-            title="Tegelweergave"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      
-      {/* Toon EventList component met gekozen weergave */}
+      {/* Toon EventList component - altijd in tegelweergave */}
       <EventList 
         searchQuery={searchQuery}
         radius={radius}
         filteredEvents={filteredEvents}
-        gridView={gridView}
+        gridView={true}
       />
     </App2Layout>
   );

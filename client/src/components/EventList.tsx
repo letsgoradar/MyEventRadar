@@ -77,7 +77,6 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
           className="gap-1"
         >
           <CalendarX2 className="h-4 w-4" />
-          <span className="hidden sm:inline">Verberg verlopen</span>
         </Toggle>
       </div>
       
@@ -123,9 +122,9 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
 
   if (useGridLayout) {
     return (
-      <div className="p-4">
+      <div className="p-4 event-list-container">
         {renderFilterControls()}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr event-list-bg">
           {processedEvents.map((event) => (
             <EventCard 
               key={event.id} 
@@ -141,9 +140,9 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
 
   // Standaard lijstweergave
   return (
-    <div className="p-4">
+    <div className="p-4 event-list-container">
       {renderFilterControls()}
-      <div className="space-y-4">
+      <div className="space-y-4 event-list-bg">
         {processedEvents.map((event) => (
           <EventCard 
             key={event.id} 

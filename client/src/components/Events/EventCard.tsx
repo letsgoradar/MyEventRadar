@@ -74,7 +74,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   if (gridView) {
     return (
       <Link href={`/web/event/${event.id}`}>
-        <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col">
+        <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col event-card">
           {/* Afbeelding bovenaan met overlay voor categorie en afstand */}
           <div className="relative h-48 overflow-hidden">
             {hasEventImage ? (
@@ -182,7 +182,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   // Originele lijstweergave
   return (
     <Link href={`/web/event/${event.id}`}>
-      <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer">
+      <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer event-card">
         <div className="flex flex-col md:flex-row">
           {/* Afbeelding links */}
           <div className="md:w-1/3 h-[180px] md:h-auto relative">

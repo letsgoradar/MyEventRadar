@@ -111,23 +111,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Haal volledige gebruikersgegevens op inclusief profielfoto
-  app.get("/api/current-user", isAuthenticated, async (req, res) => {
+  app.get("/api/current-user", attachUser, async (req, res) => {
     try {
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "Niet geautoriseerd" });
+      // Als een gebruiker is ingelogd, haal dan zijn/haar gegevens op
+      if (req.user && req.user.id) {
+        const userId = req.user.id;
+        const user = await storage.getUser(userId);
+        
+        if (!user) {
+          return res.status(404).json({ message: "Gebruiker niet gevonden" });
+        }
+        
+        // Verwijder wachtwoord uit de response
+        const { password, ...userWithoutPassword } = user;
+        
+        return res.json(userWithoutPassword);
       }
       
-      const userId = req.user.id;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "Gebruiker niet gevonden" });
-      }
-      
-      // Verwijder wachtwoord uit de response
-      const { password, ...userWithoutPassword } = user;
-      
-      res.json(userWithoutPassword);
+      // Als er geen gebruiker is ingelogd, stuur een lege gebruiker terug
+      // zonder een 401 fout, zodat de app kan werken zonder in te loggen
+      console.log("Authentication required, but continuing without redirect");
+      return res.json({
+        id: 0,
+        username: "Guest",
+        email: "",
+        role: "guest"
+      });
     } catch (error) {
       console.error('Error fetching current user:', error);
       res.status(500).json({ message: "Interne serverfout" });

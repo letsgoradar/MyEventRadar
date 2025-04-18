@@ -67,83 +67,115 @@ export function LoginForm() {
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>E-mailadres</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Voer je e-mailadres in"
-                  {...field}
-                  type="email"
-                  autoComplete="email"
-                  className="w-full"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Wachtwoord</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Voer je wachtwoord in"
-                  {...field}
-                  type="password"
-                  autoComplete="current-password"
-                  className="w-full"
-                />
-              </FormControl>
-              <FormMessage />
-              <div className="text-right">
-                <button
+    <AnimatePresence>
+      {showForm && (
+        <motion.div
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mailadres</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Voer je e-mailadres in"
+                        {...field}
+                        type="email"
+                        autoComplete="email"
+                        className="w-full"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Wachtwoord</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Voer je wachtwoord in"
+                        {...field}
+                        type="password"
+                        autoComplete="current-password"
+                        className="w-full"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={goToForgotPassword}
+                        className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                      >
+                        Wachtwoord vergeten?
+                      </button>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loginMutation.isPending}
+              >
+                {loginMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Inloggen...
+                  </>
+                ) : (
+                  "Inloggen"
+                )}
+              </Button>
+              
+              <div className="text-center text-sm">
+                <span className="text-muted-foreground">Nog geen account?</span>{" "}
+                <button 
                   type="button"
-                  onClick={goToForgotPassword}
-                  className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                  onClick={goToRegister} 
+                  className="text-primary hover:underline font-medium"
                 >
-                  Wachtwoord vergeten?
+                  Registreren
                 </button>
               </div>
-            </FormItem>
-          )}
-        />
-        
-        <Button 
-          type="submit" 
-          className="w-full" 
-          disabled={loginMutation.isPending}
-        >
-          {loginMutation.isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Inloggen...
-            </>
-          ) : (
-            "Inloggen"
-          )}
-        </Button>
-        
-        <div className="text-center text-sm">
-          <span className="text-muted-foreground">Nog geen account?</span>{" "}
-          <button 
-            type="button"
-            onClick={goToRegister} 
-            className="text-primary hover:underline font-medium"
+            </form>
+          </Form>
+        </motion.div>
+      )}
+
+      {animateMap && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          <MapTransition 
+            isActive={animateMap}
+            onComplete={handleAnimationComplete}
           >
-            Registreren
-          </button>
+            <div className="w-full h-full">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                >
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                </motion.div>
+              </div>
+            </div>
+          </MapTransition>
         </div>
-      </form>
-    </Form>
+      )}
+    </AnimatePresence>
   );
 }

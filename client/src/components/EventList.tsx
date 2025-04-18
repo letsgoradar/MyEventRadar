@@ -35,18 +35,77 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   const [hideExpired, setHideExpired] = React.useState(true);
   const [sortOrder, setSortOrder] = React.useState<"time" | "distance">("time");
   
-  // Check of we in kaart of lijst weergave zijn in App2
-  const isApp2MapView = window.location.pathname.includes('/app2') && 
-                        (window.location.pathname.includes('/map') || 
-                         document.getElementById('map-container') !== null);
-  
   // Check of we op de App2 pagina zijn
   const isApp2 = window.location.pathname.includes('/app2');
+  
+  // Check of we in kaart of lijst weergave zijn in App2
+  const isApp2MapView = isApp2 && 
+                        (window.location.pathname.includes('/map') || 
+                         document.getElementById('map-container') !== null);
                          
   // In App2 altijd tegels gebruiken, anders volg de gridView prop
   // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven of in App2
   const useGridLayout = isApp2 || (!isMobile && gridView) || (isMobile && gridView);
   
+  // Toon filters boven de lijst
+  const renderFilterControls = () => {
+    return (
+      <div className={cn(
+        "flex justify-end items-center",
+        // Minder padding voor App2 om de witruimte te verminderen
+        isApp2 ? "pb-0 -mt-2" : "pb-2"
+      )}>
+        {/* Filter en sorteer knoppen groeperen naast elkaar */}
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1">
+                <SortAsc className="h-4 w-4" />
+                <span className="hidden sm:inline">Sorteren</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Sorteer op</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className={cn("cursor-pointer", sortOrder === "time" && "font-semibold")}
+                onClick={() => setSortOrder("time")}
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Tijd tot aanvang
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={cn("cursor-pointer", sortOrder === "distance" && "font-semibold")}
+                onClick={() => setSortOrder("distance")}
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                Afstand
+              </DropdownMenuItem>
+              
+              {/* Verberg verlopen evenementen optie (alleen voor App2) */}
+              {isApp2 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Filters</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    className={cn("cursor-pointer flex items-center gap-2")}
+                    onClick={() => setHideExpired(!hideExpired)}
+                  >
+                    <div className={cn("h-4 w-4 rounded border flex items-center justify-center", 
+                      hideExpired ? "bg-primary border-primary" : "border-gray-300")}>
+                      {hideExpired && <span className="text-white text-xs">✓</span>}
+                    </div>
+                    <span>Verberg verlopen evenementen</span>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    );
+  };
+                         
   // In App2 kaartweergave alleen de sorteerknop tonen
   if (isApp2MapView) {
     return (
@@ -82,61 +141,6 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
     
     return events;
   }, [filteredEvents, hideExpired, sortOrder]);
-  
-  // Toon filters boven de lijst
-  const renderFilterControls = () => {
-    return (
-      <div className="pb-2 flex justify-end items-center">
-        {/* Filter en sorteer knoppen groeperen naast elkaar */}
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1">
-                <SortAsc className="h-4 w-4" />
-                <span className="hidden sm:inline">Sorteren</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Sorteer op</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className={cn("cursor-pointer", sortOrder === "time" && "font-semibold")}
-                onClick={() => setSortOrder("time")}
-              >
-                <Clock className="h-4 w-4 mr-2" />
-                Tijd tot aanvang
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className={cn("cursor-pointer", sortOrder === "distance" && "font-semibold")}
-                onClick={() => setSortOrder("distance")}
-              >
-                <MapPin className="h-4 w-4 mr-2" />
-                Afstand
-              </DropdownMenuItem>
-              
-              {/* Verberg verlopen evenementen optie (alleen voor App2) */}
-              {window.location.pathname.includes('/app2') && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Filters</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    className={cn("cursor-pointer flex items-center gap-2")}
-                    onClick={() => setHideExpired(!hideExpired)}
-                  >
-                    <div className={cn("h-4 w-4 rounded border flex items-center justify-center", 
-                      hideExpired ? "bg-primary border-primary" : "border-gray-300")}>
-                      {hideExpired && <span className="text-white text-xs">✓</span>}
-                    </div>
-                    <span>Verberg verlopen evenementen</span>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-    );
-  };
   
   if (!processedEvents.length) {
     return (

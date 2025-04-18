@@ -2,6 +2,7 @@ import * as React from "react"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { Toaster } from '@/components/ui/toaster'
 import { Link, Route, Switch, useLocation, useParams } from "wouter"
+import { AuthProvider } from "@/hooks/use-auth"
 import TopNav from "@/components/Layout/TopNav"
 import MapView from "@/components/Map/MapView"
 import { EventList } from "@/components/EventList"
@@ -101,7 +102,8 @@ export default function App() {
   // Mobiel → App2 interface
   return (
     <QueryClientProvider client={queryClient}>
-      <Switch>
+      <AuthProvider>
+        <Switch>
         {/* Admin Routes - beschikbaar op alle apparaten */}
         <Route path="/login">
           <AdminLogin />
@@ -294,6 +296,7 @@ export default function App() {
         </Route>
       </Switch>
       <Toaster />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

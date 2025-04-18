@@ -141,7 +141,7 @@ interface App2LayoutProps {
 
 export function App2Layout({
   children,
-  title,
+  title = "Evenementen",
   showMap = false,
   filteredEvents = [],
   header,
@@ -151,6 +151,8 @@ export function App2Layout({
   onSearch,
   onRadiusChange,
   onFilteredEventsChange,
+  hideBottomNav = false,
+  hideBackButton = false,
 }: App2LayoutProps) {
   const [view, setView] = React.useState<"list" | "map">("list");
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
@@ -295,7 +297,7 @@ export function App2Layout({
   };
   
   // Bepaal of we op de profielpagina zijn
-  const isProfilePage = title.includes("Profiel");
+  const isProfilePage = title?.includes("Profiel") ?? false;
   
   // Maak de inhoud van de pagina op basis van de gekozen weergave
   return (
@@ -532,8 +534,8 @@ export function App2Layout({
         }
       </div>
       
-      {/* Bottom navigation */}
-      <App2BottomNav />
+      {/* Bottom navigation - alleen tonen als niet verborgen */}
+      {!hideBottomNav && <App2BottomNav />}
     </div>
   );
 }

@@ -25,7 +25,11 @@ export default function App2RegisterPage() {
   }
 
   return (
-    <App2Layout hideBottomNav hideBackButton>
+    <App2Layout 
+      title="Account aanmaken" 
+      hideBottomNav={true} 
+      hideBackButton={true}
+    >
       <div className="container mx-auto p-4 flex flex-col h-[90vh] items-center justify-center">
         <div className="flex flex-col w-full max-w-md space-y-6">
           <div className="text-center">

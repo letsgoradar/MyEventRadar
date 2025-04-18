@@ -231,11 +231,21 @@ export function App2Layout({
     // Filter verlopen evenementen als ze niet getoond moeten worden
     if (!showExpiredEvents) {
       const now = new Date();
-      filtered = filtered.filter(event => new Date(event.endTime) > now);
+      filtered = filtered.filter(event => {
+        if (!event.endTime) return true; // Als er geen eindtijd is, toon het evenement
+        return new Date(event.endTime) > now;
+      });
+    }
+    
+    // Sorteer evenementen op basis van de geselecteerde sorteermethode
+    if (sortBy === "time") {
+      filtered = [...filtered].sort((a, b) => {
+        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+      });
     }
     
     return filtered;
-  }, [selectedCategories, originalEvents, showExpiredEvents]);
+  }, [selectedCategories, originalEvents, showExpiredEvents, sortBy]);
   
   // Update gefilterde events alleen wanneer de gebruiker op Toepassen klikt
   const applyFilters = React.useCallback(() => {

@@ -195,6 +195,31 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
       return null;
     }
     
+    // Bereken of het evenement binnen 24 uur begint
+    const now = new Date();
+    const startTime = new Date(event.startTime);
+    const isStartingSoon = !isOngoing && !isExpired && 
+                          (startTime.getTime() - now.getTime()) < 24 * 60 * 60 * 1000;
+    
+    // Formateer de datum als "vrijdag 18 april om 16:23"
+    const formattedDate = new Date(event.startTime).toLocaleDateString('nl-NL', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
+    }) + " om " + new Date(event.startTime).toLocaleTimeString('nl-NL', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    // Bereken een ruwe schatting van de resterende tijd (voor countdowntekst)
+    const timeUntilStart = startTime.getTime() - now.getTime();
+    const hoursUntilStart = Math.floor(timeUntilStart / (1000 * 60 * 60));
+    let countdownText = `over ongeveer ${hoursUntilStart} uur`;
+    if (hoursUntilStart < 1) {
+      const minutesUntilStart = Math.floor(timeUntilStart / (1000 * 60));
+      countdownText = `over ongeveer ${minutesUntilStart} minuten`;
+    }
+    
     return (
       <Link href={`/app2/event/${event.id}`}>
         <Card className="overflow-hidden mb-4 transition-all hover:shadow-md cursor-pointer event-card">
@@ -231,37 +256,46 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                 </span>
               </div>
               
-              {/* Datum en tijd */}
+              {/* Datum en tijd - één regel */}
               <div className="flex items-center text-muted-foreground mb-1">
                 <Calendar className="h-4 w-4 mr-1 flex-shrink-0" />
-                <span className="text-sm">
-                  {new Date(event.startTime).toLocaleDateString('nl-NL', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long'
-                  })} om {new Date(event.startTime).toLocaleTimeString('nl-NL', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
+                <span className="text-sm">{formattedDate}</span>
               </div>
               
-              {/* Countdown of status */}
-              <div className="text-red-500 font-medium text-sm">
-                {isOngoing && (
+              {/* Countdown in groen voor bijna startende evenementen */}
+              {isStartingSoon && (
+                <div className="text-green-500 font-medium text-sm">
+                  <span className="flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
+                    {countdownText}
+                  </span>
+                </div>
+              )}
+              
+              {/* Andere statussen */}
+              {isOngoing && (
+                <div className="text-green-500 font-medium text-sm">
                   <span className="flex items-center">
                     <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
                     Event is nu bezig
                   </span>
-                )}
-                {isExpired && (
+                </div>
+              )}
+              
+              {isExpired && (
+                <div className="text-red-500 font-medium text-sm">
                   <span className="flex items-center">
                     <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
                     Event is verlopen
                   </span>
-                )}
-                {!isOngoing && !isExpired && "over ongeveer 3 uur"}
-              </div>
+                </div>
+              )}
+              
+              {!isOngoing && !isExpired && !isStartingSoon && (
+                <div className="text-orange-500 font-medium text-sm">
+                  {countdownText}
+                </div>
+              )}
             </div>
           </div>
         </Card>

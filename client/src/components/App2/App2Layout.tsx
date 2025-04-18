@@ -475,15 +475,7 @@ export function App2Layout({
             
             <div className="flex gap-1">
               <Button
-                variant={view === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => view !== "list" && toggleView()}
-                className="h-10 px-3"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={view === "map" ? "default" : "outline"}
+                variant={view === "map" ? "outline" : "default"}
                 size="sm"
                 onClick={() => view !== "map" && toggleView()}
                 className="h-10 px-3"
@@ -558,10 +550,10 @@ export function App2Layout({
       <div className={cn(
         "container pb-4 px-4",
         view === "map" && !isProfilePage ? "pt-2" : "",
-        isProfilePage ? "overflow-auto h-[calc(100vh-11rem)]" : ""
+        isProfilePage ? "overflow-auto h-[calc(100vh-11rem)]" : "overflow-auto h-[calc(100vh-16rem)]"
       )}>
         {(view === "list" || isProfilePage) && 
-          <div className="space-y-4 list-view-content">
+          <div className="space-y-4 list-view-content overflow-y-auto">
             {children}
           </div>
         }

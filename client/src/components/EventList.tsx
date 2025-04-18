@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import EventCard from "@/components/Events/EventCard"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Toggle } from "@/components/ui/toggle"
-import { CalendarX2, Clock, SortAsc } from "lucide-react"
+import { CalendarX2, Clock, SortAsc, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -39,9 +39,13 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   const isApp2MapView = window.location.pathname.includes('/app2') && 
                         (window.location.pathname.includes('/map') || 
                          document.getElementById('map-container') !== null);
+  
+  // Check of we op de App2 pagina zijn
+  const isApp2 = window.location.pathname.includes('/app2');
                          
-  // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven
-  const useGridLayout = (!isMobile && gridView) || (isMobile && gridView);
+  // In App2 altijd tegels gebruiken, anders volg de gridView prop
+  // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven of in App2
+  const useGridLayout = isApp2 || (!isMobile && gridView) || (isMobile && gridView);
   
   // Verberg EventList component volledig wanneer op kaartweergave in App2
   if (isApp2MapView) {
@@ -76,48 +80,72 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   }, [filteredEvents, hideExpired, sortOrder]);
   
   // Toon filters boven de lijst
-  const renderFilterControls = () => (
-    <div className="pb-4 flex justify-between items-center">
-      <div className="flex items-center gap-2">
-        <Toggle 
-          variant="outline" 
-          size="sm" 
-          pressed={hideExpired}
-          onPressedChange={setHideExpired}
-          className="gap-1"
-        >
-          <CalendarX2 className="h-4 w-4" />
-        </Toggle>
+  const renderFilterControls = () => {
+    // Check of we op de App2 pagina zijn
+    const isApp2 = window.location.pathname.includes('/app2');
+    
+    return (
+      <div className="pb-4 flex justify-between items-center">
+        {!isApp2 && (
+          <div className="flex items-center gap-2">
+            <Toggle 
+              variant="outline" 
+              size="sm" 
+              pressed={hideExpired}
+              onPressedChange={setHideExpired}
+              className="gap-1"
+            >
+              <CalendarX2 className="h-4 w-4" />
+            </Toggle>
+          </div>
+        )}
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1">
+              <SortAsc className="h-4 w-4" />
+              <span className="hidden sm:inline">Sorteren</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Sorteer op</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className={cn("cursor-pointer", sortOrder === "time" && "font-semibold")}
+              onClick={() => setSortOrder("time")}
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Tijd tot aanvang
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className={cn("cursor-pointer", sortOrder === "distance" && "font-semibold")}
+              onClick={() => setSortOrder("distance")}
+            >
+              <MapPin className="h-4 w-4 mr-2" />
+              Afstand
+            </DropdownMenuItem>
+            
+            {isApp2 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Filters</DropdownMenuLabel>
+                <DropdownMenuItem
+                  className={cn("cursor-pointer flex items-center gap-2")}
+                  onClick={() => setHideExpired(!hideExpired)}
+                >
+                  <div className={cn("h-4 w-4 rounded border flex items-center justify-center", 
+                    hideExpired ? "bg-primary border-primary" : "border-gray-300")}>
+                    {hideExpired && <span className="text-white text-xs">✓</span>}
+                  </div>
+                  <span>Verberg verlopen evenementen</span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1">
-            <SortAsc className="h-4 w-4" />
-            <span className="hidden sm:inline">Sorteren</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Sorteer op</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className={cn("cursor-pointer", sortOrder === "time" && "font-semibold")}
-            onClick={() => setSortOrder("time")}
-          >
-            <Clock className="h-4 w-4 mr-2" />
-            Tijd tot aanvang
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className={cn("cursor-pointer", sortOrder === "distance" && "font-semibold")}
-            onClick={() => setSortOrder("distance")}
-          >
-            <CalendarX2 className="h-4 w-4 mr-2" />
-            Afstand
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
+    );
+  };
   
   if (!processedEvents.length) {
     return (

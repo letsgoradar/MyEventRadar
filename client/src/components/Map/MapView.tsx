@@ -296,12 +296,11 @@ export default function MapView({
         <Button 
           size="sm" 
           variant={showExpiredEvents ? "default" : "outline"}
-          className="flex items-center justify-center gap-1 shadow-md text-xs font-medium"
+          className="flex items-center justify-center shadow-md w-8 h-8 p-0"
           title="Toon verlopen events"
           onClick={() => setShowExpiredEvents(!showExpiredEvents)}
         >
-          <Clock className="h-3.5 w-3.5" />
-          <span>Verlopen events</span>
+          <Clock className="h-4 w-4" />
         </Button>
 
         {/* Kaartstijl selector met dropdown */}

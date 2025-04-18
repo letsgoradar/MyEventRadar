@@ -1,0 +1,21 @@
+/* App2 specifieke stijlaanpassingen */
+
+/* Zorg ervoor dat de lijst met evenementen boven de kaart komt in de app view */
+.app2-layout .event-list-container {
+  position: relative;
+  z-index: 10; /* Hoger dan de kaart (1) zodat de lijst boven de kaart verschijnt */
+}
+
+/* Zorg ervoor dat inhoud van lijstitems altijd boven de kaart blijft in app view */
+.app2-layout .event-card {
+  position: relative;
+  z-index: 10;
+  background-color: white; /* Zorg ervoor dat de kaart niet doorschijnt */
+}
+
+/* Geef de eventlist container een achtergrond zodat de kaart er niet doorheen schijnt */
+.app2-layout .event-list-bg {
+  background-color: white;
+  position: relative;
+  z-index: 5;
+}

@@ -47,73 +47,9 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven of in App2
   const useGridLayout = isApp2 || (!isMobile && gridView) || (isMobile && gridView);
   
-  // Toon filters boven de lijst
-  const renderFilterControls = () => {
-    return (
-      <div className={cn(
-        "flex justify-end items-center",
-        // Minder padding voor App2 om de witruimte te verminderen
-        isApp2 ? "pb-0 -mt-2" : "pb-2"
-      )}>
-        {/* Filter en sorteer knoppen groeperen naast elkaar */}
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1">
-                <SortAsc className="h-4 w-4" />
-                <span className="hidden sm:inline">Sorteren</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Sorteer op</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className={cn("cursor-pointer", sortOrder === "time" && "font-semibold")}
-                onClick={() => setSortOrder("time")}
-              >
-                <Clock className="h-4 w-4 mr-2" />
-                Tijd tot aanvang
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className={cn("cursor-pointer", sortOrder === "distance" && "font-semibold")}
-                onClick={() => setSortOrder("distance")}
-              >
-                <MapPin className="h-4 w-4 mr-2" />
-                Afstand
-              </DropdownMenuItem>
-              
-              {/* Verberg verlopen evenementen optie (alleen voor App2) */}
-              {isApp2 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Filters</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    className={cn("cursor-pointer flex items-center gap-2")}
-                    onClick={() => setHideExpired(!hideExpired)}
-                  >
-                    <div className={cn("h-4 w-4 rounded border flex items-center justify-center", 
-                      hideExpired ? "bg-primary border-primary" : "border-gray-300")}>
-                      {hideExpired && <span className="text-white text-xs">✓</span>}
-                    </div>
-                    <span>Verberg verlopen evenementen</span>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-    );
-  };
-                         
-  // In App2 kaartweergave alleen de sorteerknop tonen
-  if (isApp2MapView) {
-    return (
-      <div className="absolute top-0 right-0 mt-4 mr-4 z-30">
-        {renderFilterControls()}
-      </div>
-    );
-  }
+  // Geen aparte filtercontrol meer in EventList, deze verhuizen we naar App2Layout
+      
+  // Geen speciale behandeling meer voor kaartweergave, aangezien de sorteerknop naar App2Layout is verhuisd
   
   // Filter en sorteer de evenementen
   const processedEvents = React.useMemo(() => {
@@ -145,7 +81,6 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   if (!processedEvents.length) {
     return (
       <div className="p-4">
-        {renderFilterControls()}
         <div className="text-center text-muted-foreground pt-8">
           Geen evenementen gevonden binnen de huidige filters.
         </div>
@@ -156,7 +91,6 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   if (useGridLayout) {
     return (
       <div className="p-4 event-list-container">
-        {renderFilterControls()}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr event-list-bg">
           {processedEvents.map((event) => (
             <EventCard 
@@ -174,7 +108,6 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   // Standaard lijstweergave
   return (
     <div className="px-4 pt-2 pb-4 event-list-container">
-      {renderFilterControls()}
       <div className="space-y-3 event-list-bg">
         {processedEvents.map((event) => (
           <EventCard 

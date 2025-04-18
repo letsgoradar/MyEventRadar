@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import MapView from "@/components/Map/MapView";
 import App2BottomNav from "./App2BottomNav";
 import { Event, CATEGORIES } from "@shared/schema";
@@ -44,10 +45,12 @@ interface FiltersPopoverProps {
 const FiltersPopover = React.memo(({
   radius,
   selectedCategories,
+  showExpiredEvents,
   formatRadius,
   onRadiusChange,
   toggleCategory,
-  applyFilters
+  applyFilters,
+  toggleShowExpiredEvents
 }: FiltersPopoverProps) => {
   return (
     <Popover>
@@ -106,11 +109,34 @@ const FiltersPopover = React.memo(({
             </div>
           </div>
           
+          <div>
+            <h3 className="text-sm font-medium mb-2">Geavanceerde opties</h3>
+            <div className="flex items-center justify-between">
+              <label htmlFor="show-expired" className="text-sm">Toon verlopen evenementen</label>
+              <Switch
+                id="show-expired"
+                checked={showExpiredEvents}
+                onCheckedChange={toggleShowExpiredEvents}
+              />
+            </div>
+          </div>
+          
           <div className="pt-2 flex justify-end gap-2">
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => onRadiusChange([10]) /* Default radius herstellen */}
+              onClick={() => {
+                onRadiusChange([10]); // Default radius herstellen
+                // Reset categorieën
+                if (selectedCategories.length > 0) {
+                  // Kopieer de array zodat we niet de originele state aanpassen tijdens iteratie
+                  [...selectedCategories].forEach(category => toggleCategory(category));
+                }
+                // Reset verlopen evenementen als het ingeschakeld is
+                if (showExpiredEvents) {
+                  toggleShowExpiredEvents();
+                }
+              }}
             >
               Reset
             </Button>
@@ -262,6 +288,11 @@ export function App2Layout({
         ? prev.filter(c => c !== category) as typeof CATEGORIES[number][]
         : [...prev, category] as typeof CATEGORIES[number][];
     });
+  };
+  
+  // Functie voor het aan-/uitzetten van verlopen evenementen
+  const toggleShowExpiredEvents = () => {
+    setShowExpiredEvents(prev => !prev);
   };
   
   // Typedefinitie voor gebruiker

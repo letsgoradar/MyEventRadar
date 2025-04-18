@@ -649,7 +649,14 @@ export function App2Layout({
               />
               
               {/* SortMenu component voor sortering */}
-              <SortMenu sortBy={sortBy} setSortBy={setSortBy} />
+              {/* Sorteerknop alleen tonen in lijstweergave */}
+              <SortMenu 
+                sortField={sortField} 
+                setSortField={setSortField} 
+                sortDirection={sortDirection} 
+                setSortDirection={setSortDirection} 
+                visible={view === "list"} 
+              />
             </div>
           </div>
         </div>

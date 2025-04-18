@@ -2,6 +2,8 @@
   75%, 100% {
     transform: scale(2);
     opacity: 0;
+  }
+}
 
 /* Mapillary street view styles */
 .mapillary-js-dom {
@@ -15,7 +17,12 @@
   height: 100% !important;
 }
 
-  }
+/* Styling voor het verbergen van elementen tijdens view-overgangen */
+.hidden-temp {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.15s ease-out;
 }
 
 .location-marker {

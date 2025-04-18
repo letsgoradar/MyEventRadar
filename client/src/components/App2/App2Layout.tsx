@@ -203,7 +203,24 @@ export function App2Layout({
   
   // Functie om te schakelen tussen lijsten kaartweergave
   const toggleView = () => {
-    setView(prev => prev === "list" ? "map" : "list");
+    // Zorg eerst dat alle event cards verborgen zijn om overlapprobleem te voorkomen
+    const mapContainer = document.getElementById('map-container');
+    const listContent = document.querySelector('.list-view-content');
+    
+    if (view === "list") {
+      // Van lijst naar kaart
+      if (listContent) listContent.classList.add('hidden-temp');
+      setTimeout(() => {
+        setView("map");
+      }, 50);
+    } else {
+      // Van kaart naar lijst
+      if (mapContainer) mapContainer.classList.add('hidden-temp');
+      setTimeout(() => {
+        setView("list");
+        if (listContent) listContent.classList.remove('hidden-temp');
+      }, 50);
+    }
   };
   
   // Geen toggleMapExpanded en mapHeight meer nodig aangezien de kaart nu altijd volledig wordt getoond
@@ -460,7 +477,7 @@ export function App2Layout({
               <Button
                 variant={view === "list" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setView("list")}
+                onClick={() => view !== "list" && toggleView()}
                 className="h-10 px-3"
               >
                 <List className="h-4 w-4" />
@@ -468,7 +485,7 @@ export function App2Layout({
               <Button
                 variant={view === "map" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setView("map")}
+                onClick={() => view !== "map" && toggleView()}
                 className="h-10 px-3"
               >
                 <Map className="h-4 w-4" />
@@ -530,7 +547,7 @@ export function App2Layout({
       
       {/* Kaart weergave - exact tussen de navigatiebalken */}
       {view === "map" && !isProfilePage && (
-        <div className="flex-1 app2-layout">
+        <div className="flex-1 app2-layout" id="map-container">
           <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[56px] z-0 border-t border-b-0 border-border">
             <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} hideZoomControls={true} />
           </div>
@@ -544,7 +561,7 @@ export function App2Layout({
         isProfilePage ? "overflow-auto h-[calc(100vh-11rem)]" : ""
       )}>
         {(view === "list" || isProfilePage) && 
-          <div className="space-y-4">
+          <div className="space-y-4 list-view-content">
             {children}
           </div>
         }
@@ -555,8 +572,9 @@ export function App2Layout({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
               className="space-y-4 map-view-content"
+              style={{ display: "none" }}
             >
-              {children}
+              {/* Verberg children in kaartweergave om dubbele rendering te voorkomen */}
             </motion.div>
           </AnimatePresence>
         }

@@ -70,6 +70,11 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
       setCalculatedDistance(dist);
     }
   }, [location, distance, event.latitude, event.longitude]);
+  
+  // Check of we op een App2 pagina met map view zijn (om events in kaartweergave te verbergen)
+  const isApp2MapView = window.location.pathname.includes('/app2') && 
+                        (window.location.search.includes('view=map') || 
+                         document.getElementById('map-container') !== null);
 
   // Bepaal of er een evenement afbeelding beschikbaar is
   // Het imageUrl veld kan null of undefined zijn, dus we moeten controleren of het bestaat
@@ -185,11 +190,8 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
 
   // De nieuwe mobiele App2 lijst weergave
   if (window.location.pathname.includes('/app2')) {
-    // Check voor map view vs list view
-    const isMapView = view === 'map' || window.location.pathname.includes('/map');
-    
-    // In map view, zorg dat er geen zichtbare kaart overlay elementen zijn
-    if (isMapView) {
+    // Bij kaartweergave, toon geen event cards
+    if (isApp2MapView || document.querySelector('.map-view-content')) {
       return null;
     }
     

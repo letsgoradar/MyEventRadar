@@ -5,8 +5,9 @@
   z-index: 0 !important;
 }
 
-/* Wanneer in map-weergave, zorg dat event cards niet zichtbaar zijn */
-.app2-layout.map-view .event-card {
+/* Alleen de grote event cards in de lijst verbergen wanneer in map-view (niet de pop-ups) */
+.app2-layout.map-view .space-y-4 > .event-card,
+.app2-layout.map-view .grid > .event-card {
   display: none !important;
 }
 
@@ -15,7 +16,7 @@
   display: none !important;
 }
 
-/* Zorg ervoor dat de eventkaarten in list-view een achtergrond hebben en niet doorschijnen */
+/* Zorg ervoor dat de eventkaarten een achtergrond hebben en niet doorschijnen */
 .app2-layout .event-card {
   position: relative;
   background-color: white; 

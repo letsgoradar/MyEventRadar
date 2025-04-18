@@ -431,8 +431,8 @@ export default function MapView({
               }
             }}
           >
-            <Popup>
-              <Card className="border-0 shadow-none">
+            <Popup className="map-event-popup">
+              <Card className="border-0 shadow-none map-event-card">
                 <CardHeader className="p-2 pb-0">
                   <CardTitle className="text-base">
                     {event.title}

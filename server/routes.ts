@@ -7,8 +7,11 @@ import bcrypt from "bcryptjs";
 import { isAuthenticated, isAdmin, attachUser } from "./middleware/auth";
 import generateImageRouter from "./routes/generate-image";
 import profilePhotoRouter from "./routes/profile-photo";
+import { setupAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configureer passport authenticatie
+  setupAuth(app);
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {

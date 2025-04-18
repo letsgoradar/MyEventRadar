@@ -615,22 +615,22 @@ export function App2Layout({
             ))}
           </div>
           
-          {/* Filters en sorteer knoppen op dezelfde hoogte - alleen in lijstweergave tonen */}
-          {view === "list" && (
-            <div className="flex justify-between items-center mb-3 relative z-10">
-              <div className="flex items-center gap-2">
-                <FiltersPopover 
-                  radius={radius}
-                  selectedCategories={selectedCategories}
-                  showExpiredEvents={showExpiredEvents}
-                  onRadiusChange={handleRadiusChange}
-                  formatRadius={formatRadius}
-                  applyFilters={applyFilters}
-                  toggleCategory={toggleCategory}
-                  toggleShowExpiredEvents={toggleShowExpiredEvents}
-                />
-                
-                {/* SortMenu component voor sortering */}
+          {/* Filters en sorteer knoppen op dezelfde hoogte - tonen in beide weergaven */}
+          <div className="flex justify-between items-center mb-3 relative z-10">
+            <div className="flex items-center gap-2">
+              <FiltersPopover 
+                radius={radius}
+                selectedCategories={selectedCategories}
+                showExpiredEvents={showExpiredEvents}
+                onRadiusChange={handleRadiusChange}
+                formatRadius={formatRadius}
+                applyFilters={applyFilters}
+                toggleCategory={toggleCategory}
+                toggleShowExpiredEvents={toggleShowExpiredEvents}
+              />
+              
+              {/* SortMenu component voor sortering - alleen in lijstweergave tonen */}
+              {view === "list" && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-1">
@@ -657,9 +657,9 @@ export function App2Layout({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
       

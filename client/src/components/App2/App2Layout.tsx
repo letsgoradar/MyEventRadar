@@ -394,7 +394,7 @@ export function App2Layout({
                 {/* Live zoekresultaten dropdown */}
                 {searchQuery.trim() !== "" && (
                   <Command className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white">
-                    <CommandList>
+                    <CommandList className="max-h-[300px] overflow-y-auto">
                       <CommandGroup>
                         <CommandItem 
                           onSelect={() => onSearch && onSearch(searchQuery)}
@@ -446,14 +446,14 @@ export function App2Layout({
                       )}
                       
                       <CommandGroup heading="Recente zoekacties">
-                        {/* Toon de laatste 2 zoekacties uit localStorage */}
+                        {/* Toon de laatste 5 zoekacties uit localStorage */}
                         {(() => {
                           // Haal recente zoekacties op uit localStorage
                           const recentSearches = localStorage.getItem('recentSearches') 
                             ? JSON.parse(localStorage.getItem('recentSearches') || '[]')
                             : [];
                           
-                          return recentSearches.slice(0, 2).map((search: string, index: number) => (
+                          return recentSearches.slice(0, 5).map((search: string, index: number) => (
                             <CommandItem 
                               key={index}
                               onSelect={() => onSearch && onSearch(search)}
@@ -475,7 +475,15 @@ export function App2Layout({
             
             <div className="flex gap-1">
               <Button
-                variant={view === "map" ? "outline" : "default"}
+                variant={view === "list" ? "default" : "outline"}
+                size="sm"
+                onClick={() => view !== "list" && toggleView()}
+                className="h-10 px-3"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={view === "map" ? "default" : "outline"}
                 size="sm"
                 onClick={() => view !== "map" && toggleView()}
                 className="h-10 px-3"

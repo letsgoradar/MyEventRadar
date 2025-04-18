@@ -8,6 +8,16 @@ import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import createMemoryStore from "memorystore";
 
+// Voor wachtwoord reset tokens
+interface PasswordResetToken {
+  userId: number;
+  token: string;
+  expiresAt: Date;
+}
+
+// In-memory token opslag (in productie zou dit in een database moeten)
+const resetTokens = new Map<string, PasswordResetToken>();
+
 const MemoryStore = createMemoryStore(session);
 
 declare global {
@@ -147,5 +157,98 @@ export function setupAuth(app: Express) {
     // Verwijder wachtwoord uit de response
     const { password, ...userWithoutPassword } = req.user;
     res.json(userWithoutPassword);
+  });
+
+  // Route voor wachtwoord vergeten
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      // Controleren of het email adres bestaat
+      const user = await storage.getUserByEmail(email);
+      
+      // Voor veiligheid altijd succesbericht sturen, ook als email niet bestaat
+      if (!user) {
+        console.log(`Wachtwoord reset aangevraagd voor niet-bestaand email: ${email}`);
+        return res.status(200).json({
+          message: "Als dit e-mailadres bij ons bekend is, ontvang je binnenkort een e-mail met instructies."
+        });
+      }
+      
+      // Token genereren
+      const token = randomBytes(32).toString("hex");
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 30); // Token is 30 minuten geldig
+      
+      // Token opslaan
+      resetTokens.set(token, {
+        userId: user.id,
+        token,
+        expiresAt
+      });
+      
+      // In een echte applicatie zou hier een email worden verzonden
+      // met een link zoals /reset-password?token=123abc
+      console.log(`Reset token voor gebruiker ${user.id}: ${token}`);
+      
+      res.status(200).json({
+        message: "Als dit e-mailadres bij ons bekend is, ontvang je binnenkort een e-mail met instructies."
+      });
+    } catch (error) {
+      console.error("Error requesting password reset:", error);
+      res.status(500).json({ message: "Er is een fout opgetreden" });
+    }
+  });
+  
+  // Valideer reset token
+  app.get("/api/auth/reset-password/:token", (req, res) => {
+    const { token } = req.params;
+    const resetToken = resetTokens.get(token);
+    
+    if (!resetToken || resetToken.expiresAt < new Date()) {
+      return res.status(400).json({ valid: false, message: "Ongeldige of verlopen token" });
+    }
+    
+    res.json({ valid: true });
+  });
+  
+  // Reset wachtwoord
+  app.post("/api/auth/reset-password/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { password } = req.body;
+      
+      const resetToken = resetTokens.get(token);
+      
+      if (!resetToken || resetToken.expiresAt < new Date()) {
+        return res.status(400).json({ message: "Ongeldige of verlopen token" });
+      }
+      
+      // Hash nieuw wachtwoord
+      const hashedPassword = await hashPassword(password);
+      
+      // Update gebruiker
+      const user = await storage.updateUser(resetToken.userId, {
+        password: hashedPassword
+      });
+      
+      // Token verwijderen
+      resetTokens.delete(token);
+      
+      res.json({ message: "Wachtwoord succesvol gewijzigd" });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Er is een fout opgetreden" });
+    }
+  });
+  
+  // OAuth routes - placeholders voor sociale login
+  // In een echte applicatie zou hier de integratie met Google/Apple zijn
+  app.get("/api/auth/google", (req, res) => {
+    res.status(501).json({ message: "Google login nog niet geïmplementeerd" });
+  });
+  
+  app.get("/api/auth/apple", (req, res) => {
+    res.status(501).json({ message: "Apple login nog niet geïmplementeerd" });
   });
 }

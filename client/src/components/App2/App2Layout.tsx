@@ -137,6 +137,8 @@ interface App2LayoutProps {
   onFilteredEventsChange?: React.Dispatch<React.SetStateAction<Event[]>>;
   hideBottomNav?: boolean;
   hideBackButton?: boolean;
+  showBackButton?: boolean;
+  backTo?: string;
 }
 
 export function App2Layout({
@@ -153,6 +155,8 @@ export function App2Layout({
   onFilteredEventsChange,
   hideBottomNav = false,
   hideBackButton = false,
+  showBackButton = false,
+  backTo = "/app2",
 }: App2LayoutProps) {
   const [view, setView] = React.useState<"list" | "map">("list");
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
@@ -306,12 +310,33 @@ export function App2Layout({
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b">
         <div className="container py-3 px-4 flex justify-between items-center">
           <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary mr-2">
-              <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-              <line x1="16" x2="16" y1="2" y2="6" />
-              <line x1="8" x2="8" y1="2" y2="6" />
-              <line x1="3" x2="21" y1="10" y2="10" />
-            </svg>
+            {(showBackButton && !hideBackButton) ? (
+              <Link href={backTo}>
+                <Button variant="ghost" size="sm" className="mr-1 p-1">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-5 w-5"
+                  >
+                    <path d="m15 18-6-6 6-6" />
+                  </svg>
+                </Button>
+              </Link>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary mr-2">
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                <line x1="16" x2="16" y1="2" y2="6" />
+                <line x1="8" x2="8" y1="2" y2="6" />
+                <line x1="3" x2="21" y1="10" y2="10" />
+              </svg>
+            )}
             <h1 className="text-xl font-semibold">{title}</h1>
           </div>
           <Link href="/app2/profile" className="cursor-pointer">

@@ -36,6 +36,8 @@ import App2CreateEvent from "@/pages/App2/create-event"
 import App2EventsPage from "@/pages/App2/events"
 import App2FavoritesPage from "@/pages/App2/favorites"
 import App2ProfilePage from "@/pages/App2/profile"
+import App2WelcomePage from "@/pages/App2/welcome"
+import App2ForgotPasswordPage from "@/pages/App2/forgot-password"
 
 // Helper component voor redirects
 function AppRedirect({ to }: { to: string }) {

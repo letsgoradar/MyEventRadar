@@ -1,7 +1,7 @@
 import React from "react";
 import { App2Layout } from "@/components/App2/App2Layout";
 import { ForgotPasswordForm } from "@/components/App2/ForgotPasswordForm";
-import { Navigate } from "wouter";
+import { Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function ForgotPasswordPage() {
@@ -9,7 +9,7 @@ export default function ForgotPasswordPage() {
 
   // Als een gebruiker al is ingelogd, stuur ze naar de hoofdpagina
   if (user) {
-    return <Navigate to="/app2" />;
+    return <Redirect to="/app2" />;
   }
 
   return (

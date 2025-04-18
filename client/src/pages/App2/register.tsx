@@ -1,45 +1,31 @@
-import React from 'react';
-import { App2RegisterForm } from '@/components/App2/RegisterForm';
-import { App2Layout } from '@/components/App2/App2Layout';
-import { useAuth } from '@/hooks/use-auth';
-import { useLocation } from 'wouter';
-import { Loader2 } from 'lucide-react';
+import React from "react";
+import { RegisterForm } from "@/components/App2/RegisterForm";
+import { App2Layout } from "@/components/App2/App2Layout";
+import { useAuth } from "@/hooks/use-auth";
+import { Redirect } from "wouter";
 
-export default function App2RegisterPage() {
-  const { user, isLoading } = useAuth();
-  const [, navigate] = useLocation();
+export default function RegisterPage() {
+  const { user } = useAuth();
 
-  // Redirect to app home if user is already logged in
-  React.useEffect(() => {
-    if (user) {
-      navigate('/app2');
-    }
-  }, [user, navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-border" />
-      </div>
-    );
+  // Als een gebruiker al is ingelogd, stuur ze naar de hoofdpagina
+  if (user) {
+    return <Redirect to="/app2" />;
   }
 
   return (
     <App2Layout 
-      title="Account aanmaken" 
-      hideBottomNav={true} 
-      hideBackButton={true}
+      title="Registreren" 
+      hideBottomNav 
+      showBackButton
+      backTo="/app2/welcome"
     >
-      <div className="container mx-auto p-4 flex flex-col h-[90vh] items-center justify-center">
-        <div className="flex flex-col w-full max-w-md space-y-6">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">Account aanmaken</h1>
-            <p className="text-muted-foreground mt-2">
-              Maak een account aan om evenementen te vinden en te maken in jouw buurt
-            </p>
-          </div>
-          
-          <App2RegisterForm />
+      <div className="flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <h1 className="text-2xl font-bold mb-2 text-center">Account aanmaken</h1>
+          <p className="text-muted-foreground text-center mb-6">
+            Maak een nieuw account aan om evenementen te ontdekken.
+          </p>
+          <RegisterForm />
         </div>
       </div>
     </App2Layout>

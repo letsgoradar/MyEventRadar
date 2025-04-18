@@ -2,108 +2,141 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { apiRequest } from "@/lib/queryClient";
-import { useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
+import { useLocation } from "wouter";
 
-const formSchema = z.object({
-  email: z.string().email("Ongeldig e-mailadres").min(1, "E-mailadres is verplicht"),
+// Schema voor wachtwoord reset aanvraag
+const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .email({ message: "Voer een geldig e-mailadres in" }),
 });
 
-type FormData = z.infer<typeof formSchema>;
+type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 
 export function ForgotPasswordForm() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
   const { toast } = useToast();
-  const [resetRequested, setResetRequested] = useState(false);
-
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+  const [, setLocation] = useLocation();
+  
+  const form = useForm<ForgotPasswordValues>({
+    resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
       email: "",
-    },
+    }
   });
 
-  const resetPasswordMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const res = await apiRequest("POST", "/api/auth/forgot-password", data);
-      return await res.json();
-    },
-    onSuccess: () => {
-      setResetRequested(true);
-      toast({
-        title: "Wachtwoord reset aangevraagd",
-        description: "Als dit e-mailadres bij ons bekend is, ontvang je binnenkort een e-mail met instructies.",
+  const onSubmit = async (data: ForgotPasswordValues) => {
+    setIsSubmitting(true);
+    try {
+      // API aanroep implementeren voor wachtwoord reset
+      const response = await fetch("/api/request-password-reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: data.email }),
       });
-    },
-    onError: (error: Error) => {
-      // We tonen altijd een succesbericht vanwege privacy,
-      // maar we loggen de fout wel voor debugging
-      console.error("Password reset error:", error);
-      setResetRequested(true);
+      
+      if (response.ok) {
+        setSuccess(true);
+        toast({
+          title: "Wachtwoord reset aangevraagd",
+          description: "We hebben een e-mail gestuurd met instructies om je wachtwoord te resetten.",
+          variant: "default",
+        });
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || "Er is iets misgegaan bij het verwerken van je aanvraag.");
+      }
+    } catch (error) {
       toast({
-        title: "Wachtwoord reset aangevraagd",
-        description: "Als dit e-mailadres bij ons bekend is, ontvang je binnenkort een e-mail met instructies.",
+        title: "Aanvraag mislukt",
+        description: error instanceof Error ? error.message : "Er is iets misgegaan bij het verwerken van je aanvraag.",
+        variant: "destructive",
       });
-    },
-  });
-
-  const onSubmit = (data: FormData) => {
-    resetPasswordMutation.mutate(data);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (resetRequested) {
+  const backToLogin = () => {
+    setLocation("/app2/login");
+  };
+
+  if (success) {
     return (
-      <div className="text-center p-4 bg-muted rounded-lg">
-        <h3 className="font-medium mb-2">Controleer je e-mail</h3>
-        <p className="text-muted-foreground mb-4">
-          We hebben instructies verzonden naar {form.getValues("email")} als dit e-mailadres bij ons bekend is.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Let op: de link in de e-mail is 30 minuten geldig.
-        </p>
+      <div className="space-y-6">
+        <div className="rounded-lg bg-primary/10 p-6 text-center">
+          <h3 className="mb-2 text-lg font-medium">E-mail verzonden</h3>
+          <p className="mb-4 text-muted-foreground">
+            We hebben een e-mail gestuurd naar <strong>{form.getValues("email")}</strong> met instructies om je wachtwoord te resetten.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Controleer je inbox en span (of ongewenste mail) als je de e-mail niet kunt vinden.
+          </p>
+        </div>
+        <Button variant="outline" onClick={backToLogin} className="w-full">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Terug naar inloggen
+        </Button>
       </div>
     );
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
+              <FormLabel>E-mailadres</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="E-mailadres" 
-                  {...field} 
-                  autoComplete="email"
+                <Input
+                  placeholder="Voer je e-mailadres in"
+                  {...field}
                   type="email"
+                  autoComplete="email"
+                  className="w-full"
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        <Button 
-          type="submit" 
-          className="w-full" 
-          disabled={resetPasswordMutation.isPending}
-        >
-          {resetPasswordMutation.isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Even geduld...
-            </>
-          ) : (
-            "Reset wachtwoord"
-          )}
-        </Button>
+        
+        <div className="space-y-3">
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Aanvraag verwerken...
+              </>
+            ) : (
+              "Wachtwoord resetten"
+            )}
+          </Button>
+          
+          <Button 
+            type="button" 
+            variant="outline" 
+            className="w-full" 
+            onClick={backToLogin}
+          >
+            Terug naar inloggen
+          </Button>
+        </div>
       </form>
     </Form>
   );

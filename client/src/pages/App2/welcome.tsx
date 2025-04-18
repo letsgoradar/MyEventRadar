@@ -1,6 +1,6 @@
 import React from "react";
 import { WelcomeScreen } from "@/components/App2/WelcomeScreen";
-import { Navigate } from "wouter";
+import { Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function WelcomePage() {
@@ -13,7 +13,7 @@ export default function WelcomePage() {
 
   // Als gebruiker is ingelogd, doorsturen naar hoofdpagina
   if (user) {
-    return <Navigate to="/app2" />;
+    return <Redirect to="/app2" />;
   }
 
   return <WelcomeScreen />;

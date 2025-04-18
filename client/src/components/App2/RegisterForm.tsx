@@ -1,75 +1,79 @@
-import React from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useAuth } from '@/hooks/use-auth';
-import { useLocation } from 'wouter';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Loader2, EyeIcon, EyeOffIcon } from 'lucide-react';
-import { insertUserSchema } from '@shared/schema';
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
+import { Loader2 } from "lucide-react";
 
-// Aanpassing van het schema voor formuliervalidatie
-const registerSchema = insertUserSchema.extend({
-  confirmPassword: z.string().min(6, {
-    message: 'Wachtwoord moet minimaal 6 tekens bevatten',
-  }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Wachtwoorden komen niet overeen',
-  path: ['confirmPassword'],
+// Schema voor registratie
+const registerSchema = z.object({
+  username: z
+    .string()
+    .min(3, { message: "Gebruikersnaam moet minimaal 3 tekens bevatten" })
+    .max(50, { message: "Gebruikersnaam mag maximaal 50 tekens bevatten" }),
+  email: z
+    .string()
+    .email({ message: "Voer een geldig e-mailadres in" }),
+  password: z
+    .string()
+    .min(6, { message: "Wachtwoord moet minimaal 6 tekens bevatten" }),
+  confirmPassword: z
+    .string()
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Wachtwoorden komen niet overeen",
+  path: ["confirmPassword"],
 });
 
-type RegisterFormData = z.infer<typeof registerSchema>;
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
-export function App2RegisterForm() {
+export function RegisterForm() {
   const { registerMutation } = useAuth();
-  const [, navigate] = useLocation();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
-
-  const form = useForm<RegisterFormData>({
+  
+  const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      role: 'user', // Default rol
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
     },
   });
 
-  const onSubmit = async (data: RegisterFormData) => {
-    try {
-      // Verwijder confirmPassword aangezien deze niet naar de server gaat
-      const { confirmPassword, ...userData } = data;
-      
-      // Start de registratiemutatie
-      await registerMutation.mutateAsync(userData);
-      
-      // Bij succes naar de homepagina navigeren
-      setTimeout(() => {
-        navigate('/app2');
-      }, 1000);
-    } catch (error) {
-      console.error('Registration error:', error);
-    }
+  const onSubmit = async (data: RegisterFormValues) => {
+    registerMutation.mutate({
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      role: "user",
+    }, {
+      onSuccess: () => {
+        toast({
+          title: "Account aangemaakt",
+          description: "Je bent succesvol geregistreerd en ingelogd.",
+          variant: "default",
+        });
+        setLocation("/app2");
+      },
+      onError: (error) => {
+        toast({
+          title: "Registratie mislukt",
+          description: error.message || "Er is iets misgegaan bij het registreren.",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="username"
@@ -77,7 +81,12 @@ export function App2RegisterForm() {
             <FormItem>
               <FormLabel>Gebruikersnaam</FormLabel>
               <FormControl>
-                <Input placeholder="jouw_naam" {...field} />
+                <Input
+                  placeholder="Voer je gebruikersnaam in"
+                  {...field}
+                  autoComplete="username"
+                  className="w-full"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -89,9 +98,15 @@ export function App2RegisterForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>E-mail</FormLabel>
+              <FormLabel>E-mailadres</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="naam@voorbeeld.nl" {...field} />
+                <Input
+                  placeholder="Voer je e-mailadres in"
+                  {...field}
+                  autoComplete="email"
+                  type="email"
+                  className="w-full"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -105,28 +120,14 @@ export function App2RegisterForm() {
             <FormItem>
               <FormLabel>Wachtwoord</FormLabel>
               <FormControl>
-                <div className="relative">
-                  <Input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
-                    {...field} 
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOffIcon className="h-4 w-4" />
-                    ) : (
-                      <EyeIcon className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
+                <Input
+                  placeholder="Voer je wachtwoord in"
+                  {...field}
+                  type="password"
+                  autoComplete="new-password"
+                  className="w-full"
+                />
               </FormControl>
-              <FormDescription>
-                Minimaal 6 tekens
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -139,56 +140,33 @@ export function App2RegisterForm() {
             <FormItem>
               <FormLabel>Bevestig wachtwoord</FormLabel>
               <FormControl>
-                <div className="relative">
-                  <Input 
-                    type={showConfirmPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
-                    {...field} 
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOffIcon className="h-4 w-4" />
-                    ) : (
-                      <EyeIcon className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
+                <Input
+                  placeholder="Voer je wachtwoord nogmaals in"
+                  {...field}
+                  type="password"
+                  autoComplete="new-password"
+                  className="w-full"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
+        
         <Button 
           type="submit" 
-          className="w-full mt-6" 
+          className="w-full" 
           disabled={registerMutation.isPending}
         >
           {registerMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : null}
-          Account aanmaken
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Bezig met registreren...
+            </>
+          ) : (
+            "Registreren"
+          )}
         </Button>
-        
-        <div className="text-center mt-4">
-          <p className="text-sm text-muted-foreground">
-            Heb je al een account?{' '}
-            <a 
-              href="/app2/login" 
-              className="text-primary hover:underline"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate('/app2/login');
-              }}
-            >
-              Inloggen
-            </a>
-          </p>
-        </div>
       </form>
     </Form>
   );

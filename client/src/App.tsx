@@ -240,6 +240,12 @@ export default function App() {
             <Route path="/app2/register">
               <App2RegisterPage />
             </Route>
+            <Route path="/app2/welcome">
+              <App2WelcomePage />
+            </Route>
+            <Route path="/app2/forgot-password">
+              <App2ForgotPasswordPage />
+            </Route>
             <Route path="/app2">
               <App2HomePage />
             </Route>

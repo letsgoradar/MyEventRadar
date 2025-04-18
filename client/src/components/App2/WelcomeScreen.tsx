@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FaGoogle, FaApple } from "react-icons/fa";
@@ -8,16 +8,16 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 
 export function WelcomeScreen() {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
   const { user } = useAuth();
   
   // Als de gebruiker al is ingelogd, doorsturen naar de hoofdpagina
   React.useEffect(() => {
     if (user) {
-      navigate("/app2");
+      setLocation("/app2");
     }
-  }, [user, navigate]);
+  }, [user, setLocation]);
 
   const handleGoogleLogin = () => {
     // TODO: Implementeer Google login
@@ -30,15 +30,15 @@ export function WelcomeScreen() {
   };
 
   const goToLogin = () => {
-    navigate("/app2/login");
+    setLocation("/app2/login");
   };
 
   const goToRegister = () => {
-    navigate("/app2/register");
+    setLocation("/app2/register");
   };
 
   const goToForgotPassword = () => {
-    navigate("/app2/forgot-password");
+    setLocation("/app2/forgot-password");
   };
 
   return (

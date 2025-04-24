@@ -196,6 +196,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   });
+  
+  // Events zoeken op basis van een query string
+  app.get("/api/events/search", async (req, res) => {
+    try {
+      const schema = z.object({
+        query: z.string().min(1),
+      });
+
+      const { query } = schema.parse({
+        query: req.query.query,
+      });
+
+      console.log('GET /api/events/search params:', { query });
+      
+      // Haal alle evenementen op
+      const allEvents = await storage.getAllEvents();
+      
+      // Filter de evenementen op basis van de zoekterm
+      const filteredEvents = allEvents.filter(event => {
+        const title = event.title.toLowerCase();
+        const description = event.description?.toLowerCase() || "";
+        const category = event.category.toLowerCase();
+        const address = event.address?.toLowerCase() || "";
+        
+        const searchQuery = query.toLowerCase();
+        
+        return title.includes(searchQuery) || 
+               description.includes(searchQuery) || 
+               category.includes(searchQuery) || 
+               address.includes(searchQuery);
+      });
+      
+      // Beperk tot de eerste 10 resultaten
+      const limitedResults = filteredEvents.slice(0, 20);
+      
+      console.log(`Found ${filteredEvents.length} results for search query "${query}"`);
+      res.json(limitedResults);
+    } catch (error) {
+      console.error('Error in /api/events/search:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: error.errors });
+      } else {
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  });
 
   app.get("/api/events/:id", async (req, res) => {
     const event = await storage.getEvent(parseInt(req.params.id));

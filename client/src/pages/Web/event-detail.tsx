@@ -42,7 +42,8 @@ function createEventIcon(category: string) {
 
 const EventDetail = () => {
   const { id } = useParams();
-  // We gebruiken useState hier niet meer
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo') || '/web';
   
   // Fetch event details
   const { data: event, isLoading, error } = useQuery({

@@ -99,23 +99,35 @@ export function Header({
         onDateRangeChange(range);
       }
     }
-  }, [dateFilterValue, dateRanges, onDateRangeChange]);
+  }, [dateFilterValue, dateRanges, onDateRangeChange, customDate, customEndDate]);
 
-  // Mock demo data for search results dropdown - in real implementation this would come from API
+  // Zoekresultaten ophalen van de API op basis van query
   React.useEffect(() => {
     if (searchQuery.trim() === "") {
       setSearchResults([]);
       return;
     }
     
-    // Simulate search results based on query
-    const demoResults = [
-      { id: 1, title: `${searchQuery} Festival`, category: "Kunst en Cultuur" },
-      { id: 2, title: `Workshop ${searchQuery}`, category: "Educatie" },
-      { id: 3, title: `${searchQuery} Markt`, category: "Markten" },
-    ];
+    // API call naar events/search endpoint
+    const fetchSearchResults = async () => {
+      try {
+        const response = await fetch(`/api/events/search?query=${encodeURIComponent(searchQuery)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSearchResults(data);
+        }
+      } catch (error) {
+        console.error("Fout bij zoeken:", error);
+        setSearchResults([]);
+      }
+    };
     
-    setSearchResults(demoResults);
+    // Voer de zoekopdracht uit na een korte vertraging om te voorkomen dat er te veel requests worden gedaan
+    const debounceTimer = setTimeout(() => {
+      fetchSearchResults();
+    }, 300);
+    
+    return () => clearTimeout(debounceTimer);
   }, [searchQuery]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {

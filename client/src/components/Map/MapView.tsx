@@ -437,13 +437,27 @@ export default function MapView({
           >
             <Popup>
               <Card className="border-0 shadow-none">
+                {event.event.imageUrl && (
+                  <div className="relative w-full h-32 overflow-hidden rounded-t-md">
+                    <img 
+                      src={event.event.imageUrl} 
+                      alt={event.title} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
                 <CardHeader className="p-2 pb-0">
                   <CardTitle className="text-base">
                     {event.title}
                   </CardTitle>
                   <CardDescription className="flex items-center text-xs">
                     <MapPin className="h-3 w-3 mr-1" />
-                    <span>{event.event.address || 'Locatie onbekend'}</span>
+                    <span>
+                      {event.event.address || 
+                       (event.event.latitude && event.event.longitude ? 
+                       `${event.coords[0].toFixed(5)}, ${event.coords[1].toFixed(5)}` : 
+                       'Locatie onbekend')}
+                    </span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-2">
@@ -467,8 +481,8 @@ export default function MapView({
                   )}
                 </CardContent>
                 <CardFooter className="p-2 pt-0">
-                  <Button asChild size="sm" className="w-full text-white">
-                    <Link href={window.location.pathname.includes('/web') ? `/web/event/${event.id}` : `/app2/event/${event.id}`}>
+                  <Button asChild size="sm" className="w-full bg-primary hover:bg-primary/90">
+                    <Link href={`${window.location.pathname.includes('/web') ? '/web' : '/app2'}/event/${event.id}?returnTo=${encodeURIComponent(window.location.pathname)}`} className="text-white">
                       Bekijk details
                     </Link>
                   </Button>

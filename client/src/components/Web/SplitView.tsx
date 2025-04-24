@@ -7,6 +7,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { motion, AnimatePresence } from "framer-motion";
 import L from "leaflet";
 
 interface SplitViewProps {

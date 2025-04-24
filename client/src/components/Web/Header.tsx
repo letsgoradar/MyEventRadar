@@ -98,7 +98,10 @@ export function Header({
   };
 
   return (
-    <div className="h-20 border-b border-border bg-background flex items-center px-4 justify-between pointer-events-auto shadow-sm">
+    <div className="h-20 border-b border-border bg-background flex items-center px-6 justify-between pointer-events-auto shadow-sm">
+      <Link href="/?web=true" className="flex-shrink-0 mr-6">
+        <img src="/images/app-logo.svg" alt="EventMap Logo" className="h-10" />
+      </Link>
       <div className="flex items-center gap-4 w-full max-w-lg">
         <div className="relative flex-1">
           <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />

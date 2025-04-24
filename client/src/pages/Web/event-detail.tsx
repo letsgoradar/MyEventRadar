@@ -11,7 +11,8 @@ import {
   Heart, 
   Share, 
   MessageCircle, 
-  ChevronLeft 
+  ChevronLeft,
+  MapPin
 } from 'lucide-react';
 import { Event } from '@shared/schema';
 import { WebLayout } from '@/components/Web/WebLayout';
@@ -25,6 +26,7 @@ import StreetView from '@/components/StreetView/StreetView';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import 'leaflet/dist/leaflet.css';
 import '@/components/Events/leaflet-fix.css';
+import { getLocationName } from '@/utils/location-utils';
 
 // Importeer L van leaflet
 import L from 'leaflet';

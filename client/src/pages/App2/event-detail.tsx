@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import 'leaflet/dist/leaflet.css';
+import { getLocationName } from "@/utils/location-utils";
 
 export function App2EventDetail() {
   const { id } = useParams<{ id: string }>();
@@ -90,7 +91,7 @@ export function App2EventDetail() {
   // Bereken countdown en bepaal urgentie
   const now = new Date();
   const startTime = new Date(event.startTime);
-  const endTime = new Date(event.endTime);
+  const endTime = event.endTime ? new Date(event.endTime) : new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // Default 2 uur
   const isEventActive = now >= startTime && now <= endTime;
   const isEventPast = now > endTime;
   const hoursToEvent = differenceInHours(startTime, now);
@@ -200,9 +201,9 @@ export function App2EventDetail() {
                 {event.category && (
                   <Badge 
                     className="gap-1 items-center"
-                    style={{ backgroundColor: getCategoryColor(event.category) }}
+                    style={{ backgroundColor: getCategoryColor(event.category as any) }}
                   >
-                    <CategoryIcon category={event.category} size={12} className="text-white" />
+                    <CategoryIcon category={event.category as any} size={12} className="text-white" />
                     <span>{event.category}</span>
                   </Badge>
                 )}
@@ -243,18 +244,18 @@ export function App2EventDetail() {
                 <div className="flex items-center gap-3">
                   <MapPin className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="font-medium">{event.location?.name || "Locatie"}</p>
-                    <p className="text-sm text-muted-foreground">{event.location?.address || "Geen adresgegevens"}</p>
+                    <p className="font-medium">{getLocationName(Number(event.latitude), Number(event.longitude))}</p>
+                    <p className="text-sm text-muted-foreground">{event.address || "Geen adresgegevens beschikbaar"}</p>
                   </div>
                 </div>
                 
-                {event.hasMaxParticipants && (
+                {event.maxParticipants && Number(event.maxParticipants) > 0 && (
                   <div className="flex items-center gap-3">
                     <Users className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="font-medium">Maximaal {event.maxParticipants} deelnemers</p>
                       <p className="text-sm text-muted-foreground">
-                        {event.currentParticipants || 0} aangemeld
+                        0 aangemeld
                       </p>
                     </div>
                   </div>
@@ -262,8 +263,8 @@ export function App2EventDetail() {
               </CardContent>
             </Card>
             
-            {event.location && event.location.lat && event.location.lng && (
-              <EventLocation lat={event.location.lat} lng={event.location.lng} />
+            {event.latitude && event.longitude && (
+              <EventLocation lat={Number(event.latitude)} lng={Number(event.longitude)} />
             )}
             
             <div>

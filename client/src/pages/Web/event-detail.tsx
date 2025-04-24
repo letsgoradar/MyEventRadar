@@ -212,6 +212,14 @@ const EventDetail = () => {
                 <CardContent className="pt-6">
                   <h2 className="text-xl font-semibold mb-3">Locatie</h2>
                   
+                  <div className="flex items-center mb-3 text-sm">
+                    <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <div>
+                      <div className="font-medium">{getLocationName(eventCoords[0], eventCoords[1])}</div>
+                      {event.address && <div className="text-muted-foreground">{event.address}</div>}
+                    </div>
+                  </div>
+                  
                   <Tabs defaultValue="map">
                     <TabsList className="w-full mb-3">
                       <TabsTrigger value="map" className="flex-1">Kaart</TabsTrigger>

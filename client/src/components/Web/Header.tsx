@@ -104,7 +104,7 @@ export function Header({
     }
   }, [dateFilterValue, dateRanges, onDateRangeChange, customDate, customEndDate]);
 
-  // Zoekresultaten ophalen van de API op basis van query
+  // Zoekresultaten ophalen van de API op basis van query en datumbereik
   React.useEffect(() => {
     if (searchQuery.trim() === "") {
       setSearchResults([]);
@@ -114,9 +114,25 @@ export function Header({
     // API call naar events/search endpoint
     const fetchSearchResults = async () => {
       try {
-        const response = await fetch(`/api/events/search?query=${encodeURIComponent(searchQuery)}`);
+        // Bepaal het huidige datumbereik
+        const currentRange = dateRanges[dateFilterValue as keyof typeof dateRanges];
+        let url = `/api/events/search?query=${encodeURIComponent(searchQuery)}`;
+        
+        // Voeg datumbereik parameters toe als ze beschikbaar zijn
+        if (currentRange && currentRange.start) {
+          url += `&startDate=${currentRange.start.toISOString()}`;
+        }
+        
+        if (currentRange && currentRange.end) {
+          url += `&endDate=${currentRange.end.toISOString()}`;
+        }
+        
+        console.log("Searching with URL:", url);
+        
+        const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
+          console.log(`Found ${data.length} search results for "${searchQuery}"`);
           setSearchResults(data);
         }
       } catch (error) {
@@ -131,7 +147,7 @@ export function Header({
     }, 300);
     
     return () => clearTimeout(debounceTimer);
-  }, [searchQuery]);
+  }, [searchQuery, dateFilterValue, dateRanges]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;

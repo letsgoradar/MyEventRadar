@@ -207,6 +207,10 @@ export default function MapView({
   const [currentBounds, setCurrentBounds] = React.useState<L.LatLngBounds | null>(null);
   const [currentZoom, setCurrentZoom] = React.useState<number>(13);
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
+  const [targetEvent, setTargetEvent] = React.useState<Event | null>(null);
+  
+  // Referentie naar de MapContainer
+  const mapRef = React.useRef<L.Map | null>(null);
   
   // Referentie naar de dropdown menu voor outside click handling
   const layerMenuRef = React.useRef<HTMLDivElement>(null);
@@ -268,6 +272,35 @@ export default function MapView({
       setEventsData(fetchedEvents);
     }
   }, [filteredEvents, fetchedEvents]);
+  
+  // Navigeer naar event (via props of direct aangeroepen vanuit zoekresultaten)
+  const navigateToEvent = React.useCallback((event: Event) => {
+    // Stel het event als target in
+    setTargetEvent(event);
+    
+    // Als de kaart beschikbaar is, navigeer ernaartoe
+    if (mapRef.current && event.latitude && event.longitude) {
+      const lat = Number(event.latitude);
+      const lng = Number(event.longitude);
+      mapRef.current.flyTo([lat, lng], 16, {
+        animate: true,
+        duration: 1.5
+      });
+      
+      // Markeer het event als geselecteerd zodat de popup kan worden getoond
+      setSelectedEvent(event);
+    }
+  }, []);
+  
+  // Kijk of er een event is waar we naartoe moeten navigeren
+  React.useEffect(() => {
+    // Als de onEventClick prop is aangeroepen, wordt targetEvent ingesteld
+    if (targetEvent) {
+      navigateToEvent(targetEvent);
+      // Reset targetEvent na navigatie
+      setTargetEvent(null);
+    }
+  }, [targetEvent, navigateToEvent]);
   
 
 
@@ -393,6 +426,11 @@ export default function MapView({
         zoomControl={!hideZoomControls}
         className="z-10 map-container"
         attributionControl={false}
+        ref={(map) => { 
+          if (map) {
+            mapRef.current = map;
+          }
+        }}
       >
         {/* Meerdere stijlkeuzes voor kaartlagen */}
         {mapStyle === 'default' && (

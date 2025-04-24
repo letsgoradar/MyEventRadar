@@ -104,10 +104,16 @@
   z-index: 1; /* Zorg dat de kaart onder de ui-elementen blijft */
 }
 
+/* Bredere popups voor betere leesbaarheid */
+.leaflet-popup-content {
+  min-width: 300px;
+}
+
 /* Aanpassing voor mobiele weergave */
 @media (max-width: 768px) {
   .leaflet-popup-content {
-    max-width: 260px;
+    max-width: 320px;
+    min-width: 280px;
   }
   
   .leaflet-control-zoom {

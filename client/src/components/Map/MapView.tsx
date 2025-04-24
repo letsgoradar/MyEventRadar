@@ -311,12 +311,12 @@ export default function MapView({
         <div className="relative" ref={layerMenuRef}>
           <Button 
             size="sm" 
-            variant="secondary"
-            className="flex items-center justify-center p-1 shadow-md"
+            variant={showLayerOptions ? "default" : "outline"}
+            className="flex items-center justify-center shadow-md w-8 h-8 p-0"
             title="Kaartstijlen"
             onClick={() => setShowLayerOptions(!showLayerOptions)}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-layers">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-layers">
               <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/>
               <path d="m22 12-8.6 3.91a2 2 0 0 1-1.74 0L3 12"/>
               <path d="m22 17-8.6 3.91a2 2 0 0 1-1.74 0L3 17"/>
@@ -443,7 +443,7 @@ export default function MapView({
                   </CardTitle>
                   <CardDescription className="flex items-center text-xs">
                     <MapPin className="h-3 w-3 mr-1" />
-                    <span>{event.coords[0].toFixed(6)}, {event.coords[1].toFixed(6)}</span>
+                    <span>{event.event.address || 'Locatie onbekend'}</span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-2">
@@ -467,8 +467,8 @@ export default function MapView({
                   )}
                 </CardContent>
                 <CardFooter className="p-2 pt-0">
-                  <Button asChild size="sm" className="w-full">
-                    <Link href={`/app2/event/${event.id}`}>
+                  <Button asChild size="sm" className="w-full text-white">
+                    <Link href={window.location.pathname.includes('/web') ? `/web/event/${event.id}` : `/app2/event/${event.id}`}>
                       Bekijk details
                     </Link>
                   </Button>
@@ -500,56 +500,7 @@ export default function MapView({
         />
       </MapContainer>
       
-      {/* Overlay voor geselecteerd event (optioneel) */}
-      {selectedEvent && (
-        <div className="absolute bottom-4 left-4 right-4 pointer-events-auto z-10">
-          <Card className="shadow-lg">
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-base">{selectedEvent.title}</CardTitle>
-              <CardDescription className="flex items-center text-xs">
-                <MapPin className="h-3 w-3 mr-1" />
-                <span>{selectedEvent.address || 'Locatie onbekend'}</span>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-3 pt-1 pb-1">
-              <div className="flex space-x-4 text-xs text-muted-foreground">
-                <div className="flex items-center">
-                  <Clock className="h-3 w-3 mr-1" />
-                  <span>
-                    {new Date(selectedEvent.startTime).toLocaleDateString('nl-NL', { 
-                      day: 'numeric', 
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                </div>
-                
-                {selectedEvent.isPaid && (
-                  <div className="flex items-center">
-                    <Euro className="h-3 w-3 mr-1" />
-                    <span>{Number(selectedEvent.price).toFixed(2)} EUR</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter className="p-3 pt-1 flex justify-between">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setSelectedEvent(null)}
-              >
-                Sluiten
-              </Button>
-              <Button asChild size="sm">
-                <Link href={`/app2/event/${selectedEvent.id}`}>
-                  Details
-                </Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
+      {/* Overlay verwijderd - we gebruiken alleen de popup bij de marker */}
     </div>
   );
 }

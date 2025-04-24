@@ -162,24 +162,7 @@ export function Header({
           </PopoverTrigger>
           <PopoverContent className="w-[400px]" align="end">
             <div className="space-y-6 p-2">
-              <div>
-                <h4 className="font-medium mb-3 text-lg">Filters</h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">Afstand</span>
-                    <span className="text-sm text-muted-foreground">
-                      {radius} km
-                    </span>
-                  </div>
-                  <Slider
-                    defaultValue={[radius]}
-                    max={50}
-                    step={1}
-                    className="w-full"
-                    onValueChange={handleRadiusChange}
-                  />
-                </div>
-              </div>
+              {/* De afstandsfilter is verwijderd - dit wordt nu bepaald door in/uitzoomen op de kaart */}
               
               <div className="space-y-3">
                 <h4 className="font-medium text-lg">Categorieën</h4>

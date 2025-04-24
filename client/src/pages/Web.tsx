@@ -14,7 +14,6 @@ export default function Web() {
   const [radius, setRadius] = React.useState(10); // Nog steeds nodig voor API calls, maar niet getoond in UI
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
   const [visibleMapArea, setVisibleMapArea] = React.useState<L.LatLngBounds | null>(null);
-  const [dateFilter, setDateFilter] = React.useState<{ start: Date; end?: Date } | null>(null);
 
   // Ensure the URL has the web parameter
   React.useEffect(() => {
@@ -41,48 +40,22 @@ export default function Web() {
   
   const events = data || [];
   
-  // Filter events based on search query and date filter
+  // Filter events based on search query
   React.useEffect(() => {
     if (!events || events.length === 0) return;
     
-    let filtered = events.filter((event) => {
-      // Filter op basis van zoekopdracht
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesQuery = (
-          event.title.toLowerCase().includes(query) ||
-          (event.description && event.description.toLowerCase().includes(query)) ||
-          (event.category && event.category.toLowerCase().includes(query))
-        );
-        if (!matchesQuery) return false;
-      }
-      
-      // Filter op basis van datum
-      if (dateFilter) {
-        const eventStartTime = new Date(event.startTime);
-        const eventEndTime = event.endTime ? new Date(event.endTime) : 
-          new Date(eventStartTime.getTime() + 2 * 60 * 60 * 1000); // 2 uur default
-        
-        // Check of het event binnen de datumfilter valt
-        if (dateFilter.start && dateFilter.end) {
-          // Event moet overlappen met de datumrange
-          return (
-            (eventStartTime <= dateFilter.end && eventEndTime >= dateFilter.start) ||
-            (eventStartTime >= dateFilter.start && eventStartTime <= dateFilter.end)
-          );
-        } else if (dateFilter.start) {
-          // Alleen startdatum - event moet op of na deze datum beginnen
-          return eventStartTime >= dateFilter.start;
-        }
-        
-        return false;
-      }
-      
-      return true;
+    const filtered = events.filter((event) => {
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        event.title.toLowerCase().includes(query) ||
+        (event.description && event.description.toLowerCase().includes(query)) ||
+        (event.category && event.category.toLowerCase().includes(query))
+      );
     });
     
     setFilteredEvents(filtered);
-  }, [events, searchQuery, dateFilter]);
+  }, [events, searchQuery]);
   
   const handleSearch = React.useCallback((query: string) => {
     setSearchQuery(query);
@@ -92,10 +65,6 @@ export default function Web() {
     // We gebruiken nog steeds radius voor API calls op de achtergrond
     setRadius(value);
   }, []);
-  
-  const handleDateRangeChange = React.useCallback((range: { start: Date; end?: Date }) => {
-    setDateFilter(range);
-  }, []);
 
   return (
     <WebLayout 
@@ -104,7 +73,6 @@ export default function Web() {
       filteredEvents={filteredEvents}
       onSearch={handleSearch}
       onRadiusChange={handleRadiusChange}
-      onDateRangeChange={handleDateRangeChange}
     />
   );
 }

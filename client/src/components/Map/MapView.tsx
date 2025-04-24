@@ -201,7 +201,7 @@ export default function MapView({
   const [showLayerOptions, setShowLayerOptions] = React.useState(false);
   const [currentBounds, setCurrentBounds] = React.useState<L.LatLngBounds | null>(null);
   const [currentZoom, setCurrentZoom] = React.useState<number>(13);
-  const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(true);
+  const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   
   // Referentie naar de dropdown menu voor outside click handling
   const layerMenuRef = React.useRef<HTMLDivElement>(null);

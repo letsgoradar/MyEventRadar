@@ -32,6 +32,7 @@ import {
   ToggleGroupItem 
 } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { DateTimePicker } from "@/components/date-time-picker";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays } from "date-fns";
 import { nl } from "date-fns/locale";
@@ -156,9 +157,9 @@ export function Header({
       <div className="w-32 md:w-48"></div>
       
       {/* Center area with search and date filters */}
-      <div className="flex flex-col items-center max-w-lg flex-1">
+      <div className="flex items-center justify-center gap-2 max-w-xl flex-1">
         {/* Zoekveld */}
-        <div className="relative w-full">
+        <div className="relative flex-1">
           <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
           <div className="relative">
             <Input
@@ -208,34 +209,40 @@ export function Header({
         </div>
         
         {/* Datum filterknoppen */}
-        <div className="flex items-center space-x-1 mt-2">
-          <ToggleGroup type="single" value={dateFilterValue} onValueChange={handleDateFilterChange}>
-            <ToggleGroupItem value="deze-week" size="sm" className="text-xs px-3 rounded-full">
-              Deze week
-            </ToggleGroupItem>
-            <ToggleGroupItem value="vandaag" size="sm" className="text-xs px-3 rounded-full">
-              Vandaag
-            </ToggleGroupItem>
-            <ToggleGroupItem value="morgen" size="sm" className="text-xs px-3 rounded-full">
-              Morgen
-            </ToggleGroupItem>
-            
-            {/* Specifieke datum */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <ToggleGroupItem 
-                  value="specifieke-datum" 
-                  size="sm" 
-                  className="text-xs px-3 rounded-full flex items-center gap-1"
-                >
-                  <Calendar className="h-3 w-3" />
-                  <span>Specifieke datum</span>
-                </ToggleGroupItem>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-4" align="center">
-                <div className="space-y-4">
+        <div className="flex items-center ml-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-10 rounded-full flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                <span>
+                  {dateFilterValue === "vandaag" ? "Vandaag" : 
+                   dateFilterValue === "morgen" ? "Morgen" : 
+                   dateFilterValue === "deze-week" ? "Deze week" : 
+                   dateFilterValue === "specifieke-datum" && customDate ? 
+                   format(customDate, "d MMM", {locale: nl}) : "Datum"}
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="p-2 min-w-[280px]" align="center">
+              <div className="grid gap-2">
+                <ToggleGroup type="single" value={dateFilterValue} onValueChange={handleDateFilterChange} className="justify-start">
+                  <ToggleGroupItem value="deze-week" size="sm" className="text-xs px-3 rounded-full">
+                    Deze week
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="vandaag" size="sm" className="text-xs px-3 rounded-full">
+                    Vandaag
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="morgen" size="sm" className="text-xs px-3 rounded-full">
+                    Morgen
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                
+                <Separator className="my-2" />
+                
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Specifieke datum</p>
                   <div className="space-y-2">
-                    <Label>Startdatum</Label>
+                    <Label className="text-xs">Startdatum</Label>
                     <DateTimePicker
                       date={customDate}
                       setDate={setCustomDate}
@@ -244,7 +251,7 @@ export function Header({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Einddatum (optioneel)</Label>
+                    <Label className="text-xs">Einddatum (optioneel)</Label>
                     <DateTimePicker
                       date={customEndDate}
                       setDate={setCustomEndDate}
@@ -254,14 +261,15 @@ export function Header({
                   </div>
                   <Button 
                     onClick={() => setDateFilterValue("specifieke-datum")} 
-                    className="w-full"
+                    className="w-full mt-2"
+                    size="sm"
                   >
                     Toepassen
                   </Button>
                 </div>
-              </PopoverContent>
-            </Popover>
-          </ToggleGroup>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
       

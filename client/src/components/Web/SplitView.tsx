@@ -39,23 +39,24 @@ export function SplitView({
   
   // Filter events op basis van de huidige kaartgrenzen en verlopen events status
   React.useEffect(() => {
-    if (!mapBounds || !filteredEvents) {
-      // Zelfs zonder mapBounds filteren we verlopen events
-      const filtered = showExpiredEvents ? 
-        filteredEvents : 
-        filteredEvents.filter(event => !isEventExpired(event));
-      
-      setVisibleEvents(filtered);
+    if (!filteredEvents) {
+      setVisibleEvents([]);
       return;
     }
     
-    // Filter events die binnen de huidige kaartgrenzen vallen en filteren op verlopen status
-    const eventsInBounds = filteredEvents.filter(event => {
-      // Filter op verlopen events
-      if (!showExpiredEvents && isEventExpired(event)) {
-        return false;
-      }
-      
+    // Basis filtering op verlopen events
+    const nonExpiredEvents = showExpiredEvents ? 
+      filteredEvents : 
+      filteredEvents.filter(event => !isEventExpired(event));
+    
+    // Als er geen mapBounds zijn, toon alleen gefilterd op verlopen status
+    if (!mapBounds) {
+      setVisibleEvents(nonExpiredEvents);
+      return;
+    }
+    
+    // Filter events die binnen de huidige kaartgrenzen vallen
+    const eventsInBounds = nonExpiredEvents.filter(event => {
       // Filter op kaartgrenzen
       const eventLatLng = L.latLng(Number(event.latitude), Number(event.longitude));
       return mapBounds.contains(eventLatLng);
@@ -103,6 +104,7 @@ export function SplitView({
                 onRadiusChange={handleRadiusChange}
                 onBoundsChange={handleBoundsChange}
                 onZoomChange={handleZoomChange}
+                showExpiredEvents={showExpiredEvents}
               />
             </div>
           </ResizablePanel>

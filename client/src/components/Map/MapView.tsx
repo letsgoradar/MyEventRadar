@@ -182,6 +182,8 @@ interface MapViewProps {
   onRadiusChange?: (radius: number) => void;
   onBoundsChange?: (bounds: L.LatLngBounds) => void;
   onZoomChange?: (zoom: number) => void;
+  showExpiredEvents?: boolean;
+  onShowExpiredEventsChange?: (showExpired: boolean) => void;
 }
 
 export default function MapView({ 
@@ -192,7 +194,9 @@ export default function MapView({
   onEventClick,
   onRadiusChange: propOnRadiusChange,
   onBoundsChange: propOnBoundsChange,
-  onZoomChange: propOnZoomChange
+  onZoomChange: propOnZoomChange,
+  showExpiredEvents: propShowExpiredEvents,
+  onShowExpiredEventsChange
 }: MapViewProps) {
   // State voor locatie van gebruiker
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
@@ -227,6 +231,13 @@ export default function MapView({
       );
     }
   }, []);
+  
+  // Houd de showExpiredEvents state gesynchroniseerd met de prop
+  React.useEffect(() => {
+    if (propShowExpiredEvents !== undefined) {
+      setShowExpiredEvents(propShowExpiredEvents);
+    }
+  }, [propShowExpiredEvents]);
   
   // Als er filteredEvents zijn, gebruik die; anders fetch events op basis van locatie en radius
   const { data: fetchedEvents, isLoading, refetch } = useQuery<Event[]>({
@@ -305,7 +316,14 @@ export default function MapView({
           variant={showExpiredEvents ? "default" : "outline"}
           className="flex items-center justify-center shadow-md w-8 h-8 p-0"
           title="Toon verlopen events"
-          onClick={() => setShowExpiredEvents(!showExpiredEvents)}
+          onClick={() => {
+            const newValue = !showExpiredEvents;
+            setShowExpiredEvents(newValue);
+            // Als er een onShowExpiredEvents prop is, deze aanroepen
+            if (propShowExpiredEvents !== undefined && onShowExpiredEventsChange) {
+              onShowExpiredEventsChange(newValue);
+            }
+          }}
         >
           <Clock className="h-4 w-4" />
         </Button>

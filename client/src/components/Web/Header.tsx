@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "wouter";
-import { MdSearch, MdTune, MdMap, MdViewList } from "react-icons/md";
+import { MdSearch, MdTune, MdMap, MdViewList, MdCalendarToday } from "react-icons/md";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +18,7 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@shared/schema";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { Check } from "lucide-react";
+import { Check, Calendar } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -27,6 +27,14 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { 
+  ToggleGroup, 
+  ToggleGroupItem 
+} from "@/components/ui/toggle-group";
+import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/date-time-picker";
+import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays } from "date-fns";
+import { nl } from "date-fns/locale";
 
 interface HeaderProps {
   isMapView: boolean;
@@ -35,6 +43,7 @@ interface HeaderProps {
   radius?: number;
   onRadiusChange?: (value: number) => void;
   onCategoriesChange?: (categories: string[]) => void;
+  onDateRangeChange?: (dateRange: { start: Date; end?: Date }) => void;
   hideViewToggle?: boolean;
 }
 
@@ -45,12 +54,51 @@ export function Header({
   radius = 10,
   onRadiusChange,
   onCategoriesChange,
+  onDateRangeChange,
   hideViewToggle = false,
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = React.useState(false);
+  
+  // Datumfilter opties
+  const [dateFilterValue, setDateFilterValue] = React.useState<string>("deze-week");
+  const [customDate, setCustomDate] = React.useState<Date | undefined>(undefined);
+  const [customEndDate, setCustomEndDate] = React.useState<Date | undefined>(undefined);
+  
+  // Bereken de datumbereiken voor de verschillende filteropties
+  const dateRanges = React.useMemo(() => {
+    const now = new Date();
+    return {
+      "deze-week": {
+        start: startOfWeek(now, { locale: nl, weekStartsOn: 1 }),
+        end: endOfWeek(now, { locale: nl, weekStartsOn: 1 }),
+      },
+      "vandaag": {
+        start: startOfDay(now),
+        end: endOfDay(now),
+      },
+      "morgen": {
+        start: startOfDay(addDays(now, 1)),
+        end: endOfDay(addDays(now, 1)),
+      },
+      "specifieke-datum": {
+        start: customDate || now,
+        end: customEndDate,
+      },
+    };
+  }, [customDate, customEndDate]);
+
+  // Bij wijziging van de datumfilter, nieuwe datum doorgeven aan parent
+  React.useEffect(() => {
+    if (dateFilterValue && onDateRangeChange) {
+      const range = dateRanges[dateFilterValue as keyof typeof dateRanges];
+      if (range) {
+        onDateRangeChange(range);
+      }
+    }
+  }, [dateFilterValue, dateRanges, onDateRangeChange]);
 
   // Mock demo data for search results dropdown - in real implementation this would come from API
   React.useEffect(() => {
@@ -96,16 +144,26 @@ export function Header({
       return newCategories;
     });
   };
+  
+  // Afhandelen van datumfilter wijziging
+  const handleDateFilterChange = (value: string) => {
+    setDateFilterValue(value);
+  };
 
   return (
     <div className="h-20 border-b border-border bg-background flex items-center px-4 justify-between pointer-events-auto shadow-sm">
-      <div className="flex items-center gap-4 w-full max-w-lg">
-        <div className="relative flex-1">
+      {/* Left side area - empty (was logo) */}
+      <div className="w-32 md:w-48"></div>
+      
+      {/* Center area with search and date filters */}
+      <div className="flex flex-col items-center max-w-lg flex-1">
+        {/* Zoekveld */}
+        <div className="relative w-full">
           <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
           <div className="relative">
             <Input
-              placeholder="Zoek evenementen..."
-              className="pl-10 h-10 text-base rounded-md shadow-sm"
+              placeholder="Zoek op kaart"
+              className="pl-10 h-10 text-base rounded-full shadow-sm border-slate-200"
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit("")}
@@ -148,13 +206,74 @@ export function Header({
             )}
           </div>
         </div>
-
+        
+        {/* Datum filterknoppen */}
+        <div className="flex items-center space-x-1 mt-2">
+          <ToggleGroup type="single" value={dateFilterValue} onValueChange={handleDateFilterChange}>
+            <ToggleGroupItem value="deze-week" size="sm" className="text-xs px-3 rounded-full">
+              Deze week
+            </ToggleGroupItem>
+            <ToggleGroupItem value="vandaag" size="sm" className="text-xs px-3 rounded-full">
+              Vandaag
+            </ToggleGroupItem>
+            <ToggleGroupItem value="morgen" size="sm" className="text-xs px-3 rounded-full">
+              Morgen
+            </ToggleGroupItem>
+            
+            {/* Specifieke datum */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <ToggleGroupItem 
+                  value="specifieke-datum" 
+                  size="sm" 
+                  className="text-xs px-3 rounded-full flex items-center gap-1"
+                >
+                  <Calendar className="h-3 w-3" />
+                  <span>Specifieke datum</span>
+                </ToggleGroupItem>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-4" align="center">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Startdatum</Label>
+                    <DateTimePicker
+                      date={customDate}
+                      setDate={setCustomDate}
+                      mode="date"
+                      placement="bottom"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Einddatum (optioneel)</Label>
+                    <DateTimePicker
+                      date={customEndDate}
+                      setDate={setCustomEndDate}
+                      mode="date"
+                      placement="bottom"
+                    />
+                  </div>
+                  <Button 
+                    onClick={() => setDateFilterValue("specifieke-datum")} 
+                    className="w-full"
+                  >
+                    Toepassen
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </ToggleGroup>
+        </div>
+      </div>
+      
+      {/* Right side with filters and user profile */}
+      <div className="flex items-center gap-2">
+        {/* Filters button */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button size="icon" variant="outline" className="h-14 w-14 rounded-lg">
-              <MdTune className="h-6 w-6" />
+            <Button size="sm" variant="outline" className="rounded-full">
+              <span>Filters</span>
               {selectedCategories.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center text-xs">
+                <span className="ml-1 bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center text-xs">
                   {selectedCategories.length}
                 </span>
               )}
@@ -204,28 +323,23 @@ export function Header({
             size="icon"
             variant="outline"
             onClick={toggleView}
-            className="h-14 w-14 rounded-lg"
+            className="h-10 w-10 rounded-full"
             title={isMapView ? "Lijstweergave" : "Kaartweergave"}
           >
             {isMapView ? (
-              <MdViewList className="h-6 w-6" />
+              <MdViewList className="h-5 w-5" />
             ) : (
-              <MdMap className="h-6 w-6" />
+              <MdMap className="h-5 w-5" />
             )}
           </Button>
         )}
-      </div>
-
-      <div className="hidden md:flex items-center gap-5">
-        <Button asChild className="h-12 px-6 text-base">
-          <Link href="/web/create-event">Nieuw Evenement</Link>
-        </Button>
         
+        {/* User profile */}
         <Link href="/web/profile" className="relative">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-primary/20 hover:border-primary/50 transition-colors">
+                <div className="h-10 w-10 rounded-full overflow-hidden border border-border hover:border-primary/50 transition-colors">
                   <img 
                     src="/images/default-user.svg" 
                     alt="Profielfoto" 

@@ -206,7 +206,20 @@ export function Header({
               <div className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white max-h-[400px] overflow-y-auto">
                 {/* Zoek alle resultaten knop */}
                 <button
-                  onClick={() => handleSearchSubmit("")}
+                  onClick={() => {
+                    // Zoekactie uitvoeren
+                    handleSearchSubmit("");
+                    
+                    // Als er een resultaat beschikbaar is, naar het eerste navigeren op de kaart
+                    if (searchResults.length > 0) {
+                      const firstResult = searchResults[0];
+                      const navigateToMapEvent = (window as any).navigateToMapEvent;
+                      if (navigateToMapEvent) {
+                        console.log("Navigating to first search result on map:", firstResult.title);
+                        navigateToMapEvent(firstResult);
+                      }
+                    }
+                  }}
                   className="w-full p-3 text-left hover:bg-gray-100 text-blue-600 font-medium border-b flex items-center gap-2"
                 >
                   <MdSearch className="text-muted-foreground h-5 w-5" />
@@ -223,6 +236,15 @@ export function Header({
                       onClick={() => {
                         setShowSearchResults(false);
                         handleSearchSubmit(result.title);
+                        
+                        // Controleer of de globale navigatiefunctie beschikbaar is
+                        const navigateToMapEvent = (window as any).navigateToMapEvent;
+                        if (navigateToMapEvent) {
+                          console.log("Navigating to event on map:", result.title);
+                          navigateToMapEvent(result);
+                        }
+                        
+                        // Originele onEventClick handler nog steeds aanroepen als deze bestaat
                         if (onEventClick) onEventClick(result);
                       }}
                       className="p-3 hover:bg-gray-100 cursor-pointer border-b flex items-start gap-3"

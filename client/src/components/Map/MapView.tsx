@@ -302,6 +302,11 @@ export default function MapView({
     }
   }, [targetEvent, navigateToEvent]);
   
+  // Exporteer de navigateToEvent functie zodat deze vanuit andere componenten aangeroepen kan worden
+  (window as any).navigateToMapEvent = (event: Event) => {
+    navigateToEvent(event);
+  };
+  
 
 
   // Controleer of een event is verlopen

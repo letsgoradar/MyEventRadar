@@ -82,13 +82,15 @@ export function findNearestProvince(latitude: number, longitude: number) {
 
 // Haal een gebruiksvriendelijke locatienaam op basis van coördinaten
 export function getLocationName(latitude: number, longitude: number): string {
-  // Probeer eerst om een stad te vinden
+  // Haal zowel stad als provincie op
   const city = findNearestCity(latitude, longitude);
+  const province = findNearestProvince(latitude, longitude);
+  
+  // Als we een specifieke stad hebben, toon die samen met de provincie
   if (city) {
-    return city;
+    return `${city} - ${province}`;
   }
   
-  // Als er geen specifieke stad is gevonden, gebruik dan de provincie
-  const province = findNearestProvince(latitude, longitude);
+  // Als er geen specifieke stad is gevonden, gebruik dan alleen de provincie
   return `Regio ${province}`;
 }

@@ -482,8 +482,8 @@ export default function MapView({
                   )}
                 </CardContent>
                 <CardFooter className="p-2 pt-0">
-                  <Button asChild size="sm" className="w-full bg-primary hover:bg-primary/90">
-                    <Link href={`${window.location.pathname.includes('/web') ? '/web' : '/app2'}/event/${event.id}?returnTo=${encodeURIComponent(window.location.pathname)}`} className="text-white">
+                  <Button asChild size="sm" className="w-full bg-white text-primary hover:bg-gray-100 border border-primary">
+                    <Link href={`${window.location.pathname.includes('/web') ? '/web' : '/app2'}/event/${event.id}?returnTo=${encodeURIComponent(window.location.pathname)}`}>
                       Bekijk details
                     </Link>
                   </Button>

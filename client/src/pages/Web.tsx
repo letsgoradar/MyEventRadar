@@ -5,13 +5,15 @@ import { Event } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { fetchEventsByRadius } from "@/lib/api"; 
 import { useLocation as useGeoLocation } from "@/hooks/useLocation";
+import L from "leaflet";
 
 export default function Web() {
   const [location, setLocation] = useLocation();
   const { location: geoLocation } = useGeoLocation();
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [radius, setRadius] = React.useState(10);
+  const [radius, setRadius] = React.useState(10); // Nog steeds nodig voor API calls, maar niet getoond in UI
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
+  const [visibleMapArea, setVisibleMapArea] = React.useState<L.LatLngBounds | null>(null);
 
   // Ensure the URL has the web parameter
   React.useEffect(() => {
@@ -23,7 +25,7 @@ export default function Web() {
     }
   }, [location, setLocation]);
   
-  // Fetch events based on location
+  // Fetch events based on location - radius wordt nu bepaald door kaartweergave
   const { data } = useQuery({
     queryKey: ["events", geoLocation?.lat, geoLocation?.lng, radius],
     queryFn: async () => {
@@ -60,6 +62,7 @@ export default function Web() {
   }, []);
   
   const handleRadiusChange = React.useCallback((value: number) => {
+    // We gebruiken nog steeds radius voor API calls op de achtergrond
     setRadius(value);
   }, []);
 

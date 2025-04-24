@@ -179,6 +179,8 @@ interface MapViewProps {
   hideZoomControls?: boolean;
   onEventClick?: (event: Event) => void;
   onRadiusChange?: (radius: number) => void;
+  onBoundsChange?: (bounds: L.LatLngBounds) => void;
+  onZoomChange?: (zoom: number) => void;
 }
 
 export default function MapView({ 
@@ -187,7 +189,9 @@ export default function MapView({
   filteredEvents, 
   hideZoomControls = false,
   onEventClick,
-  onRadiusChange: propOnRadiusChange 
+  onRadiusChange: propOnRadiusChange,
+  onBoundsChange: propOnBoundsChange,
+  onZoomChange: propOnZoomChange
 }: MapViewProps) {
   // State voor locatie van gebruiker
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
@@ -479,8 +483,20 @@ export default function MapView({
         
         {/* Component om events bij te werken bij in/uitzoomen en verschuiven van de kaart */}
         <MapEventLoader 
-          onBoundsChange={bounds => setCurrentBounds(bounds)} 
-          onZoomChange={zoom => setCurrentZoom(zoom)} 
+          onBoundsChange={bounds => {
+            setCurrentBounds(bounds);
+            // Stuur bounds door naar parent component via props
+            if (propOnBoundsChange) {
+              propOnBoundsChange(bounds);
+            }
+          }} 
+          onZoomChange={zoom => {
+            setCurrentZoom(zoom);
+            // Stuur zoom door naar parent component via props
+            if (propOnZoomChange) {
+              propOnZoomChange(zoom);
+            }
+          }} 
         />
       </MapContainer>
       

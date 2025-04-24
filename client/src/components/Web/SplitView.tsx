@@ -7,6 +7,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import L from "leaflet";
 
 interface SplitViewProps {
   searchQuery: string;
@@ -24,6 +25,25 @@ export function SplitView({
   onFilteredEventsChange 
 }: SplitViewProps) {
   const [activeEventId, setActiveEventId] = React.useState<number | null>(null);
+  const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
+  const [mapZoom, setMapZoom] = React.useState<number>(13);
+  const [visibleEvents, setVisibleEvents] = React.useState<Event[]>(filteredEvents);
+  
+  // Filter events op basis van de huidige kaartgrenzen
+  React.useEffect(() => {
+    if (!mapBounds || !filteredEvents) {
+      setVisibleEvents(filteredEvents);
+      return;
+    }
+    
+    // Filter events die binnen de huidige kaartgrenzen vallen
+    const eventsInBounds = filteredEvents.filter(event => {
+      const eventLatLng = L.latLng(Number(event.latitude), Number(event.longitude));
+      return mapBounds.contains(eventLatLng);
+    });
+    
+    setVisibleEvents(eventsInBounds);
+  }, [filteredEvents, mapBounds]);
 
   const handleEventClick = React.useCallback((event: Event) => {
     setActiveEventId(event.id);
@@ -31,6 +51,18 @@ export function SplitView({
 
   const handleRadiusChange = React.useCallback((newRadius: number) => {
     onRadiusChange?.(newRadius);
+  }, [onRadiusChange]);
+  
+  const handleBoundsChange = React.useCallback((bounds: L.LatLngBounds) => {
+    setMapBounds(bounds);
+  }, []);
+  
+  const handleZoomChange = React.useCallback((zoom: number) => {
+    setMapZoom(zoom);
+    
+    // Bereken een radius op basis van het zoom niveau
+    const calculatedRadius = Math.max(5, Math.round(20 / (zoom * 0.4)));
+    onRadiusChange?.(calculatedRadius);
   }, [onRadiusChange]);
 
   return (
@@ -50,6 +82,8 @@ export function SplitView({
                 filteredEvents={filteredEvents}
                 onEventClick={handleEventClick}
                 onRadiusChange={handleRadiusChange}
+                onBoundsChange={handleBoundsChange}
+                onZoomChange={handleZoomChange}
               />
             </div>
           </ResizablePanel>
@@ -59,11 +93,21 @@ export function SplitView({
           
           {/* Rechter paneel: lijst/grid weergave */}
           <ResizablePanel defaultSize={50} minSize={30} className="relative">
-            <div className="h-full overflow-y-auto pb-20 px-4 pt-4">
+            <div className="h-full overflow-y-auto pb-20 px-4">
+              {/* Toon het aantal resultaten binnen het zichtbare gebied */}
+              <div className="sticky top-0 pt-4 pb-3 bg-background z-10 mb-2 flex justify-between items-center">
+                <div className="text-lg font-medium">
+                  {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'} in huidige zoekgebied
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Zoom in/uit op de kaart om resultaten aan te passen
+                </div>
+              </div>
+              
               <EventList 
                 searchQuery={searchQuery} 
                 radius={radius} 
-                filteredEvents={filteredEvents} 
+                filteredEvents={visibleEvents} 
                 gridView={true} // Gebruik de nieuwe grid weergave
               />
             </div>

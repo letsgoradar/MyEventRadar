@@ -232,40 +232,6 @@ export default function MapView({
     }
   }, []);
   
-  // Luister naar focus event requests via de eventBus
-  React.useEffect(() => {
-    const handleFocusEvent = (eventId: number) => {
-      // Zoek het evenement op basis van id
-      const eventToFocus = eventsData.find(e => e.id === eventId);
-      if (eventToFocus) {
-        // Selecteer het evenement
-        setSelectedEvent(eventToFocus);
-        
-        // Navigeer naar de locatie van het evenement op de kaart
-        // Gebruik een veilige type casting om toegang te krijgen tot de Leaflet map instance
-        const container = document.querySelector('.leaflet-container');
-        // @ts-ignore - Leaflet voegt _leaflet_map toe aan het DOM element, maar TypeScript kent dit niet
-        const map = container?._leaflet_map as L.Map | undefined;
-        
-        if (map) {
-          map.flyTo(
-            [Number(eventToFocus.latitude), Number(eventToFocus.longitude)],
-            15, // zoom level
-            { animate: true, duration: 1 }
-          );
-        }
-      }
-    };
-    
-    // Registreer event listener
-    window.eventBus?.on('focusEvent', handleFocusEvent);
-    
-    // Cleanup
-    return () => {
-      window.eventBus?.off('focusEvent', handleFocusEvent);
-    };
-  }, [eventsData]);
-  
   // Houd de showExpiredEvents state gesynchroniseerd met de prop
   React.useEffect(() => {
     if (propShowExpiredEvents !== undefined) {

@@ -101,7 +101,7 @@ export function Header({
     }
   }, [dateFilterValue, dateRanges, onDateRangeChange, customDate, customEndDate]);
 
-  // Zoekresultaten ophalen van de API op basis van query en datumfilter
+  // Zoekresultaten ophalen van de API op basis van query
   React.useEffect(() => {
     if (searchQuery.trim() === "") {
       setSearchResults([]);
@@ -111,23 +111,7 @@ export function Header({
     // API call naar events/search endpoint
     const fetchSearchResults = async () => {
       try {
-        // Basis URL met query
-        let url = `/api/events/search?query=${encodeURIComponent(searchQuery)}`;
-        
-        // Voeg datumfilter toe als deze is ingesteld
-        if (dateFilterValue) {
-          const range = dateRanges[dateFilterValue as keyof typeof dateRanges];
-          if (range) {
-            if (range.start) {
-              url += `&startDate=${range.start.toISOString()}`;
-            }
-            if (range.end) {
-              url += `&endDate=${range.end.toISOString()}`;
-            }
-          }
-        }
-        
-        const response = await fetch(url);
+        const response = await fetch(`/api/events/search?query=${encodeURIComponent(searchQuery)}`);
         if (response.ok) {
           const data = await response.json();
           setSearchResults(data);
@@ -144,7 +128,7 @@ export function Header({
     }, 300);
     
     return () => clearTimeout(debounceTimer);
-  }, [searchQuery, dateFilterValue, dateRanges]);
+  }, [searchQuery]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -201,7 +185,7 @@ export function Header({
             {/* Live zoekresultaten dropdown */}
             {showSearchResults && searchResults.length > 0 && (
               <Command className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white">
-                <CommandList className="max-h-[400px] overflow-y-auto">
+                <CommandList>
                   <CommandGroup>
                     <CommandItem 
                       onSelect={() => handleSearchSubmit("")}
@@ -210,7 +194,7 @@ export function Header({
                       <div className="flex items-center gap-2">
                         <MdSearch className="text-muted-foreground" />
                         <span className="flex-1">
-                          Zoek naar "<strong>{searchQuery}</strong>" ({searchResults.length} resultaten)
+                          Zoek naar "<strong>{searchQuery}</strong>"
                         </span>
                       </div>
                     </CommandItem>
@@ -220,18 +204,7 @@ export function Header({
                     {searchResults.map(result => (
                       <CommandItem 
                         key={result.id}
-                        onSelect={() => {
-                          // Navigeer naar de kaart en focus op dit evenement
-                          setShowSearchResults(false);
-                          // Stuur het evenement door naar de parent component
-                          if (onSearch) {
-                            onSearch(result.title);
-                            // Trigger een click event op het evenement
-                            if (window.eventBus) {
-                              window.eventBus.emit('focusEvent', result.id);
-                            }
-                          }
-                        }}
+                        onSelect={() => handleSearchSubmit(result.title)}
                         className="p-2 cursor-pointer hover:bg-slate-100"
                       >
                         <div className="flex flex-col">

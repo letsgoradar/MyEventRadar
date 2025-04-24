@@ -197,33 +197,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Events zoeken op basis van een query string en optionele datum
+  // Events zoeken op basis van een query string
   app.get("/api/events/search", async (req, res) => {
     try {
       const schema = z.object({
         query: z.string().min(1),
-        startDate: z.string().optional(),
-        endDate: z.string().optional()
       });
 
-      const { query, startDate, endDate } = schema.parse({
+      const { query } = schema.parse({
         query: req.query.query,
-        startDate: req.query.startDate,
-        endDate: req.query.endDate
       });
 
-      console.log('GET /api/events/search params:', { query, startDate, endDate });
+      console.log('GET /api/events/search params:', { query });
       
       // Haal alle evenementen op
       const allEvents = await storage.getAllEvents();
       
-      // Parse dates als deze zijn opgegeven
-      const parsedStartDate = startDate ? new Date(startDate) : null;
-      const parsedEndDate = endDate ? new Date(endDate) : null;
-      
-      // Filter de evenementen op basis van de zoekterm en datums
+      // Filter de evenementen op basis van de zoekterm
       const filteredEvents = allEvents.filter(event => {
-        // Basisfiltering op zoekterm
         const title = event.title.toLowerCase();
         const description = event.description?.toLowerCase() || "";
         const category = event.category.toLowerCase();
@@ -231,36 +222,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const searchQuery = query.toLowerCase();
         
-        const matchesSearchQuery = title.includes(searchQuery) || 
-                                   description.includes(searchQuery) || 
-                                   category.includes(searchQuery) || 
-                                   address.includes(searchQuery);
-                                   
-        // Als er geen zoekterm match is, sla deze over
-        if (!matchesSearchQuery) return false;
-        
-        // Datumfiltering - als er datums zijn gespecificeerd
-        if (parsedStartDate || parsedEndDate) {
-          const eventStartDate = new Date(event.startTime);
-          const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(event.startTime);
-          
-          // Check startdatum als opgegeven
-          if (parsedStartDate && eventEndDate < parsedStartDate) {
-            return false; // Event eindigt voor de opgegeven startdatum
-          }
-          
-          // Check einddatum als opgegeven
-          if (parsedEndDate && eventStartDate > parsedEndDate) {
-            return false; // Event begint na de opgegeven einddatum
-          }
-        }
-        
-        return true;
+        return title.includes(searchQuery) || 
+               description.includes(searchQuery) || 
+               category.includes(searchQuery) || 
+               address.includes(searchQuery);
       });
       
-      // Alle resultaten tonen
+      // Beperk tot de eerste 10 resultaten
+      const limitedResults = filteredEvents.slice(0, 20);
+      
       console.log(`Found ${filteredEvents.length} results for search query "${query}"`);
-      res.json(filteredEvents);
+      res.json(limitedResults);
     } catch (error) {
       console.error('Error in /api/events/search:', error);
       if (error instanceof z.ZodError) {

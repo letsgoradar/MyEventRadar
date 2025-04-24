@@ -160,7 +160,27 @@ export const insertActivityLogSchema = createInsertSchema(activityLogs).pick({
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type Event = typeof events.$inferSelect;
+// We define EventInterface directly instead of extending Event type
+export interface EventInterface {
+  id: number;
+  title: string;
+  description: string;
+  latitude: string | number;
+  longitude: string | number;
+  address?: string;
+  notificationReach: string | number;
+  startTime: string | Date;
+  endTime?: string | Date | null;
+  category: string;
+  secondaryCategory?: string | null;
+  isPaid: boolean;
+  price?: string | number | null;
+  maxParticipants?: number | null;
+  hostId: number;
+  recurrence: string;
+  tags?: string[] | null;
+  imageUrl?: string | null;
+}
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Favorite = typeof favorites.$inferSelect;
 export type InsertFavorite = z.infer<typeof insertFavoriteSchema>;

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import { Event } from "@shared/schema";
+import type { EventInterface } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import L from "leaflet";
@@ -208,9 +208,9 @@ function createEventIcon(category: string, isExpired: boolean = false, isSelecte
 interface MapViewProps {
   searchQuery?: string;
   radius?: number;
-  filteredEvents?: Event[];
+  filteredEvents?: EventInterface[];
   hideZoomControls?: boolean;
-  onEventClick?: (event: Event) => void;
+  onEventClick?: (event: EventInterface) => void;
   onRadiusChange?: (radius: number) => void;
   onBoundsChange?: (bounds: L.LatLngBounds) => void;
   onZoomChange?: (zoom: number) => void;
@@ -232,17 +232,28 @@ export default function MapView({
 }: MapViewProps) {
   // State voor locatie van gebruiker
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
-  const [eventsData, setEventsData] = React.useState<Event[]>([]);
-  const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
+  const [eventsData, setEventsData] = React.useState<EventInterface[]>([]);
+  const [selectedEvent, setSelectedEvent] = React.useState<EventInterface | null>(null);
   const [mapStyle, setMapStyle] = React.useState<'default' | 'satellite' | 'dark' | 'minimal' | 'colorful'>('default');
   const [showLayerOptions, setShowLayerOptions] = React.useState(false);
   const [currentBounds, setCurrentBounds] = React.useState<L.LatLngBounds | null>(null);
   const [currentZoom, setCurrentZoom] = React.useState<number>(13);
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
-  const [targetEvent, setTargetEvent] = React.useState<Event | null>(null);
+  const [targetEvent, setTargetEvent] = React.useState<EventInterface | null>(null);
   
   // Referentie naar de MapContainer
   const mapRef = React.useRef<L.Map | null>(null);
+  
+  // Maak de map referentie globaal beschikbaar voor andere componenten
+  React.useEffect(() => {
+    // Maak mapRef globaal beschikbaar
+    (window as any).mapRef = mapRef;
+    
+    return () => {
+      // Cleanup bij unmount
+      delete (window as any).mapRef;
+    };
+  }, []);
   
   // Referentie naar de dropdown menu voor outside click handling
   const layerMenuRef = React.useRef<HTMLDivElement>(null);
@@ -276,7 +287,7 @@ export default function MapView({
   }, [propShowExpiredEvents]);
   
   // Als er filteredEvents zijn, gebruik die; anders fetch events op basis van locatie en radius
-  const { data: fetchedEvents, isLoading, refetch } = useQuery<Event[]>({
+  const { data: fetchedEvents, isLoading, refetch } = useQuery<EventInterface[]>({
     queryKey: ['/api/events/nearby', userLocation[0], userLocation[1], radius, searchQuery],
     enabled: !filteredEvents && userLocation[0] !== 0 && userLocation[1] !== 0,
   });
@@ -306,7 +317,7 @@ export default function MapView({
   }, [filteredEvents, fetchedEvents]);
   
   // Navigeer naar event (via props of direct aangeroepen vanuit zoekresultaten)
-  const navigateToEvent = React.useCallback((event: Event) => {
+  const navigateToEvent = React.useCallback((event: EventInterface) => {
     // Stel het event als target in
     setTargetEvent(event);
     
@@ -314,15 +325,41 @@ export default function MapView({
     if (mapRef.current && event.latitude && event.longitude) {
       const lat = Number(event.latitude);
       const lng = Number(event.longitude);
-      mapRef.current.flyTo([lat, lng], 16, {
+      
+      // Hoger zoomniveau (17 in plaats van 16) voor nauwkeurigere locatie
+      mapRef.current.flyTo([lat, lng], 17, {
         animate: true,
         duration: 1.5
       });
       
       // Markeer het event als geselecteerd zodat de popup kan worden getoond
       setSelectedEvent(event);
+      
+      // Sla de huidige zoekstatus op voor "terug naar zoekresultaten" functie
+      // We slaan de huidige bounds, zoom en filter op
+      const searchState = {
+        bounds: currentBounds ? currentBounds.toBBoxString() : null,
+        zoom: currentZoom,
+        searchQuery,
+        timestamp: new Date().getTime()
+      };
+      
+      // Sla op in localStorage voor gebruik bij terugnavigatie
+      localStorage.setItem('lastSearchState', JSON.stringify(searchState));
+      
+      console.log("Event geselecteerd en zoekstatus opgeslagen:", event.title);
     }
-  }, []);
+  }, [currentBounds, currentZoom, searchQuery]);
+  
+  // Maak navigatiefunctie beschikbaar voor de zoekbalk
+  React.useEffect(() => {
+    (window as any).navigateToMapEvent = navigateToEvent;
+    
+    return () => {
+      // Cleanup bij unmount
+      delete (window as any).navigateToMapEvent;
+    };
+  }, [navigateToEvent]);
   
   // Kijk of er een event is waar we naartoe moeten navigeren
   React.useEffect(() => {
@@ -368,15 +405,12 @@ export default function MapView({
     }
   }, [targetEvent, mapRef]);
   
-  // Exporteer de navigateToEvent functie zodat deze vanuit andere componenten aangeroepen kan worden
-  (window as any).navigateToMapEvent = (event: Event) => {
-    navigateToEvent(event);
-  };
+  // Functie wordt al geëxporteerd via React.useEffect hierboven
   
 
 
   // Controleer of een event is verlopen
-  const isEventExpired = (event: Event): boolean => {
+  const isEventExpired = (event: EventInterface): boolean => {
     return new Date(event.endTime || event.startTime) < new Date();
   };
   

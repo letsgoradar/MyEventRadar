@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'wouter';
+import { useParams, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
@@ -12,9 +12,12 @@ import {
   Share, 
   MessageCircle, 
   ChevronLeft,
-  MapPin
+  MapPin,
+  ArrowLeft,
+  Search,
+  ChevronRight
 } from 'lucide-react';
-import { Event } from '@shared/schema';
+import { EventInterface } from '@shared/schema';
 import { WebLayout } from '@/components/Web/WebLayout';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { CategoryIcon, getCategoryColor } from '@/components/CategoryIcon';
@@ -45,8 +48,10 @@ function createEventIcon(category: string) {
 const EventDetail = () => {
   const { id } = useParams();
   
-  // Haal de returnTo parameter uit de URL
+  // Haal de returnTo parameter uit de URL en location hook voor navigatie
   const [returnTo, setReturnTo] = useState('/web');
+  const [, navigate] = useLocation();
+  const [hasSearchState, setHasSearchState] = useState(false);
   
   useEffect(() => {
     // Parse de URL parameters
@@ -54,6 +59,19 @@ const EventDetail = () => {
     const returnParam = urlParams.get('returnTo');
     if (returnParam) {
       setReturnTo(returnParam);
+    }
+    
+    // Controleer of er een opgeslagen zoekstatus is
+    const lastSearchState = localStorage.getItem('lastSearchState');
+    if (lastSearchState) {
+      try {
+        const searchState = JSON.parse(lastSearchState);
+        // Controleer of de zoekstatus nog geldig is (max 1 uur oud)
+        const isValid = (new Date().getTime() - searchState.timestamp) < (60 * 60 * 1000);
+        setHasSearchState(isValid);
+      } catch (e) {
+        console.error("Fout bij parsen van zoekstatus:", e);
+      }
     }
   }, []);
   
@@ -106,18 +124,109 @@ const EventDetail = () => {
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
   const eventDate = new Date(event.startTime);
   const endDate = new Date(event.endTime);
+  
+  // Functie om terug te navigeren naar de vorige zoekresultaten
+  const navigateToSearchResults = () => {
+    const lastSearchState = localStorage.getItem('lastSearchState');
+    if (lastSearchState) {
+      try {
+        const searchState = JSON.parse(lastSearchState);
+        
+        // Navigeer terug naar de kaartpagina
+        navigate('/web');
+        
+        // Na korte vertraging de bounds en zoom herstellen via de globale functie
+        setTimeout(() => {
+          const map = (window as any).mapRef?.current;
+          if (map && searchState.bounds) {
+            // Converteer de bounds string terug naar een bounds object
+            const [west, south, east, north] = searchState.bounds.split(',').map(Number);
+            const bounds = L.latLngBounds(
+              L.latLng(south, west),
+              L.latLng(north, east)
+            );
+            
+            // Kaart op de juiste positie zetten
+            map.fitBounds(bounds);
+            
+            // Als er een zoekterm was, die ook weer herstellen
+            if (searchState.searchQuery) {
+              const searchInput = document.querySelector('input[placeholder="Zoek op kaart"]') as HTMLInputElement;
+              if (searchInput) {
+                searchInput.value = searchState.searchQuery;
+                // Trigger een zoekopdracht
+                const event = new Event('input', { bubbles: true });
+                searchInput.dispatchEvent(event);
+              }
+            }
+            
+            console.log("Zoekstatus hersteld:", searchState);
+          }
+        }, 500);
+      } catch (e) {
+        console.error("Fout bij navigeren naar zoekresultaten:", e);
+        navigate('/web');
+      }
+    } else {
+      // Als er geen searchState is, ga gewoon terug naar de homepagina
+      navigate('/web');
+    }
+  };
 
   return (
     <WebLayout>
       <div className="flex-1 pb-12 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto overflow-visible">
-          <div className="mb-6 flex items-center">
-            <Button variant="ghost" asChild className="mr-4">
-              <Link href={returnTo}>
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Terug
-              </Link>
-            </Button>
+          <div className="mb-6 flex items-center flex-wrap">
+            <div className="flex items-center mr-2 mb-2">
+              <Button variant="ghost" asChild className="mr-2">
+                <Link href={returnTo}>
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Terug
+                </Link>
+              </Button>
+              
+              {/* Toon alleen de "Terug naar zoekresultaten" knop als er een zoekstatus is */}
+              {hasSearchState && (
+                <Button 
+                  variant="outline" 
+                  onClick={navigateToSearchResults}
+                  className="mr-2"
+                >
+                  <Search className="mr-2 h-4 w-4" />
+                  Terug naar zoekresultaten
+                </Button>
+              )}
+              
+              {/* Vorige/volgende evenement navigatie knoppen */}
+              <div className="flex items-center space-x-1">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-9 w-9 rounded-full"
+                  title="Vorig evenement"
+                  onClick={() => {
+                    // Zal later worden geïmplementeerd met echte functionaliteit
+                    console.log("Navigatie naar vorig evenement");
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-9 w-9 rounded-full"
+                  title="Volgend evenement"
+                  onClick={() => {
+                    // Zal later worden geïmplementeerd met echte functionaliteit
+                    console.log("Navigatie naar volgend evenement");
+                  }}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
             <Badge 
               style={{ 
                 backgroundColor: `${getCategoryColor(event.category as any)}20`,
@@ -125,7 +234,7 @@ const EventDetail = () => {
                 borderColor: getCategoryColor(event.category as any)
               }}
               variant="outline" 
-              className="h-8 text-base font-normal"
+              className="h-8 text-base font-normal mb-2"
             >
               <CategoryIcon category={event.category as any} className="mr-2" size={18} />
               {event.category}

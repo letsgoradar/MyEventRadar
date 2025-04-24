@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Event } from '@shared/schema';
+import type { EventInterface } from '@shared/schema';
 import { MapPin, Calendar, Euro, Eye, Image, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
@@ -29,7 +29,7 @@ function deg2rad(deg: number): number {
 }
 
 interface EventCardProps {
-  event: Event;
+  event: EventInterface;
   distance?: number;
   gridView?: boolean;
 }
@@ -85,10 +85,48 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   // Bepaal de juiste routering op basis van de huidige URL
   const isApp2 = window.location.pathname.includes('/app2');
   const detailLink = isApp2 ? `/app2/event/${event.id}` : `/web/event/${event.id}`;
+  
+  // Functie om een event op de kaart te tonen in plaats van direct naar detail te gaan
+  const showEventOnMap = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    // Alleen toepassen voor web versie, niet voor App2
+    if (window.location.pathname.includes('/web') && window.location.pathname !== '/web/map') {
+      // Navigeer naar kaartweergave als we niet al op de kaart zijn
+      if (!window.location.pathname.includes('/web')) {
+        window.location.href = '/web?viewType=map';
+        return;
+      }
+      
+      // Gebruik de globale navigatieEventToMap functie die we eerder hebben ingesteld
+      if ((window as any).navigateToMapEvent) {
+        (window as any).navigateToMapEvent(event);
+        
+        // Toon een tijdelijke informatiemelding
+        const infoEl = document.createElement('div');
+        infoEl.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-primary text-white px-4 py-2 rounded-full shadow-lg z-50';
+        infoEl.textContent = 'Klik op "Bekijk details" voor alle informatie';
+        document.body.appendChild(infoEl);
+        
+        // Verwijder de melding na 3 seconden
+        setTimeout(() => {
+          infoEl.classList.add('opacity-0', 'transition-opacity');
+          setTimeout(() => {
+            document.body.removeChild(infoEl);
+          }, 300);
+        }, 3000);
+        
+        return;
+      }
+    }
+    
+    // Fallback: navigeer direct naar detail pagina
+    window.location.href = detailLink;
+  };
 
   if (gridView) {
     return (
-      <Link href={detailLink}>
+      <Link href={detailLink} onClick={window.location.pathname.includes('/web') ? showEventOnMap : undefined}>
         <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col event-card">
           {/* Afbeelding bovenaan met overlay voor categorie en afstand */}
           <div className="relative h-48 overflow-hidden">
@@ -233,7 +271,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
     }
     
     return (
-      <Link href={`/app2/event/${event.id}`}>
+      <Link href={`/app2/event/${event.id}`} onClick={showEventOnMap}>
         <Card className="overflow-hidden mb-4 transition-all hover:shadow-md cursor-pointer event-card">
           <div className="p-0">
             {/* Afbeelding container bovenaan */}
@@ -311,7 +349,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
 
   // De originele web lijstweergave (voor /web/ routes)
   return (
-    <Link href={detailLink}>
+    <Link href={detailLink} onClick={window.location.pathname.includes('/web') ? showEventOnMap : undefined}>
       <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer event-card">
         <div className="flex flex-col md:flex-row">
           {/* Afbeelding links */}

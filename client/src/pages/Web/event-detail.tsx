@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -42,8 +42,18 @@ function createEventIcon(category: string) {
 
 const EventDetail = () => {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get('returnTo') || '/web';
+  
+  // Haal de returnTo parameter uit de URL
+  const [returnTo, setReturnTo] = useState('/web');
+  
+  useEffect(() => {
+    // Parse de URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnParam = urlParams.get('returnTo');
+    if (returnParam) {
+      setReturnTo(returnParam);
+    }
+  }, []);
   
   // Fetch event details
   const { data: event, isLoading, error } = useQuery({
@@ -101,7 +111,7 @@ const EventDetail = () => {
         <div className="max-w-6xl mx-auto overflow-visible">
           <div className="mb-6 flex items-center">
             <Button variant="ghost" asChild className="mr-4">
-              <Link href="/web">
+              <Link href={returnTo}>
                 <ChevronLeft className="mr-2 h-4 w-4" />
                 Terug
               </Link>

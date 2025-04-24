@@ -296,11 +296,32 @@ export default function MapView({
   React.useEffect(() => {
     // Als de onEventClick prop is aangeroepen, wordt targetEvent ingesteld
     if (targetEvent) {
-      navigateToEvent(targetEvent);
-      // Reset targetEvent na navigatie
+      // Navigeren naar het event
+      const lat = Number(targetEvent.latitude);
+      const lng = Number(targetEvent.longitude);
+      
+      if (mapRef.current) {
+        mapRef.current.flyTo([lat, lng], 16, {
+          animate: true,
+          duration: 1.5
+        });
+      }
+      
+      // Zorg ervoor dat het event als geselecteerd wordt gemarkeerd (popup openen)
+      setSelectedEvent(targetEvent);
+      
+      // Voeg het event toe aan eventsData als het er nog niet in zit
+      setTimeout(() => {
+        if (!eventsData.some(e => e.id === targetEvent.id)) {
+          console.log("Adding target event to events data for visibility:", targetEvent.title);
+          setEventsData(prev => [...prev, targetEvent]);
+        }
+      }, 100);
+      
+      // Reset targetEvent
       setTargetEvent(null);
     }
-  }, [targetEvent, navigateToEvent]);
+  }, [targetEvent, mapRef]);
   
   // Exporteer de navigateToEvent functie zodat deze vanuit andere componenten aangeroepen kan worden
   (window as any).navigateToMapEvent = (event: Event) => {
@@ -496,6 +517,14 @@ export default function MapView({
                 if (onEventClick) {
                   onEventClick(event.event);
                 }
+              }
+            }}
+            // Open de popup automatisch als dit het geselecteerde event is
+            ref={(markerRef) => {
+              if (markerRef && selectedEvent && selectedEvent.id === event.id) {
+                setTimeout(() => {
+                  markerRef.openPopup();
+                }, 200);
               }
             }}
           >

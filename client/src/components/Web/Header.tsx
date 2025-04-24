@@ -189,7 +189,15 @@ export function Header({
     const query = e.target.value;
     setSearchQuery(query);
     setShowSearchResults(query.trim() !== "");
-    // We don't call onSearch here immediately, only when a selection is made or search is executed
+    
+    // Live events filteren op de kaart tijdens het typen (met kleine vertraging)
+    if (query.trim() !== "") {
+      const filterTimer = setTimeout(() => {
+        onSearch?.(query);
+      }, 300);
+      
+      return () => clearTimeout(filterTimer);
+    }
   };
   
   const handleSearchSubmit = (value: string) => {

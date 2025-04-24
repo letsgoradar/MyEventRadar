@@ -36,6 +36,7 @@ import { Separator } from "@/components/ui/separator";
 import { DateTimePicker } from "@/components/date-time-picker";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays } from "date-fns";
 import { nl } from "date-fns/locale";
+import { getDistance } from "@/utils/location-utils";
 
 interface HeaderProps {
   isMapView: boolean;
@@ -104,6 +105,23 @@ export function Header({
     }
   }, [dateFilterValue, dateRanges, onDateRangeChange, customDate, customEndDate]);
 
+  // Gebruikerslocatie voor afstandsberekening
+  const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]); // Standaard positie
+
+  // Gebruikerslocatie ophalen
+  React.useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+        },
+        (error) => {
+          console.error("Fout bij ophalen locatie:", error);
+        }
+      );
+    }
+  }, []);
+
   // Zoekresultaten ophalen van de API op basis van query en datumbereik
   React.useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -133,7 +151,25 @@ export function Header({
         if (response.ok) {
           const data = await response.json();
           console.log(`Found ${data.length} search results for "${searchQuery}"`);
-          setSearchResults(data);
+          
+          // Bereken de afstand voor elk resultaat
+          const resultsWithDistance = data.map((event: any) => {
+            const distance = getDistance(
+              userLocation[0], 
+              userLocation[1], 
+              Number(event.latitude), 
+              Number(event.longitude)
+            );
+            return {
+              ...event,
+              distance
+            };
+          });
+          
+          // Sorteer de resultaten op afstand (dichtbijzijnde eerst)
+          resultsWithDistance.sort((a: any, b: any) => a.distance - b.distance);
+          
+          setSearchResults(resultsWithDistance);
         }
       } catch (error) {
         console.error("Fout bij zoeken:", error);
@@ -159,6 +195,15 @@ export function Header({
   const handleSearchSubmit = (value: string) => {
     setShowSearchResults(false);
     onSearch?.(value || searchQuery);
+    // Laat de zoekopdracht in de zoekbalk staan
+    setSearchQuery(value || searchQuery);
+  };
+  
+  // Functie om de zoekopdracht te wissen en terug te gaan naar alle evenementen
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    onSearch?.("");
   };
 
   const handleRadiusChange = (value: number[]) => {
@@ -195,11 +240,24 @@ export function Header({
           <div className="relative">
             <Input
               placeholder="Zoek op kaart"
-              className="pl-10 h-10 text-base rounded-full shadow-sm border-slate-200"
+              className="pl-10 pr-10 h-10 text-base rounded-full shadow-sm border-slate-200"
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit("")}
             />
+            {searchQuery.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 rounded-full"
+                onClick={clearSearch}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x">
+                  <path d="M18 6 6 18"></path>
+                  <path d="m6 6 12 12"></path>
+                </svg>
+              </Button>
+            )}
             
             {/* Live zoekresultaten dropdown */}
             {showSearchResults && searchResults.length > 0 && (
@@ -250,7 +308,7 @@ export function Header({
                       className="p-3 hover:bg-gray-100 cursor-pointer border-b flex items-start gap-3"
                     >
                       <CategoryIcon category={result.category as any} size={20} className="mt-1" />
-                      <div className="flex flex-col">
+                      <div className="flex flex-col flex-1">
                         <span className="font-medium">{result.title}</span>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <span>{result.category}</span>
@@ -259,6 +317,12 @@ export function Header({
                             day: 'numeric',
                             month: 'short'
                           })}</span>
+                          {result.distance && (
+                            <>
+                              <span>•</span>
+                              <span className="text-green-600 font-medium">{result.distance} km</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

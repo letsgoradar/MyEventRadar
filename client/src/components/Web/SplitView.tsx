@@ -7,6 +7,8 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { Button } from "@/components/ui/button";
+import { Clock } from "lucide-react";
 import L from "leaflet";
 
 interface SplitViewProps {
@@ -28,22 +30,39 @@ export function SplitView({
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
   const [mapZoom, setMapZoom] = React.useState<number>(13);
   const [visibleEvents, setVisibleEvents] = React.useState<Event[]>(filteredEvents);
+  const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   
-  // Filter events op basis van de huidige kaartgrenzen
+  // Controleer of een event is verlopen
+  const isEventExpired = (event: Event): boolean => {
+    return new Date(event.endTime || event.startTime) < new Date();
+  };
+  
+  // Filter events op basis van de huidige kaartgrenzen en verlopen events status
   React.useEffect(() => {
     if (!mapBounds || !filteredEvents) {
-      setVisibleEvents(filteredEvents);
+      // Zelfs zonder mapBounds filteren we verlopen events
+      const filtered = showExpiredEvents ? 
+        filteredEvents : 
+        filteredEvents.filter(event => !isEventExpired(event));
+      
+      setVisibleEvents(filtered);
       return;
     }
     
-    // Filter events die binnen de huidige kaartgrenzen vallen
+    // Filter events die binnen de huidige kaartgrenzen vallen en filteren op verlopen status
     const eventsInBounds = filteredEvents.filter(event => {
+      // Filter op verlopen events
+      if (!showExpiredEvents && isEventExpired(event)) {
+        return false;
+      }
+      
+      // Filter op kaartgrenzen
       const eventLatLng = L.latLng(Number(event.latitude), Number(event.longitude));
       return mapBounds.contains(eventLatLng);
     });
     
     setVisibleEvents(eventsInBounds);
-  }, [filteredEvents, mapBounds]);
+  }, [filteredEvents, mapBounds, showExpiredEvents]);
 
   const handleEventClick = React.useCallback((event: Event) => {
     setActiveEventId(event.id);
@@ -99,8 +118,21 @@ export function SplitView({
                 <div className="text-lg font-medium">
                   {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'} in huidige zoekgebied
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Zoom in/uit op de kaart om resultaten aan te passen
+                <div className="flex items-center gap-2">
+                  {/* Toon verlopen events toggle */}
+                  <Button 
+                    size="sm" 
+                    variant={showExpiredEvents ? "default" : "outline"}
+                    className="flex items-center gap-1 text-xs"
+                    title="Toon verlopen events"
+                    onClick={() => setShowExpiredEvents(!showExpiredEvents)}
+                  >
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>Verlopen</span>
+                  </Button>
+                  <div className="text-sm text-muted-foreground hidden sm:block">
+                    Zoom in/uit op de kaart om resultaten aan te passen
+                  </div>
                 </div>
               </div>
               

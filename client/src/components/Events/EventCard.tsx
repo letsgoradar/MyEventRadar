@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Event } from '@shared/schema';
-import { MapPin, Calendar, Euro, Eye, Image } from 'lucide-react';
+import { MapPin, Calendar, Euro, Eye, Image, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CategoryIcon, CATEGORY_COLORS, getCategoryColor } from '../CategoryIcon';
-import CountdownTimer from './CountdownTimer';
+import { CountdownTimer } from './CountdownTimer';
 import { Link } from 'wouter';
 import { useLocation } from '@/hooks/useLocation';
 import placeholderImage from '@/assets/placeholder-event.svg';
@@ -161,14 +161,13 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                   Event is verlopen
                 </div>
               )}
-              {!isOngoing && !isExpired && !isStartingSoon && (
-                <CountdownTimer startTime={event.startTime} />
-              )}
-              {isStartingSoon && (
-                <div className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
-                  Start binnen 24 uur
-                </div>
+              {!isOngoing && !isExpired && (
+                <CountdownTimer 
+                  targetDate={startTime}
+                  showHours={isStartingSoon} 
+                  showMinutesSeconds={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
+                  pulsate={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
+                />
               )}
             </div>
           </CardHeader>
@@ -275,14 +274,14 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                 <span className="text-sm">{formattedDate}</span>
               </div>
               
-              {/* Countdown in groen voor bijna startende evenementen */}
-              {isStartingSoon && (
-                <div className="text-green-500 font-medium text-sm">
-                  <span className="flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
-                    {countdownText}
-                  </span>
-                </div>
+              {/* Countdown component */}
+              {!isOngoing && !isExpired && (
+                <CountdownTimer 
+                  targetDate={startTime}
+                  showHours={isStartingSoon} 
+                  showMinutesSeconds={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
+                  pulsate={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
+                />
               )}
               
               {/* Andere statussen */}
@@ -301,12 +300,6 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                     <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
                     Event is verlopen
                   </span>
-                </div>
-              )}
-              
-              {!isOngoing && !isExpired && !isStartingSoon && (
-                <div className="text-orange-500 font-medium text-sm">
-                  {countdownText}
                 </div>
               )}
             </div>
@@ -386,14 +379,13 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
                     Event is verlopen
                   </div>
                 )}
-                {!isOngoing && !isExpired && !isStartingSoon && (
-                  <CountdownTimer startTime={event.startTime} />
-                )}
-                {isStartingSoon && (
-                  <div className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
-                    Start binnen 24 uur
-                  </div>
+                {!isOngoing && !isExpired && (
+                  <CountdownTimer 
+                    targetDate={startTime}
+                    showHours={isStartingSoon} 
+                    showMinutesSeconds={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
+                    pulsate={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
+                  />
                 )}
 
                 {event.isPaid && (

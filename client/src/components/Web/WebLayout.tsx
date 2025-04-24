@@ -12,6 +12,7 @@ interface WebLayoutProps {
   onSearch?: (query: string) => void;
   onRadiusChange?: (radius: number) => void;
   onFilteredEventsChange?: (events: Event[]) => void;
+  onDateRangeChange?: (dateRange: { start: Date; end?: Date }) => void;
 }
 
 export function WebLayout({ 
@@ -21,7 +22,8 @@ export function WebLayout({
   filteredEvents: propFilteredEvents,
   onSearch: propOnSearch,
   onRadiusChange: propOnRadiusChange,
-  onFilteredEventsChange: propOnFilteredEventsChange
+  onFilteredEventsChange: propOnFilteredEventsChange,
+  onDateRangeChange: propOnDateRangeChange
 }: WebLayoutProps) {
   // In de web-omgeving gebruiken we altijd de split view (geen toggle)
   const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
@@ -70,6 +72,10 @@ export function WebLayout({
   const handleCategoriesChange = React.useCallback((categories: string[]) => {
     setSelectedCategories(categories);
   }, []);
+  
+  const handleDateRangeChange = React.useCallback((dateRange: { start: Date; end?: Date }) => {
+    propOnDateRangeChange?.(dateRange);
+  }, [propOnDateRangeChange]);
 
   // Alleen desktop layout met sidebar en split view
   return (
@@ -85,6 +91,7 @@ export function WebLayout({
             radius={radius}
             onRadiusChange={handleRadiusChange}
             onCategoriesChange={handleCategoriesChange}
+            onDateRangeChange={handleDateRangeChange}
             hideViewToggle={true} // Hide the toggle button in web view
           />
         </div>

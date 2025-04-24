@@ -17,8 +17,8 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@shared/schema";
-import { CategoryIcon } from "@/components/CategoryIcon";
-import { Check, Calendar } from "lucide-react";
+import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
+import { Check, Calendar, Search } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -35,6 +35,7 @@ import { Label } from "@/components/ui/label";
 import { DateTimePicker } from "@/components/date-time-picker";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays } from "date-fns";
 import { nl } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
 
 interface HeaderProps {
   isMapView: boolean;
@@ -149,27 +150,126 @@ export function Header({
   const handleDateFilterChange = (value: string) => {
     setDateFilterValue(value);
   };
+  
+  // Haal de datum weergavetekst op basis van de geselecteerde optie
+  const getDateDisplayText = () => {
+    switch (dateFilterValue) {
+      case "deze-week":
+        return "Deze week";
+      case "vandaag":
+        return "Vandaag";
+      case "morgen":
+        return "Morgen";
+      case "specifieke-datum":
+        if (customDate) {
+          return customEndDate 
+            ? `${format(customDate, 'd MMM', { locale: nl })} - ${format(customEndDate, 'd MMM', { locale: nl })}`
+            : format(customDate, 'd MMMM', { locale: nl });
+        }
+        return "Kies datum";
+      default:
+        return "Deze week";
+    }
+  };
 
   return (
-    <div className="h-20 border-b border-border bg-background flex items-center px-4 justify-between pointer-events-auto shadow-sm">
-      {/* Left side area - empty (was logo) */}
-      <div className="w-32 md:w-48"></div>
-      
-      {/* Center area with search and date filters */}
-      <div className="flex flex-col items-center max-w-lg flex-1">
-        {/* Zoekveld */}
-        <div className="relative w-full">
-          <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
+    <div className="h-20 border-b border-border bg-background flex flex-col justify-center pointer-events-auto shadow-sm">
+      {/* Zoek en datum container */}
+      <div className="flex items-center px-4 justify-between w-full">
+        {/* Logo en brandname */}
+        <div className="w-32 md:w-48">
+          <Link href="/?web=true" className="flex items-center gap-2">
+            <div className="text-rose-500 font-semibold text-lg">evenementenvinder</div>
+          </Link>
+        </div>
+        
+        {/* Zoek en datumfilter */}
+        <div className="flex items-center space-x-2 max-w-xl flex-1 justify-center">
+          {/* Zoekbalk met afgeronde hoeken in een container met border */}
           <div className="relative">
-            <Input
-              placeholder="Zoek op kaart"
-              className="pl-10 h-10 text-base rounded-full shadow-sm border-slate-200"
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit("")}
-            />
+            <div className="flex items-center border rounded-full overflow-hidden shadow-sm">
+              <Input
+                placeholder="Zoek evenementen"
+                className="border-0 h-12 text-base rounded-l-full focus-visible:ring-0 focus-visible:ring-offset-0"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit("")}
+              />
+              
+              {/* Datum selector */}
+              <div className="border-l h-full flex items-center px-4 bg-white">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="h-full rounded-none px-2 flex items-center gap-2 text-sm font-medium"
+                    >
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span>{getDateDisplayText()}</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="center">
+                    <div className="p-2">
+                      <div className="flex flex-col gap-1">
+                        {["deze-week", "vandaag", "morgen"].map((option) => (
+                          <Button 
+                            key={option}
+                            variant={dateFilterValue === option ? "default" : "ghost"}
+                            size="sm"
+                            className="justify-start"
+                            onClick={() => setDateFilterValue(option)}
+                          >
+                            {option === "deze-week" && "Deze week"}
+                            {option === "vandaag" && "Vandaag"}
+                            {option === "morgen" && "Morgen"}
+                            {dateFilterValue === option && (
+                              <Check className="h-4 w-4 ml-auto" />
+                            )}
+                          </Button>
+                        ))}
+                        
+                        <div className="my-1 border-t" />
+                        
+                        {/* Specifieke datum selectie */}
+                        <div className="p-2">
+                          <div className="space-y-2">
+                            <Label>Specifieke datum</Label>
+                            <DateTimePicker
+                              date={customDate}
+                              setDate={(date) => {
+                                setCustomDate(date);
+                                setDateFilterValue("specifieke-datum");
+                              }}
+                              mode="date"
+                              placement="bottom"
+                            />
+                          </div>
+                          <div className="space-y-2 mt-2">
+                            <Label>Einddatum (optioneel)</Label>
+                            <DateTimePicker
+                              date={customEndDate}
+                              setDate={setCustomEndDate}
+                              mode="date"
+                              placement="bottom"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              {/* Zoek button */}
+              <Button 
+                className="rounded-none rounded-r-full h-12 px-5 bg-rose-500 hover:bg-rose-600 text-white"
+                onClick={() => handleSearchSubmit("")}
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+            </div>
             
-            {/* Live zoekresultaten dropdown */}
+            {/* Zoekresultaten dropdown */}
             {showSearchResults && searchResults.length > 0 && (
               <Command className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white">
                 <CommandList>
@@ -207,152 +307,120 @@ export function Header({
           </div>
         </div>
         
-        {/* Datum filterknoppen */}
-        <div className="flex items-center space-x-1 mt-2">
-          <ToggleGroup type="single" value={dateFilterValue} onValueChange={handleDateFilterChange}>
-            <ToggleGroupItem value="deze-week" size="sm" className="text-xs px-3 rounded-full">
-              Deze week
-            </ToggleGroupItem>
-            <ToggleGroupItem value="vandaag" size="sm" className="text-xs px-3 rounded-full">
-              Vandaag
-            </ToggleGroupItem>
-            <ToggleGroupItem value="morgen" size="sm" className="text-xs px-3 rounded-full">
-              Morgen
-            </ToggleGroupItem>
-            
-            {/* Specifieke datum */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <ToggleGroupItem 
-                  value="specifieke-datum" 
-                  size="sm" 
-                  className="text-xs px-3 rounded-full flex items-center gap-1"
-                >
-                  <Calendar className="h-3 w-3" />
-                  <span>Specifieke datum</span>
-                </ToggleGroupItem>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-4" align="center">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Startdatum</Label>
-                    <DateTimePicker
-                      date={customDate}
-                      setDate={setCustomDate}
-                      mode="date"
-                      placement="bottom"
-                    />
+        {/* Rechterkant met filters en gebruikersprofiel */}
+        <div className="flex items-center gap-2">
+          {/* Filters knop */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="rounded-full">
+                <span>Filters</span>
+                {selectedCategories.length > 0 && (
+                  <span className="ml-1 bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center text-xs">
+                    {selectedCategories.length}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[400px]" align="end">
+              <div className="space-y-6 p-2">
+                {/* De afstandsfilter is verwijderd - dit wordt nu bepaald door in/uitzoomen op de kaart */}
+                
+                <div className="space-y-3">
+                  <h4 className="font-medium text-lg">Categorieën</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map(category => (
+                      <Button 
+                        key={category}
+                        variant={selectedCategories.includes(category) ? "default" : "outline"}
+                        className="flex items-center gap-2"
+                        size="sm"
+                        onClick={() => toggleCategory(category)}
+                      >
+                        <CategoryIcon category={category as any} size={18} />
+                        <span className="text-sm">{category}</span>
+                      </Button>
+                    ))}
                   </div>
-                  <div className="space-y-2">
-                    <Label>Einddatum (optioneel)</Label>
-                    <DateTimePicker
-                      date={customEndDate}
-                      setDate={setCustomEndDate}
-                      mode="date"
-                      placement="bottom"
-                    />
-                  </div>
+                </div>
+                
+                <div className="flex justify-end">
                   <Button 
-                    onClick={() => setDateFilterValue("specifieke-datum")} 
-                    className="w-full"
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedCategories([]);
+                      onCategoriesChange?.([]);
+                    }}
                   >
-                    Toepassen
+                    Filters wissen
                   </Button>
                 </div>
-              </PopoverContent>
-            </Popover>
-          </ToggleGroup>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Toon de kaart/lijst schakelaar alleen indien niet verborgen */}
+          {!hideViewToggle && (
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={toggleView}
+              className="h-10 w-10 rounded-full"
+              title={isMapView ? "Lijstweergave" : "Kaartweergave"}
+            >
+              {isMapView ? (
+                <MdViewList className="h-5 w-5" />
+              ) : (
+                <MdMap className="h-5 w-5" />
+              )}
+            </Button>
+          )}
+          
+          {/* User profile */}
+          <Link href="/web/profile" className="relative">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="h-10 w-10 rounded-full overflow-hidden border border-border hover:border-primary/50 transition-colors">
+                    <img 
+                      src="/images/default-user.svg" 
+                      alt="Profielfoto" 
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Mijn Profiel</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </Link>
         </div>
       </div>
       
-      {/* Right side with filters and user profile */}
-      <div className="flex items-center gap-2">
-        {/* Filters button */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button size="sm" variant="outline" className="rounded-full">
-              <span>Filters</span>
-              {selectedCategories.length > 0 && (
-                <span className="ml-1 bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center text-xs">
-                  {selectedCategories.length}
-                </span>
+      {/* Categoriefilter balk */}
+      <div className="px-4 py-2 border-t overflow-x-auto">
+        <div className="flex items-center space-x-2 min-w-max">
+          {CATEGORIES.map(category => (
+            <Button 
+              key={category}
+              variant={selectedCategories.includes(category) ? "default" : "ghost"}
+              size="sm"
+              className={cn(
+                "h-8 px-3 rounded-full text-xs",
+                selectedCategories.includes(category) 
+                  ? "bg-rose-500 hover:bg-rose-600 text-white"
+                  : "hover:bg-gray-100"
               )}
+              onClick={() => toggleCategory(category)}
+            >
+              <div className="flex items-center gap-1.5">
+                <CategoryIcon category={category as any} size={14} className={selectedCategories.includes(category) ? "text-white" : ""} />
+                <span>{category}</span>
+              </div>
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[400px]" align="end">
-            <div className="space-y-6 p-2">
-              {/* De afstandsfilter is verwijderd - dit wordt nu bepaald door in/uitzoomen op de kaart */}
-              
-              <div className="space-y-3">
-                <h4 className="font-medium text-lg">Categorieën</h4>
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map(category => (
-                    <Button 
-                      key={category}
-                      variant={selectedCategories.includes(category) ? "default" : "outline"}
-                      className="flex items-center gap-2"
-                      size="sm"
-                      onClick={() => toggleCategory(category)}
-                    >
-                      <CategoryIcon category={category as any} size={18} />
-                      <span className="text-sm">{category}</span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="flex justify-end">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setSelectedCategories([]);
-                    onCategoriesChange?.([]);
-                  }}
-                >
-                  Filters wissen
-                </Button>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        {/* Toon de kaart/lijst schakelaar alleen indien niet verborgen */}
-        {!hideViewToggle && (
-          <Button
-            size="icon"
-            variant="outline"
-            onClick={toggleView}
-            className="h-10 w-10 rounded-full"
-            title={isMapView ? "Lijstweergave" : "Kaartweergave"}
-          >
-            {isMapView ? (
-              <MdViewList className="h-5 w-5" />
-            ) : (
-              <MdMap className="h-5 w-5" />
-            )}
-          </Button>
-        )}
-        
-        {/* User profile */}
-        <Link href="/web/profile" className="relative">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="h-10 w-10 rounded-full overflow-hidden border border-border hover:border-primary/50 transition-colors">
-                  <img 
-                    src="/images/default-user.svg" 
-                    alt="Profielfoto" 
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Mijn Profiel</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </Link>
+          ))}
+        </div>
       </div>
     </div>
   );

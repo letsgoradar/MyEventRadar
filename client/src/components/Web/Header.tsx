@@ -98,6 +98,7 @@ export function Header({
     if (dateFilterValue && onDateRangeChange) {
       const range = dateRanges[dateFilterValue as keyof typeof dateRanges];
       if (range) {
+        console.log("Date range changed:", range);
         onDateRangeChange(range);
       }
     }

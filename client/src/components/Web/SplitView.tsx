@@ -17,6 +17,7 @@ interface SplitViewProps {
   filteredEvents: Event[];
   onRadiusChange?: (radius: number) => void;
   onFilteredEventsChange?: (events: Event[]) => void;
+  onEventClick?: (event: Event) => void;
 }
 
 export function SplitView({ 
@@ -24,7 +25,8 @@ export function SplitView({
   radius, 
   filteredEvents, 
   onRadiusChange,
-  onFilteredEventsChange 
+  onFilteredEventsChange,
+  onEventClick
 }: SplitViewProps) {
   const [activeEventId, setActiveEventId] = React.useState<number | null>(null);
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
@@ -67,7 +69,8 @@ export function SplitView({
 
   const handleEventClick = React.useCallback((event: Event) => {
     setActiveEventId(event.id);
-  }, []);
+    onEventClick?.(event);
+  }, [onEventClick]);
 
   const handleRadiusChange = React.useCallback((newRadius: number) => {
     onRadiusChange?.(newRadius);

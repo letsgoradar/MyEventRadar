@@ -202,19 +202,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const schema = z.object({
         query: z.string().min(1),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
       });
 
-      const { query } = schema.parse({
+      const { query, startDate, endDate } = schema.parse({
         query: req.query.query,
+        startDate: req.query.startDate,
+        endDate: req.query.endDate,
       });
 
-      console.log('GET /api/events/search params:', { query });
+      console.log('GET /api/events/search params:', { query, startDate, endDate });
       
       // Haal alle evenementen op
       const allEvents = await storage.getAllEvents();
       
       // Filter de evenementen op basis van de zoekterm
-      const filteredEvents = allEvents.filter(event => {
+      let filteredEvents = allEvents.filter(event => {
         const title = event.title.toLowerCase();
         const description = event.description?.toLowerCase() || "";
         const category = event.category.toLowerCase();
@@ -228,11 +232,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                address.includes(searchQuery);
       });
       
-      // Beperk tot de eerste 10 resultaten
-      const limitedResults = filteredEvents.slice(0, 20);
+      // Filter eventueel op datum
+      if (startDate) {
+        const start = new Date(startDate);
+        filteredEvents = filteredEvents.filter(event => {
+          const eventStart = new Date(event.startTime);
+          return eventStart >= start;
+        });
+      }
+      
+      if (endDate) {
+        const end = new Date(endDate);
+        filteredEvents = filteredEvents.filter(event => {
+          const eventStart = new Date(event.startTime);
+          return eventStart <= end;
+        });
+      }
       
       console.log(`Found ${filteredEvents.length} results for search query "${query}"`);
-      res.json(limitedResults);
+      res.json(filteredEvents); // Alle resultaten terugsturen, zonder limiet
     } catch (error) {
       console.error('Error in /api/events/search:', error);
       if (error instanceof z.ZodError) {

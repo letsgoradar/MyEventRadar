@@ -22,7 +22,8 @@ export function WebLayout({
   filteredEvents: propFilteredEvents,
   onSearch: propOnSearch,
   onRadiusChange: propOnRadiusChange,
-  onFilteredEventsChange: propOnFilteredEventsChange
+  onFilteredEventsChange: propOnFilteredEventsChange,
+  onEventClick: propOnEventClick
 }: WebLayoutProps) {
   // In de web-omgeving gebruiken we altijd de split view (geen toggle)
   const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
@@ -71,6 +72,10 @@ export function WebLayout({
   const handleCategoriesChange = React.useCallback((categories: string[]) => {
     setSelectedCategories(categories);
   }, []);
+  
+  const handleEventClick = React.useCallback((event: Event) => {
+    propOnEventClick?.(event);
+  }, [propOnEventClick]);
 
   // Alleen desktop layout met sidebar en split view
   return (
@@ -87,6 +92,7 @@ export function WebLayout({
             onRadiusChange={handleRadiusChange}
             onCategoriesChange={handleCategoriesChange}
             hideViewToggle={true} // Hide the toggle button in web view
+            onEventClick={handleEventClick}
           />
         </div>
         
@@ -101,6 +107,7 @@ export function WebLayout({
               filteredEvents={filteredEvents}
               onRadiusChange={handleRadiusChange}
               onFilteredEventsChange={handleFilteredEventsChange}
+              onEventClick={handleEventClick}
             />
           )}
         </div>

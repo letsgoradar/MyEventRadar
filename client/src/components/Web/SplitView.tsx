@@ -105,6 +105,7 @@ export function SplitView({
                 onBoundsChange={handleBoundsChange}
                 onZoomChange={handleZoomChange}
                 showExpiredEvents={showExpiredEvents}
+                onShowExpiredEventsChange={(show) => setShowExpiredEvents(show)}
               />
             </div>
           </ResizablePanel>

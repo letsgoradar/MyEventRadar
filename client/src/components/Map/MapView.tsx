@@ -454,8 +454,7 @@ export default function MapView({
                     <MapPin className="h-3 w-3 mr-1" />
                     <span>
                       {event.event.address || 
-                       (event.event.latitude && event.event.longitude ? 
-                       `${event.coords[0].toFixed(5)}, ${event.coords[1].toFixed(5)}` : 
+                       (event.event.city ? event.event.city : 
                        'Locatie onbekend')}
                     </span>
                   </CardDescription>

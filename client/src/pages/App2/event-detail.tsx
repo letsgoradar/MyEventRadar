@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import { App2Layout } from "@/components/App2/App2Layout";
@@ -30,6 +31,18 @@ export function App2EventDetail() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const eventId = parseInt(id);
+  
+  // Haal de returnTo parameter uit de URL
+  const [returnTo, setReturnTo] = useState('/app2');
+  
+  useEffect(() => {
+    // Parse de URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnParam = urlParams.get('returnTo');
+    if (returnParam) {
+      setReturnTo(returnParam);
+    }
+  }, []);
 
   const { data: event, isLoading, error } = useQuery<Event>({
     queryKey: [`/api/events/${eventId}`],
@@ -66,7 +79,7 @@ export function App2EventDetail() {
               Het opgevraagde evenement bestaat niet of is niet meer beschikbaar.
             </p>
             <Button asChild>
-              <Link href="/app2">Terug naar overzicht</Link>
+              <Link href={returnTo}>Terug naar overzicht</Link>
             </Button>
           </div>
         </div>
@@ -162,7 +175,7 @@ export function App2EventDetail() {
       <div className="pb-20">
         <div className="sticky top-0 bg-background z-10 flex items-center justify-between p-4 border-b">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/app2">
+            <Link href={returnTo}>
               <ChevronLeft className="h-5 w-5" />
             </Link>
           </Button>

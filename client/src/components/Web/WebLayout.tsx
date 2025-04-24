@@ -12,6 +12,7 @@ interface WebLayoutProps {
   onSearch?: (query: string) => void;
   onRadiusChange?: (radius: number) => void;
   onFilteredEventsChange?: (events: Event[]) => void;
+  onEventClick?: (event: Event) => void;
 }
 
 export function WebLayout({ 

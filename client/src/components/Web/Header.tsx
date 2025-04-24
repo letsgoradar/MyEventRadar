@@ -46,6 +46,7 @@ interface HeaderProps {
   onCategoriesChange?: (categories: string[]) => void;
   onDateRangeChange?: (dateRange: { start: Date; end?: Date }) => void;
   hideViewToggle?: boolean;
+  onEventClick?: (event: any) => void;
 }
 
 export function Header({
@@ -57,6 +58,7 @@ export function Header({
   onCategoriesChange,
   onDateRangeChange,
   hideViewToggle = false,
+  onEventClick,
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
@@ -184,38 +186,46 @@ export function Header({
             
             {/* Live zoekresultaten dropdown */}
             {showSearchResults && searchResults.length > 0 && (
-              <Command className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white">
-                <CommandList>
-                  <CommandGroup>
-                    <CommandItem 
-                      onSelect={() => handleSearchSubmit("")}
-                      className="p-2 cursor-pointer hover:bg-slate-100"
+              <div className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white max-h-[400px] overflow-y-auto">
+                {/* Zoek alle resultaten knop */}
+                <button
+                  onClick={() => handleSearchSubmit("")}
+                  className="w-full p-3 text-left hover:bg-gray-100 text-blue-600 font-medium border-b flex items-center gap-2"
+                >
+                  <MdSearch className="text-muted-foreground h-5 w-5" />
+                  <span>
+                    Zoek naar "<strong>{searchQuery}</strong>" ({searchResults.length} resultaten)
+                  </span>
+                </button>
+                
+                {/* Evenementen lijst - geen limiet */}
+                <div className="max-h-[320px] overflow-y-auto">
+                  {searchResults.map(result => (
+                    <div 
+                      key={result.id}
+                      onClick={() => {
+                        setShowSearchResults(false);
+                        handleSearchSubmit(result.title);
+                        if (onEventClick) onEventClick(result);
+                      }}
+                      className="p-3 hover:bg-gray-100 cursor-pointer border-b flex items-start gap-3"
                     >
-                      <div className="flex items-center gap-2">
-                        <MdSearch className="text-muted-foreground" />
-                        <span className="flex-1">
-                          Zoek naar "<strong>{searchQuery}</strong>"
-                        </span>
-                      </div>
-                    </CommandItem>
-                  </CommandGroup>
-                  
-                  <CommandGroup heading="Evenementen">
-                    {searchResults.map(result => (
-                      <CommandItem 
-                        key={result.id}
-                        onSelect={() => handleSearchSubmit(result.title)}
-                        className="p-2 cursor-pointer hover:bg-slate-100"
-                      >
-                        <div className="flex flex-col">
-                          <span className="font-medium">{result.title}</span>
-                          <span className="text-sm text-muted-foreground">{result.category}</span>
+                      <CategoryIcon category={result.category as any} size={20} className="mt-1" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">{result.title}</span>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span>{result.category}</span>
+                          <span>•</span>
+                          <span>{new Date(result.startTime).toLocaleDateString('nl-NL', {
+                            day: 'numeric',
+                            month: 'short'
+                          })}</span>
                         </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>

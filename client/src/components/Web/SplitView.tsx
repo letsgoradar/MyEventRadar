@@ -7,7 +7,6 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { motion, AnimatePresence } from "framer-motion";
 import L from "leaflet";
 
 interface SplitViewProps {
@@ -29,7 +28,6 @@ export function SplitView({
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
   const [mapZoom, setMapZoom] = React.useState<number>(13);
   const [visibleEvents, setVisibleEvents] = React.useState<Event[]>(filteredEvents);
-  const [isLoading, setIsLoading] = React.useState(false);
   
   // Filter events op basis van de huidige kaartgrenzen
   React.useEffect(() => {
@@ -38,22 +36,13 @@ export function SplitView({
       return;
     }
     
-    // Toon de loading state voordat we filteren
-    setIsLoading(true);
+    // Filter events die binnen de huidige kaartgrenzen vallen
+    const eventsInBounds = filteredEvents.filter(event => {
+      const eventLatLng = L.latLng(Number(event.latitude), Number(event.longitude));
+      return mapBounds.contains(eventLatLng);
+    });
     
-    // Kleine vertraging om de loading state te tonen (visueel effect)
-    const timeoutId = setTimeout(() => {
-      // Filter events die binnen de huidige kaartgrenzen vallen
-      const eventsInBounds = filteredEvents.filter(event => {
-        const eventLatLng = L.latLng(Number(event.latitude), Number(event.longitude));
-        return mapBounds.contains(eventLatLng);
-      });
-      
-      setVisibleEvents(eventsInBounds);
-      setIsLoading(false);
-    }, 300);
-    
-    return () => clearTimeout(timeoutId);
+    setVisibleEvents(eventsInBounds);
   }, [filteredEvents, mapBounds]);
 
   const handleEventClick = React.useCallback((event: Event) => {
@@ -115,31 +104,12 @@ export function SplitView({
                 </div>
               </div>
               
-              {/* Loading indicator tijdens het filteren */}
-              {isLoading && (
-                <div className="flex justify-center items-center py-8">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-                </div>
-              )}
-              
-              {/* Geanimeerde lijst met events */}
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={visibleEvents.length + "-" + mapZoom}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className={isLoading ? "hidden" : "block"}
-                >
-                  <EventList 
-                    searchQuery={searchQuery} 
-                    radius={radius} 
-                    filteredEvents={visibleEvents} 
-                    gridView={true} // Gebruik de nieuwe grid weergave
-                  />
-                </motion.div>
-              </AnimatePresence>
+              <EventList 
+                searchQuery={searchQuery} 
+                radius={radius} 
+                filteredEvents={visibleEvents} 
+                gridView={true} // Gebruik de nieuwe grid weergave
+              />
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>

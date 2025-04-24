@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="60" viewBox="0 0 200 60">
-  <rect width="60" height="60" rx="12" fill="#4F46E5" />
-  <text x="70" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#4F46E5">EventMap</text>
-  <circle cx="30" cy="30" r="12" fill="#ffffff" />
-  <path d="M30 18 L30 30 L38 34" stroke="#4F46E5" stroke-width="3" fill="none" stroke-linecap="round" />
-</svg>

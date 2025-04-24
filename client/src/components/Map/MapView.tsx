@@ -162,14 +162,46 @@ function MapEventLoader({
   return null;
 }
 
-// Functie om categorie-specifieke markers te maken - alleen stippen, geen overlay tekst
-function createEventIcon(category: string, isExpired: boolean = false) {
+// Functie om categorie-specifieke markers te maken - grotere en opvallender
+function createEventIcon(category: string, isExpired: boolean = false, isSelected: boolean = false) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
+  const size = isSelected ? 24 : 20;
+  const borderWidth = isSelected ? 3 : 2;
+  const borderColor = isSelected ? "#ffffff" : "#ffffff";
+  const innerSize = size - (borderWidth * 2);
+  
   return L.divIcon({
     className: 'custom-div-icon',
-    html: `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    html: `<div style="
+      width: ${size}px; 
+      height: ${size}px; 
+      border-radius: 50%; 
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      background-color: ${borderColor};
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transform-origin: center;
+      ${isSelected ? 'transform: scale(1.2);' : ''}
+      ${isSelected ? 'animation: pulse 1.5s infinite;' : ''}
+    ">
+      <div style="
+        width: ${innerSize}px;
+        height: ${innerSize}px;
+        border-radius: 50%;
+        background-color: ${color};
+      "></div>
+    </div>
+    <style>
+      @keyframes pulse {
+        0% { transform: scale(1.1); }
+        50% { transform: scale(1.3); }
+        100% { transform: scale(1.1); }
+      }
+    </style>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
   });
 }
 
@@ -296,25 +328,38 @@ export default function MapView({
   React.useEffect(() => {
     // Als de onEventClick prop is aangeroepen, wordt targetEvent ingesteld
     if (targetEvent) {
-      // Navigeren naar het event
-      const lat = Number(targetEvent.latitude);
-      const lng = Number(targetEvent.longitude);
-      
-      if (mapRef.current) {
-        mapRef.current.flyTo([lat, lng], 16, {
-          animate: true,
-          duration: 1.5
-        });
-      }
-      
       // Zorg ervoor dat het event als geselecteerd wordt gemarkeerd (popup openen)
       setSelectedEvent(targetEvent);
       
-      // Voeg het event toe aan eventsData als het er nog niet in zit
+      // Voeg het event direct toe aan eventsData als het er nog niet in zit
+      // Dit moet gebeuren VOORDAT we naar het event navigeren om ervoor te zorgen dat de marker meteen zichtbaar is
+      if (!eventsData.some(e => e.id === targetEvent.id)) {
+        console.log("Adding target event to events data for visibility:", targetEvent.title);
+        setEventsData(prev => [...prev, targetEvent]);
+      }
+      
+      // Een korte pauze geeft React tijd om het nieuwe event te renderen voordat we ernaar navigeren
       setTimeout(() => {
-        if (!eventsData.some(e => e.id === targetEvent.id)) {
-          console.log("Adding target event to events data for visibility:", targetEvent.title);
-          setEventsData(prev => [...prev, targetEvent]);
+        // Navigeren naar het event
+        const lat = Number(targetEvent.latitude);
+        const lng = Number(targetEvent.longitude);
+        
+        if (mapRef.current) {
+          // Eerst uitzoomen om de omgeving te laten zien, daarna inzoomen
+          mapRef.current.setView([lat, lng], 14, {
+            animate: true,
+            duration: 0.5
+          });
+          
+          // Na een korte pauze inzoomen om het event goed te tonen
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.flyTo([lat, lng], 16, {
+                animate: true,
+                duration: 1
+              });
+            }
+          }, 300);
         }
       }, 100);
       
@@ -510,7 +555,11 @@ export default function MapView({
           <Marker 
             key={event.id}
             position={event.coords}
-            icon={createEventIcon(event.category, event.expired)}
+            icon={createEventIcon(
+              event.category, 
+              event.expired, 
+              selectedEvent?.id === event.id
+            )}
             eventHandlers={{
               click: () => {
                 setSelectedEvent(event.event);

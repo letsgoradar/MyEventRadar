@@ -160,9 +160,24 @@ export function Header({
               Number(event.latitude), 
               Number(event.longitude)
             );
+            
+            // Haal ook events op die mogelijk buiten de kaart vallen
+            // Dit zorgt ervoor dat alle events in de zoekresultaten worden getoond
+            let inViewport = true;
+            
+            // Vraag de huidige viewport bounds op via een window property
+            const currentMapBounds = (window as any).currentMapBounds;
+            if (currentMapBounds) {
+              const eventLatLng = {lat: Number(event.latitude), lng: Number(event.longitude)};
+              
+              // Check of het event binnen de huidige kaartgrenzen valt
+              inViewport = currentMapBounds.contains(eventLatLng);
+            }
+            
             return {
               ...event,
-              distance
+              distance,
+              inViewport
             };
           });
           
@@ -183,7 +198,7 @@ export function Header({
     }, 300);
     
     return () => clearTimeout(debounceTimer);
-  }, [searchQuery, dateFilterValue, dateRanges]);
+  }, [searchQuery, dateFilterValue, dateRanges, userLocation]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -294,7 +309,7 @@ export function Header({
                   </span>
                 </button>
                 
-                {/* Evenementen lijst - geen limiet */}
+                {/* Evenementen lijst - geen limiet, sorteren op afstand */}
                 <div className="max-h-[320px] overflow-y-auto">
                   {searchResults.map(result => (
                     <div 
@@ -307,28 +322,36 @@ export function Header({
                         const navigateToMapEvent = (window as any).navigateToMapEvent;
                         if (navigateToMapEvent) {
                           console.log("Navigating to event on map:", result.title);
+                          // Direct naar exacte locatie van het evenement navigeren
                           navigateToMapEvent(result);
                         }
                         
-                        // Originele onEventClick handler nog steeds aanroepen als deze bestaat
+                        // Originele onEventClick handler alleen aanroepen als we op de kaart willen tonen
+                        // zonder de detailpagina te openen
                         if (onEventClick) onEventClick(result);
                       }}
-                      className="p-3 hover:bg-gray-100 cursor-pointer border-b flex items-start gap-3"
+                      className={`p-3 hover:bg-gray-100 cursor-pointer border-b flex items-start gap-3 ${!result.inViewport ? 'bg-gray-50' : ''}`}
                     >
                       <CategoryIcon category={result.category as any} size={20} className="mt-1" />
                       <div className="flex flex-col flex-1">
                         <span className="font-medium">{result.title}</span>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                           <span>{result.category}</span>
                           <span>•</span>
                           <span>{new Date(result.startTime).toLocaleDateString('nl-NL', {
                             day: 'numeric',
                             month: 'short'
                           })}</span>
-                          {result.distance && (
+                          {result.distance !== undefined && (
                             <>
                               <span>•</span>
-                              <span className="text-green-600 font-medium">{result.distance} km</span>
+                              <span className="text-green-600 font-medium">{result.distance.toFixed(1)} km</span>
+                            </>
+                          )}
+                          {!result.inViewport && (
+                            <>
+                              <span>•</span>
+                              <span className="text-orange-500 font-medium text-xs">Buiten huidige kaartgebied</span>
                             </>
                           )}
                         </div>

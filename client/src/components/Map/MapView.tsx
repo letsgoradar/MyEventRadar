@@ -639,6 +639,8 @@ export default function MapView({
         <MapEventLoader 
           onBoundsChange={bounds => {
             setCurrentBounds(bounds);
+            // Sla de bounds op in een globale variabele voor gebruik in zoekfunctie
+            (window as any).currentMapBounds = bounds;
             // Stuur bounds door naar parent component via props
             if (propOnBoundsChange) {
               propOnBoundsChange(bounds);

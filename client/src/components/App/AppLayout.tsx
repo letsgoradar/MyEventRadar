@@ -1,19 +1,19 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock, LogOut, SortAsc, MapPin } from "lucide-react";
-import "./app2-styles.css";
+import "./app-styles.css";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import MapView from "@/components/Map/MapView";
-import App2BottomNav from "./App2BottomNav";
+import AppBottomNav from "./AppBottomNav";
 import { SortMenu, SortDirection, SortField } from "./SortMenuComponent";
-import { Event as BaseEvent, CATEGORIES } from "@shared/schema";
+import { EventInterface, CATEGORIES } from "@shared/schema";
 
 // Uitgebreide Event interface met distance property
-interface Event extends BaseEvent {
+interface Event extends EventInterface {
   distance?: number;
 }
 import { AnimatePresence, motion } from "framer-motion";
@@ -169,7 +169,7 @@ const FiltersPopover = React.memo(({
   );
 });
 
-interface App2LayoutProps {
+interface AppLayoutProps {
   children: React.ReactNode;
   title?: string;
   showMap?: boolean;
@@ -187,7 +187,7 @@ interface App2LayoutProps {
   backTo?: string;
 }
 
-export function App2Layout({
+export function AppLayout({
   children,
   title = "Evenementen",
   showMap = false,
@@ -202,8 +202,8 @@ export function App2Layout({
   hideBottomNav = false,
   hideBackButton = false,
   showBackButton = false,
-  backTo = "/app2",
-}: App2LayoutProps) {
+  backTo = "/app",
+}: AppLayoutProps) {
   // Standaard tegelweergave (list) in plaats van kaartweergave (map)
   const [view, setView] = React.useState<"list" | "map">("list");
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
@@ -664,7 +664,7 @@ export function App2Layout({
       
       {/* Kaart weergave - exact tussen de navigatiebalken */}
       {view === "map" && !isProfilePage && (
-        <div className="flex-1 app2-layout" id="map-container">
+        <div className="flex-1 app-layout" id="map-container">
           <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[56px] z-0 border-t border-b-0 border-border">
             <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} hideZoomControls={true} />
           </div>
@@ -698,7 +698,7 @@ export function App2Layout({
       </div>
       
       {/* Bottom navigation - alleen tonen als niet verborgen */}
-      {!hideBottomNav && <App2BottomNav />}
+      {!hideBottomNav && <AppBottomNav />}
     </div>
   );
 }

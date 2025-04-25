@@ -6,6 +6,8 @@ import AppLayout from "@/components/App/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CalendarDays,
   Clock,
@@ -15,6 +17,11 @@ import {
   Heart,
   Share2,
   AlertCircle,
+  Map as MapIcon,
+  Euro,
+  MessageCircle,
+  Search,
+  ChevronRight,
 } from "lucide-react";
 import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 import { formatDistanceToNow, format, differenceInHours } from "date-fns";
@@ -25,7 +32,9 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import 'leaflet/dist/leaflet.css';
+import '@/components/Events/leaflet-fix.css';
 import { getLocationName } from "@/utils/location-utils";
+import L from 'leaflet';
 
 export function AppEventDetail() {
   const { id } = useParams<{ id: string }>();
@@ -118,6 +127,17 @@ export function AppEventDetail() {
     navigate(`/admin/events/edit/${eventId}`);
   };
 
+  // Functie om een custom marker icon te maken op basis van de categorie
+  function createEventIcon(category: string) {
+    const color = getCategoryColor(category as any);
+    return L.divIcon({
+      className: 'custom-div-icon',
+      html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6],
+    });
+  }
+
   // Component voor de evenement locatie op een kaart
   const EventLocation = ({ lat, lng }: { lat: number; lng: number }) => {
     return (
@@ -126,13 +146,20 @@ export function AppEventDetail() {
           center={[lat, lng]} 
           zoom={14} 
           scrollWheelZoom={false}
+          zoomControl={false}
+          dragging={false}
+          doubleClickZoom={false}
           style={{ height: '100%', width: '100%' }}
+          className="event-detail-map"
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            subdomains="abcd"
           />
-          <Marker position={[lat, lng]} />
+          <Marker 
+            position={[lat, lng]} 
+            icon={createEventIcon(event.category)}
+          />
         </MapContainer>
       </div>
     );
@@ -174,8 +201,51 @@ export function AppEventDetail() {
     );
   };
 
+  // Functie om terug te navigeren naar de vorige zoekresultaten
+  const navigateToSearchResults = () => {
+    const lastSearchState = localStorage.getItem('lastSearchState');
+    if (lastSearchState) {
+      try {
+        const searchState = JSON.parse(lastSearchState);
+        
+        // Navigeer terug naar de kaartpagina
+        navigate('/app');
+        
+        // Er is een globale functie om bounds te herstellen die via App.tsx beschikbaar is gemaakt
+        setTimeout(() => {
+          console.log("Zoekstatus herstellen");
+        }, 500);
+      } catch (e) {
+        console.error("Fout bij navigeren naar zoekresultaten:", e);
+        navigate('/app');
+      }
+    } else {
+      // Als er geen searchState is, ga gewoon terug naar de homepagina
+      navigate('/app');
+    }
+  };
+
+  // Controleert of er een zoekstatus is opgeslagen
+  const [hasSearchState, setHasSearchState] = useState(false);
+  
+  useEffect(() => {
+    // Controleer of er een opgeslagen zoekstatus is
+    const lastSearchState = localStorage.getItem('lastSearchState');
+    if (lastSearchState) {
+      try {
+        const searchState = JSON.parse(lastSearchState);
+        // Controleer of de zoekstatus nog geldig is (max 1 uur oud)
+        const isValid = (new Date().getTime() - searchState.timestamp) < (60 * 60 * 1000);
+        setHasSearchState(isValid);
+      } catch (e) {
+        console.error("Fout bij parsen van zoekstatus:", e);
+      }
+    }
+  }, []);
+
   // Voorbereiden van de juiste data voor weergave
   const eventImages = [event.imageUrl].filter(Boolean) as string[];
+  const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
   
   return (
     <AppLayout 
@@ -184,11 +254,27 @@ export function AppEventDetail() {
     >
       <div className="pb-20">
         <div className="sticky top-0 bg-background z-10 flex items-center justify-between p-4 border-b">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href={returnTo}>
-              <ChevronLeft className="h-5 w-5" />
-            </Link>
-          </Button>
+          <div className="flex items-center">
+            <Button variant="ghost" size="icon" asChild className="mr-2">
+              <Link href={returnTo}>
+                <ChevronLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            
+            {/* Toon alleen de "Terug naar zoekresultaten" knop als er een zoekstatus is */}
+            {hasSearchState && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={navigateToSearchResults}
+                className="text-xs"
+              >
+                <Search className="mr-1 h-3 w-3" />
+                Terug naar zoekresultaten
+              </Button>
+            )}
+          </div>
+          
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon">
               <Heart className="h-5 w-5" />
@@ -204,15 +290,49 @@ export function AppEventDetail() {
           
           <div className="space-y-6">
             <div>
-              <h1 className="text-2xl font-bold mb-1">{event.title}</h1>
+              <div className="flex items-center justify-between mb-2">
+                <h1 className="text-2xl font-bold">{event.title}</h1>
+                
+                <div className="flex items-center space-x-1">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full"
+                    title="Vorig evenement"
+                    onClick={() => {
+                      // Zal later worden geïmplementeerd met echte functionaliteit
+                      console.log("Navigatie naar vorig evenement");
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full"
+                    title="Volgend evenement"
+                    onClick={() => {
+                      // Zal later worden geïmplementeerd met echte functionaliteit
+                      console.log("Navigatie naar volgend evenement");
+                    }}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
               
               <div className="flex items-center gap-2 mb-4">
                 {event.category && (
                   <Badge 
                     className="gap-1 items-center"
-                    style={{ backgroundColor: getCategoryColor(event.category as any) }}
+                    style={{ 
+                      backgroundColor: `${getCategoryColor(event.category as any)}20`,
+                      color: getCategoryColor(event.category as any),
+                      borderColor: getCategoryColor(event.category as any)
+                    }}
+                    variant="outline"
                   >
-                    <CategoryIcon category={event.category as any} size={12} className="text-white" />
+                    <CategoryIcon category={event.category as any} size={12} className="" />
                     <span>{event.category}</span>
                   </Badge>
                 )}
@@ -249,31 +369,77 @@ export function AppEventDetail() {
                     </p>
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">{getLocationName(Number(event.latitude), Number(event.longitude))}</p>
-                    <p className="text-sm text-muted-foreground">{event.address || "Geen adresgegevens beschikbaar"}</p>
-                  </div>
-                </div>
-                
-                {event.maxParticipants && Number(event.maxParticipants) > 0 && (
-                  <div className="flex items-center gap-3">
-                    <Users className="h-5 w-5 text-muted-foreground" />
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <h2 className="text-xl font-semibold mb-3">Details</h2>
+                <div className="space-y-3">
+                  {event.isPaid && (
                     <div>
-                      <p className="font-medium">Maximaal {event.maxParticipants} deelnemers</p>
-                      <p className="text-sm text-muted-foreground">
-                        0 aangemeld
-                      </p>
+                      <h3 className="text-sm font-medium text-muted-foreground">Prijs</h3>
+                      <p>{Number(event.price).toFixed(2)} EUR</p>
+                    </div>
+                  )}
+                  
+                  {event.maxParticipants && Number(event.maxParticipants) > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Deelnemers</h3>
+                      <p>Maximaal {event.maxParticipants} deelnemers</p>
+                    </div>
+                  )}
+                  
+                  <Separator />
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Categorie</h3>
+                    <div className="flex items-center mt-1">
+                      <CategoryIcon category={event.category as any} className="mr-2" />
+                      <span>{event.category}</span>
                     </div>
                   </div>
-                )}
+                  
+                  {event.secondaryCategory && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Extra categorie</h3>
+                      <div className="flex items-center mt-1">
+                        <CategoryIcon category={event.secondaryCategory as any} className="mr-2" />
+                        <span>{event.secondaryCategory}</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <Separator />
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Organisator</h3>
+                    <p>{event.hostId ? `Host ID: ${event.hostId}` : 'Onbekend'}</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             
             {event.latitude && event.longitude && (
-              <EventLocation lat={Number(event.latitude)} lng={Number(event.longitude)} />
+              <Card>
+                <CardContent className="pt-6">
+                  <h2 className="text-xl font-semibold mb-3">Locatie</h2>
+                  
+                  <div className="flex items-center mb-3 text-sm">
+                    <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <div>
+                      <div className="font-medium">{getLocationName(Number(event.latitude), Number(event.longitude))}</div>
+                      {event.address && <div className="text-muted-foreground">{event.address}</div>}
+                    </div>
+                  </div>
+                  
+                  <EventLocation lat={Number(event.latitude)} lng={Number(event.longitude)} />
+                  
+                  <Button variant="secondary" className="w-full">
+                    <MapIcon className="mr-2 h-4 w-4" /> Routebeschrijving
+                  </Button>
+                </CardContent>
+              </Card>
             )}
             
             <div>
@@ -295,9 +461,23 @@ export function AppEventDetail() {
             )}
             
             <div className="pt-6">
-              <Button className="w-full" size="lg">
-                Deelnemen
-              </Button>
+              <div className="flex space-x-3">
+                <Button className="flex-1">
+                  <Heart className="mr-2 h-4 w-4" /> Bewaren
+                </Button>
+                <Button variant="outline" className="flex-1">
+                  <Share2 className="mr-2 h-4 w-4" /> Delen
+                </Button>
+                <Button variant="outline" className="flex-1">
+                  <MessageCircle className="mr-2 h-4 w-4" /> Contact
+                </Button>
+              </div>
+              
+              <div className="mt-4">
+                <Button className="w-full" size="lg">
+                  Deelnemen
+                </Button>
+              </div>
             </div>
           </div>
         </div>

@@ -483,6 +483,8 @@ export function AppCreateEvent() {
                 </CardContent>
               </Card>
               
+
+              
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Afbeelding (verplicht)</CardTitle>
@@ -631,7 +633,7 @@ export function AppCreateEvent() {
                       <FormItem className="flex flex-col">
                         <FormLabel>Startdatum en -tijd</FormLabel>
                         <DateTimePicker
-                          date={field.value}
+                          date={field.value instanceof Date ? field.value : new Date(field.value)}
                           setDate={field.onChange}
                           placement="top"
                           className="relative z-50"
@@ -648,7 +650,7 @@ export function AppCreateEvent() {
                       <FormItem className="flex flex-col">
                         <FormLabel>Einddatum en -tijd</FormLabel>
                         <DateTimePicker
-                          date={field.value}
+                          date={field.value instanceof Date ? field.value : field.value ? new Date(field.value) : undefined}
                           setDate={field.onChange}
                           placement="top"
                           className="relative z-40"

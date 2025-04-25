@@ -712,7 +712,7 @@ export function AppCreateEvent() {
                         <FormControl>
                           <Input 
                             placeholder="Voeg tags toe, gescheiden door komma's" 
-                            value={field.value.join(', ')}
+                            value={Array.isArray(field.value) ? field.value.join(', ') : ''}
                             onChange={(e) => {
                               const tagsArray = e.target.value
                                 .split(',')

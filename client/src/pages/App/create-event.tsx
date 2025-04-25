@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Form,
   FormControl,
@@ -73,11 +73,15 @@ const LocationPicker = ({
     defaultPosition : [51.7767, 5.5345];
   
   const [markerPosition, setMarkerPosition] = useState<[number, number]>(validDefaultPosition);
+  const initRef = useRef(false);
   
-  // Roep onChange aan bij initialisatie
+  // Roep onChange aan bij initialisatie, maar voorkom oneindige loops
   useEffect(() => {
-    onChange(validDefaultPosition[0], validDefaultPosition[1]);
-  }, []);
+    if (!initRef.current) {
+      onChange(validDefaultPosition[0], validDefaultPosition[1]);
+      initRef.current = true;
+    }
+  }, [onChange, validDefaultPosition]);
   
   const MapEvents = () => {
     useMapEvents({
@@ -473,10 +477,11 @@ export function AppCreateEvent() {
         </div>
       </header>
 
-      {/* Inhoud */}
+      {/* Inhoud - hoofdgedeelte */}
       <main className="flex-1 container px-4 pb-24 pt-4 overflow-auto">
         <Form {...form}>
           <form className="space-y-6">
+            {/* Basisinformatie kaart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Basisinformatie</CardTitle>
@@ -638,6 +643,7 @@ export function AppCreateEvent() {
               </CardContent>
             </Card>
             
+            {/* Datum en tijd kaart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Datum en Tijd</CardTitle>
@@ -680,6 +686,7 @@ export function AppCreateEvent() {
               </CardContent>
             </Card>
             
+            {/* Locatie kaart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Locatie</CardTitle>
@@ -689,16 +696,19 @@ export function AppCreateEvent() {
               </CardHeader>
               <CardContent>
                 <p className="mb-4">Klik op de kaart om de locatie te selecteren:</p>
-                <LocationPicker 
-                  defaultPosition={[
-                    form.getValues('location')?.lat || 51.7767, 
-                    form.getValues('location')?.lng || 5.5345
-                  ]}
-                  onChange={handleLocationChange}
-                />
+                <div>
+                  <LocationPicker 
+                    defaultPosition={[
+                      form.getValues('location')?.lat || 51.7767, 
+                      form.getValues('location')?.lng || 5.5345
+                    ]}
+                    onChange={handleLocationChange}
+                  />
+                </div>
               </CardContent>
             </Card>
             
+            {/* Deelname kaart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Deelname</CardTitle>
@@ -809,6 +819,7 @@ export function AppCreateEvent() {
               </CardContent>
             </Card>
             
+            {/* Afbeelding kaart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Afbeelding</CardTitle>

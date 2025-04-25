@@ -396,6 +396,7 @@ export function AppCreateEvent() {
     <AppLayout 
       title="Nieuw Evenement"
       hideSearchAndFilters={true}
+      showMap={false} // Zorg dat de kaartweergave uitgeschakeld is
     >
       <div className="flex flex-col h-full">
         {/* Terug knop in header */}

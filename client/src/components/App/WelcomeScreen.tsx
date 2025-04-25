@@ -6,7 +6,7 @@ import { FaGoogle, FaApple } from "react-icons/fa";
 import { Mail, MapPin, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
-import { Event } from "@shared/schema";
+import type { EventInterface } from "@shared/schema";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -55,7 +55,7 @@ export function WelcomeScreen() {
   const [navigateTo, setNavigateTo] = useState<string | null>(null);
 
   // Haal evenementen op in de buurt van de gebruiker
-  const { data: nearbyEvents, isLoading: isLoadingEvents } = useQuery<Event[]>({
+  const { data: nearbyEvents, isLoading: isLoadingEvents } = useQuery<EventInterface[]>({
     queryKey: ['/api/events/nearby', userLocation[0], userLocation[1], 20], // Grotere radius om meer events te tonen
     enabled: locationStep === 'loaded',
   });
@@ -83,17 +83,17 @@ export function WelcomeScreen() {
 
   const goToLogin = () => {
     setStartAnimation(true);
-    setNavigateTo("/app2/login");
+    setNavigateTo("/app/login");
   };
 
   const goToRegister = () => {
     setStartAnimation(true);
-    setNavigateTo("/app2/register");
+    setNavigateTo("/app/register");
   };
 
   const goToForgotPassword = () => {
     setStartAnimation(true);
-    setNavigateTo("/app2/forgot-password");
+    setNavigateTo("/app/forgot-password");
   };
 
   // Functie om locatie op te vragen

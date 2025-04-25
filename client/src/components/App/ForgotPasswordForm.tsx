@@ -66,7 +66,7 @@ export function ForgotPasswordForm() {
   };
 
   const backToLogin = () => {
-    setLocation("/app2/login");
+    setLocation("/app/login");
   };
 
   if (success) {

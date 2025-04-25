@@ -24,7 +24,7 @@ export function ProtectedRoute({
   if (!user) {
     return (
       <Route path={path}>
-        <Redirect to="/app2/login?redirect=path" />
+        <Redirect to="/app/login?redirect=path" />
       </Route>
     );
   }

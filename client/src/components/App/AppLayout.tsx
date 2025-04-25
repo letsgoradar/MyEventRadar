@@ -185,6 +185,7 @@ interface AppLayoutProps {
   hideBackButton?: boolean;
   showBackButton?: boolean;
   backTo?: string;
+  hideSearchAndFilters?: boolean; // Nieuwe parameter om zoek en filters te verbergen
 }
 
 export function AppLayout({
@@ -203,6 +204,7 @@ export function AppLayout({
   hideBackButton = false,
   showBackButton = false,
   backTo = "/app",
+  hideSearchAndFilters = false,
 }: AppLayoutProps) {
   // Standaard tegelweergave (list) in plaats van kaartweergave (map)
   const [view, setView] = React.useState<"list" | "map">("list");
@@ -460,8 +462,8 @@ export function AppLayout({
         </div>
       </header>
       
-      {/* Zoekbalk en weergaveknoppen - alleen tonen als niet op profielpagina */}
-      {!isProfilePage && (
+      {/* Zoekbalk en weergaveknoppen - alleen tonen als niet op profielpagina en hideSearchAndFilters is false */}
+      {!isProfilePage && !hideSearchAndFilters && (
         <div className="container mt-2 px-4">
           <div className="flex gap-2 mb-3">
             <div className="relative flex-1">

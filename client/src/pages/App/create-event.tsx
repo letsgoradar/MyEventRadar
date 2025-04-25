@@ -466,7 +466,7 @@ export function AppCreateEvent() {
       <main className="flex-1 container px-4 pb-24 pt-4 overflow-auto">
         <Form {...form}>
           <form className="space-y-6">
-            {/* Basisinformatie kaart */}
+            {/* 1. Basisinformatie kaart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Basisinformatie</CardTitle>
@@ -628,7 +628,7 @@ export function AppCreateEvent() {
               </CardContent>
             </Card>
             
-            {/* Datum en tijd kaart */}
+            {/* 2. Datum en tijd kaart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Datum en Tijd</CardTitle>
@@ -671,7 +671,26 @@ export function AppCreateEvent() {
               </CardContent>
             </Card>
             
-            {/* Deelname kaart */}
+            {/* 3. Locatie kaart */}
+            <Card className="relative" style={{ zIndex: 10 }}>
+              <CardHeader>
+                <CardTitle className="text-lg">Locatie</CardTitle>
+                <CardDescription>
+                  Klik op de kaart om de locatie te kiezen
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <LocationPicker 
+                  defaultPosition={[
+                    form.getValues('location')?.lat || 51.7767, 
+                    form.getValues('location')?.lng || 5.5345
+                  ]}
+                  onChange={handleLocationChange}
+                />
+              </CardContent>
+            </Card>
+            
+            {/* 4. Deelname kaart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Deelname</CardTitle>
@@ -782,7 +801,7 @@ export function AppCreateEvent() {
               </CardContent>
             </Card>
 
-            {/* Afbeelding kaart */}
+            {/* 5. Afbeelding kaart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Afbeelding</CardTitle>
@@ -884,25 +903,6 @@ export function AppCreateEvent() {
                     </Tabs>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-            
-            {/* Locatie kaart - als laatste */}
-            <Card className="relative" style={{ zIndex: 10 }}>
-              <CardHeader>
-                <CardTitle className="text-lg">Locatie</CardTitle>
-                <CardDescription>
-                  Klik op de kaart om de locatie te kiezen
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <LocationPicker 
-                  defaultPosition={[
-                    form.getValues('location')?.lat || 51.7767, 
-                    form.getValues('location')?.lng || 5.5345
-                  ]}
-                  onChange={handleLocationChange}
-                />
               </CardContent>
             </Card>
           </form>

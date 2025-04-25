@@ -1,5 +1,4 @@
 import * as React from "react";
-import AppLayout from "@/components/App/AppLayout";
 import {
   Form,
   FormControl,
@@ -38,6 +37,14 @@ import { Image, Plus, X, MapPin, ChevronLeft } from "lucide-react";
 import { Link } from "wouter";
 import { LocationPicker } from "@/components/Events/LocationPicker";
 import { suggestCategory, generateTags } from "@/lib/aiTagGenerator";
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import AppBottomNav from "@/components/App/AppBottomNav";
 
 // Interface voor de locatie data
 interface LocationData {
@@ -392,213 +399,440 @@ export function AppCreateEvent() {
     }
   };
 
+  // Aangepaste layout voor mobiele weergave zonder de AppLayout component
   return (
-    <AppLayout 
-      title="Nieuw Evenement"
-      hideSearchAndFilters={true}
-      showMap={false} // Zorg dat de kaartweergave uitgeschakeld is
-      defaultView="list" // Expliciet de lijstweergave afdwingen
-    >
-      <div className="flex flex-col h-full">
-        {/* Terug knop in header */}
-        <div className="mb-4">
+    <div className="flex flex-col min-h-screen bg-background pb-16">
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-background border-b">
+        <div className="container flex items-center justify-between h-14 px-4">
           <Button variant="ghost" size="sm" asChild className="gap-1">
             <Link href="/app">
               <ChevronLeft className="h-4 w-4" />
               <span>Terug</span>
             </Link>
           </Button>
+          <h1 className="text-lg font-semibold">Nieuw Evenement</h1>
+          <div className="w-8"></div> {/* Placeholder voor uitlijning */}
         </div>
-        
-        {/* Scrollbare inhoud */}
-        <div className="pb-20 overflow-y-auto flex-1">
-          <Form {...form}>
-            <form className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Basisinformatie</CardTitle>
-                  <CardDescription>
-                    Vul de belangrijkste gegevens van je evenement in
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Titel</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="Geef je evenement een titel" 
-                            {...field} 
-                            onChange={(e) => {
-                              field.onChange(e);
-                              
-                              // Als er al een beschrijving is, kan er een categorie worden voorgesteld
-                              setTimeout(() => {
-                                const description = form.getValues('description');
-                                if (description && description.length > 5 && e.target.value.length > 3) {
-                                  const combinedText = `${e.target.value} ${description}`;
-                                  const suggestedCategory = suggestCategory(combinedText);
-                                  
-                                  if (suggestedCategory && !form.getValues('category')) {
-                                    form.setValue('category', suggestedCategory);
-                                  }
-                                }
-                              }, 300);
-                            }}
-                            onBlur={handleTitleBlur}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Beschrijving</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Beschrijf wat mensen kunnen verwachten" 
-                            className="min-h-[120px]"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Categorie</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecteer een categorie" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {CATEGORIES.map((category) => (
-                              <SelectItem key={category} value={category}>
-                                {category}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Afbeelding (verplicht)</CardTitle>
-                  <CardDescription>
-                    Een afbeelding helpt je evenement op te vallen
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {imagePreviews.length > 0 ? (
-                    <div className="space-y-4">
-                      <div className="relative h-48 w-full rounded-md overflow-hidden">
-                        <img 
-                          src={imagePreviews[0]} 
-                          alt="Hoofdafbeelding evenement" 
-                          className="w-full h-full object-cover"
-                        />
-                        <Button 
-                          variant="destructive" 
-                          size="icon" 
-                          className="absolute top-2 right-2" 
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            removeImage(0);
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      
-                      {/* Extra afbeeldingen (max 5) */}
-                      {imagePreviews.length > 1 && (
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Extra afbeeldingen</h4>
-                          <div className="grid grid-cols-4 gap-2">
-                            {imagePreviews.slice(1).map((preview, index) => (
-                              <div key={index} className="relative h-20 rounded-md overflow-hidden">
-                                <img 
-                                  src={preview} 
-                                  alt={`Evenement afbeelding ${index + 2}`} 
-                                  className="w-full h-full object-cover"
-                                />
-                                <Button 
-                                  variant="destructive" 
-                                  size="icon" 
-                                  className="absolute top-1 right-1 h-5 w-5" 
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    removeImage(index + 1);
-                                  }}
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ))}
+      </header>
+
+      {/* Inhoud */}
+      <main className="flex-1 container px-4 pb-24 pt-4 overflow-auto">
+        <Form {...form}>
+          <form className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Basisinformatie</CardTitle>
+                <CardDescription>
+                  Vul de belangrijkste gegevens van je evenement in
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Titel</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Geef je evenement een titel" 
+                          {...field} 
+                          onChange={(e) => {
+                            field.onChange(e);
                             
-                            {/* Upload knop voor extra afbeeldingen */}
-                            {imagePreviews.length < MAX_IMAGES && (
-                              <div 
-                                className="relative h-20 border-2 border-dashed border-border rounded-md flex items-center justify-center cursor-pointer"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  document.getElementById('additional-image-upload')?.click();
-                                }}
-                              >
-                                <Plus className="h-5 w-5 text-muted-foreground" />
-                                <input
-                                  id="additional-image-upload"
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={handleImageChange}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Toon upload knop als we nog niet het maximum hebben bereikt */}
-                      {imagePreviews.length === 1 && imagePreviews.length < MAX_IMAGES && (
-                        <Button
-                          variant="outline"
-                          type="button"
-                          className="w-full"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            document.getElementById('additional-image-upload')?.click();
+                            setTimeout(() => {
+                              const description = form.getValues('description');
+                              if (description && description.length > 5 && e.target.value.length > 3) {
+                                const combinedText = `${e.target.value} ${description}`;
+                                const suggestedCategory = suggestCategory(combinedText);
+                                
+                                if (suggestedCategory && !form.getValues('category')) {
+                                  form.setValue('category', suggestedCategory);
+                                }
+                              }
+                            }, 300);
                           }}
+                          onBlur={handleTitleBlur}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Beschrijving</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Beschrijf je evenement"
+                          className="min-h-[100px]"
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            
+                            setTimeout(() => {
+                              const title = form.getValues('title');
+                              if (title && title.length > 3 && e.target.value.length > 5) {
+                                const combinedText = `${title} ${e.target.value}`;
+                                const suggestedCategory = suggestCategory(combinedText);
+                                
+                                if (suggestedCategory && !form.getValues('category')) {
+                                  form.setValue('category', suggestedCategory);
+                                }
+                              }
+                            }, 300);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Categorie</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecteer een categorie" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {CATEGORIES.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="tags"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex justify-between">
+                        <span>Tags</span>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 px-2 text-xs"
+                          onClick={generateEventTags}
                         >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Voeg nog een afbeelding toe ({imagePreviews.length}/{MAX_IMAGES})
+                          <Plus className="h-3 w-3 mr-1" />
+                          Auto-genereren
+                        </Button>
+                      </FormLabel>
+                      <FormControl>
+                        <div className="flex flex-wrap gap-2">
+                          {field.value?.map((tag, index) => (
+                            <Badge key={index} className="flex gap-1 items-center">
+                              {tag}
+                              <X
+                                className="h-3 w-3 cursor-pointer"
+                                onClick={() => {
+                                  const newTags = [...field.value || []];
+                                  newTags.splice(index, 1);
+                                  form.setValue('tags', newTags);
+                                }}
+                              />
+                            </Badge>
+                          ))}
+                          <Input
+                            placeholder="Voeg tags toe (druk op Enter)"
+                            className="w-full mt-2"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const target = e.target as HTMLInputElement;
+                                const value = target.value.trim();
+                                
+                                if (value && (!field.value || !field.value.includes(value))) {
+                                  const newTags = [...(field.value || []), value];
+                                  form.setValue('tags', newTags);
+                                  target.value = '';
+                                }
+                              }
+                            }}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Tags helpen gebruikers je evenement te vinden
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Datum en Tijd</CardTitle>
+                <CardDescription>
+                  Wanneer vindt het evenement plaats?
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="startTime"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Begintijd</FormLabel>
+                      <DateTimePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date)}
+                        hideTime={false}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Eindtijd</FormLabel>
+                      <DateTimePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date)}
+                        hideTime={false}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Locatie</CardTitle>
+                <CardDescription>
+                  Waar vindt het evenement plaats?
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <LocationPicker 
+                  defaultPosition={[
+                    form.getValues('location')?.lat || 51.7767, 
+                    form.getValues('location')?.lng || 5.5345
+                  ]}
+                  onChange={(position: [number, number]) => {
+                    // De LocationPicker component geeft een array terug, maar we willen een object
+                    const locationData: LocationData = {
+                      lat: position[0],
+                      lng: position[1],
+                      locationName: getLocationName(position[0], position[1])
+                    };
+                    handleLocationChange(locationData);
+                  }}
+                />
+                <div className="flex items-center mt-4 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  <span>
+                    Lat: {(form.watch('location')?.lat || 0).toFixed(6)}, Lng: {(form.watch('location')?.lng || 0).toFixed(6)}
+                  </span>
+                </div>
+                
+                <div className="mt-4">
+                  <FormField
+                    control={form.control}
+                    name="location.address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Adres</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Voer een volledig adres in"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Deelname</CardTitle>
+                <CardDescription>
+                  Is het evenement betaald? Is er een limiet op het aantal deelnemers?
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="isPaid"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Betaald evenement</FormLabel>
+                        <FormDescription>
+                          Bezoekers moeten betalen om deel te nemen
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (!checked) {
+                              form.setValue('price', null);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                {form.watch('isPaid') && (
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Prijs (€)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Prijs in euro's"
+                            {...field}
+                            value={field.value === null ? '' : field.value}
+                            onChange={(e) => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                
+                <FormField
+                  control={form.control}
+                  name="hasMaxParticipants"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Maximum aantal deelnemers</FormLabel>
+                        <FormDescription>
+                          Beperk het aantal mensen dat kan deelnemen
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (!checked) {
+                              form.setValue('maxParticipants', null);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                {form.watch('hasMaxParticipants') && (
+                  <FormField
+                    control={form.control}
+                    name="maxParticipants"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Maximum aantal deelnemers</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            step="1"
+                            placeholder="Maximum aantal deelnemers"
+                            {...field}
+                            value={field.value === null ? '' : field.value}
+                            onChange={(e) => field.onChange(e.target.value === '' ? null : parseInt(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Afbeelding</CardTitle>
+                <CardDescription>
+                  Voeg een afbeelding toe voor je evenement
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {imagePreviews.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {imagePreviews.map((url, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={url}
+                            alt={`Preview ${index + 1}`}
+                            className="h-20 w-20 object-cover rounded-md border"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                            onClick={() => removeImage(index)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          {index === 0 && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="absolute -bottom-2 -right-2 h-6 px-2 text-xs rounded-full"
+                            >
+                              Hoofd
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      {imagePreviews.length < MAX_IMAGES && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-20 w-20 border-dashed"
+                          onClick={() => document.getElementById('image-upload')?.click()}
+                        >
+                          <Plus className="h-8 w-8 text-muted-foreground" />
                           <input
-                            id="additional-image-upload"
+                            id="image-upload"
                             type="file"
                             accept="image/*"
                             className="hidden"
@@ -607,282 +841,83 @@ export function AppCreateEvent() {
                         </Button>
                       )}
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-border rounded-md">
-                        <Image className="h-10 w-10 text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Sleep een afbeelding hierheen of klik om te bladeren
-                        </p>
-                        <Button
-                          variant="outline"
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            document.getElementById('image-upload')?.click();
-                          }}
-                        >
-                          Selecteer afbeelding
-                        </Button>
-                        <input
-                          id="image-upload"
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleImageChange}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Datum en tijd</CardTitle>
-                  <CardDescription>
-                    Wanneer vindt het evenement plaats?
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="startTime"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Startdatum en -tijd</FormLabel>
-                        <DateTimePicker
-                          date={field.value instanceof Date ? field.value : new Date(field.value)}
-                          setDate={(date) => field.onChange(date)}
-                          placement="top"
-                          className="relative z-50"
-                        />
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="endTime"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Einddatum en -tijd</FormLabel>
-                        <DateTimePicker
-                          date={field.value instanceof Date ? field.value : field.value ? new Date(field.value) : new Date()}
-                          setDate={(date) => field.onChange(date)}
-                          placement="top"
-                          className="relative z-40"
-                        />
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Locatie</CardTitle>
-                  <CardDescription>
-                    Klik op de kaart om de locatie te kiezen
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <LocationPicker 
-                    defaultPosition={[
-                      form.getValues('location')?.lat || 51.7767, 
-                      form.getValues('location')?.lng || 5.5345
-                    ]}
-                    onChange={(position: [number, number]) => {
-                      // De LocationPicker component geeft een array terug, maar we willen een object
-                      const locationData: LocationData = {
-                        lat: position[0],
-                        lng: position[1],
-                        locationName: getLocationName(position[0], position[1])
-                      };
-                      handleLocationChange(locationData);
-                    }}
-                  />
-                  <div className="flex items-center mt-4 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    <span>
-                      Lat: {(form.watch('location')?.lat || 0).toFixed(6)}, Lng: {(form.watch('location')?.lng || 0).toFixed(6)}
-                    </span>
                   </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex justify-between items-center">
-                    <span className="text-lg">Tags</span>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      type="button"
-                      onClick={generateEventTags}
-                    >
-                      Genereer tags
-                    </Button>
-                  </CardTitle>
-                  <CardDescription>
-                    Tags helpen je evenement vindbaar te maken
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <FormField
-                    control={form.control}
-                    name="tags"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input 
-                            placeholder="Voeg tags toe, gescheiden door komma's" 
-                            value={field.value.join(', ')}
-                            onChange={(e) => {
-                              const tagsArray = e.target.value
-                                .split(',')
-                                .map(tag => tag.trim())
-                                .filter(tag => tag.length > 0);
-                              field.onChange(tagsArray);
+                ) : (
+                  <div className="space-y-4">
+                    <Tabs defaultValue="ai">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="ai">AI Genereren</TabsTrigger>
+                        <TabsTrigger value="upload">Uploaden</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="ai" className="py-4">
+                        <ImageGenerator
+                          title={form.watch('title') || ''}
+                          category={form.watch('category') || ''}
+                          description={form.watch('description') || ''}
+                          onImageGenerated={handleAIGeneratedImage}
+                        />
+                      </TabsContent>
+                      <TabsContent value="upload" className="py-4">
+                        <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md">
+                          <Image className="h-10 w-10 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Sleep een afbeelding hierheen of klik om te bladeren
+                          </p>
+                          <Button
+                            variant="outline"
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              document.getElementById('image-upload')?.click();
                             }}
+                          >
+                            Selecteer afbeelding
+                          </Button>
+                          <input
+                            id="image-upload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleImageChange}
                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Extra opties</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="hasMaxParticipants"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Beperkt aantal deelnemers</FormLabel>
-                          <FormDescription>
-                            Beperk het maximaal aantal deelnemers
-                          </FormDescription>
                         </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  {form.watch('hasMaxParticipants') && (
-                    <FormField
-                      control={form.control}
-                      name="maxParticipants"
-                      render={({ field: { value, onChange, ...fieldProps } }) => (
-                        <FormItem>
-                          <FormLabel>Maximum aantal deelnemers</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min={1}
-                              placeholder="Aantal deelnemers" 
-                              value={value === undefined || value === null ? "" : value}
-                              onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-                              {...fieldProps} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                  
-                  <FormField
-                    control={form.control}
-                    name="isPaid"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Betaald evenement</FormLabel>
-                          <FormDescription>
-                            Zet dit aan als deelnemers moeten betalen
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  {form.watch('isPaid') && (
-                    <FormField
-                      control={form.control}
-                      name="price"
-                      render={({ field: { value, onChange, ...fieldProps } }) => (
-                        <FormItem>
-                          <FormLabel>Prijs (EUR)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={0}
-                              step={0.01}
-                              placeholder="0.00"
-                              value={value === undefined || value === null ? "" : value}
-                              onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-                              {...fieldProps}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                </CardContent>
-              </Card>
-              
-              <div className="sticky bottom-20 left-0 right-0 p-4 bg-background border-t mt-8">
-                <div className="flex gap-3">
-                  <Button 
-                    variant="outline"
-                    type="button" 
-                    className="flex-1"
-                    asChild
-                  >
-                    <Link href="/app">
-                      Annuleren
-                    </Link>
-                  </Button>
-                  <Button 
-                    type="button" 
-                    className="flex-1"
-                    size="lg"
-                    disabled={createEventMutation.isPending}
-                    onClick={() => {
-                      const formData = form.getValues();
-                      onSubmit(formData);
-                    }}
-                  >
-                    {createEventMutation.isPending ? 'Bezig met opslaan...' : 'Evenement aanmaken'}
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </Form>
-        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </form>
+        </Form>
+      </main>
+
+      {/* Vaste knoppenbalk onderaan */}
+      <div className="fixed bottom-14 left-0 right-0 flex gap-4 p-4 bg-background border-t z-10">
+        <Button 
+          type="button" 
+          variant="outline" 
+          className="flex-1"
+          onClick={() => navigate("/app")}
+        >
+          Annuleren
+        </Button>
+        <Button 
+          type="button" 
+          className="flex-1"
+          onClick={form.handleSubmit(onSubmit)}
+          disabled={createEventMutation.isPending}
+        >
+          {createEventMutation.isPending ? (
+            <>Aanmaken...</>
+          ) : (
+            <>Evenement aanmaken</>
+          )}
+        </Button>
       </div>
-    </AppLayout>
+
+      {/* Navigatiebalk onderaan */}
+      <AppBottomNav />
+    </div>
   );
 }
 

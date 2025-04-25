@@ -141,7 +141,6 @@ export function AppCreateEventNew() {
       },
       startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // tomorrow
       endTime: new Date(Date.now() + 26 * 60 * 60 * 1000), // tomorrow + 2 hours
-      tags: [],
       recurrence: 'once',
     },
   });
@@ -159,7 +158,6 @@ export function AppCreateEventNew() {
       const formattedData = {
         ...apiData,
         hostId: data.hostId || 1, // Gebruik hostId als het aanwezig is, anders gebruik de standaardwaarde
-        tags: data.tags || [], // Zorg dat tags altijd een array is
         price: data.isPaid && data.price ? Number(data.price) : null,
         // Zorg dat maxParticipants altijd een nummer is (0 indien niet ingesteld)
         maxParticipants: data.hasMaxParticipants && data.maxParticipants ? Number(data.maxParticipants) : 0,
@@ -212,15 +210,7 @@ export function AppCreateEventNew() {
     }
   };
   
-  // Genereer tags op basis van titel en categorie
-  const generateEventTags = () => {
-    const title = form.getValues('title');
-    const category = form.getValues('category');
-    if (title && category) {
-      const suggestedTags = generateTags(title, category);
-      form.setValue('tags', suggestedTags);
-    }
-  };
+  // Deze functie is verwijderd omdat tags niet meer wordt gebruikt
   
   // Functie om locatie te updaten
   const handleLocationChange = (lat: number, lng: number) => {
@@ -606,7 +596,7 @@ export function AppCreateEventNew() {
                 
                 <FormField
                   control={form.control}
-                  name="location.address"
+                  name="address"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Adres (optioneel)</FormLabel>
@@ -700,9 +690,10 @@ export function AppCreateEventNew() {
                   
                   <TabsContent value="generate">
                     <ImageGenerator 
-                      onGenerated={handleAIGeneratedImage}
-                      eventTitle={form.getValues('title')}
-                      eventCategory={form.getValues('category')}
+                      onImageGenerated={handleAIGeneratedImage}
+                      title={form.getValues('title')}
+                      category={form.getValues('category')}
+                      description={form.getValues('description')}
                     />
                   </TabsContent>
                 </Tabs>

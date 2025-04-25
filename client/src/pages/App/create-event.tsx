@@ -397,6 +397,7 @@ export function AppCreateEvent() {
       title="Nieuw Evenement"
       hideSearchAndFilters={true}
       showMap={false} // Zorg dat de kaartweergave uitgeschakeld is
+      defaultView="list" // Expliciet de lijstweergave afdwingen
     >
       <div className="flex flex-col h-full">
         {/* Terug knop in header */}

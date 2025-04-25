@@ -173,6 +173,7 @@ interface AppLayoutProps {
   children: React.ReactNode;
   title?: string;
   showMap?: boolean;
+  defaultView?: "list" | "map";
   filteredEvents?: Event[];
   header?: React.ReactNode;
   isLoading?: boolean;
@@ -192,6 +193,7 @@ export function AppLayout({
   children,
   title = "Evenementen",
   showMap = false,
+  defaultView = "list",
   filteredEvents = [],
   header,
   isLoading = false,
@@ -206,8 +208,8 @@ export function AppLayout({
   backTo = "/app",
   hideSearchAndFilters = false,
 }: AppLayoutProps) {
-  // Standaard tegelweergave (list) in plaats van kaartweergave (map)
-  const [view, setView] = React.useState<"list" | "map">("list");
+  // Gebruik de meegegeven defaultView of val terug op lijstweergave
+  const [view, setView] = React.useState<"list" | "map">(defaultView);
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   // Standaard geen verlopen evenementen tonen
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);

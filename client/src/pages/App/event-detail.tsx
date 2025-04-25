@@ -177,7 +177,7 @@ export function AppEventDetail() {
   const eventImages = [event.imageUrl].filter(Boolean) as string[];
   
   return (
-    <AppLayout title={event.title}>
+    <AppLayout title={event.title} showMap={false}>
       <div className="pb-20">
         <div className="sticky top-0 bg-background z-10 flex items-center justify-between p-4 border-b">
           <Button variant="ghost" size="icon" asChild>

@@ -53,7 +53,7 @@ export default function App() {
   const [isMapView, setIsMapView] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [radius, setRadius] = React.useState(10);
-  const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
+  const [filteredEvents, setFilteredEvents] = React.useState<EventInterface[]>([]);
 
   // Log information for debugging
   React.useEffect(() => {

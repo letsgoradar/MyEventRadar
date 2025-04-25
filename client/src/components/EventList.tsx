@@ -14,10 +14,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import type { Event } from "@shared/schema"
+import { EventInterface, type events } from "@shared/schema"
 
 // Uitgebreide Event interface met distance property
-interface EventWithDistance extends Event {
+interface EventWithDistance extends EventInterface {
   distance?: number;
 }
 
@@ -38,7 +38,7 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
   // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven of in App
   const useGridLayout = isAppView || (!isMobile && gridView) || (isMobile && gridView);
   
-  // BELANGRIJK: Alle filter- en sorteerfunctionaliteit is nu verplaatst naar App2Layout
+  // BELANGRIJK: Alle filter- en sorteerfunctionaliteit is nu verplaatst naar AppLayout
   // EventList is alleen verantwoordelijk voor het weergeven van de gebeurtenissen
   
   // We gebruiken direct de filteredEvents die als prop worden doorgegeven

@@ -31,12 +31,12 @@ interface EventListProps {
 export function EventList({ filteredEvents, gridView = false }: EventListProps) {
   const isMobile = useIsMobile();
   
-  // Check of we op de App2 pagina zijn
-  const isApp2 = window.location.pathname.includes('/app2');
+  // Check of we op de App pagina zijn
+  const isAppView = window.location.pathname.includes('/app');
   
-  // In App2 altijd tegels gebruiken, anders volg de gridView prop
-  // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven of in App2
-  const useGridLayout = isApp2 || (!isMobile && gridView) || (isMobile && gridView);
+  // In App altijd tegels gebruiken, anders volg de gridView prop
+  // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven of in App
+  const useGridLayout = isAppView || (!isMobile && gridView) || (isMobile && gridView);
   
   // BELANGRIJK: Alle filter- en sorteerfunctionaliteit is nu verplaatst naar App2Layout
   // EventList is alleen verantwoordelijk voor het weergeven van de gebeurtenissen

@@ -694,20 +694,6 @@ export function AppCreateEvent() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <LocationPicker 
-                  defaultPosition={[
-                    form.getValues('location')?.lat || 51.7767, 
-                    form.getValues('location')?.lng || 5.5345
-                  ]}
-                  onChange={handleLocationChange}
-                />
-                <div className="flex items-center mt-2 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  <span>
-                    Lat: {(form.watch('location')?.lat || 0).toFixed(6)}, Lng: {(form.watch('location')?.lng || 0).toFixed(6)}
-                  </span>
-                </div>
-                
                 <FormField
                   control={form.control}
                   name="location.address"
@@ -724,6 +710,20 @@ export function AppCreateEvent() {
                     </FormItem>
                   )}
                 />
+                
+                <LocationPicker 
+                  defaultPosition={[
+                    form.getValues('location')?.lat || 51.7767, 
+                    form.getValues('location')?.lng || 5.5345
+                  ]}
+                  onChange={handleLocationChange}
+                />
+                <div className="flex items-center mt-2 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  <span>
+                    Lat: {(form.watch('location')?.lat || 0).toFixed(6)}, Lng: {(form.watch('location')?.lng || 0).toFixed(6)}
+                  </span>
+                </div>
               </CardContent>
             </Card>
             

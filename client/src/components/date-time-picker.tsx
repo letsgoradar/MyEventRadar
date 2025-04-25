@@ -39,17 +39,28 @@ export function DateTimePicker({
       const [hours, minutes] = timeValue.split(':').map(Number);
       if (!isNaN(hours) && !isNaN(minutes)) {
         const newDate = setMinutes(setHours(date, hours), minutes);
-        setDate(newDate);
+        
+        // Voorkom oneindige updates door te controleren of de tijden daadwerkelijk verschillen
+        const currentHours = date.getHours();
+        const currentMinutes = date.getMinutes();
+        
+        if (currentHours !== hours || currentMinutes !== minutes) {
+          setDate(newDate);
+        }
       }
     }
-  }, [timeValue]);
+  }, [timeValue, date]);
 
-  // Update time input when date changes
+  // Update time input when date changes - maar alleen als de datum verschilt (niet de tijd)
   React.useEffect(() => {
     if (date) {
-      setTimeValue(format(date, "HH:mm"));
+      const formattedTime = format(date, "HH:mm");
+      // Voorkom oneindige lus door alleen te updaten als de tijd anders is
+      if (formattedTime !== timeValue) {
+        setTimeValue(formattedTime);
+      }
     }
-  }, [date]);
+  }, [date, timeValue]);
 
   // Format voor knop
   const buttonFormat = React.useMemo(() => {

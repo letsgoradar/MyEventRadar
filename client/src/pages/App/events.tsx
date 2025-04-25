@@ -1,8 +1,8 @@
 import * as React from "react";
-import { App2Layout } from "@/components/App2/App2Layout";
+import AppLayout from "@/components/App/AppLayout";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
-import { Event } from "@shared/schema";
+import { EventInterface } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,13 @@ import { AlertCircle, Plus } from "lucide-react";
 import { Link } from "wouter";
 import EventCard from "@/components/Events/EventCard";
 
-export function App2EventsPage() {
+export function AppEventsPage() {
   // Queries voor verschillende categorieën evenementen
-  const { data: hostedEvents = [], isLoading: isLoadingHosted } = useQuery<Event[]>({
+  const { data: hostedEvents = [], isLoading: isLoadingHosted } = useQuery<EventInterface[]>({
     queryKey: ['/api/events/hosted'],
   });
 
-  const { data: joinedEvents = [], isLoading: isLoadingJoined } = useQuery<Event[]>({
+  const { data: joinedEvents = [], isLoading: isLoadingJoined } = useQuery<EventInterface[]>({
     queryKey: ['/api/events/joined'],
   });
 
@@ -42,7 +42,7 @@ export function App2EventsPage() {
         </p>
         {create && (
           <Button asChild>
-            <Link href="/app2/create-event">
+            <Link href="/app/create-event">
               <Plus className="mr-2 h-4 w-4" />
               Maak een evenement
             </Link>
@@ -53,11 +53,11 @@ export function App2EventsPage() {
   );
 
   return (
-    <App2Layout title="Mijn Evenementen">
+    <AppLayout title="Mijn Evenementen">
       <div className="pb-20">
         <div className="flex justify-between items-center mb-4">
           <Button size="sm" asChild>
-            <Link href="/app2/create-event">
+            <Link href="/app/create-event">
               <Plus className="mr-1 h-4 w-4" />
               Nieuw
             </Link>
@@ -78,7 +78,7 @@ export function App2EventsPage() {
             ) : (
               <div className="space-y-4">
                 {hostedEvents.map((event) => (
-                  <Link key={event.id} href={`/app2/event/${event.id}`} className="block">
+                  <Link key={event.id} href={`/app/event/${event.id}`} className="block">
                     <EventCard event={event} />
                   </Link>
                 ))}
@@ -94,7 +94,7 @@ export function App2EventsPage() {
             ) : (
               <div className="space-y-4">
                 {joinedEvents.map((event) => (
-                  <Link key={event.id} href={`/app2/event/${event.id}`} className="block">
+                  <Link key={event.id} href={`/app/event/${event.id}`} className="block">
                     <EventCard event={event} />
                   </Link>
                 ))}
@@ -103,8 +103,8 @@ export function App2EventsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </App2Layout>
+    </AppLayout>
   );
 }
 
-export default App2EventsPage;
+export default AppEventsPage;

@@ -71,8 +71,8 @@ export function AppCreateEvent() {
       location: {
         lat: 51.7767,
         lng: 5.5345,
-        name: "",
-        address: "",
+        notificationReach: 5.0,
+        locationName: "",
       },
       hostId: 1, // Dummy hostId (wordt op de server ingesteld op basis van ingelogde gebruiker)
       tags: [],
@@ -111,10 +111,13 @@ export function AppCreateEvent() {
 
   // Handler voor locatie wijzigingen
   const handleLocationChange = (position: [number, number]) => {
+    const currentLocation = form.getValues("location");
     form.setValue("location", {
-      ...form.getValues("location"),
+      ...currentLocation,
       lat: position[0],
       lng: position[1],
+      // Behoud notificationReach als deze al is ingesteld, anders gebruik standaardwaarde
+      notificationReach: currentLocation?.notificationReach || 5.0,
     });
   };
 

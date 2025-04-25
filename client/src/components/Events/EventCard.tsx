@@ -90,7 +90,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   const showEventOnMap = (e: React.MouseEvent) => {
     e.preventDefault();
     
-    // Alleen toepassen voor web versie, niet voor App2
+    // Alleen toepassen voor web versie, niet voor App
     if (window.location.pathname.includes('/web') && window.location.pathname !== '/web/map') {
       // Navigeer naar kaartweergave als we niet al op de kaart zijn
       if (!window.location.pathname.includes('/web')) {
@@ -238,10 +238,10 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
     );
   }
 
-  // De nieuwe mobiele App2 lijst weergave
-  if (window.location.pathname.includes('/app2')) {
+  // De nieuwe mobiele App lijst weergave
+  if (window.location.pathname.includes('/app')) {
     // Bij kaartweergave, toon geen event cards
-    if (isApp2MapView || document.querySelector('.map-view-content')) {
+    if (isAppMapView || document.querySelector('.map-view-content')) {
       return null;
     }
     
@@ -271,7 +271,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
     }
     
     return (
-      <Link href={`/app2/event/${event.id}`} onClick={showEventOnMap}>
+      <Link href={`/app/event/${event.id}`} onClick={showEventOnMap}>
         <Card className="overflow-hidden mb-4 transition-all hover:shadow-md cursor-pointer event-card">
           <div className="p-0">
             {/* Afbeelding container bovenaan */}

@@ -692,13 +692,14 @@ export function AppCreateEvent() {
                       form.getValues('location')?.lat || 51.7767, 
                       form.getValues('location')?.lng || 5.5345
                     ]}
-                    onChange={(position) => {
+                    onChange={(position: [number, number]) => {
                       // De LocationPicker component geeft een array terug, maar we willen een object
-                      handleLocationChange({
+                      const locationData: LocationData = {
                         lat: position[0],
                         lng: position[1],
                         locationName: getLocationName(position[0], position[1])
-                      });
+                      };
+                      handleLocationChange(locationData);
                     }}
                   />
                   <div className="flex items-center mt-4 text-sm text-muted-foreground">
@@ -850,18 +851,30 @@ export function AppCreateEvent() {
               </Card>
               
               <div className="sticky bottom-20 left-0 right-0 p-4 bg-background border-t mt-8">
-                <Button 
-                  type="button" 
-                  className="w-full"
-                  size="lg"
-                  disabled={createEventMutation.isPending}
-                  onClick={() => {
-                    const formData = form.getValues();
-                    onSubmit(formData);
-                  }}
-                >
-                  {createEventMutation.isPending ? 'Bezig met opslaan...' : 'Evenement aanmaken'}
-                </Button>
+                <div className="flex gap-3">
+                  <Button 
+                    variant="outline"
+                    type="button" 
+                    className="flex-1"
+                    asChild
+                  >
+                    <Link href="/app">
+                      Annuleren
+                    </Link>
+                  </Button>
+                  <Button 
+                    type="button" 
+                    className="flex-1"
+                    size="lg"
+                    disabled={createEventMutation.isPending}
+                    onClick={() => {
+                      const formData = form.getValues();
+                      onSubmit(formData);
+                    }}
+                  >
+                    {createEventMutation.isPending ? 'Bezig met opslaan...' : 'Evenement aanmaken'}
+                  </Button>
+                </div>
               </div>
             </form>
           </Form>

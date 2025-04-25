@@ -374,7 +374,10 @@ export function AppCreateEvent() {
   };
 
   return (
-    <AppLayout title="Nieuw Evenement">
+    <AppLayout 
+      title="Nieuw Evenement"
+      hideSearchAndFilters={true}
+    >
       <div className="flex flex-col h-full">
         {/* Terug knop in header */}
         <div className="mb-4">

@@ -52,7 +52,10 @@ export function AppEventDetail() {
 
   if (isLoading) {
     return (
-      <AppLayout title="Evenement">
+      <AppLayout 
+        title="Evenement"
+        hideSearchAndFilters={true}
+      >
         <div className="p-4">
           <div className="animate-pulse space-y-4">
             <div className="h-48 bg-gray-200 rounded-md" />
@@ -172,7 +175,10 @@ export function AppEventDetail() {
   const eventImages = [event.imageUrl].filter(Boolean) as string[];
   
   return (
-    <AppLayout title={event.title}>
+    <AppLayout 
+      title={event.title}
+      hideSearchAndFilters={true}
+    >
       <div className="pb-20">
         <div className="sticky top-0 bg-background z-10 flex items-center justify-between p-4 border-b">
           <Button variant="ghost" size="icon" asChild>

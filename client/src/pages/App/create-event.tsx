@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Form,
   FormControl,
@@ -57,7 +57,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
 });
 
-// Aangepaste LocationPicker component - met standaard blauwe marker
+// LocationPicker component speciaal voor gebruik binnen de Card
 const LocationPicker = ({ 
   defaultPosition = [51.7767, 5.5345] as [number, number],
   onChange
@@ -65,23 +65,15 @@ const LocationPicker = ({
   defaultPosition?: [number, number], 
   onChange: (lat: number, lng: number) => void 
 }) => {
-  // Zorg ervoor dat we altijd geldige coördinaten gebruiken
-  const validDefaultPosition: [number, number] = Array.isArray(defaultPosition) && 
-    defaultPosition.length === 2 && 
-    typeof defaultPosition[0] === 'number' && 
-    typeof defaultPosition[1] === 'number' ? 
-    defaultPosition : [51.7767, 5.5345];
-  
-  const [markerPosition, setMarkerPosition] = useState<[number, number]>(validDefaultPosition);
+  const [markerPosition, setMarkerPosition] = useState<[number, number]>(defaultPosition);
   const initRef = useRef(false);
   
-  // Roep onChange aan bij initialisatie, maar voorkom oneindige loops
   useEffect(() => {
     if (!initRef.current) {
-      onChange(validDefaultPosition[0], validDefaultPosition[1]);
+      onChange(defaultPosition[0], defaultPosition[1]);
       initRef.current = true;
     }
-  }, [onChange, validDefaultPosition]);
+  }, [onChange, defaultPosition]);
   
   const MapEvents = () => {
     useMapEvents({
@@ -113,14 +105,7 @@ const LocationPicker = ({
   );
 };
 
-// Interface voor de locatie data
-interface LocationData {
-  lat: number;
-  lng: number;
-  locationName?: string;
-}
-
-// Uitgebreid schema voor het maken van een evenement
+// Form schema
 const createEventFormSchema = insertEventSchema.extend({
   hasMaxParticipants: z.boolean().default(false),
   maxParticipants: z.number().nullable().optional(),
@@ -169,6 +154,16 @@ export function AppCreateEvent() {
     },
   });
 
+  // Handler voor locatie wijzigingen
+  const handleLocationChange = useCallback((lat: number, lng: number) => {
+    form.setValue("location", {
+      ...form.getValues("location"),
+      lat: lat,
+      lng: lng,
+      locationName: getLocationName(lat, lng),
+    });
+  }, [form]);
+
   // Mutatie voor het aanmaken van een evenement
   const createEventMutation = useMutation({
     mutationFn: async (data: CreateEventFormValues) => {
@@ -194,16 +189,6 @@ export function AppCreateEvent() {
       });
     },
   });
-
-  // Handler voor locatie wijzigingen
-  const handleLocationChange = (lat: number, lng: number) => {
-    form.setValue("location", {
-      ...form.getValues("location"),
-      lat: lat,
-      lng: lng,
-      locationName: getLocationName(lat, lng),
-    });
-  };
 
   // Handler voor als de titel verandert (voor automatische categorieaanvulling)
   const handleTitleBlur = () => {
@@ -686,28 +671,6 @@ export function AppCreateEvent() {
               </CardContent>
             </Card>
             
-            {/* Locatie kaart */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Locatie</CardTitle>
-                <CardDescription>
-                  Waar vindt het evenement plaats?
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-4">Klik op de kaart om de locatie te selecteren:</p>
-                <div>
-                  <LocationPicker 
-                    defaultPosition={[
-                      form.getValues('location')?.lat || 51.7767, 
-                      form.getValues('location')?.lng || 5.5345
-                    ]}
-                    onChange={handleLocationChange}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-            
             {/* Deelname kaart */}
             <Card>
               <CardHeader>
@@ -818,7 +781,7 @@ export function AppCreateEvent() {
                 )}
               </CardContent>
             </Card>
-            
+
             {/* Afbeelding kaart */}
             <Card>
               <CardHeader>
@@ -921,6 +884,25 @@ export function AppCreateEvent() {
                     </Tabs>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+            
+            {/* Locatie kaart - als laatste */}
+            <Card className="relative" style={{ zIndex: 10 }}>
+              <CardHeader>
+                <CardTitle className="text-lg">Locatie</CardTitle>
+                <CardDescription>
+                  Klik op de kaart om de locatie te kiezen
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <LocationPicker 
+                  defaultPosition={[
+                    form.getValues('location')?.lat || 51.7767, 
+                    form.getValues('location')?.lng || 5.5345
+                  ]}
+                  onChange={handleLocationChange}
+                />
               </CardContent>
             </Card>
           </form>

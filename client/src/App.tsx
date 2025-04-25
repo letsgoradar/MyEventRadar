@@ -30,13 +30,13 @@ import EventDetail from "@/pages/Web/event-detail"
 // App componenten (mobiele versie)
 import AppHomePage from "@/pages/App"
 import AppEventDetail from "@/pages/App/event-detail"
-import AppLoginPage from "@/pages/App/login"
+import { AppLoginPage } from "@/pages/App/login"
 import AppRegisterPage from "@/pages/App/register"
 import AppCreateEvent from "@/pages/App/create-event"
 import AppEventsPage from "@/pages/App/events"
 import AppFavoritesPage from "@/pages/App/favorites"
 import AppProfilePage from "@/pages/App/profile"
-import AppWelcomePage from "@/pages/App/welcome"
+import { AppWelcomePage } from "@/pages/App/welcome"
 import AppForgotPasswordPage from "@/pages/App/forgot-password"
 
 // Helper component voor redirects

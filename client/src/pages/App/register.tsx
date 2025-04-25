@@ -1,6 +1,6 @@
 import React from "react";
-import { RegisterForm } from "@/components/App2/RegisterForm";
-import { App2Layout } from "@/components/App2/App2Layout";
+import { RegisterForm } from "@/components/App/RegisterForm";
+import AppLayout from "@/components/App/AppLayout";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 
@@ -9,7 +9,7 @@ export default function RegisterPage() {
 
   // Als een gebruiker al is ingelogd, stuur ze naar de hoofdpagina
   if (user) {
-    return <Redirect to="/app2" />;
+    return <Redirect to="/app" />;
   }
 
   return (

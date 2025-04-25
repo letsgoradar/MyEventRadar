@@ -1,17 +1,17 @@
 import React from "react";
-import { WelcomeScreen } from "@/components/App2/WelcomeScreen";
+import { WelcomeScreen } from "@/components/App/WelcomeScreen";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
-export default function WelcomePage() {
+export function AppWelcomePage() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
   // Direct navigeren naar hoofdpagina wanneer gebruiker is ingelogd
   React.useEffect(() => {
     if (user && !isLoading) {
-      setLocation("/app2");
+      setLocation("/app");
     }
   }, [user, isLoading, setLocation]);
 
@@ -27,3 +27,5 @@ export default function WelcomePage() {
   // Als we hier komen, is de gebruiker niet ingelogd of is er nog geen controle uitgevoerd
   return <WelcomeScreen />;
 }
+
+export default AppWelcomePage;

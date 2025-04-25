@@ -54,16 +54,16 @@ export function LoginForm() {
   const handleAnimationComplete = () => {
     // Navigeer naar de app na afronding van de animatie
     setTimeout(() => {
-      setLocation("/app2");
+      setLocation("/app");
     }, 500); // Korte vertraging om de animatie af te laten lopen
   };
 
   const goToForgotPassword = () => {
-    setLocation("/app2/forgot-password");
+    setLocation("/app/forgot-password");
   };
 
   const goToRegister = () => {
-    setLocation("/app2/register");
+    setLocation("/app/register");
   };
 
   return (

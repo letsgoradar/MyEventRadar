@@ -661,7 +661,7 @@ export function AppCreateEvent() {
                       <DateTimePicker
                         date={field.value ? new Date(field.value) : undefined}
                         setDate={(date) => field.onChange(date)}
-                        hideTime={false}
+                        mode="datetime"
                       />
                       <FormMessage />
                     </FormItem>
@@ -677,7 +677,7 @@ export function AppCreateEvent() {
                       <DateTimePicker
                         date={field.value ? new Date(field.value) : undefined}
                         setDate={(date) => field.onChange(date)}
-                        hideTime={false}
+                        mode="datetime"
                       />
                       <FormMessage />
                     </FormItem>

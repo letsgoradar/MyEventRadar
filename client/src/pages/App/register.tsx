@@ -4,7 +4,7 @@ import AppLayout from "@/components/App/AppLayout";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 
-export default function RegisterPage() {
+export function AppRegisterPage() {
   const { user } = useAuth();
 
   // Als een gebruiker al is ingelogd, stuur ze naar de hoofdpagina
@@ -13,11 +13,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <App2Layout 
+    <AppLayout 
       title="Registreren" 
       hideBottomNav 
       showBackButton
-      backTo="/app2/welcome"
+      backTo="/app/welcome"
     >
       <div className="flex flex-col items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
@@ -28,6 +28,8 @@ export default function RegisterPage() {
           <RegisterForm />
         </div>
       </div>
-    </App2Layout>
+    </AppLayout>
   );
 }
+
+export default AppRegisterPage;

@@ -95,13 +95,13 @@ export default function App() {
     setRadius(value);
   }, []);
 
-  const handleFilteredEventsChange = React.useCallback((events: Event[]) => {
+  const handleFilteredEventsChange = React.useCallback((events: EventInterface[]) => {
     setFilteredEvents(events);
   }, []);
 
   // We kiezen de juiste interface op basis van het apparaat:
   // Desktop/tablet → Web interface
-  // Mobiel → App2 interface
+  // Mobiel → App interface
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

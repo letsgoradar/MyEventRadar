@@ -73,8 +73,8 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
     }
   }, [location, distance, event.latitude, event.longitude]);
   
-  // Check of we op een App2 pagina met map view zijn (om events in kaartweergave te verbergen)
-  const isApp2MapView = window.location.pathname.includes('/app2') && 
+  // Check of we op een App pagina met map view zijn (om events in kaartweergave te verbergen)
+  const isAppMapView = window.location.pathname.includes('/app') && 
                         (window.location.search.includes('view=map') || 
                          document.getElementById('map-container') !== null);
 
@@ -83,8 +83,8 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   const hasEventImage = !!event.imageUrl;
 
   // Bepaal de juiste routering op basis van de huidige URL
-  const isApp2 = window.location.pathname.includes('/app2');
-  const detailLink = isApp2 ? `/app2/event/${event.id}` : `/web/event/${event.id}`;
+  const isApp = window.location.pathname.includes('/app');
+  const detailLink = isApp ? `/app/event/${event.id}` : `/web/event/${event.id}`;
   
   // Functie om een event op de kaart te tonen in plaats van direct naar detail te gaan
   const showEventOnMap = (e: React.MouseEvent) => {

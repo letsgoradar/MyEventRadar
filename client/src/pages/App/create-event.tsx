@@ -648,7 +648,7 @@ export function AppCreateEvent() {
                         <FormLabel>Startdatum en -tijd</FormLabel>
                         <DateTimePicker
                           date={field.value instanceof Date ? field.value : new Date(field.value)}
-                          setDate={(date: Date) => field.onChange(date)}
+                          setDate={(date) => field.onChange(date)}
                           placement="top"
                           className="relative z-50"
                         />
@@ -664,8 +664,8 @@ export function AppCreateEvent() {
                       <FormItem className="flex flex-col">
                         <FormLabel>Einddatum en -tijd</FormLabel>
                         <DateTimePicker
-                          date={field.value}
-                          setDate={field.onChange}
+                          date={field.value instanceof Date ? field.value : field.value ? new Date(field.value) : new Date()}
+                          setDate={(date) => field.onChange(date)}
                           placement="top"
                           className="relative z-40"
                         />

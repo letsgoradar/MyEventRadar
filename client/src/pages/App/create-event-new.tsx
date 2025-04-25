@@ -594,25 +594,7 @@ export function AppCreateEventNew() {
                   onChange={handleLocationChange}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Adres (optioneel)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Voeg een specifiek adres toe" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Dit adres wordt getoond bij je evenement.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Het adresveld is apart van het location object, dus we moeten het als zodanig behandelen */}
               </CardContent>
             </Card>
             

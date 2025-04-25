@@ -38,6 +38,15 @@ import { Link } from "wouter";
 import { LocationPicker } from "@/components/Events/LocationPicker";
 import { suggestCategory, generateTags } from "@/lib/aiTagGenerator";
 
+// Interface voor de locatie data
+interface LocationData {
+  lat: number;
+  lng: number;
+  locationName?: string;
+  address?: string;
+  notificationReach?: number;
+}
+
 // Uitgebreid schema voor het maken van een evenement
 const createEventFormSchema = insertEventSchema.extend({
   hasMaxParticipants: z.boolean().default(false),
@@ -45,6 +54,13 @@ const createEventFormSchema = insertEventSchema.extend({
   isPaid: z.boolean().default(false),
   price: z.number().nullable().optional(),
   imageFile: z.any().optional(),
+  location: z.object({
+    lat: z.number(),
+    lng: z.number(),
+    locationName: z.string().optional(),
+    address: z.string().optional(),
+    notificationReach: z.number().optional(),
+  }),
 });
 
 // Type voor formulierwaarden
@@ -71,7 +87,7 @@ export function AppCreateEvent() {
       location: {
         lat: 51.7767,
         lng: 5.5345,
-        name: "",
+        locationName: "",
         address: "",
       },
       hostId: 1, // Dummy hostId (wordt op de server ingesteld op basis van ingelogde gebruiker)
@@ -631,8 +647,8 @@ export function AppCreateEvent() {
                       <FormItem className="flex flex-col">
                         <FormLabel>Startdatum en -tijd</FormLabel>
                         <DateTimePicker
-                          date={field.value}
-                          setDate={field.onChange}
+                          date={field.value instanceof Date ? field.value : new Date(field.value)}
+                          setDate={(date: Date) => field.onChange(date)}
                           placement="top"
                           className="relative z-50"
                         />

@@ -36,7 +36,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Image, Plus, X, MapPin, ChevronLeft } from "lucide-react";
 import { Link } from "wouter";
 import { LocationPicker } from "@/components/Events/LocationPicker";
-// Verwijderd: import { suggestCategory, generateTags } from "@/lib/aiTagGenerator";
+import { suggestCategory, generateTags } from "@/lib/aiTagGenerator";
 
 // Uitgebreid schema voor het maken van een evenement
 const createEventFormSchema = insertEventSchema.extend({
@@ -71,10 +71,11 @@ export function AppCreateEvent() {
       location: {
         lat: 51.7767,
         lng: 5.5345,
-        notificationReach: 5.0,
-        locationName: "",
+        name: "",
+        address: "",
       },
       hostId: 1, // Dummy hostId (wordt op de server ingesteld op basis van ingelogde gebruiker)
+      tags: [],
       hasMaxParticipants: false,
       maxParticipants: null,
       isPaid: false,
@@ -110,20 +111,56 @@ export function AppCreateEvent() {
 
   // Handler voor locatie wijzigingen
   const handleLocationChange = (position: [number, number]) => {
-    const currentLocation = form.getValues("location");
     form.setValue("location", {
-      ...currentLocation,
+      ...form.getValues("location"),
       lat: position[0],
       lng: position[1],
-      // Behoud notificationReach als deze al is ingesteld, anders gebruik standaardwaarde
-      notificationReach: currentLocation?.notificationReach || 5.0,
     });
   };
 
   // Handler voor als de titel verandert (voor automatische categorieaanvulling)
-  // Aangezien suggestCategory is verwijderd, zullen we deze functie leeg laten
   const handleTitleBlur = () => {
-    // Functionaliteit verwijderd
+    const title = form.getValues('title');
+    const description = form.getValues('description');
+    
+    if (title && description && !form.getValues('category')) {
+      const combinedText = `${title} ${description}`;
+      const suggestedCategory = suggestCategory(combinedText);
+      
+      if (suggestedCategory) {
+        form.setValue('category', suggestedCategory);
+      }
+    }
+  };
+
+  // Functie om tags te genereren op basis van titel, beschrijving en categorie
+  const generateEventTags = () => {
+    const title = form.getValues('title');
+    const category = form.getValues('category');
+    
+    if (!title) {
+      toast({
+        title: "Titelvelden eerst invullen",
+        description: "Vul eerst een titel in om tags te kunnen genereren",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const tags = generateTags(title, category || "");
+    if (tags && tags.length > 0) {
+      form.setValue('tags', tags);
+      toast({
+        title: "Tags gegenereerd",
+        description: `${tags.length} tags zijn toegevoegd op basis van evenementgegevens`,
+      });
+    } else {
+      toast({
+        title: "Geen tags gegenereerd",
+        description: "Er konden geen relevante tags worden gegenereerd. Probeer de titel of beschrijving aan te passen.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Handler voor afbeelding uploads
@@ -337,7 +374,7 @@ export function AppCreateEvent() {
   };
 
   return (
-    <AppLayout title="Nieuw Evenement" showMap={false}>
+    <AppLayout title="Nieuw Evenement">
       <div className="flex flex-col h-full">
         {/* Terug knop in header */}
         <div className="mb-4">
@@ -373,7 +410,19 @@ export function AppCreateEvent() {
                             {...field} 
                             onChange={(e) => {
                               field.onChange(e);
-                              // Automatische category suggestion verwijderd
+                              
+                              // Als er al een beschrijving is, kan er een categorie worden voorgesteld
+                              setTimeout(() => {
+                                const description = form.getValues('description');
+                                if (description && description.length > 5 && e.target.value.length > 3) {
+                                  const combinedText = `${e.target.value} ${description}`;
+                                  const suggestedCategory = suggestCategory(combinedText);
+                                  
+                                  if (suggestedCategory && !form.getValues('category')) {
+                                    form.setValue('category', suggestedCategory);
+                                  }
+                                }
+                              }, 300);
                             }}
                             onBlur={handleTitleBlur}
                           />
@@ -430,8 +479,6 @@ export function AppCreateEvent() {
                   />
                 </CardContent>
               </Card>
-              
-
               
               <Card>
                 <CardHeader>
@@ -581,7 +628,7 @@ export function AppCreateEvent() {
                       <FormItem className="flex flex-col">
                         <FormLabel>Startdatum en -tijd</FormLabel>
                         <DateTimePicker
-                          date={field.value instanceof Date ? field.value : new Date(field.value)}
+                          date={field.value}
                           setDate={field.onChange}
                           placement="top"
                           className="relative z-50"
@@ -598,7 +645,7 @@ export function AppCreateEvent() {
                       <FormItem className="flex flex-col">
                         <FormLabel>Einddatum en -tijd</FormLabel>
                         <DateTimePicker
-                          date={field.value instanceof Date ? field.value : field.value ? new Date(field.value) : undefined}
+                          date={field.value}
                           setDate={field.onChange}
                           placement="top"
                           className="relative z-40"
@@ -634,7 +681,49 @@ export function AppCreateEvent() {
                 </CardContent>
               </Card>
               
-
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex justify-between items-center">
+                    <span className="text-lg">Tags</span>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      type="button"
+                      onClick={generateEventTags}
+                    >
+                      Genereer tags
+                    </Button>
+                  </CardTitle>
+                  <CardDescription>
+                    Tags helpen je evenement vindbaar te maken
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FormField
+                    control={form.control}
+                    name="tags"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input 
+                            placeholder="Voeg tags toe, gescheiden door komma's" 
+                            value={field.value.join(', ')}
+                            onChange={(e) => {
+                              const tagsArray = e.target.value
+                                .split(',')
+                                .map(tag => tag.trim())
+                                .filter(tag => tag.length > 0);
+                              field.onChange(tagsArray);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+              
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Extra opties</CardTitle>

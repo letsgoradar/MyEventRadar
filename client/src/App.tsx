@@ -38,9 +38,6 @@ import AppFavoritesPage from "@/pages/App/favorites"
 import AppProfilePage from "@/pages/App/profile"
 import { AppWelcomePage } from "@/pages/App/welcome"
 import AppForgotPasswordPage from "@/pages/App/forgot-password"
-// Nieuwe app pagina's zonder AppLayout conflicten
-import AppCreateEventNew from "@/pages/App/create-event-new"
-import AppEventDetailNew from "@/pages/App/event-detail-new"
 
 // Helper component voor redirects
 function AppRedirect({ to }: { to: string }) {
@@ -236,12 +233,6 @@ export default function App() {
             </Route>
             
             {/* App specifieke routes */}
-            <Route path="/app/create-event-new">
-              <AppCreateEventNew />
-            </Route>
-            <Route path="/app/event-new/:id">
-              <AppEventDetailNew />
-            </Route>
             <Route path="/app/create-event">
               <AppCreateEvent />
             </Route>

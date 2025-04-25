@@ -273,15 +273,12 @@ export function AppLayout({
     }
   }, [displayedEvents, onFilteredEventsChange]);
   
-  // Geef voorkeur aan de kaartweergave als showMap=true of zorg dat list weergave wordt gebruikt als showMap=false
+  // Geef voorkeur aan de kaartweergave als showMap=true
   React.useEffect(() => {
     if (showMap && view === "list") {
       setView("map");
-    } else if (!showMap && view === "map") {
-      // Als showMap expliciet false is en de huidige weergave is map, zet terug naar list
-      setView("list");
     }
-  }, [showMap, view]);
+  }, [showMap]);
   
   // Functie om te schakelen tussen lijsten kaartweergave
   const toggleView = () => {

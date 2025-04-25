@@ -126,6 +126,7 @@ export const insertEventSchema = z.object({
   maxParticipants: z.number().optional(),
   hostId: z.number(),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
+  tags: z.array(z.string()).max(5, "Maximaal 5 tags toegestaan"),
   imageUrl: z.string().optional(),
 });
 

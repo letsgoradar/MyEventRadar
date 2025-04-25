@@ -36,7 +36,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Image, Plus, X, MapPin, ChevronLeft } from "lucide-react";
 import { Link } from "wouter";
 import { LocationPicker } from "@/components/Events/LocationPicker";
-import { suggestCategory, generateTags } from "@/lib/aiTagGenerator";
+// Verwijderd: import { suggestCategory, generateTags } from "@/lib/aiTagGenerator";
 
 // Uitgebreid schema voor het maken van een evenement
 const createEventFormSchema = insertEventSchema.extend({
@@ -75,7 +75,6 @@ export function AppCreateEvent() {
         locationName: "",
       },
       hostId: 1, // Dummy hostId (wordt op de server ingesteld op basis van ingelogde gebruiker)
-      tags: [],
       hasMaxParticipants: false,
       maxParticipants: null,
       isPaid: false,
@@ -122,48 +121,9 @@ export function AppCreateEvent() {
   };
 
   // Handler voor als de titel verandert (voor automatische categorieaanvulling)
+  // Aangezien suggestCategory is verwijderd, zullen we deze functie leeg laten
   const handleTitleBlur = () => {
-    const title = form.getValues('title');
-    const description = form.getValues('description');
-    
-    if (title && description && !form.getValues('category')) {
-      const combinedText = `${title} ${description}`;
-      const suggestedCategory = suggestCategory(combinedText);
-      
-      if (suggestedCategory) {
-        form.setValue('category', suggestedCategory);
-      }
-    }
-  };
-
-  // Functie om tags te genereren op basis van titel, beschrijving en categorie
-  const generateEventTags = () => {
-    const title = form.getValues('title');
-    const category = form.getValues('category');
-    
-    if (!title) {
-      toast({
-        title: "Titelvelden eerst invullen",
-        description: "Vul eerst een titel in om tags te kunnen genereren",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    const tags = generateTags(title, category || "");
-    if (tags && tags.length > 0) {
-      form.setValue('tags', tags);
-      toast({
-        title: "Tags gegenereerd",
-        description: `${tags.length} tags zijn toegevoegd op basis van evenementgegevens`,
-      });
-    } else {
-      toast({
-        title: "Geen tags gegenereerd",
-        description: "Er konden geen relevante tags worden gegenereerd. Probeer de titel of beschrijving aan te passen.",
-        variant: "destructive"
-      });
-    }
+    // Functionaliteit verwijderd
   };
 
   // Handler voor afbeelding uploads
@@ -413,19 +373,7 @@ export function AppCreateEvent() {
                             {...field} 
                             onChange={(e) => {
                               field.onChange(e);
-                              
-                              // Als er al een beschrijving is, kan er een categorie worden voorgesteld
-                              setTimeout(() => {
-                                const description = form.getValues('description');
-                                if (description && description.length > 5 && e.target.value.length > 3) {
-                                  const combinedText = `${e.target.value} ${description}`;
-                                  const suggestedCategory = suggestCategory(combinedText);
-                                  
-                                  if (suggestedCategory && !form.getValues('category')) {
-                                    form.setValue('category', suggestedCategory);
-                                  }
-                                }
-                              }, 300);
+                              // Automatische category suggestion verwijderd
                             }}
                             onBlur={handleTitleBlur}
                           />

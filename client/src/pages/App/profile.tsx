@@ -1,5 +1,5 @@
 import * as React from "react";
-import { App2Layout } from "@/components/App2/App2Layout";
+import { AppLayout } from "@/components/App/AppLayout";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -31,7 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import ProfilePhotoUpload from "@/components/App2/ProfilePhotoUpload";
+import ProfilePhotoUpload from "@/components/App/ProfilePhotoUpload";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 
@@ -61,7 +61,7 @@ interface UserProfile {
   bio: string;
 }
 
-export function App2ProfilePage() {
+export function AppProfilePage() {
   const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const { user: authUser, logoutMutation } = useAuth();
@@ -86,7 +86,7 @@ export function App2ProfilePage() {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         // Doorsturen naar welkomstpagina na uitloggen
-        setLocation('/app2/welcome');
+        setLocation('/app/welcome');
         toast({
           title: "Uitgelogd",
           description: "Je bent succesvol uitgelogd.",
@@ -96,8 +96,8 @@ export function App2ProfilePage() {
   };
 
   return (
-    <App2Layout title="Profiel" header={
-      // Dummy header component om App2Layout re-rendering te triggeren bij profielfoto update
+    <AppLayout title="Profiel" header={
+      // Dummy header component om AppLayout re-rendering te triggeren bij profielfoto update
       <div className="hidden"></div>
     }>
       <div className="pb-20 h-full overflow-auto">
@@ -126,7 +126,7 @@ export function App2ProfilePage() {
                       localStorage.setItem('profilePhotoUrl', absolutePhotoUrl);
                       console.log("Saved to localStorage from profile page:", absolutePhotoUrl);
                       
-                      // Er is geen reload meer nodig dankzij onze verbeterde state handling in App2Layout
+                      // Er is geen reload meer nodig dankzij onze verbeterde state handling in AppLayout
                     }
                     
                     toast({
@@ -292,8 +292,8 @@ export function App2ProfilePage() {
           </TabsContent>
         </Tabs>
       </div>
-    </App2Layout>
+    </AppLayout>
   );
 }
 
-export default App2ProfilePage;
+export default AppProfilePage;

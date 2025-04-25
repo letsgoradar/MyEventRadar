@@ -74,7 +74,10 @@ export function AppEventDetail() {
 
   if (error || !event) {
     return (
-      <AppLayout title="Evenement niet gevonden">
+      <AppLayout 
+        title="Evenement niet gevonden"
+        hideSearchAndFilters={true}
+      >
         <div className="p-4">
           <div className="text-center py-8">
             <AlertCircle className="h-12 w-12 mx-auto text-red-500 mb-4" />

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AppLayout } from "@/components/App/AppLayout";
+import AppLayout from "@/components/App/AppLayout";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "@/hooks/useLocation";
 import { fetchEventsByRadius } from "@/lib/api";

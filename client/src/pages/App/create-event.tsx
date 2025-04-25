@@ -634,49 +634,7 @@ export function AppCreateEvent() {
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex justify-between items-center">
-                    <span className="text-lg">Tags</span>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      type="button"
-                      onClick={generateEventTags}
-                    >
-                      Genereer tags
-                    </Button>
-                  </CardTitle>
-                  <CardDescription>
-                    Tags helpen je evenement vindbaar te maken
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <FormField
-                    control={form.control}
-                    name="tags"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input 
-                            placeholder="Voeg tags toe, gescheiden door komma's" 
-                            value={Array.isArray(field.value) ? field.value.join(', ') : ''}
-                            onChange={(e) => {
-                              const tagsArray = e.target.value
-                                .split(',')
-                                .map(tag => tag.trim())
-                                .filter(tag => tag.length > 0);
-                              field.onChange(tagsArray);
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Extra opties</CardTitle>

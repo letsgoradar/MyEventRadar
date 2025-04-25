@@ -1,6 +1,6 @@
 import React from "react";
-import { App2Layout } from "@/components/App2/App2Layout";
-import { ForgotPasswordForm } from "@/components/App2/ForgotPasswordForm";
+import { AppLayout } from "@/components/App/AppLayout";
+import { ForgotPasswordForm } from "@/components/App/ForgotPasswordForm";
 import { Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -9,15 +9,15 @@ export default function ForgotPasswordPage() {
 
   // Als een gebruiker al is ingelogd, stuur ze naar de hoofdpagina
   if (user) {
-    return <Redirect to="/app2" />;
+    return <Redirect to="/app" />;
   }
 
   return (
-    <App2Layout 
+    <AppLayout 
       title="Wachtwoord Reset" 
       hideBottomNav 
       showBackButton
-      backTo="/app2/welcome"
+      backTo="/app/welcome"
     >
       <div className="flex flex-col items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
@@ -28,6 +28,6 @@ export default function ForgotPasswordPage() {
           <ForgotPasswordForm />
         </div>
       </div>
-    </App2Layout>
+    </AppLayout>
   );
 }

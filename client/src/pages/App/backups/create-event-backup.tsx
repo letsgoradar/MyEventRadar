@@ -114,6 +114,8 @@ interface LocationData {
   lat: number;
   lng: number;
   locationName?: string;
+  address?: string;
+  notificationReach?: number;
 }
 
 // Uitgebreid schema voor het maken van een evenement
@@ -127,6 +129,8 @@ const createEventFormSchema = insertEventSchema.extend({
     lat: z.number(),
     lng: z.number(),
     locationName: z.string().optional(),
+    address: z.string().optional(),
+    notificationReach: z.number().optional(),
   }),
 });
 
@@ -155,6 +159,7 @@ export function AppCreateEvent() {
         lat: 51.7767,
         lng: 5.5345,
         locationName: "",
+        address: "",
       },
       hostId: 1, // Dummy hostId (wordt op de server ingesteld op basis van ingelogde gebruiker)
       tags: [],
@@ -198,6 +203,7 @@ export function AppCreateEvent() {
       lat: lat,
       lng: lng,
       locationName: getLocationName(lat, lng),
+      address: ""
     });
   };
 
@@ -687,8 +693,24 @@ export function AppCreateEvent() {
                   Waar vindt het evenement plaats?
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="mb-4">Klik op de kaart om de locatie te selecteren:</p>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="location.address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Adres</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Voer een volledig adres in"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
                 <LocationPicker 
                   defaultPosition={[
                     form.getValues('location')?.lat || 51.7767, 
@@ -696,6 +718,12 @@ export function AppCreateEvent() {
                   ]}
                   onChange={handleLocationChange}
                 />
+                <div className="flex items-center mt-2 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  <span>
+                    Lat: {(form.watch('location')?.lat || 0).toFixed(6)}, Lng: {(form.watch('location')?.lng || 0).toFixed(6)}
+                  </span>
+                </div>
               </CardContent>
             </Card>
             

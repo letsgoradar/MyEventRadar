@@ -40,8 +40,13 @@ export function AppEventDetail() {
     // Parse de URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const returnParam = urlParams.get('returnTo');
-    if (returnParam) {
+    
+    // Alleen accepteren als het een interne /app route is, anders default naar /app
+    if (returnParam && returnParam.startsWith('/app')) {
       setReturnTo(returnParam);
+    } else {
+      // Voor alle andere gevallen, gebruik standaard /app
+      setReturnTo('/app');
     }
   }, []);
 

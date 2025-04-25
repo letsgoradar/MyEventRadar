@@ -2,7 +2,7 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
-import { App2Layout } from "@/components/App2/App2Layout";
+import AppLayout from "@/components/App/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,21 +20,21 @@ import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 import { formatDistanceToNow, format, differenceInHours } from "date-fns";
 import { nl } from "date-fns/locale";
 import { apiRequest } from "@/lib/api";
-import { Event } from "@shared/schema";
+import { EventInterface } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import 'leaflet/dist/leaflet.css';
 import { getLocationName } from "@/utils/location-utils";
 
-export function App2EventDetail() {
+export function AppEventDetail() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const eventId = parseInt(id);
   
   // Haal de returnTo parameter uit de URL
-  const [returnTo, setReturnTo] = useState('/app2');
+  const [returnTo, setReturnTo] = useState('/app');
   
   useEffect(() => {
     // Parse de URL parameters
@@ -45,14 +45,14 @@ export function App2EventDetail() {
     }
   }, []);
 
-  const { data: event, isLoading, error } = useQuery<Event>({
+  const { data: event, isLoading, error } = useQuery<EventInterface>({
     queryKey: [`/api/events/${eventId}`],
     enabled: !isNaN(eventId),
   });
 
   if (isLoading) {
     return (
-      <App2Layout title="Evenement">
+      <AppLayout title="Evenement">
         <div className="p-4">
           <div className="animate-pulse space-y-4">
             <div className="h-48 bg-gray-200 rounded-md" />
@@ -65,13 +65,13 @@ export function App2EventDetail() {
             </div>
           </div>
         </div>
-      </App2Layout>
+      </AppLayout>
     );
   }
 
   if (error || !event) {
     return (
-      <App2Layout title="Evenement niet gevonden">
+      <AppLayout title="Evenement niet gevonden">
         <div className="p-4">
           <div className="text-center py-8">
             <AlertCircle className="h-12 w-12 mx-auto text-red-500 mb-4" />
@@ -84,7 +84,7 @@ export function App2EventDetail() {
             </Button>
           </div>
         </div>
-      </App2Layout>
+      </AppLayout>
     );
   }
 
@@ -172,7 +172,7 @@ export function App2EventDetail() {
   const eventImages = [event.imageUrl].filter(Boolean) as string[];
   
   return (
-    <App2Layout title={event.title}>
+    <AppLayout title={event.title}>
       <div className="pb-20">
         <div className="sticky top-0 bg-background z-10 flex items-center justify-between p-4 border-b">
           <Button variant="ghost" size="icon" asChild>
@@ -278,7 +278,7 @@ export function App2EventDetail() {
               <div>
                 <h2 className="text-xl font-bold mb-3">Tags</h2>
                 <div className="flex flex-wrap gap-2">
-                  {event.tags.map((tag, i) => (
+                  {event.tags.map((tag: string, i: number) => (
                     <Badge key={i} variant="secondary">{tag}</Badge>
                   ))}
                 </div>
@@ -293,8 +293,8 @@ export function App2EventDetail() {
           </div>
         </div>
       </div>
-    </App2Layout>
+    </AppLayout>
   );
 }
 
-export default App2EventDetail;
+export default AppEventDetail;

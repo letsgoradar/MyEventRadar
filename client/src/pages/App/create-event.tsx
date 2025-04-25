@@ -16,6 +16,7 @@ import { insertEventSchema } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
+import { getLocationName } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
@@ -126,11 +127,13 @@ export function AppCreateEvent() {
   });
 
   // Handler voor locatie wijzigingen
-  const handleLocationChange = (position: [number, number]) => {
+  const handleLocationChange = (location: LocationData) => {
     form.setValue("location", {
       ...form.getValues("location"),
-      lat: position[0],
-      lng: position[1],
+      lat: location.lat,
+      lng: location.lng,
+      locationName: location.locationName || getLocationName(location.lat, location.lng),
+      address: location.address || ""
     });
   };
 
@@ -689,7 +692,14 @@ export function AppCreateEvent() {
                       form.getValues('location')?.lat || 51.7767, 
                       form.getValues('location')?.lng || 5.5345
                     ]}
-                    onChange={handleLocationChange}
+                    onChange={(position) => {
+                      // De LocationPicker component geeft een array terug, maar we willen een object
+                      handleLocationChange({
+                        lat: position[0],
+                        lng: position[1],
+                        locationName: getLocationName(position[0], position[1])
+                      });
+                    }}
                   />
                   <div className="flex items-center mt-4 text-sm text-muted-foreground">
                     <MapPin className="h-4 w-4 mr-2" />

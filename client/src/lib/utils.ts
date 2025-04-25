@@ -63,3 +63,44 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
 
   return distance;
 }
+
+// Helper functie om een locatienaam te genereren op basis van coördinaten
+export function getLocationName(lat: number, lng: number): string {
+  // Vaste locatienamen voor bepaalde coördinaten (deze kan worden uitgebreid)
+  const knownLocations: Record<string, string> = {
+    // Formaat: "lat,lng": "locatienaam"
+    "51.7767,5.5345": "Oss Centrum",
+    "51.76560894885424,5.522775650024414": "Schuilkelder Oss",
+    "52.3676,4.9041": "Amsterdam",
+    "51.9244,4.4777": "Rotterdam",
+    "52.0705,4.3007": "Den Haag",
+    "52.0907,5.1214": "Utrecht",
+    "51.4827,5.6873": "Eindhoven",
+  };
+
+  // Check of er een bekende locatie is, rond af op 4 decimalen
+  const roundedLocation = `${Math.round(lat * 10000) / 10000},${Math.round(lng * 10000) / 10000}`;
+  
+  // Zoek de dichtstbijzijnde bekende locatie (binnen 0.05 graden ~5km)
+  for (const [coords, name] of Object.entries(knownLocations)) {
+    const [knownLat, knownLng] = coords.split(',').map(Number);
+    const distance = calculateDistance(lat, lng, knownLat, knownLng);
+    
+    if (distance < 5) { // Binnen 5km van een bekende locatie
+      return name;
+    }
+  }
+  
+  // Als er geen bekende locatie is, genereer een naam op basis van de coördinaten
+  // Bepaal een regio op basis van Noord-Nederland, Midden-Nederland, of Zuid-Nederland
+  let region = "";
+  if (lat > 52.5) {
+    region = "Noord-Nederland";
+  } else if (lat > 51.8) {
+    region = "Midden-Nederland";
+  } else {
+    region = "Zuid-Nederland";
+  }
+  
+  return `Locatie in ${region}`;
+}

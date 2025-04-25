@@ -226,22 +226,20 @@ export function AppEventDetail() {
   };
 
   // Controleert of er een zoekstatus is opgeslagen
-  const [hasSearchState, setHasSearchState] = useState(false);
-  
-  useEffect(() => {
-    // Controleer of er een opgeslagen zoekstatus is
-    const lastSearchState = localStorage.getItem('lastSearchState');
-    if (lastSearchState) {
-      try {
+  const [hasSearchState, setHasSearchState] = useState(() => {
+    // Dit wordt alleen uitgevoerd bij de initiële render
+    try {
+      const lastSearchState = localStorage.getItem('lastSearchState');
+      if (lastSearchState) {
         const searchState = JSON.parse(lastSearchState);
         // Controleer of de zoekstatus nog geldig is (max 1 uur oud)
-        const isValid = (new Date().getTime() - searchState.timestamp) < (60 * 60 * 1000);
-        setHasSearchState(isValid);
-      } catch (e) {
-        console.error("Fout bij parsen van zoekstatus:", e);
+        return (new Date().getTime() - searchState.timestamp) < (60 * 60 * 1000);
       }
+    } catch (e) {
+      console.error("Fout bij parsen van zoekstatus:", e);
     }
-  }, []);
+    return false;
+  });
 
   // Voorbereiden van de juiste data voor weergave
   const eventImages = [event.imageUrl].filter(Boolean) as string[];

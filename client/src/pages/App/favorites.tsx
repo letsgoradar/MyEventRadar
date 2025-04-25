@@ -1,17 +1,17 @@
 import * as React from "react";
-import { App2Layout } from "@/components/App2/App2Layout";
+import AppLayout from "@/components/App/AppLayout";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
-import { Event } from "@shared/schema";
+import { EventInterface } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Heart } from "lucide-react";
 import { Link } from "wouter";
 import EventCard from "@/components/Events/EventCard";
 
-export function App2FavoritesPage() {
+export function AppFavoritesPage() {
   // Query voor favoriete evenementen
-  const { data: favoriteEvents = [], isLoading } = useQuery<Event[]>({
+  const { data: favoriteEvents = [], isLoading } = useQuery<EventInterface[]>({
     queryKey: ['/api/events/favorites'],
   });
 
@@ -34,7 +34,7 @@ export function App2FavoritesPage() {
           Je hebt nog geen evenementen als favoriet gemarkeerd.
         </p>
         <Button asChild>
-          <Link href="/app2">
+          <Link href="/app">
             Ontdek evenementen
           </Link>
         </Button>
@@ -43,7 +43,7 @@ export function App2FavoritesPage() {
   );
 
   return (
-    <App2Layout title="Favorieten">
+    <AppLayout title="Favorieten">
       <div className="pb-20">
         
         {isLoading ? (
@@ -53,15 +53,15 @@ export function App2FavoritesPage() {
         ) : (
           <div className="space-y-4">
             {favoriteEvents.map((event) => (
-              <Link key={event.id} href={`/app2/event/${event.id}`} className="block">
+              <Link key={event.id} href={`/app/event/${event.id}`} className="block">
                 <EventCard event={event} />
               </Link>
             ))}
           </div>
         )}
       </div>
-    </App2Layout>
+    </AppLayout>
   );
 }
 
-export default App2FavoritesPage;
+export default AppFavoritesPage;

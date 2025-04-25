@@ -39,8 +39,8 @@ import AppProfilePage from "@/pages/App/profile"
 import { AppWelcomePage } from "@/pages/App/welcome"
 import AppForgotPasswordPage from "@/pages/App/forgot-password"
 // Nieuwe app pagina's zonder AppLayout conflicten
-import { AppCreateEventNew } from "@/pages/App/create-event-new"
-import { AppEventDetailNew } from "@/pages/App/event-detail-new"
+import AppCreateEventNew from "@/pages/App/create-event-new"
+import AppEventDetailNew from "@/pages/App/event-detail-new"
 
 // Helper component voor redirects
 function AppRedirect({ to }: { to: string }) {

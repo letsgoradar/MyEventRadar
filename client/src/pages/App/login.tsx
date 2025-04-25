@@ -1,15 +1,15 @@
 import React from "react";
-import { LoginForm } from "@/components/App2/LoginForm";
-import { App2Layout } from "@/components/App2/App2Layout";
+import { LoginForm } from "@/components/App/LoginForm";
+import AppLayout from "@/components/App/AppLayout";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 
-export default function LoginPage() {
+export function AppLoginPage() {
   const { user } = useAuth();
 
   // Als een gebruiker al is ingelogd, stuur ze naar de hoofdpagina
   if (user) {
-    return <Redirect to="/app2" />;
+    return <Redirect to="/app" />;
   }
 
   return (
@@ -19,7 +19,7 @@ export default function LoginPage() {
       
       {/* Header met terugknop */}
       <div className="relative z-10 flex items-center p-4 border-b border-gray-800">
-        <a href="/app2/welcome" className="flex items-center text-white">
+        <a href="/app/welcome" className="flex items-center text-white">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
@@ -52,3 +52,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+export default AppLoginPage;

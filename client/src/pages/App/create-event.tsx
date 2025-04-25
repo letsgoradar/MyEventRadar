@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useState, useEffect } from "react";
 import {
   Form,
   FormControl,
@@ -35,7 +36,6 @@ import { CATEGORIES } from "@shared/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Image, Plus, X, MapPin, ChevronLeft } from "lucide-react";
 import { Link } from "wouter";
-import { LocationPicker } from "@/components/Events/LocationPicker";
 import { suggestCategory, generateTags } from "@/lib/aiTagGenerator";
 import { 
   Tabs, 
@@ -45,6 +45,69 @@ import {
 } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import AppBottomNav from "@/components/App/AppBottomNav";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Fix voor Leaflet iconen in React
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+});
+
+// Aangepaste LocationPicker component - met standaard blauwe marker
+const LocationPicker = ({ 
+  defaultPosition = [51.7767, 5.5345] as [number, number],
+  onChange
+}: { 
+  defaultPosition?: [number, number], 
+  onChange: (lat: number, lng: number) => void 
+}) => {
+  // Zorg ervoor dat we altijd geldige coördinaten gebruiken
+  const validDefaultPosition: [number, number] = Array.isArray(defaultPosition) && 
+    defaultPosition.length === 2 && 
+    typeof defaultPosition[0] === 'number' && 
+    typeof defaultPosition[1] === 'number' ? 
+    defaultPosition : [51.7767, 5.5345];
+  
+  const [markerPosition, setMarkerPosition] = useState<[number, number]>(validDefaultPosition);
+  
+  // Roep onChange aan bij initialisatie
+  useEffect(() => {
+    onChange(validDefaultPosition[0], validDefaultPosition[1]);
+  }, []);
+  
+  const MapEvents = () => {
+    useMapEvents({
+      click(e) {
+        const { lat, lng } = e.latlng;
+        setMarkerPosition([lat, lng]);
+        onChange(lat, lng);
+      },
+    });
+    return null;
+  };
+
+  return (
+    <div className="h-[300px] w-full rounded-md overflow-hidden border">
+      <MapContainer
+        center={markerPosition}
+        zoom={13}
+        scrollWheelZoom={true}
+        style={{ height: '100%', width: '100%' }}
+      >
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          subdomains="abcd"
+        />
+        <Marker position={markerPosition} />
+        <MapEvents />
+      </MapContainer>
+    </div>
+  );
+};
 
 // Interface voor de locatie data
 interface LocationData {
@@ -134,13 +197,13 @@ export function AppCreateEvent() {
   });
 
   // Handler voor locatie wijzigingen
-  const handleLocationChange = (location: LocationData) => {
+  const handleLocationChange = (lat: number, lng: number) => {
     form.setValue("location", {
       ...form.getValues("location"),
-      lat: location.lat,
-      lng: location.lng,
-      locationName: location.locationName || getLocationName(location.lat, location.lng),
-      address: location.address || ""
+      lat: lat,
+      lng: lng,
+      locationName: getLocationName(lat, lng),
+      address: ""
     });
   };
 
@@ -630,47 +693,37 @@ export function AppCreateEvent() {
                   Waar vindt het evenement plaats?
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <LocationPicker 
                   defaultPosition={[
                     form.getValues('location')?.lat || 51.7767, 
                     form.getValues('location')?.lng || 5.5345
                   ]}
-                  onChange={(position: [number, number]) => {
-                    // De LocationPicker component geeft een array terug, maar we willen een object
-                    const locationData: LocationData = {
-                      lat: position[0],
-                      lng: position[1],
-                      locationName: getLocationName(position[0], position[1])
-                    };
-                    handleLocationChange(locationData);
-                  }}
+                  onChange={handleLocationChange}
                 />
-                <div className="flex items-center mt-4 text-sm text-muted-foreground">
+                <div className="flex items-center mt-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4 mr-2" />
                   <span>
                     Lat: {(form.watch('location')?.lat || 0).toFixed(6)}, Lng: {(form.watch('location')?.lng || 0).toFixed(6)}
                   </span>
                 </div>
                 
-                <div className="mt-4">
-                  <FormField
-                    control={form.control}
-                    name="location.address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Adres</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Voer een volledig adres in"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="location.address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Adres</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Voer een volledig adres in"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
             

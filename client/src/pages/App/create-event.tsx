@@ -1,5 +1,5 @@
 import * as React from "react";
-import { App2Layout } from "@/components/App2/App2Layout";
+import AppLayout from "@/components/App/AppLayout";
 import {
   Form,
   FormControl,
@@ -52,7 +52,7 @@ type CreateEventFormValues = z.infer<typeof createEventFormSchema>;
 
 const MAX_IMAGES = 5;
 
-export function App2CreateEvent() {
+export function AppCreateEvent() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [imagePreviews, setImagePreviews] = React.useState<string[]>([]);
@@ -97,7 +97,7 @@ export function App2CreateEvent() {
         title: "Evenement aangemaakt!",
         description: "Je evenement is succesvol aangemaakt.",
       });
-      navigate("/app2");
+      navigate("/app");
     },
     onError: (error: Error) => {
       console.error('Error creating event:', error);
@@ -374,12 +374,12 @@ export function App2CreateEvent() {
   };
 
   return (
-    <App2Layout title="Nieuw Evenement">
+    <AppLayout title="Nieuw Evenement">
       <div className="flex flex-col h-full">
         {/* Terug knop in header */}
         <div className="mb-4">
           <Button variant="ghost" size="sm" asChild className="gap-1">
-            <Link href="/app2">
+            <Link href="/app">
               <ChevronLeft className="h-4 w-4" />
               <span>Terug</span>
             </Link>
@@ -838,8 +838,8 @@ export function App2CreateEvent() {
           </Form>
         </div>
       </div>
-    </App2Layout>
+    </AppLayout>
   );
 }
 
-export default App2CreateEvent;
+export default AppCreateEvent;

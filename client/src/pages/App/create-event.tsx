@@ -33,23 +33,24 @@ import { Switch } from "@/components/ui/switch";
 import { ImageGenerator } from "@/components/Events/ImageGenerator";
 import { DateTimePicker } from "@/components/date-time-picker";
 import { CATEGORIES } from "@shared/schema";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Image, Plus, X, MapPin, ChevronLeft, ChevronRight, Check, AlertCircle } from "lucide-react";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Image, Plus, X, ChevronLeft, ChevronRight, Check, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
-import { suggestCategory, generateTags } from "@/lib/aiTagGenerator";
+import { suggestCategory } from "@/lib/aiTagGenerator";
 import { 
   Tabs, 
   TabsContent, 
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import AppBottomNav from "@/components/App/AppBottomNav";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getBestCategoryImage } from "@/lib/categoryImages";
+import CategoryImageSelector from "@/components/Events/CategoryImageSelector";
 
 // Fix voor Leaflet iconen in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -128,7 +129,6 @@ type CreateEventFormValues = z.infer<typeof createEventFormSchema>;
 type StepType = {
   id: number;
   title: string;
-  description: string;
   fields: (keyof CreateEventFormValues)[];
 };
 
@@ -136,31 +136,26 @@ const steps: StepType[] = [
   {
     id: 1,
     title: "Basisinformatie",
-    description: "Vul de belangrijkste gegevens van je evenement in",
-    fields: ["title", "description", "category", "tags"],
+    fields: ["title", "description", "category"],
   },
   {
     id: 2,
     title: "Datum en Tijd",
-    description: "Wanneer vindt het evenement plaats?",
     fields: ["startTime", "endTime"],
   },
   {
     id: 3,
     title: "Locatie",
-    description: "Waar vindt het evenement plaats?",
     fields: ["location"],
   },
   {
     id: 4,
     title: "Deelname",
-    description: "Is het evenement betaald? Is er een limiet op het aantal deelnemers?",
     fields: ["isPaid", "price", "hasMaxParticipants", "maxParticipants"],
   },
   {
     id: 5,
     title: "Afbeelding",
-    description: "Voeg een afbeelding toe voor je evenement",
     fields: ["imageUrl"],
   },
 ];
@@ -170,12 +165,13 @@ const MAX_IMAGES = 5;
 export function AppCreateEvent() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [imagePreviews, setImagePreviews] = React.useState<string[]>([]);
-  const [selectedImages, setSelectedImages] = React.useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [stepValidations, setStepValidations] = useState<Record<number, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [stepErrors, setStepErrors] = useState<Record<number, string[]>>({});
+  const [imageTabValue, setImageTabValue] = useState<string>("category"); // default tab voor afbeeldingen
 
   // Maak het formulier met standaardwaarden
   const form = useForm<CreateEventFormValues>({
@@ -267,6 +263,19 @@ export function AppCreateEvent() {
     }
   };
 
+  // Effect om standaardafbeelding in te stellen wanneer categorie verandert
+  useEffect(() => {
+    const category = form.getValues('category');
+    const title = form.getValues('title');
+    const description = form.getValues('description');
+    
+    if (category && !form.getValues('imageUrl') && currentStep === 5) {
+      const bestImage = getBestCategoryImage(category, title, description);
+      form.setValue('imageUrl', bestImage);
+      setImagePreviews([bestImage]);
+    }
+  }, [currentStep, form]);
+
   // Valideer een specifieke stap
   const validateStep = async (stepNumber: number): Promise<{ valid: boolean, errors: string[] }> => {
     const step = steps[stepNumber - 1];
@@ -315,7 +324,9 @@ export function AppCreateEvent() {
         break;
         
       case 5: // Afbeelding
-        // Afbeelding is optioneel, geen validatie nodig
+        if (!form.getValues('imageUrl')) {
+          errors.push("Kies een afbeelding voor je evenement");
+        }
         break;
     }
     
@@ -346,36 +357,6 @@ export function AppCreateEvent() {
       if (suggestedCategory) {
         form.setValue('category', suggestedCategory);
       }
-    }
-  };
-
-  // Functie om tags te genereren op basis van titel, beschrijving en categorie
-  const generateEventTags = () => {
-    const title = form.getValues('title');
-    const category = form.getValues('category');
-    
-    if (!title) {
-      toast({
-        title: "Titelvelden eerst invullen",
-        description: "Vul eerst een titel in om tags te kunnen genereren",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    const tags = generateTags(title, category || "");
-    if (tags && tags.length > 0) {
-      form.setValue('tags', tags);
-      toast({
-        title: "Tags gegenereerd",
-        description: `${tags.length} tags zijn toegevoegd op basis van evenementgegevens`,
-      });
-    } else {
-      toast({
-        title: "Geen tags gegenereerd",
-        description: "Er konden geen relevante tags worden gegenereerd. Probeer de titel of beschrijving aan te passen.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -473,8 +454,8 @@ export function AppCreateEvent() {
         // Converteer naar JPEG met 85% kwaliteit voor een goede balans
         const optimizedImageUrl = canvas.toDataURL('image/jpeg', 0.85);
         
-        // Voeg deze toe aan de previews
-        setImagePreviews(prev => [...prev, optimizedImageUrl]);
+        // Update previews en selectie
+        setImagePreviews([optimizedImageUrl]); // Vervang eventuele bestaande afbeeldingen
         
         // Converteer data URL naar Blob/File voor opslag
         const byteString = atob(optimizedImageUrl.split(',')[1]);
@@ -490,13 +471,11 @@ export function AppCreateEvent() {
         const optimizedFile = new File([optimizedBlob], file.name, { type: 'image/jpeg' });
         
         // Voeg toe aan geselecteerde afbeeldingen
-        setSelectedImages(prev => [...prev, optimizedFile]);
+        setSelectedImages([optimizedFile]); // Vervang eventuele bestaande geselecteerde afbeeldingen
         
-        // Update het formulier met de eerste afbeelding als hoofdafbeelding
-        if (imagePreviews.length === 0) {
-          form.setValue('imageUrl', optimizedImageUrl);
-          form.setValue('imageFile', optimizedFile);
-        }
+        // Update het formulier
+        form.setValue('imageUrl', optimizedImageUrl);
+        form.setValue('imageFile', optimizedFile);
         
         toast({
           title: "Afbeelding geoptimaliseerd",
@@ -512,36 +491,20 @@ export function AppCreateEvent() {
 
   // Functie om een AI gegenereerde afbeelding te verwerken
   const handleAIGeneratedImage = (imageUrl: string) => {
-    // Voeg toe aan de previews
-    setImagePreviews(prev => [...prev, imageUrl]);
+    // Update preview en formulier
+    setImagePreviews([imageUrl]); // Vervang eventuele bestaande afbeeldingen
+    form.setValue('imageUrl', imageUrl);
     
-    // Als dit de eerste afbeelding is, gebruik deze als hoofdafbeelding
-    if (imagePreviews.length === 0) {
-      form.setValue('imageUrl', imageUrl);
-    }
+    toast({
+      title: "AI afbeelding gegenereerd",
+      description: "De gegenereerde afbeelding is ingesteld voor je evenement.",
+    });
   };
 
-  // Functie om een bepaalde afbeelding te verwijderen
-  const removeImage = (index: number) => {
-    // Verwijder preview en bestand uit de arrays
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
-    
-    // Als we de hoofdafbeelding verwijderen, update formulier
-    if (index === 0) {
-      // Als er nog andere afbeeldingen zijn, gebruik de nieuwe eerste
-      if (imagePreviews.length > 1) {
-        const newMainImage = imagePreviews[1]; // De nieuwe eerste afbeelding na verwijdering
-        form.setValue('imageUrl', newMainImage);
-        if (selectedImages.length > 1) {
-          form.setValue('imageFile', selectedImages[1]);
-        }
-      } else {
-        // Anders, wis de hoofdafbeelding
-        form.setValue('imageFile', undefined);
-        form.setValue('imageUrl', undefined);
-      }
-    }
+  // Handler voor categorie-afbeelding selectie
+  const handleCategoryImageSelect = (imageUrl: string) => {
+    setImagePreviews([imageUrl]); // Vervang eventuele bestaande afbeeldingen
+    form.setValue('imageUrl', imageUrl);
   };
 
   // Formulier indienen
@@ -643,13 +606,8 @@ export function AppCreateEvent() {
             {/* Stap 1: Basisinformatie */}
             {currentStep === 1 && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">{currentStepObj.title}</CardTitle>
-                  <CardDescription>
-                    {currentStepObj.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="pt-6 space-y-6">
+                  <CardTitle>Basisinformatie</CardTitle>
                   <FormField
                     control={form.control}
                     name="title"
@@ -740,66 +698,6 @@ export function AppCreateEvent() {
                       </FormItem>
                     )}
                   />
-                  
-                  <FormField
-                    control={form.control}
-                    name="tags"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex justify-between">
-                          <span>Tags</span>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 px-2 text-xs"
-                            onClick={generateEventTags}
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Auto-genereren
-                          </Button>
-                        </FormLabel>
-                        <FormControl>
-                          <div className="flex flex-wrap gap-2">
-                            {field.value?.map((tag, index) => (
-                              <Badge key={index} className="flex gap-1 items-center">
-                                {tag}
-                                <X
-                                  className="h-3 w-3 cursor-pointer"
-                                  onClick={() => {
-                                    const newTags = [...field.value || []];
-                                    newTags.splice(index, 1);
-                                    form.setValue('tags', newTags);
-                                  }}
-                                />
-                              </Badge>
-                            ))}
-                            <Input
-                              placeholder="Voeg tags toe (druk op Enter)"
-                              className="w-full mt-2"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  const target = e.target as HTMLInputElement;
-                                  const value = target.value.trim();
-                                  
-                                  if (value && (!field.value || !field.value.includes(value))) {
-                                    const newTags = [...(field.value || []), value];
-                                    form.setValue('tags', newTags);
-                                    target.value = '';
-                                  }
-                                }
-                              }}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormDescription>
-                          Tags helpen gebruikers je evenement te vinden
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </CardContent>
               </Card>
             )}
@@ -807,13 +705,8 @@ export function AppCreateEvent() {
             {/* Stap 2: Datum en Tijd */}
             {currentStep === 2 && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">{currentStepObj.title}</CardTitle>
-                  <CardDescription>
-                    {currentStepObj.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="pt-6 space-y-6">
+                  <CardTitle>Datum en tijd</CardTitle>
                   <FormField
                     control={form.control}
                     name="startTime"
@@ -855,14 +748,9 @@ export function AppCreateEvent() {
             {/* Stap 3: Locatie */}
             {currentStep === 3 && (
               <Card className="relative" style={{ zIndex: 10 }}>
-                <CardHeader>
-                  <CardTitle className="text-lg">{currentStepObj.title}</CardTitle>
-                  <CardDescription>
-                    {currentStepObj.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="mb-4">Klik op de kaart om de locatie te kiezen:</p>
+                <CardContent className="pt-6 space-y-6">
+                  <CardTitle>Locatie</CardTitle>
+                  <p className="text-sm">Klik op de kaart om de locatie te kiezen:</p>
                   <LocationPicker 
                     defaultPosition={[
                       form.getValues('location')?.lat || 51.7767, 
@@ -877,13 +765,8 @@ export function AppCreateEvent() {
             {/* Stap 4: Deelname */}
             {currentStep === 4 && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">{currentStepObj.title}</CardTitle>
-                  <CardDescription>
-                    {currentStepObj.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="pt-6 space-y-6">
+                  <CardTitle>Deelname</CardTitle>
                   <FormField
                     control={form.control}
                     name="isPaid"
@@ -990,106 +873,96 @@ export function AppCreateEvent() {
             {/* Stap 5: Afbeelding */}
             {currentStep === 5 && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">{currentStepObj.title}</CardTitle>
-                  <CardDescription>
-                    {currentStepObj.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {imagePreviews.length > 0 ? (
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap gap-2">
-                        {imagePreviews.map((url, index) => (
-                          <div key={index} className="relative">
-                            <img
-                              src={url}
-                              alt={`Preview ${index + 1}`}
-                              className="h-20 w-20 object-cover rounded-md border"
+                <CardContent className="pt-6 space-y-6">
+                  <CardTitle>Afbeelding</CardTitle>
+                  
+                  <Tabs defaultValue={imageTabValue} onValueChange={setImageTabValue}>
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="category">Standaard</TabsTrigger>
+                      <TabsTrigger value="upload">Uploaden</TabsTrigger>
+                      <TabsTrigger value="ai">AI Genereren</TabsTrigger>
+                    </TabsList>
+                    
+                    {/* Tab: Standaard categorie afbeeldingen */}
+                    <TabsContent value="category" className="py-4">
+                      {form.watch('category') ? (
+                        <CategoryImageSelector
+                          category={form.watch('category') || ''}
+                          onSelectImage={handleCategoryImageSelect}
+                          defaultImage={form.watch('imageUrl')}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-40 bg-muted rounded-md">
+                          <p className="text-sm text-muted-foreground">
+                            Selecteer eerst een categorie om afbeeldingen te zien
+                          </p>
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    {/* Tab: Afbeelding uploaden */}
+                    <TabsContent value="upload" className="py-4">
+                      {imagePreviews.length > 0 && imageTabValue === 'upload' ? (
+                        <div className="space-y-4">
+                          <div className="relative h-60 w-full rounded-md overflow-hidden border">
+                            <img 
+                              src={imagePreviews[0]} 
+                              alt="Geüploade afbeelding" 
+                              className="w-full h-full object-cover"
                             />
                             <Button
                               type="button"
                               variant="destructive"
                               size="icon"
-                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                              onClick={() => removeImage(index)}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                            {index === 0 && (
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                className="absolute -bottom-2 -right-2 h-6 px-2 text-xs rounded-full"
-                              >
-                                Hoofd
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                        {imagePreviews.length < MAX_IMAGES && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-20 w-20 border-dashed"
-                            onClick={() => document.getElementById('image-upload')?.click()}
-                          >
-                            <Plus className="h-8 w-8 text-muted-foreground" />
-                            <input
-                              id="image-upload"
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={handleImageChange}
-                            />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <Tabs defaultValue="ai">
-                        <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger value="ai">AI Genereren</TabsTrigger>
-                          <TabsTrigger value="upload">Uploaden</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="ai" className="py-4">
-                          <ImageGenerator
-                            title={form.watch('title') || ''}
-                            category={form.watch('category') || ''}
-                            description={form.watch('description') || ''}
-                            onImageGenerated={handleAIGeneratedImage}
-                          />
-                        </TabsContent>
-                        <TabsContent value="upload" className="py-4">
-                          <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md">
-                            <Image className="h-10 w-10 text-muted-foreground mb-2" />
-                            <p className="text-sm text-muted-foreground mb-4">
-                              Sleep een afbeelding hierheen of klik om te bladeren
-                            </p>
-                            <Button
-                              variant="outline"
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                document.getElementById('image-upload')?.click();
+                              className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                              onClick={() => {
+                                setImagePreviews([]);
+                                setSelectedImages([]);
+                                form.setValue('imageUrl', undefined);
+                                form.setValue('imageFile', undefined);
                               }}
                             >
-                              Selecteer afbeelding
+                              <X className="h-4 w-4" />
                             </Button>
-                            <input
-                              id="image-upload"
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={handleImageChange}
-                            />
                           </div>
-                        </TabsContent>
-                      </Tabs>
-                    </div>
-                  )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md">
+                          <Image className="h-10 w-10 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Sleep een afbeelding hierheen of klik om te bladeren
+                          </p>
+                          <Button
+                            variant="outline"
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              document.getElementById('image-upload')?.click();
+                            }}
+                          >
+                            Selecteer afbeelding
+                          </Button>
+                          <input
+                            id="image-upload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleImageChange}
+                          />
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    {/* Tab: AI Generated Image */}
+                    <TabsContent value="ai" className="py-4">
+                      <ImageGenerator
+                        title={form.watch('title') || ''}
+                        category={form.watch('category') || ''}
+                        description={form.watch('description') || ''}
+                        onImageGenerated={handleAIGeneratedImage}
+                      />
+                    </TabsContent>
+                  </Tabs>
                 </CardContent>
               </Card>
             )}

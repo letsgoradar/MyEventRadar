@@ -237,7 +237,7 @@ export default function App() {
               <AppCreateEvent />
             </Route>
             <Route path="/app/event/:id">
-              {(params) => <AppEventDetail />}
+              <AppEventDetail />
             </Route>
             <Route path="/app/events">
               <AppEventsPage />
@@ -289,7 +289,7 @@ export default function App() {
               <AppCreateEvent />
             </Route>
             <Route path="/event/:id">
-              {(params) => <AppEventDetail />}
+              <AppEventDetail />
             </Route>
             <Route path="/events">
               <AppEventsPage />

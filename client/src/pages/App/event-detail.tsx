@@ -36,14 +36,9 @@ import '@/components/Events/leaflet-fix.css';
 import { getLocationName } from "@/utils/location-utils";
 import L from 'leaflet';
 
-interface AppEventDetailProps {
-  id?: string;
-}
-
-export function AppEventDetail({ id: propsId }: AppEventDetailProps = {}) {
-  // Haal ID van props of van URL params
-  const params = useParams<{ id: string }>();
-  const id = propsId || params.id;
+export function AppEventDetail() {
+  // Gebruik alleen de Wouter useParams hook voor consistentie
+  const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const eventId = parseInt(id);

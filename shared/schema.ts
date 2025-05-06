@@ -110,7 +110,14 @@ const locationSchema = z.object({
 export const insertEventSchema = z.object({
   title: z.string().max(40, "Titel mag maximaal 40 karakters bevatten"),
   description: z.string(),
-  location: locationSchema,
+  // Maak location optioneel en voeg direct de aparte latitude/longitude velden toe
+  location: locationSchema.optional(),
+  // Direct latitude/longitude ondersteuning
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  address: z.string().optional(),
+  // Notification reach moet altijd beschikbaar zijn
+  notificationReach: z.number().default(1.5),
   category: z.enum(CATEGORIES, {
     required_error: "Kies een categorie",
     invalid_type_error: "Ongeldige categorie"

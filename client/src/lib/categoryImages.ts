@@ -163,10 +163,12 @@ export function getBestCategoryImage(category: string, title: string, descriptio
     return "https://images.unsplash.com/photo-1516450137517-162bfbeb8dba?q=80&w=1000"; // Default fallback
   }
 
-  // Voor nu, kies gewoon de eerste afbeelding van de categorie
+  // Kies een random afbeelding uit de categorie om meer variatie te bieden
   // In een toekomstige implementatie kan hier een meer geavanceerd algoritme komen
   // om op basis van de titel en beschrijving een specifieke afbeelding te kiezen
-  return images[0];
+  const randomIndex = Math.floor(Math.random() * images.length);
+  console.log(`Gekozen afbeelding voor ${category}: ${images[randomIndex]}`);
+  return images[randomIndex];
 }
 
 // Functie om alle categorie-afbeeldingen op te halen

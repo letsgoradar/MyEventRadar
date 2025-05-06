@@ -81,6 +81,9 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
   // Bepaal of er een evenement afbeelding beschikbaar is
   // Het imageUrl veld kan null of undefined zijn, dus we moeten controleren of het bestaat
   const hasEventImage = !!event.imageUrl;
+  
+  // Debug logging voor imageUrl
+  console.log(`Event ${event.id} - imageUrl:`, event.imageUrl);
 
   // Bepaal de juiste routering op basis van de huidige URL
   const isApp = window.location.pathname.includes('/app');

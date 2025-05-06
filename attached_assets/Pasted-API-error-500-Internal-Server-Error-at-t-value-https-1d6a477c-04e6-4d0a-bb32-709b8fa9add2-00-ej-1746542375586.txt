@@ -1,0 +1,24 @@
+API error: 500 Internal Server Error
+at t.value (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Response content: {"message":"Internal server error"}
+at t.value (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+API request error: 
+Error {}
+
+at t.value (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Error creating event: 
+Error {}
+
+at t.value (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400

@@ -100,12 +100,28 @@ export class PgStorage implements IStorage {
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
     return this.withRetry(async () => {
       try {
+        // Bepaal de latitude, longitude en notificationReach
+        // Ondersteun zowel het oude formaat (location object) als het nieuwe formaat (directe velden)
+        let latitude, longitude, notificationReach;
+        
+        if (insertEvent.location) {
+          // Oud formaat - uit location object
+          latitude = insertEvent.location.lat.toString();
+          longitude = insertEvent.location.lng.toString();
+          notificationReach = insertEvent.location.notificationReach.toString();
+        } else {
+          // Nieuw formaat - directe velden
+          latitude = insertEvent.latitude.toString();
+          longitude = insertEvent.longitude.toString();
+          notificationReach = insertEvent.notificationReach.toString();
+        }
+        
         const eventData = {
           title: insertEvent.title,
           description: insertEvent.description,
-          latitude: insertEvent.location.lat.toString(),
-          longitude: insertEvent.location.lng.toString(),
-          notificationReach: insertEvent.location.notificationReach.toString(),
+          latitude: latitude,
+          longitude: longitude,
+          notificationReach: notificationReach,
           startTime: new Date(insertEvent.startTime),
           endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
           category: insertEvent.category,

@@ -215,16 +215,15 @@ export function AppCreateEvent() {
 
   // Mutatie voor het aanmaken van een evenement
   const createEventMutation = useMutation({
-    mutationFn: async (data: CreateEventFormValues) => {
-      // Zorg ervoor dat notificationReach een geldige numerieke waarde heeft
-      const completeData = {
-        ...data,
-        notificationReach: data.location.notificationReach || 1.5,
-      };
+    mutationFn: async (data: any) => {
+      // Data is nu al geformatteerd in het submitForm-functie
+      // zodat het de juiste structuur heeft voor het API endpoint
+      
+      console.log("Sending event data to server:", JSON.stringify(data, null, 2));
       
       return apiRequest('/api/events', {
         method: 'POST',
-        body: JSON.stringify(completeData),
+        body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
@@ -576,23 +575,32 @@ export function AppCreateEvent() {
     // Haal de formulierwaarden op en bereid ze voor voor verzending
     const formValues = form.getValues();
     
-    // Zorg ervoor dat notificationReach is ingesteld
-    if (!formValues.location.notificationReach) {
-      formValues.location.notificationReach = 1.5; // Standaard waarde
-    }
+    // Creëer de juiste velden voor latitude en longitude van de locatie
+    // om compatibel te zijn met het schema
+    const latitude = formValues.location?.lat;
+    const longitude = formValues.location?.lng;
+    const locationName = formValues.location?.locationName || "";
+    const notificationReach = formValues.location?.notificationReach || 1.5;
     
     // Fix voor het maxParticipants probleem - zet het op 0 als het null is
     const maxParticipants = formValues.hasMaxParticipants ? 
       (formValues.maxParticipants || 0) : // Als het null is, zet het op 0
       0; // Als hasMaxParticipants false is, zet het op 0
     
-    // Bereid de complete data voor
+    // Bereid de complete data voor in het juiste formaat voor het API endpoint
     const completeData = {
       ...formValues,
+      // Verwijder het location object en gebruik de individuele velden
+      latitude: latitude,
+      longitude: longitude,
+      address: locationName,
+      notificationReach: notificationReach,
       hostId: 1, // Standaard host ID (ingelogde gebruiker of admin)
-      notificationReach: formValues.location.notificationReach, // Voeg deze toe op het hoofdniveau voor de API
       maxParticipants: maxParticipants, // Gebruik de aangepaste waarde
     };
+    
+    // Verwijder het location object omdat dit niet in het schema zit
+    delete completeData.location;
     
     // Debug-log om te zien wat we precies verzenden
     console.log('Verzenden gegevens:', JSON.stringify(completeData, null, 2));
@@ -600,7 +608,7 @@ export function AppCreateEvent() {
     // Als er geen validatiefouten zijn, probeer de mutatie uit te voeren
     try {
       console.log('Mutatie uitvoeren met data:', completeData);
-      createEventMutation.mutate(completeData);
+      createEventMutation.mutate(completeData as any);
     } catch (err) {
       console.error('Fout bij het uitvoeren van createEventMutation:', err);
       toast({

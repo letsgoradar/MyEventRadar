@@ -14,7 +14,7 @@ L.Icon.Default.mergeOptions({
 
 interface LocationPickerProps {
   defaultPosition?: [number, number];
-  onChange?: (position: [number, number]) => void;
+  onChange?: (lat: number, lng: number) => void;
 }
 
 interface LocationMarkerProps {
@@ -73,7 +73,8 @@ export function LocationPicker({ defaultPosition = [51.7767, 5.5345], onChange }
           const newPosition: [number, number] = [latitude, longitude];
           setPosition(newPosition);
           if (onChange) {
-            onChange(newPosition);
+            const [lat, lng] = newPosition;
+            onChange(lat, lng);
           }
         },
         (error) => {
@@ -91,7 +92,8 @@ export function LocationPicker({ defaultPosition = [51.7767, 5.5345], onChange }
   // Bij wijziging van positie, roep onChange aan
   const handlePositionChange = React.useCallback((newPosition: [number, number]) => {
     if (onChange) {
-      onChange(newPosition);
+      const [lat, lng] = newPosition;
+      onChange(lat, lng);
     }
   }, [onChange]);
   

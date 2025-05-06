@@ -21,21 +21,16 @@ export function StepperTimeline({
 }: StepperTimelineProps) {
   return (
     <div className="w-full py-4 px-2">
-      {/* Stap indicators en voortgangslijn */}
+      {/* Stap indicators zonder zichtbare lijn */}
       <div className="relative flex items-center w-full mb-3">
-        {/* Achtergrond lijn (volledige breedte) */}
-        <div className="absolute w-full h-1 bg-muted rounded-full"></div>
-
-        {/* Voortgangslijn (dynamische breedte) */}
+        {/* De voortgangslijn en achtergrondlijn zijn nu onzichtbaar maar behouden de layout */}
+        <div className="absolute w-full h-1 opacity-0"></div>
         <motion.div 
-          className="absolute h-1 bg-primary rounded-full"
+          className="absolute h-1 opacity-0"
           style={{ 
             width: `${(Math.max(0.5, currentStep - 1) / (steps.length - 1)) * 100}%`,
             originX: 0 
           }}
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: 1 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
         />
 
         {/* Stap indicators */}

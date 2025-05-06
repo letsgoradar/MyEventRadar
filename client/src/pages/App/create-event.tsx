@@ -573,7 +573,7 @@ export function AppCreateEvent() {
     
     setIsSubmitting(true);
     
-    // Zorg ervoor dat hostId is ingesteld voordat we de mutatie uitvoeren
+    // Haal de formulierwaarden op en bereid ze voor voor verzending
     const formValues = form.getValues();
     
     // Zorg ervoor dat notificationReach is ingesteld
@@ -581,11 +581,21 @@ export function AppCreateEvent() {
       formValues.location.notificationReach = 1.5; // Standaard waarde
     }
     
+    // Fix voor het maxParticipants probleem - zet het op 0 als het null is
+    const maxParticipants = formValues.hasMaxParticipants ? 
+      (formValues.maxParticipants || 0) : // Als het null is, zet het op 0
+      0; // Als hasMaxParticipants false is, zet het op 0
+    
+    // Bereid de complete data voor
     const completeData = {
       ...formValues,
       hostId: 1, // Standaard host ID (ingelogde gebruiker of admin)
       notificationReach: formValues.location.notificationReach, // Voeg deze toe op het hoofdniveau voor de API
+      maxParticipants: maxParticipants, // Gebruik de aangepaste waarde
     };
+    
+    // Debug-log om te zien wat we precies verzenden
+    console.log('Verzenden gegevens:', JSON.stringify(completeData, null, 2));
     
     // Als er geen validatiefouten zijn, probeer de mutatie uit te voeren
     try {

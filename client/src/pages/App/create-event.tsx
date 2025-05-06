@@ -31,10 +31,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ImageGenerator } from "@/components/Events/ImageGenerator";
-import { DateTimePicker } from "@/components/date-time-picker";
+import { DateTimePickerSeparate } from "@/components/date-picker-separate";
 import { CATEGORIES } from "@shared/schema";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { Image, Plus, X, ChevronLeft, ChevronRight, Check, AlertCircle } from "lucide-react";
+import { Image, X, ChevronLeft, ChevronRight, Check, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import { suggestCategory } from "@/lib/aiTagGenerator";
 import { 
@@ -47,10 +47,10 @@ import AppBottomNav from "@/components/App/AppBottomNav";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getBestCategoryImage } from "@/lib/categoryImages";
 import CategoryImageSelector from "@/components/Events/CategoryImageSelector";
+import StepperTimeline from "@/components/Events/StepperTimeline";
 
 // Fix voor Leaflet iconen in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -89,12 +89,14 @@ const LocationPicker = ({
     return null;
   };
 
+  // Gebruik een hogere zoom level voor mobiel
   return (
     <div className="h-[300px] w-full rounded-md overflow-hidden border">
       <MapContainer
         center={markerPosition}
-        zoom={13}
+        zoom={14} // Hogere zoom voor betere locatie selectie
         scrollWheelZoom={true}
+        className="h-full w-full"
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
@@ -119,6 +121,7 @@ const createEventFormSchema = insertEventSchema.extend({
     lat: z.number(),
     lng: z.number(),
     locationName: z.string().optional(),
+    notificationReach: z.number().default(1.5), // Voeg notificationReach toe met standaardwaarde
   }),
 });
 
@@ -135,12 +138,12 @@ type StepType = {
 const steps: StepType[] = [
   {
     id: 1,
-    title: "Basisinformatie",
+    title: "Omschrijving",
     fields: ["title", "description", "category"],
   },
   {
     id: 2,
-    title: "Datum en Tijd",
+    title: "Datum/tijd",
     fields: ["startTime", "endTime"],
   },
   {
@@ -187,6 +190,7 @@ export function AppCreateEvent() {
         lat: 51.7767,
         lng: 5.5345,
         locationName: "",
+        notificationReach: 1.5, // Standaard bereik in km
       },
       hostId: 1, // Dummy hostId (wordt op de server ingesteld op basis van ingelogde gebruiker)
       tags: [],
@@ -205,15 +209,22 @@ export function AppCreateEvent() {
       lat: lat,
       lng: lng,
       locationName: getLocationName(lat, lng),
+      notificationReach: 1.5, // Zorg dat deze waarde altijd wordt ingesteld
     });
   }, [form]);
 
   // Mutatie voor het aanmaken van een evenement
   const createEventMutation = useMutation({
     mutationFn: async (data: CreateEventFormValues) => {
+      // Zorg ervoor dat notificationReach een geldige numerieke waarde heeft
+      const completeData = {
+        ...data,
+        notificationReach: data.location.notificationReach || 1.5,
+      };
+      
       return apiRequest('/api/events', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify(completeData),
       });
     },
     onSuccess: () => {
@@ -235,12 +246,43 @@ export function AppCreateEvent() {
     },
   });
 
+  // Handler voor rechtstreeks naar een stap navigeren
+  const handleGoToStep = (stepId: number) => {
+    // Als we terug willen gaan, of als we naar een stap willen waar we al voorbij zijn
+    if (stepId < currentStep) {
+      setCurrentStep(stepId);
+      window.scrollTo(0, 0);
+      return;
+    }
+    
+    // Als we vooruit willen, valideer alle stappen tot aan de gewenste stap
+    validateAndGoToStep(stepId);
+  };
+
+  // Valideer alle stappen tot aan een bepaalde stap en ga dan naar die stap
+  const validateAndGoToStep = async (targetStep: number) => {
+    let latestValidStep = currentStep;
+    
+    // Valideer alle stappen tot aan targetStep
+    for (let i = currentStep; i < targetStep; i++) {
+      const result = await validateStep(i);
+      if (!result.valid) {
+        // Stop bij de eerste ongeldige stap
+        setCurrentStep(i);
+        window.scrollTo(0, 0);
+        return;
+      }
+      latestValidStep = i + 1;
+    }
+    
+    // Als we hier zijn, zijn alle stappen tot aan targetStep geldig
+    setCurrentStep(targetStep);
+    window.scrollTo(0, 0);
+  };
+
   // Ga naar de volgende stap
   const goToNextStep = async () => {
     // Valideer huidige stap
-    const currentStepFields = steps[currentStep - 1].fields;
-    
-    // Valideer de velden van de huidige stap
     const result = await validateStep(currentStep);
     
     if (result.valid) {
@@ -284,7 +326,7 @@ export function AppCreateEvent() {
     
     // Speciale validatie per stap
     switch (stepNumber) {
-      case 1: // Basisinformatie
+      case 1: // Omschrijving
         if (!form.getValues('title')) {
           errors.push("Titel is verplicht");
         }
@@ -532,9 +574,17 @@ export function AppCreateEvent() {
     setIsSubmitting(true);
     
     // Zorg ervoor dat hostId is ingesteld voordat we de mutatie uitvoeren
+    const formValues = form.getValues();
+    
+    // Zorg ervoor dat notificationReach is ingesteld
+    if (!formValues.location.notificationReach) {
+      formValues.location.notificationReach = 1.5; // Standaard waarde
+    }
+    
     const completeData = {
-      ...form.getValues(),
+      ...formValues,
       hostId: 1, // Standaard host ID (ingelogde gebruiker of admin)
+      notificationReach: formValues.location.notificationReach, // Voeg deze toe op het hoofdniveau voor de API
     };
     
     // Als er geen validatiefouten zijn, probeer de mutatie uit te voeren
@@ -551,12 +601,6 @@ export function AppCreateEvent() {
       setIsSubmitting(false);
     }
   };
-
-  // Bereken de voortgang
-  const progressPercentage = (currentStep / steps.length) * 100;
-
-  // Huidige stap object
-  const currentStepObj = steps[currentStep - 1];
 
   // Aangepaste layout voor mobiele weergave zonder de AppLayout component
   return (
@@ -577,11 +621,11 @@ export function AppCreateEvent() {
 
       {/* Stappen indicator */}
       <div className="container px-4 pt-4 pb-2">
-        <div className="flex justify-between mb-2">
-          <span className="text-sm font-medium">Stap {currentStep} van {steps.length}</span>
-          <span className="text-sm text-muted-foreground">{currentStepObj.title}</span>
-        </div>
-        <Progress value={progressPercentage} className="h-2" />
+        <StepperTimeline 
+          steps={steps} 
+          currentStep={currentStep} 
+          onStepClick={handleGoToStep}
+        />
       </div>
 
       {/* Inhoud - hoofdgedeelte */}
@@ -603,11 +647,11 @@ export function AppCreateEvent() {
               </Alert>
             )}
 
-            {/* Stap 1: Basisinformatie */}
+            {/* Stap 1: Omschrijving */}
             {currentStep === 1 && (
               <Card>
                 <CardContent className="pt-6 space-y-6">
-                  <CardTitle>Basisinformatie</CardTitle>
+                  <CardTitle>Omschrijving</CardTitle>
                   <FormField
                     control={form.control}
                     name="title"
@@ -713,11 +757,12 @@ export function AppCreateEvent() {
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>Begintijd <span className="text-destructive">*</span></FormLabel>
-                        <DateTimePicker
-                          date={field.value ? new Date(field.value) : undefined}
-                          setDate={(date) => field.onChange(date)}
-                          mode="datetime"
-                        />
+                        <FormControl>
+                          <DateTimePickerSeparate
+                            date={field.value ? new Date(field.value) : undefined}
+                            setDate={(date) => field.onChange(date)}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -729,11 +774,12 @@ export function AppCreateEvent() {
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>Eindtijd</FormLabel>
-                        <DateTimePicker
-                          date={field.value ? new Date(field.value) : undefined}
-                          setDate={(date) => field.onChange(date)}
-                          mode="datetime"
-                        />
+                        <FormControl>
+                          <DateTimePickerSeparate
+                            date={field.value ? new Date(field.value) : undefined}
+                            setDate={(date) => field.onChange(date)}
+                          />
+                        </FormControl>
                         <FormDescription>
                           Laat leeg voor evenementen zonder eindtijd
                         </FormDescription>

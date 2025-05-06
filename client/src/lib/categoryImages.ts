@@ -151,12 +151,12 @@ export const CATEGORY_IMAGES = {
 // Functie om de best passende afbeelding te selecteren op basis van categorie en titel/beschrijving
 export function getBestCategoryImage(category: string, title: string, description: string = ""): string {
   // Als er geen categorie is, gebruik dan de "Anders" categorie
-  if (!category || !CATEGORY_IMAGES[category]) {
+  if (!category || !CATEGORY_IMAGES[category as keyof typeof CATEGORY_IMAGES]) {
     category = "Anders";
   }
 
   // Haal alle afbeeldingen voor deze categorie op
-  const images = CATEGORY_IMAGES[category];
+  const images = CATEGORY_IMAGES[category as keyof typeof CATEGORY_IMAGES];
   
   // Standaard returnwaarde is de eerste afbeelding
   if (!images || images.length === 0) {
@@ -171,5 +171,5 @@ export function getBestCategoryImage(category: string, title: string, descriptio
 
 // Functie om alle categorie-afbeeldingen op te halen
 export function getCategoryImages(category: string): string[] {
-  return CATEGORY_IMAGES[category] || CATEGORY_IMAGES["Anders"];
+  return CATEGORY_IMAGES[category as keyof typeof CATEGORY_IMAGES] || CATEGORY_IMAGES["Anders"];
 }

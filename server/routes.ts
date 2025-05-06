@@ -662,12 +662,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Zorg ervoor dat latitude en longitude expliciet worden ingesteld
+      // Ondersteuning voor zowel oude formaat (location object) als nieuwe formaat (directe velden)
+      let latitude, longitude, address;
+      
+      if (req.body.location) {
+        // Oud formaat - uit location object
+        latitude = req.body.location.lat;
+        longitude = req.body.location.lng;
+        address = req.body.location.locationName;
+      } else {
+        // Nieuw formaat - directe velden
+        latitude = req.body.latitude;
+        longitude = req.body.longitude;
+        address = req.body.address;
+      }
+      
       const eventData = {
         title: req.body.title,
         description: req.body.description,
-        latitude: req.body.location?.lat,
-        longitude: req.body.location?.lng,
-        address: req.body.location?.locationName,
+        latitude: latitude,
+        longitude: longitude,
+        address: address,
         notificationReach: req.body.notificationReach,
         startTime: req.body.startTime,
         endTime: req.body.endTime,

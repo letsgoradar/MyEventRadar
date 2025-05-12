@@ -256,8 +256,8 @@ export function AppEventDetail() {
       title={event.title}
       hideSearchAndFilters={true}
     >
-      {/* Verwijder pb-20 om te zorgen dat content doorloopt tot onderkant */}
-      <div className="pb-[72px]"> {/* Deze padding correspondeert met de hoogte van de navigatiebalk */}
+      {/* Zorg dat de content volledig doorloopt tot aan de tab bar */}
+      <div className="min-h-[calc(100vh-70px)] flex flex-col">
         <div className="sticky top-0 bg-background z-10 flex items-center justify-between p-4 border-b">
           <div className="flex items-center">
             <Button variant="ghost" size="icon" asChild className="mr-2">

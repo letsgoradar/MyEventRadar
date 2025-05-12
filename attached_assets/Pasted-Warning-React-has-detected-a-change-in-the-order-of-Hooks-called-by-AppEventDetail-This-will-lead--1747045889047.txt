@@ -1,0 +1,44 @@
+Warning: React has detected a change in the order of Hooks called by AppEventDetail. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://reactjs.org/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+1. useContext                 useContext
+2. useContext                 useContext
+3. useSyncExternalStore       useSyncExternalStore
+4. useRef                     useRef
+5. useInsertionEffect         useInsertionEffect
+6. useState                   useState
+7. useEffect                  useEffect
+8. useState                   useState
+9. useEffect                  useEffect
+10. useContext                useContext
+11. useContext                useContext
+12. useContext                useContext
+13. useEffect                 useEffect
+14. useState                  useState
+15. useCallback               useCallback
+16. useSyncExternalStore      useSyncExternalStore
+17. useEffect                 useEffect
+18. undefined                 useState
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+    at AppEventDetail (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/pages/App/event-detail.tsx:50:18)
+    at Route (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=3ba9f1a5:191:16)
+    at Switch (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=3ba9f1a5:247:17)
+    at AuthProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/hooks/use-auth.tsx:26:25)
+    at QueryClientProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=3ba9f1a5:2805:3)
+    at App (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/App.tsx?v=c0exOs6iGS1rMOK9tGhih:59:20)
+Rendered more hooks than during the previous render.
+Rendered more hooks than during the previous render.
+The above error occurred in the <AppEventDetail> component:
+
+    at AppEventDetail (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/pages/App/event-detail.tsx:50:18)
+    at Route (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=3ba9f1a5:191:16)
+    at Switch (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=3ba9f1a5:247:17)
+    at AuthProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/hooks/use-auth.tsx:26:25)
+    at QueryClientProvider (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=3ba9f1a5:2805:3)
+    at App (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/src/App.tsx?v=c0exOs6iGS1rMOK9tGhih:59:20)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+Rendered more hooks than during the previous render.

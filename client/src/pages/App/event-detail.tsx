@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import AppLayout from "@/components/App/AppLayout";
@@ -37,29 +37,46 @@ import { getLocationName } from "@/utils/location-utils";
 import L from 'leaflet';
 
 export function AppEventDetail() {
-  // Gebruik alleen de Wouter useParams hook voor consistentie
-  const { id } = useParams<{ id: string }>();
+  // Basisvariabelen definiëren
+  const { id } = useParams<{ id: string }>(); // Gebruik alleen useParams
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const eventId = parseInt(id);
+  const eventId = parseInt(id || '0');
   
-  // Haal de returnTo parameter uit de URL
+  // Alle state hooks samen definiëren (consistent)
   const [returnTo, setReturnTo] = useState('/app');
+  const [hasSearchState, setHasSearchState] = useState(false);
   
+  // Data fetching met React Query
+  const { data: event, isLoading, error } = useQuery<EventInterface>({
+    queryKey: [`/api/events/${eventId}`],
+    enabled: !isNaN(eventId) && eventId > 0,
+  });
+
+  // Effect voor het ophalen van de returnTo parameter
   useEffect(() => {
-    // Parse de URL parameters
+    // URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const returnParam = urlParams.get('returnTo');
     if (returnParam) {
       setReturnTo(returnParam);
     }
+    
+    // Zoekstatus ophalen uit localStorage
+    try {
+      const lastSearchState = localStorage.getItem('lastSearchState');
+      if (lastSearchState) {
+        const searchState = JSON.parse(lastSearchState);
+        // Controleer of de zoekstatus nog geldig is (max 1 uur oud)
+        const isValid = (new Date().getTime() - searchState.timestamp) < (60 * 60 * 1000);
+        setHasSearchState(isValid);
+      }
+    } catch (e) {
+      console.error("Fout bij parsen van zoekstatus:", e);
+    }
   }, []);
-
-  const { data: event, isLoading, error } = useQuery<EventInterface>({
-    queryKey: [`/api/events/${eventId}`],
-    enabled: !isNaN(eventId),
-  });
-
+  
+  // Laad-toestand weergeven
   if (isLoading) {
     return (
       <AppLayout 
@@ -82,6 +99,7 @@ export function AppEventDetail() {
     );
   }
 
+  // Fout of geen data weergeven
   if (error || !event) {
     return (
       <AppLayout 
@@ -226,21 +244,8 @@ export function AppEventDetail() {
     }
   };
 
-  // Controleert of er een zoekstatus is opgeslagen
-  const [hasSearchState, setHasSearchState] = useState(() => {
-    // Dit wordt alleen uitgevoerd bij de initiële render
-    try {
-      const lastSearchState = localStorage.getItem('lastSearchState');
-      if (lastSearchState) {
-        const searchState = JSON.parse(lastSearchState);
-        // Controleer of de zoekstatus nog geldig is (max 1 uur oud)
-        return (new Date().getTime() - searchState.timestamp) < (60 * 60 * 1000);
-      }
-    } catch (e) {
-      console.error("Fout bij parsen van zoekstatus:", e);
-    }
-    return false;
-  });
+  // Deze state wordt nu in de hook-sectie bovenin beheerd
+  // en is verwijderd om de volgorde van hooks te behouden
 
   // Voorbereiden van de juiste data voor weergave
   const eventImages = [event.imageUrl].filter(Boolean) as string[];

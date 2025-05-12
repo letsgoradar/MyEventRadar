@@ -411,7 +411,7 @@ export function AppLayout({
   
   // Maak de inhoud van de pagina op basis van de gekozen weergave
   return (
-    <div className="flex flex-col min-h-screen bg-background pb-16">
+    <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
       {/* Header met titel */}
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b">
         <div className="container py-3 px-4 flex justify-between items-center">

@@ -1,0 +1,28 @@
+DOMException {}
+stack: "SyntaxError: Failed to construct 'WebSocket': The URL 'wss://localhost:undefined/?token=CwKUO9pNqJ1r' is invalid.↵ at new t (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:218737)↵ at setupWebSocket (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@vite/client:536:19)↵ at fallback (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@vite/client:509:16)↵ at WebSocket.<anonymous> (https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/@vite/client:555:7)"
+get stack: ƒ ()
+set stack: ƒ ()
+[[Prototype]]: DOMException
+
+WebSocket configuratie geladen voor betere HMR ondersteuning
+Got user location: 51.77344 5.5345152
+Web version enabled: true
+Fetching events with params: 
+Object {lat: 51.77344, lng: 5.5345152, radius: 10}
+Making API request to: /api/events/nearby?lat=51.77344&lng=5.5345152&radius=10
+Got user location: 51.7767168 5.5345152
+Web version enabled: true
+Loading from localStorage: https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/uploads/profile-photos/user-demo-1746517170176-25002593.png
+Got user location: 51.77344 5.5345152
+Web version enabled: false
+Fetching events with params: 
+Object {lat: 51.77344, lng: 5.5345152, radius: 10}
+Making API request to: /api/events/nearby?lat=51.77344&lng=5.5345152&radius=10
+Got user location: 51.7767168 5.5345152
+Fetching events with params: 
+Object {lat: 51.7767168, lng: 5.5345152, radius: 10}
+Making API request to: /api/events/nearby?lat=51.7767168&lng=5.5345152&radius=10
+Got user location: 51.7767168 5.5345152
+API response successful: 
+(219) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, …]
+Initiële map bounds en zoom ingesteld

@@ -51,6 +51,7 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
     try {
       setIsLoading(true);
 
+      console.log('Attempting login with:', data);
       const response = await apiRequest('/api/auth/login', {
         method: 'POST',
         headers: {

@@ -61,15 +61,25 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
+        console.log(`Login attempt with: ${email}`);
+        const user = await storage.getUserByEmail(email);
+        if (!user) {
+          console.log(`No user found with email: ${email}`);
           return done(null, false);
-        } else {
-          return done(null, user);
         }
+        
+        const isValidPassword = await comparePasswords(password, user.password);
+        if (!isValidPassword) {
+          console.log(`Invalid password for user: ${email}`);
+          return done(null, false);
+        }
+        
+        console.log(`Login successful for user: ${email}`);
+        return done(null, user);
       } catch (error) {
+        console.error(`Login error for user ${email}:`, error);
         return done(error);
       }
     }),
@@ -126,14 +136,27 @@ export function setupAuth(app: Express) {
 
   // Route voor inloggen
   app.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
-      if (err) return next(err);
+    console.log("Login request received:", req.body);
+    
+    passport.authenticate("local", (err: Error | null, user: any, info: any) => {
+      if (err) {
+        console.error("Login authentication error:", err);
+        return next(err);
+      }
+      
       if (!user) {
+        console.log("Authentication failed - no user returned");
         return res.status(401).json({ message: "Ongeldige gebruikersnaam of wachtwoord" });
       }
       
-      req.login(user, (err) => {
-        if (err) return next(err);
+      req.login(user, (loginErr: Error | null) => {
+        if (loginErr) {
+          console.error("Login session error:", loginErr);
+          return next(loginErr);
+        }
+        
+        console.log("User successfully logged in:", user.email);
+        
         // Verwijder wachtwoord uit de response
         const { password, ...userWithoutPassword } = user;
         res.status(200).json(userWithoutPassword);

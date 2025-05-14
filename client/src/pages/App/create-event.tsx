@@ -653,7 +653,7 @@ export function AppCreateEvent() {
       </div>
 
       {/* Inhoud - hoofdgedeelte */}
-      <main className="flex-1 container px-4 pb-24 pt-2 overflow-auto">
+      <main className="flex-1 container px-4 pb-36 pt-2 overflow-auto">
         <Form {...form}>
           <form className="space-y-6">
             {/* Foutmeldingen tonen */}

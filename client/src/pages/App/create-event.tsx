@@ -628,7 +628,7 @@ export function AppCreateEvent() {
 
   // Aangepaste layout voor mobiele weergave zonder de AppLayout component
   return (
-    <div className="flex flex-col min-h-screen bg-background pb-16">
+    <div className="flex flex-col min-h-[100dvh] bg-background">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background border-b">
         <div className="container flex items-center justify-between h-14 px-4">
@@ -1041,7 +1041,7 @@ export function AppCreateEvent() {
       </main>
 
       {/* Navigatieknoppen onderaan */}
-      <div className="fixed bottom-14 left-0 right-0 flex gap-4 p-4 bg-background border-t z-10">
+      <div className="fixed bottom-[64px] left-0 right-0 flex gap-4 p-4 bg-background border-t z-10">
         {currentStep > 1 ? (
           <Button 
             type="button" 

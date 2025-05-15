@@ -3,6 +3,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import createMemoryStore from "memorystore";
@@ -79,12 +80,22 @@ export function setupAuth(app: Express) {
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
+  passport.serializeUser((user, done) => {
+    console.log("Serializing user:", { id: user.id, email: user.email, role: user.role });
+    done(null, user.id);
+  });
+  
   passport.deserializeUser(async (id: number, done) => {
     try {
       const user = await storage.getUser(id);
+      if (!user) {
+        console.log("Deserialize failed: No user found with id", id);
+        return done(new Error('Gebruiker niet gevonden'));
+      }
+      console.log("Deserialized user:", { id: user.id, email: user.email, role: user.role });
       done(null, user);
     } catch (error) {
+      console.error("Deserialize error:", error);
       done(error);
     }
   });
@@ -173,6 +184,17 @@ export function setupAuth(app: Express) {
     }
     // Verwijder wachtwoord uit de response
     const { password, ...userWithoutPassword } = req.user;
+    res.json(userWithoutPassword);
+  });
+  
+  // Route voor het ophalen van de huidige gebruiker (admin/me endpoint)
+  app.get("/api/auth/me", (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Niet ingelogd" });
+    }
+    // Verwijder wachtwoord uit de response
+    const { password, ...userWithoutPassword } = req.user;
+    console.log("User data sent to client:", userWithoutPassword);
     res.json(userWithoutPassword);
   });
 

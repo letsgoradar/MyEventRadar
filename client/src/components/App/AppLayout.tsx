@@ -326,26 +326,26 @@ export function AppLayout({
     }
   };
   
-  // Functie voor het bijwerken van de radius
-  const handleRadiusChange = (value: number[]) => {
+  // Functie voor het bijwerken van de radius - gestabiliseerd met useCallback
+  const handleRadiusChange = React.useCallback((value: number[]) => {
     if (onRadiusChange) {
       onRadiusChange(value[0]);
     }
-  };
+  }, [onRadiusChange]);
   
-  // Functie voor het toevoegen/verwijderen van een categorie
-  const toggleCategory = (category: typeof CATEGORIES[number]) => {
+  // Functie voor het toevoegen/verwijderen van een categorie - gestabiliseerd met useCallback
+  const toggleCategory = React.useCallback((category: typeof CATEGORIES[number]) => {
     setSelectedCategories(prev => {
       return prev.includes(category)
         ? prev.filter(c => c !== category) as typeof CATEGORIES[number][]
         : [...prev, category] as typeof CATEGORIES[number][];
     });
-  };
+  }, []);
   
-  // Functie voor het aan-/uitzetten van verlopen evenementen
-  const toggleShowExpiredEvents = () => {
+  // Functie voor het aan-/uitzetten van verlopen evenementen - gestabiliseerd met useCallback
+  const toggleShowExpiredEvents = React.useCallback(() => {
     setShowExpiredEvents(prev => !prev);
-  };
+  }, []);
   
   // Typedefinitie voor gebruiker
   interface UserData {

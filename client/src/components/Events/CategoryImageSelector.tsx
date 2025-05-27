@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getCategoryImages } from '@/lib/categoryImages';
+import { getCategoryImages, getBestCategoryImage } from '@/lib/categoryImages';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface CategoryImageSelectorProps {
   category: string;
   onSelectImage: (imageUrl: string) => void;
   defaultImage?: string;
+  title?: string;
+  description?: string;
 }
 
 export function CategoryImageSelector({ 
   category, 
   onSelectImage, 
-  defaultImage 
+  defaultImage,
+  title = "",
+  description = ""
 }: CategoryImageSelectorProps) {
   const [images, setImages] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | undefined>(defaultImage);
@@ -24,24 +28,15 @@ export function CategoryImageSelector({
       const categoryImages = getCategoryImages(category);
       setImages(categoryImages);
       
-      // Als er nog geen geselecteerde afbeelding is, neem de eerste van de categorie
-      if (!selectedImage && categoryImages.length > 0) {
-        setSelectedImage(categoryImages[0]);
-        onSelectImage(categoryImages[0]);
-      }
-    }
-  }, [category]);
-
-  // Effect voor als de categorie verandert, update dan ook de geselecteerde afbeelding
-  useEffect(() => {
-    if (category && (!selectedImage || !images.includes(selectedImage))) {
-      const categoryImages = getCategoryImages(category);
+      // Gebruik AI-selectie voor de beste afbeelding
       if (categoryImages.length > 0) {
-        setSelectedImage(categoryImages[0]);
-        onSelectImage(categoryImages[0]);
+        const bestImage = getBestCategoryImage(category, title, description);
+        setSelectedImage(bestImage);
+        onSelectImage(bestImage);
+        console.log(`CategoryImageSelector: AI-selectie voor "${title}" in ${category}: ${bestImage}`);
       }
     }
-  }, [category, selectedImage, images]);
+  }, [category, title, description]);
 
   // Als er geen categorie is gekozen of er zijn geen afbeeldingen
   if (!category || images.length === 0) {

@@ -253,7 +253,7 @@ const KEYWORD_MAPPINGS = {
   huisdier: [77, 78, 79],
 };
 
-export function getSmartImage(title: string, description: string = ""): string {
+export function getSmartImage(title: string, description: string = ""): { image: string | null, hasMatch: boolean } {
   const combinedText = `${title} ${description}`.toLowerCase();
   
   // Zoek naar keywords in de tekst
@@ -271,12 +271,10 @@ export function getSmartImage(title: string, description: string = ""): string {
     const randomIndex = matchedImages[Math.floor(Math.random() * matchedImages.length)];
     const selectedImage = ALL_ACTIVITY_IMAGES[randomIndex];
     console.log(`Slimme selectie: "${title}" -> afbeelding ${randomIndex} (${selectedImage})`);
-    return selectedImage;
+    return { image: selectedImage, hasMatch: true };
   }
   
-  // Fallback: willekeurige afbeelding
-  const fallbackIndex = Math.floor(Math.random() * ALL_ACTIVITY_IMAGES.length);
-  const fallbackImage = ALL_ACTIVITY_IMAGES[fallbackIndex];
-  console.log(`Fallback selectie voor "${title}" -> afbeelding ${fallbackIndex}`);
-  return fallbackImage;
+  // Geen match gevonden - suggereer AI generatie
+  console.log(`Geen passende afbeelding gevonden voor "${title}" - suggereer AI generatie`);
+  return { image: null, hasMatch: false };
 }

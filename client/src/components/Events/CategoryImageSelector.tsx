@@ -6,11 +6,12 @@ import { getSmartImage, ALL_ACTIVITY_IMAGES } from '@/lib/smartImageSelection';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface CategoryImageSelectorProps {
-  category: string;
+  category: string; // Alleen nog voor backwards compatibility
   onSelectImage: (imageUrl: string) => void;
   defaultImage?: string;
   title?: string;
   description?: string;
+  onSuggestAIGeneration?: () => void; // Callback voor AI generatie suggestie
 }
 
 export function CategoryImageSelector({ 
@@ -18,7 +19,8 @@ export function CategoryImageSelector({
   onSelectImage, 
   defaultImage,
   title = "",
-  description = ""
+  description = "",
+  onSuggestAIGeneration
 }: CategoryImageSelectorProps) {
   const [images, setImages] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | undefined>(defaultImage);
@@ -30,10 +32,21 @@ export function CategoryImageSelector({
     
     // Gebruik slimme AI-selectie gebaseerd op titel en beschrijving alleen
     if (title || description) {
-      const smartImage = getSmartImage(title, description);
-      setSelectedImage(smartImage);
-      onSelectImage(smartImage);
-      console.log(`Slimme afbeelding selectie voor "${title}": ${smartImage}`);
+      const smartResult = getSmartImage(title, description);
+      
+      if (smartResult.hasMatch && smartResult.image) {
+        // Gevonden match - gebruik deze afbeelding
+        setSelectedImage(smartResult.image);
+        onSelectImage(smartResult.image);
+        console.log(`Slimme afbeelding selectie voor "${title}": ${smartResult.image}`);
+      } else {
+        // Geen match - suggereer AI generatie
+        setSelectedImage(undefined);
+        if (onSuggestAIGeneration) {
+          onSuggestAIGeneration();
+        }
+        console.log(`Geen passende afbeelding voor "${title}" - AI generatie voorgesteld`);
+      }
     }
   }, [title, description]);
 
@@ -55,14 +68,23 @@ export function CategoryImageSelector({
 
   return (
     <div className="space-y-4">
-      {/* Toon geselecteerde afbeelding */}
-      {selectedImage && (
+      {/* Toon geselecteerde afbeelding of AI suggestie */}
+      {selectedImage ? (
         <div className="relative h-60 w-full rounded-md overflow-hidden border">
           <img 
             src={selectedImage} 
             alt="Geselecteerde afbeelding" 
             className="w-full h-full object-cover"
           />
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-60 bg-muted rounded-md border border-dashed">
+          <p className="text-sm text-muted-foreground mb-2">
+            Geen passende afbeelding gevonden
+          </p>
+          <p className="text-xs text-muted-foreground text-center px-4">
+            Gebruik AI Genereren voor een aangepaste afbeelding
+          </p>
         </div>
       )}
 

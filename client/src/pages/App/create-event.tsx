@@ -1027,28 +1027,22 @@ export function AppCreateEvent() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md">
-                          <Image className="h-10 w-10 text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground mb-4">
-                            Sleep een afbeelding hierheen of klik om te bladeren
+                        <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md bg-muted/50">
+                          <Image className="h-10 w-10 text-muted-foreground/50 mb-2" />
+                          <p className="text-sm text-muted-foreground/70 mb-2 text-center">
+                            Afbeelding uploaden
+                          </p>
+                          <p className="text-xs text-muted-foreground/60 mb-4 text-center px-4">
+                            Deze functie is beschikbaar in de betaalde versie van de app
                           </p>
                           <Button
                             variant="outline"
                             type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              document.getElementById('image-upload')?.click();
-                            }}
+                            disabled
+                            className="opacity-50"
                           >
                             Selecteer afbeelding
                           </Button>
-                          <input
-                            id="image-upload"
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleImageChange}
-                          />
                         </div>
                       )}
                     </TabsContent>

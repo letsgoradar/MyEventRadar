@@ -304,18 +304,20 @@ export function AppCreateEvent() {
     }
   };
 
-  // Effect om standaardafbeelding in te stellen wanneer categorie verandert
+  // Effect om slimme afbeelding te selecteren wanneer titel, beschrijving of categorie verandert
   useEffect(() => {
     const category = form.getValues('category');
-    const title = form.getValues('title');
-    const description = form.getValues('description');
+    const title = form.getValues('title') || '';
+    const description = form.getValues('description') || '';
     
-    if (category && !form.getValues('imageUrl') && currentStep === 5) {
+    // Alleen als we een categorie hebben en nog geen handmatig geselecteerde afbeelding
+    if (category && (title || description)) {
       const bestImage = getBestCategoryImage(category, title, description);
       form.setValue('imageUrl', bestImage);
       setImagePreviews([bestImage]);
+      console.log(`AI afbeelding geselecteerd voor "${title}" in categorie ${category}: ${bestImage}`);
     }
-  }, [currentStep, form]);
+  }, [form.watch('category'), form.watch('title'), form.watch('description')]);
 
   // Valideer een specifieke stap
   const validateStep = async (stepNumber: number): Promise<{ valid: boolean, errors: string[] }> => {

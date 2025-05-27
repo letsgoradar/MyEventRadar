@@ -15,11 +15,18 @@ if (import.meta.hot) {
     // Als er problemen zijn met WebSocket verbindingen, log dit
     const originalWebSocket = window.WebSocket;
     window.WebSocket = function(url: string, protocols?: string | string[]) {
-      if (url.includes('wss://localhost:undefined')) {
+      // Check voor verschillende patronen van ongeldige URLs
+      if (url.includes(':undefined') || url.includes('localhost:undefined')) {
         console.log('Herstellen van ongeldige WebSocket URL:', url);
         
-        // Vervang een ongeldige URL door een geldige die gebruikmaakt van de huidige oorsprong
-        url = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
+        // Voor Vite HMR, gebruik de huidige host en poort
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;
+        
+        // Extraheer query parameters als die er zijn
+        const urlObj = new URL(url.replace('wss://localhost:undefined', `${wsProtocol}//${wsHost}`));
+        url = urlObj.toString();
+        
         console.log('Verbeterde WebSocket URL:', url);
       }
       return new originalWebSocket(url, protocols);

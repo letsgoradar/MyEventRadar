@@ -131,6 +131,9 @@ export class PgStorage implements IStorage {
           maxParticipants: insertEvent.maxParticipants || null,
           hostId: insertEvent.hostId,
           recurrence: insertEvent.recurrence,
+          imageUrl: insertEvent.imageUrl || null, // ✅ FIX: imageUrl toegevoegd
+          tags: insertEvent.tags || [],
+          address: insertEvent.address || null,
         };
 
         console.log('Creating event with data:', eventData);

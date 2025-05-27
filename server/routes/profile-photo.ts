@@ -84,8 +84,8 @@ const handleMulterError = (err: any, req: Request, res: Response, next: Function
 };
 
 // Route voor het uploaden van een profielfoto
-// Wijziging: verwijderd isAuthenticated middleware voor testdoeleinden
 router.post('/', 
+  isAuthenticated, // Authenticatie toevoegen
   (req, res, next) => {
     upload.single('photo')(req, res, (err) => {
       if (err) {
@@ -102,24 +102,21 @@ router.post('/',
         return res.status(400).json({ message: 'Geen bestand geüpload' });
       }
       
-      // Gebruik een default userId voor niet-geauthenticeerde gebruikers (voor demonstratie)
-      const userId = req.user?.id || 1;
-      console.log(`Using userId: ${userId}, authenticated: ${!!req.user}`);
+      // Nu hebben we een geauthenticeerde gebruiker door isAuthenticated middleware
+      const userId = req.user.id;
+      console.log(`Uploading for authenticated user: ${userId}`);
       
       // Pad naar het bestand relatief aan de publieke URL
       const relativePath = `/uploads/profile-photos/${req.file.filename}`;
       console.log('File saved at:', relativePath);
       
       try {
-        // Update gebruiker record met nieuwe foto URL als er een gebruiker is
-        if (req.user?.id) {
-          await appStorage.updateUser(userId, {
-            photoUrl: relativePath,
-            avatar: relativePath // Update beide velden voor backward compatibility
-          });
-        } else {
-          console.log('No authenticated user, skipping database update');
-        }
+        // Update gebruiker record met nieuwe foto URL
+        await appStorage.updateUser(userId, {
+          photoUrl: relativePath,
+          avatar: relativePath // Update beide velden voor backward compatibility
+        });
+        console.log('Database updated successfully with new photo URL');
       } catch (dbError) {
         console.error('Database error while updating user:', dbError);
         // Vang de database error op maar ga door met de response

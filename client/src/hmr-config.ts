@@ -3,8 +3,8 @@
  * Dit bestand is een workaround voor de WebSocket verbindingsproblemen in Replit
  */
 
-// Deze code wordt alleen uitgevoerd als er een WebSocket fout optreedt
-if (import.meta.hot) {
+// Deze code wordt direct uitgevoerd om WebSocket problemen te voorkomen
+{
   try {
     // Probeer de basis URL van de server te bepalen
     const getBaseURL = () => {

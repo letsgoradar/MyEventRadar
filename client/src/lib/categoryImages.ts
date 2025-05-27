@@ -214,20 +214,34 @@ export function getBestCategoryImage(category: string, title: string, descriptio
   
   // Kunst en Cultuur specifieke matching
   if (category === "Kunst en Cultuur") {
-    if (combinedText.includes('muziek') || combinedText.includes('concert') || combinedText.includes('band')) {
-      return images[Math.floor(Math.random() * 6)]; // Muziek afbeeldingen
+    if (combinedText.includes('muziek') || combinedText.includes('concert') || combinedText.includes('band') || 
+        combinedText.includes('piano') || combinedText.includes('gitaar') || combinedText.includes('drums') ||
+        combinedText.includes('zang') || combinedText.includes('optreden') || combinedText.includes('live')) {
+      const musicIndex = Math.floor(Math.random() * 6); // Muziek afbeeldingen (0-5)
+      console.log(`Muziek gematcht voor "${title}" - selecteert muziek afbeelding ${musicIndex + 1}`);
+      return images[musicIndex];
     }
-    if (combinedText.includes('theater') || combinedText.includes('dans') || combinedText.includes('dance')) {
-      return images[6 + Math.floor(Math.random() * 4)]; // Theater afbeeldingen
+    if (combinedText.includes('theater') || combinedText.includes('dans') || combinedText.includes('dance') ||
+        combinedText.includes('toneel') || combinedText.includes('voorstelling')) {
+      const theaterIndex = 6 + Math.floor(Math.random() * 4); // Theater afbeeldingen (6-9)
+      console.log(`Theater gematcht voor "${title}" - selecteert theater afbeelding ${theaterIndex - 5}`);
+      return images[theaterIndex];
     }
-    if (combinedText.includes('kunst') || combinedText.includes('art') || combinedText.includes('expo')) {
-      return images[10 + Math.floor(Math.random() * 5)]; // Kunst afbeeldingen
+    if (combinedText.includes('kunst') || combinedText.includes('art') || combinedText.includes('expo') ||
+        combinedText.includes('galerie') || combinedText.includes('schilderen') || combinedText.includes('tentoonstelling')) {
+      const artIndex = 10 + Math.floor(Math.random() * 5); // Kunst afbeeldingen (10-14)
+      console.log(`Kunst gematcht voor "${title}" - selecteert kunst afbeelding ${artIndex - 9}`);
+      return images[artIndex];
     }
     if (combinedText.includes('festival') || combinedText.includes('feest')) {
-      return images[15 + Math.floor(Math.random() * 4)]; // Festival afbeeldingen
+      const festivalIndex = 15 + Math.floor(Math.random() * 4); // Festival afbeeldingen (15-18)
+      console.log(`Festival gematcht voor "${title}" - selecteert festival afbeelding ${festivalIndex - 14}`);
+      return images[festivalIndex];
     }
     if (combinedText.includes('workshop') || combinedText.includes('creatief') || combinedText.includes('creative')) {
-      return images[19 + Math.floor(Math.random() * 4)]; // Workshop afbeeldingen
+      const workshopIndex = 19 + Math.floor(Math.random() * 4); // Workshop afbeeldingen (19-22)
+      console.log(`Workshop gematcht voor "${title}" - selecteert workshop afbeelding ${workshopIndex - 18}`);
+      return images[workshopIndex];
     }
   }
   

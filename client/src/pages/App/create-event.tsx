@@ -304,20 +304,7 @@ export function AppCreateEvent() {
     }
   };
 
-  // Effect om slimme afbeelding te selecteren wanneer titel, beschrijving of categorie verandert
-  useEffect(() => {
-    const category = form.getValues('category');
-    const title = form.getValues('title') || '';
-    const description = form.getValues('description') || '';
-    
-    // Alleen als we een categorie hebben en nog geen handmatig geselecteerde afbeelding
-    if (category && (title || description)) {
-      const bestImage = getBestCategoryImage(category, title, description);
-      form.setValue('imageUrl', bestImage);
-      setImagePreviews([bestImage]);
-      console.log(`AI afbeelding geselecteerd voor "${title}" in categorie ${category}: ${bestImage}`);
-    }
-  }, [form.watch('category'), form.watch('title'), form.watch('description')]);
+  // De AI-selectie gebeurt nu in de CategoryImageSelector component
 
   // Valideer een specifieke stap
   const validateStep = async (stepNumber: number): Promise<{ valid: boolean, errors: string[] }> => {
@@ -1001,6 +988,8 @@ export function AppCreateEvent() {
                           category={form.watch('category') || ''}
                           onSelectImage={handleCategoryImageSelect}
                           defaultImage={form.watch('imageUrl')}
+                          title={form.watch('title') || ''}
+                          description={form.watch('description') || ''}
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center h-40 bg-muted rounded-md">

@@ -85,7 +85,13 @@ const handleMulterError = (err: any, req: Request, res: Response, next: Function
 
 // Route voor het uploaden van een profielfoto
 router.post('/', 
-  attachUser, // Gebruik attachUser in plaats van isAuthenticated voor flexibiliteit
+  (req, res, next) => {
+    // Debug authenticatie status
+    console.log('Upload request - isAuthenticated:', req.isAuthenticated?.());
+    console.log('Upload request - user:', req.user ? { id: req.user.id, email: req.user.email } : 'None');
+    console.log('Upload request - session:', req.session ? 'Present' : 'None');
+    next();
+  },
   (req, res, next) => {
     upload.single('photo')(req, res, (err) => {
       if (err) {
@@ -111,15 +117,31 @@ router.post('/',
       console.log('File saved at:', relativePath);
       
       try {
-        // Update gebruiker record met nieuwe foto URL
-        if (req.user?.id) {
-          await appStorage.updateUser(userId, {
-            photoUrl: relativePath,
-            avatar: relativePath // Update beide velden voor backward compatibility
-          });
-          console.log('Database updated successfully with new photo URL');
+        // Probeer gebruiker te detecteren via verschillende methoden
+        let actualUserId = userId;
+        let shouldUpdateDb = false;
+        
+        if (req.isAuthenticated?.() && req.user?.id) {
+          actualUserId = req.user.id;
+          shouldUpdateDb = true;
+          console.log('Found authenticated user via Passport:', actualUserId);
+        } else if (req.session?.passport?.user) {
+          actualUserId = req.session.passport.user;
+          shouldUpdateDb = true;
+          console.log('Found user via session passport:', actualUserId);
         } else {
-          console.log('Demo mode - skipping database update but upload successful');
+          console.log('No authenticated user found - using demo mode');
+        }
+        
+        // Update gebruiker record met nieuwe foto URL
+        if (shouldUpdateDb) {
+          await appStorage.updateUser(actualUserId, {
+            photoUrl: relativePath,
+            avatar: relativePath 
+          });
+          console.log('Database updated successfully for user:', actualUserId);
+        } else {
+          console.log('Upload successful but no database update (demo mode)');
         }
       } catch (dbError) {
         console.error('Database error while updating user:', dbError);

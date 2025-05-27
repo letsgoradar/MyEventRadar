@@ -1,154 +1,172 @@
 // Uitgebreide selectie van standaardafbeeldingen per categorie
-// We breiden iedere categorie uit naar 10+ afbeeldingen
+// 5x meer afbeeldingen dan voorheen, georganiseerd per subcategorie
 
 export const CATEGORY_IMAGES = {
   "Sport en spel": [
+    // Voetbal
     "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=1000",
     "https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?q=80&w=1000",
     "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1000",
+    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1000",
+    "https://images.unsplash.com/photo-1606034834332-b5d4b7daf91b?q=80&w=1000",
+    // Tennis & Padel
     "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=1000",
     "https://images.unsplash.com/photo-1526232761682-d26e03ac148e?q=80&w=1000",
+    "https://images.unsplash.com/photo-1526676037777-05a232502d2d?q=80&w=1000",
+    "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=1000",
+    // Basketbal
     "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?q=80&w=1000",
-    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1000",
     "https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=1000",
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1000",
+    "https://images.unsplash.com/photo-1627627256672-027a4613d028?q=80&w=1000",
+    // Fitness & Gym
     "https://images.unsplash.com/photo-1530549387789-4c1017266635?q=80&w=1000",
     "https://images.unsplash.com/photo-1606335545621-2045a860f1d9?q=80&w=1000",
     "https://images.unsplash.com/photo-1526889576601-dd9345b9a6b3?q=80&w=1000",
-    "https://images.unsplash.com/photo-1579027989536-b7b1f875659b?q=80&w=1000"
+    "https://images.unsplash.com/photo-1571019613914-85f342c6a11e?q=80&w=1000",
+    "https://images.unsplash.com/photo-1571019612275-b7b8e3b43eb4?q=80&w=1000",
+    // Hardlopen & Atletiek
+    "https://images.unsplash.com/photo-1579027989536-b7b1f875659b?q=80&w=1000",
+    "https://images.unsplash.com/photo-1544737151681-6e4b99de2a71?q=80&w=1000",
+    "https://images.unsplash.com/photo-1594736797933-d0e501ba2fe6?q=80&w=1000",
+    "https://images.unsplash.com/photo-1545558014-8692077e9b5c?q=80&w=1000",
+    // Wielrennen & Fietsen
+    "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=1000",
+    "https://images.unsplash.com/photo-1544726150-6b0cebecc8b8?q=80&w=1000",
+    "https://images.unsplash.com/photo-1553979459-d2229ba7433a?q=80&w=1000",
+    // Zwemmen
+    "https://images.unsplash.com/photo-1570563524005-6e75d9a95c5d?q=80&w=1000",
+    "https://images.unsplash.com/photo-1566066579-acfe87e4b43b?q=80&w=1000",
+    "https://images.unsplash.com/photo-1576076584820-57e75cd83b7e?q=80&w=1000",
+    // Yoga & Mindfulness
+    "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?q=80&w=1000",
+    "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1000",
+    "https://images.unsplash.com/photo-1611688147879-c8df1b5ab4d8?q=80&w=1000",
+    // Teamsport algemeen
+    "https://images.unsplash.com/photo-1588984602765-8ab9a3b41e45?q=80&w=1000",
+    "https://images.unsplash.com/photo-1577216273466-58d57e4d24b5?q=80&w=1000"
   ],
   "Kunst en Cultuur": [
+    // Muziek & Concerten
     "https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=1000",
     "https://images.unsplash.com/photo-1499781350541-7783f6c6a0c8?q=80&w=1000",
+    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=1000",
+    "https://images.unsplash.com/photo-1501612780327-45045538702b?q=80&w=1000",
+    "https://images.unsplash.com/photo-1514533450685-2b0a0b14d49d?q=80&w=1000",
+    "https://images.unsplash.com/photo-1471478331149-c72f17e33c73?q=80&w=1000",
+    // Theater & Dans
     "https://images.unsplash.com/photo-1518998053901-5348d3961a04?q=80&w=1000",
+    "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=1000",
+    "https://images.unsplash.com/photo-1537996194471-e657df975ab4?q=80&w=1000",
+    "https://images.unsplash.com/photo-1547036967-23d11aacaee0?q=80&w=1000",
+    // Kunst & Exposities
     "https://images.unsplash.com/photo-1605729465641-d827512cad30?q=80&w=1000",
     "https://images.unsplash.com/photo-1515401131817-e1be5a9ee622?q=80&w=1000",
+    "https://images.unsplash.com/photo-1541961017774-22349e4a1262?q=80&w=1000",
+    "https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1000",
+    "https://images.unsplash.com/photo-1544967882-bc2701f3a7a3?q=80&w=1000",
+    // Festivals
     "https://images.unsplash.com/photo-1585302769412-befb9ea35944?q=80&w=1000",
-    "https://images.unsplash.com/photo-1547891654-e66ed7ebb968?q=80&w=1000",
-    "https://images.unsplash.com/photo-1544979590-37e9b47eb5a0?q=80&w=1000",
-    "https://images.unsplash.com/photo-1513103891413-5d0228b05383?q=80&w=1000",
-    "https://images.unsplash.com/photo-1561214078-f3247647fc5e?q=80&w=1000",
-    "https://images.unsplash.com/photo-1594388052359-60434fce79b1?q=80&w=1000"
+    "https://images.unsplash.com/photo-1520637836862-4d197d17c78a?q=80&w=1000",
+    "https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?q=80&w=1000",
+    "https://images.unsplash.com/photo-1527481138388-31827a7c94d5?q=80&w=1000",
+    // Workshop & Creatief
+    "https://images.unsplash.com/photo-1541961017774-22349e4a1262?q=80&w=1000",
+    "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?q=80&w=1000",
+    "https://images.unsplash.com/photo-1513690277738-c9bc2278ab9b?q=80&w=1000",
+    "https://images.unsplash.com/photo-1607619814827-50ac90b9afcc?q=80&w=1000",
+    // Fotografie
+    "https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?q=80&w=1000",
+    "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?q=80&w=1000",
+    "https://images.unsplash.com/photo-1554998171-89445e31c52b?q=80&w=1000"
   ],
-  "Educatie": [
+  "Leren en Ontdekken": [
+    // Workshops & Cursussen
     "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000",
     "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=1000",
     "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=1000",
     "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1000",
     "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?q=80&w=1000",
-    "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1000",
-    "https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=1000",
-    "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?q=80&w=1000",
-    "https://images.unsplash.com/photo-1511629091441-ee46146481b6?q=80&w=1000",
-    "https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=1000",
-    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=1000"
+    // Bibliotheek & Boeken
+    "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?q=80&w=1000",
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000",
+    "https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=1000",
+    // Technologie & Computers
+    "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?q=80&w=1000",
+    "https://images.unsplash.com/photo-1515378791036-0648a814c963?q=80&w=1000",
+    "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1000",
+    "https://images.unsplash.com/photo-1547891654-e66ed7ebb968?q=80&w=1000",
+    // Talen & Communicatie
+    "https://images.unsplash.com/photo-1544979590-37e9b47eb5a0?q=80&w=1000",
+    "https://images.unsplash.com/photo-1513103891413-5d0228b05383?q=80&w=1000",
+    "https://images.unsplash.com/photo-1561214078-f3247647fc5e?q=80&w=1000",
+    "https://images.unsplash.com/photo-1594388052359-60434fce79b1?q=80&w=1000",
+    // Wetenschap & Onderzoek
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000",
+    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=1000",
+    "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?q=80&w=1000"
   ],
   "Gezellig en Sociaal": [
+    // Feestjes & Parties
     "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?q=80&w=1000",
     "https://images.unsplash.com/photo-1543007630-9710e4a00a20?q=80&w=1000",
-    "https://images.unsplash.com/photo-1516834611397-8d633eaec5d0?q=80&w=1000",
-    "https://images.unsplash.com/photo-1575517111839-3a3843ee7f5d?q=80&w=1000",
-    "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=1000",
-    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1000",
-    "https://images.unsplash.com/photo-1511988617509-a57c8a288659?q=80&w=1000",
-    "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?q=80&w=1000",
-    "https://images.unsplash.com/photo-1464062257346-b03a7ad7d038?q=80&w=1000",
-    "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=1000",
-    "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1000"
-  ],
-  "Leren en Ontdekken": [
-    "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?q=80&w=1000",
-    "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=1000",
-    "https://images.unsplash.com/photo-1456406644174-8ddd4cd52a06?q=80&w=1000",
-    "https://images.unsplash.com/photo-1503676382389-4809596d5290?q=80&w=1000",
-    "https://images.unsplash.com/photo-1526243741027-444d633d7365?q=80&w=1000",
-    "https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=1000",
-    "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?q=80&w=1000",
-    "https://images.unsplash.com/photo-1456081445452-7a82e5545806?q=80&w=1000",
-    "https://images.unsplash.com/photo-1605015795771-f7471abc389c?q=80&w=1000",
-    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=1000",
-    "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=1000"
-  ],
-  "Natuur en Buitenleven": [
-    "https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1000",
-    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1000",
-    "https://images.unsplash.com/photo-1510797215324-95aa89f43c33?q=80&w=1000",
-    "https://images.unsplash.com/photo-1475113548554-5a36f1f523d6?q=80&w=1000",
-    "https://images.unsplash.com/photo-1533038590840-1f12a7a36c8a?q=80&w=1000",
-    "https://images.unsplash.com/photo-1508873535684-277a3cbcc4e8?q=80&w=1000",
-    "https://images.unsplash.com/photo-1523287409476-a6285b67b123?q=80&w=1000",
-    "https://images.unsplash.com/photo-1517021897933-0e0319cfbc28?q=80&w=1000",
-    "https://images.unsplash.com/photo-1520962922320-2038eacab903?q=80&w=1000",
-    "https://images.unsplash.com/photo-1445308394109-4ec2920981b1?q=80&w=1000",
-    "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?q=80&w=1000"
-  ],
-  "Muziek": [
-    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1000",
-    "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1000",
-    "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000",
-    "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1000",
-    "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6a3?q=80&w=1000",
-    "https://images.unsplash.com/photo-1501612780327-45045538702b?q=80&w=1000",
-    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1000",
-    "https://images.unsplash.com/photo-1499364615650-ec38552f4f34?q=80&w=1000",
-    "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1000",
-    "https://images.unsplash.com/photo-1442504028989-ab58b5f29a4a?q=80&w=1000",
-    "https://images.unsplash.com/photo-1559519847-e5527a78aee2?q=80&w=1000"
-  ],
-  "Vrijwilligerswerk": [
-    "https://images.unsplash.com/photo-1565803974275-dccd2f46104e?q=80&w=1000",
-    "https://images.unsplash.com/photo-1578357078586-491adf1aa5ba?q=80&w=1000",
-    "https://images.unsplash.com/photo-1544027993-37dbfe43562a?q=80&w=1000",
-    "https://images.unsplash.com/photo-1493612276216-ee3925520721?q=80&w=1000",
-    "https://images.unsplash.com/photo-1559027615-cd4628902d4a?q=80&w=1000",
-    "https://images.unsplash.com/photo-1603912699214-92627f304eb6?q=80&w=1000",
-    "https://images.unsplash.com/photo-1579208030886-b937da0925dc?q=80&w=1000",
-    "https://images.unsplash.com/photo-1560252829-804f1aedf1be?q=80&w=1000",
-    "https://images.unsplash.com/photo-1607748851687-ba9a10438621?q=80&w=1000",
-    "https://images.unsplash.com/photo-1531206715517-5c0ba140b2b8?q=80&w=1000",
-    "https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=1000"
-  ],
-  "Culinair": [
-    "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=1000",
+    "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80&w=1000",
+    "https://images.unsplash.com/photo-1566737236500-c8ac43014a8b?q=80&w=1000",
+    // Borrel & Drinks
+    "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=1000",
+    "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?q=80&w=1000",
+    "https://images.unsplash.com/photo-1551024506-0bccd828d307?q=80&w=1000",
+    "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=1000",
+    // BBQ & Grillen
     "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1000",
+    "https://images.unsplash.com/photo-1603739309629-f5e5b7f34d5a?q=80&w=1000",
+    "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?q=80&w=1000",
+    // Restaurants & Eten
+    "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=1000",
+    "https://images.unsplash.com/photo-1551218808-94e220e084d2?q=80&w=1000",
     "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1000",
-    "https://images.unsplash.com/photo-1559339352-11d035aa65de?q=80&w=1000",
-    "https://images.unsplash.com/photo-1576867757603-05b134ebc379?q=80&w=1000",
-    "https://images.unsplash.com/photo-1518634535905-4dabecee6fba?q=80&w=1000",
-    "https://images.unsplash.com/photo-1607877742574-a75766c98c5d?q=80&w=1000",
-    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1000",
-    "https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=1000",
-    "https://images.unsplash.com/photo-1543353071-10c8ba85a904?q=80&w=1000",
-    "https://images.unsplash.com/photo-1601314212732-047d4bdffd22?q=80&w=1000"
+    // Café & Coffee
+    "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?q=80&w=1000",
+    "https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=1000",
+    "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?q=80&w=1000",
+    // Spelletjes & Games
+    "https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?q=80&w=1000",
+    "https://images.unsplash.com/photo-1514389284430-eb20b44242e5?q=80&w=1000",
+    "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?q=80&w=1000"
   ],
-  "Zakelijk": [
-    "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=1000",
-    "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?q=80&w=1000",
-    "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=1000",
-    "https://images.unsplash.com/photo-1573497701240-345a300b8d51?q=80&w=1000",
-    "https://images.unsplash.com/photo-1573496800442-52d10d14d111?q=80&w=1000",
+  "Vrijwilligerswerk en hulp": [
+    // Gemeenschap & Samenleving
+    "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?q=80&w=1000",
+    "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?q=80&w=1000",
+    "https://images.unsplash.com/photo-1559027615-cd4628902d4a?q=80&w=1000",
+    "https://images.unsplash.com/photo-1491336477066-31156b5e4f35?q=80&w=1000",
+    // Milieu & Natuur
+    "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?q=80&w=1000",
+    "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?q=80&w=1000",
+    "https://images.unsplash.com/photo-1593113598332-cd288d649433?q=80&w=1000",
+    // Kinderen & Onderwijs
+    "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1000",
+    "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=1000",
+    "https://images.unsplash.com/photo-1571019613914-85f342c6a11e?q=80&w=1000",
+    // Zorg & Hulp
+    "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?q=80&w=1000",
+    "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?q=80&w=1000",
+    "https://images.unsplash.com/photo-1594213249455-b7b4adf6fc2d?q=80&w=1000",
+    // Evenementen Organisatie
+    "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1000",
     "https://images.unsplash.com/photo-1556761175-b413da4baf72?q=80&w=1000",
-    "https://images.unsplash.com/photo-1566554273541-37a9ca77b91f?q=80&w=1000",
-    "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?q=80&w=1000",
-    "https://images.unsplash.com/photo-1507358522600-9f71e620c44e?q=80&w=1000",
-    "https://images.unsplash.com/photo-1530099486328-e021101a494a?q=80&w=1000",
-    "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=1000"
+    "https://images.unsplash.com/photo-1564769662533-4f00a87b4056?q=80&w=1000"
   ],
   "Anders": [
-    "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1000",
-    "https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?q=80&w=1000",
-    "https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?q=80&w=1000",
-    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1000",
-    "https://images.unsplash.com/photo-1464998857633-50e59fbf2fe6?q=80&w=1000",
-    "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1000",
-    "https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=1000",
-    "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?q=80&w=1000",
-    "https://images.unsplash.com/photo-1591115765373-5207764f72e7?q=80&w=1000",
     "https://images.unsplash.com/photo-1516450137517-162bfbeb8dba?q=80&w=1000",
-    "https://images.unsplash.com/photo-1517732306149-e8f829eb588a?q=80&w=1000"
+    "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80&w=1000",
+    "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?q=80&w=1000",
+    "https://images.unsplash.com/photo-1543007630-9710e4a00a20?q=80&w=1000",
+    "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1000"
   ]
 };
 
-// Functie om de best passende afbeelding te selecteren op basis van categorie en titel/beschrijving
+// AI-gestuurde functie die de beste afbeelding selecteert op basis van titel en beschrijving
 export function getBestCategoryImage(category: string, title: string, description: string = ""): string {
   // Als er geen categorie is, gebruik dan de "Anders" categorie
   if (!category || !CATEGORY_IMAGES[category as keyof typeof CATEGORY_IMAGES]) {
@@ -163,15 +181,100 @@ export function getBestCategoryImage(category: string, title: string, descriptio
     return "https://images.unsplash.com/photo-1516450137517-162bfbeb8dba?q=80&w=1000"; // Default fallback
   }
 
-  // Kies een random afbeelding uit de categorie om meer variatie te bieden
-  // In een toekomstige implementatie kan hier een meer geavanceerd algoritme komen
-  // om op basis van de titel en beschrijving een specifieke afbeelding te kiezen
+  // AI-gestuurde selectie op basis van titel en beschrijving
+  const combinedText = `${title} ${description}`.toLowerCase();
+  
+  // Sport specifieke matching
+  if (category === "Sport en spel") {
+    if (combinedText.includes('voetbal') || combinedText.includes('soccer') || combinedText.includes('football')) {
+      return images[Math.floor(Math.random() * 5)]; // Eerste 5 zijn voetbal
+    }
+    if (combinedText.includes('tennis') || combinedText.includes('padel') || combinedText.includes('racket')) {
+      return images[5 + Math.floor(Math.random() * 4)]; // Tennis afbeeldingen
+    }
+    if (combinedText.includes('basketbal') || combinedText.includes('basketball')) {
+      return images[9 + Math.floor(Math.random() * 4)]; // Basketbal afbeeldingen
+    }
+    if (combinedText.includes('fitness') || combinedText.includes('gym') || combinedText.includes('workout')) {
+      return images[13 + Math.floor(Math.random() * 5)]; // Fitness afbeeldingen
+    }
+    if (combinedText.includes('hardlopen') || combinedText.includes('running') || combinedText.includes('marathon')) {
+      return images[18 + Math.floor(Math.random() * 4)]; // Hardloop afbeeldingen
+    }
+    if (combinedText.includes('fietsen') || combinedText.includes('cycling') || combinedText.includes('bike')) {
+      return images[22 + Math.floor(Math.random() * 3)]; // Fiets afbeeldingen
+    }
+    if (combinedText.includes('zwemmen') || combinedText.includes('swimming') || combinedText.includes('pool')) {
+      return images[25 + Math.floor(Math.random() * 3)]; // Zwem afbeeldingen
+    }
+    if (combinedText.includes('yoga') || combinedText.includes('meditation') || combinedText.includes('mindfulness')) {
+      return images[28 + Math.floor(Math.random() * 3)]; // Yoga afbeeldingen
+    }
+  }
+  
+  // Kunst en Cultuur specifieke matching
+  if (category === "Kunst en Cultuur") {
+    if (combinedText.includes('muziek') || combinedText.includes('concert') || combinedText.includes('band')) {
+      return images[Math.floor(Math.random() * 6)]; // Muziek afbeeldingen
+    }
+    if (combinedText.includes('theater') || combinedText.includes('dans') || combinedText.includes('dance')) {
+      return images[6 + Math.floor(Math.random() * 4)]; // Theater afbeeldingen
+    }
+    if (combinedText.includes('kunst') || combinedText.includes('art') || combinedText.includes('expo')) {
+      return images[10 + Math.floor(Math.random() * 5)]; // Kunst afbeeldingen
+    }
+    if (combinedText.includes('festival') || combinedText.includes('feest')) {
+      return images[15 + Math.floor(Math.random() * 4)]; // Festival afbeeldingen
+    }
+    if (combinedText.includes('workshop') || combinedText.includes('creatief') || combinedText.includes('creative')) {
+      return images[19 + Math.floor(Math.random() * 4)]; // Workshop afbeeldingen
+    }
+  }
+  
+  // Gezellig en Sociaal specifieke matching
+  if (category === "Gezellig en Sociaal") {
+    if (combinedText.includes('feest') || combinedText.includes('party') || combinedText.includes('verjaardag')) {
+      return images[Math.floor(Math.random() * 4)]; // Feest afbeeldingen
+    }
+    if (combinedText.includes('borrel') || combinedText.includes('drinks') || combinedText.includes('bar')) {
+      return images[4 + Math.floor(Math.random() * 4)]; // Borrel afbeeldingen
+    }
+    if (combinedText.includes('bbq') || combinedText.includes('grill') || combinedText.includes('barbecue')) {
+      return images[8 + Math.floor(Math.random() * 3)]; // BBQ afbeeldingen
+    }
+    if (combinedText.includes('restaurant') || combinedText.includes('eten') || combinedText.includes('dinner')) {
+      return images[11 + Math.floor(Math.random() * 3)]; // Restaurant afbeeldingen
+    }
+    if (combinedText.includes('koffie') || combinedText.includes('coffee') || combinedText.includes('café')) {
+      return images[14 + Math.floor(Math.random() * 3)]; // Café afbeeldingen
+    }
+  }
+  
+  // Fallback: kies een willekeurige afbeelding uit de categorie
   const randomIndex = Math.floor(Math.random() * images.length);
-  console.log(`Gekozen afbeelding voor ${category}: ${images[randomIndex]}`);
+  console.log(`AI selectie voor "${title}" in ${category}: afbeelding ${randomIndex + 1}`);
   return images[randomIndex];
 }
 
 // Functie om alle categorie-afbeeldingen op te halen
 export function getCategoryImages(category: string): string[] {
   return CATEGORY_IMAGES[category as keyof typeof CATEGORY_IMAGES] || CATEGORY_IMAGES["Anders"];
+}
+
+// Functie om slimme alternatieven te krijgen op basis van de geselecteerde afbeelding
+export function getSmartAlternatives(category: string, title: string, description: string, currentImage: string): string[] {
+  const categoryImages = getCategoryImages(category);
+  
+  // Filter de huidige afbeelding uit de alternatieven
+  const alternatives = categoryImages.filter(img => img !== currentImage);
+  
+  // Mix de volgorde voor variatie maar behoud de beste matches bovenaan
+  const shuffled = [...alternatives];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  
+  // Retourneer de beste 8 alternatieven
+  return shuffled.slice(0, 8);
 }

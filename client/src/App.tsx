@@ -215,102 +215,42 @@ export default function App() {
           </>
         )}
         
-        {/* Mobiele Routes (App) */}
-        {isMobile && (
-          <>
-            {/* Auth routes - deze moeten als eerste worden gedefinieerd */}
-            <Route path="/app/welcome">
-              <AppWelcomePage />
-            </Route>
-            <Route path="/app/login">
-              <AppLoginPage />
-            </Route>
-            <Route path="/app/register">
-              <AppRegisterPage />
-            </Route>
-            <Route path="/app/forgot-password">
-              <AppForgotPasswordPage />
-            </Route>
-            
-            {/* App specifieke routes */}
-            <Route path="/app/create-event">
-              <AppCreateEvent />
-            </Route>
-            <Route path="/app/event/:id">
-              <AppEventDetail />
-            </Route>
-            <Route path="/app/events">
-              <AppEventsPage />
-            </Route>
-            <Route path="/app/favorites">
-              <AppFavoritesPage />
-            </Route>
-            <Route path="/app/profile">
-              <AppProfilePage />
-            </Route>
-            <Route path="/app">
-              <AppHomePage />
-            </Route>
-            
-            {/* Oude App2 routes - redirecten naar App */}
-            <Route path="/app2/welcome">
-              <AppRedirect to="/app/welcome" />
-            </Route>
-            <Route path="/app2/login">
-              <AppRedirect to="/app/login" />
-            </Route>
-            <Route path="/app2/register">
-              <AppRedirect to="/app/register" />
-            </Route>
-            <Route path="/app2/forgot-password">
-              <AppRedirect to="/app/forgot-password" />
-            </Route>
-            <Route path="/app2/create-event">
-              <AppRedirect to="/app/create-event" />
-            </Route>
-            <Route path="/app2/event/:id">
-              {({ id }) => <AppRedirect to={`/app/event/${id}`} />}
-            </Route>
-            <Route path="/app2/events">
-              <AppRedirect to="/app/events" />
-            </Route>
-            <Route path="/app2/favorites">
-              <AppRedirect to="/app/favorites" />
-            </Route>
-            <Route path="/app2/profile">
-              <AppRedirect to="/app/profile" />
-            </Route>
-            <Route path="/app2">
-              <AppRedirect to="/app" />
-            </Route>
-            
-            {/* Basis routes - voor backwards compatibility */}
-            <Route path="/create-event">
-              <AppCreateEvent />
-            </Route>
-            <Route path="/event/:id">
-              <AppEventDetail />
-            </Route>
-            <Route path="/events">
-              <AppEventsPage />
-            </Route>
-            <Route path="/favorites">
-              <AppFavoritesPage />
-            </Route>
-            <Route path="/profile">
-              <AppProfilePage />
-            </Route>
-            <Route path="/login">
-              <AppLoginPage />
-            </Route>
-            <Route path="/register">
-              <AppRegisterPage />
-            </Route>
-            <Route path="/">
-              <AppHomePage />
-            </Route>
-          </>
-        )}
+        {/* App Routes - altijd beschikbaar, ongeacht apparaat type */}
+        <Route path="/app/welcome">
+          <AppWelcomePage />
+        </Route>
+        <Route path="/app/login">
+          <AppLoginPage />
+        </Route>
+        <Route path="/app/register">
+          <AppRegisterPage />
+        </Route>
+        <Route path="/app/forgot-password">
+          <AppForgotPasswordPage />
+        </Route>
+        <Route path="/app/create-event">
+          <AppCreateEvent />
+        </Route>
+        <Route path="/app/event/:id">
+          <AppEventDetail />
+        </Route>
+        <Route path="/app/events">
+          <AppEventsPage />
+        </Route>
+        <Route path="/app/favorites">
+          <AppFavoritesPage />
+        </Route>
+        <Route path="/app/profile">
+          <AppProfilePage />
+        </Route>
+        <Route path="/app">
+          <AppHomePage />
+        </Route>
+
+        {/* Default route */}
+        <Route path="/">
+          {isMobile ? <AppHomePage /> : <WebPage />}
+        </Route>
         
         {/* Fallback route voor onbekende routes */}
         <Route>
@@ -318,7 +258,7 @@ export default function App() {
         </Route>
       </Switch>
       <Toaster />
-      </AuthProvider>
-    </QueryClientProvider>
+    </AuthProvider>
+  </QueryClientProvider>
   );
 }

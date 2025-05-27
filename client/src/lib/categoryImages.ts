@@ -47,19 +47,20 @@ export const CATEGORY_IMAGES = {
     "https://images.unsplash.com/photo-1577216273466-58d57e4d24b5?q=80&w=1000"
   ],
   "Kunst en Cultuur": [
-    // Muziek & Concerten
-    "https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=1000",
-    "https://images.unsplash.com/photo-1499781350541-7783f6c6a0c8?q=80&w=1000",
-    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=1000",
-    "https://images.unsplash.com/photo-1501612780327-45045538702b?q=80&w=1000",
-    "https://images.unsplash.com/photo-1514533450685-2b0a0b14d49d?q=80&w=1000",
-    "https://images.unsplash.com/photo-1471478331149-c72f17e33c73?q=80&w=1000",
+    // Muziek & Concerten (ECHTE muziek afbeeldingen eerst!)
+    "https://images.unsplash.com/photo-1501612780327-45045538702b?q=80&w=1000", // Piano
+    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=1000", // Concert
+    "https://images.unsplash.com/photo-1499781350541-7783f6c6a0c8?q=80&w=1000", // Gitaar
+    "https://images.unsplash.com/photo-1514533450685-2b0a0b14d49d?q=80&w=1000", // Live optreden
+    "https://images.unsplash.com/photo-1471478331149-c72f17e33c73?q=80&w=1000", // Muziek festival
+    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1000", // Headphones/DJ
     // Theater & Dans
     "https://images.unsplash.com/photo-1518998053901-5348d3961a04?q=80&w=1000",
     "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=1000",
     "https://images.unsplash.com/photo-1537996194471-e657df975ab4?q=80&w=1000",
     "https://images.unsplash.com/photo-1547036967-23d11aacaee0?q=80&w=1000",
     // Kunst & Exposities
+    "https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=1000", // Kwast (verplaatst hiernaartoe)
     "https://images.unsplash.com/photo-1605729465641-d827512cad30?q=80&w=1000",
     "https://images.unsplash.com/photo-1515401131817-e1be5a9ee622?q=80&w=1000",
     "https://images.unsplash.com/photo-1541961017774-22349e4a1262?q=80&w=1000",

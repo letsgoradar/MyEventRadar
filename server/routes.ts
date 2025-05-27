@@ -7,7 +7,6 @@ import fs from "fs";
 import { z } from "zod";
 import fetch from "node-fetch";
 import rateLimit from "express-rate-limit";
-import { getLocationNameFromAPI, getLocationFromQuery } from "./geocoding";
 
 import { setupAuth } from "./auth";
 import { setupVite, serveStatic } from "./vite";

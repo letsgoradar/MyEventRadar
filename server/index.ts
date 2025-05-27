@@ -5,6 +5,7 @@ if (!process.env.NODE_ENV) {
 console.log("Starting server with NODE_ENV:", process.env.NODE_ENV);
 
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import session from "express-session";
 import cookieParser from "cookie-parser";
 import { attachUser } from "./middleware/auth";
@@ -12,6 +13,21 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Security: Essential security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Voor Vite development
+      connectSrc: ["'self'", "ws:", "wss:", "https:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false // Voor compatibiliteit
+}));
 
 // Enhanced error handling middleware
 const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction) => {

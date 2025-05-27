@@ -6,6 +6,7 @@ import path from "path";
 import fs from "fs";
 import { z } from "zod";
 import fetch from "node-fetch";
+import rateLimit from "express-rate-limit";
 import { getLocationNameFromAPI, getLocationFromQuery } from "./geocoding";
 
 import { setupAuth } from "./auth";
@@ -23,6 +24,28 @@ const GEOCODING_CACHE = new Map();
 const CACHE_EXPIRES_MS = 24 * 60 * 60 * 1000; // 24 uur
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Security: Rate limiting voor login/register endpoints
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minuten
+    max: 5, // Max 5 pogingen per 15 minuten
+    message: { error: "Te veel inlogpogingen. Probeer over 15 minuten opnieuw." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minuten
+    max: 100, // Max 100 requests per 15 minuten
+    message: { error: "Te veel verzoeken. Probeer later opnieuw." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Toepassen van rate limiting
+  app.use("/api/login", authLimiter);
+  app.use("/api/register", authLimiter);
+  app.use("/api", generalLimiter);
+
   setupAuth(app);
   app.use("/api/profile-photo", profilePhotoRoutes);
   app.use("/api/generate-image", generateImageRoutes);

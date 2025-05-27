@@ -128,9 +128,9 @@ const AdminNav: React.FC = () => {
   }) => (
     <SheetClose asChild>
       <Link href={href}>
-        <a
+        <div
           className={cn(
-            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium",
+            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium cursor-pointer",
             active
               ? "bg-primary text-primary-foreground"
               : "hover:bg-accent"
@@ -139,7 +139,7 @@ const AdminNav: React.FC = () => {
         >
           {icon}
           {label}
-        </a>
+        </div>
       </Link>
     </SheetClose>
   );
@@ -150,12 +150,12 @@ const AdminNav: React.FC = () => {
         {/* Logo and title */}
         <div className="flex items-center gap-2">
           <Link href="/admin">
-            <a className="flex items-center gap-2">
+            <div className="flex items-center gap-2 cursor-pointer">
               <Logo className="h-8 w-8" />
               <span className="font-semibold text-lg hidden md:inline-block">
                 Admin Dashboard
               </span>
-            </a>
+            </div>
           </Link>
         </div>
         
@@ -163,9 +163,9 @@ const AdminNav: React.FC = () => {
         <nav className="hidden md:flex items-center space-x-1">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href}>
-              <a
+              <div
                 className={cn(
-                  "px-3 py-2 rounded-md text-sm font-medium flex items-center space-x-2",
+                  "px-3 py-2 rounded-md text-sm font-medium flex items-center space-x-2 cursor-pointer",
                   item.active
                     ? "bg-primary text-primary-foreground"
                     : "hover:bg-accent"
@@ -173,7 +173,7 @@ const AdminNav: React.FC = () => {
               >
                 {item.icon}
                 <span>{item.label}</span>
-              </a>
+              </div>
             </Link>
           ))}
         </nav>

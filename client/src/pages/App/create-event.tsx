@@ -575,6 +575,44 @@ export function AppCreateEvent() {
     // Haal de formulierwaarden op en bereid ze voor voor verzending
     const formValues = form.getValues();
     
+    // Upload de afbeelding eerst als er een is geselecteerd
+    let uploadedImageUrl = formValues.imageUrl;
+    
+    if (selectedImages.length > 0 && selectedImages[0]) {
+      try {
+        console.log("Uploading image for event...");
+        
+        const formData = new FormData();
+        formData.append('photo', selectedImages[0]);
+        
+        // Upload de afbeelding met fetch API
+        const response = await fetch('/api/profile-photo', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+        
+        const uploadResponse = await response.json();
+        
+        uploadedImageUrl = uploadResponse.photoUrl.startsWith('http') 
+          ? uploadResponse.photoUrl 
+          : window.location.origin + uploadResponse.photoUrl;
+          
+        console.log("Image uploaded successfully:", uploadedImageUrl);
+        
+      } catch (error) {
+        console.error("Failed to upload image:", error);
+        toast({
+          title: "Afbeelding upload mislukt",
+          description: "De afbeelding kon niet worden geüpload, maar het event wordt wel aangemaakt.",
+          variant: "destructive"
+        });
+      }
+    }
+    
     // Creëer de juiste velden voor latitude en longitude van de locatie
     // om compatibel te zijn met het schema
     const latitude = formValues.location?.lat;
@@ -603,6 +641,7 @@ export function AppCreateEvent() {
       notificationReach: notificationReach,
       hostId: 1, // Standaard host ID (ingelogde gebruiker of admin)
       maxParticipants: maxParticipants, // Gebruik de aangepaste waarde
+      imageUrl: uploadedImageUrl, // Gebruik de geüploade afbeelding URL
     };
     
     // Verwijder het location object, maar maak een veilige kopie zonder het location veld

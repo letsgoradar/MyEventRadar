@@ -29,10 +29,17 @@ declare module 'express-session' {
 
 // Middleware to check if user is authenticated
 export const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+  // Check Passport.js authentication first (req.isAuthenticated() method)
+  if (req.isAuthenticated && req.isAuthenticated() && req.user) {
+    return next();
+  }
+  
+  // Fallback check for session-based auth
   if (req.session && req.session.user) {
     req.user = req.session.user;
     return next();
   }
+  
   return res.status(401).json({ message: 'Unauthorized: Please log in' });
 };
 
@@ -47,7 +54,8 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
 
 // Middleware to add user to request if authenticated
 export const attachUser = (req: Request, res: Response, next: NextFunction) => {
-  if (req.session && req.session.user) {
+  // Passport.js sets req.user automatically, but we can also check session fallback
+  if (!req.user && req.session && req.session.user) {
     req.user = req.session.user;
   }
   next();

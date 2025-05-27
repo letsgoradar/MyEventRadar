@@ -24,7 +24,16 @@ export default function ProfilePhotoUpload({
   
   // Probeer eerst de opgeslagen foto uit localStorage te halen
   const savedPhotoUrl = typeof window !== 'undefined' ? localStorage.getItem('profilePhotoUrl') : null;
-  const [previewUrl, setPreviewUrl] = useState<string | null>(currentPhotoUrl || savedPhotoUrl || null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(savedPhotoUrl || currentPhotoUrl || null);
+  
+  // Update previewUrl wanneer savedPhotoUrl verandert
+  React.useEffect(() => {
+    const storedUrl = typeof window !== 'undefined' ? localStorage.getItem('profilePhotoUrl') : null;
+    if (storedUrl && storedUrl !== previewUrl) {
+      setPreviewUrl(storedUrl);
+      console.log("Updating photo from localStorage:", storedUrl);
+    }
+  }, []);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getCategoryImages, getBestCategoryImage } from '@/lib/categoryImages';
+import { getCategoryImages } from '@/lib/categoryImages';
+import { getSmartImage, ALL_ACTIVITY_IMAGES } from '@/lib/smartImageSelection';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface CategoryImageSelectorProps {
@@ -22,28 +23,26 @@ export function CategoryImageSelector({
   const [images, setImages] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | undefined>(defaultImage);
 
-  // Laad afbeeldingen bij eerste render en wanneer de categorie verandert
+  // Laad alle afbeeldingen en gebruik slimme selectie
   useEffect(() => {
-    if (category) {
-      const categoryImages = getCategoryImages(category);
-      setImages(categoryImages);
-      
-      // Gebruik AI-selectie voor de beste afbeelding
-      if (categoryImages.length > 0) {
-        const bestImage = getBestCategoryImage(category, title, description);
-        setSelectedImage(bestImage);
-        onSelectImage(bestImage);
-        console.log(`CategoryImageSelector: AI-selectie voor "${title}" in ${category}: ${bestImage}`);
-      }
+    // Toon alle beschikbare afbeeldingen
+    setImages(ALL_ACTIVITY_IMAGES);
+    
+    // Gebruik slimme AI-selectie gebaseerd op titel en beschrijving alleen
+    if (title || description) {
+      const smartImage = getSmartImage(title, description);
+      setSelectedImage(smartImage);
+      onSelectImage(smartImage);
+      console.log(`Slimme afbeelding selectie voor "${title}": ${smartImage}`);
     }
-  }, [category, title, description]);
+  }, [title, description]);
 
-  // Als er geen categorie is gekozen of er zijn geen afbeeldingen
-  if (!category || images.length === 0) {
+  // Als er geen afbeeldingen zijn geladen
+  if (images.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-40 bg-muted rounded-md">
         <p className="text-sm text-muted-foreground">
-          Selecteer eerst een categorie om afbeeldingen te zien
+          Afbeeldingen worden geladen...
         </p>
       </div>
     );

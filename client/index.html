@@ -3,6 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- WebSocket fix moet als allereerste worden geladen -->
+    <script>
+      // Patch WebSocket voordat Vite het gebruikt
+      (function() {
+        const originalWebSocket = window.WebSocket;
+        window.WebSocket = function(url, protocols) {
+          // Fix ongeldige URLs met undefined poort
+          if (url && url.includes(':undefined')) {
+            console.log('Herstellen van ongeldige WebSocket URL:', url);
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsHost = window.location.host;
+            url = url.replace(/wss?:\/\/localhost:undefined/, wsProtocol + '//' + wsHost);
+            console.log('Verbeterde WebSocket URL:', url);
+          }
+          return new originalWebSocket(url, protocols);
+        };
+        // Behoud prototype
+        window.WebSocket.prototype = originalWebSocket.prototype;
+        Object.setPrototypeOf(window.WebSocket, originalWebSocket);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

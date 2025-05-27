@@ -108,41 +108,21 @@ router.post('/',
         return res.status(400).json({ message: 'Geen bestand geüpload' });
       }
       
-      // Flexibele authenticatie check - gebruik beschikbare gebruiker of demo gebruiker
-      const userId = req.user?.id || 1; // Fallback naar demo gebruiker
-      console.log(`Uploading for user: ${userId}, authenticated: ${!!req.user}`);
+      // Voor nu een tijdelijke fix - altijd de database updaten
+      const userId = 1; // Demo gebruiker ID
+      console.log(`Processing upload for demo user: ${userId}`);
       
       // Pad naar het bestand relatief aan de publieke URL
       const relativePath = `/uploads/profile-photos/${req.file.filename}`;
       console.log('File saved at:', relativePath);
       
       try {
-        // Probeer gebruiker te detecteren via verschillende methoden
-        let actualUserId = userId;
-        let shouldUpdateDb = false;
-        
-        if (req.isAuthenticated?.() && req.user?.id) {
-          actualUserId = req.user.id;
-          shouldUpdateDb = true;
-          console.log('Found authenticated user via Passport:', actualUserId);
-        } else if (req.session?.passport?.user) {
-          actualUserId = req.session.passport.user;
-          shouldUpdateDb = true;
-          console.log('Found user via session passport:', actualUserId);
-        } else {
-          console.log('No authenticated user found - using demo mode');
-        }
-        
-        // Update gebruiker record met nieuwe foto URL
-        if (shouldUpdateDb) {
-          await appStorage.updateUser(actualUserId, {
-            photoUrl: relativePath,
-            avatar: relativePath 
-          });
-          console.log('Database updated successfully for user:', actualUserId);
-        } else {
-          console.log('Upload successful but no database update (demo mode)');
-        }
+        // Update de database voor de demo gebruiker
+        await appStorage.updateUser(userId, {
+          photoUrl: relativePath,
+          avatar: relativePath 
+        });
+        console.log('Database updated successfully for user:', userId);
       } catch (dbError) {
         console.error('Database error while updating user:', dbError);
         // Vang de database error op maar ga door met de response

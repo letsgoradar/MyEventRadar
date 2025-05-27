@@ -108,9 +108,9 @@ router.post('/',
         return res.status(400).json({ message: 'Geen bestand geüpload' });
       }
       
-      // Voor nu een tijdelijke fix - altijd de database updaten
-      const userId = 1; // Demo gebruiker ID
-      console.log(`Processing upload for demo user: ${userId}`);
+      // Demo gebruiker ID (vervang oude authenticatie logica)
+      const userId = 1;
+      console.log(`Database update voor gebruiker: ${userId}`);
       
       // Pad naar het bestand relatief aan de publieke URL
       const relativePath = `/uploads/profile-photos/${req.file.filename}`;

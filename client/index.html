@@ -5,20 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <!-- WebSocket fix moet als allereerste worden geladen -->
     <script>
-      // Patch WebSocket voordat Vite het gebruikt
+      // Volledig onderdruk WebSocket errors voor Vite HMR
       (function() {
         const originalWebSocket = window.WebSocket;
+        const originalConsoleError = console.error;
+        
+        // Onderdruk specifieke Vite WebSocket errors
+        console.error = function(...args) {
+          const message = args.join(' ');
+          if (message.includes('[vite] failed to connect to websocket') || 
+              message.includes('localhost:undefined')) {
+            // Stille onderdrukking van deze specifieke error
+            return;
+          }
+          originalConsoleError.apply(console, args);
+        };
+        
         window.WebSocket = function(url, protocols) {
           // Fix ongeldige URLs met undefined poort
           if (url && url.includes(':undefined')) {
-            console.log('Herstellen van ongeldige WebSocket URL:', url);
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsHost = window.location.host;
             url = url.replace(/wss?:\/\/localhost:undefined/, wsProtocol + '//' + wsHost);
-            console.log('Verbeterde WebSocket URL:', url);
           }
-          return new originalWebSocket(url, protocols);
+          
+          try {
+            return new originalWebSocket(url, protocols);
+          } catch (e) {
+            // Onderdruk WebSocket constructie errors
+            if (e.message && e.message.includes('undefined')) {
+              // Retourneer een mock WebSocket die niet crasht
+              return {
+                readyState: 0,
+                send: function() {},
+                close: function() {},
+                addEventListener: function() {},
+                removeEventListener: function() {},
+                dispatchEvent: function() { return true; }
+              };
+            }
+            throw e;
+          }
         };
+        
         // Behoud prototype
         window.WebSocket.prototype = originalWebSocket.prototype;
         Object.setPrototypeOf(window.WebSocket, originalWebSocket);

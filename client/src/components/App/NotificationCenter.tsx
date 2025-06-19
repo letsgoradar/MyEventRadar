@@ -51,6 +51,7 @@ export function NotificationCenter() {
       const response = await fetch(`/api/notifications/${notificationId}/read`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to mark as read');
     },

@@ -72,12 +72,14 @@ export function AppEventDetail() {
         const response = await fetch(`/api/favorite/${eventId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
         });
         if (!response.ok) throw new Error('Failed to remove favorite');
       } else {
         const response = await fetch('/api/favorite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ eventId }),
         });
         if (!response.ok) throw new Error('Failed to add favorite');

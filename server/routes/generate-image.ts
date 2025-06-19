@@ -43,19 +43,12 @@ router.post('/', async (req: Request, res: Response) => {
     
     console.log(`Genereren van afbeelding met Hugging Face (${HF_MODEL_ID}), prompt:`, enhancedPrompt);
     
-    // Hugging Face API parameters
-    const parameters = {
+    // Hugging Face API parameters - simplified for compatibility
+    const requestBody = {
       inputs: enhancedPrompt,
-      parameters: {
-        negative_prompt: "abstract, cartoon, illustratie, tekening, schilderij, 3d, tekst, watermark, logo, abstracte vormen, onscherp, wazig, vervormingen, lage kwaliteit",
-        num_inference_steps: 35,  // Hogere kwaliteit door meer stappen
-        guidance_scale: 8.5,      // Hogere waarde voor meer nauwkeurigheid en minder creativiteit
-        width: 832,              // Betere kwaliteit, zonder te groot te worden
-        height: 832,             // Betere kwaliteit, zonder te groot te worden
-      },
       options: {
-        use_cache: true,
-        wait_for_model: true
+        wait_for_model: true,
+        use_cache: false
       }
     };
     
@@ -66,7 +59,7 @@ router.post('/', async (req: Request, res: Response) => {
         'Authorization': `Bearer ${HUGGING_FACE_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(parameters),
+      body: JSON.stringify(requestBody),
     });
     
     // Als het model nog aan het laden is, geeft Hugging Face een 503 terug

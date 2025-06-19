@@ -223,20 +223,23 @@ const KEYWORD_MAPPINGS = {
   dans: [46, 47, 48],
   dance: [46, 47, 48],
   
-  // Koken keywords
-  koken: [49, 50, 51, 52],
-  cooking: [49, 50, 51, 52],
-  recepten: [49, 50, 51, 52],
-  chef: [49, 50, 51, 52],
+  // Koken keywords (uitgebreid)
+  koken: [49, 50, 51, 52, 144, 153],
+  cooking: [49, 50, 51, 52, 144, 153],
+  recepten: [49, 50, 51, 52, 144, 153],
+  chef: [49, 50, 51, 52, 144, 153],
+  eten: [144, 153],
   
-  bbq: [53, 54, 55],
-  barbecue: [53, 54, 55],
-  grill: [53, 54, 55],
+  bbq: [53, 54, 55, 153],
+  barbecue: [53, 54, 55, 153],
+  grill: [53, 54, 55, 153],
   
-  // Sociale keywords
-  feest: [56, 57, 58],
-  party: [56, 57, 58],
-  verjaardag: [56, 57, 58],
+  // Sociale keywords (uitgebreid)
+  feest: [56, 57, 58, 142, 143, 152],
+  party: [56, 57, 58, 142, 143, 152],
+  verjaardag: [56, 57, 58, 142, 143, 152],
+  sociaal: [152, 142, 143],
+  gezellig: [152, 142, 143],
   
   // Leren keywords
   boek: [59, 60, 61],
@@ -252,10 +255,12 @@ const KEYWORD_MAPPINGS = {
   game: [65, 66, 67],
   esports: [65, 66, 67],
   
-  // Natuur keywords
-  natuur: [68, 69, 70],
-  wandelen: [68, 69, 70],
-  hiking: [68, 69, 70],
+  // Natuur keywords (uitgebreid)
+  natuur: [68, 69, 70, 145, 146],
+  wandelen: [68, 69, 70, 145, 146],
+  hiking: [68, 69, 70, 145, 146],
+  buitenactiviteit: [145, 146, 68, 69, 70],
+  outdoor: [145, 146, 68, 69, 70],
   
   // Vrijwilligerswerk keywords
   vrijwilliger: [71, 72, 73],
@@ -268,11 +273,18 @@ const KEYWORD_MAPPINGS = {
   tech: [74, 75, 76],
   computer: [74, 75, 76],
   
-  // Dieren keywords
-  hond: [77, 78, 79],
-  kat: [77, 78, 79],
-  dier: [77, 78, 79],
-  huisdier: [77, 78, 79],
+  // Dieren keywords (uitgebreid)
+  hond: [77, 78, 79, 149, 150],
+  kat: [77, 78, 79, 149, 150, 151],
+  dier: [77, 78, 79, 149, 150, 151],
+  huisdier: [77, 78, 79, 149, 150, 151],
+  dieren: [149, 150, 151, 77, 78, 79],
+  
+  // Sport extra keywords
+  sport: [0, 1, 2, 3, 4, 147, 148],
+  fitness: [12, 13, 14, 15, 147, 148],
+  training: [12, 13, 14, 15, 147, 148],
+  bootcamp: [147, 148, 12, 13, 14],
 };
 
 export function getSmartImage(title: string, description: string = ""): { image: string | null, hasMatch: boolean } {

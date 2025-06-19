@@ -8,8 +8,8 @@ const router = Router();
 const HUGGING_FACE_API_KEY = process.env.HUGGING_FACE_API_KEY;
 
 // Configuratie voor Hugging Face modellen
-// We gebruiken SDXL voor hogere kwaliteit
-const HF_MODEL_ID = 'stabilityai/stable-diffusion-xl-base-1.0';
+// We gebruiken een stabielere model voor betrouwbaarheid
+const HF_MODEL_ID = 'runwayml/stable-diffusion-v1-5';
 const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL_ID}`;
 
 /**
@@ -43,13 +43,9 @@ router.post('/', async (req: Request, res: Response) => {
     
     console.log(`Genereren van afbeelding met Hugging Face (${HF_MODEL_ID}), prompt:`, enhancedPrompt);
     
-    // Hugging Face API parameters - simplified for compatibility
+    // Hugging Face API parameters - minimal format for maximum compatibility
     const requestBody = {
-      inputs: enhancedPrompt,
-      options: {
-        wait_for_model: true,
-        use_cache: false
-      }
+      inputs: enhancedPrompt
     };
     
     // Maak API-verzoek naar Hugging Face Inference API
@@ -76,11 +72,21 @@ router.post('/', async (req: Request, res: Response) => {
       const errorText = await response.text();
       console.error('Hugging Face API error:', response.status, errorText);
       
-      // Specifiek antwoord, geen fallback image
+      let errorMessage = 'Er is een probleem bij het genereren van de afbeelding.';
+      
+      if (response.status === 400) {
+        errorMessage = 'De AI-service is momenteel niet beschikbaar. Probeer het later opnieuw.';
+      } else if (response.status === 401) {
+        errorMessage = 'AI-service authenticatie mislukt. Neem contact op met de beheerder.';
+      } else if (response.status === 503) {
+        errorMessage = 'Het AI-model wordt geladen. Probeer het over een minuut opnieuw.';
+      }
+      
       return res.status(500).json({ 
         error: 'Hugging Face API fout',
-        message: 'Er is een probleem bij het genereren van de afbeelding. Probeer het later opnieuw.',
-        statusCode: response.status
+        message: errorMessage,
+        statusCode: response.status,
+        details: errorText
       });
     }
 

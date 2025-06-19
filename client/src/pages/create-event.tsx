@@ -192,11 +192,9 @@ export default function CreateEventPage() {
       const eventData = {
         title: data.title,
         description: data.description,
-        location: {
-          lat: data.location.lat,
-          lng: data.location.lng,
-          notificationReach: data.location.notificationReach,
-        },
+        latitude: data.location.lat,
+        longitude: data.location.lng,
+        notificationReach: data.location.notificationReach,
         category: data.category,
         secondaryCategory: data.secondaryCategory,
         startTime: startDateTime.toISOString(),
@@ -207,6 +205,7 @@ export default function CreateEventPage() {
         hostId: data.hostId,
         recurrence: data.recurrence,
         tags: data.tags,
+        imageUrl: data.imageUrl,
       };
 
       const response = await apiRequest('POST', '/api/events', eventData);

@@ -72,21 +72,27 @@ router.post('/', async (req: Request, res: Response) => {
       const errorText = await response.text();
       console.error('Hugging Face API error:', response.status, errorText);
       
-      let errorMessage = 'Er is een probleem bij het genereren van de afbeelding.';
+      let errorMessage = 'AI afbeeldingsgeneratie is momenteel niet beschikbaar.';
+      let userMessage = 'De AI-service voor het genereren van afbeeldingen is tijdelijk niet beschikbaar. U kunt het evenement wel aanmaken - de app selecteert automatisch een passende afbeelding op basis van de categorie.';
       
       if (response.status === 400) {
-        errorMessage = 'De AI-service is momenteel niet beschikbaar. Probeer het later opnieuw.';
+        errorMessage = 'Het AI-model ondersteunt deze aanvraag momenteel niet.';
       } else if (response.status === 401) {
-        errorMessage = 'AI-service authenticatie mislukt. Neem contact op met de beheerder.';
+        errorMessage = 'AI-service authenticatie vereist geldig API-sleutel.';
+        userMessage = 'Voor AI afbeeldingsgeneratie is een geldige Hugging Face API-sleutel vereist. Neem contact op met de beheerder om deze functie te activeren.';
+      } else if (response.status === 404) {
+        errorMessage = 'Het AI-model is niet beschikbaar.';
       } else if (response.status === 503) {
-        errorMessage = 'Het AI-model wordt geladen. Probeer het over een minuut opnieuw.';
+        errorMessage = 'Het AI-model wordt geladen.';
+        userMessage = 'Het AI-model wordt momenteel geladen. Probeer het over een paar minuten opnieuw, of maak het evenement aan - er wordt automatisch een passende afbeelding geselecteerd.';
       }
       
-      return res.status(500).json({ 
-        error: 'Hugging Face API fout',
-        message: errorMessage,
+      return res.status(503).json({ 
+        error: 'AI service niet beschikbaar',
+        message: userMessage,
+        technical_details: errorMessage,
         statusCode: response.status,
-        details: errorText
+        fallback_available: true
       });
     }
 

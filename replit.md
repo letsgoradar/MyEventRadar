@@ -127,8 +127,15 @@ The application uses PostgreSQL with the following main entities:
 - Admin tools for user and event management
 - Activity logging for audit trails
 
+## Recent Changes
+- June 19, 2025: Fixed authentication session configuration for development environment
+- June 19, 2025: Updated cookie settings (secure: false, sameSite: 'lax') for proper session handling
+- June 19, 2025: Completed event creation functionality - events save successfully to database
+- June 19, 2025: Enhanced AI image generation error handling with user-friendly messages
+- June 19, 2025: Added credentials: 'include' to all API requests for proper authentication
+
 ## Changelog
-- June 19, 2025. Initial setup
+- June 19, 2025. Initial setup and authentication system implementation
 
 ## User Preferences
 

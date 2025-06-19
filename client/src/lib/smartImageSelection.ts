@@ -47,7 +47,7 @@ export const ALL_ACTIVITY_IMAGES = [
   "https://images.unsplash.com/photo-1571020550490-6e36e2eda7b0?q=80&w=1000",
   "https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?q=80&w=1000",
   
-  // Yoga & Mindfulness
+  // Yoga & Mindfulness (uitgebreid)
   "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?q=80&w=1000",
   "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1000",
   "https://images.unsplash.com/photo-1611688147879-c8df1b5ab4d8?q=80&w=1000",
@@ -139,6 +139,20 @@ export const ALL_ACTIVITY_IMAGES = [
   "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?q=80&w=1000",
   "https://images.unsplash.com/photo-1560807707-8cc77767d783?q=80&w=1000",
   "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=1000",
+  
+  // Extra diverse afbeeldingen voor meer variatie
+  "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1000", // 142 - Feest
+  "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1000", // 143 - Party
+  "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?q=80&w=1000", // 144 - Koken
+  "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1000", // 145 - Natuur
+  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1000", // 146 - Wandelen
+  "https://images.unsplash.com/photo-1574680096145-d05b474e2155?q=80&w=1000", // 147 - Sport extra
+  "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?q=80&w=1000", // 148 - Fitness extra
+  "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=1000", // 149 - Dieren extra
+  "https://images.unsplash.com/photo-1574158622682-e40e69881006?q=80&w=1000", // 150 - Huisdieren extra
+  "https://images.unsplash.com/photo-1592194996308-7b43878e84a6?q=80&w=1000", // 151 - Katten
+  "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?q=80&w=1000", // 152 - Sociale evenementen
+  "https://images.unsplash.com/photo-1556909088-4d8b3b1a09b7?q=80&w=1000", // 153 - BBQ/Koken
 ];
 
 // Keyword mapping voor slimme afbeelding selectie
@@ -167,26 +181,29 @@ const KEYWORD_MAPPINGS = {
   cycling: [19, 20, 21],
   fiets: [19, 20, 21],
   
-  zwemmen: [22, 23, 24],
-  swimming: [22, 23, 24],
+  zwemmen: [22, 23, 24, 25, 26, 27, 28, 29],
+  swimming: [22, 23, 24, 25, 26, 27, 28, 29],
+  zwembad: [22, 23, 24, 25, 26, 27, 28, 29],
+  pool: [22, 23, 24, 25, 26, 27, 28, 29],
+  zwemfeest: [22, 23, 24, 25, 26, 27, 28, 29],
   
-  yoga: [25, 26, 27],
-  meditation: [25, 26, 27],
-  mindfulness: [25, 26, 27],
+  yoga: [30, 31, 32],
+  meditation: [30, 31, 32],
+  mindfulness: [30, 31, 32],
   
   // Muziek keywords
-  piano: [28, 29, 30],
-  keyboard: [28, 29, 30],
+  piano: [33, 34, 35],
+  keyboard: [33, 34, 35],
   
-  gitaar: [31, 32, 33],
-  guitar: [31, 32, 33],
+  gitaar: [36, 37, 38],
+  guitar: [36, 37, 38],
   
-  concert: [34, 35, 36],
-  muziek: [34, 35, 36],
-  music: [34, 35, 36],
-  optreden: [34, 35, 36],
-  live: [34, 35, 36],
-  band: [34, 35, 36],
+  concert: [39, 40, 41],
+  muziek: [39, 40, 41],
+  music: [39, 40, 41],
+  optreden: [39, 40, 41],
+  live: [39, 40, 41],
+  band: [39, 40, 41],
   
   dj: [37, 38, 39],
   elektronisch: [37, 38, 39],

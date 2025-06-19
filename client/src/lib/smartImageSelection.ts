@@ -37,10 +37,15 @@ export const ALL_ACTIVITY_IMAGES = [
   "https://images.unsplash.com/photo-1502744688674-c619d1586c9e?q=80&w=1000",
   "https://images.unsplash.com/photo-1558977735-bedebbeca8d8?q=80&w=1000",
   
-  // Zwemmen
+  // Zwemmen (uitgebreid)
   "https://images.unsplash.com/photo-1570563524005-6e75d9a95c5d?q=80&w=1000",
   "https://images.unsplash.com/photo-1566066579-acfe87e4b43b?q=80&w=1000",
   "https://images.unsplash.com/photo-1576076584820-57e75cd83b7e?q=80&w=1000",
+  "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=1000",
+  "https://images.unsplash.com/photo-1560089000-7433a4ebbd64?q=80&w=1000",
+  "https://images.unsplash.com/photo-1571019613914-85f342c6a11e?q=80&w=1000",
+  "https://images.unsplash.com/photo-1571020550490-6e36e2eda7b0?q=80&w=1000",
+  "https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?q=80&w=1000",
   
   // Yoga & Mindfulness
   "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?q=80&w=1000",
@@ -277,4 +282,77 @@ export function getSmartImage(title: string, description: string = ""): { image:
   // Geen match gevonden - suggereer AI generatie
   console.log(`Geen passende afbeelding gevonden voor "${title}" - suggereer AI generatie`);
   return { image: null, hasMatch: false };
+}
+
+// Nieuwe functie die meerdere relevante afbeeldingen retourneert
+export function getSmartImageAlternatives(title: string, description: string = "", count: number = 8): { 
+  images: string[], 
+  hasMatch: boolean,
+  primaryImage: string | null 
+} {
+  const combinedText = `${title} ${description}`.toLowerCase();
+  
+  // Zoek naar keywords in de tekst
+  const matchedImages: number[] = [];
+  const keywordMatches: string[] = [];
+  
+  for (const [keyword, imageIndices] of Object.entries(KEYWORD_MAPPINGS)) {
+    if (combinedText.includes(keyword)) {
+      matchedImages.push(...imageIndices);
+      keywordMatches.push(keyword);
+    }
+  }
+  
+  if (matchedImages.length > 0) {
+    // Verwijder duplicaten en shuffle voor variatie
+    const uniqueIndices: number[] = [];
+    const seen = new Set<number>();
+    for (const index of matchedImages) {
+      if (!seen.has(index)) {
+        seen.add(index);
+        uniqueIndices.push(index);
+      }
+    }
+    const shuffledIndices = uniqueIndices.sort(() => Math.random() - 0.5);
+    
+    // Selecteer de eerste als primaire afbeelding
+    const primaryIndex = shuffledIndices[0];
+    const primaryImage = ALL_ACTIVITY_IMAGES[primaryIndex];
+    
+    // Selecteer tot 'count' aantal afbeeldingen
+    const selectedIndices = shuffledIndices.slice(0, Math.min(count, uniqueIndices.length));
+    const selectedImages = selectedIndices.map(index => ALL_ACTIVITY_IMAGES[index]);
+    
+    // Als we minder matches hebben dan gewenst, vul aan met gerelateerde afbeeldingen
+    if (selectedImages.length < count) {
+      const remainingCount = count - selectedImages.length;
+      const usedIndices = new Set(selectedIndices);
+      const additionalImages: string[] = [];
+      
+      // Voeg willekeurige afbeeldingen toe uit dezelfde categorie-groepen
+      for (let i = 0; i < ALL_ACTIVITY_IMAGES.length && additionalImages.length < remainingCount; i++) {
+        if (!usedIndices.has(i)) {
+          additionalImages.push(ALL_ACTIVITY_IMAGES[i]);
+        }
+      }
+      
+      selectedImages.push(...additionalImages.slice(0, remainingCount));
+    }
+    
+    console.log(`Slimme selectie alternatieven voor "${title}": ${keywordMatches.join(', ')} -> ${selectedImages.length} afbeeldingen`);
+    return { 
+      images: selectedImages, 
+      hasMatch: true, 
+      primaryImage 
+    };
+  }
+  
+  // Geen match gevonden - gebruik eerste 8 algemene afbeeldingen als fallback
+  const fallbackImages = ALL_ACTIVITY_IMAGES.slice(0, count);
+  console.log(`Geen passende afbeelding gevonden voor "${title}" - gebruik fallback afbeeldingen`);
+  return { 
+    images: fallbackImages, 
+    hasMatch: false, 
+    primaryImage: null 
+  };
 }

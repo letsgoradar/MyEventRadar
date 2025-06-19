@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getCategoryImages } from '@/lib/categoryImages';
-import { getSmartImage, ALL_ACTIVITY_IMAGES } from '@/lib/smartImageSelection';
+import { getSmartImage, getSmartImageAlternatives, ALL_ACTIVITY_IMAGES } from '@/lib/smartImageSelection';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface CategoryImageSelectorProps {
@@ -25,28 +25,35 @@ export function CategoryImageSelector({
   const [images, setImages] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | undefined>(defaultImage);
 
-  // Laad alle afbeeldingen en gebruik slimme selectie
+  // Laad slimme afbeelding alternatieven gebaseerd op titel en beschrijving
   useEffect(() => {
-    // Toon alle beschikbare afbeeldingen
-    setImages(ALL_ACTIVITY_IMAGES);
-    
-    // Gebruik slimme AI-selectie gebaseerd op titel en beschrijving alleen
     if (title || description) {
-      const smartResult = getSmartImage(title, description);
+      // Gebruik slimme selectie voor 8 relevante alternatieven
+      const smartAlternatives = getSmartImageAlternatives(title, description, 8);
       
-      if (smartResult.hasMatch && smartResult.image) {
-        // Gevonden match - gebruik deze afbeelding
-        setSelectedImage(smartResult.image);
-        onSelectImage(smartResult.image);
-        console.log(`Slimme afbeelding selectie voor "${title}": ${smartResult.image}`);
+      if (smartAlternatives.hasMatch && smartAlternatives.images.length > 0) {
+        // Gevonden matches - toon relevante alternatieven
+        setImages(smartAlternatives.images);
+        
+        // Gebruik primaire afbeelding als selectie
+        if (smartAlternatives.primaryImage) {
+          setSelectedImage(smartAlternatives.primaryImage);
+          onSelectImage(smartAlternatives.primaryImage);
+          console.log(`Slimme afbeelding selectie voor "${title}": ${smartAlternatives.primaryImage}`);
+          console.log(`${smartAlternatives.images.length} relevante alternatieven geladen`);
+        }
       } else {
-        // Geen match - suggereer AI generatie
+        // Geen match - gebruik eerste 8 algemene afbeeldingen en suggereer AI generatie
+        setImages(ALL_ACTIVITY_IMAGES.slice(0, 8));
         setSelectedImage(undefined);
         if (onSuggestAIGeneration) {
           onSuggestAIGeneration();
         }
         console.log(`Geen passende afbeelding voor "${title}" - AI generatie voorgesteld`);
       }
+    } else {
+      // Geen titel/beschrijving - toon eerste 8 algemene afbeeldingen
+      setImages(ALL_ACTIVITY_IMAGES.slice(0, 8));
     }
   }, [title, description]);
 

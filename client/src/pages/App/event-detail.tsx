@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useState, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import AppLayout from "@/components/App/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -22,12 +22,14 @@ import {
   MessageCircle,
   Search,
   ChevronRight,
+  Bell,
 } from "lucide-react";
 import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 import { formatDistanceToNow, format, differenceInHours } from "date-fns";
 import { nl } from "date-fns/locale";
 import { apiRequest } from "@/lib/api";
 import { EventInterface } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
@@ -38,9 +40,11 @@ import L from 'leaflet';
 
 export function AppEventDetail() {
   // Basisvariabelen definiëren
-  const { id } = useParams<{ id: string }>(); // Gebruik alleen useParams
+  const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const eventId = parseInt(id || '0');
   
   // Alle state hooks samen definiëren (consistent)
@@ -52,6 +56,60 @@ export function AppEventDetail() {
     queryKey: [`/api/events/${eventId}`],
     enabled: !isNaN(eventId) && eventId > 0,
   });
+
+  // Check if event is favorited
+  const { data: favorites = [] } = useQuery<EventInterface[]>({
+    queryKey: [`/api/favorites/${user?.id}`],
+    enabled: !!user?.id,
+  });
+
+  const isFavorite = favorites.some(fav => fav.id === eventId);
+
+  // Toggle favorite mutation
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async () => {
+      if (isFavorite) {
+        const response = await fetch(`/api/favorite/${eventId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('Failed to remove favorite');
+      } else {
+        const response = await fetch('/api/favorite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId }),
+        });
+        if (!response.ok) throw new Error('Failed to add favorite');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/favorites/${user?.id}`] });
+      toast({
+        title: isFavorite ? "Evenement verwijderd uit favorieten" : "Evenement toegevoegd aan favorieten",
+        description: isFavorite ? "Het evenement is verwijderd uit je favorieten." : "Je ontvangt notificaties voor wijzigingen en herinneringen.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Fout bij opslaan",
+        description: "Er ging iets mis bij het opslaan van je favoriet.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleToggleFavorite = () => {
+    if (!user) {
+      toast({
+        title: "Inloggen vereist",
+        description: "Log in om evenementen op te slaan als favoriet.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toggleFavoriteMutation.mutate();
+  };
 
   // Effect voor het ophalen van de returnTo parameter
   useEffect(() => {
@@ -79,11 +137,16 @@ export function AppEventDetail() {
   // Laad-toestand weergeven
   if (isLoading) {
     return (
-      <AppLayout 
-        title="Evenement"
-        hideSearchAndFilters={true}
-      >
-        <div className="p-4">
+      <div className="fixed inset-0 bg-background pb-16">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b">
+          <div className="px-4 py-3 flex items-center">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/app')}>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <span className="ml-3 font-medium">Evenement laden...</span>
+          </div>
+        </div>
+        <div className="pt-16 p-4">
           <div className="animate-pulse space-y-4">
             <div className="h-48 bg-gray-200 rounded-md" />
             <div className="h-8 bg-gray-200 rounded-md w-3/4" />
@@ -95,30 +158,35 @@ export function AppEventDetail() {
             </div>
           </div>
         </div>
-      </AppLayout>
+      </div>
     );
   }
 
   // Fout of geen data weergeven
   if (error || !event) {
     return (
-      <AppLayout 
-        title="Evenement niet gevonden"
-        hideSearchAndFilters={true}
-      >
-        <div className="p-4">
+      <div className="fixed inset-0 bg-background pb-16">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b">
+          <div className="px-4 py-3 flex items-center">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/app')}>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <span className="ml-3 font-medium">Evenement niet gevonden</span>
+          </div>
+        </div>
+        <div className="pt-16 p-4">
           <div className="text-center py-8">
             <AlertCircle className="h-12 w-12 mx-auto text-red-500 mb-4" />
             <h2 className="text-xl font-bold mb-2">Evenement niet gevonden</h2>
             <p className="text-muted-foreground mb-6">
               Het opgevraagde evenement bestaat niet of is niet meer beschikbaar.
             </p>
-            <Button asChild>
-              <Link href={returnTo}>Terug naar overzicht</Link>
+            <Button onClick={() => navigate(returnTo)}>
+              Terug naar overzicht
             </Button>
           </div>
         </div>
-      </AppLayout>
+      </div>
     );
   }
 
@@ -252,21 +320,15 @@ export function AppEventDetail() {
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
   
   return (
-    <AppLayout 
-      title={event.title}
-      hideSearchAndFilters={true}
-    >
-      {/* Zorg dat de content volledig doorloopt tot aan de tab bar */}
-      <div className="flex flex-col flex-grow pb-[64px]">
-        <div className="sticky top-0 bg-background z-10 flex items-center justify-between p-4 border-b">
+    <div className="fixed inset-0 bg-background">
+      {/* Fixed Header */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b">
+        <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center">
-            <Button variant="ghost" size="icon" asChild className="mr-2">
-              <Link href={returnTo}>
-                <ChevronLeft className="h-5 w-5" />
-              </Link>
+            <Button variant="ghost" size="icon" onClick={() => navigate(returnTo)} className="mr-2">
+              <ChevronLeft className="h-5 w-5" />
             </Button>
             
-            {/* Toon alleen de "Terug naar zoekresultaten" knop als er een zoekstatus is */}
             {hasSearchState && (
               <Button 
                 variant="outline" 
@@ -281,15 +343,28 @@ export function AppEventDetail() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon">
-              <Heart className="h-5 w-5" />
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleToggleFavorite}
+              disabled={toggleFavoriteMutation.isPending}
+            >
+              <Heart 
+                className={cn(
+                  "h-5 w-5",
+                  isFavorite ? "fill-red-500 text-red-500" : "text-muted-foreground"
+                )} 
+              />
             </Button>
             <Button variant="ghost" size="icon">
               <Share2 className="h-5 w-5" />
             </Button>
           </div>
         </div>
+      </div>
 
+      {/* Scrollable Content */}
+      <div className="pt-16 pb-16 overflow-y-auto h-full">
         <div className="p-4">
           <ImageGallery imageUrls={eventImages} />
           
@@ -487,7 +562,25 @@ export function AppEventDetail() {
           </div>
         </div>
       </div>
-    </AppLayout>
+      
+      {/* Fixed bottom action bar */}
+      <div className="fixed bottom-0 left-0 right-0 h-16 bg-background border-t z-40">
+        <div className="h-full flex items-center justify-around px-4">
+          <Button variant="ghost" size="sm" className="flex-1">
+            <MapIcon className="h-4 w-4 mr-2" />
+            Locatie
+          </Button>
+          <Button variant="ghost" size="sm" className="flex-1">
+            <Bell className="h-4 w-4 mr-2" />
+            Herinnering
+          </Button>
+          <Button variant="ghost" size="sm" className="flex-1">
+            <Users className="h-4 w-4 mr-2" />
+            Deelnemen
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

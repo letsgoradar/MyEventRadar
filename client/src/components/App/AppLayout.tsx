@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/command";
 import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 import ProfilePhotoUpload from "./ProfilePhotoUpload";
+import { NotificationCenter } from "./NotificationCenter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -446,6 +447,7 @@ export function AppLayout({
             <h1 className="text-xl font-semibold">{title}</h1>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationCenter />
             <Link href="/app/profile" className="cursor-pointer">
               <Avatar className="h-8 w-8 border-2 border-primary">
                 {savedPhotoUrl ? (

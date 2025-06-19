@@ -73,6 +73,12 @@ export interface IStorage {
   logActivity(log: InsertActivityLog): Promise<ActivityLog>;
   getActivityLogs(options?: { limit?: number; offset?: number; userId?: number; activityType?: string }): Promise<ActivityLog[]>;
   getActivityLogCount(): Promise<number>;
+  
+  // Notification operations
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getNotificationsByUser(userId: number): Promise<Notification[]>;
+  markNotificationAsRead(id: number): Promise<void>;
+  getUnreadNotificationCount(userId: number): Promise<number>;
 }
 
 export class PgStorage implements IStorage {
@@ -496,6 +502,38 @@ export class PgStorage implements IStorage {
 
   private deg2rad(deg: number): number {
     return deg * (Math.PI / 180);
+  }
+
+  // Notification operations implementation
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    return this.withRetry(async () => {
+      const [notification] = await db.insert(notifications).values(insertNotification).returning();
+      return notification;
+    });
+  }
+
+  async getNotificationsByUser(userId: number): Promise<Notification[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(notifications)
+        .where(eq(notifications.userId, userId))
+        .orderBy(desc(notifications.createdAt));
+    });
+  }
+
+  async markNotificationAsRead(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.id, id));
+    });
+  }
+
+  async getUnreadNotificationCount(userId: number): Promise<number> {
+    return this.withRetry(async () => {
+      const result = await db.select({ count: count() }).from(notifications)
+        .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+      return result[0]?.count || 0;
+    });
   }
 }
 

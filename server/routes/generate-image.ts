@@ -8,8 +8,8 @@ const router = Router();
 const HUGGING_FACE_API_KEY = process.env.HUGGING_FACE_API_KEY;
 
 // Configuratie voor Hugging Face modellen
-// We gebruiken een stabielere model voor betrouwbaarheid
-const HF_MODEL_ID = 'runwayml/stable-diffusion-v1-5';
+// We gebruiken een betrouwbaar beschikbaar model
+const HF_MODEL_ID = 'stabilityai/stable-diffusion-2-1';
 const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL_ID}`;
 
 /**
@@ -33,7 +33,7 @@ router.post('/', async (req: Request, res: Response) => {
       console.error('Geen Hugging Face API key gevonden in environment variables');
       return res.status(503).json({ 
         error: 'API-sleutel ontbreekt',
-        message: 'Afbeeldingsgeneratie is niet beschikbaar omdat de Hugging Face API-sleutel ontbreekt.',
+        message: 'Voor AI afbeeldingsgeneratie is een Hugging Face API sleutel vereist. Neem contact op met de beheerder.',
         missing_api_key: true
       });
     }

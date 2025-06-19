@@ -59,6 +59,7 @@ const createEventFormSchema = z.object({
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']),
   hostId: z.number(),
   tags: z.array(z.string()).max(5, "Maximaal 5 tags toegestaan"),
+  imageUrl: z.string().optional(),
 });
 
 const RECURRENCE_OPTIONS = [
@@ -205,10 +206,13 @@ export default function CreateEventPage() {
         hostId: data.hostId,
         recurrence: data.recurrence,
         tags: data.tags,
-        imageUrl: data.imageUrl,
+        imageUrl: data.imageUrl || null,
       };
 
-      const response = await apiRequest('POST', '/api/events', eventData);
+      const response = await apiRequest<any>('/api/events', {
+        method: 'POST',
+        data: eventData,
+      });
 
       queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
 

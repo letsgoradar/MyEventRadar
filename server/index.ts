@@ -9,6 +9,7 @@ import helmet from "helmet";
 import session from "express-session";
 import cookieParser from "cookie-parser";
 import { attachUser } from "./middleware/auth";
+import { autoLoginTestUser } from "./middleware/auto-login";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -56,6 +57,9 @@ app.use(session({
     httpOnly: true
   }
 }));
+
+// Auto-login testuser for development
+app.use(autoLoginTestUser);
 
 // Attach user to request if authenticated
 app.use(attachUser);

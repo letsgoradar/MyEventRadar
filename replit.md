@@ -128,6 +128,11 @@ The application uses PostgreSQL with the following main entities:
 - Activity logging for audit trails
 
 ## Recent Changes
+- June 20, 2025: **AUTHENTICATION FIXED** - Resolved testuser login system completely
+  - Fixed Passport LocalStrategy configuration to accept both usernames and emails
+  - Eliminated automatic "Jan Jansen" login by resetting session configuration
+  - Updated login form validation to accept usernames instead of requiring email format
+  - Testuser login now working: username "testuser", password "test123"
 - June 20, 2025: Created comprehensive test scenario with testuser login (username: testuser, password: test123)
 - June 20, 2025: Updated all 238 events with realistic future dates and proper timing
 - June 20, 2025: Added 8 favorite events, 5 participant registrations, and 5 notifications for testing

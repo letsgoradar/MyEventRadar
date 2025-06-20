@@ -162,42 +162,32 @@ export function setupAuth(app: Express) {
 
   // Route voor inloggen
   app.post("/api/auth/login", (req, res, next) => {
-    console.log("🚀 Login request received:", req.body);
-    
-    // Force field mapping for LocalStrategy
-    const credentials = {
-      username: req.body.email, // LocalStrategy expects 'username' field
-      password: req.body.password
-    };
-    
-    console.log("🔄 Mapped credentials:", credentials);
+    console.log("Login request received:", req.body);
     
     passport.authenticate("local", (err: Error | null, user: any, info: any) => {
-      console.log("🔍 Passport authenticate callback:", { err: !!err, user: !!user, info });
-      
       if (err) {
-        console.error("❌ Login authentication error:", err);
+        console.error("Login authentication error:", err);
         return next(err);
       }
       
       if (!user) {
-        console.log("❌ Authentication failed - no user returned");
+        console.log("Authentication failed - no user returned");
         return res.status(401).json({ message: "Ongeldige gebruikersnaam of wachtwoord" });
       }
       
       req.login(user, (loginErr: Error | null) => {
         if (loginErr) {
-          console.error("❌ Login session error:", loginErr);
+          console.error("Login session error:", loginErr);
           return next(loginErr);
         }
         
-        console.log("✅ User successfully logged in:", user.username);
+        console.log("User successfully logged in:", user.username);
         
         // Verwijder wachtwoord uit de response
         const { password, ...userWithoutPassword } = user;
         res.status(200).json(userWithoutPassword);
       });
-    })({ ...req, body: { ...req.body, username: req.body.email } }, res, next);
+    })(req, res, next);
   });
 
   // Route voor uitloggen

@@ -485,103 +485,102 @@ export function AppLayout({
                 {searchQuery.trim() !== "" && (
                   <div 
                     className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white"
-                    style={{ maxHeight: dropdownMaxHeight, overflowY: 'auto' }}
+                    style={{ 
+                      maxHeight: '50vh', 
+                      minHeight: '150px',
+                      overflowY: 'auto' 
+                    }}
                   >
-                    <Command>
-                      <CommandList className="!max-h-none overflow-visible">
-                      <CommandGroup>
-                        <CommandItem 
-                          onSelect={() => onSearch && onSearch(searchQuery)}
-                          className="p-2 cursor-pointer hover:bg-slate-100"
+                    <div className="p-1">
+                      <div className="space-y-1">
+                        {/* Zoek naar knop */}
+                        <div 
+                          onClick={() => onSearch && onSearch(searchQuery)}
+                          className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-100 flex items-center gap-2"
                         >
-                          <div className="flex items-center gap-2">
-                            <Search className="h-4 w-4 text-muted-foreground" />
-                            <span className="flex-1">
-                              Zoek naar "<strong>{searchQuery}</strong>"
-                            </span>
-                          </div>
-                        </CommandItem>
-                      </CommandGroup>
-                      
-                      {/* Matching events */}
-                      {displayedEvents.length > 0 && (
-                        <CommandGroup heading="Overeenkomende evenementen" className="py-2">
-                          {(() => {
-                            // Filter events die overeenkomen met de zoekopdracht
-                            const matchingEvents = displayedEvents.filter(event => 
-                              event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              event.description?.toLowerCase().includes(searchQuery.toLowerCase())
-                            );
-                            
-                            // Toon maximaal 5 overeenkomende evenementen
-                            return matchingEvents.slice(0, 5).map(event => (
-                              <Link href={`/app/event/${event.id}`} key={event.id}>
-                                <CommandItem 
-                                  className="py-3 px-2 cursor-pointer hover:bg-slate-100"
-                                  onSelect={() => {}} // Dummy handler zodat onSelect niet afgevuurd wordt
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <CategoryIcon category={event.category as typeof CATEGORIES[number]} className="h-5 w-5" />
-                                    <div className="flex-1 flex flex-col">
-                                      <span className="font-medium text-sm">{event.title}</span>
-                                      <span className="text-xs text-muted-foreground truncate">
-                                        {new Date(event.startTime).toLocaleDateString('nl-NL', {
-                                          day: 'numeric',
-                                          month: 'short',
-                                          hour: '2-digit',
-                                          minute: '2-digit'
-                                        })}
-                                      </span>
+                          <Search className="h-4 w-4 text-muted-foreground" />
+                          <span className="flex-1">
+                            Zoek naar "<strong>{searchQuery}</strong>"
+                          </span>
+                        </div>
+                        
+                        {/* Overeenkomende evenementen */}
+                        {displayedEvents.length > 0 && (() => {
+                          const matchingEvents = displayedEvents.filter(event => 
+                            event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            event.description?.toLowerCase().includes(searchQuery.toLowerCase())
+                          );
+                          
+                          if (matchingEvents.length === 0) return null;
+                          
+                          return (
+                            <div>
+                              <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-gray-100">
+                                Overeenkomende evenementen
+                              </div>
+                              {matchingEvents.slice(0, 5).map(event => (
+                                <Link href={`/app/event/${event.id}`} key={event.id}>
+                                  <div className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-50">
+                                    <div className="flex items-center gap-2">
+                                      <CategoryIcon category={event.category as typeof CATEGORIES[number]} className="h-5 w-5" />
+                                      <div className="flex-1 flex flex-col">
+                                        <span className="font-medium text-sm">{event.title}</span>
+                                        <span className="text-xs text-muted-foreground truncate">
+                                          {new Date(event.startTime).toLocaleDateString('nl-NL', {
+                                            day: 'numeric',
+                                            month: 'short',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          })}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
-                                </CommandItem>
-                              </Link>
-                            ));
-                          })()}
-                          
-                          {/* Toon aantal resultaten indien meer dan 5 */}
-                          {(() => {
-                            const matchingEventsCount = displayedEvents.filter(event => 
-                              event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              event.description?.toLowerCase().includes(searchQuery.toLowerCase())
-                            ).length;
-                            
-                            if (matchingEventsCount > 5) {
-                              return (
+                                </Link>
+                              ))}
+                              {matchingEvents.length > 5 && (
                                 <div className="text-xs text-muted-foreground px-3 py-2 border-t border-border">
-                                  + {matchingEventsCount - 5} meer evenementen
+                                  + {matchingEvents.length - 5} meer evenementen
                                 </div>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </CommandGroup>
-                      )}
-                      
-                      <CommandGroup heading="Recente zoekacties">
-                        {/* Toon de laatste 5 zoekacties uit localStorage */}
-                        {(() => {
-                          // Haal recente zoekacties op uit localStorage
-                          const recentSearches = localStorage.getItem('recentSearches') 
-                            ? JSON.parse(localStorage.getItem('recentSearches') || '[]')
-                            : [];
-                          
-                          return recentSearches.slice(0, 5).map((search: string, index: number) => (
-                            <CommandItem 
-                              key={index}
-                              onSelect={() => onSearch && onSearch(search)}
-                              className="p-2 cursor-pointer hover:bg-slate-100"
-                            >
-                              <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                <span>{search}</span>
-                              </div>
-                            </CommandItem>
-                          ));
+                              )}
+                            </div>
+                          );
                         })()}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
+                        
+                        {/* Recente zoekacties */}
+                        {(() => {
+                          try {
+                            const recentSearches = localStorage.getItem('recentSearches') 
+                              ? JSON.parse(localStorage.getItem('recentSearches') || '[]')
+                              : [];
+                            
+                            if (recentSearches.length === 0) return null;
+                            
+                            return (
+                              <div>
+                                <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-gray-100">
+                                  Recente zoekacties
+                                </div>
+                                {recentSearches.slice(0, 5).map((search: string, index: number) => (
+                                  <div 
+                                    key={index}
+                                    onClick={() => onSearch && onSearch(search)}
+                                    className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-50"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="h-4 w-4 text-muted-foreground" />
+                                      <span className="text-sm">{search}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          } catch (e) {
+                            return null;
+                          }
+                        })()}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

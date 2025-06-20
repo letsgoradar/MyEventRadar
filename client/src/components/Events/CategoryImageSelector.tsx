@@ -43,7 +43,11 @@ export function CategoryImageSelector({
         if (smartAlternatives.primaryImage) {
           setSelectedImage(smartAlternatives.primaryImage);
           // Use setTimeout to prevent callback from triggering re-renders
-          setTimeout(() => onSelectImage(smartAlternatives.primaryImage), 0);
+          setTimeout(() => {
+            if (smartAlternatives.primaryImage) {
+              onSelectImage(smartAlternatives.primaryImage);
+            }
+          }, 0);
           console.log(`Slimme afbeelding selectie voor "${title}": ${smartAlternatives.primaryImage}`);
           console.log(`${smartAlternatives.images.length} relevante alternatieven geladen`);
         }
@@ -119,15 +123,17 @@ export function CategoryImageSelector({
                 onClick={() => handleSelectImage(imageUrl)}
               >
                 <img 
-                  src={imageUrl} 
+                  src={`${imageUrl}?auto=format&fit=crop&w=200&h=200`} 
                   alt={`Optie ${index + 1}`} 
                   className="w-20 h-20 sm:w-24 sm:h-24 object-cover"
                   loading="lazy"
                   onError={(e) => {
                     console.error(`Afbeelding ${index + 1} laadprobleem:`, imageUrl);
                     const target = e.currentTarget;
-                    target.style.backgroundColor = '#f3f4f6';
-                    target.alt = `Afbeelding ${index + 1} niet beschikbaar`;
+                    // Probeer fallback URL
+                    if (!target.src.includes('placeholder')) {
+                      target.src = `https://via.placeholder.com/200x200/e5e7eb/6b7280?text=Afbeelding+${index + 1}`;
+                    }
                   }}
                   onLoad={() => {
                     console.log(`✓ Afbeelding ${index + 1} geladen`);

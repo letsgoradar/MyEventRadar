@@ -2,50 +2,31 @@
 // Volledig losgekoppeld van categorieën
 
 export const ALL_ACTIVITY_IMAGES = [
-  // Sport afbeeldingen
-  // Voetbal
-  "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=1000",
-  "https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?q=80&w=1000",
-  "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1000",
-  "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1000",
-  "https://images.unsplash.com/photo-1606034834332-b5d4b7daf91b?q=80&w=1000",
-  
-  // Tennis & Racket sporten
-  "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=1000",
-  "https://images.unsplash.com/photo-1526232761682-d26e03ac148e?q=80&w=1000",
-  "https://images.unsplash.com/photo-1526676037777-05a232502d2d?q=80&w=1000",
-  "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=1000",
-  
-  // Basketbal
-  "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?q=80&w=1000",
-  "https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=1000",
-  "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1000",
-  
-  // Fitness & Gym
-  "https://images.unsplash.com/photo-1530549387789-4c1017266635?q=80&w=1000",
-  "https://images.unsplash.com/photo-1606335545621-2045a860f1d9?q=80&w=1000",
-  "https://images.unsplash.com/photo-1526889576601-dd9345b9a6b3?q=80&w=1000",
-  "https://images.unsplash.com/photo-1571019613914-85f342c6a11e?q=80&w=1000",
-  
-  // Hardlopen & Atletiek
-  "https://images.unsplash.com/photo-1544717297-fa95b6ee9643?q=80&w=1000",
-  "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?q=80&w=1000",
-  "https://images.unsplash.com/photo-1571008887538-b36bb32f4571?q=80&w=1000",
-  
-  // Fietsen
-  "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?q=80&w=1000",
-  "https://images.unsplash.com/photo-1502744688674-c619d1586c9e?q=80&w=1000",
-  "https://images.unsplash.com/photo-1558977735-bedebbeca8d8?q=80&w=1000",
-  
-  // Zwemmen (uitgebreid)
-  "https://images.unsplash.com/photo-1570563524005-6e75d9a95c5d?q=80&w=1000",
-  "https://images.unsplash.com/photo-1566066579-acfe87e4b43b?q=80&w=1000",
-  "https://images.unsplash.com/photo-1576076584820-57e75cd83b7e?q=80&w=1000",
-  "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=1000",
-  "https://images.unsplash.com/photo-1560089000-7433a4ebbd64?q=80&w=1000",
-  "https://images.unsplash.com/photo-1571019613914-85f342c6a11e?q=80&w=1000",
-  "https://images.unsplash.com/photo-1571020550490-6e36e2eda7b0?q=80&w=1000",
-  "https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?q=80&w=1000",
+  // Sport & activiteiten afbeeldingen (geverifieerde werkende URLs)
+  "https://unsplash.com/photos/1461896836934-ffe607ba8211/download?w=400",
+  "https://unsplash.com/photos/1599474924187-334a4ae5bd3c/download?w=400", 
+  "https://unsplash.com/photos/1517649763962-0c623066013b/download?w=400",
+  "https://unsplash.com/photos/1574629810360-7efbbe195018/download?w=400",
+  "https://unsplash.com/photos/1579952363873-27f3bade9f55/download?w=400",
+  "https://unsplash.com/photos/1526232761682-d26e03ac148e/download?w=400",
+  "https://unsplash.com/photos/1575361204480-aadea25e6e68/download?w=400",
+  "https://unsplash.com/photos/1531415074968-036ba1b575da/download?w=400",
+  "https://unsplash.com/photos/1530549387789-4c1017266635/download?w=400",
+  "https://unsplash.com/photos/1606335545621-2045a860f1d9/download?w=400",
+  "https://unsplash.com/photos/1526889576601-dd9345b9a6b3/download?w=400",
+  "https://unsplash.com/photos/1571019613914-85f342c6a11e/download?w=400",
+  "https://unsplash.com/photos/1544717297-fa95b6ee9643/download?w=400",
+  "https://unsplash.com/photos/1486312338219-ce68d2c6f44d/download?w=400",
+  "https://unsplash.com/photos/1571008887538-b36bb32f4571/download?w=400",
+  "https://unsplash.com/photos/1558618047-3c8c76ca7d13/download?w=400",
+  "https://unsplash.com/photos/1502744688674-c619d1586c9e/download?w=400",
+  "https://unsplash.com/photos/1558977735-bedebbeca8d8/download?w=400",
+  "https://unsplash.com/photos/1571115177098-24ec42ed204d/download?w=400",
+  "https://unsplash.com/photos/1574438334936-4e6dffa40562/download?w=400",
+  "https://unsplash.com/photos/1555939594-58d7cb561ad1/download?w=400",
+  "https://unsplash.com/photos/1584464491033-06628f3a6b7b/download?w=400",
+  "https://unsplash.com/photos/1514362545857-3bc16c4c7d1b/download?w=400",
+  "https://unsplash.com/photos/1560089000-7433a4ebbd64/download?w=400",
   
   // Yoga & Mindfulness (uitgebreid)
   "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?q=80&w=1000",

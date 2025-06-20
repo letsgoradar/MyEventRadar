@@ -28,7 +28,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
     error,
     isLoading,
   } = useQuery<SelectUser | null, Error>({
-    queryKey: ["/api/user"],
+    queryKey: ["/api/auth/me"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
@@ -40,7 +40,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     onSuccess: (user: SelectUser) => {
-      queryClient.setQueryData(["/api/user"], user);
+      queryClient.setQueryData(["/api/auth/me"], user);
       toast({
         title: "Ingelogd!",
         description: "Je bent succesvol ingelogd.",
@@ -63,7 +63,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     onSuccess: (user: SelectUser) => {
-      queryClient.setQueryData(["/api/user"], user);
+      queryClient.setQueryData(["/api/auth/me"], user);
       toast({
         title: "Account aangemaakt!",
         description: "Je bent succesvol geregistreerd.",
@@ -80,12 +80,12 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("/api/logout", {
+      await apiRequest("/api/auth/logout", {
         method: "POST"
       });
     },
     onSuccess: () => {
-      queryClient.setQueryData(["/api/user"], null);
+      queryClient.setQueryData(["/api/auth/me"], null);
       toast({
         title: "Uitgelogd",
         description: "Je bent succesvol uitgelogd.",

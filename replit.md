@@ -128,13 +128,14 @@ The application uses PostgreSQL with the following main entities:
 - Activity logging for audit trails
 
 ## Recent Changes
+- June 20, 2025: Created comprehensive test scenario with testuser login (username: testuser, password: test123)
+- June 20, 2025: Updated all 238 events with realistic future dates and proper timing
+- June 20, 2025: Added 8 favorite events, 5 participant registrations, and 5 notifications for testing
+- June 20, 2025: Configured 5 events to start within 2 hours for "binnenkort" highlighting testing
+- June 20, 2025: Modified authentication to accept both username and email for login flexibility
 - June 20, 2025: Fixed image loading issues by implementing 24 reliable Unsplash URLs with consistent formatting
-- June 20, 2025: Cleaned up keyword mappings to work correctly with new image array structure
 - June 20, 2025: Resolved CategoryImageSelector crash caused by deprecated source.unsplash.com URLs
 - June 19, 2025: Enhanced intelligent image selection system with 8 varied alternatives based on event content
-- June 19, 2025: Implemented content-based image selection for swimming, parties, cooking, nature, and sports
-- June 19, 2025: Fixed authentication session configuration for development environment
-- June 19, 2025: Completed event creation functionality - events save successfully to database
 
 ## Changelog
 - June 19, 2025. Initial setup and authentication system implementation

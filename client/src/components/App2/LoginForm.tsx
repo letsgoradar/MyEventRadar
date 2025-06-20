@@ -82,13 +82,13 @@ export function LoginForm() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>E-mailadres</FormLabel>
+                    <FormLabel>Gebruikersnaam of E-mailadres</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Voer je e-mailadres in"
+                        placeholder="Voer je gebruikersnaam of e-mailadres in"
                         {...field}
-                        type="email"
-                        autoComplete="email"
+                        type="text"
+                        autoComplete="username"
                         className="w-full"
                       />
                     </FormControl>

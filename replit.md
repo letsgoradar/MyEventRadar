@@ -128,6 +128,11 @@ The application uses PostgreSQL with the following main entities:
 - Activity logging for audit trails
 
 ## Recent Changes
+- June 20, 2025: **DEFAULT LOGIN CHANGED** - Switched automatic login from "Jan Jansen" to "testuser"
+  - Created auto-login middleware that automatically authenticates testuser on app start
+  - Added comprehensive testuser verification script with statistics display
+  - Testuser now auto-logs in with 9 favorites, 5 participations, and 5 notifications
+  - Credentials: username "testuser", password "test123"
 - June 20, 2025: **AUTHENTICATION FIXED** - Resolved testuser login system completely
   - Fixed Passport LocalStrategy configuration to accept both usernames and emails
   - Eliminated automatic "Jan Jansen" login by resetting session configuration

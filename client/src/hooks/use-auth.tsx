@@ -34,7 +34,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      return await apiRequest("/api/login", {
+      return await apiRequest("/api/auth/login", {
         method: "POST",
         data: credentials
       });
@@ -57,7 +57,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
-      return await apiRequest("/api/register", {
+      return await apiRequest("/api/auth/register", {
         method: "POST",
         data: credentials
       });

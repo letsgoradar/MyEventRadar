@@ -43,15 +43,16 @@ app.use(express.json({ limit: '10mb' })); // Verhoog de limiet voor JSON verzoek
 app.use(express.urlencoded({ extended: false, limit: '10mb' })); // Verhoog de limiet voor urlencoded verzoeken
 app.use(cookieParser());
 
-// Setup session
+// Setup session with forced reset
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'eventapp-session-secret',
+  secret: process.env.SESSION_SECRET || 'eventapp-session-secret-new-' + Date.now(),
   resave: false,
   saveUninitialized: false,
+  name: 'eventapp.sid', // Use a specific session name
   cookie: { 
     secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax', // This allows the cookie to be sent in same-site requests
+    sameSite: 'lax',
     httpOnly: true
   }
 }));

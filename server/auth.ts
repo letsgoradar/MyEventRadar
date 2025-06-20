@@ -208,6 +208,27 @@ export function setupAuth(app: Express) {
     res.json(userWithoutPassword);
   });
 
+  // Route voor gedwongen logout van alle sessies
+  app.post("/api/auth/force-logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        console.error("Force logout error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      
+      // Destroy session completely
+      req.session.destroy((destroyErr) => {
+        if (destroyErr) {
+          console.error("Session destroy error:", destroyErr);
+        }
+        
+        // Clear cookie
+        res.clearCookie('connect.sid');
+        res.status(200).json({ message: "Forced logout successful" });
+      });
+    });
+  });
+
   // Route voor wachtwoord vergeten
   app.post("/api/auth/forgot-password", async (req, res) => {
     try {

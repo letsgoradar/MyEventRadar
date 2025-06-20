@@ -8,12 +8,18 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, Heart } from "lucide-react";
 import { Link } from "wouter";
 import EventCard from "@/components/Events/EventCard";
+import { useAuth } from "@/hooks/use-auth";
 
 export function AppFavoritesPage() {
+  const { user } = useAuth();
+  
   // Query voor favoriete evenementen
-  const { data: favoriteEvents = [], isLoading } = useQuery<EventInterface[]>({
+  const { data: favoriteEvents = [], isLoading, error } = useQuery<EventInterface[]>({
     queryKey: ['/api/events/favorites'],
+    enabled: !!user,
   });
+
+  console.log('Favorites query result:', { favoriteEvents, isLoading, error, user: !!user });
 
   // Loading state
   const LoadingState = () => (

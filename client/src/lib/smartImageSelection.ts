@@ -170,7 +170,7 @@ const KEYWORD_MAPPINGS = {
   
   fitness: [12, 13, 14, 15],
   gym: [12, 13, 14, 15],
-  sport: [12, 13, 14, 15],
+  workout: [12, 13, 14, 15],
   training: [12, 13, 14, 15],
   
   hardlopen: [16, 17, 18],
@@ -281,9 +281,8 @@ const KEYWORD_MAPPINGS = {
   dieren: [149, 150, 151, 77, 78, 79],
   
   // Sport extra keywords
-  sport: [0, 1, 2, 3, 4, 147, 148],
-  fitness: [12, 13, 14, 15, 147, 148],
-  training: [12, 13, 14, 15, 147, 148],
+  sporten: [0, 1, 2, 3, 4, 147, 148],
+  kracht: [12, 13, 14, 15, 147, 148],
   bootcamp: [147, 148, 12, 13, 14],
 };
 
@@ -350,7 +349,9 @@ export function getSmartImageAlternatives(title: string, description: string = "
     
     // Selecteer tot 'count' aantal afbeeldingen
     const selectedIndices = shuffledIndices.slice(0, Math.min(count, uniqueIndices.length));
-    const selectedImages = selectedIndices.map(index => ALL_ACTIVITY_IMAGES[index]);
+    const selectedImages = selectedIndices
+      .map(index => ALL_ACTIVITY_IMAGES[index])
+      .filter(image => image && typeof image === 'string'); // Filter null/undefined waarden
     
     // Als we minder matches hebben dan gewenst, vul aan met gerelateerde afbeeldingen
     if (selectedImages.length < count) {
@@ -360,7 +361,7 @@ export function getSmartImageAlternatives(title: string, description: string = "
       
       // Voeg willekeurige afbeeldingen toe uit dezelfde categorie-groepen
       for (let i = 0; i < ALL_ACTIVITY_IMAGES.length && additionalImages.length < remainingCount; i++) {
-        if (!usedIndices.has(i)) {
+        if (!usedIndices.has(i) && ALL_ACTIVITY_IMAGES[i] && typeof ALL_ACTIVITY_IMAGES[i] === 'string') {
           additionalImages.push(ALL_ACTIVITY_IMAGES[i]);
         }
       }
@@ -377,7 +378,9 @@ export function getSmartImageAlternatives(title: string, description: string = "
   }
   
   // Geen match gevonden - gebruik eerste 8 algemene afbeeldingen als fallback
-  const fallbackImages = ALL_ACTIVITY_IMAGES.slice(0, count);
+  const fallbackImages = ALL_ACTIVITY_IMAGES
+    .slice(0, count)
+    .filter(image => image && typeof image === 'string'); // Filter null/undefined waarden
   console.log(`Geen passende afbeelding gevonden voor "${title}" - gebruik fallback afbeeldingen`);
   return { 
     images: fallbackImages, 

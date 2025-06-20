@@ -110,9 +110,9 @@ export function CategoryImageSelector({
         </p>
         <ScrollArea className="w-full">
           <div className="flex space-x-3 pb-4">
-            {images.map((imageUrl, index) => (
+            {images.filter(imageUrl => imageUrl && typeof imageUrl === 'string').map((imageUrl, index) => (
               <div 
-                key={`image-${index}-${imageUrl.slice(-10)}`}
+                key={`image-${index}-${imageUrl.substring(imageUrl.length - 10)}`}
                 className={`flex-shrink-0 relative rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200 hover:scale-105
                   ${selectedImage === imageUrl ? 'border-primary ring-2 ring-primary/20' : 'border-muted-foreground/20 hover:border-primary/50'}`}
                 onClick={() => handleSelectImage(imageUrl)}

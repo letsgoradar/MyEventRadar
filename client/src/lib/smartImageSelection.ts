@@ -2,31 +2,31 @@
 // Volledig losgekoppeld van categorieën
 
 export const ALL_ACTIVITY_IMAGES = [
-  // Sport & activiteiten afbeeldingen (geverifieerde werkende URLs)
-  "https://unsplash.com/photos/1461896836934-ffe607ba8211/download?w=400",
-  "https://unsplash.com/photos/1599474924187-334a4ae5bd3c/download?w=400", 
-  "https://unsplash.com/photos/1517649763962-0c623066013b/download?w=400",
-  "https://unsplash.com/photos/1574629810360-7efbbe195018/download?w=400",
-  "https://unsplash.com/photos/1579952363873-27f3bade9f55/download?w=400",
-  "https://unsplash.com/photos/1526232761682-d26e03ac148e/download?w=400",
-  "https://unsplash.com/photos/1575361204480-aadea25e6e68/download?w=400",
-  "https://unsplash.com/photos/1531415074968-036ba1b575da/download?w=400",
-  "https://unsplash.com/photos/1530549387789-4c1017266635/download?w=400",
-  "https://unsplash.com/photos/1606335545621-2045a860f1d9/download?w=400",
-  "https://unsplash.com/photos/1526889576601-dd9345b9a6b3/download?w=400",
-  "https://unsplash.com/photos/1571019613914-85f342c6a11e/download?w=400",
-  "https://unsplash.com/photos/1544717297-fa95b6ee9643/download?w=400",
-  "https://unsplash.com/photos/1486312338219-ce68d2c6f44d/download?w=400",
-  "https://unsplash.com/photos/1571008887538-b36bb32f4571/download?w=400",
-  "https://unsplash.com/photos/1558618047-3c8c76ca7d13/download?w=400",
-  "https://unsplash.com/photos/1502744688674-c619d1586c9e/download?w=400",
-  "https://unsplash.com/photos/1558977735-bedebbeca8d8/download?w=400",
-  "https://unsplash.com/photos/1571115177098-24ec42ed204d/download?w=400",
-  "https://unsplash.com/photos/1574438334936-4e6dffa40562/download?w=400",
-  "https://unsplash.com/photos/1555939594-58d7cb561ad1/download?w=400",
-  "https://unsplash.com/photos/1584464491033-06628f3a6b7b/download?w=400",
-  "https://unsplash.com/photos/1514362545857-3bc16c4c7d1b/download?w=400",
-  "https://unsplash.com/photos/1560089000-7433a4ebbd64/download?w=400",
+  // Sport & activiteiten afbeeldingen (betrouwbare working URLs)
+  "https://source.unsplash.com/400x300/?soccer",
+  "https://source.unsplash.com/400x300/?tennis", 
+  "https://source.unsplash.com/400x300/?basketball",
+  "https://source.unsplash.com/400x300/?fitness",
+  "https://source.unsplash.com/400x300/?running",
+  "https://source.unsplash.com/400x300/?cycling",
+  "https://source.unsplash.com/400x300/?swimming",
+  "https://source.unsplash.com/400x300/?yoga",
+  "https://source.unsplash.com/400x300/?music",
+  "https://source.unsplash.com/400x300/?art",
+  "https://source.unsplash.com/400x300/?cooking",
+  "https://source.unsplash.com/400x300/?nature",
+  "https://source.unsplash.com/400x300/?party",
+  "https://source.unsplash.com/400x300/?dance",
+  "https://source.unsplash.com/400x300/?festival",
+  "https://source.unsplash.com/400x300/?concert",
+  "https://source.unsplash.com/400x300/?workshop",
+  "https://source.unsplash.com/400x300/?education",
+  "https://source.unsplash.com/400x300/?community",
+  "https://source.unsplash.com/400x300/?volunteer",
+  "https://source.unsplash.com/400x300/?garden",
+  "https://source.unsplash.com/400x300/?culture",
+  "https://source.unsplash.com/400x300/?technology",
+  "https://source.unsplash.com/400x300/?outdoor",
   
   // Yoga & Mindfulness (uitgebreid)
   "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?q=80&w=1000",
@@ -136,135 +136,128 @@ export const ALL_ACTIVITY_IMAGES = [
   "https://images.unsplash.com/photo-1556909088-4d8b3b1a09b7?q=80&w=1000", // 153 - BBQ/Koken
 ];
 
-// Keyword mapping voor slimme afbeelding selectie
+// Keyword mapping voor slimme afbeelding selectie (aangepast voor 24 afbeeldingen)
 const KEYWORD_MAPPINGS = {
   // Sport keywords
-  voetbal: [0, 1, 2, 3, 4], // Eerste 5 zijn voetbal
-  soccer: [0, 1, 2, 3, 4],
-  football: [0, 1, 2, 3, 4],
+  voetbal: [0, 1, 2, 3],
+  soccer: [0, 1, 2, 3],
+  football: [0, 1, 2, 3],
   
-  tennis: [5, 6, 7, 8],
-  padel: [5, 6, 7, 8],
+  tennis: [1, 2, 3, 4],
+  padel: [1, 2, 3, 4],
   
-  basketbal: [9, 10, 11],
-  basketball: [9, 10, 11],
+  basketbal: [2, 3, 4, 5],
+  basketball: [2, 3, 4, 5],
   
-  fitness: [12, 13, 14, 15],
-  gym: [12, 13, 14, 15],
-  workout: [12, 13, 14, 15],
-  training: [12, 13, 14, 15],
+  fitness: [3, 4, 5, 6],
+  gym: [3, 4, 5, 6],
+  workout: [3, 4, 5, 6],
+  training: [3, 4, 5, 6],
   
-  hardlopen: [16, 17, 18],
-  running: [16, 17, 18],
-  marathon: [16, 17, 18],
+  hardlopen: [4, 5, 6, 7],
+  running: [4, 5, 6, 7],
+  marathon: [4, 5, 6, 7],
   
-  fietsen: [19, 20, 21],
-  cycling: [19, 20, 21],
-  fiets: [19, 20, 21],
+  fietsen: [5, 6, 7, 8],
+  cycling: [5, 6, 7, 8],
+  fiets: [5, 6, 7, 8],
   
-  zwemmen: [22, 23, 24, 25, 26, 27, 28, 29],
-  swimming: [22, 23, 24, 25, 26, 27, 28, 29],
-  zwembad: [22, 23, 24, 25, 26, 27, 28, 29],
-  pool: [22, 23, 24, 25, 26, 27, 28, 29],
-  zwemfeest: [22, 23, 24, 25, 26, 27, 28, 29],
+  zwemmen: [6, 7, 8, 9],
+  swimming: [6, 7, 8, 9],
+  zwembad: [6, 7, 8, 9],
+  pool: [6, 7, 8, 9],
+  zwemfeest: [6, 7, 8, 9],
   
-  yoga: [30, 31, 32],
-  meditation: [30, 31, 32],
-  mindfulness: [30, 31, 32],
+  yoga: [7, 8, 9, 10],
+  meditation: [7, 8, 9, 10],
+  mindfulness: [7, 8, 9, 10],
   
   // Muziek keywords
-  piano: [33, 34, 35],
-  keyboard: [33, 34, 35],
+  piano: [8, 9, 10, 11],
+  keyboard: [8, 9, 10, 11],
   
-  gitaar: [36, 37, 38],
-  guitar: [36, 37, 38],
+  gitaar: [8, 9, 10, 11],
+  guitar: [8, 9, 10, 11],
   
-  concert: [39, 40, 41],
-  muziek: [39, 40, 41],
-  music: [39, 40, 41],
-  optreden: [39, 40, 41],
-  live: [39, 40, 41],
-  band: [39, 40, 41],
+  concert: [8, 9, 15, 16],
+  muziek: [8, 9, 15, 16],
+  music: [8, 9, 15, 16],
+  optreden: [8, 9, 15, 16],
+  live: [8, 9, 15, 16],
+  band: [8, 9, 15, 16],
   
-  dj: [37, 38, 39],
-  elektronisch: [37, 38, 39],
+  dj: [8, 9, 15, 16],
+  elektronisch: [8, 9, 15, 16],
   
   // Kunst keywords
-  schilderen: [40, 41, 42],
-  verf: [40, 41, 42],
-  kwast: [40, 41, 42],
-  tekenen: [40, 41, 42],
+  schilderen: [9, 10, 11, 12],
+  verf: [9, 10, 11, 12],
+  kwast: [9, 10, 11, 12],
+  tekenen: [9, 10, 11, 12],
   
-  fotografie: [43, 44, 45],
-  foto: [43, 44, 45],
-  camera: [43, 44, 45],
+  fotografie: [9, 10, 11, 12],
+  foto: [9, 10, 11, 12],
+  camera: [9, 10, 11, 12],
   
-  theater: [46, 47, 48],
-  toneel: [46, 47, 48],
-  dans: [46, 47, 48],
-  dance: [46, 47, 48],
+  theater: [13, 14, 15, 16],
+  toneel: [13, 14, 15, 16],
+  dans: [13, 14, 15, 16],
+  dance: [13, 14, 15, 16],
   
-  // Koken keywords (uitgebreid)
-  koken: [49, 50, 51, 52, 144, 153],
-  cooking: [49, 50, 51, 52, 144, 153],
-  recepten: [49, 50, 51, 52, 144, 153],
-  chef: [49, 50, 51, 52, 144, 153],
-  eten: [144, 153],
+  // Koken keywords 
+  koken: [10, 11, 12, 13],
+  cooking: [10, 11, 12, 13],
+  recepten: [10, 11, 12, 13],
+  chef: [10, 11, 12, 13],
+  eten: [10, 11, 12, 13],
   
-  bbq: [53, 54, 55, 153],
-  barbecue: [53, 54, 55, 153],
-  grill: [53, 54, 55, 153],
+  bbq: [10, 11, 12, 13],
+  barbecue: [10, 11, 12, 13],
+  grill: [10, 11, 12, 13],
   
-  // Sociale keywords (uitgebreid)
-  feest: [56, 57, 58, 142, 143, 152],
-  party: [56, 57, 58, 142, 143, 152],
-  verjaardag: [56, 57, 58, 142, 143, 152],
-  sociaal: [152, 142, 143],
-  gezellig: [152, 142, 143],
+  // Sociale keywords 
+  feest: [12, 13, 14, 15],
+  party: [12, 13, 14, 15],
+  verjaardag: [12, 13, 14, 15],
+  sociaal: [18, 19, 20, 21],
+  gezellig: [12, 13, 14, 15],
   
   // Leren keywords
-  boek: [59, 60, 61],
-  lezen: [59, 60, 61],
-  bibliotheek: [59, 60, 61],
+  boek: [17, 18, 19, 20],
+  lezen: [17, 18, 19, 20],
+  bibliotheek: [17, 18, 19, 20],
   
-  workshop: [62, 63, 64],
-  cursus: [62, 63, 64],
-  les: [62, 63, 64],
+  workshop: [16, 17, 18, 19],
+  cursus: [16, 17, 18, 19],
+  les: [17, 18, 19, 20],
   
   // Gaming keywords
-  gaming: [65, 66, 67],
-  game: [65, 66, 67],
-  esports: [65, 66, 67],
+  gaming: [22, 23, 0, 1],
+  game: [22, 23, 0, 1],
+  esports: [22, 23, 0, 1],
   
-  // Natuur keywords (uitgebreid)
-  natuur: [68, 69, 70, 145, 146],
-  wandelen: [68, 69, 70, 145, 146],
-  hiking: [68, 69, 70, 145, 146],
-  buitenactiviteit: [145, 146, 68, 69, 70],
-  outdoor: [145, 146, 68, 69, 70],
+  // Natuur keywords 
+  natuur: [11, 12, 23, 0],
+  wandelen: [11, 12, 23, 0],
+  hiking: [11, 12, 23, 0],
+  buitenactiviteit: [11, 12, 23, 0],
+  outdoor: [23, 0, 1, 2],
   
   // Vrijwilligerswerk keywords
-  vrijwilliger: [71, 72, 73],
-  volunteer: [71, 72, 73],
-  hulp: [71, 72, 73],
+  vrijwilliger: [18, 19, 20, 21],
+  volunteer: [18, 19, 20, 21],
+  hulp: [18, 19, 20, 21],
   
   // Tech keywords
-  programmeren: [74, 75, 76],
-  coding: [74, 75, 76],
-  tech: [74, 75, 76],
-  computer: [74, 75, 76],
+  programmeren: [22, 23, 0, 1],
+  coding: [22, 23, 0, 1],
+  tech: [22, 23, 0, 1],
+  computer: [22, 23, 0, 1],
   
-  // Dieren keywords (uitgebreid)
-  hond: [77, 78, 79, 149, 150],
-  kat: [77, 78, 79, 149, 150, 151],
-  dier: [77, 78, 79, 149, 150, 151],
-  huisdier: [77, 78, 79, 149, 150, 151],
-  dieren: [149, 150, 151, 77, 78, 79],
-  
-  // Sport extra keywords
-  sporten: [0, 1, 2, 3, 4, 147, 148],
-  kracht: [12, 13, 14, 15, 147, 148],
-  bootcamp: [147, 148, 12, 13, 14],
+  // Cultuur keywords
+  cultuur: [21, 22, 23, 0],
+  festival: [14, 15, 16, 17],
+  evenement: [12, 13, 14, 15],
 };
 
 export function getSmartImage(title: string, description: string = ""): { image: string | null, hasMatch: boolean } {

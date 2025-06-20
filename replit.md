@@ -128,11 +128,11 @@ The application uses PostgreSQL with the following main entities:
 - Activity logging for audit trails
 
 ## Recent Changes
+- June 20, 2025: Fixed image loading issues by implementing 24 reliable Unsplash URLs with consistent formatting
+- June 20, 2025: Cleaned up keyword mappings to work correctly with new image array structure
+- June 20, 2025: Resolved CategoryImageSelector crash caused by deprecated source.unsplash.com URLs
 - June 19, 2025: Enhanced intelligent image selection system with 8 varied alternatives based on event content
-- June 19, 2025: Expanded image collection to over 150+ options and improved smart keyword mappings
-- June 19, 2025: Fixed crash in CategoryImageSelector caused by null values in image arrays
 - June 19, 2025: Implemented content-based image selection for swimming, parties, cooking, nature, and sports
-- June 19, 2025: Added proper filtering to prevent null/undefined images from breaking the interface
 - June 19, 2025: Fixed authentication session configuration for development environment
 - June 19, 2025: Completed event creation functionality - events save successfully to database
 

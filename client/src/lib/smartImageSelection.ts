@@ -2,138 +2,32 @@
 // Volledig losgekoppeld van categorieën
 
 export const ALL_ACTIVITY_IMAGES = [
-  // Sport & activiteiten afbeeldingen (betrouwbare working URLs)
-  "https://source.unsplash.com/400x300/?soccer",
-  "https://source.unsplash.com/400x300/?tennis", 
-  "https://source.unsplash.com/400x300/?basketball",
-  "https://source.unsplash.com/400x300/?fitness",
-  "https://source.unsplash.com/400x300/?running",
-  "https://source.unsplash.com/400x300/?cycling",
-  "https://source.unsplash.com/400x300/?swimming",
-  "https://source.unsplash.com/400x300/?yoga",
-  "https://source.unsplash.com/400x300/?music",
-  "https://source.unsplash.com/400x300/?art",
-  "https://source.unsplash.com/400x300/?cooking",
-  "https://source.unsplash.com/400x300/?nature",
-  "https://source.unsplash.com/400x300/?party",
-  "https://source.unsplash.com/400x300/?dance",
-  "https://source.unsplash.com/400x300/?festival",
-  "https://source.unsplash.com/400x300/?concert",
-  "https://source.unsplash.com/400x300/?workshop",
-  "https://source.unsplash.com/400x300/?education",
-  "https://source.unsplash.com/400x300/?community",
-  "https://source.unsplash.com/400x300/?volunteer",
-  "https://source.unsplash.com/400x300/?garden",
-  "https://source.unsplash.com/400x300/?culture",
-  "https://source.unsplash.com/400x300/?technology",
-  "https://source.unsplash.com/400x300/?outdoor",
-  
-  // Yoga & Mindfulness (uitgebreid)
-  "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?q=80&w=1000",
-  "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1000",
-  "https://images.unsplash.com/photo-1611688147879-c8df1b5ab4d8?q=80&w=1000",
-  
-  // Muziek afbeeldingen
-  // Piano & Keyboard
-  "https://images.unsplash.com/photo-1501612780327-45045538702b?q=80&w=1000",
-  "https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?q=80&w=1000",
-  "https://images.unsplash.com/photo-1558606614-1c9ef98d7bfb?q=80&w=1000",
-  
-  // Gitaar
-  "https://images.unsplash.com/photo-1499781350541-7783f6c6a0c8?q=80&w=1000",
-  "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?q=80&w=1000",
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=1000",
-  
-  // Concert & Live muziek
-  "https://images.unsplash.com/photo-1514533450685-2b0a0b14d49d?q=80&w=1000",
-  "https://images.unsplash.com/photo-1471478331149-c72f17e33c73?q=80&w=1000",
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=1000",
-  
-  // DJ & Elektronische muziek
-  "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1000",
-  "https://images.unsplash.com/photo-1516450137517-162bfbeb8dba?q=80&w=1000",
-  "https://images.unsplash.com/photo-1571266028243-d220bc4c0655?q=80&w=1000",
-  
-  // Kunst & Creativiteit
-  // Schilderen & Tekenen
-  "https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=1000",
-  "https://images.unsplash.com/photo-1578321272176-b7bbc0679853?q=80&w=1000",
-  "https://images.unsplash.com/photo-1544967882-bc2701f3a7a3?q=80&w=1000",
-  
-  // Fotografie
-  "https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?q=80&w=1000",
-  "https://images.unsplash.com/photo-1495745966610-2a67f2297ead?q=80&w=1000",
-  "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?q=80&w=1000",
-  
-  // Theater & Dans
-  "https://images.unsplash.com/photo-1518998053901-5348d3961a04?q=80&w=1000",
-  "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=1000",
-  "https://images.unsplash.com/photo-1537996194471-e657df975ab4?q=80&w=1000",
-  
-  // Koken & Culinair
-  "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?q=80&w=1000",
-  "https://images.unsplash.com/photo-1556908148-68ba4fef8bd8?q=80&w=1000",
-  "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?q=80&w=1000",
-  "https://images.unsplash.com/photo-1574438334936-4e6dffa40562?q=80&w=1000",
-  
-  // BBQ & Grill
-  "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1000",
-  "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?q=80&w=1000",
-  "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=1000",
-  
-  // Feesten & Sociale evenementen
-  "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?q=80&w=1000",
-  "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80&w=1000",
-  "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=1000",
-  
-  // Boekenclub & Lezen
-  "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?q=80&w=1000",
-  "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1000",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000",
-  
-  // Workshops & Leren
-  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1000",
-  "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=1000",
-  "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1000",
-  
-  // Gaming & E-sports
-  "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000",
-  "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1000",
-  "https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?q=80&w=1000",
-  
-  // Natuur & Buitenactiviteiten
-  "https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=1000",
-  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1000",
-  "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?q=80&w=1000",
-  
-  // Vrijwilligerswerk
-  "https://images.unsplash.com/photo-1559827260-dc66d52bef19?q=80&w=1000",
-  "https://images.unsplash.com/photo-1593113598332-cd288d649433?q=80&w=1000",
-  "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?q=80&w=1000",
-  
-  // Technologie & Programming
-  "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?q=80&w=1000",
-  "https://images.unsplash.com/photo-1517180102446-f3ece451e9d8?q=80&w=1000",
-  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1000",
-  
-  // Dieren & Huisdieren
-  "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?q=80&w=1000",
-  "https://images.unsplash.com/photo-1560807707-8cc77767d783?q=80&w=1000",
-  "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=1000",
-  
-  // Extra diverse afbeeldingen voor meer variatie
-  "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1000", // 142 - Feest
-  "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1000", // 143 - Party
-  "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?q=80&w=1000", // 144 - Koken
-  "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1000", // 145 - Natuur
-  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1000", // 146 - Wandelen
-  "https://images.unsplash.com/photo-1574680096145-d05b474e2155?q=80&w=1000", // 147 - Sport extra
-  "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?q=80&w=1000", // 148 - Fitness extra
-  "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=1000", // 149 - Dieren extra
-  "https://images.unsplash.com/photo-1574158622682-e40e69881006?q=80&w=1000", // 150 - Huisdieren extra
-  "https://images.unsplash.com/photo-1592194996308-7b43878e84a6?q=80&w=1000", // 151 - Katten
-  "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?q=80&w=1000", // 152 - Sociale evenementen
-  "https://images.unsplash.com/photo-1556909088-4d8b3b1a09b7?q=80&w=1000", // 153 - BBQ/Koken
+  // Sport & activiteiten afbeeldingen (betrouwbare werkende URLs)
+  "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=400&h=300&fit=crop&auto=format", // Voetbal
+  "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=400&h=300&fit=crop&auto=format", // Tennis
+  "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=400&h=300&fit=crop&auto=format", // Basketball
+  "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400&h=300&fit=crop&auto=format", // Fitness
+  "https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=400&h=300&fit=crop&auto=format", // Running
+  "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop&auto=format", // Cycling
+  "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?w=400&h=300&fit=crop&auto=format", // Swimming
+  "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=300&fit=crop&auto=format", // Yoga
+  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop&auto=format", // Music
+  "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop&auto=format", // Art
+  "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop&auto=format", // Cooking
+  "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=300&fit=crop&auto=format", // Nature
+  "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&h=300&fit=crop&auto=format", // Party
+  "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=300&fit=crop&auto=format", // Dance
+  "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=400&h=300&fit=crop&auto=format", // Festival
+  "https://images.unsplash.com/photo-1471478331149-c72f17e33c73?w=400&h=300&fit=crop&auto=format", // Concert
+  "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=400&h=300&fit=crop&auto=format", // Workshop
+  "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=300&fit=crop&auto=format", // Education
+  "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=300&fit=crop&auto=format", // Community
+  "https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=400&h=300&fit=crop&auto=format", // Volunteer
+  "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop&auto=format", // Garden
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop&auto=format", // Culture
+  "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=300&fit=crop&auto=format", // Technology
+  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&auto=format", // Outdoor
+
 ];
 
 // Keyword mapping voor slimme afbeelding selectie (aangepast voor 24 afbeeldingen)

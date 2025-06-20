@@ -42,7 +42,8 @@ export function CategoryImageSelector({
         // Gebruik primaire afbeelding als selectie
         if (smartAlternatives.primaryImage) {
           setSelectedImage(smartAlternatives.primaryImage);
-          onSelectImage(smartAlternatives.primaryImage);
+          // Use setTimeout to prevent callback from triggering re-renders
+          setTimeout(() => onSelectImage(smartAlternatives.primaryImage), 0);
           console.log(`Slimme afbeelding selectie voor "${title}": ${smartAlternatives.primaryImage}`);
           console.log(`${smartAlternatives.images.length} relevante alternatieven geladen`);
         }
@@ -63,7 +64,7 @@ export function CategoryImageSelector({
       setImages(defaultImages);
       console.log('No title/description, using default images:', defaultImages.length);
     }
-  }, [title, description, onSelectImage, onSuggestAIGeneration]);
+  }, [title, description]);
 
   // Als er geen afbeeldingen zijn geladen
   if (images.length === 0) {

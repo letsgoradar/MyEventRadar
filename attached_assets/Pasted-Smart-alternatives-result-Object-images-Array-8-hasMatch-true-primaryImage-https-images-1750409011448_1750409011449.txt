@@ -1,0 +1,67 @@
+Smart alternatives result: 
+Object {images: Array(8), hasMatch: true, primaryImage: "https://images.unsplash.com/photo-1571020550490-6e36e2eda7b0?q=80&w=1000"}
+Setting images to smart alternatives: 8
+Slimme afbeelding selectie voor "zwemfeest": https://images.unsplash.com/photo-1571020550490-6e36e2eda7b0?q=80&w=1000
+8 relevante alternatieven geladen
+✓ Afbeelding 1 geladen
+✓ Afbeelding 2 geladen
+✓ Afbeelding 4 geladen
+CategoryImageSelector: Effect triggered 
+Object {title: "zwemfeest", description: "gezellig zwemmen met zijn allen"}
+Slimme selectie alternatieven voor "zwemfeest": zwemmen, zwemfeest, feest, gezellig -> 8 afbeeldingen
+Smart alternatives result: 
+Object {images: Array(8), hasMatch: true, primaryImage: "https://images.unsplash.com/photo-1570563524005-6e75d9a95c5d?q=80&w=1000"}
+Setting images to smart alternatives: 8
+Slimme afbeelding selectie voor "zwemfeest": https://images.unsplash.com/photo-1570563524005-6e75d9a95c5d?q=80&w=1000
+8 relevante alternatieven geladen
+CategoryImageSelector: Effect triggered 
+Object {title: "zwemfeest", description: "gezellig zwemmen met zijn allen"}
+Slimme selectie alternatieven voor "zwemfeest": zwemmen, zwemfeest, feest, gezellig -> 8 afbeeldingen
+Smart alternatives result: 
+Object {images: Array(8), hasMatch: true, primaryImage: "https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?q=80&w=1000"}
+Setting images to smart alternatives: 8
+Slimme afbeelding selectie voor "zwemfeest": https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?q=80&w=1000
+8 relevante alternatieven geladen
+✓ Afbeelding 2 geladen
+✓ Afbeelding 3 geladen
+✓ Afbeelding 7 geladen
+✓ Afbeelding 8 geladen
+CategoryImageSelector: Effect triggered 
+Object {title: "zwemfeest", description: "gezellig zwemmen met zijn allen"}
+Slimme selectie alternatieven voor "zwemfeest": zwemmen, zwemfeest, feest, gezellig -> 8 afbeeldingen
+Smart alternatives result: 
+Object {images: Array(8), hasMatch: true, primaryImage: "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?q=80&w=1000"}
+Setting images to smart alternatives: 8
+Slimme afbeelding selectie voor "zwemfeest": https://images.unsplash.com/photo-1571115177098-24ec42ed204d?q=80&w=1000
+8 relevante alternatieven geladen
+CategoryImageSelector: Effect triggered 
+Object {title: "zwemfeest", description: "gezellig zwemmen met zijn allen"}
+Slimme selectie alternatieven voor "zwemfeest": zwemmen, zwemfeest, feest, gezellig -> 8 afbeeldingen
+Smart alternatives result: 
+Object {images: Array(8), hasMatch: true, primaryImage: "https://images.unsplash.com/photo-1576076584820-57e75cd83b7e?q=80&w=1000"}
+Setting images to smart alternatives: 8
+Slimme afbeelding selectie voor "zwemfeest": https://images.unsplash.com/photo-1576076584820-57e75cd83b7e?q=80&w=1000
+8 relevante alternatieven geladen
+✓ Afbeelding 1 geladen
+✓ Afbeelding 2 geladen
+✓ Afbeelding 7 geladen
+✓ Afbeelding 8 geladen
+CategoryImageSelector: Effect triggered 
+Object {title: "zwemfeest", description: "gezellig zwemmen met zijn allen"}
+Slimme selectie alternatieven voor "zwemfeest": zwemmen, zwemfeest, feest, gezellig -> 8 afbeeldingen
+Smart alternatives result: 
+Object {images: Array(8), hasMatch: true, primaryImage: "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?q=80&w=1000"}
+Setting images to smart alternatives: 8
+Slimme afbeelding selectie voor "zwemfeest": https://images.unsplash.com/photo-1571115177098-24ec42ed204d?q=80&w=1000
+8 relevante alternatieven geladen
+✓ Afbeelding 2 geladen
+✓ Afbeelding 3 geladen
+✓ Afbeelding 5 geladen
+✓ Afbeelding 6 geladen
+CategoryImageSelector: Effect triggered 
+Object {title: "zwemfeest", description: "gezellig zwemmen met zijn allen"}
+Slimme selectie alternatieven voor "zwemfeest": zwemmen, zwemfeest, feest, gezellig -> 8 afbeeldingen
+Smart alternatives result: 
+Object {images: Array(8), hasMatch: true, primaryImage: "https://images.unsplash.com/photo-1570563524005-6e75d9a95c5d?q=80&w=1000"}
+Setting images to smart alternatives: 8
+Slimme afbeelding selectie voor "zwemfeest": https://images.unsplash.com/photo-1570563524005-6e75d9a95c5d?q=80&w=1000

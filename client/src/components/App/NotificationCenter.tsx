@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "date-fns/locale";
+import { useLocation } from "wouter";
 
 interface Notification {
   id: number;
@@ -32,19 +33,20 @@ export function NotificationCenter() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   const { data: notifications = [] } = useQuery<Notification[]>({
-    queryKey: [`/api/notifications/${user?.id}`],
+    queryKey: ['/api/notifications'],
     enabled: !!user?.id,
   });
 
   const { data: unreadCountData } = useQuery<{ count: number }>({
-    queryKey: [`/api/notifications/${user?.id}/unread-count`],
+    queryKey: [`/api/notifications/unread-count`],
     enabled: !!user?.id,
     refetchInterval: 30000, // Poll every 30 seconds
   });
 
-  const unreadCount = unreadCountData?.count || 0;
+  const unreadCount = unreadCountData?.count || notifications.filter(n => !n.isRead).length;
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: number) => {
@@ -56,8 +58,8 @@ export function NotificationCenter() {
       if (!response.ok) throw new Error('Failed to mark as read');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/notifications/${user?.id}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/notifications/${user?.id}/unread-count`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/notifications/unread-count`] });
     },
   });
 
@@ -78,16 +80,22 @@ export function NotificationCenter() {
     if (!notification.isRead) {
       markAsReadMutation.mutate(notification.id);
     }
+    
+    // Navigate to the relevant event if eventId exists
+    if (notification.eventId) {
+      setLocation(`/app/event/${notification.eventId}`);
+      setIsOpen(false);
+    }
   };
 
-  if (!user) return null;
+  // Show bell for everyone, but only show notifications for logged in users
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
+          {user && unreadCount > 0 && (
             <Badge 
               variant="destructive" 
               className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
@@ -109,7 +117,13 @@ export function NotificationCenter() {
         </SheetHeader>
         
         <ScrollArea className="h-[calc(100vh-120px)] mt-4">
-          {notifications.length === 0 ? (
+          {!user ? (
+            <div className="text-center text-muted-foreground py-8">
+              <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Log in voor notificaties</p>
+              <p className="text-sm">Ontvang meldingen over je favoriete evenementen na het inloggen</p>
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Geen notificaties</p>

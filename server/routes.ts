@@ -365,7 +365,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Favorieten van een gebruiker ophalen
+  // Notificaties van ingelogde gebruiker ophalen
+  app.get("/api/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const notifications = await storage.getNotificationsByUser(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error in GET /api/notifications:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Notificatie markeren als gelezen
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      
+      if (isNaN(notificationId)) {
+        return res.status(400).json({ message: "Invalid notification ID" });
+      }
+      
+      await storage.markNotificationAsRead(notificationId);
+      res.json({ message: "Notification marked as read" });
+    } catch (error) {
+      console.error('Error in PATCH /api/notifications/:id/read:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Favorieten van ingelogde gebruiker ophalen
+  app.get("/api/events/favorites", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const favorites = await storage.getFavoritesByUser(userId);
+      res.json(favorites);
+    } catch (error) {
+      console.error('Error in GET /api/events/favorites:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.get("/api/favorites/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);

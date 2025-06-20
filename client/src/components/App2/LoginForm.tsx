@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 const loginSchema = z.object({
   email: z
     .string()
-    .email({ message: "Voer een geldig e-mailadres in" }),
+    .min(1, { message: "Gebruikersnaam of e-mailadres is verplicht" }),
   password: z
     .string()
     .min(1, { message: "Wachtwoord is verplicht" }),

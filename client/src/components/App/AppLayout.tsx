@@ -228,28 +228,6 @@ export function AppLayout({
     }
   }, [filteredEvents]);
   
-  // Bereken dynamische dropdown hoogte
-  const dropdownMaxHeight = React.useMemo(() => {
-    if (searchQuery.trim() === "") return "120px";
-    
-    // Bereken aantal zichtbare resultaten
-    const matchingEvents = originalEvents.filter(event => 
-      event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    const eventCount = Math.min(matchingEvents.length, 5);
-    const recentSearches = localStorage.getItem('recentSearches') 
-      ? JSON.parse(localStorage.getItem('recentSearches') || '[]').slice(0, 5)
-      : [];
-    const totalItems = 1 + eventCount + recentSearches.length; // 1 voor "Zoek naar" knop
-    
-    // Dynamische hoogte: minimaal 2 items, maximaal 50vh (50% van scherm)
-    const itemHeight = 50; // Ongeveer 50px per item
-    const maxViewportHeight = typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400;
-    const calculatedHeight = Math.min(totalItems * itemHeight + 80, maxViewportHeight);
-    return `${Math.max(120, calculatedHeight)}px`;
-  }, [searchQuery, originalEvents]);
-
   // Filter events gebaseerd op geselecteerde categorieën en verlopen evenementen
   const displayedEvents = React.useMemo(() => {
     // Als er geen originele events zijn, gebruik de gefilterde events direct
@@ -505,11 +483,12 @@ export function AppLayout({
                 
                 {/* Live zoekresultaten dropdown */}
                 {searchQuery.trim() !== "" && (
-                  <Command className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white">
-                    <CommandList 
-                      className="overflow-y-auto" 
-                      style={{ maxHeight: dropdownMaxHeight }}
-                    >
+                  <div 
+                    className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white"
+                    style={{ maxHeight: dropdownMaxHeight, overflowY: 'auto' }}
+                  >
+                    <Command>
+                      <CommandList className="!max-h-none overflow-visible">
                       <CommandGroup>
                         <CommandItem 
                           onSelect={() => onSearch && onSearch(searchQuery)}
@@ -603,6 +582,7 @@ export function AppLayout({
                       </CommandGroup>
                     </CommandList>
                   </Command>
+                  </div>
                 )}
               </div>
             </div>

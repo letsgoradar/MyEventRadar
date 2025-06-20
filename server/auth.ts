@@ -58,33 +58,44 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy(
+      {
+        usernameField: 'email', // Tell Passport to look for 'email' field instead of 'username'
+        passwordField: 'password'
+      },
+      async (username, password, done) => {
       try {
-        console.log(`Login attempt with username: ${username}`);
+        console.log(`🔐 Login attempt with username/email: "${username}"`);
         
         // Probeer eerst username
         let user = await storage.getUserByUsername(username);
+        console.log(`📋 getUserByUsername result:`, user ? `Found user ID ${user.id}` : 'No user found');
         
         // Als username niet werkt, probeer email
         if (!user) {
+          console.log(`📧 Trying as email address...`);
           user = await storage.getUserByEmail(username);
+          console.log(`📋 getUserByEmail result:`, user ? `Found user ID ${user.id}` : 'No user found');
         }
         
         if (!user) {
-          console.log(`No user found with username/email: ${username}`);
+          console.log(`❌ No user found with username/email: "${username}"`);
           return done(null, false);
         }
         
+        console.log(`🔓 User found, checking password for user: ${user.username} (ID: ${user.id})`);
         const isValidPassword = await comparePasswords(password, user.password);
+        console.log(`🔒 Password check result:`, isValidPassword ? 'Valid' : 'Invalid');
+        
         if (!isValidPassword) {
-          console.log(`Invalid password for user: ${username}`);
+          console.log(`❌ Invalid password for user: ${username}`);
           return done(null, false);
         }
         
-        console.log(`Login successful for user: ${username}`);
+        console.log(`✅ Login successful for user: ${user.username} (ID: ${user.id})`);
         return done(null, user);
       } catch (error) {
-        console.error(`Login error for user ${username}:`, error);
+        console.error(`💥 Login error for user ${username}:`, error);
         return done(error);
       }
     }),
@@ -151,32 +162,42 @@ export function setupAuth(app: Express) {
 
   // Route voor inloggen
   app.post("/api/auth/login", (req, res, next) => {
-    console.log("Login request received:", req.body);
+    console.log("🚀 Login request received:", req.body);
+    
+    // Force field mapping for LocalStrategy
+    const credentials = {
+      username: req.body.email, // LocalStrategy expects 'username' field
+      password: req.body.password
+    };
+    
+    console.log("🔄 Mapped credentials:", credentials);
     
     passport.authenticate("local", (err: Error | null, user: any, info: any) => {
+      console.log("🔍 Passport authenticate callback:", { err: !!err, user: !!user, info });
+      
       if (err) {
-        console.error("Login authentication error:", err);
+        console.error("❌ Login authentication error:", err);
         return next(err);
       }
       
       if (!user) {
-        console.log("Authentication failed - no user returned");
+        console.log("❌ Authentication failed - no user returned");
         return res.status(401).json({ message: "Ongeldige gebruikersnaam of wachtwoord" });
       }
       
       req.login(user, (loginErr: Error | null) => {
         if (loginErr) {
-          console.error("Login session error:", loginErr);
+          console.error("❌ Login session error:", loginErr);
           return next(loginErr);
         }
         
-        console.log("User successfully logged in:", user.email);
+        console.log("✅ User successfully logged in:", user.username);
         
         // Verwijder wachtwoord uit de response
         const { password, ...userWithoutPassword } = user;
         res.status(200).json(userWithoutPassword);
       });
-    })(req, res, next);
+    })({ ...req, body: { ...req.body, username: req.body.email } }, res, next);
   });
 
   // Route voor uitloggen

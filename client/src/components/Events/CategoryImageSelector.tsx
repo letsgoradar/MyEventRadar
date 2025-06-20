@@ -27,13 +27,17 @@ export function CategoryImageSelector({
 
   // Laad slimme afbeelding alternatieven gebaseerd op titel en beschrijving
   useEffect(() => {
+    console.log('CategoryImageSelector: Effect triggered', { title, description });
+    
     if (title || description) {
       // Gebruik slimme selectie voor 8 relevante alternatieven
       const smartAlternatives = getSmartImageAlternatives(title, description, 8);
+      console.log('Smart alternatives result:', smartAlternatives);
       
       if (smartAlternatives.hasMatch && smartAlternatives.images.length > 0) {
         // Gevonden matches - toon relevante alternatieven
         setImages(smartAlternatives.images);
+        console.log('Setting images to smart alternatives:', smartAlternatives.images.length);
         
         // Gebruik primaire afbeelding als selectie
         if (smartAlternatives.primaryImage) {
@@ -44,7 +48,9 @@ export function CategoryImageSelector({
         }
       } else {
         // Geen match - gebruik eerste 8 algemene afbeeldingen en suggereer AI generatie
-        setImages(ALL_ACTIVITY_IMAGES.slice(0, 8));
+        const fallbackImages = ALL_ACTIVITY_IMAGES.slice(0, 8);
+        setImages(fallbackImages);
+        console.log('No smart matches, using fallback images:', fallbackImages.length);
         setSelectedImage(undefined);
         if (onSuggestAIGeneration) {
           onSuggestAIGeneration();
@@ -53,9 +59,11 @@ export function CategoryImageSelector({
       }
     } else {
       // Geen titel/beschrijving - toon eerste 8 algemene afbeeldingen
-      setImages(ALL_ACTIVITY_IMAGES.slice(0, 8));
+      const defaultImages = ALL_ACTIVITY_IMAGES.slice(0, 8);
+      setImages(defaultImages);
+      console.log('No title/description, using default images:', defaultImages.length);
     }
-  }, [title, description]);
+  }, [title, description, onSelectImage, onSuggestAIGeneration]);
 
   // Als er geen afbeeldingen zijn geladen
   if (images.length === 0) {
@@ -96,24 +104,39 @@ export function CategoryImageSelector({
       )}
 
       {/* Horizontale lijst met beschikbare afbeeldingen */}
-      <ScrollArea className="relative h-[120px]">
-        <div className="flex space-x-2 p-1">
-          {images.map((imageUrl, index) => (
-            <div 
-              key={index}
-              className={`flex-shrink-0 relative rounded-md overflow-hidden cursor-pointer border-2 
-                ${selectedImage === imageUrl ? 'border-primary' : 'border-transparent'}`}
-              onClick={() => handleSelectImage(imageUrl)}
-            >
-              <img 
-                src={imageUrl} 
-                alt={`Categorie afbeelding ${index + 1}`} 
-                className="w-24 h-24 object-cover"
-              />
-            </div>
-          ))}
-        </div>
-      </ScrollArea>
+      <div className="space-y-2">
+        <p className="text-sm text-muted-foreground">
+          Kies een passende afbeelding ({images.length} opties):
+        </p>
+        <ScrollArea className="w-full">
+          <div className="flex space-x-3 pb-4">
+            {images.map((imageUrl, index) => (
+              <div 
+                key={`image-${index}-${imageUrl.slice(-10)}`}
+                className={`flex-shrink-0 relative rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200 hover:scale-105
+                  ${selectedImage === imageUrl ? 'border-primary ring-2 ring-primary/20' : 'border-muted-foreground/20 hover:border-primary/50'}`}
+                onClick={() => handleSelectImage(imageUrl)}
+              >
+                <img 
+                  src={imageUrl} 
+                  alt={`Optie ${index + 1}`} 
+                  className="w-20 h-20 sm:w-24 sm:h-24 object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    console.error(`Afbeelding ${index + 1} laadprobleem:`, imageUrl);
+                    const target = e.currentTarget;
+                    target.style.backgroundColor = '#f3f4f6';
+                    target.alt = `Afbeelding ${index + 1} niet beschikbaar`;
+                  }}
+                  onLoad={() => {
+                    console.log(`✓ Afbeelding ${index + 1} geladen`);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
     </div>
   );
 }

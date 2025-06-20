@@ -8,6 +8,7 @@ import {
   participants,
   savedSearches,
   activityLogs,
+  notifications,
   type User,
   type InsertUser,
   type Event,
@@ -20,6 +21,8 @@ import {
   type InsertSavedSearch,
   type ActivityLog,
   type InsertActivityLog,
+  type Notification,
+  type InsertNotification,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';

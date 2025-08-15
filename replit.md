@@ -128,6 +128,11 @@ The application uses PostgreSQL with the following main entities:
 - Activity logging for audit trails
 
 ## Recent Changes
+- August 15, 2025: **FUNDAMENTELE WIJZIGING EVENT VIEWING** - Alle event clicks (kaart en tegels) gebruiken nu overlay mode
+  - Events worden altijd getoond in overlay panel in plaats van aparte pagina's 
+  - Zoekcontext blijft behouden bij event viewing
+  - Aparte event pagina's worden nu alleen gebruikt voor event creation/editing door event makers
+  - Zowel web als app interface gebruiken consistent overlay gedrag
 - June 20, 2025: **DEFAULT LOGIN CHANGED** - Switched automatic login from "Jan Jansen" to "testuser"
   - Created auto-login middleware that automatically authenticates testuser on app start
   - Added comprehensive testuser verification script with statistics display

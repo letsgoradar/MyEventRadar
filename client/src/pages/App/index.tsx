@@ -5,6 +5,7 @@ import { useLocation } from "@/hooks/useLocation";
 import { fetchEventsByRadius } from "@/lib/api";
 import { EventInterface } from "@shared/schema";
 import { EventList } from "@/components/EventList";
+import { EventDetailPanel } from "@/components/App/EventDetailPanel";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, List } from "lucide-react";
 
@@ -48,6 +49,28 @@ export function AppHomePage() {
 
   // Gebruik state om bij te houden of de tegelweergave actief is
   const [gridView, setGridView] = React.useState(true);
+  
+  // State voor event detail overlay
+  const [selectedEvent, setSelectedEvent] = React.useState<EventWithDistance | null>(null);
+
+  const handleEventClick = React.useCallback((event: EventWithDistance) => {
+    setSelectedEvent(event);
+  }, []);
+
+  const handleCloseEventDetail = React.useCallback(() => {
+    setSelectedEvent(null);
+  }, []);
+
+  const handleNavigateEvent = React.useCallback((direction: 'previous' | 'next') => {
+    if (!selectedEvent) return;
+    
+    const currentIndex = filteredEvents.findIndex(e => e.id === selectedEvent.id);
+    if (direction === 'previous' && currentIndex > 0) {
+      setSelectedEvent(filteredEvents[currentIndex - 1]);
+    } else if (direction === 'next' && currentIndex < filteredEvents.length - 1) {
+      setSelectedEvent(filteredEvents[currentIndex + 1]);
+    }
+  }, [selectedEvent, filteredEvents]);
 
   return (
     <AppLayout
@@ -59,6 +82,7 @@ export function AppHomePage() {
       onRadiusChange={setRadius}
       onFilteredEventsChange={setFilteredEvents}
       showMap={true}
+      onEventClick={handleEventClick}
     >
       {/* Toon EventList component - altijd in tegelweergave */}
       <EventList 
@@ -66,7 +90,19 @@ export function AppHomePage() {
         radius={radius}
         filteredEvents={filteredEvents}
         gridView={true}
+        onEventClick={handleEventClick}
       />
+      
+      {/* Event Detail Overlay */}
+      {selectedEvent && (
+        <EventDetailPanel
+          event={selectedEvent}
+          events={filteredEvents}
+          onClose={handleCloseEventDetail}
+          onPrevious={() => handleNavigateEvent('previous')}
+          onNext={() => handleNavigateEvent('next')}
+        />
+      )}
     </AppLayout>
   );
 }

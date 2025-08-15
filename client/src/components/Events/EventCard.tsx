@@ -129,20 +129,20 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-    if (window.location.pathname.includes('/web') && onEventClick) {
+    if (onEventClick) {
       e.preventDefault();
       onEventClick(event);
-    } else if (window.location.pathname.includes('/app')) {
+    } else {
+      // Fallback voor als er geen onEventClick handler is
       showEventOnMap(e);
     }
   };
 
   if (gridView) {
-    const CardWrapper = window.location.pathname.includes('/web') ? 
-      'div' : 
-      Link;
+    // Altijd div wrapper gebruiken, geen Link meer voor web interface
+    const CardWrapper = onEventClick ? 'div' : Link;
     
-    const cardProps = window.location.pathname.includes('/web') ? 
+    const cardProps = onEventClick ? 
       { onClick: handleCardClick } : 
       { href: detailLink, onClick: showEventOnMap };
     
@@ -291,8 +291,14 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
       countdownText = `over ongeveer ${minutesUntilStart} minuten`;
     }
     
+    // App interface gebruikt ook overlay mode als onEventClick beschikbaar is
+    const AppCardWrapper = onEventClick ? 'div' : Link;
+    const appCardProps = onEventClick ? 
+      { onClick: handleCardClick } : 
+      { href: `/app/event/${event.id}`, onClick: showEventOnMap };
+    
     return (
-      <Link href={`/app/event/${event.id}`} onClick={showEventOnMap}>
+      <AppCardWrapper {...appCardProps}>
         <Card className="overflow-hidden mb-4 transition-all hover:shadow-md cursor-pointer event-card">
           <div className="p-0">
             {/* Afbeelding container bovenaan */}
@@ -364,7 +370,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
             </div>
           </div>
         </Card>
-      </Link>
+      </AppCardWrapper>
     );
   }
 

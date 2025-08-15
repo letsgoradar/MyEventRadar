@@ -188,6 +188,7 @@ interface AppLayoutProps {
   showBackButton?: boolean;
   backTo?: string;
   hideSearchAndFilters?: boolean; // Nieuwe parameter om zoek en filters te verbergen
+  onEventClick?: (event: Event) => void; // Voor overlay mode ondersteuning
 }
 
 export function AppLayout({
@@ -208,6 +209,7 @@ export function AppLayout({
   showBackButton = false,
   backTo = "/app",
   hideSearchAndFilters = false,
+  onEventClick,
 }: AppLayoutProps) {
   // Gebruik de meegegeven defaultView of val terug op lijstweergave
   const [view, setView] = React.useState<"list" | "map">(defaultView);
@@ -676,7 +678,13 @@ export function AppLayout({
       {view === "map" && !isProfilePage && (
         <div className="flex-1 app-layout" id="map-container">
           <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[56px] z-0 border-t border-b-0 border-border">
-            <MapView filteredEvents={displayedEvents} radius={radius} searchQuery={searchQuery} hideZoomControls={true} />
+            <MapView 
+              filteredEvents={displayedEvents} 
+              radius={radius} 
+              searchQuery={searchQuery} 
+              hideZoomControls={true}
+              onEventClick={onEventClick}
+            />
           </div>
         </div>
       )}

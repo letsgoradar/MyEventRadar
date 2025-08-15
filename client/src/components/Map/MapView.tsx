@@ -596,10 +596,8 @@ export default function MapView({
             )}
             eventHandlers={{
               click: () => {
+                // Alleen popup tonen bij kaart marker click
                 setSelectedEvent(event.event);
-                if (onEventClick) {
-                  onEventClick(event.event);
-                }
               }
             }}
             // Open de popup automatisch als dit het geselecteerde event is
@@ -664,10 +662,12 @@ export default function MapView({
                       Bekijk details
                     </Button>
                   ) : (
-                    <Button asChild size="sm" className="w-full bg-primary text-white hover:bg-primary/90 border border-primary">
-                      <Link href={`/app/event/${event.id}?returnTo=${encodeURIComponent(window.location.pathname)}`}>
-                        Bekijk details
-                      </Link>
+                    <Button 
+                      size="sm" 
+                      className="w-full bg-primary text-white hover:bg-primary/90 border border-primary"
+                      onClick={() => onEventClick?.(event.event)}
+                    >
+                      Bekijk details
                     </Button>
                   )}
                 </CardFooter>

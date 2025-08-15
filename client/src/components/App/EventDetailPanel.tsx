@@ -249,16 +249,45 @@ export function EventDetailPanel({
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
-            <Button className="flex-1">
+            <Button 
+              className="flex-1"
+              onClick={() => {
+                // TODO: Implementeer deelname functionaliteit
+                console.log('Deelnemen aan event:', event.id);
+                // Hier kan later API call komen om deel te nemen
+              }}
+            >
               <UserPlus className="h-4 w-4 mr-2" />
               Deelnemen
             </Button>
             
-            <Button variant="outline" size="icon">
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => {
+                // TODO: Implementeer favorieten functionaliteit
+                console.log('Toggle favoriet voor event:', event.id);
+              }}
+            >
               <Heart className="h-4 w-4" />
             </Button>
             
-            <Button variant="outline" size="icon">
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => {
+                // TODO: Implementeer delen functionaliteit
+                if (navigator.share) {
+                  navigator.share({
+                    title: event.title,
+                    text: event.description,
+                    url: window.location.href
+                  });
+                } else {
+                  console.log('Delen van event:', event.id);
+                }
+              }}
+            >
               <Share2 className="h-4 w-4" />
             </Button>
           </div>

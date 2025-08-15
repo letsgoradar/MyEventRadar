@@ -139,15 +139,18 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
   };
 
   if (gridView) {
-    // Altijd div wrapper gebruiken, geen Link meer voor web interface
-    const CardWrapper = onEventClick ? 'div' : Link;
-    
-    const cardProps = onEventClick ? 
-      { onClick: handleCardClick } : 
-      { href: detailLink, onClick: showEventOnMap };
+    // Voor grid view, gebruik altijd div wrapper met click handler
+    const handleClick = (e: React.MouseEvent) => {
+      if (onEventClick) {
+        e.preventDefault();
+        onEventClick(event);
+      } else {
+        showEventOnMap(e);
+      }
+    };
     
     return (
-      <CardWrapper {...cardProps}>
+      <div onClick={handleClick}>
         <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col event-card">
           {/* Afbeelding bovenaan met overlay voor categorie en afstand */}
           <div className="relative h-48 overflow-hidden">
@@ -255,7 +258,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
             </div>
           </CardContent>
         </Card>
-      </CardWrapper>
+      </div>
     );
   }
 
@@ -291,14 +294,18 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
       countdownText = `over ongeveer ${minutesUntilStart} minuten`;
     }
     
-    // App interface gebruikt ook overlay mode als onEventClick beschikbaar is
-    const AppCardWrapper = onEventClick ? 'div' : Link;
-    const appCardProps = onEventClick ? 
-      { onClick: handleCardClick } : 
-      { href: `/app/event/${event.id}`, onClick: showEventOnMap };
+    // Voor app interface, gebruik altijd div wrapper met click handler
+    const handleAppClick = (e: React.MouseEvent) => {
+      if (onEventClick) {
+        e.preventDefault();
+        onEventClick(event);
+      } else {
+        showEventOnMap(e);
+      }
+    };
     
     return (
-      <AppCardWrapper {...appCardProps}>
+      <div onClick={handleAppClick}>
         <Card className="overflow-hidden mb-4 transition-all hover:shadow-md cursor-pointer event-card">
           <div className="p-0">
             {/* Afbeelding container bovenaan */}
@@ -370,7 +377,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
             </div>
           </div>
         </Card>
-      </AppCardWrapper>
+      </div>
     );
   }
 

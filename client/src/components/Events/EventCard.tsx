@@ -32,9 +32,10 @@ interface EventCardProps {
   event: EventInterface;
   distance?: number;
   gridView?: boolean;
+  onEventClick?: (event: EventInterface) => void;
 }
 
-export default function EventCard({ event, distance, gridView = false }: EventCardProps) {
+export default function EventCard({ event, distance, gridView = false, onEventClick }: EventCardProps) {
   const [showStreetView, setShowStreetView] = useState(false);
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
   
@@ -127,9 +128,26 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
     window.location.href = detailLink;
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (window.location.pathname.includes('/web') && onEventClick) {
+      e.preventDefault();
+      onEventClick(event);
+    } else if (window.location.pathname.includes('/app')) {
+      showEventOnMap(e);
+    }
+  };
+
   if (gridView) {
+    const CardWrapper = window.location.pathname.includes('/web') ? 
+      'div' : 
+      Link;
+    
+    const cardProps = window.location.pathname.includes('/web') ? 
+      { onClick: handleCardClick } : 
+      { href: detailLink, onClick: showEventOnMap };
+    
     return (
-      <Link href={detailLink} onClick={window.location.pathname.includes('/web') ? showEventOnMap : undefined}>
+      <CardWrapper {...cardProps}>
         <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col event-card">
           {/* Afbeelding bovenaan met overlay voor categorie en afstand */}
           <div className="relative h-48 overflow-hidden">
@@ -237,7 +255,7 @@ export default function EventCard({ event, distance, gridView = false }: EventCa
             </div>
           </CardContent>
         </Card>
-      </Link>
+      </CardWrapper>
     );
   }
 

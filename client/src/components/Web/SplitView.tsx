@@ -1,6 +1,7 @@
 import * as React from "react";
 import MapView from "@/components/Map/MapView";
 import { EventList } from "@/components/EventList";
+import { EventDetailPanel } from "./EventDetailPanel";
 import { Event } from "@shared/schema";
 import {
   ResizableHandle,
@@ -29,6 +30,7 @@ export function SplitView({
   onEventClick
 }: SplitViewProps) {
   const [activeEventId, setActiveEventId] = React.useState<number | null>(null);
+  const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
   const [mapZoom, setMapZoom] = React.useState<number>(13);
   const [visibleEvents, setVisibleEvents] = React.useState<Event[]>(filteredEvents);
@@ -69,8 +71,29 @@ export function SplitView({
 
   const handleEventClick = React.useCallback((event: Event) => {
     setActiveEventId(event.id);
+    setSelectedEvent(event);
     onEventClick?.(event);
   }, [onEventClick]);
+
+  const handleCloseEventDetail = React.useCallback(() => {
+    setSelectedEvent(null);
+    setActiveEventId(null);
+  }, []);
+
+  const handleNavigateEvent = React.useCallback((direction: 'previous' | 'next') => {
+    if (!selectedEvent) return;
+    
+    const currentIndex = filteredEvents.findIndex(e => e.id === selectedEvent.id);
+    if (direction === 'previous' && currentIndex > 0) {
+      const newEvent = filteredEvents[currentIndex - 1];
+      setSelectedEvent(newEvent);
+      setActiveEventId(newEvent.id);
+    } else if (direction === 'next' && currentIndex < filteredEvents.length - 1) {
+      const newEvent = filteredEvents[currentIndex + 1];
+      setSelectedEvent(newEvent);
+      setActiveEventId(newEvent.id);
+    }
+  }, [selectedEvent, filteredEvents]);
 
   const handleRadiusChange = React.useCallback((newRadius: number) => {
     onRadiusChange?.(newRadius);
@@ -116,39 +139,52 @@ export function SplitView({
           {/* Scheidingshandvat */}
           <ResizableHandle withHandle className="z-50 bg-primary" />
           
-          {/* Rechter paneel: lijst/grid weergave */}
+          {/* Rechter paneel: lijst/grid weergave of event detail */}
           <ResizablePanel defaultSize={50} minSize={30} className="relative">
-            <div className="h-full overflow-y-auto pb-20 px-4">
-              {/* Toon het aantal resultaten binnen het zichtbare gebied */}
-              <div className="sticky top-0 pt-4 pb-3 bg-background z-10 mb-2 flex justify-between items-center">
-                <div className="text-lg font-medium">
-                  {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'} in huidige zoekgebied
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Toon verlopen events toggle */}
-                  <Button 
-                    size="sm" 
-                    variant={showExpiredEvents ? "default" : "outline"}
-                    className="flex items-center gap-1 text-xs"
-                    title="Toon verlopen events"
-                    onClick={() => setShowExpiredEvents(!showExpiredEvents)}
-                  >
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>Verlopen</span>
-                  </Button>
-                  <div className="text-sm text-muted-foreground hidden sm:block">
-                    Zoom in/uit op de kaart om resultaten aan te passen
+            {selectedEvent ? (
+              /* Event Detail Panel */
+              <EventDetailPanel
+                event={selectedEvent}
+                events={filteredEvents}
+                onClose={handleCloseEventDetail}
+                onPrevious={() => handleNavigateEvent('previous')}
+                onNext={() => handleNavigateEvent('next')}
+              />
+            ) : (
+              /* Event List/Grid View */
+              <div className="h-full overflow-y-auto pb-20 px-4">
+                {/* Toon het aantal resultaten binnen het zichtbare gebied */}
+                <div className="sticky top-0 pt-4 pb-3 bg-background z-10 mb-2 flex justify-between items-center">
+                  <div className="text-lg font-medium">
+                    {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'} in huidige zoekgebied
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Toon verlopen events toggle */}
+                    <Button 
+                      size="sm" 
+                      variant={showExpiredEvents ? "default" : "outline"}
+                      className="flex items-center gap-1 text-xs"
+                      title="Toon verlopen events"
+                      onClick={() => setShowExpiredEvents(!showExpiredEvents)}
+                    >
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>Verlopen</span>
+                    </Button>
+                    <div className="text-sm text-muted-foreground hidden sm:block">
+                      Zoom in/uit op de kaart om resultaten aan te passen
+                    </div>
                   </div>
                 </div>
+                
+                <EventList 
+                  searchQuery={searchQuery} 
+                  radius={radius} 
+                  filteredEvents={visibleEvents} 
+                  gridView={true} // Gebruik de nieuwe grid weergave
+                  onEventClick={handleEventClick}
+                />
               </div>
-              
-              <EventList 
-                searchQuery={searchQuery} 
-                radius={radius} 
-                filteredEvents={visibleEvents} 
-                gridView={true} // Gebruik de nieuwe grid weergave
-              />
-            </div>
+            )}
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

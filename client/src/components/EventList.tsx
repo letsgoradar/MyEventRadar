@@ -26,9 +26,10 @@ interface EventListProps {
   radius: number;
   filteredEvents: EventWithDistance[];
   gridView?: boolean;
+  onEventClick?: (event: EventWithDistance) => void;
 }
 
-export function EventList({ filteredEvents, gridView = false }: EventListProps) {
+export function EventList({ filteredEvents, gridView = false, onEventClick }: EventListProps) {
   const isMobile = useIsMobile();
   
   // Check of we op de App pagina zijn
@@ -65,6 +66,7 @@ export function EventList({ filteredEvents, gridView = false }: EventListProps) 
               event={event} 
               distance={event.distance}
               gridView={true}
+              onEventClick={onEventClick}
             />
           ))}
         </div>

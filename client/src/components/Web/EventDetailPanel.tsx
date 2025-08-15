@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "wouter";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Heart, UserPlus } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Heart, UserPlus, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import CategoryIcon from "@/components/Events/CategoryIcon";
@@ -70,6 +70,32 @@ export function EventDetailPanel({
     }
   };
 
+  const openNavigationApp = () => {
+    const lat = parseFloat(event.latitude);
+    const lng = parseFloat(event.longitude);
+    
+    // Detecteer platform en open juiste navigatie app
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Voor mobiele apparaten: probeer native apps te openen
+      const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      const appleNavigationUrl = `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`;
+      
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        // iOS: Apple Maps
+        window.open(appleNavigationUrl, '_blank');
+      } else {
+        // Android: Google Maps
+        window.open(googleMapsUrl, '_blank');
+      }
+    } else {
+      // Voor desktop: Google Maps in browser
+      const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      window.open(googleMapsUrl, '_blank');
+    }
+  };
+
   return (
     <div className="w-full h-full bg-white flex flex-col">
       {/* Navigation Header */}
@@ -135,10 +161,10 @@ export function EventDetailPanel({
           </div>
         )}
 
-        <div className="p-6 space-y-6">
+        <div className="max-w-2xl mx-auto p-6 space-y-6">
           {/* Title and Category */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
+          <div className="space-y-3 text-center">
+            <div className="flex items-center justify-center gap-3">
               <CategoryIcon 
                 category={event.category} 
                 className="h-6 w-6" 
@@ -153,7 +179,7 @@ export function EventDetailPanel({
               )}
             </div>
             
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold text-gray-900">
               {event.title}
             </h1>
           </div>
@@ -175,9 +201,21 @@ export function EventDetailPanel({
             </div>
 
             {event.address && (
-              <div className="flex items-center gap-3 text-gray-600">
-                <MapPin className="h-5 w-5 flex-shrink-0" />
-                <span>{event.address}</span>
+              <div className="flex items-center justify-between gap-3 text-gray-600">
+                <div className="flex items-center gap-3">
+                  <MapPin className="h-5 w-5 flex-shrink-0" />
+                  <span>{event.address}</span>
+                </div>
+                <Button 
+                  onClick={openNavigationApp}
+                  variant="outline"
+                  size="sm"
+                  className="flex-shrink-0"
+                  title="Navigeer naar locatie"
+                >
+                  <Navigation className="h-4 w-4 mr-2" />
+                  Navigeer
+                </Button>
               </div>
             )}
 
@@ -198,11 +236,11 @@ export function EventDetailPanel({
 
           {/* Description */}
           {event.description && (
-            <div className="space-y-3">
+            <div className="space-y-3 text-center">
               <h3 className="text-lg font-semibold text-gray-900">
                 Beschrijving
               </h3>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-left max-w-prose mx-auto">
                 {event.description}
               </p>
             </div>

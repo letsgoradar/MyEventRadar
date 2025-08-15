@@ -2,6 +2,7 @@ import * as React from "react";
 import MapView from "@/components/Map/MapView";
 import { EventList } from "@/components/EventList";
 import { EventDetailPanel } from "./EventDetailPanel";
+import { EventPreview } from "./EventPreview";
 import { Event } from "@shared/schema";
 import {
   ResizableHandle,
@@ -69,15 +70,42 @@ export function SplitView({
     setVisibleEvents(eventsInBounds);
   }, [filteredEvents, mapBounds, showExpiredEvents]);
 
-  const handleEventClick = React.useCallback((event: Event) => {
+  // Nieuwe states voor kaart preview mode vs detail mode
+  const [isPreviewMode, setIsPreviewMode] = React.useState<boolean>(false);
+  const [previewEvent, setPreviewEvent] = React.useState<Event | null>(null);
+
+  const handleMapEventClick = React.useCallback((event: Event) => {
+    // Bij kaart klik: eerst preview mode
     setActiveEventId(event.id);
-    setSelectedEvent(event);
+    setPreviewEvent(event);
+    setIsPreviewMode(true);
+    // Nog geen selectedEvent zodat de tegels zichtbaar blijven
     onEventClick?.(event);
   }, [onEventClick]);
+
+  const handleTileEventClick = React.useCallback((event: Event) => {
+    // Bij tegel klik: direct detail mode
+    setActiveEventId(event.id);
+    setSelectedEvent(event);
+    setIsPreviewMode(false);
+    setPreviewEvent(null);
+    onEventClick?.(event);
+  }, [onEventClick]);
+
+  const handleViewDetails = React.useCallback(() => {
+    // Van preview naar detail mode
+    if (previewEvent) {
+      setSelectedEvent(previewEvent);
+      setIsPreviewMode(false);
+      setPreviewEvent(null);
+    }
+  }, [previewEvent]);
 
   const handleCloseEventDetail = React.useCallback(() => {
     setSelectedEvent(null);
     setActiveEventId(null);
+    setIsPreviewMode(false);
+    setPreviewEvent(null);
   }, []);
 
   const handleNavigateEvent = React.useCallback((direction: 'previous' | 'next') => {
@@ -126,7 +154,7 @@ export function SplitView({
                 searchQuery={searchQuery} 
                 radius={radius} 
                 filteredEvents={filteredEvents}
-                onEventClick={handleEventClick}
+                onEventClick={handleMapEventClick}
                 onRadiusChange={handleRadiusChange}
                 onBoundsChange={handleBoundsChange}
                 onZoomChange={handleZoomChange}
@@ -140,7 +168,7 @@ export function SplitView({
           <ResizableHandle withHandle className="z-50 bg-primary" />
           
           {/* Rechter paneel: lijst/grid weergave of event detail */}
-          <ResizablePanel defaultSize={50} minSize={30} className="relative">
+          <ResizablePanel defaultSize={50} minSize={35} className="relative">
             {selectedEvent ? (
               /* Event Detail Panel */
               <EventDetailPanel
@@ -151,8 +179,8 @@ export function SplitView({
                 onNext={() => handleNavigateEvent('next')}
               />
             ) : (
-              /* Event List/Grid View */
-              <div className="h-full overflow-y-auto pb-20 px-4">
+              /* Event List/Grid View with optional preview */
+              <div className="h-full overflow-y-auto pb-20 px-4 relative">
                 {/* Toon het aantal resultaten binnen het zichtbare gebied */}
                 <div className="sticky top-0 pt-4 pb-3 bg-background z-10 mb-2 flex justify-between items-center">
                   <div className="text-lg font-medium">
@@ -181,8 +209,19 @@ export function SplitView({
                   radius={radius} 
                   filteredEvents={visibleEvents} 
                   gridView={true} // Gebruik de nieuwe grid weergave
-                  onEventClick={handleEventClick}
+                  onEventClick={handleTileEventClick}
                 />
+                
+                {/* Event Preview Overlay - toont wanneer er op kaart wordt geklikt */}
+                {isPreviewMode && previewEvent && (
+                  <div className="absolute top-0 left-0 w-full z-10">
+                    <EventPreview
+                      event={previewEvent}
+                      onViewDetails={handleViewDetails}
+                      onClose={handleCloseEventDetail}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </ResizablePanel>

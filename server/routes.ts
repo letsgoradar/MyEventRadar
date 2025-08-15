@@ -203,7 +203,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('GET /api/events/nearby params:', { lat, lng, radius });
       
       const events = await storage.getEventsByRadius(lat, lng, radius);
-      res.json(events);
+      
+      // Sorteer events: highlights eerst (op priority), dan dichtstbij
+      const sortedEvents = events.sort((a, b) => {
+        // Check if events are highlighted and within highlight period
+        const now = new Date();
+        const aHighlighted = a.isHighlighted && 
+          (!a.highlightStartDate || new Date(a.highlightStartDate) <= now) &&
+          (!a.highlightEndDate || new Date(a.highlightEndDate) >= now);
+        const bHighlighted = b.isHighlighted && 
+          (!b.highlightStartDate || new Date(b.highlightStartDate) <= now) &&
+          (!b.highlightEndDate || new Date(b.highlightEndDate) >= now);
+        
+        // Highlighted events first
+        if (aHighlighted && !bHighlighted) return -1;
+        if (!aHighlighted && bHighlighted) return 1;
+        
+        // If both highlighted, sort by priority
+        if (aHighlighted && bHighlighted) {
+          return (b.highlightPriority || 0) - (a.highlightPriority || 0);
+        }
+        
+        // For non-highlighted events, maintain original order (by distance)
+        return 0;
+      });
+      
+      res.json(sortedEvents);
     } catch (error) {
       console.error('Error in /api/events/nearby:', error);
       if (error instanceof z.ZodError) {

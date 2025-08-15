@@ -3,6 +3,7 @@ import { Event } from "@shared/schema";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import SplitView from "./SplitView";
+import { EventDetailPanel } from "./EventDetailPanel";
 
 interface WebLayoutProps {
   children?: React.ReactNode;
@@ -30,6 +31,7 @@ export function WebLayout({
   const [radius, setRadius] = React.useState(propRadius || 10);
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>(propFilteredEvents || []);
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
+  const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
 
   // Update state when props change
   React.useEffect(() => {
@@ -74,8 +76,24 @@ export function WebLayout({
   }, []);
   
   const handleEventClick = React.useCallback((event: Event) => {
+    setSelectedEvent(event);
     propOnEventClick?.(event);
   }, [propOnEventClick]);
+
+  const handleCloseEventDetail = React.useCallback(() => {
+    setSelectedEvent(null);
+  }, []);
+
+  const handleNavigateEvent = React.useCallback((direction: 'previous' | 'next') => {
+    if (!selectedEvent) return;
+    
+    const currentIndex = filteredEvents.findIndex(e => e.id === selectedEvent.id);
+    if (direction === 'previous' && currentIndex > 0) {
+      setSelectedEvent(filteredEvents[currentIndex - 1]);
+    } else if (direction === 'next' && currentIndex < filteredEvents.length - 1) {
+      setSelectedEvent(filteredEvents[currentIndex + 1]);
+    }
+  }, [selectedEvent, filteredEvents]);
 
   // Alleen desktop layout met sidebar en split view
   return (
@@ -96,19 +114,37 @@ export function WebLayout({
           />
         </div>
         
-        {/* Content container met vaste top margin zodat de kaart niet onder de header komt */}
-        <div className="flex-1 relative overflow-hidden" style={{ zIndex: 50 }}>
-          {children ? (
-            <div className="h-full overflow-y-auto p-4 pb-20 max-w-screen-2xl mx-auto" style={{ position: 'relative', zIndex: 50 }}>{children}</div>
-          ) : (
-            <SplitView 
-              searchQuery={searchQuery}
-              radius={radius}
-              filteredEvents={filteredEvents}
-              onRadiusChange={handleRadiusChange}
-              onFilteredEventsChange={handleFilteredEventsChange}
-              onEventClick={handleEventClick}
-            />
+        {/* Content container met side-by-side layout */}
+        <div className="flex-1 flex overflow-hidden" style={{ zIndex: 50 }}>
+          {/* Map/List View - Takes full width when no event selected, 60% when event selected */}
+          <div className={`${selectedEvent ? 'w-3/5' : 'w-full'} transition-all duration-300`}>
+            {children ? (
+              <div className="h-full overflow-y-auto p-4 pb-20 max-w-screen-2xl mx-auto" style={{ position: 'relative', zIndex: 50 }}>
+                {children}
+              </div>
+            ) : (
+              <SplitView 
+                searchQuery={searchQuery}
+                radius={radius}
+                filteredEvents={filteredEvents}
+                onRadiusChange={handleRadiusChange}
+                onFilteredEventsChange={handleFilteredEventsChange}
+                onEventClick={handleEventClick}
+              />
+            )}
+          </div>
+          
+          {/* Event Detail Panel - Shows when event is selected */}
+          {selectedEvent && (
+            <div className="w-2/5 border-l border-gray-200 bg-white">
+              <EventDetailPanel
+                event={selectedEvent}
+                events={filteredEvents}
+                onClose={handleCloseEventDetail}
+                onPrevious={() => handleNavigateEvent('previous')}
+                onNext={() => handleNavigateEvent('next')}
+              />
+            </div>
           )}
         </div>
       </div>

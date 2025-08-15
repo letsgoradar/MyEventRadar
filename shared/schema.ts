@@ -55,6 +55,11 @@ export const events = pgTable("events", {
   recurrence: text("recurrence").notNull().default('once'),
   tags: text("tags").array(),
   imageUrl: text("image_url"),
+  // Highlight/sponsoring system
+  isHighlighted: boolean("is_highlighted").default(false),
+  highlightStartDate: timestamp("highlight_start_date"),
+  highlightEndDate: timestamp("highlight_end_date"),
+  highlightPriority: integer("highlight_priority").default(0), // Higher numbers = higher priority
 });
 
 export const favorites = pgTable("favorites", {

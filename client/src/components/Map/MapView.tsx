@@ -655,11 +655,21 @@ export default function MapView({
                   )}
                 </CardContent>
                 <CardFooter className="p-2 pt-0">
-                  <Button asChild size="sm" className="w-full bg-primary text-white hover:bg-primary/90 border border-primary">
-                    <Link href={`${window.location.pathname.includes('/web') ? '/web' : '/app'}/event/${event.id}?returnTo=${encodeURIComponent(window.location.pathname)}`}>
+                  {window.location.pathname.includes('/web') ? (
+                    <Button 
+                      size="sm" 
+                      className="w-full bg-primary text-white hover:bg-primary/90 border border-primary"
+                      onClick={() => onEventClick?.(event.event)}
+                    >
                       Bekijk details
-                    </Link>
-                  </Button>
+                    </Button>
+                  ) : (
+                    <Button asChild size="sm" className="w-full bg-primary text-white hover:bg-primary/90 border border-primary">
+                      <Link href={`/app/event/${event.id}?returnTo=${encodeURIComponent(window.location.pathname)}`}>
+                        Bekijk details
+                      </Link>
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             </Popup>

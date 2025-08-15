@@ -75,11 +75,11 @@ export function SplitView({
   const [previewEvent, setPreviewEvent] = React.useState<Event | null>(null);
 
   const handleMapEventClick = React.useCallback((event: Event) => {
-    // Bij kaart klik: eerst preview mode
+    // Bij kaart klik: direct detail mode (net als tegels)
     setActiveEventId(event.id);
-    setPreviewEvent(event);
-    setIsPreviewMode(true);
-    // Nog geen selectedEvent zodat de tegels zichtbaar blijven
+    setSelectedEvent(event);
+    setIsPreviewMode(false);
+    setPreviewEvent(null);
     onEventClick?.(event);
   }, [onEventClick]);
 
@@ -212,16 +212,7 @@ export function SplitView({
                   onEventClick={handleTileEventClick}
                 />
                 
-                {/* Event Preview Overlay - toont wanneer er op kaart wordt geklikt */}
-                {isPreviewMode && previewEvent && (
-                  <div className="absolute top-0 left-0 w-full z-10">
-                    <EventPreview
-                      event={previewEvent}
-                      onViewDetails={handleViewDetails}
-                      onClose={handleCloseEventDetail}
-                    />
-                  </div>
-                )}
+
               </div>
             )}
           </ResizablePanel>

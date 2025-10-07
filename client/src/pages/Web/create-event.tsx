@@ -12,6 +12,7 @@ import { queryClient } from '@/lib/queryClient';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
 import { AutoImageSelector } from '@/components/Events/AutoImageSelector';
+import StepperTimeline from '@/components/Events/StepperTimeline';
 import {
   Form,
   FormControl,
@@ -123,6 +124,10 @@ const CreateEvent = () => {
   const { toast } = useToast();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  
+  // Wizard state
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [stepValidations, setStepValidations] = useState<Record<number, boolean>>({});
   
   // Form setup
   const form = useForm<CreateEventFormValues>({

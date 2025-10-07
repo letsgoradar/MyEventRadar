@@ -226,7 +226,7 @@ const CreateEvent = () => {
   // Functie om locatie te updaten
   const handleLocationChange = (lat: number, lng: number) => {
     // Update het locatie-object met nieuwe coördinaten
-    const currentLocation = form.getValues('location') || {};
+    const currentLocation = form.getValues('location') || { lat: 0, lng: 0, notificationReach: 5.0 };
     form.setValue('location', { 
       ...currentLocation, 
       lat, 

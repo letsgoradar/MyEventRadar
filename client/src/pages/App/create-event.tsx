@@ -36,7 +36,7 @@ import { DateTimePickerSeparate } from "@/components/date-picker-separate";
 import { useAuth } from "@/hooks/use-auth";
 import { CATEGORIES } from "@shared/schema";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { Image, X, ChevronLeft, ChevronRight, Check, AlertCircle } from "lucide-react";
+import { Image, X, ChevronLeft, ChevronRight, Check, AlertCircle, ImageIcon } from "lucide-react";
 import { Link } from "wouter";
 import { suggestCategory } from "@/lib/aiTagGenerator";
 import { 

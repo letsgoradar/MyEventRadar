@@ -11,7 +11,7 @@ import { useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
-import { ImageGenerator } from '@/components/Events/ImageGenerator';
+import { AutoImageSelector } from '@/components/Events/AutoImageSelector';
 import {
   Form,
   FormControl,
@@ -703,18 +703,29 @@ const CreateEvent = () => {
                             </div>
                           ) : (
                             <div className="space-y-4">
-                              <Tabs defaultValue="ai">
+                              <Tabs defaultValue="auto">
                                 <TabsList className="grid w-full grid-cols-2">
-                                  <TabsTrigger value="ai">AI Genereren</TabsTrigger>
+                                  <TabsTrigger value="auto">Auto Selectie</TabsTrigger>
                                   <TabsTrigger value="upload">Uploaden</TabsTrigger>
                                 </TabsList>
-                                <TabsContent value="ai" className="py-4">
-                                  <ImageGenerator
-                                    title={form.watch('title') || ''}
-                                    category={form.watch('category') || ''}
-                                    description={form.watch('description') || ''}
-                                    onImageGenerated={handleAIGeneratedImage}
-                                  />
+                                <TabsContent value="auto" className="py-4">
+                                  {form.watch('title') && form.watch('category') ? (
+                                    <AutoImageSelector
+                                      title={form.watch('title') || ''}
+                                      category={form.watch('category') || ''}
+                                      onImageSelected={(imageUrl) => {
+                                        form.setValue('imageUrl', imageUrl);
+                                      }}
+                                      currentImageUrl={form.watch('imageUrl')}
+                                    />
+                                  ) : (
+                                    <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md bg-muted/50">
+                                      <Image className="h-10 w-10 text-muted-foreground/50 mb-2" />
+                                      <p className="text-sm text-muted-foreground/70 text-center">
+                                        Vul eerst een titel en categorie in om passende foto's te zien
+                                      </p>
+                                    </div>
+                                  )}
                                 </TabsContent>
                                 <TabsContent value="upload" className="py-4">
                                   <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md">

@@ -31,7 +31,7 @@ export function AutoImageSelector({
       setImageOptions(options);
       
       // Selecteer automatisch de eerste als er nog geen image is
-      if (!currentImageUrl && options[0]) {
+      if (!selectedImage && options[0]) {
         setSelectedImage(options[0]);
         onImageSelected(options[0]);
       }

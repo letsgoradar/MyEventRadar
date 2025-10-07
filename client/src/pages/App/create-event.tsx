@@ -31,7 +31,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ImageGenerator } from "@/components/Events/ImageGenerator";
+import { AutoImageSelector } from "@/components/Events/AutoImageSelector";
 import { DateTimePickerSeparate } from "@/components/date-picker-separate";
+import { useAuth } from "@/hooks/use-auth";
 import { CATEGORIES } from "@shared/schema";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Image, X, ChevronLeft, ChevronRight, Check, AlertCircle } from "lucide-react";
@@ -167,6 +169,7 @@ const MAX_IMAGES = 5;
 
 export function AppCreateEvent() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -977,8 +980,10 @@ export function AppCreateEvent() {
                   <Tabs defaultValue={imageTabValue} onValueChange={setImageTabValue}>
                     <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="category">Standaard</TabsTrigger>
-                      <TabsTrigger value="upload">Uploaden</TabsTrigger>
-                      <TabsTrigger value="ai">AI Genereren</TabsTrigger>
+                      <TabsTrigger value="upload" disabled={!user?.isPremium}>
+                        Uploaden {!user?.isPremium && '🔒'}
+                      </TabsTrigger>
+                      <TabsTrigger value="auto">Auto Selectie</TabsTrigger>
                     </TabsList>
                     
                     {/* Tab: Standaard categorie afbeeldingen */}
@@ -1002,30 +1007,53 @@ export function AppCreateEvent() {
                     
                     {/* Tab: Afbeelding uploaden */}
                     <TabsContent value="upload" className="py-4">
-                      {imagePreviews.length > 0 && imageTabValue === 'upload' ? (
-                        <div className="space-y-4">
-                          <div className="relative h-60 w-full rounded-md overflow-hidden border">
-                            <img 
-                              src={imagePreviews[0]} 
-                              alt="Geüploade afbeelding" 
-                              className="w-full h-full object-cover"
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="icon"
-                              className="absolute top-2 right-2 h-8 w-8 rounded-full"
-                              onClick={() => {
-                                setImagePreviews([]);
-                                setSelectedImages([]);
-                                form.setValue('imageUrl', undefined);
-                                form.setValue('imageFile', undefined);
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                      {user?.isPremium ? (
+                        imagePreviews.length > 0 && imageTabValue === 'upload' ? (
+                          <div className="space-y-4">
+                            <div className="relative h-60 w-full rounded-md overflow-hidden border">
+                              <img 
+                                src={imagePreviews[0]} 
+                                alt="Geüploade afbeelding" 
+                                className="w-full h-full object-cover"
+                              />
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                                onClick={() => {
+                                  setImagePreviews([]);
+                                  setSelectedImages([]);
+                                  form.setValue('imageUrl', undefined);
+                                  form.setValue('imageFile', undefined);
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md bg-muted/50">
+                            <Image className="h-10 w-10 text-muted-foreground/50 mb-2" />
+                            <p className="text-sm text-muted-foreground/70 mb-4 text-center">
+                              Sleep een afbeelding hierheen of klik om te uploaden
+                            </p>
+                            <Button
+                              variant="outline"
+                              type="button"
+                              onClick={() => document.getElementById('file-upload')?.click()}
+                            >
+                              Selecteer afbeelding
+                            </Button>
+                            <input
+                              id="file-upload"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleImageChange}
+                            />
+                          </div>
+                        )
                       ) : (
                         <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md bg-muted/50">
                           <Image className="h-10 w-10 text-muted-foreground/50 mb-2" />
@@ -1033,7 +1061,7 @@ export function AppCreateEvent() {
                             Afbeelding uploaden
                           </p>
                           <p className="text-xs text-muted-foreground/60 mb-4 text-center px-4">
-                            Deze functie is beschikbaar in de betaalde versie van de app
+                            Deze functie is alleen beschikbaar voor premium leden
                           </p>
                           <Button
                             variant="outline"
@@ -1041,19 +1069,21 @@ export function AppCreateEvent() {
                             disabled
                             className="opacity-50"
                           >
-                            Selecteer afbeelding
+                            🔒 Premium functie
                           </Button>
                         </div>
                       )}
                     </TabsContent>
                     
-                    {/* Tab: AI Generated Image */}
-                    <TabsContent value="ai" className="py-4">
-                      <ImageGenerator
+                    {/* Tab: Auto Selectie */}
+                    <TabsContent value="auto" className="py-4">
+                      <AutoImageSelector
                         title={form.watch('title') || ''}
                         category={form.watch('category') || ''}
-                        description={form.watch('description') || ''}
-                        onImageGenerated={handleAIGeneratedImage}
+                        onImageSelected={(imageUrl) => {
+                          form.setValue('imageUrl', imageUrl);
+                        }}
+                        currentImageUrl={form.watch('imageUrl')}
                       />
                     </TabsContent>
                   </Tabs>

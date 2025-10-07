@@ -34,6 +34,7 @@ export const users = pgTable("users", {
   photoUrl: text("photo_url"),
   googleId: text("google_id"),
   role: text("role").default("user").notNull(),
+  isPremium: boolean("is_premium").default(false).notNull(),
 });
 
 export const events = pgTable("events", {

@@ -177,7 +177,7 @@ export function AppCreateEvent() {
   const [stepValidations, setStepValidations] = useState<Record<number, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [stepErrors, setStepErrors] = useState<Record<number, string[]>>({});
-  const [imageTabValue, setImageTabValue] = useState<string>("category"); // default tab voor afbeeldingen
+  const [imageTabValue, setImageTabValue] = useState<string>("auto"); // default tab voor afbeeldingen
 
   // Maak het formulier met standaardwaarden
   const form = useForm<CreateEventFormValues>({
@@ -977,29 +977,30 @@ export function AppCreateEvent() {
                 <CardContent className="pt-6 space-y-6">
                   <CardTitle>Afbeelding</CardTitle>
                   
-                  <Tabs defaultValue={imageTabValue} onValueChange={setImageTabValue}>
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="category">Standaard</TabsTrigger>
+                  <Tabs defaultValue="auto" onValueChange={setImageTabValue}>
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="auto">Auto Selectie</TabsTrigger>
                       <TabsTrigger value="upload" disabled={!user?.isPremium}>
                         Uploaden {!user?.isPremium && '🔒'}
                       </TabsTrigger>
-                      <TabsTrigger value="auto">Auto Selectie</TabsTrigger>
                     </TabsList>
                     
-                    {/* Tab: Standaard categorie afbeeldingen */}
-                    <TabsContent value="category" className="py-4">
-                      {form.watch('category') ? (
-                        <CategoryImageSelector
-                          category={form.watch('category') || ''}
-                          onSelectImage={handleCategoryImageSelect}
-                          defaultImage={form.watch('imageUrl')}
+                    {/* Tab: Auto Selectie */}
+                    <TabsContent value="auto" className="py-4">
+                      {form.watch('title') && form.watch('category') ? (
+                        <AutoImageSelector
                           title={form.watch('title') || ''}
-                          description={form.watch('description') || ''}
+                          category={form.watch('category') || ''}
+                          onImageSelected={(imageUrl) => {
+                            form.setValue('imageUrl', imageUrl);
+                          }}
+                          currentImageUrl={form.watch('imageUrl')}
                         />
                       ) : (
-                        <div className="flex flex-col items-center justify-center h-40 bg-muted rounded-md">
-                          <p className="text-sm text-muted-foreground">
-                            Selecteer eerst een categorie om afbeeldingen te zien
+                        <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md bg-muted/50">
+                          <ImageIcon className="h-10 w-10 text-muted-foreground/50 mb-2" />
+                          <p className="text-sm text-muted-foreground/70 text-center">
+                            Vul eerst een titel en categorie in om passende foto's te zien
                           </p>
                         </div>
                       )}
@@ -1073,18 +1074,6 @@ export function AppCreateEvent() {
                           </Button>
                         </div>
                       )}
-                    </TabsContent>
-                    
-                    {/* Tab: Auto Selectie */}
-                    <TabsContent value="auto" className="py-4">
-                      <AutoImageSelector
-                        title={form.watch('title') || ''}
-                        category={form.watch('category') || ''}
-                        onImageSelected={(imageUrl) => {
-                          form.setValue('imageUrl', imageUrl);
-                        }}
-                        currentImageUrl={form.watch('imageUrl')}
-                      />
                     </TabsContent>
                   </Tabs>
                 </CardContent>

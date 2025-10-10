@@ -24,22 +24,26 @@ export function AutoImageSelector({
   // Genereer automatisch 3 foto opties wanneer titel of categorie wijzigen
   useEffect(() => {
     if (title && category) {
-      const allMatchingImages = getMatchingImages(title, category);
-      // Take first 3 images from matching set
-      const options = allMatchingImages.slice(0, 3);
-      setImageOptions(options);
+      // Async functie om foto's op te halen
+      const fetchImages = async () => {
+        const allMatchingImages = await getMatchingImages(title, category);
+        const options = allMatchingImages.slice(0, 3);
+        setImageOptions(options);
+        
+        // Selecteer automatisch de eerste als er nog geen image is (alleen eerste keer)
+        if (!hasInitialized && !currentImageUrl && options[0]) {
+          setSelectedImage(options[0]);
+          onImageSelected(options[0]);
+          setHasInitialized(true);
+        }
+      };
       
-      // Selecteer automatisch de eerste als er nog geen image is (alleen eerste keer)
-      if (!hasInitialized && !currentImageUrl && options[0]) {
-        setSelectedImage(options[0]);
-        onImageSelected(options[0]);
-        setHasInitialized(true);
-      }
+      fetchImages();
     }
   }, [title, category]);
 
-  const handleRefresh = () => {
-    const allMatchingImages = getMatchingImages(title, category);
+  const handleRefresh = async () => {
+    const allMatchingImages = await getMatchingImages(title, category);
     // Shuffle the array to get different images on refresh
     const shuffled = [...allMatchingImages].sort(() => Math.random() - 0.5);
     const newOptions = shuffled.slice(0, 3);

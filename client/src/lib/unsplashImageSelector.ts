@@ -245,7 +245,7 @@ function findMatchingImages(title: string, category: string): string[] {
   for (const keyword of keywords) {
     if (ALL_IMAGES[keyword]) {
       const images = ALL_IMAGES[keyword];
-      return images.map(img => `https://images.unsplash.com/${img.id}?w=800&h=600&fit=crop`);
+      return images.map(img => `https://images.unsplash.com/photo-${img.id}?w=800&h=600&fit=crop`);
     }
   }
   
@@ -253,7 +253,7 @@ function findMatchingImages(title: string, category: string): string[] {
   for (const [key, images] of Object.entries(ALL_IMAGES)) {
     for (const keyword of keywords) {
       if (key.includes(keyword) || keyword.includes(key)) {
-        return images.map(img => `https://images.unsplash.com/${img.id}?w=800&h=600&fit=crop`);
+        return images.map(img => `https://images.unsplash.com/photo-${img.id}?w=800&h=600&fit=crop`);
       }
     }
   }
@@ -264,7 +264,7 @@ function findMatchingImages(title: string, category: string): string[] {
       for (const imageKeyword of image.keywords) {
         for (const titleKeyword of keywords) {
           if (imageKeyword.toLowerCase().includes(titleKeyword) || titleKeyword.includes(imageKeyword.toLowerCase())) {
-            return images.map(img => `https://images.unsplash.com/${img.id}?w=800&h=600&fit=crop`);
+            return images.map(img => `https://images.unsplash.com/photo-${img.id}?w=800&h=600&fit=crop`);
           }
         }
       }
@@ -273,7 +273,7 @@ function findMatchingImages(title: string, category: string): string[] {
   
   // Use category fallbacks
   const fallbackIds = CATEGORY_FALLBACKS[category] || CATEGORY_FALLBACKS['Gezellig en Sociaal'];
-  return fallbackIds.map(id => `https://images.unsplash.com/${id}?w=800&h=600&fit=crop`);
+  return fallbackIds.map(id => `https://images.unsplash.com/photo-${id}?w=800&h=600&fit=crop`);
 }
 
 /**

@@ -189,6 +189,7 @@ interface AppLayoutProps {
   backTo?: string;
   hideSearchAndFilters?: boolean; // Nieuwe parameter om zoek en filters te verbergen
   onEventClick?: (event: Event) => void; // Voor overlay mode ondersteuning
+  hideViewToggle?: boolean; // Verberg lijst/kaart toggle (voor app - alleen kaart)
 }
 
 export function AppLayout({
@@ -210,9 +211,10 @@ export function AppLayout({
   backTo = "/app",
   hideSearchAndFilters = false,
   onEventClick,
+  hideViewToggle = false,
 }: AppLayoutProps) {
-  // Gebruik de meegegeven defaultView of val terug op lijstweergave
-  const [view, setView] = React.useState<"list" | "map">(defaultView);
+  // Als hideViewToggle=true, forceer map view
+  const [view, setView] = React.useState<"list" | "map">(hideViewToggle ? "map" : defaultView);
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   // Standaard geen verlopen evenementen tonen
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
@@ -588,24 +590,26 @@ export function AppLayout({
               </div>
             </div>
             
-            <div className="flex gap-1">
-              <Button
-                variant={view === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => view !== "list" && toggleView()}
-                className="h-10 px-3"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={view === "map" ? "default" : "outline"}
-                size="sm"
-                onClick={() => view !== "map" && toggleView()}
-                className="h-10 px-3"
-              >
-                <Map className="h-4 w-4" />
-              </Button>
-            </div>
+            {!hideViewToggle && (
+              <div className="flex gap-1">
+                <Button
+                  variant={view === "list" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => view !== "list" && toggleView()}
+                  className="h-10 px-3"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={view === "map" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => view !== "map" && toggleView()}
+                  className="h-10 px-3"
+                >
+                  <Map className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
           
           {/* Filter tags */}

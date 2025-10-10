@@ -43,9 +43,9 @@ export function AppBottomNav() {
   // Navigatie items configuratie
   const navItems = React.useMemo(() => [
     {
-      label: "Live",
+      label: "Map",
       href: "/app",
-      icon: HomeIcon,
+      icon: Map,
       isActive: location === "/app" || location === "/app/",
     },
     {

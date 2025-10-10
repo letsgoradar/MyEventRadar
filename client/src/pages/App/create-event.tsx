@@ -216,6 +216,18 @@ export function AppCreateEvent() {
     });
   }, [form]);
 
+  // Automatisch eindtijd aanpassen wanneer begintijd wijzigt (2 uur later)
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'startTime' && value.startTime) {
+        const startTime = new Date(value.startTime);
+        const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // 2 uur later
+        form.setValue('endTime', endTime);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   // Mutatie voor het aanmaken van een evenement
   const createEventMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -816,6 +828,7 @@ export function AppCreateEvent() {
                           <DateTimePickerSeparate
                             date={field.value ? new Date(field.value) : undefined}
                             setDate={(date) => field.onChange(date)}
+                            minDate={new Date()}
                           />
                         </FormControl>
                         <FormMessage />
@@ -833,10 +846,11 @@ export function AppCreateEvent() {
                           <DateTimePickerSeparate
                             date={field.value ? new Date(field.value) : undefined}
                             setDate={(date) => field.onChange(date)}
+                            minDate={form.watch('startTime') || new Date()}
                           />
                         </FormControl>
                         <FormDescription>
-                          Laat leeg voor evenementen zonder eindtijd
+                          Wordt automatisch 2 uur na begintijd ingesteld
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1059,11 +1073,11 @@ export function AppCreateEvent() {
                       ) : (
                         <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md bg-muted/50">
                           <Image className="h-10 w-10 text-muted-foreground/50 mb-2" />
-                          <p className="text-sm text-muted-foreground/70 mb-2 text-center">
-                            Afbeelding uploaden
+                          <p className="text-sm font-medium text-muted-foreground/70 mb-2 text-center">
+                            Eigen afbeelding uploaden
                           </p>
                           <p className="text-xs text-muted-foreground/60 mb-4 text-center px-4">
-                            Deze functie is alleen beschikbaar voor premium leden
+                            Dit is een premium optie die je kunt activeren
                           </p>
                           <Button
                             variant="outline"

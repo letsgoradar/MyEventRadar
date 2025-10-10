@@ -19,7 +19,8 @@ export function DateTimePicker({
   mode = "datetime",
   label = "",
   placement = "bottom",
-  className = ""
+  className = "",
+  minDate
 }: {
   date: Date | undefined
   setDate: (date: Date | undefined) => void
@@ -27,6 +28,7 @@ export function DateTimePicker({
   label?: string
   placement?: "top" | "bottom"
   className?: string
+  minDate?: Date
 }) {
   // Splits time handling
   const [timeValue, setTimeValue] = React.useState<string>(
@@ -103,6 +105,12 @@ export function DateTimePicker({
               onSelect={setDate}
               initialFocus
               locale={nl}
+              disabled={(date) => {
+                if (!minDate) return false;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return date < today;
+              }}
             />
           )}
           

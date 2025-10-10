@@ -25,10 +25,12 @@ export function DatePickerOnly({
   date,
   setDate,
   className,
+  minDate,
 }: {
   date?: Date;
   setDate: (date: Date | undefined) => void;
   className?: string;
+  minDate?: Date;
 }) {
   return (
     <div className={cn("grid gap-2", className)}>
@@ -57,6 +59,12 @@ export function DatePickerOnly({
             onSelect={setDate}
             initialFocus
             locale={nl}
+            disabled={(date) => {
+              if (!minDate) return false;
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              return date < today;
+            }}
           />
         </PopoverContent>
       </Popover>
@@ -140,10 +148,12 @@ export function DateTimePickerSeparate({
   date,
   setDate,
   className,
+  minDate,
 }: {
   date?: Date;
   setDate: (date: Date | undefined) => void;
   className?: string;
+  minDate?: Date;
 }) {
   // Functie om alleen de tijd bij te werken, terwijl de datum behouden blijft
   const setTime = (hours: number, minutes: number) => {
@@ -161,7 +171,7 @@ export function DateTimePickerSeparate({
 
   return (
     <div className={cn("grid gap-4", className)}>
-      <DatePickerOnly date={date} setDate={setDate} />
+      <DatePickerOnly date={date} setDate={setDate} minDate={minDate} />
       <TimePickerOnly date={date} setTime={setTime} disabled={!date} />
     </div>
   );

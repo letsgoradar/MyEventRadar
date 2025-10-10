@@ -85,9 +85,9 @@ function getFallbackImages(title: string): string[] {
  * Valt terug op lokale mapping als API niet beschikbaar is
  */
 export async function getMatchingImages(searchQuery: string): Promise<string[]> {
-  // Probeer eerst de Unsplash API
+  // Probeer eerst de Unsplash API (haal 6 foto's op voor alternatieven)
   try {
-    const response = await fetch(`/api/unsplash/search?query=${encodeURIComponent(searchQuery)}&count=3`);
+    const response = await fetch(`/api/unsplash/search?query=${encodeURIComponent(searchQuery)}&count=6`);
     
     if (response.ok) {
       const data = await response.json();
@@ -101,8 +101,13 @@ export async function getMatchingImages(searchQuery: string): Promise<string[]> 
     console.warn('Unsplash API niet beschikbaar, gebruik fallback');
   }
 
-  // Fallback naar lokale mapping
-  return getFallbackImages(searchQuery);
+  // Fallback naar lokale mapping (geef 6 foto's terug)
+  const fallbackImages = getFallbackImages(searchQuery);
+  // Als we minder dan 6 hebben, dupliceer dan wat we hebben
+  while (fallbackImages.length < 6 && fallbackImages.length > 0) {
+    fallbackImages.push(...fallbackImages.slice(0, Math.min(3, 6 - fallbackImages.length)));
+  }
+  return fallbackImages.slice(0, 6);
 }
 
 /**

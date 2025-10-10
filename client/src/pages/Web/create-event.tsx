@@ -151,6 +151,18 @@ const CreateEvent = () => {
       recurrence: 'once',
     },
   });
+
+  // Automatisch eindtijd aanpassen wanneer begintijd wijzigt (2 uur later)
+  React.useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'startTime' && value.startTime) {
+        const startTime = new Date(value.startTime);
+        const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // 2 uur later
+        form.setValue('endTime', endTime);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
   
   // Event creation mutation
   const createEventMutation = useMutation({
@@ -890,9 +902,10 @@ const CreateEvent = () => {
                               placement="top"
                               label=""
                               className="relative z-50"
+                              minDate={new Date()}
                             />
                             <FormDescription>
-                              Datum en tijd waarop het evenement begint
+                              Geen datum in het verleden mogelijk
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -911,9 +924,10 @@ const CreateEvent = () => {
                               placement="top"
                               label=""
                               className="relative z-40"
+                              minDate={form.watch('startTime') || new Date()}
                             />
                             <FormDescription>
-                              Datum en tijd waarop het evenement eindigt
+                              Wordt automatisch 2 uur na begintijd ingesteld
                             </FormDescription>
                             <FormMessage />
                           </FormItem>

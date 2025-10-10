@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { RefreshCw, Check, Sparkles } from "lucide-react";
+import { RefreshCw, Check, Sparkles, Undo2 } from "lucide-react";
 import { getMatchingImages } from "@/lib/unsplashImageSelector";
 
 interface AutoImageSelectorProps {
@@ -21,20 +21,30 @@ export function AutoImageSelector({
 }: AutoImageSelectorProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(currentImageUrl || null);
   const [imageOptions, setImageOptions] = useState<string[]>([]);
+  const [allImages, setAllImages] = useState<string[]>([]);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [hasRefreshed, setHasRefreshed] = useState(false);
+  const [showingAlternatives, setShowingAlternatives] = useState(false);
 
   // Genereer automatisch 3 foto opties wanneer titel of beschrijving wijzigen
   useEffect(() => {
     if (title) {
-      // Reset hasInitialized wanneer titel wijzigt voor automatische herselectie
+      // Reset state wanneer titel wijzigt
       setHasInitialized(false);
+      setHasRefreshed(false);
+      setShowingAlternatives(false);
       
       // Async functie om foto's op te halen
       const fetchImages = async () => {
         // Combineer titel en beschrijving voor betere zoekresultaten
         const searchQuery = description ? `${title} ${description}` : title;
-        const allMatchingImages = await getMatchingImages(searchQuery);
-        const options = allMatchingImages.slice(0, 3);
+        const fetchedImages = await getMatchingImages(searchQuery);
+        
+        // Bewaar ALLE afbeeldingen
+        setAllImages(fetchedImages);
+        
+        // Toon eerste 3 als opties
+        const options = fetchedImages.slice(0, 3);
         setImageOptions(options);
         
         // Selecteer automatisch de eerste als er nog geen image is
@@ -49,14 +59,21 @@ export function AutoImageSelector({
     }
   }, [title, description]); // Luister naar titel EN beschrijving wijzigingen
 
-  const handleRefresh = async () => {
-    // Combineer titel en beschrijving voor betere zoekresultaten
-    const searchQuery = description ? `${title} ${description}` : title;
-    const allMatchingImages = await getMatchingImages(searchQuery);
-    // Shuffle the array to get different images on refresh
-    const shuffled = [...allMatchingImages].sort(() => Math.random() - 0.5);
-    const newOptions = shuffled.slice(0, 3);
-    setImageOptions(newOptions);
+  const handleRefresh = () => {
+    if (hasRefreshed || allImages.length < 6) return;
+    
+    // Toon afbeelding 4-6 (index 3-5)
+    const alternativeOptions = allImages.slice(3, 6);
+    setImageOptions(alternativeOptions);
+    setHasRefreshed(true);
+    setShowingAlternatives(true);
+  };
+
+  const handleBackToOriginal = () => {
+    // Ga terug naar eerste 3
+    const originalOptions = allImages.slice(0, 3);
+    setImageOptions(originalOptions);
+    setShowingAlternatives(false);
   };
 
   const handleSelectImage = (imageUrl: string) => {
@@ -81,18 +98,33 @@ export function AutoImageSelector({
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
           <p className="text-sm font-medium">
-            Automatisch geselecteerde foto's
+            {showingAlternatives ? 'Alternatieve foto\'s' : 'Automatisch geselecteerde foto\'s'}
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Ververs
-        </Button>
+        <div className="flex gap-2">
+          {showingAlternatives && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleBackToOriginal}
+            >
+              <Undo2 className="w-4 h-4 mr-2" />
+              Terug
+            </Button>
+          )}
+          {!hasRefreshed && allImages.length >= 6 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Alternatieven
+            </Button>
+          )}
+        </div>
       </div>
 
       {imageOptions.length > 0 ? (
@@ -131,7 +163,12 @@ export function AutoImageSelector({
       )}
 
       <p className="text-xs text-muted-foreground">
-        Klik op een foto om deze te selecteren. Klik op 'Ververs' voor nieuwe suggesties.
+        {showingAlternatives 
+          ? 'Klik op een foto om deze te selecteren of klik op \'Terug\' voor de eerste 3 foto\'s.'
+          : hasRefreshed 
+            ? 'Klik op een foto om deze te selecteren.'
+            : 'Klik op een foto om deze te selecteren. Klik op \'Alternatieven\' voor 3 andere suggesties.'
+        }
       </p>
     </div>
   );

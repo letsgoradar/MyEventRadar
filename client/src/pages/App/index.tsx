@@ -82,6 +82,8 @@ export function AppHomePage() {
       onRadiusChange={setRadius}
       onFilteredEventsChange={setFilteredEvents}
       showMap={true}
+      hideViewToggle={true}
+      defaultView="map"
       onEventClick={handleEventClick}
     >
       {/* Toon EventList component - altijd in tegelweergave */}

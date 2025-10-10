@@ -987,10 +987,11 @@ export function AppCreateEvent() {
                     
                     {/* Tab: Auto Selectie */}
                     <TabsContent value="auto" className="py-4">
-                      {form.watch('title') && form.watch('category') ? (
+                      {form.watch('title') ? (
                         <AutoImageSelector
                           title={form.watch('title') || ''}
                           category={form.watch('category') || ''}
+                          description={form.watch('description') || ''}
                           onImageSelected={(imageUrl) => {
                             form.setValue('imageUrl', imageUrl);
                           }}

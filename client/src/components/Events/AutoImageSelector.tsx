@@ -7,6 +7,7 @@ import { getMatchingImages } from "@/lib/unsplashImageSelector";
 interface AutoImageSelectorProps {
   title: string;
   category: string;
+  description?: string;
   onImageSelected: (imageUrl: string) => void;
   currentImageUrl?: string;
 }
@@ -14,6 +15,7 @@ interface AutoImageSelectorProps {
 export function AutoImageSelector({
   title,
   category,
+  description = '',
   onImageSelected,
   currentImageUrl,
 }: AutoImageSelectorProps) {
@@ -21,12 +23,14 @@ export function AutoImageSelector({
   const [imageOptions, setImageOptions] = useState<string[]>([]);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Genereer automatisch 3 foto opties wanneer titel of categorie wijzigen
+  // Genereer automatisch 3 foto opties wanneer titel of beschrijving wijzigen
   useEffect(() => {
-    if (title && category) {
+    if (title) {
       // Async functie om foto's op te halen
       const fetchImages = async () => {
-        const allMatchingImages = await getMatchingImages(title, category);
+        // Combineer titel en beschrijving voor betere zoekresultaten
+        const searchQuery = description ? `${title} ${description}` : title;
+        const allMatchingImages = await getMatchingImages(searchQuery, category);
         const options = allMatchingImages.slice(0, 3);
         setImageOptions(options);
         
@@ -40,10 +44,12 @@ export function AutoImageSelector({
       
       fetchImages();
     }
-  }, [title, category]);
+  }, [title, description]); // Luister naar titel EN beschrijving wijzigingen
 
   const handleRefresh = async () => {
-    const allMatchingImages = await getMatchingImages(title, category);
+    // Combineer titel en beschrijving voor betere zoekresultaten
+    const searchQuery = description ? `${title} ${description}` : title;
+    const allMatchingImages = await getMatchingImages(searchQuery, category);
     // Shuffle the array to get different images on refresh
     const shuffled = [...allMatchingImages].sort(() => Math.random() - 0.5);
     const newOptions = shuffled.slice(0, 3);
@@ -55,12 +61,12 @@ export function AutoImageSelector({
     onImageSelected(imageUrl);
   };
 
-  if (!title || !category) {
+  if (!title) {
     return (
       <div className="flex flex-col items-center justify-center h-40 bg-muted rounded-md">
         <Sparkles className="w-8 h-8 text-muted-foreground mb-2" />
         <p className="text-sm text-muted-foreground text-center px-4">
-          Vul eerst een titel en categorie in voor automatische foto suggesties
+          Vul eerst een titel in voor automatische foto suggesties
         </p>
       </div>
     );

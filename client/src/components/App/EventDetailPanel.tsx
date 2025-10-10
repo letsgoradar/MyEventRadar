@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import CategoryIcon from "@/components/Events/CategoryIcon";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Define Event type inline for now
 interface Event {
@@ -102,7 +103,15 @@ export function EventDetailPanel({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+    <AnimatePresence>
+      <motion.div 
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl overflow-y-auto"
+        style={{ height: "75vh" }}
+      >
       {/* Compact Header - Mobile Optimized */}
       <div className="sticky top-0 bg-white border-b border-gray-200 z-10 shadow-sm">
         <div className="flex items-center justify-between px-3 py-2">
@@ -153,7 +162,7 @@ export function EventDetailPanel({
       </div>
 
       {/* Mobile-Optimized Event Content */}
-      <div className="pb-24"> {/* Extra padding for fixed bottom actions */}
+      <div className="pb-32"> {/* Extra padding for fixed bottom actions (above bottom nav) */}
         {/* Compact Event Image */}
         {event.imageUrl && (
           <div className="relative h-48 bg-gray-100">
@@ -294,8 +303,8 @@ export function EventDetailPanel({
         </div>
       </div>
 
-      {/* Fixed Bottom Action Bar - Mobile Style */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
+      {/* Fixed Bottom Action Bar - Mobile Style - Above Bottom Nav */}
+      <div className="fixed left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg" style={{ bottom: "56px" }}>
         <div className="flex gap-3">
           <Button 
             className="flex-1 h-12"
@@ -344,6 +353,7 @@ export function EventDetailPanel({
           </Button>
         </div>
       </div>
-    </div>
+    </motion.div>
+    </AnimatePresence>
   );
 }

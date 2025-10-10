@@ -41,7 +41,7 @@ export function NotificationCenter() {
   });
 
   const { data: unreadCountData } = useQuery<{ count: number }>({
-    queryKey: [`/api/notifications/unread-count`],
+    queryKey: [`/api/notifications/${user?.id}/unread-count`],
     enabled: !!user?.id,
     refetchInterval: 30000, // Poll every 30 seconds
   });
@@ -59,7 +59,7 @@ export function NotificationCenter() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
-      queryClient.invalidateQueries({ queryKey: [`/api/notifications/unread-count`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/notifications/${user?.id}/unread-count`] });
     },
   });
 

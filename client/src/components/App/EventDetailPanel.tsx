@@ -6,29 +6,29 @@ import { Card } from "@/components/ui/card";
 import CategoryIcon from "@/components/Events/CategoryIcon";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Define Event type inline for now
+// Define Event type - compatible with both EventInterface and display needs
 interface Event {
   id: number;
   title: string;
   description: string;
-  latitude: string;
-  longitude: string;
+  latitude: string | number;
+  longitude: string | number;
   address?: string | null;
-  startTime: string;
-  endTime?: string | null;
+  startTime: string | Date;
+  endTime?: string | Date | null;
   category: string;
   secondaryCategory?: string | null;
   isPaid: boolean;
-  price?: string | null;
+  price?: string | number | null;
   maxParticipants?: number | null;
   imageUrl?: string | null;
   isHighlighted?: boolean;
   highlightPriority?: number | null;
 }
 
-// Simple date formatter
-const formatDateTime = (dateString: string) => {
-  const date = new Date(dateString);
+// Simple date formatter - handles both string and Date
+const formatDateTime = (dateInput: string | Date) => {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   return date.toLocaleDateString('nl-NL', {
     weekday: 'long',
     year: 'numeric',
@@ -54,8 +54,6 @@ export function EventDetailPanel({
   onPrevious,
   onNext 
 }: EventDetailPanelProps) {
-  console.log("EventDetailPanel rendered with event:", event);
-  
   // State voor interacties
   const [isParticipating, setIsParticipating] = React.useState(false);
   const [isFavorited, setIsFavorited] = React.useState(false);
@@ -79,8 +77,8 @@ export function EventDetailPanel({
   };
 
   const openNavigationApp = () => {
-    const lat = parseFloat(event.latitude);
-    const lng = parseFloat(event.longitude);
+    const lat = typeof event.latitude === 'number' ? event.latitude : parseFloat(event.latitude);
+    const lng = typeof event.longitude === 'number' ? event.longitude : parseFloat(event.longitude);
     
     // Detecteer platform en open juiste navigatie app
     const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);

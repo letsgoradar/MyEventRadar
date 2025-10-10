@@ -222,17 +222,24 @@ function findMatchingPhotoIds(title: string): string[] | null {
  * Get matching images voor display (returns 3 URLs)
  */
 export function getMatchingImages(title: string, category: string): string[] {
+  console.log('🔍 getMatchingImages called with title:', title, 'category:', category);
+  
   // Probeer eerst match op basis van titel (ALLEEN TITEL, categorie wordt genegeerd)
   const photoIds = findMatchingPhotoIds(title);
+  console.log('📸 Found photo IDs:', photoIds);
   
   if (photoIds && photoIds.length > 0) {
     // Shuffle en return eerste 3
     const shuffled = [...photoIds].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 3).map(photoIdToUrl);
+    const urls = shuffled.slice(0, 3).map(photoIdToUrl);
+    console.log('✅ Generated URLs:', urls);
+    return urls;
   }
   
   // Als geen match, gebruik fallback afbeeldingen
-  return FALLBACK_PHOTO_IDS.map(photoIdToUrl);
+  const fallbackUrls = FALLBACK_PHOTO_IDS.map(photoIdToUrl);
+  console.log('⚠️ Using fallback URLs:', fallbackUrls);
+  return fallbackUrls;
 }
 
 /**

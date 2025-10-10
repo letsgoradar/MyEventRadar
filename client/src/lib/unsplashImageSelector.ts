@@ -58,7 +58,7 @@ const SPORT_KEYWORDS: KeywordMapping[] = [
 const KUNST_CULTUUR_KEYWORDS: KeywordMapping[] = [
   {
     keywords: ['kasteel', 'castle', 'middeleeuwen', 'medieval', 'ridder', 'knight', 'fort', 'burcht'],
-    photoIds: ['photo-1520004434532-668416a08753', 'photo-1583875762487-5f8f7c718d6a', 'photo-1595956913057-1c8c0b9b3a8d']
+    photoIds: ['photo-1499781350541-7783f6c6a0c8', 'photo-1518998053901-5348d3961a04', 'photo-1605729465641-d827512cad30']
   },
   {
     keywords: ['concert', 'muziek', 'music', 'band', 'jazz', 'live'],

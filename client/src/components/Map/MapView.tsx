@@ -657,7 +657,11 @@ export default function MapView({
                     <Button 
                       size="sm" 
                       className="w-full bg-primary text-white hover:bg-primary/90 border border-primary"
-                      onClick={() => onEventClick?.(event.event)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log("Bekijk details clicked (web):", event.event);
+                        onEventClick?.(event.event);
+                      }}
                     >
                       Bekijk details
                     </Button>
@@ -665,7 +669,11 @@ export default function MapView({
                     <Button 
                       size="sm" 
                       className="w-full bg-primary text-white hover:bg-primary/90 border border-primary"
-                      onClick={() => onEventClick?.(event.event)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log("Bekijk details clicked (app):", event.event);
+                        onEventClick?.(event.event);
+                      }}
                     >
                       Bekijk details
                     </Button>

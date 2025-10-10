@@ -83,28 +83,30 @@ export function AppHomePage() {
   }, [selectedEvent, filteredEvents]);
 
   return (
-    <AppLayout
-      title="Evenementen"
-      searchQuery={searchQuery}
-      radius={radius}
-      filteredEvents={filteredEvents}
-      onSearch={setSearchQuery}
-      onRadiusChange={setRadius}
-      showMap={true}
-      hideViewToggle={true}
-      defaultView="map"
-      onEventClick={handleEventClick}
-    >
-      {/* Toon EventList component - altijd in tegelweergave */}
-      <EventList 
+    <>
+      <AppLayout
+        title="Evenementen"
         searchQuery={searchQuery}
         radius={radius}
         filteredEvents={filteredEvents}
-        gridView={true}
+        onSearch={setSearchQuery}
+        onRadiusChange={setRadius}
+        showMap={true}
+        hideViewToggle={true}
+        defaultView="map"
         onEventClick={handleEventClick}
-      />
+      >
+        {/* Toon EventList component - altijd in tegelweergave */}
+        <EventList 
+          searchQuery={searchQuery}
+          radius={radius}
+          filteredEvents={filteredEvents}
+          gridView={true}
+          onEventClick={handleEventClick}
+        />
+      </AppLayout>
       
-      {/* Event Detail Overlay */}
+      {/* Event Detail Overlay - BUITEN AppLayout zodat het altijd wordt gerenderd */}
       {selectedEvent && (
         <EventDetailPanel
           event={selectedEvent}
@@ -114,7 +116,7 @@ export function AppHomePage() {
           onNext={() => handleNavigateEvent('next')}
         />
       )}
-    </AppLayout>
+    </>
   );
 }
 

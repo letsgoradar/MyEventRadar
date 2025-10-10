@@ -113,6 +113,7 @@ export function AppHomePage() {
           onClose={handleCloseEventDetail}
           onPrevious={() => handleNavigateEvent('previous')}
           onNext={() => handleNavigateEvent('next')}
+          userLocation={location || undefined}
         />
       )}
     </>

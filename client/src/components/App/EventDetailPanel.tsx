@@ -24,6 +24,12 @@ interface Event {
   imageUrl?: string | null;
   isHighlighted?: boolean;
   highlightPriority?: number | null;
+  distance?: number;
+}
+
+interface UserLocation {
+  lat: number;
+  lng: number;
 }
 
 // Simple date formatter - handles both string and Date
@@ -45,6 +51,7 @@ interface EventDetailPanelProps {
   onClose: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
+  userLocation?: UserLocation;
 }
 
 export function EventDetailPanel({ 
@@ -52,12 +59,15 @@ export function EventDetailPanel({
   events, 
   onClose,
   onPrevious,
-  onNext 
+  onNext,
+  userLocation 
 }: EventDetailPanelProps) {
   // State voor interacties
   const [isParticipating, setIsParticipating] = React.useState(false);
   const [isFavorited, setIsFavorited] = React.useState(false);
   const [showFullDescription, setShowFullDescription] = React.useState(false);
+  const [showDetailMap, setShowDetailMap] = React.useState(false);
+  const [swipeHintVisible, setSwipeHintVisible] = React.useState(true);
 
   // Find current event index for navigation
   const currentIndex = events.findIndex(e => e.id === event.id);
@@ -75,6 +85,53 @@ export function EventDetailPanel({
       onNext();
     }
   };
+
+  // Swipe detection
+  const [touchStart, setTouchStart] = React.useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = React.useState<number | null>(null);
+  const [swipeDirection, setSwipeDirection] = React.useState<'left' | 'right' | null>(null);
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe && hasNext) {
+      setSwipeDirection('left');
+      setTimeout(() => {
+        handleNext();
+        setSwipeDirection(null);
+      }, 200);
+    }
+    
+    if (isRightSwipe && hasPrevious) {
+      setSwipeDirection('right');
+      setTimeout(() => {
+        handlePrevious();
+        setSwipeDirection(null);
+      }, 200);
+    }
+  };
+
+  // Hide swipe hint after first interaction
+  React.useEffect(() => {
+    if (swipeDirection) {
+      setSwipeHintVisible(false);
+    }
+  }, [swipeDirection]);
 
   const openNavigationApp = () => {
     const lat = typeof event.latitude === 'number' ? event.latitude : parseFloat(event.latitude);
@@ -106,11 +163,17 @@ export function EventDetailPanel({
     <AnimatePresence>
       <motion.div 
         initial={{ y: "100%" }}
-        animate={{ y: 0 }}
+        animate={{ 
+          y: 0,
+          x: swipeDirection === 'left' ? -20 : swipeDirection === 'right' ? 20 : 0 
+        }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
         className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl overflow-y-auto"
         style={{ height: "75vh", zIndex: 9999 }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
       {/* Compact Header - Mobile Optimized */}
       <div className="sticky top-0 bg-white border-b border-gray-200 z-10 shadow-sm">
@@ -161,11 +224,27 @@ export function EventDetailPanel({
         </div>
       </div>
 
+      {/* Swipe Hint Visualisatie */}
+      {swipeHintVisible && (hasPrevious || hasNext) && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute top-20 left-0 right-0 flex justify-center z-20 pointer-events-none"
+        >
+          <div className="bg-black/70 text-white text-xs px-3 py-1 rounded-full flex items-center gap-2">
+            {hasPrevious && <ArrowLeft className="h-3 w-3" />}
+            <span>Swipe voor volgende event</span>
+            {hasNext && <ArrowRight className="h-3 w-3" />}
+          </div>
+        </motion.div>
+      )}
+
       {/* Mobile-Optimized Event Content */}
-      <div className="pb-32"> {/* Extra padding for fixed bottom actions (above bottom nav) */}
-        {/* Compact Event Image */}
+      <div className="pb-20"> {/* Padding voor fixed bottom actions */}
+        {/* Compact Event Image - Minder hoog */}
         {event.imageUrl && (
-          <div className="relative h-48 bg-gray-100">
+          <div className="relative h-32 bg-gray-100">
             <img 
               src={event.imageUrl} 
               alt={event.title}
@@ -220,7 +299,7 @@ export function EventDetailPanel({
 
           {/* Compact Event Info Cards */}
           <div className="space-y-3">
-            {/* Date & Time Card */}
+            {/* Date & Time Card - Alleen startdatum */}
             <Card className="p-3 bg-blue-50 border-blue-200">
               <div className="flex items-start gap-2">
                 <Calendar className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -228,25 +307,33 @@ export function EventDetailPanel({
                   <div className="font-medium text-blue-900">
                     {formatDateTime(event.startTime)}
                   </div>
-                  {event.endTime && (
-                    <div className="text-xs text-blue-700">
-                      tot {formatDateTime(event.endTime)}
-                    </div>
-                  )}
                 </div>
               </div>
             </Card>
 
-            {/* Location Card */}
+            {/* Location Card - met afstand */}
             {event.address && (
-              <Card className="p-3 bg-green-50 border-green-200">
+              <Card 
+                className="p-3 bg-green-50 border-green-200 cursor-pointer hover:bg-green-100 transition-colors"
+                onClick={() => setShowDetailMap(true)}
+              >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <MapPin className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span className="text-sm text-green-900 truncate">{event.address}</span>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm text-green-900 truncate">{event.address}</span>
+                      {event.distance !== undefined && (
+                        <span className="text-xs text-green-700">
+                          {event.distance.toFixed(1)} km afstand
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <Button 
-                    onClick={openNavigationApp}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openNavigationApp();
+                    }}
                     variant="ghost"
                     size="sm"
                     className="h-8 px-2 text-green-700 hover:bg-green-100 flex-shrink-0"
@@ -303,8 +390,8 @@ export function EventDetailPanel({
         </div>
       </div>
 
-      {/* Fixed Bottom Action Bar - Mobile Style - Above Bottom Nav */}
-      <div className="fixed left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg" style={{ bottom: "56px" }}>
+      {/* Fixed Bottom Action Bar - Mobile Style - Helemaal onderaan */}
+      <div className="fixed left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg" style={{ bottom: 0, zIndex: 10000 }}>
         <div className="flex gap-3">
           <Button 
             className="flex-1 h-12"
@@ -353,6 +440,104 @@ export function EventDetailPanel({
           </Button>
         </div>
       </div>
+
+      {/* Detail Kaart Overlay */}
+      {showDetailMap && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 z-[10001] flex items-center justify-center p-4"
+          onClick={() => setShowDetailMap(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Route Details</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDetailMap(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Afstand Info */}
+              {event.distance !== undefined && (
+                <Card className="p-3 bg-blue-50 border-blue-200">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Afstand</p>
+                      <p className="text-lg font-bold text-blue-700">{event.distance.toFixed(1)} km</p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Geschatte reistijd */}
+              {event.distance !== undefined && (
+                <Card className="p-3 bg-green-50 border-green-200">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="text-sm font-medium text-green-900">Geschatte reistijd</p>
+                      <div className="flex gap-3 text-sm text-green-700">
+                        <span>🚗 {Math.ceil(event.distance * 2)} min</span>
+                        <span>🚴 {Math.ceil(event.distance * 4)} min</span>
+                        <span>🚶 {Math.ceil(event.distance * 12)} min</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Locatie info */}
+              <div className="space-y-2">
+                {userLocation && (
+                  <div className="flex items-start gap-2 text-sm">
+                    <div className="w-3 h-3 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-gray-900">Jouw locatie</p>
+                      <p className="text-xs text-gray-600">
+                        {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex items-start gap-2 text-sm">
+                  <div className="w-3 h-3 rounded-full bg-red-500 mt-1 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-gray-900">Event locatie</p>
+                    <p className="text-xs text-gray-600">{event.address}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Navigatie button */}
+              <Button
+                className="w-full h-12"
+                onClick={() => {
+                  setShowDetailMap(false);
+                  openNavigationApp();
+                }}
+              >
+                <Navigation className="h-4 w-4 mr-2" />
+                Open in Navigatie App
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </motion.div>
     </AnimatePresence>
   );

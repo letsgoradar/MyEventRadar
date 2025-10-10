@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { RefreshCw, Check, Sparkles } from "lucide-react";
-import { generateUnsplashImageUrl } from "@/lib/unsplashImageSelector";
+import { getMatchingImages } from "@/lib/unsplashImageSelector";
 
 interface AutoImageSelectorProps {
   title: string;
@@ -23,11 +23,9 @@ export function AutoImageSelector({
   // Genereer automatisch 3 foto opties
   useEffect(() => {
     if (title && category) {
-      const options = [
-        generateUnsplashImageUrl(title, category),
-        generateUnsplashImageUrl(title, category),
-        generateUnsplashImageUrl(title, category),
-      ];
+      const allMatchingImages = getMatchingImages(title, category);
+      // Take first 3 images from matching set
+      const options = allMatchingImages.slice(0, 3);
       setImageOptions(options);
       
       // Selecteer automatisch de eerste als er nog geen image is
@@ -39,11 +37,10 @@ export function AutoImageSelector({
   }, [title, category]);
 
   const handleRefresh = () => {
-    const newOptions = [
-      generateUnsplashImageUrl(title, category),
-      generateUnsplashImageUrl(title, category),
-      generateUnsplashImageUrl(title, category),
-    ];
+    const allMatchingImages = getMatchingImages(title, category);
+    // Shuffle the array to get different images on refresh
+    const shuffled = [...allMatchingImages].sort(() => Math.random() - 0.5);
+    const newOptions = shuffled.slice(0, 3);
     setImageOptions(newOptions);
   };
 

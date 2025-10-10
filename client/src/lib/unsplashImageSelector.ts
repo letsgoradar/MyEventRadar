@@ -93,6 +93,14 @@ const SPORT_IMAGES: ImageMapping[] = [
 // Kunst & Cultuur afbeeldingen
 const KUNST_CULTUUR_IMAGES: ImageMapping[] = [
   {
+    keywords: ['kasteel', 'castle', 'middeleeuwen', 'medieval', 'ridder', 'knight', 'fort', 'burcht'],
+    urls: [
+      'https://images.unsplash.com/photo-1520004434532-668416a08753?w=800&h=600&fit=crop', // kasteel
+      'https://images.unsplash.com/photo-1583875762487-5f8f7c718d6a?w=800&h=600&fit=crop', // middeleeuws kasteel
+      'https://images.unsplash.com/photo-1595956913057-1c8c0b9b3a8d?w=800&h=600&fit=crop', // kasteel architectuur
+    ]
+  },
+  {
     keywords: ['concert', 'muziek', 'music', 'band', 'jazz'],
     urls: [
       'https://images.unsplash.com/photo-1501612780327-45045538702b?w=800&h=600&fit=crop', // concert crowd
@@ -287,12 +295,12 @@ function extractKeywords(title: string): string[] {
 }
 
 /**
- * Find matching images based on title and category
+ * Find matching images based ONLY on title (category is ignored)
  */
 function findMatchingImages(title: string, category: string): string[] {
   const keywords = extractKeywords(title);
   
-  // Try to find exact keyword match
+  // Try to find exact keyword match - ALLEEN gebaseerd op titel
   for (const mapping of ALL_IMAGE_MAPPINGS) {
     for (const keyword of keywords) {
       if (mapping.keywords.some(k => k === keyword || k.includes(keyword) || keyword.includes(k))) {
@@ -301,8 +309,12 @@ function findMatchingImages(title: string, category: string): string[] {
     }
   }
   
-  // Use category fallbacks
-  return CATEGORY_FALLBACKS[category] || CATEGORY_FALLBACKS['Gezellig en Sociaal'];
+  // Als geen match, gebruik neutrale algemene afbeeldingen (geen categorie specifiek)
+  return [
+    'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=600&fit=crop', // event mensen
+    'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&h=600&fit=crop', // gathering
+    'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=800&h=600&fit=crop', // mensen samen
+  ];
 }
 
 /**

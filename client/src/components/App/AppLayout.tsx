@@ -276,11 +276,16 @@ export function AppLayout({
   }, [selectedCategories, originalEvents, showExpiredEvents, sortField, sortDirection]);
   
   // Update gefilterde events alleen wanneer de gebruiker op Toepassen klikt
+  const displayedEventsRef = React.useRef(displayedEvents);
+  React.useEffect(() => {
+    displayedEventsRef.current = displayedEvents;
+  }, [displayedEvents]);
+
   const applyFilters = React.useCallback(() => {
     if (onFilteredEventsChange) {
-      onFilteredEventsChange(displayedEvents);
+      onFilteredEventsChange(displayedEventsRef.current);
     }
-  }, [displayedEvents, onFilteredEventsChange]);
+  }, [onFilteredEventsChange]);
   
   // Geef voorkeur aan de kaartweergave als showMap=true
   React.useEffect(() => {
@@ -314,7 +319,7 @@ export function AppLayout({
   // Geen toggleMapExpanded en mapHeight meer nodig aangezien de kaart nu altijd volledig wordt getoond
   
   // Functie voor formatteren van de radius-weergave
-  const formatRadius = (value: number) => {
+  const formatRadius = React.useCallback((value: number) => {
     if (value >= 300) {
       return "Heel Nederland";
     }
@@ -322,7 +327,7 @@ export function AppLayout({
       return "1 km";
     }
     return `${value} km`;
-  };
+  }, []);
   
   // Functie voor het bijwerken van de zoektekst
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -32,7 +32,10 @@ export function AppHomePage() {
 
   // Filter events based on search query
   React.useEffect(() => {
-    if (!events || !Array.isArray(events)) return;
+    if (!events || !Array.isArray(events)) {
+      setFilteredEvents([]);
+      return;
+    }
 
     const lowercaseQuery = searchQuery.toLowerCase();
     const filtered = events.filter((event: EventInterface) => {
@@ -44,7 +47,13 @@ export function AppHomePage() {
       );
     }) as EventWithDistance[];
 
-    setFilteredEvents(filtered);
+    setFilteredEvents(prev => {
+      // Only update if the filtered results are different
+      if (JSON.stringify(prev.map(e => e.id)) === JSON.stringify(filtered.map(e => e.id))) {
+        return prev;
+      }
+      return filtered;
+    });
   }, [events, searchQuery]);
 
   // Gebruik state om bij te houden of de tegelweergave actief is
@@ -80,7 +89,6 @@ export function AppHomePage() {
       filteredEvents={filteredEvents}
       onSearch={setSearchQuery}
       onRadiusChange={setRadius}
-      onFilteredEventsChange={setFilteredEvents}
       showMap={true}
       hideViewToggle={true}
       defaultView="map"

@@ -19,8 +19,9 @@ export function AutoImageSelector({
 }: AutoImageSelectorProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(currentImageUrl || null);
   const [imageOptions, setImageOptions] = useState<string[]>([]);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Genereer automatisch 3 foto opties
+  // Genereer automatisch 3 foto opties wanneer titel of categorie wijzigen
   useEffect(() => {
     if (title && category) {
       const allMatchingImages = getMatchingImages(title, category);
@@ -28,10 +29,11 @@ export function AutoImageSelector({
       const options = allMatchingImages.slice(0, 3);
       setImageOptions(options);
       
-      // Selecteer automatisch de eerste als er nog geen image is
-      if (!selectedImage && options[0]) {
+      // Selecteer automatisch de eerste als er nog geen image is (alleen eerste keer)
+      if (!hasInitialized && !currentImageUrl && options[0]) {
         setSelectedImage(options[0]);
         onImageSelected(options[0]);
+        setHasInitialized(true);
       }
     }
   }, [title, category]);

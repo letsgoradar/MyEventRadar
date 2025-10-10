@@ -84,10 +84,10 @@ function getFallbackImages(title: string): string[] {
  * Hoofdfunctie: Haal foto's op via Unsplash API
  * Valt terug op lokale mapping als API niet beschikbaar is
  */
-export async function getMatchingImages(title: string, category: string): Promise<string[]> {
+export async function getMatchingImages(searchQuery: string): Promise<string[]> {
   // Probeer eerst de Unsplash API
   try {
-    const response = await fetch(`/api/unsplash/search?query=${encodeURIComponent(title)}&count=3`);
+    const response = await fetch(`/api/unsplash/search?query=${encodeURIComponent(searchQuery)}&count=3`);
     
     if (response.ok) {
       const data = await response.json();
@@ -102,14 +102,14 @@ export async function getMatchingImages(title: string, category: string): Promis
   }
 
   // Fallback naar lokale mapping
-  return getFallbackImages(title);
+  return getFallbackImages(searchQuery);
 }
 
 /**
  * Generate single image URL
  */
 export async function generateUnsplashImageUrl(title: string, category: string): Promise<string> {
-  const images = await getMatchingImages(title, category);
+  const images = await getMatchingImages(title);
   const randomIndex = Math.floor(Math.random() * images.length);
   return images[randomIndex];
 }

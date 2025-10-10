@@ -26,20 +26,23 @@ export function AutoImageSelector({
   // Genereer automatisch 3 foto opties wanneer titel of beschrijving wijzigen
   useEffect(() => {
     if (title) {
+      // Reset hasInitialized wanneer titel wijzigt voor automatische herselectie
+      setHasInitialized(false);
+      
       // Async functie om foto's op te halen
       const fetchImages = async () => {
         // Combineer titel en beschrijving voor betere zoekresultaten
         const searchQuery = description ? `${title} ${description}` : title;
-        const allMatchingImages = await getMatchingImages(searchQuery, category);
+        const allMatchingImages = await getMatchingImages(searchQuery);
         const options = allMatchingImages.slice(0, 3);
         setImageOptions(options);
         
-        // Selecteer automatisch de eerste als er nog geen image is (alleen eerste keer)
-        if (!hasInitialized && !currentImageUrl && options[0]) {
+        // Selecteer automatisch de eerste als er nog geen image is
+        if (!currentImageUrl && options[0]) {
           setSelectedImage(options[0]);
           onImageSelected(options[0]);
-          setHasInitialized(true);
         }
+        setHasInitialized(true);
       };
       
       fetchImages();
@@ -49,7 +52,7 @@ export function AutoImageSelector({
   const handleRefresh = async () => {
     // Combineer titel en beschrijving voor betere zoekresultaten
     const searchQuery = description ? `${title} ${description}` : title;
-    const allMatchingImages = await getMatchingImages(searchQuery, category);
+    const allMatchingImages = await getMatchingImages(searchQuery);
     // Shuffle the array to get different images on refresh
     const shuffled = [...allMatchingImages].sort(() => Math.random() - 0.5);
     const newOptions = shuffled.slice(0, 3);

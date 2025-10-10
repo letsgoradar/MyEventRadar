@@ -54,6 +54,8 @@ export function EventDetailPanel({
   onPrevious,
   onNext 
 }: EventDetailPanelProps) {
+  console.log("EventDetailPanel rendered with event:", event);
+  
   // State voor interacties
   const [isParticipating, setIsParticipating] = React.useState(false);
   const [isFavorited, setIsFavorited] = React.useState(false);

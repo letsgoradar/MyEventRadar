@@ -63,6 +63,7 @@ export function AppHomePage() {
   const [selectedEvent, setSelectedEvent] = React.useState<EventWithDistance | null>(null);
 
   const handleEventClick = React.useCallback((event: EventWithDistance) => {
+    console.log("handleEventClick called in AppHomePage:", event);
     setSelectedEvent(event);
   }, []);
 

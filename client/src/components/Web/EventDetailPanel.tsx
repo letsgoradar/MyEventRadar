@@ -4,30 +4,11 @@ import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2,
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import CategoryIcon from "@/components/Events/CategoryIcon";
-
-// Define Event type inline for now
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  latitude: string;
-  longitude: string;
-  address?: string | null;
-  startTime: string;
-  endTime?: string | null;
-  category: string;
-  secondaryCategory?: string | null;
-  isPaid: boolean;
-  price?: string | null;
-  maxParticipants?: number | null;
-  imageUrl?: string | null;
-  isHighlighted?: boolean;
-  highlightPriority?: number | null;
-}
+import { EventInterface as Event } from "@shared/schema";
 
 // Simple date formatter
-const formatDateTime = (dateString: string) => {
-  const date = new Date(dateString);
+const formatDateTime = (dateInput: string | Date) => {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   return date.toLocaleDateString('nl-NL', {
     weekday: 'long',
     year: 'numeric',
@@ -71,8 +52,8 @@ export function EventDetailPanel({
   };
 
   const openNavigationApp = () => {
-    const lat = parseFloat(event.latitude);
-    const lng = parseFloat(event.longitude);
+    const lat = typeof event.latitude === 'number' ? event.latitude : parseFloat(event.latitude);
+    const lng = typeof event.longitude === 'number' ? event.longitude : parseFloat(event.longitude);
     
     // Detecteer platform en open juiste navigatie app
     const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -151,7 +132,7 @@ export function EventDetailPanel({
               alt={event.title}
               className="w-full h-full object-cover"
             />
-            {event.isHighlighted && (
+            {(event as any).isHighlighted && (
               <div className="absolute top-4 left-4">
                 <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">
                   Gesponsord
@@ -172,7 +153,7 @@ export function EventDetailPanel({
               <Badge variant="secondary">
                 {event.category}
               </Badge>
-              {event.isHighlighted && (
+              {(event as any).isHighlighted && (
                 <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">
                   Highlight
                 </Badge>

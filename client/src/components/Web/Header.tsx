@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { DateTimePicker } from "@/components/date-time-picker";
+import { DayFilter } from "@/components/Filters/DayFilter";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
@@ -66,44 +66,22 @@ export function Header({
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = React.useState(false);
   
-  // Datumfilter opties
-  const [dateFilterValue, setDateFilterValue] = React.useState<string>("deze-week");
-  const [customDate, setCustomDate] = React.useState<Date | undefined>(undefined);
-  const [customEndDate, setCustomEndDate] = React.useState<Date | undefined>(undefined);
+  // Standaard: komende 7 dagen geselecteerd
+  const [selectedDays, setSelectedDays] = React.useState<Date[]>(() => {
+    const today = startOfDay(new Date());
+    return Array.from({ length: 7 }, (_, i) => addDays(today, i));
+  });
   
-  // Bereken de datumbereiken voor de verschillende filteropties
-  const dateRanges = React.useMemo(() => {
-    const now = new Date();
-    return {
-      "deze-week": {
-        start: startOfWeek(now, { locale: nl, weekStartsOn: 1 }),
-        end: endOfWeek(now, { locale: nl, weekStartsOn: 1 }),
-      },
-      "vandaag": {
-        start: startOfDay(now),
-        end: endOfDay(now),
-      },
-      "morgen": {
-        start: startOfDay(addDays(now, 1)),
-        end: endOfDay(addDays(now, 1)),
-      },
-      "specifieke-datum": {
-        start: customDate || now,
-        end: customEndDate,
-      },
-    };
-  }, [customDate, customEndDate]);
-
-  // Bij wijziging van de datumfilter, nieuwe datum doorgeven aan parent
+  // Bij wijziging van geselecteerde dagen, datum bereik doorgeven aan parent
   React.useEffect(() => {
-    if (dateFilterValue && onDateRangeChange) {
-      const range = dateRanges[dateFilterValue as keyof typeof dateRanges];
-      if (range) {
-        console.log("Date range changed:", range);
-        onDateRangeChange(range);
-      }
+    if (selectedDays.length > 0 && onDateRangeChange) {
+      const sortedDays = [...selectedDays].sort((a, b) => a.getTime() - b.getTime());
+      onDateRangeChange({
+        start: startOfDay(sortedDays[0]),
+        end: endOfDay(sortedDays[sortedDays.length - 1])
+      });
     }
-  }, [dateFilterValue, dateRanges, onDateRangeChange, customDate, customEndDate]);
+  }, [selectedDays, onDateRangeChange]);
 
   // Gebruikerslocatie voor afstandsberekening
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]); // Standaard positie
@@ -132,17 +110,13 @@ export function Header({
     // API call naar events/search endpoint
     const fetchSearchResults = async () => {
       try {
-        // Bepaal het huidige datumbereik
-        const currentRange = dateRanges[dateFilterValue as keyof typeof dateRanges];
         let url = `/api/events/search?query=${encodeURIComponent(searchQuery)}`;
         
-        // Voeg datumbereik parameters toe als ze beschikbaar zijn
-        if (currentRange && currentRange.start) {
-          url += `&startDate=${currentRange.start.toISOString()}`;
-        }
-        
-        if (currentRange && currentRange.end) {
-          url += `&endDate=${currentRange.end.toISOString()}`;
+        // Voeg datumbereik parameters toe op basis van geselecteerde dagen
+        if (selectedDays.length > 0) {
+          const sortedDays = [...selectedDays].sort((a, b) => a.getTime() - b.getTime());
+          url += `&startDate=${startOfDay(sortedDays[0]).toISOString()}`;
+          url += `&endDate=${endOfDay(sortedDays[sortedDays.length - 1]).toISOString()}`;
         }
         
         console.log("Searching with URL:", url);
@@ -198,7 +172,7 @@ export function Header({
     }, 300);
     
     return () => clearTimeout(debounceTimer);
-  }, [searchQuery, dateFilterValue, dateRanges, userLocation]);
+  }, [searchQuery, selectedDays, userLocation]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -243,11 +217,6 @@ export function Header({
       onCategoriesChange?.(newCategories);
       return newCategories;
     });
-  };
-  
-  // Afhandelen van datumfilter wijziging
-  const handleDateFilterChange = (value: string) => {
-    setDateFilterValue(value);
   };
 
   return (
@@ -371,59 +340,17 @@ export function Header({
               <Button variant="outline" size="sm" className="h-10 rounded-full flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
                 <span>
-                  {dateFilterValue === "vandaag" ? "Vandaag" : 
-                   dateFilterValue === "morgen" ? "Morgen" : 
-                   dateFilterValue === "deze-week" ? "Deze week" : 
-                   dateFilterValue === "specifieke-datum" && customDate ? 
-                   format(customDate, "d MMM", {locale: nl}) : "Datum"}
+                  {selectedDays.length === 0 
+                    ? "Datum" 
+                    : `${selectedDays.length} ${selectedDays.length === 1 ? 'dag' : 'dagen'}`}
                 </span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="p-2 min-w-[280px]" align="center">
-              <div className="grid gap-2">
-                <ToggleGroup type="single" value={dateFilterValue} onValueChange={handleDateFilterChange} className="justify-start">
-                  <ToggleGroupItem value="deze-week" size="sm" className="text-xs px-3 rounded-full">
-                    Deze week
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="vandaag" size="sm" className="text-xs px-3 rounded-full">
-                    Vandaag
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="morgen" size="sm" className="text-xs px-3 rounded-full">
-                    Morgen
-                  </ToggleGroupItem>
-                </ToggleGroup>
-                
-                <Separator className="my-2" />
-                
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Specifieke datum</p>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Startdatum</Label>
-                    <DateTimePicker
-                      date={customDate}
-                      setDate={setCustomDate}
-                      mode="date"
-                      placement="bottom"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Einddatum (optioneel)</Label>
-                    <DateTimePicker
-                      date={customEndDate}
-                      setDate={setCustomEndDate}
-                      mode="date"
-                      placement="bottom"
-                    />
-                  </div>
-                  <Button 
-                    onClick={() => setDateFilterValue("specifieke-datum")} 
-                    className="w-full mt-2"
-                    size="sm"
-                  >
-                    Toepassen
-                  </Button>
-                </div>
-              </div>
+            <PopoverContent className="p-4 w-auto" align="center">
+              <DayFilter
+                selectedDays={selectedDays}
+                onDaysChange={setSelectedDays}
+              />
             </PopoverContent>
           </Popover>
         </div>

@@ -94,13 +94,6 @@ export function AppBottomNav() {
           </Link>
         ))}
       </div>
-      
-      {/* Web version switcher */}
-      <div className="absolute right-3 -top-10 bg-secondary rounded-full h-8 w-8 flex items-center justify-center">
-        <Link href={getWebPath()} className="text-secondary-foreground hover:text-primary-foreground">
-          <ExternalLink className="h-4 w-4" />
-        </Link>
-      </div>
     </div>
   );
 }

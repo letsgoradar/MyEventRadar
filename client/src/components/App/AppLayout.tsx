@@ -97,7 +97,7 @@ const FiltersPopover = React.memo(({
             </div>
           </div>
           
-          <div className="pt-2 flex justify-end gap-2">
+          <div className="pt-2 flex justify-between items-center">
             <Button 
               variant="outline" 
               size="sm" 
@@ -112,10 +112,12 @@ const FiltersPopover = React.memo(({
               Reset
             </Button>
             <Button 
-              size="sm" 
+              variant="ghost" 
+              size="sm"
+              className="h-8 w-8 p-0"
               onClick={applyFilters}
             >
-              Toepassen
+              <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -571,24 +573,18 @@ export function AppLayout({
             ))}
           </div>
           
-          {/* Filter en sorteer knoppen tonen in beide weergaven */}
-          <div className="flex justify-between items-center mb-3 relative z-10">
-            <div className="flex items-center gap-2">
-              <FiltersPopover 
-                selectedCategories={selectedCategories}
-                applyFilters={applyFilters}
-                toggleCategory={toggleCategory}
-              />
-              
-              {/* SortMenu component voor sortering */}
-              {/* Sorteerknop alleen tonen in lijstweergave */}
-              <SortMenu 
-                sortDirection={sortDirection} 
-                setSortDirection={setSortDirection} 
-                visible={view === "list"} 
-              />
+          {/* Sorteer knoppen alleen tonen in lijstweergave */}
+          {view === "list" && (
+            <div className="flex justify-between items-center mb-3 relative z-10">
+              <div className="flex items-center gap-2">
+                <SortMenu 
+                  sortDirection={sortDirection} 
+                  setSortDirection={setSortDirection} 
+                  visible={true} 
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
       
@@ -618,17 +614,17 @@ export function AppLayout({
               <div 
                 className="absolute right-4 z-[1000] transition-all duration-300"
                 style={{
-                  top: selectedCategories.length > 0 ? '5.5rem' : '1rem'
+                  top: selectedCategories.length > 0 ? '3.5rem' : '1rem'
                 }}
               >
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button 
-                      variant="secondary" 
+                      variant="outline" 
                       size="sm" 
-                      className="shadow-lg flex items-center gap-2 bg-white hover:bg-gray-50"
+                      className="shadow-lg flex items-center gap-1 bg-white hover:bg-gray-50"
                     >
-                      <Calendar className="h-4 w-4" />
+                      <CalendarDays className="h-4 w-4" />
                       <span className="font-medium">
                         {selectedDays.length === 0 
                           ? "Datum" 

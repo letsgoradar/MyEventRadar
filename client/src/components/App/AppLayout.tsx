@@ -604,45 +604,49 @@ export function AppLayout({
               onEventClick={onEventClick}
             />
             
-            {/* Floating Filters - Filter knop links, Datum filter midden */}
-            <div className="absolute top-4 left-0 right-0 z-[1000] flex justify-between items-start px-4">
-              {/* Filter knop links */}
+            {/* Floating Filter knop - linksboven */}
+            <div className="absolute top-4 left-4 z-[1000]">
               <FiltersPopover 
                 selectedCategories={selectedCategories}
                 applyFilters={applyFilters}
                 toggleCategory={toggleCategory}
               />
-              
-              {/* Datum Filter Button - in het midden */}
-              {selectedDays && onSelectedDaysChange && (
-                <div className="flex-1 flex justify-center">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        className="shadow-lg flex items-center gap-2 bg-white hover:bg-gray-50"
-                      >
-                        <Calendar className="h-4 w-4" />
-                        <span className="font-medium">
-                          {selectedDays.length === 0 
-                            ? "Datum" 
-                            : `${selectedDays.length} ${selectedDays.length === 1 ? 'dag' : 'dagen'}`}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="p-4 w-auto" align="center">
-                      <MonthCalendar
-                        selectedDays={selectedDays}
-                        onDaysChange={onSelectedDaysChange}
-                        showExpiredEvents={showExpiredEvents}
-                        onShowExpiredEventsChange={setShowExpiredEvents}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              )}
             </div>
+            
+            {/* Floating Datum Filter - rechtsboven, schuift mee naar beneden bij actieve filters */}
+            {selectedDays && onSelectedDaysChange && (
+              <div 
+                className="absolute right-4 z-[1000] transition-all duration-300"
+                style={{
+                  top: selectedCategories.length > 0 ? '5.5rem' : '1rem'
+                }}
+              >
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      className="shadow-lg flex items-center gap-2 bg-white hover:bg-gray-50"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      <span className="font-medium">
+                        {selectedDays.length === 0 
+                          ? "Datum" 
+                          : `${selectedDays.length} ${selectedDays.length === 1 ? 'dag' : 'dagen'}`}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-4 w-auto" align="end">
+                    <MonthCalendar
+                      selectedDays={selectedDays}
+                      onDaysChange={onSelectedDaysChange}
+                      showExpiredEvents={showExpiredEvents}
+                      onShowExpiredEventsChange={setShowExpiredEvents}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import { getCategoryImages } from '@/lib/categoryImages';
-import { getSmartImage, getSmartImageAlternatives, ALL_ACTIVITY_IMAGES } from '@/lib/smartImageSelection';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { getSmartImage, getSmartImageAlternatives, ALL_ACTIVITY_IMAGES, searchImagesByKeyword } from '@/lib/smartImageSelection';
+import { ChevronRight, ChevronLeft, Search } from 'lucide-react';
 
 interface CategoryImageSelectorProps {
   category: string; // Alleen nog voor backwards compatibility
@@ -24,15 +25,20 @@ export function CategoryImageSelector({
 }: CategoryImageSelectorProps) {
   const [images, setImages] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | undefined>(defaultImage);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [isManualSearch, setIsManualSearch] = useState<boolean>(false);
 
-  // Laad slimme afbeelding alternatieven gebaseerd op titel en beschrijving
+  // Laad slimme afbeelding alternatieven gebaseerd op ALLEEN titel (niet beschrijving)
   useEffect(() => {
-    console.log('CategoryImageSelector: Effect triggered', { title, description });
+    // Skip als gebruiker handmatig aan het zoeken is
+    if (isManualSearch) return;
     
-    if (title || description) {
-      // Gebruik slimme selectie voor 8 relevante alternatieven
-      const smartAlternatives = getSmartImageAlternatives(title, description, 8);
-      console.log('Smart alternatives result:', smartAlternatives);
+    console.log('CategoryImageSelector: Effect triggered', { title });
+    
+    if (title) {
+      // Gebruik slimme selectie voor 8 relevante alternatieven - ALLEEN gebaseerd op titel
+      const smartAlternatives = getSmartImageAlternatives(title, "", 8); // Lege string voor description!
+      console.log('Smart alternatives result (title only):', smartAlternatives);
       
       if (smartAlternatives.hasMatch && smartAlternatives.images.length > 0) {
         // Gevonden matches - toon relevante alternatieven
@@ -63,12 +69,33 @@ export function CategoryImageSelector({
         console.log(`Geen passende afbeelding voor "${title}" - AI generatie voorgesteld`);
       }
     } else {
-      // Geen titel/beschrijving - toon eerste 8 algemene afbeeldingen
+      // Geen titel - toon eerste 8 algemene afbeeldingen
       const defaultImages = ALL_ACTIVITY_IMAGES.slice(0, 8);
       setImages(defaultImages);
-      console.log('No title/description, using default images:', defaultImages.length);
+      console.log('No title, using default images:', defaultImages.length);
     }
-  }, [title, description]);
+  }, [title]); // Alleen title, niet description!
+  
+  // Handmatige zoekfunctie
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    
+    if (term.trim() === "") {
+      // Leeg zoekveld - terug naar automatische selectie
+      setIsManualSearch(false);
+      return;
+    }
+    
+    setIsManualSearch(true);
+    const searchResults = searchImagesByKeyword(term, 24); // Toon meer resultaten bij zoeken
+    setImages(searchResults.images);
+    
+    if (!searchResults.hasMatch) {
+      console.log(`Geen afbeeldingen gevonden voor zoekterm "${term}"`);
+    } else {
+      console.log(`${searchResults.images.length} afbeeldingen gevonden voor zoekterm "${term}"`);
+    }
+  };
 
   // Als er geen afbeeldingen zijn geladen
   if (images.length === 0) {
@@ -103,15 +130,37 @@ export function CategoryImageSelector({
             Geen passende afbeelding gevonden
           </p>
           <p className="text-xs text-muted-foreground text-center px-4">
-            Gebruik AI Genereren voor een aangepaste afbeelding
+            Gebruik AI Genereren voor een aangepaste afbeelding, of zoek hieronder naar een afbeelding
           </p>
         </div>
       )}
 
+      {/* Zoekveld voor handmatig zoeken */}
+      <div className="space-y-2">
+        <p className="text-sm font-medium">
+          Zoek afbeelding op trefwoord
+        </p>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Bijv: voetbal, muziek, koken, yoga..."
+            value={searchTerm}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        {isManualSearch && searchTerm && (
+          <p className="text-xs text-muted-foreground">
+            {images.length} afbeeldingen gevonden voor "{searchTerm}"
+          </p>
+        )}
+      </div>
+
       {/* Horizontale lijst met beschikbare afbeeldingen */}
       <div className="space-y-2">
         <p className="text-sm text-muted-foreground">
-          Kies een passende afbeelding ({images.length} opties):
+          {isManualSearch ? "Zoekresultaten:" : `Aanbevolen afbeeldingen (${images.length} opties):`}
         </p>
         <ScrollArea className="w-full">
           <div className="flex space-x-3 pb-4">

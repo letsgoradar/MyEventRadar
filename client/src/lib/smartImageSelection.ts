@@ -180,6 +180,75 @@ export function getSmartImage(title: string, description: string = ""): { image:
   return { image: null, hasMatch: false };
 }
 
+// Nieuwe functie: zoek afbeeldingen op basis van alleen een keyword (alleen voor handmatige zoekopdrachten)
+export function searchImagesByKeyword(keyword: string, count: number = 8): {
+  images: string[],
+  hasMatch: boolean
+} {
+  const searchTerm = keyword.toLowerCase().trim();
+  
+  if (!searchTerm) {
+    // Leeg zoekveld - toon alle afbeeldingen
+    return {
+      images: ALL_ACTIVITY_IMAGES.slice(0, count),
+      hasMatch: false
+    };
+  }
+  
+  // Zoek naar keywords die de zoekterm bevatten
+  const matchedImages: number[] = [];
+  
+  for (const [keyword, imageIndices] of Object.entries(KEYWORD_MAPPINGS)) {
+    if (keyword.includes(searchTerm) || searchTerm.includes(keyword)) {
+      matchedImages.push(...imageIndices);
+    }
+  }
+  
+  if (matchedImages.length > 0) {
+    // Verwijder duplicaten
+    const uniqueIndices: number[] = [];
+    const seen = new Set<number>();
+    for (const index of matchedImages) {
+      if (!seen.has(index)) {
+        seen.add(index);
+        uniqueIndices.push(index);
+      }
+    }
+    
+    // Selecteer tot 'count' aantal afbeeldingen
+    const selectedIndices = uniqueIndices.slice(0, Math.min(count, uniqueIndices.length));
+    const selectedImages = selectedIndices
+      .map(index => ALL_ACTIVITY_IMAGES[index])
+      .filter(image => image && typeof image === 'string');
+    
+    // Als we minder matches hebben dan gewenst, vul aan met algemene afbeeldingen
+    if (selectedImages.length < count) {
+      const remainingCount = count - selectedImages.length;
+      const usedIndices = new Set(selectedIndices);
+      const additionalImages: string[] = [];
+      
+      for (let i = 0; i < ALL_ACTIVITY_IMAGES.length && additionalImages.length < remainingCount; i++) {
+        if (!usedIndices.has(i) && ALL_ACTIVITY_IMAGES[i] && typeof ALL_ACTIVITY_IMAGES[i] === 'string') {
+          additionalImages.push(ALL_ACTIVITY_IMAGES[i]);
+        }
+      }
+      
+      selectedImages.push(...additionalImages.slice(0, remainingCount));
+    }
+    
+    return {
+      images: selectedImages,
+      hasMatch: true
+    };
+  }
+  
+  // Geen match gevonden - gebruik alle afbeeldingen
+  return {
+    images: ALL_ACTIVITY_IMAGES.slice(0, count),
+    hasMatch: false
+  };
+}
+
 // Nieuwe functie die meerdere relevante afbeeldingen retourneert
 export function getSmartImageAlternatives(title: string, description: string = "", count: number = 8): { 
   images: string[], 

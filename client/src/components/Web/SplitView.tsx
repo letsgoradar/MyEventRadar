@@ -169,7 +169,7 @@ export function SplitView({
               <MapView 
                 searchQuery={searchQuery} 
                 radius={50}
-                filteredEvents={filteredEvents}
+                filteredEvents={visibleEvents}
                 onEventClick={handleMapEventClick}
                 onBoundsChange={handleBoundsChange}
                 onZoomChange={handleZoomChange}

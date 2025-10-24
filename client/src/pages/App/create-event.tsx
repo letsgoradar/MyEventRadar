@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ImageGenerator } from "@/components/Events/ImageGenerator";
-import { AutoImageSelector } from "@/components/Events/AutoImageSelector";
+import CategoryImageSelector from "@/components/Events/CategoryImageSelector";
 import { DateTimePickerSeparate } from "@/components/date-picker-separate";
 import { useAuth } from "@/hooks/use-auth";
 import { CATEGORIES } from "@shared/schema";
@@ -51,7 +51,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getBestCategoryImage } from "@/lib/categoryImages";
-import CategoryImageSelector from "@/components/Events/CategoryImageSelector";
 import StepperTimeline from "@/components/Events/StepperTimeline";
 
 // Fix voor Leaflet iconen in React
@@ -1002,20 +1001,18 @@ export function AppCreateEvent() {
                     {/* Tab: Auto Selectie */}
                     <TabsContent value="auto" className="py-4">
                       {form.watch('title') ? (
-                        <AutoImageSelector
+                        <CategoryImageSelector
                           title={form.watch('title') || ''}
-                          category={form.watch('category') || ''}
-                          description={form.watch('description') || ''}
-                          onImageSelected={(imageUrl) => {
+                          onSelectImage={(imageUrl) => {
                             form.setValue('imageUrl', imageUrl);
                           }}
-                          currentImageUrl={form.watch('imageUrl')}
+                          defaultImage={form.watch('imageUrl')}
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md bg-muted/50">
                           <ImageIcon className="h-10 w-10 text-muted-foreground/50 mb-2" />
                           <p className="text-sm text-muted-foreground/70 text-center">
-                            Vul eerst een titel en categorie in om passende foto's te zien
+                            Vul eerst een titel in om passende foto's te zien
                           </p>
                         </div>
                       )}

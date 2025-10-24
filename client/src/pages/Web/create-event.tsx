@@ -11,8 +11,9 @@ import { useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
-import { AutoImageSelector } from '@/components/Events/AutoImageSelector';
+import CategoryImageSelector from '@/components/Events/CategoryImageSelector';
 import StepperTimeline from '@/components/Events/StepperTimeline';
+import { useAuth } from '@/hooks/use-auth';
 import {
   Form,
   FormControl,
@@ -723,24 +724,24 @@ const CreateEvent = () => {
                               <Tabs defaultValue="auto">
                                 <TabsList className="grid w-full grid-cols-2">
                                   <TabsTrigger value="auto">Auto Selectie</TabsTrigger>
-                                  <TabsTrigger value="upload">Uploaden</TabsTrigger>
+                                  <TabsTrigger value="upload" disabled={!user?.isPremium}>
+                                    Uploaden {!user?.isPremium && '🔒'}
+                                  </TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="auto" className="py-4">
                                   {form.watch('title') ? (
-                                    <AutoImageSelector
+                                    <CategoryImageSelector
                                       title={form.watch('title') || ''}
-                                      category={form.watch('category') || ''}
-                                      description={form.watch('description') || ''}
-                                      onImageSelected={(imageUrl) => {
+                                      onSelectImage={(imageUrl) => {
                                         form.setValue('imageUrl', imageUrl);
                                       }}
-                                      currentImageUrl={form.watch('imageUrl')}
+                                      defaultImage={form.watch('imageUrl')}
                                     />
                                   ) : (
                                     <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-md bg-muted/50">
                                       <Image className="h-10 w-10 text-muted-foreground/50 mb-2" />
                                       <p className="text-sm text-muted-foreground/70 text-center">
-                                        Vul eerst een titel en categorie in om passende foto's te zien
+                                        Vul eerst een titel in om passende foto's te zien
                                       </p>
                                     </div>
                                   )}

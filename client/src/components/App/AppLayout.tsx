@@ -11,6 +11,8 @@ import MapView from "@/components/Map/MapView";
 import AppBottomNav from "./AppBottomNav";
 import { SortMenu, SortDirection, SortField } from "./SortMenuComponent";
 import { EventInterface as BaseEvent, CATEGORIES } from "@shared/schema";
+import { DayFilter } from "@/components/Filters/DayFilter";
+import { Calendar } from "lucide-react";
 
 // Uitgebreide Event interface met distance property
 interface Event extends BaseEvent {
@@ -190,6 +192,8 @@ interface AppLayoutProps {
   hideSearchAndFilters?: boolean; // Nieuwe parameter om zoek en filters te verbergen
   onEventClick?: (event: Event) => void; // Voor overlay mode ondersteuning
   hideViewToggle?: boolean; // Verberg lijst/kaart toggle (voor app - alleen kaart)
+  selectedDays?: Date[];
+  onSelectedDaysChange?: React.Dispatch<React.SetStateAction<Date[]>>;
 }
 
 export function AppLayout({
@@ -212,6 +216,8 @@ export function AppLayout({
   hideSearchAndFilters = false,
   onEventClick,
   hideViewToggle = false,
+  selectedDays,
+  onSelectedDaysChange,
 }: AppLayoutProps) {
   // Als hideViewToggle=true, forceer map view
   const [view, setView] = React.useState<"list" | "map">(hideViewToggle ? "map" : defaultView);
@@ -694,6 +700,34 @@ export function AppLayout({
               hideZoomControls={true}
               onEventClick={onEventClick}
             />
+            
+            {/* Floating Datum Filter Button - alleen tonen als onSelectedDaysChange is gedefinieerd */}
+            {selectedDays && onSelectedDaysChange && (
+              <div className="absolute top-4 left-4 z-[1000]">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      className="shadow-lg flex items-center gap-2 bg-white hover:bg-gray-50"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      <span className="font-medium">
+                        {selectedDays.length === 0 
+                          ? "Datum" 
+                          : `${selectedDays.length} ${selectedDays.length === 1 ? 'dag' : 'dagen'}`}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-4 w-auto" align="start">
+                    <DayFilter
+                      selectedDays={selectedDays}
+                      onDaysChange={onSelectedDaysChange}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
           </div>
         </div>
       )}

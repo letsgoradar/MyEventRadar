@@ -106,9 +106,7 @@ export function WebLayout({
           ) : (
             <SplitView 
               searchQuery={searchQuery}
-              radius={radius}
               filteredEvents={filteredEvents}
-              onRadiusChange={handleRadiusChange}
               onFilteredEventsChange={handleFilteredEventsChange}
               onEventClick={handleEventClick}
             />

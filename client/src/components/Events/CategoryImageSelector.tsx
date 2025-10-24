@@ -7,12 +7,11 @@ import { getSmartImage, getSmartImageAlternatives, ALL_ACTIVITY_IMAGES, searchIm
 import { ChevronRight, ChevronLeft, Search } from 'lucide-react';
 
 interface CategoryImageSelectorProps {
-  category: string; // Alleen nog voor backwards compatibility
+  category?: string; // Niet meer gebruikt, alleen backwards compatibility
   onSelectImage: (imageUrl: string) => void;
   defaultImage?: string;
   title?: string;
-  description?: string;
-  onSuggestAIGeneration?: () => void; // Callback voor AI generatie suggestie
+  description?: string; // Niet meer gebruikt
 }
 
 export function CategoryImageSelector({ 
@@ -20,8 +19,7 @@ export function CategoryImageSelector({
   onSelectImage, 
   defaultImage,
   title = "",
-  description = "",
-  onSuggestAIGeneration
+  description = ""
 }: CategoryImageSelectorProps) {
   const [images, setImages] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | undefined>(defaultImage);
@@ -58,15 +56,12 @@ export function CategoryImageSelector({
           console.log(`${smartAlternatives.images.length} relevante alternatieven geladen`);
         }
       } else {
-        // Geen match - gebruik eerste 8 algemene afbeeldingen en suggereer AI generatie
+        // Geen match - gebruik eerste 8 algemene afbeeldingen
         const fallbackImages = ALL_ACTIVITY_IMAGES.slice(0, 8);
         setImages(fallbackImages);
         console.log('No smart matches, using fallback images:', fallbackImages.length);
         setSelectedImage(undefined);
-        if (onSuggestAIGeneration) {
-          onSuggestAIGeneration();
-        }
-        console.log(`Geen passende afbeelding voor "${title}" - AI generatie voorgesteld`);
+        console.log(`Geen passende afbeelding voor "${title}" - gebruik handmatig zoeken`);
       }
     } else {
       // Geen titel - toon eerste 8 algemene afbeeldingen
@@ -130,7 +125,7 @@ export function CategoryImageSelector({
             Geen passende afbeelding gevonden
           </p>
           <p className="text-xs text-muted-foreground text-center px-4">
-            Gebruik AI Genereren voor een aangepaste afbeelding, of zoek hieronder naar een afbeelding
+            Zoek hieronder naar een passende afbeelding
           </p>
         </div>
       )}

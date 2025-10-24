@@ -22,18 +22,14 @@ import L from "leaflet";
 
 interface SplitViewProps {
   searchQuery: string;
-  radius: number;
   filteredEvents: Event[];
-  onRadiusChange?: (radius: number) => void;
   onFilteredEventsChange?: (events: Event[]) => void;
   onEventClick?: (event: Event) => void;
 }
 
 export function SplitView({ 
   searchQuery, 
-  radius, 
   filteredEvents, 
-  onRadiusChange,
   onFilteredEventsChange,
   onEventClick
 }: SplitViewProps) {
@@ -55,7 +51,7 @@ export function SplitView({
     return new Date(event.endTime || event.startTime) < new Date();
   };
   
-  // Filter events op basis van de huidige kaartgrenzen en verlopen events status
+  // Filter events op basis van de huidige kaartgrenzen, datum selectie en verlopen events status
   React.useEffect(() => {
     if (!filteredEvents) {
       setVisibleEvents([]);
@@ -74,14 +70,29 @@ export function SplitView({
     }
     
     // Filter events die binnen de huidige kaartgrenzen vallen
-    const eventsInBounds = nonExpiredEvents.filter(event => {
+    let eventsInBounds = nonExpiredEvents.filter(event => {
       // Filter op kaartgrenzen
       const eventLatLng = L.latLng(Number(event.latitude), Number(event.longitude));
       return mapBounds.contains(eventLatLng);
     });
     
+    // Filter op geselecteerde dagen (als er dagen zijn geselecteerd)
+    if (selectedDays.length > 0) {
+      eventsInBounds = eventsInBounds.filter(event => {
+        const eventStart = startOfDay(new Date(event.startTime));
+        const eventEnd = startOfDay(new Date(event.endTime || event.startTime));
+        
+        // Check of het event op een van de geselecteerde dagen valt
+        return selectedDays.some(selectedDay => {
+          const selected = startOfDay(selectedDay);
+          return (eventStart <= selected && eventEnd >= selected) || 
+                 (eventStart.getTime() === selected.getTime());
+        });
+      });
+    }
+    
     setVisibleEvents(eventsInBounds);
-  }, [filteredEvents, mapBounds, showExpiredEvents]);
+  }, [filteredEvents, mapBounds, showExpiredEvents, selectedDays]);
 
   // Nieuwe states voor kaart preview mode vs detail mode
   const [isPreviewMode, setIsPreviewMode] = React.useState<boolean>(false);
@@ -136,21 +147,13 @@ export function SplitView({
     }
   }, [selectedEvent, filteredEvents]);
 
-  const handleRadiusChange = React.useCallback((newRadius: number) => {
-    onRadiusChange?.(newRadius);
-  }, [onRadiusChange]);
-  
   const handleBoundsChange = React.useCallback((bounds: L.LatLngBounds) => {
     setMapBounds(bounds);
   }, []);
   
   const handleZoomChange = React.useCallback((zoom: number) => {
     setMapZoom(zoom);
-    
-    // Bereken een radius op basis van het zoom niveau
-    const calculatedRadius = Math.max(5, Math.round(20 / (zoom * 0.4)));
-    onRadiusChange?.(calculatedRadius);
-  }, [onRadiusChange]);
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -165,10 +168,9 @@ export function SplitView({
             <div className="h-full overflow-hidden">
               <MapView 
                 searchQuery={searchQuery} 
-                radius={radius} 
+                radius={50}
                 filteredEvents={filteredEvents}
                 onEventClick={handleMapEventClick}
-                onRadiusChange={handleRadiusChange}
                 onBoundsChange={handleBoundsChange}
                 onZoomChange={handleZoomChange}
                 showExpiredEvents={showExpiredEvents}
@@ -245,7 +247,7 @@ export function SplitView({
                 
                 <EventList 
                   searchQuery={searchQuery} 
-                  radius={radius} 
+                  radius={50} 
                   filteredEvents={visibleEvents} 
                   gridView={true} // Gebruik de nieuwe grid weergave
                   onEventClick={handleTileEventClick}

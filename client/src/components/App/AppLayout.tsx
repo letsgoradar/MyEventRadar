@@ -283,11 +283,6 @@ export function AppLayout({
     });
   }, []);
   
-  // Functie voor het aan-/uitzetten van verlopen evenementen - gestabiliseerd met useCallback
-  const toggleShowExpiredEvents = React.useCallback(() => {
-    setShowExpiredEvents(prev => !prev);
-  }, []);
-  
   // Typedefinitie voor gebruiker
   interface UserData {
     id: number;

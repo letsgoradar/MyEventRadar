@@ -15,8 +15,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Clock, Calendar } from "lucide-react";
-import { DayFilter } from "@/components/Filters/DayFilter";
+import { Calendar } from "lucide-react";
+import { MonthCalendar } from "@/components/Filters/MonthCalendar";
 import { addDays, startOfDay } from "date-fns";
 import L from "leaflet";
 
@@ -40,10 +40,10 @@ export function SplitView({
   const [visibleEvents, setVisibleEvents] = React.useState<Event[]>(filteredEvents);
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   
-  // Standaard: komende 7 dagen geselecteerd
+  // Standaard: komende 4 weken (28 dagen) geselecteerd
   const [selectedDays, setSelectedDays] = React.useState<Date[]>(() => {
     const today = startOfDay(new Date());
-    return Array.from({ length: 7 }, (_, i) => addDays(today, i));
+    return Array.from({ length: 28 }, (_, i) => addDays(today, i));
   });
   
   // Controleer of een event is verlopen
@@ -195,9 +195,11 @@ export function SplitView({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="p-4 w-auto" align="start">
-                    <DayFilter
+                    <MonthCalendar
                       selectedDays={selectedDays}
                       onDaysChange={setSelectedDays}
+                      showExpiredEvents={showExpiredEvents}
+                      onShowExpiredEventsChange={setShowExpiredEvents}
                     />
                   </PopoverContent>
                 </Popover>
@@ -227,21 +229,8 @@ export function SplitView({
                   <div className="text-lg font-medium">
                     {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'} in huidige zoekgebied
                   </div>
-                  <div className="flex items-center gap-2">
-                    {/* Toon verlopen events toggle */}
-                    <Button 
-                      size="sm" 
-                      variant={showExpiredEvents ? "default" : "outline"}
-                      className="flex items-center gap-1 text-xs"
-                      title="Toon verlopen events"
-                      onClick={() => setShowExpiredEvents(!showExpiredEvents)}
-                    >
-                      <Clock className="h-3.5 w-3.5" />
-                      <span>Verlopen</span>
-                    </Button>
-                    <div className="text-sm text-muted-foreground hidden sm:block">
-                      Zoom in/uit op de kaart om resultaten aan te passen
-                    </div>
+                  <div className="text-sm text-muted-foreground hidden sm:block">
+                    Zoom in/uit op de kaart om resultaten aan te passen
                   </div>
                 </div>
                 

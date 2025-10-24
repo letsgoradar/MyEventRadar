@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock, LogOut, SortAsc, MapPin } from "lucide-react";
+import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock, LogOut, SortAsc } from "lucide-react";
 import "./app-styles.css";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import MapView from "@/components/Map/MapView";
 import AppBottomNav from "./AppBottomNav";
-import { SortMenu, SortDirection, SortField } from "./SortMenuComponent";
+import { SortMenu, SortDirection } from "./SortMenuComponent";
 import { EventInterface as BaseEvent, CATEGORIES } from "@shared/schema";
 import { DayFilter } from "@/components/Filters/DayFilter";
 import { Calendar } from "lucide-react";
@@ -20,7 +20,6 @@ interface Event extends BaseEvent {
 }
 import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -48,25 +47,17 @@ import { useToast } from "@/hooks/use-toast";
 
 // Filters component om de Popover te isoleren en re-rendering problemen te voorkomen
 interface FiltersPopoverProps {
-  radius: number;
   selectedCategories: typeof CATEGORIES[number][];
   showExpiredEvents: boolean; 
-  onRadiusChange: (values: number[]) => void;
-  formatRadius: (radius: number) => string;
   applyFilters: () => void;
   toggleCategory: (category: typeof CATEGORIES[number]) => void;
   toggleShowExpiredEvents: () => void;
 }
 
-
-
 // Memoized component om de "Maximum update depth exceeded" waarschuwing te voorkomen
 const FiltersPopover = React.memo(({
-  radius,
   selectedCategories,
   showExpiredEvents,
-  formatRadius,
-  onRadiusChange,
   toggleCategory,
   applyFilters,
   toggleShowExpiredEvents
@@ -86,24 +77,6 @@ const FiltersPopover = React.memo(({
       </PopoverTrigger>
       <PopoverContent className="w-[280px] p-4" sideOffset={5}>
         <div className="space-y-4">
-          <div>
-            <h3 className="text-sm font-medium mb-2">Afstand: {formatRadius(radius)}</h3>
-            <div className="px-1">
-              <Slider
-                value={[radius]}
-                min={1}
-                max={300}
-                step={1}
-                onValueChange={onRadiusChange}
-                className="mb-1"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>1 km</span>
-                <span>Nederland</span>
-              </div>
-            </div>
-          </div>
-          
           <div>
             <h3 className="text-sm font-medium mb-2">Categorieën</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -145,7 +118,6 @@ const FiltersPopover = React.memo(({
               variant="outline" 
               size="sm" 
               onClick={() => {
-                onRadiusChange([10]); // Default radius herstellen
                 // Reset categorieën
                 if (selectedCategories.length > 0) {
                   // Kopieer de array zodat we niet de originele state aanpassen tijdens iteratie
@@ -224,8 +196,7 @@ export function AppLayout({
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   // Standaard geen verlopen evenementen tonen
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
-  // Sortering van evenementen 
-  const [sortField, setSortField] = React.useState<SortField>("time");
+  // Sortering van evenementen (alleen tijd-based)
   const [sortDirection, setSortDirection] = React.useState<SortDirection>("asc");
   
   // Bewaar de oorspronkelijke evenementen
@@ -263,23 +234,15 @@ export function AppLayout({
     
     // Sorteer evenementen op basis van de geselecteerde sorteermethode en -richting
     filtered = [...filtered].sort((a, b) => {
-      let comparison = 0;
-      
-      // Bepaal vergelijking op basis van sorteeroptie
-      if (sortField === "time") {
-        comparison = new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-      } else if (sortField === "distance") {
-        // Controleer of afstand beschikbaar is
-        if (a.distance === undefined || b.distance === undefined) return 0;
-        comparison = (a.distance || 0) - (b.distance || 0);
-      }
+      // Sorteer op tijd
+      const comparison = new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
       
       // Pas sorteervolgorde toe (oplopend of aflopend)
       return sortDirection === "asc" ? comparison : -comparison;
     });
     
     return filtered;
-  }, [selectedCategories, originalEvents, showExpiredEvents, sortField, sortDirection]);
+  }, [selectedCategories, originalEvents, showExpiredEvents, sortDirection]);
   
   // Update gefilterde events alleen wanneer de gebruiker op Toepassen klikt
   const displayedEventsRef = React.useRef(displayedEvents);
@@ -324,30 +287,12 @@ export function AppLayout({
   
   // Geen toggleMapExpanded en mapHeight meer nodig aangezien de kaart nu altijd volledig wordt getoond
   
-  // Functie voor formatteren van de radius-weergave
-  const formatRadius = React.useCallback((value: number) => {
-    if (value >= 300) {
-      return "Heel Nederland";
-    }
-    if (value === 1) {
-      return "1 km";
-    }
-    return `${value} km`;
-  }, []);
-  
   // Functie voor het bijwerken van de zoektekst
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onSearch) {
       onSearch(e.target.value);
     }
   };
-  
-  // Functie voor het bijwerken van de radius - gestabiliseerd met useCallback
-  const handleRadiusChange = React.useCallback((value: number[]) => {
-    if (onRadiusChange) {
-      onRadiusChange(value[0]);
-    }
-  }, [onRadiusChange]);
   
   // Functie voor het toevoegen/verwijderen van een categorie - gestabiliseerd met useCallback
   const toggleCategory = React.useCallback((category: typeof CATEGORIES[number]) => {
@@ -635,16 +580,6 @@ export function AppLayout({
               </Badge>
             )}
             
-            {radius && radius !== 10 && (
-              <Badge className="flex gap-1 items-center bg-primary/10 hover:bg-primary/20 text-primary border-none">
-                <span>{formatRadius(radius)}</span>
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
-                  onClick={() => onRadiusChange && onRadiusChange(10)}
-                />
-              </Badge>
-            )}
-            
             {selectedCategories.map(category => (
               <Badge 
                 key={category}
@@ -665,11 +600,8 @@ export function AppLayout({
           <div className="flex justify-between items-center mb-3 relative z-10">
             <div className="flex items-center gap-2">
               <FiltersPopover 
-                radius={radius}
                 selectedCategories={selectedCategories}
                 showExpiredEvents={showExpiredEvents}
-                onRadiusChange={handleRadiusChange}
-                formatRadius={formatRadius}
                 applyFilters={applyFilters}
                 toggleCategory={toggleCategory}
                 toggleShowExpiredEvents={toggleShowExpiredEvents}
@@ -678,8 +610,6 @@ export function AppLayout({
               {/* SortMenu component voor sortering */}
               {/* Sorteerknop alleen tonen in lijstweergave */}
               <SortMenu 
-                sortField={sortField} 
-                setSortField={setSortField} 
                 sortDirection={sortDirection} 
                 setSortDirection={setSortDirection} 
                 visible={view === "list"} 
@@ -695,7 +625,7 @@ export function AppLayout({
           <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[56px] z-0 border-t border-b-0 border-border">
             <MapView 
               filteredEvents={displayedEvents} 
-              radius={radius} 
+              radius={50} 
               searchQuery={searchQuery} 
               hideZoomControls={true}
               onEventClick={onEventClick}

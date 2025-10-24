@@ -1,5 +1,5 @@
 import * as React from "react";
-import { SortAsc, SortDesc, Clock, MapPin, ArrowUp, ArrowDown } from "lucide-react";
+import { SortAsc, SortDesc, Clock, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,14 +18,9 @@ import { cn } from "@/lib/utils";
 // Type voor sorteerrichting
 export type SortDirection = "asc" | "desc";
 
-// Type voor sorteeroptie
-export type SortField = "time" | "distance";
-
 // Props voor SortMenu component
 interface SortMenuProps {
-  sortField: SortField;
   sortDirection: SortDirection;
-  setSortField: React.Dispatch<React.SetStateAction<SortField>>;
   setSortDirection: React.Dispatch<React.SetStateAction<SortDirection>>;
   className?: string;
   visible?: boolean;
@@ -37,9 +32,7 @@ const getSortIcon = (direction: SortDirection) => {
 };
 
 export function SortMenu({ 
-  sortField, 
   sortDirection, 
-  setSortField, 
   setSortDirection, 
   className,
   visible = true 
@@ -63,33 +56,14 @@ export function SortMenu({
         <DropdownMenuLabel>Sorteeropties</DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        {/* Sorteerveldsectie */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <span className="font-medium">Sorteer op</span>
-            <span className="ml-auto text-xs text-muted-foreground">
-              {sortField === "time" ? "Tijd tot aanvang" : "Afstand"}
-            </span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem
-                className={cn("cursor-pointer", sortField === "time" && "font-semibold")}
-                onClick={() => setSortField("time")}
-              >
-                <Clock className="h-4 w-4 mr-2" />
-                Tijd tot aanvang
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className={cn("cursor-pointer", sortField === "distance" && "font-semibold")}
-                onClick={() => setSortField("distance")}
-              >
-                <MapPin className="h-4 w-4 mr-2" />
-                Afstand
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
+        {/* Sorteerveldsectie - alleen tijd beschikbaar */}
+        <DropdownMenuItem
+          className="cursor-pointer font-medium"
+        >
+          <Clock className="h-4 w-4 mr-2" />
+          Sorteer op tijd tot aanvang
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         
         {/* Sorteerrichtingsectie */}
         <DropdownMenuSub>

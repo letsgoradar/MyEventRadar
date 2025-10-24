@@ -20,10 +20,10 @@ export function AppHomePage() {
   const [filteredEvents, setFilteredEvents] = React.useState<EventWithDistance[]>([]);
   const { location } = useLocation();
   
-  // Standaard: komende 7 dagen geselecteerd
+  // Standaard: komende 4 weken (28 dagen) geselecteerd
   const [selectedDays, setSelectedDays] = React.useState<Date[]>(() => {
     const today = startOfDay(new Date());
-    return Array.from({ length: 7 }, (_, i) => addDays(today, i));
+    return Array.from({ length: 28 }, (_, i) => addDays(today, i));
   });
 
   // Fetch events based on user location (large radius to get all nearby events)

@@ -11,7 +11,7 @@ import MapView from "@/components/Map/MapView";
 import AppBottomNav from "./AppBottomNav";
 import { SortMenu, SortDirection } from "./SortMenuComponent";
 import { EventInterface as BaseEvent, CATEGORIES } from "@shared/schema";
-import { DayFilter } from "@/components/Filters/DayFilter";
+import { MonthCalendar } from "@/components/Filters/MonthCalendar";
 import { Calendar } from "lucide-react";
 
 // Uitgebreide Event interface met distance property
@@ -48,19 +48,15 @@ import { useToast } from "@/hooks/use-toast";
 // Filters component om de Popover te isoleren en re-rendering problemen te voorkomen
 interface FiltersPopoverProps {
   selectedCategories: typeof CATEGORIES[number][];
-  showExpiredEvents: boolean; 
   applyFilters: () => void;
   toggleCategory: (category: typeof CATEGORIES[number]) => void;
-  toggleShowExpiredEvents: () => void;
 }
 
 // Memoized component om de "Maximum update depth exceeded" waarschuwing te voorkomen
 const FiltersPopover = React.memo(({
   selectedCategories,
-  showExpiredEvents,
   toggleCategory,
-  applyFilters,
-  toggleShowExpiredEvents
+  applyFilters
 }: FiltersPopoverProps) => {
   return (
     <Popover>
@@ -101,18 +97,6 @@ const FiltersPopover = React.memo(({
             </div>
           </div>
           
-          <div>
-            <h3 className="text-sm font-medium mb-2">Geavanceerde opties</h3>
-            <div className="flex items-center justify-between">
-              <label htmlFor="show-expired" className="text-sm">Toon verlopen evenementen</label>
-              <Switch
-                id="show-expired"
-                checked={showExpiredEvents}
-                onCheckedChange={toggleShowExpiredEvents}
-              />
-            </div>
-          </div>
-          
           <div className="pt-2 flex justify-end gap-2">
             <Button 
               variant="outline" 
@@ -122,10 +106,6 @@ const FiltersPopover = React.memo(({
                 if (selectedCategories.length > 0) {
                   // Kopieer de array zodat we niet de originele state aanpassen tijdens iteratie
                   [...selectedCategories].forEach(category => toggleCategory(category));
-                }
-                // Reset verlopen evenementen als het ingeschakeld is
-                if (showExpiredEvents) {
-                  toggleShowExpiredEvents();
                 }
               }}
             >
@@ -601,10 +581,8 @@ export function AppLayout({
             <div className="flex items-center gap-2">
               <FiltersPopover 
                 selectedCategories={selectedCategories}
-                showExpiredEvents={showExpiredEvents}
                 applyFilters={applyFilters}
                 toggleCategory={toggleCategory}
-                toggleShowExpiredEvents={toggleShowExpiredEvents}
               />
               
               {/* SortMenu component voor sortering */}
@@ -650,9 +628,11 @@ export function AppLayout({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="p-4 w-auto" align="start">
-                    <DayFilter
+                    <MonthCalendar
                       selectedDays={selectedDays}
                       onDaysChange={onSelectedDaysChange}
+                      showExpiredEvents={showExpiredEvents}
+                      onShowExpiredEventsChange={setShowExpiredEvents}
                     />
                   </PopoverContent>
                 </Popover>

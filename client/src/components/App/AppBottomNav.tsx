@@ -5,9 +5,10 @@ import {
   HomeIcon,
   Map,
   Search,
-  Heart,
+  Bookmark,
   PlusCircle,
   User,
+  UserCheck,
   ExternalLink
 } from "lucide-react";
 
@@ -56,10 +57,16 @@ export function AppBottomNav() {
       isPrimary: true,
     },
     {
-      label: "Favorieten",
+      label: "Opgeslagen",
       href: "/app/favorites",
-      icon: Heart,
+      icon: Bookmark,
       isActive: location.includes("/app/favorites"),
+    },
+    {
+      label: "Aanmeldingen",
+      href: "/app/my-events",
+      icon: UserCheck,
+      isActive: location.includes("/app/my-events"),
     },
   ], [location]);
 

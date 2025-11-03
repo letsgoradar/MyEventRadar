@@ -232,7 +232,22 @@ export default function App() {
           <AppCreateEvent />
         </Route>
         <Route path="/app/event/:id">
-          <AppEventDetail />
+          {() => {
+            // Redirect oude event detail route naar homepage
+            // Events worden nu getoond via EventDetailPanel overlay
+            window.location.href = '/app';
+            return null;
+          }}
+        </Route>
+        <Route path="/app/my-events">
+          {() => {
+            const MyEventsPage = React.lazy(() => import("@/pages/App/my-events"));
+            return (
+              <React.Suspense fallback={<div>Laden...</div>}>
+                <MyEventsPage />
+              </React.Suspense>
+            );
+          }}
         </Route>
         <Route path="/app/events">
           <AppEventsPage />

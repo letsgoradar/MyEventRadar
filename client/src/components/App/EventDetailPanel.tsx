@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import CategoryIcon from "@/components/Events/CategoryIcon";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 // Define Event type - compatible with both EventInterface and display needs
 interface Event {
@@ -62,12 +65,124 @@ export function EventDetailPanel({
   onNext,
   userLocation 
 }: EventDetailPanelProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Check if event is favorited or user is participating
+  const { data: favorites = [] } = useQuery<any[]>({
+    queryKey: [`/api/favorites/${user?.id}`],
+    enabled: !!user?.id,
+  });
+
+  const { data: participatingEvents = [] } = useQuery<any[]>({
+    queryKey: [`/api/users/${user?.id}/participating-events`],
+    enabled: !!user?.id,
+  });
+
+  const isFavorited = favorites.some((fav: any) => fav.id === event.id);
+  const isParticipating = participatingEvents.some((e: any) => e.id === event.id);
+
   // State voor interacties
-  const [isParticipating, setIsParticipating] = React.useState(false);
-  const [isFavorited, setIsFavorited] = React.useState(false);
   const [showFullDescription, setShowFullDescription] = React.useState(false);
   const [showDetailMap, setShowDetailMap] = React.useState(false);
   const [swipeHintVisible, setSwipeHintVisible] = React.useState(true);
+
+  // Toggle favorite mutation
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async () => {
+      if (isFavorited) {
+        const response = await fetch(`/api/favorite/${event.id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error('Failed to remove favorite');
+      } else {
+        const response = await fetch('/api/favorite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ eventId: event.id }),
+        });
+        if (!response.ok) throw new Error('Failed to add favorite');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/favorites/${user?.id}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events/favorites'] });
+      toast({
+        title: isFavorited ? "Verwijderd uit opgeslagen" : "Toegevoegd aan opgeslagen",
+        description: isFavorited ? "Het evenement is verwijderd uit je opgeslagen events." : "Je ontvangt notificaties voor wijzigingen en herinneringen.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Fout bij opslaan",
+        description: "Er ging iets mis bij het opslaan van je favoriet.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Toggle participant mutation
+  const toggleParticipantMutation = useMutation({
+    mutationFn: async () => {
+      if (isParticipating) {
+        const response = await fetch(`/api/events/${event.id}/participants`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error('Failed to leave event');
+      } else {
+        const response = await fetch(`/api/events/${event.id}/participants`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error('Failed to join event');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${user?.id}/participating-events`] });
+      toast({
+        title: isParticipating ? "Afgemeld voor evenement" : "Aangemeld voor evenement",
+        description: isParticipating ? "Je bent afgemeld voor dit evenement." : "Je ontvangt herinneringen voor dit evenement.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Fout bij aanmelden",
+        description: "Er ging iets mis bij het aanmelden voor dit evenement.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleToggleFavorite = () => {
+    if (!user) {
+      toast({
+        title: "Inloggen vereist",
+        description: "Log in om evenementen op te slaan.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toggleFavoriteMutation.mutate();
+  };
+
+  const handleToggleParticipant = () => {
+    if (!user) {
+      toast({
+        title: "Inloggen vereist",
+        description: "Log in om je aan te melden voor evenementen.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toggleParticipantMutation.mutate();
+  };
 
   // Find current event index for navigation
   const currentIndex = events.findIndex(e => e.id === event.id);
@@ -263,7 +378,7 @@ export function EventDetailPanel({
                 size="sm"
                 variant="secondary"
                 className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
-                onClick={() => setIsFavorited(!isFavorited)}
+                onClick={handleToggleFavorite}
               >
                 {isFavorited ? 
                   <BookmarkCheck className="h-4 w-4 text-blue-600" /> : 
@@ -409,14 +524,23 @@ export function EventDetailPanel({
             variant="outline" 
             size="icon"
             className="h-12 w-12"
-            onClick={() => {
-              setIsFavorited(!isFavorited);
-              console.log('Favoriet status gewijzigd:', event.id, !isFavorited);
-            }}
+            onClick={handleToggleFavorite}
           >
             {isFavorited ? 
               <BookmarkCheck className="h-5 w-5 text-blue-600" /> : 
               <Bookmark className="h-5 w-5" />
+            }
+          </Button>
+          
+          <Button 
+            variant={isParticipating ? "default" : "outline"}
+            size="icon"
+            className="h-12 w-12"
+            onClick={handleToggleParticipant}
+          >
+            {isParticipating ? 
+              <UserPlus className="h-5 w-5 text-white" /> : 
+              <UserPlus className="h-5 w-5" />
             }
           </Button>
           

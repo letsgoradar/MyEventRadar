@@ -84,6 +84,7 @@ export function EventList({ filteredEvents, gridView = false, onEventClick }: Ev
             event={event} 
             distance={event.distance}
             gridView={false}
+            onEventClick={onEventClick}
           />
         ))}
       </div>

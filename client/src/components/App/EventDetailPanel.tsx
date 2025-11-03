@@ -510,11 +510,9 @@ export function EventDetailPanel({
         <div className="flex gap-3">
           <Button 
             className="flex-1 h-12"
-            onClick={() => {
-              setIsParticipating(!isParticipating);
-              console.log('Deelname status gewijzigd:', event.id, !isParticipating);
-            }}
+            onClick={handleToggleParticipant}
             variant={isParticipating ? "secondary" : "default"}
+            disabled={toggleParticipantMutation.isPending}
           >
             <UserPlus className="h-4 w-4 mr-2" />
             {isParticipating ? 'Aangemeld' : 'Deelnemen'}
@@ -525,22 +523,11 @@ export function EventDetailPanel({
             size="icon"
             className="h-12 w-12"
             onClick={handleToggleFavorite}
+            disabled={toggleFavoriteMutation.isPending}
           >
             {isFavorited ? 
               <BookmarkCheck className="h-5 w-5 text-blue-600" /> : 
               <Bookmark className="h-5 w-5" />
-            }
-          </Button>
-          
-          <Button 
-            variant={isParticipating ? "default" : "outline"}
-            size="icon"
-            className="h-12 w-12"
-            onClick={handleToggleParticipant}
-          >
-            {isParticipating ? 
-              <UserPlus className="h-5 w-5 text-white" /> : 
-              <UserPlus className="h-5 w-5" />
             }
           </Button>
           

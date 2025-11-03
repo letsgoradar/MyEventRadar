@@ -239,21 +239,32 @@ export default function App() {
             return null;
           }}
         </Route>
-        <Route path="/app/my-events">
+        <Route path="/app/saved">
           {() => {
-            const MyEventsPage = React.lazy(() => import("@/pages/App/my-events"));
+            const SavedPage = React.lazy(() => import("@/pages/App/saved"));
             return (
               <React.Suspense fallback={<div>Laden...</div>}>
-                <MyEventsPage />
+                <SavedPage />
               </React.Suspense>
             );
           }}
         </Route>
-        <Route path="/app/events">
-          <AppEventsPage />
+        <Route path="/app/my-events">
+          {() => {
+            // Redirect naar gecombineerde opgeslagen pagina
+            window.location.href = '/app/saved';
+            return null;
+          }}
         </Route>
         <Route path="/app/favorites">
-          <AppFavoritesPage />
+          {() => {
+            // Redirect naar gecombineerde opgeslagen pagina
+            window.location.href = '/app/saved';
+            return null;
+          }}
+        </Route>
+        <Route path="/app/events">
+          <AppEventsPage />
         </Route>
         <Route path="/app/profile">
           <AppProfilePage />

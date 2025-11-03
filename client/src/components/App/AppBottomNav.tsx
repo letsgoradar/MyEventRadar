@@ -58,15 +58,9 @@ export function AppBottomNav() {
     },
     {
       label: "Opgeslagen",
-      href: "/app/favorites",
+      href: "/app/saved",
       icon: Bookmark,
-      isActive: location.includes("/app/favorites"),
-    },
-    {
-      label: "Aanmeldingen",
-      href: "/app/my-events",
-      icon: UserCheck,
-      isActive: location.includes("/app/my-events"),
+      isActive: location.includes("/app/saved") || location.includes("/app/favorites") || location.includes("/app/my-events"),
     },
   ], [location]);
 

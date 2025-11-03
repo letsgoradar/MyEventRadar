@@ -81,9 +81,9 @@ export function NotificationCenter() {
       markAsReadMutation.mutate(notification.id);
     }
     
-    // Navigate to the relevant event if eventId exists
+    // Navigate to homepage (events are shown in overlay panel)
     if (notification.eventId) {
-      setLocation(`/app/event/${notification.eventId}`);
+      setLocation(`/app`);
       setIsOpen(false);
     }
   };

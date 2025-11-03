@@ -12,6 +12,7 @@ import { attachUser } from "./middleware/auth";
 import { autoLoginTestUser } from "./middleware/auto-login";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { startNotificationScheduler } from "./notification-scheduler";
 
 const app = express();
 
@@ -80,6 +81,10 @@ const HOST = '0.0.0.0';
     // Register routes first for faster API availability
     const server = await registerRoutes(app);
     console.log('Routes registered successfully');
+
+    // Start notification scheduler for upcoming events
+    startNotificationScheduler();
+    console.log('Notification scheduler started');
 
     // Add error handling middleware
     app.use(errorHandler);

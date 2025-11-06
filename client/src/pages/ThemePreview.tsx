@@ -6,44 +6,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const themes = [
   {
-    id: "rainbow-modern",
-    name: "Modern Regenboog",
-    description: "Professioneel kleurrijk - van blauw via paars naar roze",
-    primary: "#6366f1",
+    id: "ocean-sky",
+    name: "Oceaan tot Hemel",
+    description: "Diepblauw naar turquoise - fris en professioneel",
+    primary: "#0284c7",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899, #f97316)",
-    glow: "0 0 40px rgba(99, 102, 241, 0.4)",
-    borderGradient: "linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899)",
+    gradient: "linear-gradient(135deg, #1e40af, #3b82f6, #0ea5e9, #06b6d4)",
+    glow: "0 0 40px rgba(59, 130, 246, 0.5)",
+    borderGradient: "linear-gradient(135deg, #1e40af, #3b82f6, #0ea5e9)",
   },
   {
-    id: "rainbow-warm",
-    name: "Warm Spectrum",
-    description: "Warme kleuren - oranje via rood naar paars",
-    primary: "#f59e0b",
+    id: "sunset-glow",
+    name: "Zonsondergang",
+    description: "Warm oranje naar geel naar rood - energiek en uitnodigend",
+    primary: "#f97316",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #f59e0b, #ef4444, #ec4899, #a855f7)",
-    glow: "0 0 40px rgba(245, 158, 11, 0.4)",
-    borderGradient: "linear-gradient(135deg, #f59e0b, #ef4444, #ec4899)",
+    gradient: "linear-gradient(135deg, #ef4444, #f97316, #f59e0b, #fbbf24)",
+    glow: "0 0 40px rgba(249, 115, 22, 0.5)",
+    borderGradient: "linear-gradient(135deg, #ef4444, #f97316, #f59e0b)",
   },
   {
-    id: "rainbow-cool",
-    name: "Koel Spectrum",
-    description: "Koele tinten - van groen via blauw naar paars",
+    id: "nature-fresh",
+    name: "Frisse Natuur",
+    description: "Groen naar limoen naar turquoise - fris en levendig",
     primary: "#10b981",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #10b981, #06b6d4, #3b82f6, #8b5cf6)",
-    glow: "0 0 40px rgba(16, 185, 129, 0.4)",
-    borderGradient: "linear-gradient(135deg, #10b981, #06b6d4, #3b82f6)",
+    gradient: "linear-gradient(135deg, #059669, #10b981, #34d399, #14b8a6, #06b6d4)",
+    glow: "0 0 40px rgba(16, 185, 129, 0.5)",
+    borderGradient: "linear-gradient(135deg, #059669, #10b981, #34d399)",
   },
   {
-    id: "rainbow-vibrant",
-    name: "Levendig Regenboog",
-    description: "Volle regenboog - alle kleuren in perfecte harmonie",
-    primary: "#ec4899",
+    id: "tech-gradient",
+    name: "Modern Tech",
+    description: "Donkerblauw naar lichtblauw naar groen - modern en innovatief",
+    primary: "#2563eb",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #ef4444, #f97316, #f59e0b, #10b981, #06b6d4, #3b82f6, #8b5cf6)",
-    glow: "0 0 40px rgba(236, 72, 153, 0.4)",
-    borderGradient: "linear-gradient(135deg, #ef4444, #f97316, #f59e0b, #10b981, #06b6d4, #3b82f6, #8b5cf6)",
+    gradient: "linear-gradient(135deg, #1e3a8a, #2563eb, #3b82f6, #06b6d4, #10b981)",
+    glow: "0 0 40px rgba(37, 99, 235, 0.5)",
+    borderGradient: "linear-gradient(135deg, #1e3a8a, #2563eb, #3b82f6)",
   },
 ];
 
@@ -73,10 +73,10 @@ export default function ThemePreview() {
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-blue-500 via-purple-500 via-pink-500 to-orange-500 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-blue-600 via-cyan-500 via-green-500 to-orange-500 bg-clip-text text-transparent">
             Kies jouw kleurthema
           </h1>
-          <p className="text-gray-600 text-lg">Moderne regenboogkleuren - professioneel en levendig met mooie effecten</p>
+          <p className="text-gray-600 text-lg">Frisse kleurcombinaties - blauw, groen, oranje en geel zonder roze/paars</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">

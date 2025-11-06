@@ -447,7 +447,7 @@ export default function MapView({
   return (
     <div className="h-full w-full relative flex-1 overflow-hidden z-0">
       {/* Kaartstijl selector rechtsonder */}
-      <div className="absolute bottom-4 right-4 z-[150]">
+      <div className="absolute bottom-20 right-4 z-[150]">
         <div className="relative" ref={layerMenuRef}>
           <Button 
             size="sm" 

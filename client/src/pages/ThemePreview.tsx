@@ -6,44 +6,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const themes = [
   {
-    id: "ocean-sky",
-    name: "Oceaan tot Hemel",
-    description: "Diepblauw naar turquoise - fris en professioneel",
-    primary: "#0284c7",
-    variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #1e40af, #3b82f6, #0ea5e9, #06b6d4)",
-    glow: "0 0 40px rgba(59, 130, 246, 0.5)",
-    borderGradient: "linear-gradient(135deg, #1e40af, #3b82f6, #0ea5e9)",
+    id: "soft-blue",
+    name: "Zacht Blauw",
+    description: "Rustige pastel blauwtinten - harmonieus met kaartweergave",
+    primary: "#60a5fa",
+    variant: "tint" as const,
+    gradient: "linear-gradient(135deg, #93c5fd, #60a5fa, #3b82f6)",
+    glow: "0 0 25px rgba(96, 165, 250, 0.3)",
+    borderGradient: "linear-gradient(135deg, #93c5fd, #60a5fa)",
   },
   {
-    id: "sunset-glow",
-    name: "Zonsondergang",
-    description: "Warm oranje naar geel naar rood - energiek en uitnodigend",
-    primary: "#f97316",
-    variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #ef4444, #f97316, #f59e0b, #fbbf24)",
-    glow: "0 0 40px rgba(249, 115, 22, 0.5)",
-    borderGradient: "linear-gradient(135deg, #ef4444, #f97316, #f59e0b)",
+    id: "mint-green",
+    name: "Mint Groen",
+    description: "Zachte mint en aqua tinten - fris en kalm",
+    primary: "#6ee7b7",
+    variant: "tint" as const,
+    gradient: "linear-gradient(135deg, #a7f3d0, #6ee7b7, #5eead4, #67e8f9)",
+    glow: "0 0 25px rgba(110, 231, 183, 0.3)",
+    borderGradient: "linear-gradient(135deg, #a7f3d0, #6ee7b7)",
   },
   {
-    id: "nature-fresh",
-    name: "Frisse Natuur",
-    description: "Groen naar limoen naar turquoise - fris en levendig",
-    primary: "#10b981",
-    variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #059669, #10b981, #34d399, #14b8a6, #06b6d4)",
-    glow: "0 0 40px rgba(16, 185, 129, 0.5)",
-    borderGradient: "linear-gradient(135deg, #059669, #10b981, #34d399)",
+    id: "peach-cream",
+    name: "Perzik Crème",
+    description: "Warme pastel tinten - zacht en uitnodigend",
+    primary: "#fdba74",
+    variant: "tint" as const,
+    gradient: "linear-gradient(135deg, #fde68a, #fcd34d, #fdba74, #fb923c)",
+    glow: "0 0 25px rgba(253, 186, 116, 0.3)",
+    borderGradient: "linear-gradient(135deg, #fde68a, #fcd34d)",
   },
   {
-    id: "tech-gradient",
-    name: "Modern Tech",
-    description: "Donkerblauw naar lichtblauw naar groen - modern en innovatief",
-    primary: "#2563eb",
-    variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #1e3a8a, #2563eb, #3b82f6, #06b6d4, #10b981)",
-    glow: "0 0 40px rgba(37, 99, 235, 0.5)",
-    borderGradient: "linear-gradient(135deg, #1e3a8a, #2563eb, #3b82f6)",
+    id: "lavender-sky",
+    name: "Lavendel Hemel",
+    description: "Zachte lila en blauw tinten - rustig en elegant",
+    primary: "#a5b4fc",
+    variant: "tint" as const,
+    gradient: "linear-gradient(135deg, #c7d2fe, #a5b4fc, #818cf8, #93c5fd)",
+    glow: "0 0 25px rgba(165, 180, 252, 0.3)",
+    borderGradient: "linear-gradient(135deg, #c7d2fe, #a5b4fc)",
   },
 ];
 
@@ -73,10 +73,10 @@ export default function ThemePreview() {
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-blue-600 via-cyan-500 via-green-500 to-orange-500 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-blue-300 via-green-300 via-yellow-300 to-orange-300 bg-clip-text text-transparent">
             Kies jouw kleurthema
           </h1>
-          <p className="text-gray-600 text-lg">Frisse kleurcombinaties - blauw, groen, oranje en geel zonder roze/paars</p>
+          <p className="text-gray-600 text-lg">Zachte pastel kleuren - harmonieus met de kaartweergave</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">

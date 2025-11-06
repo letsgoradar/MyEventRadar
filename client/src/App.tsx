@@ -273,6 +273,18 @@ export default function App() {
           <AppHomePage />
         </Route>
 
+        {/* Theme preview route */}
+        <Route path="/theme-preview">
+          {() => {
+            const ThemePreview = React.lazy(() => import("@/pages/ThemePreview"));
+            return (
+              <React.Suspense fallback={<div>Laden...</div>}>
+                <ThemePreview />
+              </React.Suspense>
+            );
+          }}
+        </Route>
+
         {/* Default route */}
         <Route path="/">
           {isMobile ? <AppHomePage /> : <WebPage />}

@@ -18,6 +18,7 @@ import { isAdmin, isAuthenticated, attachUser } from "./middleware/auth";
 import profilePhotoRoutes from "./routes/profile-photo";
 import generateImageRoutes from "./routes/generate-image";
 import unsplashSearchRoutes from "./routes/unsplash-search";
+import themeHandler from "./theme-handler";
 
 // Query cache voor geocoding
 const GEOCODING_CACHE = new Map();
@@ -50,6 +51,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/profile-photo", profilePhotoRoutes);
   app.use("/api/generate-image", generateImageRoutes);
   app.use("/api/unsplash", unsplashSearchRoutes);
+  app.use("/api", themeHandler);
   
   // Create HTTP server
   const httpServer = createServer(app);

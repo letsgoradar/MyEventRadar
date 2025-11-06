@@ -71,3 +71,64 @@
     margin-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* Moderne menu styling met witte tekst en effecten */
+@layer components {
+  /* Bottom Navigation met gradient */
+  .fixed.bottom-0.bg-background.border-t {
+    background: linear-gradient(to top, hsl(var(--primary)), hsl(var(--primary) / 0.9));
+    border-top: none;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .fixed.bottom-0 .text-muted-foreground,
+  .fixed.bottom-0 a {
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+  
+  .fixed.bottom-0 .text-primary,
+  .fixed.bottom-0 a.active,
+  .fixed.bottom-0 .text-foreground {
+    color: white !important;
+  }
+  
+  .fixed.bottom-0 .hover\:text-foreground:hover {
+    color: white !important;
+  }
+  
+  /* Primaire knop met witte achtergrond voor contrast */
+  .fixed.bottom-0 .bg-primary {
+    background: white !important;
+    color: hsl(var(--primary)) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* AppLayout header met gradient */
+  header.sticky.top-0 {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.85));
+    border-bottom: none;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  }
+  
+  header.sticky.top-0 h1,
+  header.sticky.top-0 button,
+  header.sticky.top-0 svg {
+    color: white !important;
+  }
+  
+  /* Tab styling met witte tekst */
+  [role="tablist"] {
+    background: hsl(var(--primary)) !important;
+    border-radius: 0 !important;
+  }
+  
+  [role="tab"] {
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+  
+  [role="tab"][data-state="active"] {
+    color: white !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    font-weight: 600;
+  }
+}

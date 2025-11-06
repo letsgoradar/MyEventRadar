@@ -6,36 +6,40 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const themes = [
   {
-    id: "blue",
-    name: "Modern Blauw",
-    description: "Professioneel en vertrouwenwekkend - perfect voor community platforms",
-    primary: "#2563eb",
+    id: "red",
+    name: "Vurig Rood",
+    description: "Energiek en opvallend - perfect voor actie en passie",
+    primary: "#dc2626",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+    gradient: "linear-gradient(135deg, #ef4444, #dc2626, #b91c1c)",
+    glow: "0 0 30px rgba(239, 68, 68, 0.4)",
   },
   {
-    id: "green",
-    name: "Energie Groen",
-    description: "Fris en energiek - ideaal voor actieve communities en duurzaamheid",
-    primary: "#10b981",
+    id: "pink",
+    name: "Modern Magenta",
+    description: "Jong en dynamisch - opvallend en trendy",
+    primary: "#ec4899",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #10b981, #059669)",
+    gradient: "linear-gradient(135deg, #f472b6, #ec4899, #db2777)",
+    glow: "0 0 30px rgba(236, 72, 153, 0.4)",
   },
   {
-    id: "orange",
-    name: "Warm Oranje",
-    description: "Uitnodigend en energiek - creëert een warme, toegankelijke sfeer",
-    primary: "#f97316",
+    id: "coral",
+    name: "Warm Koraalrood",
+    description: "Uitnodigend en vriendelijk - perfect voor community gevoel",
+    primary: "#f43f5e",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #f97316, #ea580c)",
+    gradient: "linear-gradient(135deg, #fb7185, #f43f5e, #e11d48)",
+    glow: "0 0 30px rgba(244, 63, 94, 0.4)",
   },
   {
-    id: "purple",
-    name: "Premium Paars",
-    description: "Creatief en luxe - onderscheidend en modern",
-    primary: "#9333ea",
+    id: "wine",
+    name: "Luxe Bordeaux",
+    description: "Gedurfd en exclusief - stijlvol en onderscheidend",
+    primary: "#9f1239",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #9333ea, #7c3aed)",
+    gradient: "linear-gradient(135deg, #be123c, #9f1239, #881337)",
+    glow: "0 0 30px rgba(159, 18, 57, 0.4)",
   },
 ];
 
@@ -65,8 +69,10 @@ export default function ThemePreview() {
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2">Kies jouw kleurthema</h1>
-          <p className="text-gray-600">Selecteer het thema dat het beste bij jouw event platform past</p>
+          <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-red-600 via-pink-600 to-rose-600 bg-clip-text text-transparent">
+            Kies jouw kleurthema
+          </h1>
+          <p className="text-gray-600 text-lg">Moderne rode tinten met opvallende effecten - selecteer je favoriet</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
@@ -101,16 +107,22 @@ export default function ThemePreview() {
                   {/* Header preview */}
                   <div 
                     className="rounded-lg p-4 shadow-md"
-                    style={{ background: theme.gradient }}
+                    style={{ 
+                      background: theme.gradient,
+                      boxShadow: (theme as any).glow || '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
                   >
-                    <h3 className="text-white font-semibold text-lg">Event App</h3>
-                    <p className="text-white/80 text-sm mt-1">Moderne header met gradient</p>
+                    <h3 className="text-white font-semibold text-lg drop-shadow-md">Event App</h3>
+                    <p className="text-white/90 text-sm mt-1">Moderne header met gradient</p>
                   </div>
 
                   {/* Bottom navigation preview */}
                   <div 
                     className="rounded-lg p-3 shadow-md"
-                    style={{ background: theme.gradient }}
+                    style={{ 
+                      background: theme.gradient,
+                      boxShadow: (theme as any).glow || '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
                   >
                     <div className="flex items-center justify-around">
                       <div className="flex flex-col items-center gap-1">
@@ -161,8 +173,11 @@ export default function ThemePreview() {
 
                   {/* Action button */}
                   <Button 
-                    className="w-full text-white font-semibold shadow-md"
-                    style={{ background: theme.gradient }}
+                    className="w-full text-white font-semibold"
+                    style={{ 
+                      background: theme.gradient,
+                      boxShadow: (theme as any).glow || '0 4px 12px rgba(0,0,0,0.2)'
+                    }}
                   >
                     Voorbeeld Button
                   </Button>
@@ -175,8 +190,11 @@ export default function ThemePreview() {
         <div className="text-center">
           <Button 
             size="lg"
-            className="text-white font-semibold px-8 shadow-lg"
-            style={{ background: selectedTheme.gradient }}
+            className="text-white font-semibold px-8"
+            style={{ 
+              background: selectedTheme.gradient,
+              boxShadow: (selectedTheme as any).glow || '0 4px 20px rgba(0,0,0,0.2)'
+            }}
             onClick={() => applyTheme(selectedTheme)}
           >
             <Check className="mr-2 h-5 w-5" />

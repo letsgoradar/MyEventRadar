@@ -6,40 +6,40 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const themes = [
   {
-    id: "red",
-    name: "Vurig Rood",
-    description: "Energiek en opvallend - perfect voor actie en passie",
-    primary: "#dc2626",
+    id: "sky",
+    name: "Helder Hemelsblauw",
+    description: "Licht en fris - modern met hoog contrast",
+    primary: "#0ea5e9",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #ef4444, #dc2626, #b91c1c)",
-    glow: "0 0 30px rgba(239, 68, 68, 0.4)",
+    gradient: "linear-gradient(135deg, #38bdf8, #0ea5e9, #0284c7)",
+    glow: "0 0 35px rgba(14, 165, 233, 0.5)",
   },
   {
-    id: "pink",
-    name: "Modern Magenta",
-    description: "Jong en dynamisch - opvallend en trendy",
-    primary: "#ec4899",
+    id: "ocean",
+    name: "Diep Oceaanblauw",
+    description: "Donker en krachtig - sterk contrast met witte tekst",
+    primary: "#1e40af",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #f472b6, #ec4899, #db2777)",
-    glow: "0 0 30px rgba(236, 72, 153, 0.4)",
+    gradient: "linear-gradient(135deg, #3b82f6, #2563eb, #1e40af)",
+    glow: "0 0 35px rgba(37, 99, 235, 0.5)",
   },
   {
-    id: "coral",
-    name: "Warm Koraalrood",
-    description: "Uitnodigend en vriendelijk - perfect voor community gevoel",
-    primary: "#f43f5e",
+    id: "royal",
+    name: "Koninklijk Blauw",
+    description: "Klassiek en elegant - perfect contrast tussen licht en donker",
+    primary: "#1d4ed8",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #fb7185, #f43f5e, #e11d48)",
-    glow: "0 0 30px rgba(244, 63, 94, 0.4)",
+    gradient: "linear-gradient(135deg, #60a5fa, #3b82f6, #1d4ed8)",
+    glow: "0 0 35px rgba(59, 130, 246, 0.5)",
   },
   {
-    id: "wine",
-    name: "Luxe Bordeaux",
-    description: "Gedurfd en exclusief - stijlvol en onderscheidend",
-    primary: "#9f1239",
+    id: "midnight",
+    name: "Middernacht Blauw",
+    description: "Zeer donker met lichte accenten - maximaal contrast",
+    primary: "#1e3a8a",
     variant: "vibrant" as const,
-    gradient: "linear-gradient(135deg, #be123c, #9f1239, #881337)",
-    glow: "0 0 30px rgba(159, 18, 57, 0.4)",
+    gradient: "linear-gradient(135deg, #3b82f6, #1e40af, #1e3a8a)",
+    glow: "0 0 35px rgba(30, 58, 138, 0.6)",
   },
 ];
 
@@ -69,10 +69,10 @@ export default function ThemePreview() {
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-red-600 via-pink-600 to-rose-600 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-blue-400 via-blue-600 to-blue-800 bg-clip-text text-transparent">
             Kies jouw kleurthema
           </h1>
-          <p className="text-gray-600 text-lg">Moderne rode tinten met opvallende effecten - selecteer je favoriet</p>
+          <p className="text-gray-600 text-lg">Moderne blauwtinten van licht naar donker - sterk contrast met witte tekst</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">

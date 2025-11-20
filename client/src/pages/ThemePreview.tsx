@@ -22,7 +22,7 @@ const themes = [
     id: "pastel-peach",
     name: "Pastel Perzik",
     description: "Warme zachte perzik",
-    primary: "#fdba74",
+    primary: "#fed7aa",
     variant: "tint" as const,
   },
   {
@@ -43,7 +43,7 @@ const themes = [
     id: "pastel-coral",
     name: "Pastel Koraal",
     description: "Zachte koraal roze",
-    primary: "#fb923c",
+    primary: "#fecaca",
     variant: "tint" as const,
   },
   {

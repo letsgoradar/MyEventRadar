@@ -20,6 +20,41 @@ const themes: Theme[] = [
     textColor: "#262626",
   },
   {
+    id: "warm-orange-gray",
+    name: "Warme Oranje Grijs",
+    description: "Warmer oranje met licht grijs",
+    colors: ["#fef3c7", "#fde68a", "#e5e5e5", "#fafafa", "#f5f5f5"],
+    textColor: "#292524",
+  },
+  {
+    id: "cool-silver",
+    name: "Koele Zilver",
+    description: "Koele zilver en witte tinten",
+    colors: ["#f8fafc", "#f1f5f9", "#e2e8f0", "#f8fafc", "#ffffff"],
+    textColor: "#334155",
+  },
+  {
+    id: "peach-silver",
+    name: "Perzik Zilver",
+    description: "Zachte perzik met zilver en wit",
+    colors: ["#fee2e2", "#fecaca", "#e5e5e5", "#fafafa", "#ffffff"],
+    textColor: "#450a0a",
+  },
+  {
+    id: "beige-orange",
+    name: "Beige Oranje",
+    description: "Warme beige met oranje accent",
+    colors: ["#fef9e7", "#fef3c7", "#fed7aa", "#fafaf9", "#f5f5f4"],
+    textColor: "#78350f",
+  },
+  {
+    id: "light-gray",
+    name: "Licht Grijs",
+    description: "Pure lichte grijstinten",
+    colors: ["#fafafa", "#f5f5f5", "#e5e5e5", "#f9fafb", "#ffffff"],
+    textColor: "#171717",
+  },
+  {
     id: "ocean-sky",
     name: "Oceaan & Hemel",
     description: "Zachte blauwen en aqua tinten",
@@ -126,7 +161,7 @@ export default function ThemePreview() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8 pb-32">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold mb-3 text-gray-800">
@@ -214,21 +249,24 @@ export default function ThemePreview() {
           ))}
         </div>
 
-        <div className="text-center">
-          <Button 
-            size="lg"
-            className="text-white font-semibold px-8"
-            style={{ 
-              background: `linear-gradient(135deg, ${selectedTheme.colors.join(', ')})`,
-            }}
-            onClick={() => applyTheme(selectedTheme)}
-          >
-            <Check className="mr-2 h-5 w-5" />
-            Kies {selectedTheme.name}
-          </Button>
-          <p className="text-sm text-gray-500 mt-3">
-            De app wordt opnieuw geladen met je nieuwe kleurenpalet
-          </p>
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50">
+          <div className="max-w-6xl mx-auto text-center">
+            <Button 
+              size="lg"
+              className="font-semibold px-8 shadow-lg"
+              style={{ 
+                background: `linear-gradient(135deg, ${selectedTheme.colors.join(', ')})`,
+                color: selectedTheme.textColor
+              }}
+              onClick={() => applyTheme(selectedTheme)}
+            >
+              <Check className="mr-2 h-5 w-5" />
+              Kies {selectedTheme.name}
+            </Button>
+            <p className="text-sm text-gray-500 mt-2">
+              De app wordt opnieuw geladen met je nieuwe kleurenpalet
+            </p>
+          </div>
         </div>
       </div>
     </div>

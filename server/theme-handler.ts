@@ -18,8 +18,8 @@ router.get('/theme', (req, res) => {
 // Update theme
 router.post('/theme', (req, res) => {
   try {
-    const { variant, primary, appearance, radius } = req.body;
-    const theme = { variant, primary, appearance, radius };
+    const { variant, primary, appearance, radius, colors } = req.body;
+    const theme = { variant, primary, appearance, radius, colors: colors || [] };
     const themePath = join(process.cwd(), 'theme.json');
     writeFileSync(themePath, JSON.stringify(theme, null, 2));
     res.json({ success: true, theme });

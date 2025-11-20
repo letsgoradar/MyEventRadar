@@ -24,6 +24,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import ModeToggle from "@/components/Web/ModeToggle"
 import type { EventInterface } from "@shared/schema"
 import { queryClient } from "@/lib/queryClient"
+import { ThemeInjector } from "@/components/ThemeInjector"
 // Webversie componenten
 import CreateEvent from "@/pages/Web/create-event"
 import EventDetail from "@/pages/Web/event-detail"
@@ -105,6 +106,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <ThemeInjector />
         <Switch>
         {/* Admin Routes - beschikbaar op alle apparaten */}
         <Route path="/login">

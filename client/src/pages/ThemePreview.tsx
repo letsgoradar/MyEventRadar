@@ -1,79 +1,79 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Map, PlusCircle, Bookmark } from "lucide-react";
+import { Check } from "lucide-react";
 
-const themes = [
+interface Theme {
+  id: string;
+  name: string;
+  description: string;
+  colors: string[];
+}
+
+const themes: Theme[] = [
   {
-    id: "sky-soft",
-    name: "Zachte Lucht",
-    description: "Zeer licht blauw - vriendelijk en rustig",
-    primary: "#dbeafe",
-    variant: "tint" as const,
+    id: "ocean-sky",
+    name: "Oceaan & Hemel",
+    description: "Zachte blauwen en aqua tinten",
+    colors: ["#dbeafe", "#bfdbfe", "#a5f3fc", "#cffafe", "#e0f2fe"],
   },
   {
-    id: "mint-light",
-    name: "Lichte Mint",
-    description: "Zeer licht groen - fris en kalmerend",
-    primary: "#d1fae5",
-    variant: "tint" as const,
+    id: "spring-garden",
+    name: "Lente Tuin",
+    description: "Frisse groentinten en geel",
+    colors: ["#d1fae5", "#bbf7d0", "#fef3c7", "#fde68a", "#d9f99d"],
   },
   {
-    id: "lemon-soft",
-    name: "Zachte Citroen",
-    description: "Zeer licht geel - warm en vrolijk",
-    primary: "#fef3c7",
-    variant: "tint" as const,
+    id: "sunset-peach",
+    name: "Zonsondergang",
+    description: "Warme perzik en roze tinten",
+    colors: ["#fed7aa", "#fecaca", "#fce7f3", "#fbcfe8", "#fee2e2"],
   },
   {
-    id: "peach-light",
-    name: "Lichte Perzik",
-    description: "Zeer licht oranje - uitnodigend en zacht",
-    primary: "#fee2e2",
-    variant: "tint" as const,
+    id: "lavender-dream",
+    name: "Lavendel Droom",
+    description: "Zachte paarse en blauwe tinten",
+    colors: ["#f3e8ff", "#e9d5ff", "#ddd6fe", "#c7d2fe", "#e0e7ff"],
   },
   {
-    id: "rose-soft",
-    name: "Zachte Roos",
-    description: "Zeer licht roze - vriendelijk en warm",
-    primary: "#fce7f3",
-    variant: "tint" as const,
+    id: "mint-cream",
+    name: "Mint & Crème",
+    description: "Lichte mint en aqua tinten",
+    colors: ["#d1fae5", "#cffafe", "#e0f2fe", "#dbeafe", "#bfdbfe"],
   },
   {
-    id: "lavender-light",
-    name: "Lichte Lavendel",
-    description: "Zeer licht paars - rustig en elegant",
-    primary: "#f3e8ff",
-    variant: "tint" as const,
+    id: "candy-shop",
+    name: "Snoepwinkel",
+    description: "Speelse pastel kleuren mix",
+    colors: ["#fbcfe8", "#fce7f3", "#e9d5ff", "#ddd6fe", "#c7d2fe"],
   },
   {
-    id: "aqua-light",
-    name: "Lichte Aqua",
-    description: "Zeer licht turquoise - helder en fris",
-    primary: "#cffafe",
-    variant: "tint" as const,
+    id: "lemon-sorbet",
+    name: "Citroen Sorbet",
+    description: "Frisse gele en groene tinten",
+    colors: ["#fef3c7", "#fde68a", "#fef08a", "#d9f99d", "#dcfce7"],
   },
   {
-    id: "sage-soft",
-    name: "Zachte Salie",
-    description: "Zeer licht salie groen - natuurlijk en kalm",
-    primary: "#dcfce7",
-    variant: "tint" as const,
+    id: "coral-reef",
+    name: "Koraalrif",
+    description: "Zachte koraal en perzik tinten",
+    colors: ["#fed7aa", "#fecaca", "#fee2e2", "#fef3c7", "#fde68a"],
   },
 ];
 
 export default function ThemePreview() {
   const [selectedTheme, setSelectedTheme] = useState(themes[0]);
 
-  const applyTheme = async (theme: typeof themes[0]) => {
+  const applyTheme = async (theme: Theme) => {
     await fetch('/api/theme', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        variant: theme.variant,
-        primary: theme.primary,
+        variant: "tint",
+        primary: theme.colors[2],
         appearance: "light",
-        radius: 0.75
+        radius: 0.75,
+        colors: theme.colors
       })
     });
     
@@ -82,25 +82,21 @@ export default function ThemePreview() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold mb-3 text-gray-800">
             Kies jouw kleurthema
           </h1>
-          <p className="text-gray-600 text-lg">Zeer lichte pastel kleuren - perfect voor vriendelijke menu's</p>
+          <p className="text-gray-600 text-lg">Elk thema heeft 5 harmonieuze lichte pastel kleuren</p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
           {themes.map((theme) => (
             <Card 
               key={theme.id}
               className={`cursor-pointer transition-all hover:shadow-lg ${
-                selectedTheme.id === theme.id ? 'ring-2' : ''
+                selectedTheme.id === theme.id ? 'ring-2 ring-blue-400' : ''
               }`}
-              style={{
-                borderColor: selectedTheme.id === theme.id ? theme.primary : undefined,
-                ringColor: selectedTheme.id === theme.id ? theme.primary : undefined,
-              }}
               onClick={() => setSelectedTheme(theme)}
             >
               <CardHeader>
@@ -109,7 +105,7 @@ export default function ThemePreview() {
                     <CardTitle className="flex items-center gap-2">
                       {theme.name}
                       {selectedTheme.id === theme.id && (
-                        <Check className="h-5 w-5" style={{ color: theme.primary }} />
+                        <Check className="h-5 w-5 text-blue-600" />
                       )}
                     </CardTitle>
                     <CardDescription className="mt-1">{theme.description}</CardDescription>
@@ -118,50 +114,53 @@ export default function ThemePreview() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* Grote kleur preview */}
+                  {/* Gradient preview zoals in menu's */}
                   <div 
-                    className="h-24 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: theme.primary }}
+                    className="h-20 rounded-xl flex items-center justify-center border-2 border-white/30"
+                    style={{ 
+                      background: `linear-gradient(135deg, ${theme.colors.join(', ')})`,
+                      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
+                    }}
                   >
-                    <span className="text-white font-bold text-xl drop-shadow-lg">
-                      {theme.name}
+                    <span className="text-white font-bold text-lg drop-shadow-lg">
+                      Menu Voorbeeld
                     </span>
+                  </div>
+
+                  {/* Horizontale gradient zoals in tab bar */}
+                  <div 
+                    className="h-12 rounded-lg flex items-center justify-center"
+                    style={{ 
+                      background: `linear-gradient(90deg, ${theme.colors[0]}, ${theme.colors[2]}, ${theme.colors[4]})`,
+                    }}
+                  >
+                    <span className="text-gray-700 font-semibold text-sm">
+                      Tab Bar Voorbeeld
+                    </span>
+                  </div>
+
+                  {/* Kleurenpalet - 5 kleuren */}
+                  <div className="grid grid-cols-5 gap-2">
+                    {theme.colors.map((color, index) => (
+                      <div 
+                        key={index}
+                        className="h-16 rounded-lg border-2 border-gray-200 flex items-center justify-center"
+                        style={{ backgroundColor: color }}
+                      >
+                        <span className="text-xs font-semibold text-gray-700">{index + 1}</span>
+                      </div>
+                    ))}
                   </div>
 
                   {/* Button voorbeeld */}
                   <Button 
                     className="w-full text-white font-semibold"
-                    style={{ backgroundColor: theme.primary }}
+                    style={{ 
+                      background: `linear-gradient(135deg, ${theme.colors[1]}, ${theme.colors[3]})`,
+                    }}
                   >
                     Voorbeeld Button
                   </Button>
-
-                  {/* Kleine kleurpalett */}
-                  <div className="grid grid-cols-5 gap-2">
-                    <div 
-                      className="h-10 rounded" 
-                      style={{ backgroundColor: theme.primary, opacity: 0.3 }}
-                      title="Lichter"
-                    />
-                    <div 
-                      className="h-10 rounded" 
-                      style={{ backgroundColor: theme.primary, opacity: 0.5 }}
-                    />
-                    <div 
-                      className="h-10 rounded border-2 border-gray-300" 
-                      style={{ backgroundColor: theme.primary }}
-                      title="Hoofdkleur"
-                    />
-                    <div 
-                      className="h-10 rounded" 
-                      style={{ backgroundColor: theme.primary, filter: 'brightness(0.8)' }}
-                    />
-                    <div 
-                      className="h-10 rounded" 
-                      style={{ backgroundColor: theme.primary, filter: 'brightness(0.6)' }}
-                      title="Donkerder"
-                    />
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -172,14 +171,16 @@ export default function ThemePreview() {
           <Button 
             size="lg"
             className="text-white font-semibold px-8"
-            style={{ backgroundColor: selectedTheme.primary }}
+            style={{ 
+              background: `linear-gradient(135deg, ${selectedTheme.colors.join(', ')})`,
+            }}
             onClick={() => applyTheme(selectedTheme)}
           >
             <Check className="mr-2 h-5 w-5" />
             Kies {selectedTheme.name}
           </Button>
           <p className="text-sm text-gray-500 mt-3">
-            De app wordt opnieuw geladen met je nieuwe kleurthema
+            De app wordt opnieuw geladen met je nieuwe kleurenpalet
           </p>
         </div>
       </div>

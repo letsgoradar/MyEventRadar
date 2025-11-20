@@ -1,13 +1,13 @@
 {
   "variant": "tint",
-  "primary": "#fef3c7",
+  "primary": "#fee2e2",
   "appearance": "light",
   "radius": 0.75,
   "colors": [
-    "#d1fae5",
-    "#bbf7d0",
+    "#fed7aa",
+    "#fecaca",
+    "#fee2e2",
     "#fef3c7",
-    "#fde68a",
-    "#d9f99d"
+    "#fde68a"
   ]
 }

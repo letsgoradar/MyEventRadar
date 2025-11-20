@@ -8,6 +8,7 @@ interface Theme {
   name: string;
   description: string;
   colors: string[];
+  textColor: string;
 }
 
 const themes: Theme[] = [
@@ -16,48 +17,84 @@ const themes: Theme[] = [
     name: "Oceaan & Hemel",
     description: "Zachte blauwen en aqua tinten",
     colors: ["#dbeafe", "#bfdbfe", "#a5f3fc", "#cffafe", "#e0f2fe"],
+    textColor: "#1e3a8a",
   },
   {
     id: "spring-garden",
     name: "Lente Tuin",
     description: "Frisse groentinten en geel",
     colors: ["#d1fae5", "#bbf7d0", "#fef3c7", "#fde68a", "#d9f99d"],
+    textColor: "#14532d",
   },
   {
     id: "sunset-peach",
     name: "Zonsondergang",
     description: "Warme perzik en roze tinten",
     colors: ["#fed7aa", "#fecaca", "#fce7f3", "#fbcfe8", "#fee2e2"],
+    textColor: "#9f1239",
   },
   {
     id: "lavender-dream",
     name: "Lavendel Droom",
     description: "Zachte paarse en blauwe tinten",
     colors: ["#f3e8ff", "#e9d5ff", "#ddd6fe", "#c7d2fe", "#e0e7ff"],
+    textColor: "#4c1d95",
+  },
+  {
+    id: "neutral-sand",
+    name: "Neutraal Zand",
+    description: "Warme beige en crème tinten",
+    colors: ["#fef3c7", "#fef9e7", "#fef3c7", "#fde68a", "#fef08a"],
+    textColor: "#78350f",
+  },
+  {
+    id: "soft-gray",
+    name: "Zachte Grijs",
+    description: "Neutrale grijstinten",
+    colors: ["#f3f4f6", "#e5e7eb", "#f9fafb", "#f3f4f6", "#e5e7eb"],
+    textColor: "#1f2937",
+  },
+  {
+    id: "warm-taupe",
+    name: "Warm Taupe",
+    description: "Warme neutrale bruintinten",
+    colors: ["#f5f5f4", "#e7e5e4", "#fafaf9", "#f5f5f4", "#e7e5e4"],
+    textColor: "#44403c",
+  },
+  {
+    id: "cool-slate",
+    name: "Koele Lei",
+    description: "Koele blauwig grijze tinten",
+    colors: ["#f1f5f9", "#e2e8f0", "#f8fafc", "#f1f5f9", "#e2e8f0"],
+    textColor: "#334155",
   },
   {
     id: "mint-cream",
     name: "Mint & Crème",
     description: "Lichte mint en aqua tinten",
     colors: ["#d1fae5", "#cffafe", "#e0f2fe", "#dbeafe", "#bfdbfe"],
+    textColor: "#064e3b",
   },
   {
-    id: "candy-shop",
-    name: "Snoepwinkel",
-    description: "Speelse pastel kleuren mix",
-    colors: ["#fbcfe8", "#fce7f3", "#e9d5ff", "#ddd6fe", "#c7d2fe"],
+    id: "soft-rose",
+    name: "Zachte Roos",
+    description: "Zeer lichte roze tinten",
+    colors: ["#fce7f3", "#fbcfe8", "#fef3c7", "#fed7aa", "#fee2e2"],
+    textColor: "#881337",
   },
   {
-    id: "lemon-sorbet",
-    name: "Citroen Sorbet",
-    description: "Frisse gele en groene tinten",
-    colors: ["#fef3c7", "#fde68a", "#fef08a", "#d9f99d", "#dcfce7"],
+    id: "cream-white",
+    name: "Crème Wit",
+    description: "Bijna witte neutrale tinten",
+    colors: ["#fefefe", "#fafafa", "#f9fafb", "#fefefe", "#fafafa"],
+    textColor: "#0f172a",
   },
   {
-    id: "coral-reef",
-    name: "Koraalrif",
-    description: "Zachte koraal en perzik tinten",
-    colors: ["#fed7aa", "#fecaca", "#fee2e2", "#fef3c7", "#fde68a"],
+    id: "pale-blue",
+    name: "Bleek Blauw",
+    description: "Zeer zachte blauwe tinten",
+    colors: ["#eff6ff", "#dbeafe", "#f0f9ff", "#e0f2fe", "#dbeafe"],
+    textColor: "#1e40af",
   },
 ];
 
@@ -73,7 +110,8 @@ export default function ThemePreview() {
         primary: theme.colors[2],
         appearance: "light",
         radius: 0.75,
-        colors: theme.colors
+        colors: theme.colors,
+        textColor: theme.textColor
       })
     });
     
@@ -119,10 +157,11 @@ export default function ThemePreview() {
                     className="h-20 rounded-xl flex items-center justify-center border-2 border-white/30"
                     style={{ 
                       background: `linear-gradient(135deg, ${theme.colors.join(', ')})`,
-                      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
+                      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+                      color: theme.textColor
                     }}
                   >
-                    <span className="text-white font-bold text-lg drop-shadow-lg">
+                    <span className="font-bold text-lg drop-shadow-sm">
                       Menu Voorbeeld
                     </span>
                   </div>
@@ -132,9 +171,10 @@ export default function ThemePreview() {
                     className="h-12 rounded-lg flex items-center justify-center"
                     style={{ 
                       background: `linear-gradient(90deg, ${theme.colors[0]}, ${theme.colors[2]}, ${theme.colors[4]})`,
+                      color: theme.textColor
                     }}
                   >
-                    <span className="text-gray-700 font-semibold text-sm">
+                    <span className="font-semibold text-sm">
                       Tab Bar Voorbeeld
                     </span>
                   </div>

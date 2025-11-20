@@ -89,20 +89,20 @@
   
   .fixed.bottom-0 .text-muted-foreground,
   .fixed.bottom-0 a {
-    color: rgba(255, 255, 255, 0.8) !important;
+    color: var(--theme-text-color, rgba(255, 255, 255, 0.8)) !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
   
   .fixed.bottom-0 .text-primary,
   .fixed.bottom-0 a.active,
   .fixed.bottom-0 .text-foreground {
-    color: white !important;
+    color: var(--theme-text-color, white) !important;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     font-weight: 600;
   }
   
   .fixed.bottom-0 .hover\:text-foreground:hover {
-    color: white !important;
+    color: var(--theme-text-color, white) !important;
   }
   
   /* Primaire knop met witte achtergrond en border */
@@ -129,7 +129,7 @@
   header.sticky.top-0 h1,
   header.sticky.top-0 button,
   header.sticky.top-0 svg {
-    color: white !important;
+    color: var(--theme-text-color, white) !important;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
   
@@ -145,13 +145,15 @@
   }
   
   [role="tab"] {
-    color: rgba(255, 255, 255, 0.75) !important;
+    color: var(--theme-text-color, rgba(255, 255, 255, 0.75)) !important;
+    opacity: 0.75;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     font-weight: 500;
   }
   
   [role="tab"][data-state="active"] {
-    color: white !important;
+    color: var(--theme-text-color, white) !important;
+    opacity: 1;
     background: rgba(255, 255, 255, 0.2) !important;
     font-weight: 700;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);

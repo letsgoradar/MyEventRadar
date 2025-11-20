@@ -15,43 +15,43 @@ const themes: Theme[] = [
   {
     id: "silver-orange",
     name: "Zilver & Oranje",
-    description: "Elegant grijs, zilver, wit en oranje",
-    colors: ["#f5f5f5", "#e5e5e5", "#fed7aa", "#d4d4d4", "#fafafa"],
+    description: "Elegant grijs, zilver en oranje",
+    colors: ["#f5f5f5", "#e5e5e5", "#fed7aa", "#d4d4d4", "#e7e5e4"],
     textColor: "#262626",
   },
   {
     id: "warm-orange-gray",
     name: "Warme Oranje Grijs",
     description: "Warmer oranje met licht grijs",
-    colors: ["#fef3c7", "#fde68a", "#e5e5e5", "#fafafa", "#f5f5f5"],
+    colors: ["#fef3c7", "#fde68a", "#e5e5e5", "#e7e5e4", "#f5f5f5"],
     textColor: "#292524",
   },
   {
     id: "cool-silver",
     name: "Koele Zilver",
-    description: "Koele zilver en witte tinten",
-    colors: ["#f8fafc", "#f1f5f9", "#e2e8f0", "#f8fafc", "#ffffff"],
+    description: "Koele zilver tinten",
+    colors: ["#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1", "#e2e8f0"],
     textColor: "#334155",
   },
   {
     id: "peach-silver",
     name: "Perzik Zilver",
-    description: "Zachte perzik met zilver en wit",
-    colors: ["#fee2e2", "#fecaca", "#e5e5e5", "#fafafa", "#ffffff"],
+    description: "Zachte perzik met zilver",
+    colors: ["#fee2e2", "#fecaca", "#e5e5e5", "#d4d4d4", "#e7e5e4"],
     textColor: "#450a0a",
   },
   {
     id: "beige-orange",
     name: "Beige Oranje",
     description: "Warme beige met oranje accent",
-    colors: ["#fef9e7", "#fef3c7", "#fed7aa", "#fafaf9", "#f5f5f4"],
+    colors: ["#fef9e7", "#fef3c7", "#fed7aa", "#e7e5e4", "#f5f5f4"],
     textColor: "#78350f",
   },
   {
     id: "light-gray",
     name: "Licht Grijs",
     description: "Pure lichte grijstinten",
-    colors: ["#fafafa", "#f5f5f5", "#e5e5e5", "#f9fafb", "#ffffff"],
+    colors: ["#f5f5f5", "#e5e5e5", "#d4d4d4", "#e7e5e4", "#f3f4f6"],
     textColor: "#171717",
   },
   {
@@ -93,21 +93,21 @@ const themes: Theme[] = [
     id: "soft-gray",
     name: "Zachte Grijs",
     description: "Neutrale grijstinten",
-    colors: ["#f3f4f6", "#e5e7eb", "#f9fafb", "#f3f4f6", "#e5e7eb"],
+    colors: ["#f3f4f6", "#e5e7eb", "#d1d5db", "#e5e7eb", "#d1d5db"],
     textColor: "#1f2937",
   },
   {
     id: "warm-taupe",
     name: "Warm Taupe",
     description: "Warme neutrale bruintinten",
-    colors: ["#f5f5f4", "#e7e5e4", "#fafaf9", "#f5f5f4", "#e7e5e4"],
+    colors: ["#f5f5f4", "#e7e5e4", "#d6d3d1", "#e7e5e4", "#d6d3d1"],
     textColor: "#44403c",
   },
   {
     id: "cool-slate",
     name: "Koele Lei",
     description: "Koele blauwig grijze tinten",
-    colors: ["#f1f5f9", "#e2e8f0", "#f8fafc", "#f1f5f9", "#e2e8f0"],
+    colors: ["#f1f5f9", "#e2e8f0", "#cbd5e1", "#e2e8f0", "#cbd5e1"],
     textColor: "#334155",
   },
   {
@@ -123,20 +123,6 @@ const themes: Theme[] = [
     description: "Zeer lichte roze tinten",
     colors: ["#fce7f3", "#fbcfe8", "#fef3c7", "#fed7aa", "#fee2e2"],
     textColor: "#881337",
-  },
-  {
-    id: "cream-white",
-    name: "Crème Wit",
-    description: "Bijna witte neutrale tinten",
-    colors: ["#fefefe", "#fafafa", "#f9fafb", "#fefefe", "#fafafa"],
-    textColor: "#0f172a",
-  },
-  {
-    id: "pale-blue",
-    name: "Bleek Blauw",
-    description: "Zeer zachte blauwe tinten",
-    colors: ["#eff6ff", "#dbeafe", "#f0f9ff", "#e0f2fe", "#dbeafe"],
-    textColor: "#1e40af",
   },
 ];
 
@@ -161,8 +147,8 @@ export default function ThemePreview() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 pb-32">
-      <div className="max-w-6xl mx-auto">
+    <div className="bg-gray-50 min-h-screen overflow-y-auto">
+      <div className="max-w-6xl mx-auto p-4 md:p-8 pb-40">
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold mb-3 text-gray-800">
             Kies jouw kleurthema

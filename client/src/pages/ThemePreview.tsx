@@ -13,6 +13,13 @@ interface Theme {
 
 const themes: Theme[] = [
   {
+    id: "silver-orange",
+    name: "Zilver & Oranje",
+    description: "Elegant grijs, zilver, wit en oranje",
+    colors: ["#f5f5f5", "#e5e5e5", "#fed7aa", "#d4d4d4", "#fafafa"],
+    textColor: "#262626",
+  },
+  {
     id: "ocean-sky",
     name: "Oceaan & Hemel",
     description: "Zachte blauwen en aqua tinten",

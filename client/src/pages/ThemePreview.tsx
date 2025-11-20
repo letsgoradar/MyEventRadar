@@ -7,15 +7,36 @@ const themes = [
   {
     id: "sky-blue",
     name: "Hemel Blauw",
-    description: "Zachte blauwe tinten zoals de lucht",
+    description: "Frisse blauwe tinten",
     primary: "#0ea5e9",
+    variant: "tint" as const,
+  },
+  {
+    id: "ocean-blue",
+    name: "Oceaan Blauw",
+    description: "Diepe blauwe tinten",
+    primary: "#0284c7",
     variant: "tint" as const,
   },
   {
     id: "emerald-green",
     name: "Smaragd Groen",
-    description: "Rustig groen zoals een bos",
+    description: "Rustig bosgroen",
     primary: "#10b981",
+    variant: "tint" as const,
+  },
+  {
+    id: "teal-aqua",
+    name: "Teal Aqua",
+    description: "Fris blauw-groen",
+    primary: "#14b8a6",
+    variant: "tint" as const,
+  },
+  {
+    id: "lime-fresh",
+    name: "Fris Limoen",
+    description: "Levendige groene tinten",
+    primary: "#84cc16",
     variant: "tint" as const,
   },
   {
@@ -26,10 +47,45 @@ const themes = [
     variant: "tint" as const,
   },
   {
+    id: "orange-sunset",
+    name: "Oranje Zonsondergang",
+    description: "Warme oranje tinten",
+    primary: "#f97316",
+    variant: "tint" as const,
+  },
+  {
+    id: "rose-pink",
+    name: "Zacht Roze",
+    description: "Zachte roze tinten",
+    primary: "#f43f5e",
+    variant: "tint" as const,
+  },
+  {
+    id: "purple-lavender",
+    name: "Paars Lavendel",
+    description: "Rustige paarse tinten",
+    primary: "#a855f7",
+    variant: "tint" as const,
+  },
+  {
+    id: "indigo-deep",
+    name: "Diep Indigo",
+    description: "Rijke indigo kleuren",
+    primary: "#6366f1",
+    variant: "tint" as const,
+  },
+  {
     id: "slate-gray",
     name: "Zachte Grijs",
-    description: "Neutrale grijstinten - modern en rustig",
+    description: "Neutrale grijstinten",
     primary: "#64748b",
+    variant: "tint" as const,
+  },
+  {
+    id: "red-ruby",
+    name: "Robijn Rood",
+    description: "Krachtige rode tinten",
+    primary: "#dc2626",
     variant: "tint" as const,
   },
 ];
@@ -62,7 +118,7 @@ export default function ThemePreview() {
           <p className="text-gray-600 text-lg">Deze kleuren worden echt toegepast in de hele app</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
           {themes.map((theme) => (
             <Card 
               key={theme.id}

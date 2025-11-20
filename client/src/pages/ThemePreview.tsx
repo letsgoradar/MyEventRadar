@@ -5,87 +5,59 @@ import { Check, Map, PlusCircle, Bookmark } from "lucide-react";
 
 const themes = [
   {
-    id: "pastel-sky",
-    name: "Pastel Lucht",
-    description: "Zachte hemelblauwe tinten",
-    primary: "#7dd3fc",
+    id: "ocean-breeze",
+    name: "Oceaan Bries",
+    description: "Licht blauw - fris en kalm zoals de zee",
+    primary: "#bae6fd",
     variant: "tint" as const,
   },
   {
-    id: "pastel-mint",
-    name: "Pastel Mint",
-    description: "Vriendelijk mint groen",
-    primary: "#6ee7b7",
+    id: "spring-meadow",
+    name: "Lente Weide",
+    description: "Licht groen - vriendelijk en natuurlijk",
+    primary: "#bbf7d0",
     variant: "tint" as const,
   },
   {
-    id: "pastel-peach",
-    name: "Pastel Perzik",
-    description: "Warme zachte perzik",
+    id: "soft-sunrise",
+    name: "Zachte Zonsopgang",
+    description: "Licht geel - warm en vrolijk",
+    primary: "#fef08a",
+    variant: "tint" as const,
+  },
+  {
+    id: "gentle-peach",
+    name: "Zacht Perzik",
+    description: "Licht oranje - uitnodigend en warm",
     primary: "#fed7aa",
     variant: "tint" as const,
   },
   {
-    id: "pastel-lavender",
-    name: "Pastel Lavendel",
-    description: "Rustige lila tinten",
-    primary: "#c4b5fd",
+    id: "cotton-candy",
+    name: "Suikerspin",
+    description: "Licht roze - speels en vriendelijk",
+    primary: "#fbcfe8",
     variant: "tint" as const,
   },
   {
-    id: "pastel-aqua",
-    name: "Pastel Aqua",
-    description: "Fris turquoise blauw",
-    primary: "#5eead4",
+    id: "lavender-dream",
+    name: "Lavendel Droom",
+    description: "Licht paars - rustig en elegant",
+    primary: "#e9d5ff",
     variant: "tint" as const,
   },
   {
-    id: "pastel-coral",
-    name: "Pastel Koraal",
-    description: "Zachte koraal roze",
-    primary: "#fecaca",
+    id: "aqua-mist",
+    name: "Aqua Mist",
+    description: "Licht turquoise - fris en helder",
+    primary: "#a5f3fc",
     variant: "tint" as const,
   },
   {
-    id: "pastel-sage",
-    name: "Pastel Salie",
-    description: "Rustgevend salie groen",
-    primary: "#86efac",
-    variant: "tint" as const,
-  },
-  {
-    id: "pastel-lemon",
-    name: "Pastel Citroen",
-    description: "Vriendelijk licht geel",
-    primary: "#fde047",
-    variant: "tint" as const,
-  },
-  {
-    id: "pastel-lilac",
-    name: "Pastel Lila",
-    description: "Zachte paarse tinten",
-    primary: "#d8b4fe",
-    variant: "tint" as const,
-  },
-  {
-    id: "pastel-rose",
-    name: "Pastel Roos",
-    description: "Vriendelijk roze",
-    primary: "#fda4af",
-    variant: "tint" as const,
-  },
-  {
-    id: "pastel-sky-indigo",
-    name: "Pastel Indigo",
-    description: "Zachte indigo blauw",
-    primary: "#a5b4fc",
-    variant: "tint" as const,
-  },
-  {
-    id: "pastel-seafoam",
-    name: "Pastel Zeeschuim",
-    description: "Rustig blauw-groen",
-    primary: "#67e8f9",
+    id: "mint-cream",
+    name: "Mint Crème",
+    description: "Licht mint - kalm en verfrissend",
+    primary: "#d1fae5",
     variant: "tint" as const,
   },
 ];
@@ -115,10 +87,10 @@ export default function ThemePreview() {
           <h1 className="text-4xl md:text-5xl font-bold mb-3 text-gray-800">
             Kies jouw kleurthema
           </h1>
-          <p className="text-gray-600 text-lg">Vriendelijke pastel kleuren voor een zachte uitstraling</p>
+          <p className="text-gray-600 text-lg">Extra lichte pastel kleuren - zacht en vriendelijk</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {themes.map((theme) => (
             <Card 
               key={theme.id}

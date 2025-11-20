@@ -5,59 +5,59 @@ import { Check, Map, PlusCircle, Bookmark } from "lucide-react";
 
 const themes = [
   {
-    id: "ocean-breeze",
-    name: "Oceaan Bries",
-    description: "Licht blauw - fris en kalm zoals de zee",
-    primary: "#bae6fd",
+    id: "sky-soft",
+    name: "Zachte Lucht",
+    description: "Zeer licht blauw - vriendelijk en rustig",
+    primary: "#dbeafe",
     variant: "tint" as const,
   },
   {
-    id: "spring-meadow",
-    name: "Lente Weide",
-    description: "Licht groen - vriendelijk en natuurlijk",
-    primary: "#bbf7d0",
-    variant: "tint" as const,
-  },
-  {
-    id: "soft-sunrise",
-    name: "Zachte Zonsopgang",
-    description: "Licht geel - warm en vrolijk",
-    primary: "#fef08a",
-    variant: "tint" as const,
-  },
-  {
-    id: "gentle-peach",
-    name: "Zacht Perzik",
-    description: "Licht oranje - uitnodigend en warm",
-    primary: "#fed7aa",
-    variant: "tint" as const,
-  },
-  {
-    id: "cotton-candy",
-    name: "Suikerspin",
-    description: "Licht roze - speels en vriendelijk",
-    primary: "#fbcfe8",
-    variant: "tint" as const,
-  },
-  {
-    id: "lavender-dream",
-    name: "Lavendel Droom",
-    description: "Licht paars - rustig en elegant",
-    primary: "#e9d5ff",
-    variant: "tint" as const,
-  },
-  {
-    id: "aqua-mist",
-    name: "Aqua Mist",
-    description: "Licht turquoise - fris en helder",
-    primary: "#a5f3fc",
-    variant: "tint" as const,
-  },
-  {
-    id: "mint-cream",
-    name: "Mint Crème",
-    description: "Licht mint - kalm en verfrissend",
+    id: "mint-light",
+    name: "Lichte Mint",
+    description: "Zeer licht groen - fris en kalmerend",
     primary: "#d1fae5",
+    variant: "tint" as const,
+  },
+  {
+    id: "lemon-soft",
+    name: "Zachte Citroen",
+    description: "Zeer licht geel - warm en vrolijk",
+    primary: "#fef3c7",
+    variant: "tint" as const,
+  },
+  {
+    id: "peach-light",
+    name: "Lichte Perzik",
+    description: "Zeer licht oranje - uitnodigend en zacht",
+    primary: "#fee2e2",
+    variant: "tint" as const,
+  },
+  {
+    id: "rose-soft",
+    name: "Zachte Roos",
+    description: "Zeer licht roze - vriendelijk en warm",
+    primary: "#fce7f3",
+    variant: "tint" as const,
+  },
+  {
+    id: "lavender-light",
+    name: "Lichte Lavendel",
+    description: "Zeer licht paars - rustig en elegant",
+    primary: "#f3e8ff",
+    variant: "tint" as const,
+  },
+  {
+    id: "aqua-light",
+    name: "Lichte Aqua",
+    description: "Zeer licht turquoise - helder en fris",
+    primary: "#cffafe",
+    variant: "tint" as const,
+  },
+  {
+    id: "sage-soft",
+    name: "Zachte Salie",
+    description: "Zeer licht salie groen - natuurlijk en kalm",
+    primary: "#dcfce7",
     variant: "tint" as const,
   },
 ];
@@ -87,7 +87,7 @@ export default function ThemePreview() {
           <h1 className="text-4xl md:text-5xl font-bold mb-3 text-gray-800">
             Kies jouw kleurthema
           </h1>
-          <p className="text-gray-600 text-lg">Extra lichte pastel kleuren - zacht en vriendelijk</p>
+          <p className="text-gray-600 text-lg">Zeer lichte pastel kleuren - perfect voor vriendelijke menu's</p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

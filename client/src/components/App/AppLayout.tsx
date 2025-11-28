@@ -182,9 +182,26 @@ export function AppLayout({
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   // Sortering van evenementen (alleen tijd-based)
   const [sortDirection, setSortDirection] = React.useState<SortDirection>("asc");
+  // Search dropdown visibility
+  const [isSearchFocused, setIsSearchFocused] = React.useState<boolean>(false);
+  const searchContainerRef = React.useRef<HTMLDivElement>(null);
   
   // Bewaar de oorspronkelijke evenementen
   const [originalEvents, setOriginalEvents] = React.useState<Event[]>([]);
+  
+  // Close search dropdown when clicking outside
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchFocused(false);
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   // Sla de originele evenementen op wanneer ze voor het eerst binnenkomen
   React.useEffect(() => {
@@ -409,7 +426,7 @@ export function AppLayout({
       {!isProfilePage && !hideSearchAndFilters && (
         <div className="container mt-2 px-4">
           <div className="flex gap-2 mb-3">
-            <div className="relative flex-1">
+            <div className="relative flex-1" ref={searchContainerRef}>
               <div className="relative">
                 <Input
                   placeholder="Zoek evenementen..."
@@ -417,11 +434,12 @@ export function AppLayout({
                   onChange={handleSearchChange}
                   className="pl-9 pr-4 h-10 w-full border-gray-300"
                   onKeyDown={(e) => e.key === "Enter" && onSearch && onSearch(searchQuery)}
+                  onFocus={() => setIsSearchFocused(true)}
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                 
                 {/* Live zoekresultaten dropdown */}
-                {searchQuery.trim() !== "" && (
+                {searchQuery.trim() !== "" && isSearchFocused && (
                   <div 
                     className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white"
                     style={{ 
@@ -434,7 +452,10 @@ export function AppLayout({
                       <div className="space-y-1">
                         {/* Zoek naar knop */}
                         <div 
-                          onClick={() => onSearch && onSearch(searchQuery)}
+                          onClick={() => {
+                            onSearch && onSearch(searchQuery);
+                            setIsSearchFocused(false);
+                          }}
                           className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-100 flex items-center gap-2"
                         >
                           <Search className="h-4 w-4 text-muted-foreground" />
@@ -463,6 +484,7 @@ export function AppLayout({
                                   onClick={() => {
                                     if (onEventClick) {
                                       onEventClick(event);
+                                      setIsSearchFocused(false);
                                     }
                                   }}
                                   className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-50"
@@ -509,7 +531,10 @@ export function AppLayout({
                                 {recentSearches.slice(0, 5).map((search: string, index: number) => (
                                   <div 
                                     key={index}
-                                    onClick={() => onSearch && onSearch(search)}
+                                    onClick={() => {
+                                      onSearch && onSearch(search);
+                                      setIsSearchFocused(false);
+                                    }}
                                     className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-50"
                                   >
                                     <div className="flex items-center gap-2">

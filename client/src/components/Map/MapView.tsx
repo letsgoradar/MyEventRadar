@@ -216,6 +216,7 @@ interface MapViewProps {
   onZoomChange?: (zoom: number) => void;
   showExpiredEvents?: boolean;
   onShowExpiredEventsChange?: (showExpired: boolean) => void;
+  selectedEventId?: number | null;
 }
 
 export default function MapView({ 
@@ -228,7 +229,8 @@ export default function MapView({
   onBoundsChange: propOnBoundsChange,
   onZoomChange: propOnZoomChange,
   showExpiredEvents: propShowExpiredEvents,
-  onShowExpiredEventsChange
+  onShowExpiredEventsChange,
+  selectedEventId: propSelectedEventId
 }: MapViewProps) {
   // State voor locatie van gebruiker
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
@@ -279,6 +281,13 @@ export default function MapView({
     }
   }, []);
   
+  // Sync de interne selectedEvent state met de externe prop
+  React.useEffect(() => {
+    if (propSelectedEventId === null || propSelectedEventId === undefined) {
+      setSelectedEvent(null);
+    }
+  }, [propSelectedEventId]);
+
   // Houd de showExpiredEvents state gesynchroniseerd met de prop
   React.useEffect(() => {
     if (propShowExpiredEvents !== undefined) {

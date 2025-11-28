@@ -115,6 +115,7 @@ export function AppHomePage() {
         onEventClick={handleEventClick}
         selectedDays={selectedDays}
         onSelectedDaysChange={setSelectedDays}
+        selectedEventId={selectedEvent?.id ?? null}
       >
         {/* Toon EventList component - altijd in tegelweergave */}
         <EventList 

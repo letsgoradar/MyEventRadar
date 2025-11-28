@@ -143,11 +143,12 @@ interface AppLayoutProps {
   hideBackButton?: boolean;
   showBackButton?: boolean;
   backTo?: string;
-  hideSearchAndFilters?: boolean; // Nieuwe parameter om zoek en filters te verbergen
-  onEventClick?: (event: Event) => void; // Voor overlay mode ondersteuning
-  hideViewToggle?: boolean; // Verberg lijst/kaart toggle (voor app - alleen kaart)
+  hideSearchAndFilters?: boolean;
+  onEventClick?: (event: Event) => void;
+  hideViewToggle?: boolean;
   selectedDays?: Date[];
   onSelectedDaysChange?: React.Dispatch<React.SetStateAction<Date[]>>;
+  selectedEventId?: number | null;
 }
 
 export function AppLayout({
@@ -172,6 +173,7 @@ export function AppLayout({
   hideViewToggle = false,
   selectedDays,
   onSelectedDaysChange,
+  selectedEventId,
 }: AppLayoutProps) {
   // Als hideViewToggle=true, forceer map view
   const [view, setView] = React.useState<"list" | "map">(hideViewToggle ? "map" : defaultView);
@@ -456,24 +458,30 @@ export function AppLayout({
                                 Overeenkomende evenementen
                               </div>
                               {matchingEvents.slice(0, 5).map(event => (
-                                <Link href={`/app/event/${event.id}`} key={event.id}>
-                                  <div className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-50">
-                                    <div className="flex items-center gap-2">
-                                      <CategoryIcon category={event.category as typeof CATEGORIES[number]} className="h-5 w-5" />
-                                      <div className="flex-1 flex flex-col">
-                                        <span className="font-medium text-sm">{event.title}</span>
-                                        <span className="text-xs text-muted-foreground truncate">
-                                          {new Date(event.startTime).toLocaleDateString('nl-NL', {
-                                            day: 'numeric',
-                                            month: 'short',
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                          })}
-                                        </span>
-                                      </div>
+                                <div 
+                                  key={event.id}
+                                  onClick={() => {
+                                    if (onEventClick) {
+                                      onEventClick(event);
+                                    }
+                                  }}
+                                  className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-50"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <CategoryIcon category={event.category as typeof CATEGORIES[number]} className="h-5 w-5" />
+                                    <div className="flex-1 flex flex-col">
+                                      <span className="font-medium text-sm">{event.title}</span>
+                                      <span className="text-xs text-muted-foreground truncate">
+                                        {new Date(event.startTime).toLocaleDateString('nl-NL', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}
+                                      </span>
                                     </div>
                                   </div>
-                                </Link>
+                                </div>
                               ))}
                               {matchingEvents.length > 5 && (
                                 <div className="text-xs text-muted-foreground px-3 py-2 border-t border-border">
@@ -598,6 +606,7 @@ export function AppLayout({
               searchQuery={searchQuery} 
               hideZoomControls={true}
               onEventClick={onEventClick}
+              selectedEventId={selectedEventId}
             />
             
             {/* Floating Filter knop - linksboven */}

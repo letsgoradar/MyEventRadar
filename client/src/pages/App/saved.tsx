@@ -38,7 +38,7 @@ export function AppSavedPage() {
   }, [favoriteEvents, participatingEvents]);
 
   const displayEvents = React.useMemo(() => {
-    if (activeTab === "favorites") return favoriteEvents;
+    if (activeTab === "saved") return favoriteEvents;
     if (activeTab === "participating") return participatingEvents;
     return allEvents;
   }, [activeTab, favoriteEvents, participatingEvents, allEvents]);
@@ -100,7 +100,7 @@ export function AppSavedPage() {
                 <TabsTrigger value="all" className="text-xs">
                   Alle ({allEvents.length})
                 </TabsTrigger>
-                <TabsTrigger value="favorites" className="text-xs">
+                <TabsTrigger value="saved" className="text-xs">
                   <Bookmark className="h-3.5 w-3.5 mr-1" />
                   Opgeslagen ({favoriteEvents.length})
                 </TabsTrigger>

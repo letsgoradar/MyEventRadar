@@ -91,7 +91,7 @@ export function WebSavedPage() {
       >
         <div className="relative h-40 overflow-hidden">
           <img 
-            src={event.imageUrl || getSmartImage(event.title || '', event.description || '')}
+            src={event.imageUrl || getSmartImage(event.title || '', event.description || '').image || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&h=300&fit=crop'}
             alt={event.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             onError={(e) => {

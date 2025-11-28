@@ -1,13 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { Search, Star, Calendar, User, Heart } from "lucide-react";
+import { Search, Bookmark, Calendar, User } from "lucide-react";
 import { useTranslation } from 'react-i18next';
 
 const NAV_ITEMS = [
-  { icon: Search, label: "Search", href: "/" },
-  { icon: Star, label: "Saved", href: "/saved" },
-  { icon: Heart, label: "Favorites", href: "/favorites" },
-  { icon: Calendar, label: "My Events", href: "/my-events" },
-  { icon: User, label: "Account", href: "/profile" },
+  { icon: Search, label: "Zoeken", href: "/" },
+  { icon: Bookmark, label: "Opgeslagen", href: "/saved" },
+  { icon: Calendar, label: "Mijn Events", href: "/my-events" },
+  { icon: User, label: "Profiel", href: "/profile" },
 ];
 
 export default function MobileNav() {
@@ -15,7 +14,7 @@ export default function MobileNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-3 shadow-lg">
-      <div className="grid grid-cols-5 gap-1 h-full">
+      <div className="grid grid-cols-4 gap-1 h-full">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href;

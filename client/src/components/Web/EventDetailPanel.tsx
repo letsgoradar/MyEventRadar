@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "wouter";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Heart, UserPlus, Navigation } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Bookmark, UserPlus, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import CategoryIcon from "@/components/Events/CategoryIcon";
@@ -240,8 +240,8 @@ export function EventDetailPanel({
             </Button>
             
             <Button variant="outline">
-              <Heart className="h-4 w-4 mr-2" />
-              Favoriet
+              <Bookmark className="h-4 w-4 mr-2" />
+              Opslaan
             </Button>
             
             <Button variant="outline">

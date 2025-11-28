@@ -515,7 +515,7 @@ export function EventDetailPanel({
             disabled={toggleParticipantMutation.isPending}
           >
             <UserPlus className="h-4 w-4 mr-2" />
-            {isParticipating ? 'Aangemeld' : 'Deelnemen'}
+            {isParticipating ? 'Aangemeld' : 'Aanmelden'}
           </Button>
           
           <Button 

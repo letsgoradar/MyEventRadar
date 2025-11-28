@@ -287,7 +287,7 @@ export function App2EventDetail() {
             
             <div className="pt-6">
               <Button className="w-full" size="lg">
-                Deelnemen
+                Aanmelden
               </Button>
             </div>
           </div>

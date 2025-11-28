@@ -67,7 +67,7 @@ export function AppEventsPage() {
         <Tabs defaultValue="hosting">
           <TabsList className="w-full mb-4">
             <TabsTrigger value="hosting" className="flex-1">Organiseren</TabsTrigger>
-            <TabsTrigger value="attending" className="flex-1">Deelnemen</TabsTrigger>
+            <TabsTrigger value="attending" className="flex-1">Aangemeld</TabsTrigger>
           </TabsList>
           
           <TabsContent value="hosting" className="space-y-4">

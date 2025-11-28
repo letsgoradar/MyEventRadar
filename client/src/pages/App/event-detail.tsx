@@ -557,7 +557,7 @@ export function AppEventDetail() {
               
               <div className="mt-4">
                 <Button className="w-full" size="lg">
-                  Deelnemen
+                  Aanmelden
                 </Button>
               </div>
             </div>
@@ -578,7 +578,7 @@ export function AppEventDetail() {
           </Button>
           <Button variant="ghost" size="sm" className="flex-1">
             <Users className="h-4 w-4 mr-2" />
-            Deelnemen
+            Aanmelden
           </Button>
         </div>
       </div>

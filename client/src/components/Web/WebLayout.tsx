@@ -31,6 +31,8 @@ export function WebLayout({
   const [radius, setRadius] = React.useState(propRadius || 10);
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>(propFilteredEvents || []);
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
+  // Gesynchroniseerde datum selectie state
+  const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
 
   // Update state when props change
   React.useEffect(() => {
@@ -94,6 +96,8 @@ export function WebLayout({
             onCategoriesChange={handleCategoriesChange}
             hideViewToggle={true} // Hide the toggle button in web view
             onEventClick={handleEventClick}
+            selectedDays={selectedDays}
+            onSelectedDaysChange={setSelectedDays}
           />
         </div>
         
@@ -109,6 +113,7 @@ export function WebLayout({
               filteredEvents={filteredEvents}
               onFilteredEventsChange={handleFilteredEventsChange}
               onEventClick={handleEventClick}
+              selectedDays={selectedDays}
             />
           )}
         </div>

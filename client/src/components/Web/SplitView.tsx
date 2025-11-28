@@ -9,15 +9,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "lucide-react";
-import { MonthCalendar } from "@/components/Filters/MonthCalendar";
-import { addDays, startOfDay } from "date-fns";
+import { startOfDay } from "date-fns";
 import L from "leaflet";
 
 interface SplitViewProps {
@@ -25,13 +17,15 @@ interface SplitViewProps {
   filteredEvents: Event[];
   onFilteredEventsChange?: (events: Event[]) => void;
   onEventClick?: (event: Event) => void;
+  selectedDays?: Date[];
 }
 
 export function SplitView({ 
   searchQuery, 
   filteredEvents, 
   onFilteredEventsChange,
-  onEventClick
+  onEventClick,
+  selectedDays: propSelectedDays
 }: SplitViewProps) {
   const [activeEventId, setActiveEventId] = React.useState<number | null>(null);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
@@ -40,8 +34,8 @@ export function SplitView({
   const [visibleEvents, setVisibleEvents] = React.useState<Event[]>(filteredEvents);
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   
-  // Standaard: geen datumfilter actief (lege array = alle toekomstige evenementen)
-  const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
+  // Gebruik prop selectedDays als beschikbaar, anders lege array
+  const selectedDays = propSelectedDays ?? [];
   
   // Controleer of een event is verlopen
   const isEventExpired = (event: Event): boolean => {
@@ -174,33 +168,6 @@ export function SplitView({
                 onShowExpiredEventsChange={(show) => setShowExpiredEvents(show)}
               />
               
-              {/* Floating Datum Filter Button */}
-              <div className="absolute top-4 left-4 z-[1000]">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
-                      className="shadow-lg flex items-center gap-2 bg-white hover:bg-gray-50"
-                    >
-                      <Calendar className="h-4 w-4" />
-                      <span className="font-medium">
-                        {selectedDays.length === 0 
-                          ? "Datum" 
-                          : `${selectedDays.length} ${selectedDays.length === 1 ? 'dag' : 'dagen'}`}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="p-4 w-auto" align="start">
-                    <MonthCalendar
-                      selectedDays={selectedDays}
-                      onDaysChange={setSelectedDays}
-                      showExpiredEvents={showExpiredEvents}
-                      onShowExpiredEventsChange={setShowExpiredEvents}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
             </div>
           </ResizablePanel>
           

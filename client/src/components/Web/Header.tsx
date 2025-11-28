@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { DayFilter } from "@/components/Filters/DayFilter";
+import { MonthCalendar } from "@/components/Filters/MonthCalendar";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
@@ -48,6 +48,8 @@ interface HeaderProps {
   onDateRangeChange?: (dateRange: { start: Date; end?: Date }) => void;
   hideViewToggle?: boolean;
   onEventClick?: (event: any) => void;
+  selectedDays?: Date[];
+  onSelectedDaysChange?: (days: Date[]) => void;
 }
 
 export function Header({
@@ -60,14 +62,18 @@ export function Header({
   onDateRangeChange,
   hideViewToggle = false,
   onEventClick,
+  selectedDays: propSelectedDays,
+  onSelectedDaysChange,
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = React.useState(false);
   
-  // Standaard: geen datumfilter actief (lege array = alle toekomstige evenementen)
-  const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
+  // Gebruik props als beschikbaar, anders lokale state
+  const [localSelectedDays, setLocalSelectedDays] = React.useState<Date[]>([]);
+  const selectedDays = propSelectedDays ?? localSelectedDays;
+  const setSelectedDays = onSelectedDaysChange ?? setLocalSelectedDays;
   
   // Bij wijziging van geselecteerde dagen, datum bereik doorgeven aan parent
   React.useEffect(() => {
@@ -330,7 +336,7 @@ export function Header({
           </div>
         </div>
         
-        {/* Datum filterknoppen */}
+        {/* Datum filterknoppen - MonthCalendar */}
         <div className="flex items-center ml-2">
           <Popover>
             <PopoverTrigger asChild>
@@ -344,9 +350,11 @@ export function Header({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="p-4 w-auto" align="center">
-              <DayFilter
+              <MonthCalendar
                 selectedDays={selectedDays}
                 onDaysChange={setSelectedDays}
+                showExpiredEvents={false}
+                onShowExpiredEventsChange={() => {}}
               />
             </PopoverContent>
           </Popover>

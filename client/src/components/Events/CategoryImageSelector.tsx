@@ -1,17 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { getCategoryImages } from '@/lib/categoryImages';
-import { getSmartImage, getSmartImageAlternatives, ALL_ACTIVITY_IMAGES, searchImagesByKeyword } from '@/lib/smartImageSelection';
-import { ChevronRight, ChevronLeft, Search } from 'lucide-react';
+import { Search, Loader2, RefreshCw } from 'lucide-react';
 
 interface CategoryImageSelectorProps {
-  category?: string; // Niet meer gebruikt, alleen backwards compatibility
+  category?: string;
   onSelectImage: (imageUrl: string) => void;
   defaultImage?: string;
   title?: string;
-  description?: string; // Niet meer gebruikt
+  description?: string;
 }
 
 export function CategoryImageSelector({ 
@@ -23,85 +21,82 @@ export function CategoryImageSelector({
 }: CategoryImageSelectorProps) {
   const [images, setImages] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | undefined>(defaultImage);
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [isManualSearch, setIsManualSearch] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [lastSearchedQuery, setLastSearchedQuery] = useState<string>("");
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
 
-  // Laad slimme afbeelding alternatieven gebaseerd op ALLEEN titel (niet beschrijving)
-  useEffect(() => {
-    // Skip als gebruiker handmatig aan het zoeken is
-    if (isManualSearch) return;
-    
-    console.log('CategoryImageSelector: Effect triggered', { title });
-    
-    if (title) {
-      // Gebruik slimme selectie voor 8 relevante alternatieven - ALLEEN gebaseerd op titel
-      const smartAlternatives = getSmartImageAlternatives(title, "", 8); // Lege string voor description!
-      console.log('Smart alternatives result (title only):', smartAlternatives);
-      
-      if (smartAlternatives.hasMatch && smartAlternatives.images.length > 0) {
-        // Gevonden matches - toon relevante alternatieven
-        setImages(smartAlternatives.images);
-        console.log('Setting images to smart alternatives:', smartAlternatives.images.length);
-        
-        // Gebruik primaire afbeelding als selectie
-        if (smartAlternatives.primaryImage) {
-          setSelectedImage(smartAlternatives.primaryImage);
-          // Use setTimeout to prevent callback from triggering re-renders
-          setTimeout(() => {
-            if (smartAlternatives.primaryImage) {
-              onSelectImage(smartAlternatives.primaryImage);
-            }
-          }, 0);
-          console.log(`Slimme afbeelding selectie voor "${title}": ${smartAlternatives.primaryImage}`);
-          console.log(`${smartAlternatives.images.length} relevante alternatieven geladen`);
-        }
-      } else {
-        // Geen match - gebruik eerste 8 algemene afbeeldingen
-        const fallbackImages = ALL_ACTIVITY_IMAGES.slice(0, 8);
-        setImages(fallbackImages);
-        console.log('No smart matches, using fallback images:', fallbackImages.length);
-        setSelectedImage(undefined);
-        console.log(`Geen passende afbeelding voor "${title}" - gebruik handmatig zoeken`);
-      }
-    } else {
-      // Geen titel - toon eerste 8 algemene afbeeldingen
-      const defaultImages = ALL_ACTIVITY_IMAGES.slice(0, 8);
-      setImages(defaultImages);
-      console.log('No title, using default images:', defaultImages.length);
-    }
-  }, [title]); // Alleen title, niet description!
-  
-  // Handmatige zoekfunctie
-  const handleSearch = (term: string) => {
-    setSearchTerm(term);
-    
-    if (term.trim() === "") {
-      // Leeg zoekveld - terug naar automatische selectie
-      setIsManualSearch(false);
+  const fetchUnsplashImages = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setImages([]);
       return;
     }
-    
-    setIsManualSearch(true);
-    const searchResults = searchImagesByKeyword(term, 24); // Toon meer resultaten bij zoeken
-    setImages(searchResults.images);
-    
-    if (!searchResults.hasMatch) {
-      console.log(`Geen afbeeldingen gevonden voor zoekterm "${term}"`);
-    } else {
-      console.log(`${searchResults.images.length} afbeeldingen gevonden voor zoekterm "${term}"`);
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/unsplash/search?query=${encodeURIComponent(query)}&count=12`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.photos && data.photos.length > 0) {
+          const urls = data.photos.map((photo: any) => photo.url);
+          setImages(urls);
+          setLastSearchedQuery(query);
+          setHasSearched(true);
+          
+          if (!selectedImage && urls[0]) {
+            setSelectedImage(urls[0]);
+            onSelectImage(urls[0]);
+          }
+          
+          console.log(`${urls.length} afbeeldingen gevonden voor "${query}"`);
+        } else {
+          setImages([]);
+          setHasSearched(true);
+          console.log(`Geen afbeeldingen gevonden voor "${query}"`);
+        }
+      } else {
+        console.error('Unsplash API error:', response.status);
+        setImages([]);
+        setHasSearched(true);
+      }
+    } catch (error) {
+      console.error('Fout bij ophalen afbeeldingen:', error);
+      setImages([]);
+      setHasSearched(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedImage, onSelectImage]);
+
+  useEffect(() => {
+    if (title && title !== searchQuery && !hasSearched) {
+      setSearchQuery(title);
+    }
+  }, [title, hasSearched]);
+
+  useEffect(() => {
+    if (searchQuery && searchQuery !== lastSearchedQuery) {
+      const timeoutId = setTimeout(() => {
+        fetchUnsplashImages(searchQuery);
+      }, 600);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchQuery, lastSearchedQuery, fetchUnsplashImages]);
+
+  const handleManualSearch = () => {
+    if (searchQuery.trim()) {
+      fetchUnsplashImages(searchQuery);
     }
   };
 
-  // Als er geen afbeeldingen zijn geladen
-  if (images.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-40 bg-muted rounded-md">
-        <p className="text-sm text-muted-foreground">
-          Afbeeldingen worden geladen...
-        </p>
-      </div>
-    );
-  }
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleManualSearch();
+    }
+  };
 
   const handleSelectImage = (imageUrl: string) => {
     setSelectedImage(imageUrl);
@@ -110,7 +105,6 @@ export function CategoryImageSelector({
 
   return (
     <div className="space-y-4">
-      {/* Toon geselecteerde afbeelding of AI suggestie */}
       {selectedImage ? (
         <div className="relative h-60 w-full rounded-md overflow-hidden border">
           <img 
@@ -121,73 +115,98 @@ export function CategoryImageSelector({
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center h-60 bg-muted rounded-md border border-dashed">
+          <Search className="h-8 w-8 text-muted-foreground mb-2" />
           <p className="text-sm text-muted-foreground mb-2">
-            Geen passende afbeelding gevonden
+            {isLoading ? 'Afbeeldingen zoeken...' : 'Geen afbeelding geselecteerd'}
           </p>
           <p className="text-xs text-muted-foreground text-center px-4">
-            Zoek hieronder naar een passende afbeelding
+            Het zoekveld hieronder is automatisch ingevuld met de titel van je evenement
           </p>
         </div>
       )}
 
-      {/* Zoekveld voor handmatig zoeken */}
       <div className="space-y-2">
         <p className="text-sm font-medium">
           Zoek afbeelding op trefwoord
         </p>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Bijv: voetbal, muziek, koken, yoga..."
-            value={searchTerm}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-10"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Typ een zoekterm voor afbeeldingen..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="pl-10"
+              data-testid="input-image-search"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleManualSearch}
+            disabled={isLoading || !searchQuery.trim()}
+            data-testid="button-search-images"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
         </div>
-        {isManualSearch && searchTerm && (
-          <p className="text-xs text-muted-foreground">
-            {images.length} afbeeldingen gevonden voor "{searchTerm}"
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          De zoekterm is automatisch ingevuld met de titel. Pas aan voor betere resultaten.
+        </p>
       </div>
 
-      {/* Horizontale lijst met beschikbare afbeeldingen */}
-      <div className="space-y-2">
-        <p className="text-sm text-muted-foreground">
-          {isManualSearch ? "Zoekresultaten:" : `Aanbevolen afbeeldingen (${images.length} opties):`}
-        </p>
-        <ScrollArea className="w-full">
-          <div className="flex space-x-3 pb-4">
-            {images.filter(imageUrl => imageUrl && typeof imageUrl === 'string').map((imageUrl, index) => (
-              <div 
-                key={`image-${index}-${imageUrl.substring(imageUrl.length - 10)}`}
-                className={`flex-shrink-0 relative rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200 hover:scale-105
-                  ${selectedImage === imageUrl ? 'border-primary ring-2 ring-primary/20' : 'border-muted-foreground/20 hover:border-primary/50'}`}
-                onClick={() => handleSelectImage(imageUrl)}
-              >
-                <img 
-                  src={`${imageUrl}?auto=format&fit=crop&w=200&h=200`} 
-                  alt={`Optie ${index + 1}`} 
-                  className="w-20 h-20 sm:w-24 sm:h-24 object-cover"
-                  loading="lazy"
-                  onError={(e) => {
-                    console.error(`Afbeelding ${index + 1} laadprobleem:`, imageUrl);
-                    const target = e.currentTarget;
-                    // Probeer fallback URL
-                    if (!target.src.includes('placeholder')) {
-                      target.src = `https://via.placeholder.com/200x200/e5e7eb/6b7280?text=Afbeelding+${index + 1}`;
-                    }
-                  }}
-                  onLoad={() => {
-                    console.log(`✓ Afbeelding ${index + 1} geladen`);
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-24 bg-muted rounded-md">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">Afbeeldingen zoeken op Unsplash...</span>
+        </div>
+      ) : images.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {images.length} afbeeldingen gevonden voor "{lastSearchedQuery}":
+          </p>
+          <ScrollArea className="w-full">
+            <div className="flex space-x-3 pb-4">
+              {images.map((imageUrl, index) => (
+                <div 
+                  key={`image-${index}`}
+                  className={`flex-shrink-0 relative rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200 hover:scale-105
+                    ${selectedImage === imageUrl ? 'border-primary ring-2 ring-primary/20' : 'border-muted-foreground/20 hover:border-primary/50'}`}
+                  onClick={() => handleSelectImage(imageUrl)}
+                  data-testid={`image-option-${index}`}
+                >
+                  <img 
+                    src={imageUrl} 
+                    alt={`Optie ${index + 1}`} 
+                    className="w-20 h-20 sm:w-24 sm:h-24 object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      console.error(`Afbeelding ${index + 1} laadprobleem:`, imageUrl);
+                      const target = e.currentTarget;
+                      target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      ) : hasSearched && searchQuery ? (
+        <div className="flex flex-col items-center justify-center h-24 bg-muted rounded-md">
+          <p className="text-sm text-muted-foreground">
+            Geen afbeeldingen gevonden voor "{lastSearchedQuery}"
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Probeer een andere zoekterm
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

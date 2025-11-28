@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { RefreshCw, Check, Sparkles, Undo2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { RefreshCw, Check, Search, Loader2 } from "lucide-react";
 import { getMatchingImages } from "@/lib/unsplashImageSelector";
 
 interface AutoImageSelectorProps {
@@ -21,59 +21,56 @@ export function AutoImageSelector({
 }: AutoImageSelectorProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(currentImageUrl || null);
   const [imageOptions, setImageOptions] = useState<string[]>([]);
-  const [allImages, setAllImages] = useState<string[]>([]);
-  const [hasInitialized, setHasInitialized] = useState(false);
-  const [hasRefreshed, setHasRefreshed] = useState(false);
-  const [showingAlternatives, setShowingAlternatives] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(title);
+  const [lastSearchedQuery, setLastSearchedQuery] = useState("");
 
-  // Genereer automatisch 3 foto opties wanneer titel of beschrijving wijzigen
-  useEffect(() => {
-    if (title) {
-      // Reset state wanneer titel wijzigt
-      setHasInitialized(false);
-      setHasRefreshed(false);
-      setShowingAlternatives(false);
-      
-      // Async functie om foto's op te halen
-      const fetchImages = async () => {
-        // Combineer titel en beschrijving voor betere zoekresultaten
-        const searchQuery = description ? `${title} ${description}` : title;
-        const fetchedImages = await getMatchingImages(searchQuery);
-        
-        // Bewaar ALLE afbeeldingen
-        setAllImages(fetchedImages);
-        
-        // Toon eerste 3 als opties
-        const options = fetchedImages.slice(0, 3);
-        setImageOptions(options);
-        
-        // Selecteer automatisch de eerste als er nog geen image is
-        if (!currentImageUrl && options[0]) {
-          setSelectedImage(options[0]);
-          onImageSelected(options[0]);
-        }
-        setHasInitialized(true);
-      };
-      
-      fetchImages();
-    }
-  }, [title, description]); // Luister naar titel EN beschrijving wijzigingen
-
-  const handleRefresh = () => {
-    if (hasRefreshed || allImages.length < 6) return;
+  const fetchImages = useCallback(async (query: string) => {
+    if (!query.trim()) return;
     
-    // Toon afbeelding 4-6 (index 3-5)
-    const alternativeOptions = allImages.slice(3, 6);
-    setImageOptions(alternativeOptions);
-    setHasRefreshed(true);
-    setShowingAlternatives(true);
+    setIsLoading(true);
+    try {
+      const fetchedImages = await getMatchingImages(query);
+      setImageOptions(fetchedImages);
+      setLastSearchedQuery(query);
+      
+      if (!currentImageUrl && fetchedImages[0]) {
+        setSelectedImage(fetchedImages[0]);
+        onImageSelected(fetchedImages[0]);
+      }
+    } catch (error) {
+      console.error("Fout bij ophalen afbeeldingen:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentImageUrl, onImageSelected]);
+
+  useEffect(() => {
+    if (title && title !== searchQuery) {
+      setSearchQuery(title);
+    }
+  }, [title]);
+
+  useEffect(() => {
+    if (searchQuery && searchQuery !== lastSearchedQuery) {
+      const timeoutId = setTimeout(() => {
+        fetchImages(searchQuery);
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchQuery, lastSearchedQuery, fetchImages]);
+
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      fetchImages(searchQuery);
+    }
   };
 
-  const handleBackToOriginal = () => {
-    // Ga terug naar eerste 3
-    const originalOptions = allImages.slice(0, 3);
-    setImageOptions(originalOptions);
-    setShowingAlternatives(false);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearch();
+    }
   };
 
   const handleSelectImage = (imageUrl: string) => {
@@ -81,53 +78,42 @@ export function AutoImageSelector({
     onImageSelected(imageUrl);
   };
 
-  if (!title) {
-    return (
-      <div className="flex flex-col items-center justify-center h-40 bg-muted rounded-md">
-        <Sparkles className="w-8 h-8 text-muted-foreground mb-2" />
-        <p className="text-sm text-muted-foreground text-center px-4">
-          Vul eerst een titel in voor automatische foto suggesties
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <p className="text-sm font-medium">
-            {showingAlternatives ? 'Alternatieve foto\'s' : 'Automatisch geselecteerde foto\'s'}
-          </p>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Zoek afbeeldingen..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="pl-9"
+            data-testid="input-image-search"
+          />
         </div>
-        <div className="flex gap-2">
-          {showingAlternatives && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleBackToOriginal}
-            >
-              <Undo2 className="w-4 h-4 mr-2" />
-              Terug
-            </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleSearch}
+          disabled={isLoading || !searchQuery.trim()}
+          data-testid="button-search-images"
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
           )}
-          {!hasRefreshed && allImages.length >= 6 && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Alternatieven
-            </Button>
-          )}
-        </div>
+        </Button>
       </div>
 
-      {imageOptions.length > 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center h-32 bg-muted rounded-md">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">Afbeeldingen zoeken...</span>
+        </div>
+      ) : imageOptions.length > 0 ? (
         <div className="grid grid-cols-3 gap-3">
           {imageOptions.map((imageUrl, index) => (
             <div
@@ -138,6 +124,7 @@ export function AutoImageSelector({
                   : 'border-transparent hover:border-primary/50'
               }`}
               onClick={() => handleSelectImage(imageUrl)}
+              data-testid={`image-option-${index}`}
             >
               <div className="aspect-square">
                 <img
@@ -154,21 +141,24 @@ export function AutoImageSelector({
             </div>
           ))}
         </div>
+      ) : searchQuery ? (
+        <div className="flex flex-col items-center justify-center h-32 bg-muted rounded-md">
+          <Search className="w-8 h-8 text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground text-center px-4">
+            Geen afbeeldingen gevonden. Probeer een andere zoekterm.
+          </p>
+        </div>
       ) : (
-        <div className="flex items-center justify-center h-32 bg-muted rounded-md">
-          <p className="text-sm text-muted-foreground">
-            Foto's worden geladen...
+        <div className="flex flex-col items-center justify-center h-32 bg-muted rounded-md">
+          <Search className="w-8 h-8 text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground text-center px-4">
+            Vul een zoekterm in om afbeeldingen te zoeken
           </p>
         </div>
       )}
 
       <p className="text-xs text-muted-foreground">
-        {showingAlternatives 
-          ? 'Klik op een foto om deze te selecteren of klik op \'Terug\' voor de eerste 3 foto\'s.'
-          : hasRefreshed 
-            ? 'Klik op een foto om deze te selecteren.'
-            : 'Klik op een foto om deze te selecteren. Klik op \'Alternatieven\' voor 3 andere suggesties.'
-        }
+        Zoek afbeeldingen op basis van een trefwoord. De zoekterm is vooraf ingevuld met de titel van je evenement.
       </p>
     </div>
   );

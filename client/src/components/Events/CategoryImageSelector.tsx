@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,17 @@ interface CategoryImageSelectorProps {
   defaultImage?: string;
   title?: string;
   description?: string;
+}
+
+function extractSearchWords(text: string): string[] {
+  const stopWords = ['de', 'het', 'een', 'voor', 'van', 'met', 'en', 'of', 'op', 'in', 'bij', 'naar', 'aan', 'om', 'te', 'is', 'zijn', 'was', 'worden', 'wordt'];
+  
+  return text
+    .toLowerCase()
+    .split(/[\s\-_,.\(\)\[\]]+/)
+    .filter(word => word.length > 2)
+    .filter(word => !stopWords.includes(word))
+    .filter(word => !/^\d+$/.test(word));
 }
 
 export function CategoryImageSelector({ 
@@ -25,11 +36,23 @@ export function CategoryImageSelector({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [lastSearchedQuery, setLastSearchedQuery] = useState<string>("");
   const [hasSearched, setHasSearched] = useState<boolean>(false);
+  
+  const [titleWords, setTitleWords] = useState<string[]>([]);
+  const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
+  const initialSearchDone = useRef(false);
 
-  const fetchUnsplashImages = useCallback(async (query: string) => {
+  useEffect(() => {
+    if (title) {
+      const words = extractSearchWords(title);
+      setTitleWords(words);
+      console.log(`Titel woorden geëxtraheerd: ${words.join(', ')}`);
+    }
+  }, [title]);
+
+  const fetchUnsplashImages = useCallback(async (query: string, autoTryNextWord: boolean = false): Promise<boolean> => {
     if (!query.trim()) {
       setImages([]);
-      return;
+      return false;
     }
 
     setIsLoading(true);
@@ -51,56 +74,104 @@ export function CategoryImageSelector({
           }
           
           console.log(`${urls.length} afbeeldingen gevonden voor "${query}"`);
+          return true;
         } else {
           setImages([]);
           setHasSearched(true);
           console.log(`Geen afbeeldingen gevonden voor "${query}"`);
+          return false;
         }
       } else {
         console.error('Unsplash API error:', response.status);
         setImages([]);
         setHasSearched(true);
+        return false;
       }
     } catch (error) {
       console.error('Fout bij ophalen afbeeldingen:', error);
       setImages([]);
       setHasSearched(true);
+      return false;
     } finally {
       setIsLoading(false);
     }
   }, [selectedImage, onSelectImage]);
 
-  useEffect(() => {
-    if (title && title !== searchQuery && !hasSearched) {
-      setSearchQuery(title);
+  const tryNextWord = useCallback(async () => {
+    const nextIndex = currentWordIndex + 1;
+    
+    if (nextIndex < titleWords.length) {
+      const nextWord = titleWords[nextIndex];
+      setCurrentWordIndex(nextIndex);
+      setSearchQuery(nextWord);
+      console.log(`Probeer woord ${nextIndex + 1}/${titleWords.length}: "${nextWord}"`);
+      
+      const found = await fetchUnsplashImages(nextWord, true);
+      
+      if (!found && nextIndex + 1 < titleWords.length) {
+        console.log(`Geen resultaten voor "${nextWord}", probeer automatisch volgend woord...`);
+      }
+      
+      return found;
+    } else {
+      console.log('Alle woorden geprobeerd, geen resultaten meer');
+      return false;
     }
-  }, [title, hasSearched]);
+  }, [currentWordIndex, titleWords, fetchUnsplashImages]);
 
   useEffect(() => {
-    if (searchQuery && searchQuery !== lastSearchedQuery) {
-      const timeoutId = setTimeout(() => {
-        fetchUnsplashImages(searchQuery);
+    if (title && !initialSearchDone.current) {
+      setSearchQuery(title);
+      initialSearchDone.current = true;
+    }
+  }, [title]);
+
+  useEffect(() => {
+    if (searchQuery && searchQuery !== lastSearchedQuery && initialSearchDone.current) {
+      const timeoutId = setTimeout(async () => {
+        const found = await fetchUnsplashImages(searchQuery);
+        
+        if (!found && currentWordIndex === -1 && titleWords.length > 0) {
+          console.log('Volledige titel gaf geen resultaten, probeer eerste woord...');
+          tryNextWord();
+        }
       }, 600);
       return () => clearTimeout(timeoutId);
     }
-  }, [searchQuery, lastSearchedQuery, fetchUnsplashImages]);
+  }, [searchQuery, lastSearchedQuery, fetchUnsplashImages, currentWordIndex, titleWords, tryNextWord]);
 
-  const handleManualSearch = () => {
-    if (searchQuery.trim()) {
-      fetchUnsplashImages(searchQuery);
+  const handleRefreshClick = async () => {
+    if (titleWords.length > 0 && currentWordIndex < titleWords.length - 1) {
+      await tryNextWord();
+    } else if (searchQuery.trim()) {
+      setCurrentWordIndex(-1);
+      await fetchUnsplashImages(searchQuery);
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setCurrentWordIndex(-1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleManualSearch();
+      setCurrentWordIndex(-1);
+      fetchUnsplashImages(searchQuery);
     }
   };
 
   const handleSelectImage = (imageUrl: string) => {
     setSelectedImage(imageUrl);
     onSelectImage(imageUrl);
+  };
+
+  const getRefreshHint = () => {
+    if (currentWordIndex >= 0 && currentWordIndex < titleWords.length - 1) {
+      return `Klik voor volgend woord: "${titleWords[currentWordIndex + 1]}"`;
+    }
+    return null;
   };
 
   return (
@@ -136,7 +207,7 @@ export function CategoryImageSelector({
               type="text"
               placeholder="Typ een zoekterm voor afbeeldingen..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               className="pl-10"
               data-testid="input-image-search"
@@ -145,8 +216,9 @@ export function CategoryImageSelector({
           <Button
             type="button"
             variant="outline"
-            onClick={handleManualSearch}
-            disabled={isLoading || !searchQuery.trim()}
+            onClick={handleRefreshClick}
+            disabled={isLoading}
+            title={getRefreshHint() || "Zoek opnieuw"}
             data-testid="button-search-images"
           >
             {isLoading ? (
@@ -156,9 +228,21 @@ export function CategoryImageSelector({
             )}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">
-          De zoekterm is automatisch ingevuld met de titel. Pas aan voor betere resultaten.
-        </p>
+        <div className="flex flex-col gap-1">
+          <p className="text-xs text-muted-foreground">
+            De zoekterm is automatisch ingevuld met de titel. Pas aan voor betere resultaten.
+          </p>
+          {getRefreshHint() && (
+            <p className="text-xs text-primary">
+              {getRefreshHint()}
+            </p>
+          )}
+          {currentWordIndex >= 0 && (
+            <p className="text-xs text-muted-foreground">
+              Zoekwoord {currentWordIndex + 1} van {titleWords.length}: "{titleWords[currentWordIndex]}"
+            </p>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
@@ -202,9 +286,15 @@ export function CategoryImageSelector({
           <p className="text-sm text-muted-foreground">
             Geen afbeeldingen gevonden voor "{lastSearchedQuery}"
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Probeer een andere zoekterm
-          </p>
+          {currentWordIndex < titleWords.length - 1 && titleWords.length > 0 ? (
+            <p className="text-xs text-primary mt-1">
+              Klik op de refresh knop om "{titleWords[currentWordIndex + 1]}" te proberen
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-1">
+              Probeer een andere zoekterm
+            </p>
+          )}
         </div>
       ) : null}
     </div>

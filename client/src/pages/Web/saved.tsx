@@ -24,7 +24,7 @@ export function WebSavedPage() {
   });
 
   const { data: participatingEvents = [], isLoading: loadingParticipating } = useQuery<EventInterface[]>({
-    queryKey: [`/api/users/${user?.id}/participating-events`],
+    queryKey: [`/api/events/participation/${user?.id}`],
     enabled: !!user?.id,
   });
 

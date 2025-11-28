@@ -24,7 +24,7 @@ export function AppSavedPage() {
 
   // Query voor evenementen waar gebruiker zich voor heeft aangemeld
   const { data: participatingEvents = [], isLoading: loadingParticipating } = useQuery<EventInterface[]>({
-    queryKey: [`/api/users/${user?.id}/participating-events`],
+    queryKey: [`/api/events/participation/${user?.id}`],
     enabled: !!user?.id,
   });
 

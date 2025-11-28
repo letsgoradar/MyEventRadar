@@ -1,12 +1,13 @@
 import React from "react";
-import { Link } from "wouter";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Bookmark, UserPlus, Navigation } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Bookmark, BookmarkCheck, UserPlus, UserCheck, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import CategoryIcon from "@/components/Events/CategoryIcon";
 import { EventInterface as Event } from "@shared/schema";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
-// Simple date formatter
 const formatDateTime = (dateInput: string | Date) => {
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   return date.toLocaleDateString('nl-NL', {
@@ -21,7 +22,7 @@ const formatDateTime = (dateInput: string | Date) => {
 
 interface EventDetailPanelProps {
   event: Event;
-  events: Event[]; // All events for navigation
+  events: Event[];
   onClose: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
@@ -34,7 +35,118 @@ export function EventDetailPanel({
   onPrevious,
   onNext 
 }: EventDetailPanelProps) {
-  // Find current event index for navigation
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: favorites = [] } = useQuery<any[]>({
+    queryKey: [`/api/favorites/${user?.id}`],
+    enabled: !!user?.id,
+  });
+
+  const { data: participatingEvents = [] } = useQuery<any[]>({
+    queryKey: [`/api/events/participation/${user?.id}`],
+    enabled: !!user?.id,
+  });
+
+  const isFavorited = favorites.some((fav: any) => fav.id === event.id);
+  const isParticipating = participatingEvents.some((e: any) => e.id === event.id);
+
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async () => {
+      if (isFavorited) {
+        const response = await fetch(`/api/favorite/${event.id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error('Failed to remove favorite');
+      } else {
+        const response = await fetch('/api/favorite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ eventId: event.id }),
+        });
+        if (!response.ok) throw new Error('Failed to add favorite');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/favorites/${user?.id}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events/favorites'] });
+      toast({
+        title: isFavorited ? "Verwijderd uit opgeslagen" : "Toegevoegd aan opgeslagen",
+        description: isFavorited ? "Het evenement is verwijderd uit je opgeslagen events." : "Je ontvangt notificaties voor wijzigingen.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Fout bij opslaan",
+        description: "Er ging iets mis bij het opslaan.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleParticipantMutation = useMutation({
+    mutationFn: async () => {
+      if (isParticipating) {
+        const response = await fetch(`/api/participate/${event.id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error('Failed to leave event');
+      } else {
+        const response = await fetch(`/api/participate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ eventId: event.id }),
+        });
+        if (!response.ok) throw new Error('Failed to join event');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/events/participation/${user?.id}`] });
+      toast({
+        title: isParticipating ? "Afgemeld voor evenement" : "Aangemeld voor evenement",
+        description: isParticipating ? "Je bent afgemeld voor dit evenement." : "Je ontvangt herinneringen voor dit evenement.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Fout bij aanmelden",
+        description: "Er ging iets mis bij het aanmelden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleToggleFavorite = () => {
+    if (!user) {
+      toast({
+        title: "Inloggen vereist",
+        description: "Log in om evenementen op te slaan.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toggleFavoriteMutation.mutate();
+  };
+
+  const handleToggleParticipant = () => {
+    if (!user) {
+      toast({
+        title: "Inloggen vereist",
+        description: "Log in om je aan te melden voor evenementen.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toggleParticipantMutation.mutate();
+  };
+
   const currentIndex = events.findIndex(e => e.id === event.id);
   const hasPrevious = currentIndex > 0;
   const hasNext = currentIndex < events.length - 1;
@@ -55,31 +167,47 @@ export function EventDetailPanel({
     const lat = typeof event.latitude === 'number' ? event.latitude : parseFloat(event.latitude);
     const lng = typeof event.longitude === 'number' ? event.longitude : parseFloat(event.longitude);
     
-    // Detecteer platform en open juiste navigatie app
     const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     if (isMobile) {
-      // Voor mobiele apparaten: probeer native apps te openen
       const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
       const appleNavigationUrl = `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`;
       
       if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        // iOS: Apple Maps
         window.open(appleNavigationUrl, '_blank');
       } else {
-        // Android: Google Maps
         window.open(googleMapsUrl, '_blank');
       }
     } else {
-      // Voor desktop: Google Maps in browser
       const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
       window.open(googleMapsUrl, '_blank');
     }
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: event.title,
+      text: `Bekijk dit evenement: ${event.title}`,
+      url: `${window.location.origin}/web/event/${event.id}`,
+    };
+    
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        toast({
+          title: "Link gekopieerd",
+          description: "De link is naar je klembord gekopieerd.",
+        });
+      }
+    } catch (err) {
+      console.log('Share failed:', err);
+    }
+  };
+
   return (
     <div className="w-full h-full bg-white flex flex-col">
-      {/* Navigation Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
           <Button 
@@ -122,57 +250,45 @@ export function EventDetailPanel({
         </Button>
       </div>
 
-      {/* Event Content */}
       <div className="flex-1 overflow-y-auto">
-        {/* Event Image */}
         {event.imageUrl && (
-          <div className="relative h-64 bg-gray-100">
+          <div className="h-64 relative">
             <img 
               src={event.imageUrl} 
               alt={event.title}
               className="w-full h-full object-cover"
             />
-            {(event as any).isHighlighted && (
+            {event.isHighlighted && (
               <div className="absolute top-4 left-4">
-                <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">
-                  Gesponsord
-                </Badge>
+                <Badge className="bg-amber-500 text-white">Uitgelicht</Badge>
               </div>
             )}
           </div>
         )}
 
-        <div className="max-w-2xl mx-auto p-6 space-y-6">
-          {/* Title and Category */}
-          <div className="space-y-3 text-center">
-            <div className="flex items-center justify-center gap-3">
-              <CategoryIcon 
-                category={event.category} 
-                className="h-6 w-6" 
-              />
-              <Badge variant="secondary">
-                {event.category}
+        <div className="p-6 space-y-6">
+          <div className="flex items-center gap-3 text-sm">
+            <Badge variant="secondary" className="flex items-center gap-1.5">
+              <CategoryIcon category={event.category as any} className="h-4 w-4" />
+              {event.category}
+            </Badge>
+            {event.secondaryCategory && (
+              <Badge variant="outline" className="flex items-center gap-1.5">
+                <CategoryIcon category={event.secondaryCategory as any} className="h-4 w-4" />
+                {event.secondaryCategory}
               </Badge>
-              {(event as any).isHighlighted && (
-                <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">
-                  Highlight
-                </Badge>
-              )}
-            </div>
-            
-            <h1 className="text-3xl font-bold text-gray-900">
-              {event.title}
-            </h1>
+            )}
           </div>
 
-          {/* Event Info */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 text-gray-600">
-              <Calendar className="h-5 w-5 flex-shrink-0" />
+          <h1 className="text-2xl font-bold text-gray-900">
+            {event.title}
+          </h1>
+
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 text-gray-600">
+              <Calendar className="h-5 w-5 flex-shrink-0 mt-0.5" />
               <div>
-                <div className="font-medium">
-                  {formatDateTime(event.startTime)}
-                </div>
+                <div className="font-medium">{formatDateTime(event.startTime)}</div>
                 {event.endTime && (
                   <div className="text-sm text-gray-500">
                     tot {formatDateTime(event.endTime)}
@@ -215,36 +331,51 @@ export function EventDetailPanel({
             )}
           </div>
 
-          {/* Description */}
           {event.description && (
-            <div className="space-y-3 text-center">
+            <div className="space-y-3">
               <h3 className="text-lg font-semibold text-gray-900">
                 Beschrijving
               </h3>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-left max-w-prose mx-auto">
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
                 {event.description}
               </p>
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex flex-wrap gap-3 pt-4">
             <Button 
               className="flex-1"
-              asChild
+              onClick={handleToggleParticipant}
+              disabled={toggleParticipantMutation.isPending}
+              variant={isParticipating ? "secondary" : "default"}
             >
-              <Link href={`/web/event/${event.id}`}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Aanmelden
-              </Link>
+              {isParticipating ? (
+                <>
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Aangemeld
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Aanmelden
+                </>
+              )}
             </Button>
             
-            <Button variant="outline">
-              <Bookmark className="h-4 w-4 mr-2" />
-              Opslaan
+            <Button 
+              variant={isFavorited ? "secondary" : "outline"}
+              onClick={handleToggleFavorite}
+              disabled={toggleFavoriteMutation.isPending}
+            >
+              {isFavorited ? (
+                <BookmarkCheck className="h-4 w-4 mr-2" />
+              ) : (
+                <Bookmark className="h-4 w-4 mr-2" />
+              )}
+              {isFavorited ? "Opgeslagen" : "Opslaan"}
             </Button>
             
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleShare}>
               <Share2 className="h-4 w-4 mr-2" />
               Delen
             </Button>
@@ -254,3 +385,5 @@ export function EventDetailPanel({
     </div>
   );
 }
+
+export default EventDetailPanel;

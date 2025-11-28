@@ -76,7 +76,7 @@ export function EventDetailPanel({
   });
 
   const { data: participatingEvents = [] } = useQuery<any[]>({
-    queryKey: [`/api/users/${user?.id}/participating-events`],
+    queryKey: [`/api/events/participation/${user?.id}`],
     enabled: !!user?.id,
   });
 
@@ -129,23 +129,24 @@ export function EventDetailPanel({
   const toggleParticipantMutation = useMutation({
     mutationFn: async () => {
       if (isParticipating) {
-        const response = await fetch(`/api/events/${event.id}/participants`, {
+        const response = await fetch(`/api/participate/${event.id}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
         });
         if (!response.ok) throw new Error('Failed to leave event');
       } else {
-        const response = await fetch(`/api/events/${event.id}/participants`, {
+        const response = await fetch(`/api/participate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
+          body: JSON.stringify({ eventId: event.id }),
         });
         if (!response.ok) throw new Error('Failed to join event');
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${user?.id}/participating-events`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/events/participation/${user?.id}`] });
       toast({
         title: isParticipating ? "Afgemeld voor evenement" : "Aangemeld voor evenement",
         description: isParticipating ? "Je bent afgemeld voor dit evenement." : "Je ontvangt herinneringen voor dit evenement.",

@@ -14,6 +14,38 @@ interface Theme {
 
 const themes: Theme[] = [
   {
+    id: "gold",
+    name: "Subtiel Goud",
+    base: "#faf9f7",
+    surface: "#f5f0e8",
+    accent: "#d4a574",
+    textColor: "#3d2e1f",
+  },
+  {
+    id: "copper",
+    name: "Subtiel Koper",
+    base: "#faf8f6",
+    surface: "#f2ebe5",
+    accent: "#b87333",
+    textColor: "#3a2a1a",
+  },
+  {
+    id: "rose-gold",
+    name: "Rosé Goud",
+    base: "#faf8f8",
+    surface: "#f5eded",
+    accent: "#c9a090",
+    textColor: "#3d2828",
+  },
+  {
+    id: "champagne",
+    name: "Champagne",
+    base: "#faf9f5",
+    surface: "#f5f0e0",
+    accent: "#d4c5a0",
+    textColor: "#3d3520",
+  },
+  {
     id: "silver",
     name: "Zilver",
     base: "#f5f5f5",
@@ -28,38 +60,6 @@ const themes: Theme[] = [
     surface: "#e7e5e4",
     accent: "#d6d3d1",
     textColor: "#292524",
-  },
-  {
-    id: "cool-gray",
-    name: "Koel Grijs",
-    base: "#f1f5f9",
-    surface: "#e2e8f0",
-    accent: "#cbd5e1",
-    textColor: "#1e293b",
-  },
-  {
-    id: "sand",
-    name: "Zand",
-    base: "#faf8f5",
-    surface: "#f0ebe4",
-    accent: "#e0d6c8",
-    textColor: "#44403c",
-  },
-  {
-    id: "mist-blue",
-    name: "Mist Blauw",
-    base: "#f8fafc",
-    surface: "#e8f4f8",
-    accent: "#bae6fd",
-    textColor: "#0c4a6e",
-  },
-  {
-    id: "sage",
-    name: "Salie Groen",
-    base: "#f8faf8",
-    surface: "#ecf4ec",
-    accent: "#c6dcc6",
-    textColor: "#1a3a1a",
   },
 ];
 

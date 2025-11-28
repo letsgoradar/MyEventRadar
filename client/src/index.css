@@ -72,118 +72,97 @@
   }
 }
 
-/* Moderne menu styling met witte tekst en effecten */
+/* Moderne menu styling - vlakke kleuren zonder gradient */
 @layer components {
-  /* Bottom Navigation met gradient en moderne effecten */
+  /* Bottom Navigation - vlakke achtergrond */
   .fixed.bottom-0.bg-background.border-t {
-    background: linear-gradient(135deg, 
-      var(--theme-color-1, hsl(var(--primary))), 
-      var(--theme-color-2, hsl(var(--primary) / 0.9)), 
-      var(--theme-color-3, hsl(var(--primary) / 0.85)), 
-      var(--theme-color-4, hsl(var(--primary) / 0.9)), 
-      var(--theme-color-5, hsl(var(--primary))));
-    border-top: 2px solid rgba(255, 255, 255, 0.2);
-    border-radius: 24px 24px 0 0;
-    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    background: var(--theme-color-1, hsl(var(--primary)));
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
   }
   
   .fixed.bottom-0 .text-muted-foreground,
   .fixed.bottom-0 a {
-    color: var(--theme-text-color, rgba(255, 255, 255, 0.8)) !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    color: var(--theme-text-color, #1a1a1a) !important;
   }
   
   .fixed.bottom-0 .text-primary,
   .fixed.bottom-0 a.active,
   .fixed.bottom-0 .text-foreground {
-    color: var(--theme-text-color, white) !important;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    color: var(--theme-text-color, #1a1a1a) !important;
     font-weight: 600;
   }
   
   .fixed.bottom-0 .hover\:text-foreground:hover {
-    color: var(--theme-text-color, white) !important;
+    color: var(--theme-text-color, #1a1a1a) !important;
   }
   
-  /* Primaire knop met witte achtergrond en border */
+  /* Primaire knop in bottom nav */
   .fixed.bottom-0 .bg-primary {
-    background: white !important;
-    color: hsl(var(--primary)) !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.5);
-    border: 2px solid rgba(255, 255, 255, 0.4);
+    background: var(--theme-color-3, hsl(var(--primary))) !important;
+    color: var(--theme-text-color, #1a1a1a) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.1);
   }
   
-  /* AppLayout header met gradient en moderne border */
+  /* AppLayout header - vlakke achtergrond */
   header.sticky.top-0 {
-    background: linear-gradient(135deg, 
-      var(--theme-color-1, hsl(var(--primary))), 
-      var(--theme-color-2, hsl(var(--primary) / 0.9)), 
-      var(--theme-color-3, hsl(var(--primary) / 0.85)), 
-      var(--theme-color-4, hsl(var(--primary) / 0.9)), 
-      var(--theme-color-5, hsl(var(--primary))));
-    border-bottom: 2px solid rgba(255, 255, 255, 0.15);
-    border-radius: 0 0 20px 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    background: var(--theme-color-1, hsl(var(--primary)));
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   }
   
   header.sticky.top-0 h1,
   header.sticky.top-0 button,
   header.sticky.top-0 svg {
-    color: var(--theme-text-color, white) !important;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    color: var(--theme-text-color, #1a1a1a) !important;
   }
   
-  /* Tab styling met witte tekst en moderne effecten */
+  /* Tab styling - vlakke achtergrond */
   [role="tablist"] {
-    background: linear-gradient(90deg, 
-      var(--theme-color-1, hsl(var(--primary))), 
-      var(--theme-color-3, hsl(var(--primary))), 
-      var(--theme-color-5, hsl(var(--primary)))) !important;
+    background: var(--theme-color-2, hsl(var(--primary))) !important;
     border-radius: 0 !important;
-    border-top: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
   }
   
   [role="tab"] {
-    color: var(--theme-text-color, rgba(255, 255, 255, 0.75)) !important;
-    opacity: 0.75;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    color: var(--theme-text-color, #1a1a1a) !important;
+    opacity: 0.7;
     font-weight: 500;
   }
   
   [role="tab"][data-state="active"] {
-    color: var(--theme-text-color, white) !important;
+    color: var(--theme-text-color, #1a1a1a) !important;
     opacity: 1;
-    background: rgba(255, 255, 255, 0.2) !important;
+    background: var(--theme-color-3, rgba(0, 0, 0, 0.1)) !important;
     font-weight: 700;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     border-radius: 8px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
   }
   
-  /* Event cards met moderne randen */
+  /* Event cards met subtiele randen */
   .event-card {
-    border-radius: 16px;
-    border: 2px solid rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
   }
   
   .event-card:hover {
-    border-color: rgba(0, 0, 0, 0.1);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    border-color: rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
   }
   
-  /* Buttons met gradient effecten */
+  /* Buttons - vlakke achtergrond */
   button.bg-primary,
   .bg-primary {
-    background: linear-gradient(135deg, 
-      var(--theme-color-2, hsl(var(--primary))), 
-      var(--theme-color-4, hsl(var(--primary) / 0.9))) !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--theme-color-3, hsl(var(--primary))) !important;
+    color: var(--theme-text-color, #1a1a1a) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.1);
   }
   
   button.bg-primary:hover {
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 }

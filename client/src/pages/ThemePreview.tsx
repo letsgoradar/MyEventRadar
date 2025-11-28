@@ -194,30 +194,16 @@ export default function ThemePreview() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* Gradient preview zoals in menu's */}
+                  {/* Menu voorbeeld - vlakke kleur */}
                   <div 
-                    className="h-20 rounded-xl flex items-center justify-center border-2 border-white/30"
+                    className="h-16 rounded-xl flex items-center justify-center border border-gray-200"
                     style={{ 
-                      background: `linear-gradient(135deg, ${theme.colors.join(', ')})`,
-                      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: theme.colors[0],
                       color: theme.textColor
                     }}
                   >
-                    <span className="font-bold text-lg drop-shadow-sm">
+                    <span className="font-bold text-lg">
                       Menu Voorbeeld
-                    </span>
-                  </div>
-
-                  {/* Horizontale gradient zoals in tab bar */}
-                  <div 
-                    className="h-12 rounded-lg flex items-center justify-center"
-                    style={{ 
-                      background: `linear-gradient(90deg, ${theme.colors[0]}, ${theme.colors[2]}, ${theme.colors[4]})`,
-                      color: theme.textColor
-                    }}
-                  >
-                    <span className="font-semibold text-sm">
-                      Tab Bar Voorbeeld
                     </span>
                   </div>
 
@@ -226,19 +212,20 @@ export default function ThemePreview() {
                     {theme.colors.map((color, index) => (
                       <div 
                         key={index}
-                        className="h-16 rounded-lg border-2 border-gray-200 flex items-center justify-center"
+                        className="h-12 rounded-lg border border-gray-200 flex items-center justify-center"
                         style={{ backgroundColor: color }}
                       >
-                        <span className="text-xs font-semibold text-gray-700">{index + 1}</span>
+                        <span className="text-xs font-semibold" style={{ color: theme.textColor }}>{index + 1}</span>
                       </div>
                     ))}
                   </div>
 
-                  {/* Button voorbeeld */}
+                  {/* Button voorbeeld - vlakke accentkleur */}
                   <Button 
-                    className="w-full text-white font-semibold"
+                    className="w-full font-semibold"
                     style={{ 
-                      background: `linear-gradient(135deg, ${theme.colors[1]}, ${theme.colors[3]})`,
+                      backgroundColor: theme.colors[3],
+                      color: theme.textColor
                     }}
                   >
                     Voorbeeld Button
@@ -255,7 +242,7 @@ export default function ThemePreview() {
               size="lg"
               className="font-semibold px-8 shadow-lg"
               style={{ 
-                background: `linear-gradient(135deg, ${selectedTheme.colors.join(', ')})`,
+                backgroundColor: selectedTheme.colors[3],
                 color: selectedTheme.textColor
               }}
               onClick={() => applyTheme(selectedTheme)}

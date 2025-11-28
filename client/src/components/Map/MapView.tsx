@@ -575,14 +575,16 @@ export default function MapView({
         </Marker>
         
         {/* Markers voor events */}
-        {formattedEvents.map((event) => (
+        {formattedEvents.map((event) => {
+          const isSelected = selectedEvent?.id === event.id;
+          return (
           <Marker 
-            key={event.id}
+            key={`${event.id}-${isSelected ? 'selected' : 'normal'}`}
             position={event.coords}
             icon={createEventIcon(
               event.category, 
               event.expired, 
-              selectedEvent?.id === event.id
+              isSelected
             )}
             eventHandlers={{
               click: () => {
@@ -670,7 +672,8 @@ export default function MapView({
               </Card>
             </Popup>
           </Marker>
-        ))}
+          );
+        })}
         
         {/* Component om kaart te centreren op gebruiker */}
         <MapCenter lat={userLocation[0]} lng={userLocation[1]} />

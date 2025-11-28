@@ -578,33 +578,25 @@ export function AppLayout({
             )}
           </div>
           
-          {/* Filter tags */}
-          <div className="flex flex-wrap gap-2 mb-3 relative z-10">
-            {searchQuery && (
-              <Badge className="flex gap-1 items-center bg-primary/10 hover:bg-primary/20 text-primary border-none">
-                <span className="truncate">{searchQuery}</span>
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
-                  onClick={() => onSearch && onSearch("")}
-                />
-              </Badge>
-            )}
-            
-            {selectedCategories.map(category => (
-              <Badge 
-                key={category}
-                className="flex gap-1 items-center"
-                style={{ backgroundColor: getCategoryColor(category), color: 'white' }}
-              >
-                <CategoryIcon category={category} size={12} className="text-white" />
-                <span>{category}</span>
-                <X 
-                  className="h-3 w-3 cursor-pointer text-white" 
-                  onClick={() => toggleCategory(category)}
-                />
-              </Badge>
-            ))}
-          </div>
+          {/* Filter tags - alleen categorieën tonen, geen zoekquery */}
+          {selectedCategories.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3 relative z-10">
+              {selectedCategories.map(category => (
+                <Badge 
+                  key={category}
+                  className="flex gap-1 items-center"
+                  style={{ backgroundColor: getCategoryColor(category), color: 'white' }}
+                >
+                  <CategoryIcon category={category} size={12} className="text-white" />
+                  <span>{category}</span>
+                  <X 
+                    className="h-3 w-3 cursor-pointer text-white" 
+                    onClick={() => toggleCategory(category)}
+                  />
+                </Badge>
+              ))}
+            </div>
+          )}
           
           {/* Sorteer knoppen alleen tonen in lijstweergave */}
           {view === "list" && (

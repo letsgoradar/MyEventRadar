@@ -91,7 +91,7 @@ export function AppSavedPage() {
 
   return (
     <>
-      <AppLayout title="Opgeslagen" hideViewToggle={true}>
+      <AppLayout title="Opgeslagen" hideViewToggle={true} defaultView="list" hideSearchAndFilters={true}>
         <div className="pb-20">
           {/* Tabs voor filtering */}
           <div className="sticky top-0 bg-background z-10 border-b">

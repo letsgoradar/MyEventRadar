@@ -128,6 +128,12 @@ The application uses PostgreSQL with the following main entities:
 - Activity logging for audit trails
 
 ## Recent Changes
+- November 28, 2025: **UNIFIED SAVED EVENTS** - Verwijderd "Favorieten" concept, nu alleen "Opgeslagen" terminologie
+  - Web sidebar nu met Bookmark icoon naar /web/saved route
+  - App BottomNav nu met Bookmark icoon naar /app/saved route
+  - Alle hartjes iconen vervangen door bookmark iconen
+  - WebSavedPage toegevoegd met grid-view voor opgeslagen evenementen
+  - Consistente terminologie "Opgeslagen" door de hele app
 - August 15, 2025: **FUNDAMENTELE WIJZIGING EVENT VIEWING** - Alle event clicks (kaart en tegels) gebruiken nu overlay mode
   - Events worden altijd getoond in overlay panel in plaats van aparte pagina's 
   - Zoekcontext blijft behouden bij event viewing

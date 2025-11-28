@@ -1,14 +1,14 @@
 {
   "variant": "tint",
-  "primary": "#d4c9a8",
+  "primary": "#e8d490",
   "appearance": "light",
   "radius": 0.75,
   "colors": [
-    "#faf9f6",
-    "#f5f1e8",
-    "#d4c9a8",
-    "#f5f1e8",
-    "#faf9f6"
+    "#fdfcf5",
+    "#faf7e8",
+    "#e8d490",
+    "#faf7e8",
+    "#fdfcf5"
   ],
-  "textColor": "#4a4535"
+  "textColor": "#585028"
 }

@@ -556,6 +556,39 @@ export function AppLayout({
               </div>
             </div>
             
+            {/* Datum filter - naast zoekveld */}
+            {selectedDays && onSelectedDaysChange && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant={selectedDays.length > 0 ? "default" : "outline"} 
+                    size="sm" 
+                    className="h-10 flex items-center gap-1"
+                  >
+                    <CalendarDays className="h-4 w-4" />
+                    <span className="font-medium hidden sm:inline">
+                      {selectedDays.length === 0 
+                        ? "Datum" 
+                        : `${selectedDays.length} ${selectedDays.length === 1 ? 'dag' : 'dagen'}`}
+                    </span>
+                    {selectedDays.length > 0 && (
+                      <Badge className="ml-1 text-xs h-5 min-w-5 flex items-center justify-center bg-background text-foreground sm:hidden">
+                        {selectedDays.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-4 w-auto" align="end">
+                  <MonthCalendar
+                    selectedDays={selectedDays}
+                    onDaysChange={onSelectedDaysChange}
+                    showExpiredEvents={showExpiredEvents}
+                    onShowExpiredEventsChange={setShowExpiredEvents}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+            
             {!hideViewToggle && (
               <div className="flex gap-1">
                 <Button
@@ -634,41 +667,6 @@ export function AppLayout({
                 toggleCategory={toggleCategory}
               />
             </div>
-            
-            {/* Floating Datum Filter - rechtsboven, schuift mee naar beneden bij actieve filters */}
-            {selectedDays && onSelectedDaysChange && (
-              <div 
-                className="absolute right-4 z-[1000] transition-all duration-300"
-                style={{
-                  top: selectedCategories.length > 0 ? '3.5rem' : '1rem'
-                }}
-              >
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="shadow-lg flex items-center gap-1 bg-white hover:bg-gray-50"
-                    >
-                      <CalendarDays className="h-4 w-4" />
-                      <span className="font-medium">
-                        {selectedDays.length === 0 
-                          ? "Datum" 
-                          : `${selectedDays.length} ${selectedDays.length === 1 ? 'dag' : 'dagen'}`}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="p-4 w-auto" align="end">
-                    <MonthCalendar
-                      selectedDays={selectedDays}
-                      onDaysChange={onSelectedDaysChange}
-                      showExpiredEvents={showExpiredEvents}
-                      onShowExpiredEventsChange={setShowExpiredEvents}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )}
           </div>
         </div>
       )}

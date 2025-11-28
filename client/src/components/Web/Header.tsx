@@ -66,11 +66,8 @@ export function Header({
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = React.useState(false);
   
-  // Standaard: komende 7 dagen geselecteerd
-  const [selectedDays, setSelectedDays] = React.useState<Date[]>(() => {
-    const today = startOfDay(new Date());
-    return Array.from({ length: 7 }, (_, i) => addDays(today, i));
-  });
+  // Standaard: geen datumfilter actief (lege array = alle toekomstige evenementen)
+  const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
   
   // Bij wijziging van geselecteerde dagen, datum bereik doorgeven aan parent
   React.useEffect(() => {

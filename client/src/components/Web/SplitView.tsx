@@ -40,11 +40,8 @@ export function SplitView({
   const [visibleEvents, setVisibleEvents] = React.useState<Event[]>(filteredEvents);
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   
-  // Standaard: komende 4 weken (28 dagen) geselecteerd
-  const [selectedDays, setSelectedDays] = React.useState<Date[]>(() => {
-    const today = startOfDay(new Date());
-    return Array.from({ length: 28 }, (_, i) => addDays(today, i));
-  });
+  // Standaard: geen datumfilter actief (lege array = alle toekomstige evenementen)
+  const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
   
   // Controleer of een event is verlopen
   const isEventExpired = (event: Event): boolean => {

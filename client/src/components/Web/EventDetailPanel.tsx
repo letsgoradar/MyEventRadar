@@ -258,7 +258,7 @@ export function EventDetailPanel({
               alt={event.title}
               className="w-full h-full object-cover"
             />
-            {event.isHighlighted && (
+            {(event as any).isHighlighted && (
               <div className="absolute top-4 left-4">
                 <Badge className="bg-amber-500 text-white">Uitgelicht</Badge>
               </div>

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { MdHome, MdEvent, MdFavorite, MdAccountCircle, MdAdd, MdChevronRight, MdChevronLeft } from "react-icons/md";
+import { MdHome, MdEvent, MdBookmark, MdAccountCircle, MdAdd, MdChevronRight, MdChevronLeft } from "react-icons/md";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -21,7 +21,7 @@ export function Sidebar() {
   const navItems = [
     { path: "/web", icon: <MdHome className="h-5 w-5" />, label: "Home" },
     { path: "/web/events", icon: <MdEvent className="h-5 w-5" />, label: "Mijn Evenementen" },
-    { path: "/web/favorites", icon: <MdFavorite className="h-5 w-5" />, label: "Favorieten" },
+    { path: "/web/saved", icon: <MdBookmark className="h-5 w-5" />, label: "Opgeslagen" },
   ];
 
   return (

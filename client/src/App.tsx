@@ -35,7 +35,8 @@ import { AppLoginPage } from "@/pages/App/login"
 import { AppRegisterPage } from "@/pages/App/register"
 import AppCreateEvent from "@/pages/App/create-event"
 import AppEventsPage from "@/pages/App/events"
-import AppFavoritesPage from "@/pages/App/favorites"
+import AppSavedPage from "@/pages/App/saved"
+import WebSavedPage from "@/pages/Web/saved"
 import AppProfilePage from "@/pages/App/profile"
 import { AppWelcomePage } from "@/pages/App/welcome"
 import AppForgotPasswordPage from "@/pages/App/forgot-password"
@@ -168,13 +169,11 @@ export default function App() {
                 </div>
               </WebLayout>
             </Route>
+            <Route path="/web/saved">
+              <WebSavedPage />
+            </Route>
             <Route path="/web/favorites">
-              <WebLayout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
-                  <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-                </div>
-              </WebLayout>
+              <WebSavedPage />
             </Route>
             <Route path="/web/profile">
               <WebProfilePage />
@@ -198,13 +197,11 @@ export default function App() {
                 </div>
               </WebLayout>
             </Route>
+            <Route path="/saved">
+              <WebSavedPage />
+            </Route>
             <Route path="/favorites">
-              <WebLayout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold mb-6">Favorieten</h1>
-                  <p className="text-center py-12 text-muted-foreground">Deze functie is nog in ontwikkeling.</p>
-                </div>
-              </WebLayout>
+              <WebSavedPage />
             </Route>
             <Route path="/profile">
               <WebProfilePage />

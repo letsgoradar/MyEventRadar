@@ -175,8 +175,8 @@ export function AppLayout({
   onSelectedDaysChange,
   selectedEventId,
 }: AppLayoutProps) {
-  // Als hideViewToggle=true, forceer map view
-  const [view, setView] = React.useState<"list" | "map">(hideViewToggle ? "map" : defaultView);
+  // Gebruik defaultView als initiële view
+  const [view, setView] = React.useState<"list" | "map">(defaultView);
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
   // Standaard geen verlopen evenementen tonen
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);

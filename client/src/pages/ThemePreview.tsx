@@ -1,142 +1,65 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
 
 interface Theme {
   id: string;
   name: string;
-  description: string;
-  colors: string[];
+  base: string;
+  surface: string;
+  accent: string;
   textColor: string;
 }
 
 const themes: Theme[] = [
   {
-    id: "subtle-orange",
-    name: "Subtiel Oranje",
-    description: "Grijs met zachte oranje tint",
-    colors: ["#f5f5f5", "#ebebeb", "#e5e5e5", "#fed7aa", "#fef3e2"],
-    textColor: "#1a1a1a",
-  },
-  {
-    id: "subtle-blue",
-    name: "Subtiel Blauw",
-    description: "Grijs met zachte blauwe tint",
-    colors: ["#f5f5f5", "#ebebeb", "#e5e5e5", "#bfdbfe", "#dbeafe"],
-    textColor: "#1e3a5f",
-  },
-  {
-    id: "subtle-green",
-    name: "Subtiel Groen",
-    description: "Grijs met zachte groene tint",
-    colors: ["#f5f5f5", "#ebebeb", "#e5e5e5", "#bbf7d0", "#dcfce7"],
-    textColor: "#14532d",
-  },
-  {
-    id: "subtle-purple",
-    name: "Subtiel Paars",
-    description: "Grijs met zachte paarse tint",
-    colors: ["#f5f5f5", "#ebebeb", "#e5e5e5", "#e9d5ff", "#f3e8ff"],
-    textColor: "#3b0764",
-  },
-  {
-    id: "subtle-pink",
-    name: "Subtiel Roze",
-    description: "Grijs met zachte roze tint",
-    colors: ["#f5f5f5", "#ebebeb", "#e5e5e5", "#fbcfe8", "#fce7f3"],
-    textColor: "#831843",
-  },
-  {
-    id: "subtle-teal",
-    name: "Subtiel Teal",
-    description: "Grijs met zachte teal tint",
-    colors: ["#f5f5f5", "#ebebeb", "#e5e5e5", "#99f6e4", "#ccfbf1"],
-    textColor: "#134e4a",
-  },
-  {
-    id: "pure-gray",
-    name: "Puur Grijs",
-    description: "Alleen grijstinten",
-    colors: ["#f5f5f5", "#ebebeb", "#e5e5e5", "#d4d4d4", "#e8e8e8"],
+    id: "silver",
+    name: "Zilver",
+    base: "#f5f5f5",
+    surface: "#e8e8e8",
+    accent: "#d4d4d4",
     textColor: "#1a1a1a",
   },
   {
     id: "warm-gray",
     name: "Warm Grijs",
-    description: "Warme grijstinten",
-    colors: ["#f5f5f4", "#ededed", "#e7e5e4", "#d6d3d1", "#eae8e7"],
+    base: "#f5f5f4",
+    surface: "#e7e5e4",
+    accent: "#d6d3d1",
     textColor: "#292524",
   },
   {
-    id: "ocean-sky",
-    name: "Oceaan & Hemel",
-    description: "Zachte blauwen en aqua tinten",
-    colors: ["#dbeafe", "#bfdbfe", "#a5f3fc", "#cffafe", "#e0f2fe"],
-    textColor: "#1e3a8a",
+    id: "cool-gray",
+    name: "Koel Grijs",
+    base: "#f1f5f9",
+    surface: "#e2e8f0",
+    accent: "#cbd5e1",
+    textColor: "#1e293b",
   },
   {
-    id: "spring-garden",
-    name: "Lente Tuin",
-    description: "Frisse groentinten en geel",
-    colors: ["#d1fae5", "#bbf7d0", "#fef3c7", "#fde68a", "#d9f99d"],
-    textColor: "#14532d",
-  },
-  {
-    id: "sunset-peach",
-    name: "Zonsondergang",
-    description: "Warme perzik en roze tinten",
-    colors: ["#fed7aa", "#fecaca", "#fce7f3", "#fbcfe8", "#fee2e2"],
-    textColor: "#9f1239",
-  },
-  {
-    id: "lavender-dream",
-    name: "Lavendel Droom",
-    description: "Zachte paarse en blauwe tinten",
-    colors: ["#f3e8ff", "#e9d5ff", "#ddd6fe", "#c7d2fe", "#e0e7ff"],
-    textColor: "#4c1d95",
-  },
-  {
-    id: "neutral-sand",
-    name: "Neutraal Zand",
-    description: "Warme beige en crème tinten",
-    colors: ["#fef3c7", "#fef9e7", "#fef3c7", "#fde68a", "#fef08a"],
-    textColor: "#78350f",
-  },
-  {
-    id: "soft-gray",
-    name: "Zachte Grijs",
-    description: "Neutrale grijstinten",
-    colors: ["#f3f4f6", "#e5e7eb", "#d1d5db", "#e5e7eb", "#d1d5db"],
-    textColor: "#1f2937",
-  },
-  {
-    id: "warm-taupe",
-    name: "Warm Taupe",
-    description: "Warme neutrale bruintinten",
-    colors: ["#f5f5f4", "#e7e5e4", "#d6d3d1", "#e7e5e4", "#d6d3d1"],
+    id: "sand",
+    name: "Zand",
+    base: "#faf8f5",
+    surface: "#f0ebe4",
+    accent: "#e0d6c8",
     textColor: "#44403c",
   },
   {
-    id: "cool-slate",
-    name: "Koele Lei",
-    description: "Koele blauwig grijze tinten",
-    colors: ["#f1f5f9", "#e2e8f0", "#cbd5e1", "#e2e8f0", "#cbd5e1"],
-    textColor: "#334155",
+    id: "mist-blue",
+    name: "Mist Blauw",
+    base: "#f8fafc",
+    surface: "#e8f4f8",
+    accent: "#bae6fd",
+    textColor: "#0c4a6e",
   },
   {
-    id: "mint-cream",
-    name: "Mint & Crème",
-    description: "Lichte mint en aqua tinten",
-    colors: ["#d1fae5", "#cffafe", "#e0f2fe", "#dbeafe", "#bfdbfe"],
-    textColor: "#064e3b",
-  },
-  {
-    id: "soft-rose",
-    name: "Zachte Roos",
-    description: "Zeer lichte roze tinten",
-    colors: ["#fce7f3", "#fbcfe8", "#fef3c7", "#fed7aa", "#fee2e2"],
-    textColor: "#881337",
+    id: "sage",
+    name: "Salie Groen",
+    base: "#f8faf8",
+    surface: "#ecf4ec",
+    accent: "#c6dcc6",
+    textColor: "#1a3a1a",
   },
 ];
 
@@ -149,10 +72,10 @@ export default function ThemePreview() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         variant: "tint",
-        primary: theme.colors[2],
+        primary: theme.accent,
         appearance: "light",
         radius: 0.75,
-        colors: theme.colors,
+        colors: [theme.base, theme.surface, theme.accent, theme.surface, theme.base],
         textColor: theme.textColor
       })
     });
@@ -162,73 +85,61 @@ export default function ThemePreview() {
 
   return (
     <div className="bg-gray-50 min-h-screen overflow-y-auto">
-      <div className="max-w-6xl mx-auto p-4 md:p-8 pb-40">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-3 text-gray-800">
+      <div className="max-w-4xl mx-auto p-6 pb-32">
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Kies jouw kleurthema
           </h1>
-          <p className="text-gray-600 text-lg">Elk thema heeft 5 harmonieuze lichte pastel kleuren</p>
+          <p className="text-gray-500">Rustige, subtiele kleurenschema's</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <div className="grid gap-4">
           {themes.map((theme) => (
             <Card 
               key={theme.id}
-              className={`cursor-pointer transition-all hover:shadow-lg ${
-                selectedTheme.id === theme.id ? 'ring-2 ring-blue-400' : ''
+              className={`cursor-pointer transition-all hover:shadow-md ${
+                selectedTheme.id === theme.id ? 'ring-2 ring-gray-400' : ''
               }`}
               onClick={() => setSelectedTheme(theme)}
             >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      {theme.name}
-                      {selectedTheme.id === theme.id && (
-                        <Check className="h-5 w-5 text-blue-600" />
-                      )}
-                    </CardTitle>
-                    <CardDescription className="mt-1">{theme.description}</CardDescription>
-                  </div>
-                </div>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  {selectedTheme.id === theme.id && (
+                    <Check className="h-5 w-5 text-gray-600" />
+                  )}
+                  {theme.name}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {/* Menu voorbeeld - vlakke kleur */}
-                  <div 
-                    className="h-16 rounded-xl flex items-center justify-center border border-gray-200"
-                    style={{ 
-                      backgroundColor: theme.colors[0],
-                      color: theme.textColor
-                    }}
-                  >
-                    <span className="font-bold text-lg">
-                      Menu Voorbeeld
-                    </span>
+                <div className="flex gap-3 items-center">
+                  <div className="flex gap-2 flex-1">
+                    <div 
+                      className="h-14 flex-1 rounded-lg border border-gray-200 flex items-center justify-center"
+                      style={{ backgroundColor: theme.base }}
+                    >
+                      <span className="text-xs" style={{ color: theme.textColor }}>Basis</span>
+                    </div>
+                    <div 
+                      className="h-14 flex-1 rounded-lg border border-gray-200 flex items-center justify-center"
+                      style={{ backgroundColor: theme.surface }}
+                    >
+                      <span className="text-xs" style={{ color: theme.textColor }}>Oppervlak</span>
+                    </div>
+                    <div 
+                      className="h-14 flex-1 rounded-lg border border-gray-200 flex items-center justify-center"
+                      style={{ backgroundColor: theme.accent }}
+                    >
+                      <span className="text-xs" style={{ color: theme.textColor }}>Accent</span>
+                    </div>
                   </div>
-
-                  {/* Kleurenpalet - 5 kleuren */}
-                  <div className="grid grid-cols-5 gap-2">
-                    {theme.colors.map((color, index) => (
-                      <div 
-                        key={index}
-                        className="h-12 rounded-lg border border-gray-200 flex items-center justify-center"
-                        style={{ backgroundColor: color }}
-                      >
-                        <span className="text-xs font-semibold" style={{ color: theme.textColor }}>{index + 1}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Button voorbeeld - vlakke accentkleur */}
                   <Button 
-                    className="w-full font-semibold"
+                    className="font-medium"
                     style={{ 
-                      backgroundColor: theme.colors[3],
+                      backgroundColor: theme.accent,
                       color: theme.textColor
                     }}
                   >
-                    Voorbeeld Button
+                    Button
                   </Button>
                 </div>
               </CardContent>
@@ -236,13 +147,13 @@ export default function ThemePreview() {
           ))}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50">
-          <div className="max-w-6xl mx-auto text-center">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
+          <div className="max-w-4xl mx-auto text-center">
             <Button 
               size="lg"
-              className="font-semibold px-8 shadow-lg"
+              className="font-semibold px-8"
               style={{ 
-                backgroundColor: selectedTheme.colors[3],
+                backgroundColor: selectedTheme.accent,
                 color: selectedTheme.textColor
               }}
               onClick={() => applyTheme(selectedTheme)}
@@ -250,9 +161,6 @@ export default function ThemePreview() {
               <Check className="mr-2 h-5 w-5" />
               Kies {selectedTheme.name}
             </Button>
-            <p className="text-sm text-gray-500 mt-2">
-              De app wordt opnieuw geladen met je nieuwe kleurenpalet
-            </p>
           </div>
         </div>
       </div>

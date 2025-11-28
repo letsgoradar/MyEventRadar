@@ -50,19 +50,23 @@ import L from 'leaflet';
 const createEventFormSchema = insertEventSchema
   .extend({
     imageFile: z.any().optional(),
-    imageUrl: z.string().optional(), // Toegevoegd voor AI gegenereerde afbeeldingen
-    startTime: z.date().min(new Date(), { message: 'Startdatum moet in de toekomst liggen' }),
+    imageUrl: z.string().optional(),
+    startTime: z.date(),
     endTime: z.date(),
     maxParticipants: z.number().nullable().optional(),
     hasMaxParticipants: z.boolean().default(false),
+    isPaid: z.boolean().default(false),
+    price: z.number().nullable().optional(),
+    location: z.object({
+      lat: z.number(),
+      lng: z.number(),
+      locationName: z.string().optional(),
+      notificationReach: z.number().default(5.0),
+    }),
   })
   .refine((data) => data.endTime > data.startTime, {
     message: 'Einddatum moet na startdatum liggen',
     path: ['endTime'],
-  })
-  .refine((data) => !!data.imageFile || !!data.imageUrl, {
-    message: 'Een afbeelding is verplicht. Upload een eigen afbeelding of genereer er een.',
-    path: ['imageFile'],
   });
 
 type CreateEventFormValues = z.infer<typeof createEventFormSchema>;
@@ -123,6 +127,7 @@ const CreateEvent = () => {
   const { location } = useLocation();
   const [, setLocation] = useWouterLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   
@@ -422,7 +427,7 @@ const CreateEvent = () => {
   };
   
   // Formulier indienen
-  const onSubmit = (data: CreateEventFormValues) => {
+  const onSubmit = async (data: CreateEventFormValues) => {
     console.log('Formulier verzenden:', data);
     
     // Debug eventuele validatiefouten
@@ -445,17 +450,74 @@ const CreateEvent = () => {
       return;
     }
     
-    // Zorg ervoor dat hostId is ingesteld voordat we de mutatie uitvoeren
-    // Dit is verplicht volgens het server-side schema
+    // Upload afbeelding eerst als er een geselecteerd bestand is
+    let uploadedImageUrl = data.imageUrl;
+    
+    if (selectedImages.length > 0 && selectedImages[0]) {
+      try {
+        console.log("Uploading image for event...");
+        
+        const formData = new FormData();
+        formData.append('photo', selectedImages[0]);
+        
+        const response = await fetch('/api/profile-photo', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+        
+        const uploadResponse = await response.json();
+        
+        uploadedImageUrl = uploadResponse.photoUrl.startsWith('http') 
+          ? uploadResponse.photoUrl 
+          : window.location.origin + uploadResponse.photoUrl;
+          
+        console.log("Image uploaded successfully:", uploadedImageUrl);
+        
+      } catch (error) {
+        console.error("Failed to upload image:", error);
+        toast({
+          title: "Afbeelding upload mislukt",
+          description: "De afbeelding kon niet worden geüpload, maar het event wordt wel aangemaakt.",
+          variant: "destructive"
+        });
+      }
+    }
+    
+    // Converteer location object naar individuele velden voor de API
+    const latitude = data.location?.lat;
+    const longitude = data.location?.lng;
+    const address = data.location?.locationName || "";
+    const notificationReach = data.location?.notificationReach || 5.0;
+    
+    // Fix voor het maxParticipants probleem
+    const maxParticipants = data.hasMaxParticipants ? 
+      (data.maxParticipants || 0) : 0;
+    
+    // Bereid de complete data voor in het juiste formaat voor het API endpoint
     const completeData = {
       ...data,
+      latitude: latitude,
+      longitude: longitude,
+      address: address,
+      notificationReach: notificationReach,
       hostId: 1, // Standaard host ID (ingelogde gebruiker of admin)
+      maxParticipants: maxParticipants,
+      imageUrl: uploadedImageUrl,
     };
+    
+    // Verwijder het location object
+    const { location, imageFile, hasMaxParticipants, ...dataWithoutLocation } = completeData;
+    
+    console.log('Verzenden gegevens:', JSON.stringify(dataWithoutLocation, null, 2));
     
     // Als er geen validatiefouten zijn, probeer de mutatie uit te voeren
     try {
-      console.log('Mutatie uitvoeren met data:', completeData);
-      createEventMutation.mutate(completeData);
+      console.log('Mutatie uitvoeren met data:', dataWithoutLocation);
+      createEventMutation.mutate(dataWithoutLocation as any);
     } catch (err) {
       console.error('Fout bij het uitvoeren van createEventMutation:', err);
       toast({

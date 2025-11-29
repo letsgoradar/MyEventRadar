@@ -1,11 +1,12 @@
 import * as React from "react";
 import WebLayout from "@/components/Web/WebLayout";
+import MapView from "@/components/Map/MapView";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { EventInterface } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bookmark, UserCheck, Calendar, MapPin, Clock, Users, Edit, Trash2, Eye, ChevronRight, CalendarPlus } from "lucide-react";
+import { Bookmark, UserCheck, Calendar, MapPin, Clock, Users, Edit, Trash2, Eye, ChevronRight, CalendarPlus, Map } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +17,11 @@ import { EventDetailPanel } from "@/components/Web/EventDetailPanel";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -25,6 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import L from "leaflet";
 
 interface ParticipantInfo {
   id: number;
@@ -43,7 +50,6 @@ export function WebMyEventsPage() {
   const [selectedEvent, setSelectedEvent] = React.useState<EventInterface | null>(null);
   const [managingEvent, setManagingEvent] = React.useState<EventInterface | null>(null);
   const [deleteEventId, setDeleteEventId] = React.useState<number | null>(null);
-  
   const { data: organizedEvents = [], isLoading: loadingOrganized } = useQuery<EventInterface[]>({
     queryKey: ['/api/events/byuser', user?.id],
     queryFn: async () => {
@@ -105,6 +111,33 @@ export function WebMyEventsPage() {
     return organizedEvents;
   }, [activeTab, organizedEvents, participatingEvents, favoriteEvents]);
 
+  // Zoom kaart naar alle events wanneer tab of events veranderen
+  React.useEffect(() => {
+    if (displayEvents.length === 0) return;
+    
+    // Verzamel alle event coördinaten
+    const validEvents = displayEvents.filter(e => e.latitude && e.longitude);
+    if (validEvents.length === 0) return;
+    
+    // Maak bounds die alle events bevatten
+    const bounds = L.latLngBounds(
+      validEvents.map(e => L.latLng(Number(e.latitude), Number(e.longitude)))
+    );
+    
+    // Voeg padding toe en zoom naar de bounds - gebruik window.mapRef
+    setTimeout(() => {
+      const mapRef = (window as any).mapRef?.current;
+      if (mapRef) {
+        mapRef.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 14,
+          animate: true,
+          duration: 0.8
+        });
+      }
+    }, 500);
+  }, [displayEvents, activeTab]);
+
   const handleEventClick = React.useCallback((event: EventInterface) => {
     if (activeTab === "organized") {
       setManagingEvent(event);
@@ -114,6 +147,10 @@ export function WebMyEventsPage() {
       setManagingEvent(null);
     }
   }, [activeTab]);
+
+  const handleMapEventClick = React.useCallback((event: EventInterface) => {
+    handleEventClick(event);
+  }, [handleEventClick]);
 
   const handleCloseEventDetail = React.useCallback(() => {
     setSelectedEvent(null);
@@ -151,9 +188,9 @@ export function WebMyEventsPage() {
   };
 
   const LoadingState = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-        <div key={n} className="h-48 bg-muted rounded-lg animate-pulse"></div>
+    <div className="space-y-3">
+      {[1, 2, 3, 4].map((n) => (
+        <div key={n} className="h-20 bg-muted rounded-lg animate-pulse"></div>
       ))}
     </div>
   );
@@ -161,21 +198,21 @@ export function WebMyEventsPage() {
   const EmptyState = ({ type }: { type: string }) => {
     const messages = {
       organized: {
-        icon: <CalendarPlus className="h-16 w-16 text-muted-foreground mb-4" />,
-        title: "Nog geen evenementen georganiseerd",
-        description: "Je hebt nog geen evenementen aangemaakt. Maak je eerste evenement aan!",
+        icon: <CalendarPlus className="h-12 w-12 text-muted-foreground mb-3" />,
+        title: "Nog geen evenementen",
+        description: "Je hebt nog geen evenementen aangemaakt.",
         buttonText: "Nieuw Evenement",
         buttonLink: "/web/create-event",
       },
       participating: {
-        icon: <UserCheck className="h-16 w-16 text-muted-foreground mb-4" />,
+        icon: <UserCheck className="h-12 w-12 text-muted-foreground mb-3" />,
         title: "Nog niet aangemeld",
         description: "Je hebt je nog niet aangemeld voor evenementen.",
         buttonText: "Ontdek evenementen",
         buttonLink: "/web",
       },
       saved: {
-        icon: <Bookmark className="h-16 w-16 text-muted-foreground mb-4" />,
+        icon: <Bookmark className="h-12 w-12 text-muted-foreground mb-3" />,
         title: "Nog niets bewaard",
         description: "Je hebt nog geen evenementen bewaard.",
         buttonText: "Ontdek evenementen",
@@ -186,73 +223,64 @@ export function WebMyEventsPage() {
     const msg = messages[type as keyof typeof messages] || messages.organized;
 
     return (
-      <Card className="mt-8">
-        <CardContent className="flex flex-col items-center justify-center py-16">
-          {msg.icon}
-          <h2 className="text-2xl font-bold mb-2">{msg.title}</h2>
-          <p className="text-muted-foreground mb-6 text-center max-w-md">
-            {msg.description}
-          </p>
-          <Button asChild size="lg">
-            <Link href={msg.buttonLink}>
-              {msg.buttonText}
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        {msg.icon}
+        <h3 className="text-lg font-semibold mb-1">{msg.title}</h3>
+        <p className="text-sm text-muted-foreground mb-4 max-w-xs">
+          {msg.description}
+        </p>
+        <Button asChild size="sm">
+          <Link href={msg.buttonLink}>
+            {msg.buttonText}
+          </Link>
+        </Button>
+      </div>
     );
   };
 
-  const EventCard = ({ event }: { event: EventInterface }) => {
+  const EventListItem = ({ event }: { event: EventInterface }) => {
     const isOrganized = activeTab === "organized";
+    const isActive = selectedEvent?.id === event.id || managingEvent?.id === event.id;
     
     return (
-      <Card 
-        className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group h-full"
+      <div 
+        className={`flex gap-3 p-3 rounded-lg cursor-pointer transition-all hover:bg-accent/50 ${isActive ? 'bg-accent ring-2 ring-primary' : 'bg-card'}`}
         onClick={() => handleEventClick(event)}
-        data-testid={`card-event-${event.id}`}
+        data-testid={`listitem-event-${event.id}`}
       >
-        <div className="relative h-32 overflow-hidden">
+        <div className="relative w-20 h-20 flex-shrink-0 rounded-md overflow-hidden">
           <img 
             src={event.imageUrl || getSmartImage(event.title || '', event.description || '').image || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&h=300&fit=crop'}
             alt={event.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-cover"
             onError={(e) => {
               e.currentTarget.src = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&h=300&fit=crop';
             }}
           />
-          <div className="absolute top-2 right-2">
-            {isOrganized && (
-              <Badge variant="secondary" className="bg-primary text-primary-foreground">
-                <Edit className="h-3 w-3 mr-1" />
-                Beheren
+          {isOrganized && (
+            <div className="absolute top-1 right-1">
+              <Badge variant="secondary" className="bg-primary text-primary-foreground text-[10px] px-1 py-0">
+                <Edit className="h-2.5 w-2.5" />
               </Badge>
-            )}
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-            <span className="text-xs font-medium text-white/90 bg-white/20 px-2 py-0.5 rounded">
-              {event.category}
-            </span>
-          </div>
+            </div>
+          )}
         </div>
-        <CardContent className="p-3">
-          <h3 className="font-semibold text-sm mb-1 line-clamp-1">{event.title}</h3>
-          <div className="space-y-1 text-xs text-muted-foreground">
-            {event.startTime && (
-              <div className="flex items-center gap-1.5">
-                <Calendar className="h-3 w-3 flex-shrink-0" />
-                <span className="line-clamp-1">{formatEventDate(event.startTime)}</span>
-              </div>
-            )}
-            {event.address && (
-              <div className="flex items-center gap-1.5">
-                <MapPin className="h-3 w-3 flex-shrink-0" />
-                <span className="line-clamp-1">{event.address}</span>
-              </div>
-            )}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-sm line-clamp-1 mb-1">{event.title}</h3>
+          <div className="space-y-0.5 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3 w-3 flex-shrink-0" />
+              <span className="line-clamp-1">{event.startTime ? format(new Date(event.startTime), "d MMM, HH:mm", { locale: nl }) : 'Geen datum'}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <MapPin className="h-3 w-3 flex-shrink-0" />
+              <span className="line-clamp-1">{event.address || 'Geen locatie'}</span>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+          <Badge variant="outline" className="mt-1.5 text-[10px]">{event.category}</Badge>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground self-center flex-shrink-0" />
+      </div>
     );
   };
 
@@ -272,7 +300,6 @@ export function WebMyEventsPage() {
         </div>
         
         <div className="p-6 space-y-6">
-          {/* Afbeelding - Bewerkbaar */}
           <div 
             className="relative h-48 rounded-lg overflow-hidden cursor-pointer group"
             onClick={() => navigateToEdit('image')}
@@ -289,7 +316,6 @@ export function WebMyEventsPage() {
             </div>
           </div>
 
-          {/* Statistieken sectie - Niet bewerkbaar */}
           <div className="bg-muted/50 rounded-lg p-4 border border-dashed border-muted-foreground/20">
             <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Statistieken</p>
             <div className="grid grid-cols-2 gap-4">
@@ -310,7 +336,6 @@ export function WebMyEventsPage() {
             </div>
           </div>
 
-          {/* Deelnemers sectie - Niet bewerkbaar */}
           <div className="bg-muted/50 rounded-lg p-4 border border-dashed border-muted-foreground/20">
             <div className="flex items-center gap-2 mb-3">
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -345,14 +370,12 @@ export function WebMyEventsPage() {
             )}
           </div>
 
-          {/* Bewerkbare velden sectie */}
           <div className="space-y-4">
             <p className="text-xs font-medium text-primary uppercase tracking-wide flex items-center gap-1.5">
               <Edit className="h-3.5 w-3.5" />
               Klik om te bewerken
             </p>
             
-            {/* Titel en Categorie - Bewerkbaar */}
             <Card 
               className="cursor-pointer hover:border-primary/50 hover:bg-accent/50 transition-colors group"
               onClick={() => navigateToEdit('description')}
@@ -368,7 +391,6 @@ export function WebMyEventsPage() {
               </CardContent>
             </Card>
 
-            {/* Datum en Tijd - Bewerkbaar */}
             <Card 
               className="cursor-pointer hover:border-primary/50 hover:bg-accent/50 transition-colors group"
               onClick={() => navigateToEdit('datetime')}
@@ -394,7 +416,6 @@ export function WebMyEventsPage() {
               </CardContent>
             </Card>
 
-            {/* Locatie - Bewerkbaar */}
             <Card 
               className="cursor-pointer hover:border-primary/50 hover:bg-accent/50 transition-colors group"
               onClick={() => navigateToEdit('location')}
@@ -413,7 +434,6 @@ export function WebMyEventsPage() {
               </CardContent>
             </Card>
 
-            {/* Beschrijving - Bewerkbaar */}
             {event.description && (
               <Card 
                 className="cursor-pointer hover:border-primary/50 hover:bg-accent/50 transition-colors group"
@@ -453,69 +473,101 @@ export function WebMyEventsPage() {
     );
   };
 
+  // Sidebar component met sidebar
+  const Sidebar = React.lazy(() => import("@/components/Web/Sidebar"));
+
   return (
     <>
-      <WebLayout>
-        <div className="flex h-full">
-          <div className={`${selectedEvent || managingEvent ? 'w-1/2' : 'w-full'} transition-all duration-300 overflow-auto`}>
-            <div className="p-6 max-w-7xl mx-auto">
-              <div className="mb-6">
-                <h1 className="text-3xl font-bold mb-2">Mijn Events</h1>
-                <p className="text-muted-foreground">
-                  Bekijk en beheer al je evenementen op één plek.
-                </p>
-              </div>
-
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-                <TabsList className="grid w-full max-w-lg grid-cols-3">
-                  <TabsTrigger value="organized" className="gap-2">
-                    <CalendarPlus className="h-4 w-4" />
-                    Mijn ({organizedEvents.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="participating" className="gap-2">
-                    <UserCheck className="h-4 w-4" />
-                    Aangemeld ({participatingEvents.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="saved" className="gap-2">
-                    <Bookmark className="h-4 w-4" />
-                    Bewaard ({favoriteEvents.length})
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-
-              {isLoading ? (
-                <LoadingState />
-              ) : displayEvents.length === 0 ? (
-                <EmptyState type={activeTab} />
-              ) : (
-                <div className={`grid gap-4 ${selectedEvent || managingEvent ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
-                  {displayEvents.map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))}
+      <div className="h-screen flex overflow-hidden">
+        <React.Suspense fallback={<div className="w-[260px] bg-background border-r" />}>
+          <Sidebar />
+        </React.Suspense>
+        
+        <div className="flex-1 flex flex-col relative">
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            {/* Linker paneel: Kaart */}
+            <ResizablePanel defaultSize={55} minSize={35} className="relative">
+              <div className="h-full overflow-hidden">
+                <MapView 
+                  searchQuery=""
+                  radius={50}
+                  filteredEvents={displayEvents}
+                  onEventClick={handleMapEventClick}
+                  showExpiredEvents={true}
+                />
+                
+                {/* Overlay met titel */}
+                <div className="absolute top-4 left-4 z-[400] bg-background/95 backdrop-blur-sm rounded-lg shadow-lg px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <Map className="h-5 w-5 text-primary" />
+                    <span className="font-semibold">
+                      {displayEvents.length} event{displayEvents.length !== 1 ? 's' : ''} op de kaart
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {managingEvent && (
-            <div className="w-1/2 border-l border-gray-200 h-full overflow-hidden">
-              <EventManagementPanel event={managingEvent} />
-            </div>
-          )}
-
-          {selectedEvent && !managingEvent && (
-            <div className="w-1/2 border-l border-gray-200 h-full overflow-hidden">
-              <EventDetailPanel
-                event={selectedEvent}
-                events={displayEvents}
-                onClose={handleCloseEventDetail}
-                onPrevious={() => handleNavigateEvent('previous')}
-                onNext={() => handleNavigateEvent('next')}
-              />
-            </div>
-          )}
+              </div>
+            </ResizablePanel>
+            
+            <ResizableHandle withHandle className="z-50 bg-primary" />
+            
+            {/* Rechter paneel: Tabs en Event lijst */}
+            <ResizablePanel defaultSize={45} minSize={30} className="relative bg-background">
+              <div className="h-full flex flex-col">
+                {/* Header met tabs */}
+                <div className="p-4 border-b bg-background">
+                  <h1 className="text-2xl font-bold mb-4">Mijn Events</h1>
+                  
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="organized" className="gap-1.5 text-xs sm:text-sm">
+                        <CalendarPlus className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Mijn</span> ({organizedEvents.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="participating" className="gap-1.5 text-xs sm:text-sm">
+                        <UserCheck className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Aangemeld</span> ({participatingEvents.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="saved" className="gap-1.5 text-xs sm:text-sm">
+                        <Bookmark className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Bewaard</span> ({favoriteEvents.length})
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+                
+                {/* Event lijst of detail panel */}
+                <div className="flex-1 overflow-hidden">
+                  {selectedEvent ? (
+                    <EventDetailPanel
+                      event={selectedEvent}
+                      events={displayEvents}
+                      onClose={handleCloseEventDetail}
+                      onPrevious={() => handleNavigateEvent('previous')}
+                      onNext={() => handleNavigateEvent('next')}
+                    />
+                  ) : managingEvent ? (
+                    <EventManagementPanel event={managingEvent} />
+                  ) : (
+                    <div className="h-full overflow-auto p-4">
+                      {isLoading ? (
+                        <LoadingState />
+                      ) : displayEvents.length === 0 ? (
+                        <EmptyState type={activeTab} />
+                      ) : (
+                        <div className="space-y-2">
+                          {displayEvents.map((event) => (
+                            <EventListItem key={event.id} event={event} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </div>
-      </WebLayout>
+      </div>
 
       <AlertDialog open={deleteEventId !== null} onOpenChange={() => setDeleteEventId(null)}>
         <AlertDialogContent>

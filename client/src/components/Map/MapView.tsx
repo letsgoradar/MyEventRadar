@@ -23,6 +23,162 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
 });
 
+// Component voor de gebruikerslocatie marker met animaties en adres
+function UserLocationMarker({ 
+  position, 
+  onCenterMap 
+}: { 
+  position: [number, number]; 
+  onCenterMap: () => void;
+}) {
+  const [address, setAddress] = React.useState<string>("Adres laden...");
+  const [isLoadingAddress, setIsLoadingAddress] = React.useState(true);
+  const markerRef = React.useRef<L.Marker>(null);
+  const map = useMap();
+
+  // Haal het adres op via reverse geocoding
+  React.useEffect(() => {
+    const fetchAddress = async () => {
+      try {
+        setIsLoadingAddress(true);
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position[0]}&lon=${position[1]}&zoom=18&addressdetails=1`,
+          {
+            headers: {
+              'Accept-Language': 'nl'
+            }
+          }
+        );
+        const data = await response.json();
+        
+        if (data.address) {
+          const parts = [];
+          if (data.address.road) parts.push(data.address.road);
+          if (data.address.house_number) parts[0] = `${parts[0]} ${data.address.house_number}`;
+          if (data.address.suburb) parts.push(data.address.suburb);
+          if (data.address.city || data.address.town || data.address.village) {
+            parts.push(data.address.city || data.address.town || data.address.village);
+          }
+          setAddress(parts.join(', ') || data.display_name?.split(',').slice(0, 2).join(',') || 'Onbekende locatie');
+        } else {
+          setAddress('Onbekende locatie');
+        }
+      } catch (error) {
+        console.error('Fout bij ophalen adres:', error);
+        setAddress('Adres niet beschikbaar');
+      } finally {
+        setIsLoadingAddress(false);
+      }
+    };
+
+    fetchAddress();
+  }, [position[0], position[1]]);
+
+  // Aangepast icoon voor gebruikerslocatie met pulserende animatie
+  const userLocationIcon = L.divIcon({
+    className: 'user-location-marker',
+    html: `
+      <div class="user-location-container">
+        <div class="user-location-pulse"></div>
+        <div class="user-location-pulse-delayed"></div>
+        <div class="user-location-dot">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="8" fill="white"/>
+            <circle cx="12" cy="12" r="5" fill="#3b82f6"/>
+          </svg>
+        </div>
+      </div>
+      <style>
+        .user-location-container {
+          position: relative;
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .user-location-pulse,
+        .user-location-pulse-delayed {
+          position: absolute;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(59, 130, 246, 0.3);
+          animation: userPulse 2s ease-out infinite;
+        }
+        .user-location-pulse-delayed {
+          animation-delay: 1s;
+        }
+        .user-location-dot {
+          position: relative;
+          width: 24px;
+          height: 24px;
+          z-index: 10;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        .user-location-dot svg {
+          width: 100%;
+          height: 100%;
+        }
+        @keyframes userPulse {
+          0% {
+            transform: scale(0.5);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(2);
+            opacity: 0;
+          }
+        }
+      </style>
+    `,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  });
+
+  const handleClick = () => {
+    // Centreer de kaart op de gebruikerslocatie
+    map.flyTo(position, 16, {
+      animate: true,
+      duration: 1
+    });
+    
+    // Open de popup
+    if (markerRef.current) {
+      markerRef.current.openPopup();
+    }
+    
+    onCenterMap();
+  };
+
+  return (
+    <Marker 
+      ref={markerRef}
+      position={position}
+      icon={userLocationIcon}
+      eventHandlers={{
+        click: handleClick
+      }}
+    >
+      <Popup className="user-location-popup" closeButton={true}>
+        <div className="p-1">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
+            <p className="font-semibold text-sm text-blue-600">Jouw locatie</p>
+          </div>
+          <p className="text-xs text-gray-600 ml-5">
+            {isLoadingAddress ? (
+              <span className="text-gray-400">Adres laden...</span>
+            ) : (
+              address
+            )}
+          </p>
+        </div>
+      </Popup>
+    </Marker>
+  );
+}
+
 // Component om de kaart automatisch te centreren op gebruiker
 function MapCenter({ lat, lng, shouldFlyTo = false }: { lat: number; lng: number; shouldFlyTo?: boolean }) {
   const map = useMap();
@@ -557,22 +713,13 @@ export default function MapView({
           />
         )}
         
-        {/* Marker voor gebruiker locatie */}
-        <Marker 
+        {/* Marker voor gebruiker locatie met animaties en adres */}
+        <UserLocationMarker 
           position={userLocation}
-          icon={L.divIcon({
-            className: 'custom-user-icon',
-            html: `<div style="background-color: #3b82f6; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);"></div>`,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8],
-          })}
-        >
-          <Popup>
-            <div>
-              <p className="font-medium">Uw locatie</p>
-            </div>
-          </Popup>
-        </Marker>
+          onCenterMap={() => {
+            console.log('Kaart gecentreerd op gebruikerslocatie');
+          }}
+        />
         
         {/* Markers voor events */}
         {formattedEvents.map((event) => {

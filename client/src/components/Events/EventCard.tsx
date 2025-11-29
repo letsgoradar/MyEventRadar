@@ -33,9 +33,10 @@ interface EventCardProps {
   distance?: number;
   gridView?: boolean;
   onEventClick?: (event: EventInterface) => void;
+  isHighlighted?: boolean;
 }
 
-export default function EventCard({ event, distance, gridView = false, onEventClick }: EventCardProps) {
+export default function EventCard({ event, distance, gridView = false, onEventClick, isHighlighted = false }: EventCardProps) {
   const [showStreetView, setShowStreetView] = useState(false);
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
   

@@ -27,9 +27,11 @@ interface EventListProps {
   filteredEvents: EventWithDistance[];
   gridView?: boolean;
   onEventClick?: (event: EventWithDistance) => void;
+  onEventHover?: (eventId: number | null) => void;
+  hoveredEventId?: number | null;
 }
 
-export function EventList({ filteredEvents, gridView = false, onEventClick }: EventListProps) {
+export function EventList({ filteredEvents, gridView = false, onEventClick, onEventHover, hoveredEventId }: EventListProps) {
   const isMobile = useIsMobile();
   
   // Check of we op de App pagina zijn
@@ -61,13 +63,19 @@ export function EventList({ filteredEvents, gridView = false, onEventClick }: Ev
       <div className="p-4 event-list-container">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr event-list-bg">
           {processedEvents.map((event) => (
-            <EventCard 
-              key={event.id} 
-              event={event} 
-              distance={event.distance}
-              gridView={true}
-              onEventClick={onEventClick}
-            />
+            <div
+              key={event.id}
+              onMouseEnter={() => onEventHover?.(event.id)}
+              onMouseLeave={() => onEventHover?.(null)}
+            >
+              <EventCard 
+                event={event} 
+                distance={event.distance}
+                gridView={true}
+                onEventClick={onEventClick}
+                isHighlighted={hoveredEventId === event.id}
+              />
+            </div>
           ))}
         </div>
       </div>
@@ -79,13 +87,19 @@ export function EventList({ filteredEvents, gridView = false, onEventClick }: Ev
     <div className="px-4 pt-2 pb-4 event-list-container">
       <div className="space-y-3 event-list-bg">
         {processedEvents.map((event) => (
-          <EventCard 
-            key={event.id} 
-            event={event} 
-            distance={event.distance}
-            gridView={false}
-            onEventClick={onEventClick}
-          />
+          <div
+            key={event.id}
+            onMouseEnter={() => onEventHover?.(event.id)}
+            onMouseLeave={() => onEventHover?.(null)}
+          >
+            <EventCard 
+              event={event} 
+              distance={event.distance}
+              gridView={false}
+              onEventClick={onEventClick}
+              isHighlighted={hoveredEventId === event.id}
+            />
+          </div>
         ))}
       </div>
     </div>

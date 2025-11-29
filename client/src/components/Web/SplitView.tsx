@@ -33,6 +33,7 @@ export function SplitView({
   const [mapZoom, setMapZoom] = React.useState<number>(13);
   const [visibleEvents, setVisibleEvents] = React.useState<Event[]>(filteredEvents);
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
+  const [hoveredEventId, setHoveredEventId] = React.useState<number | null>(null);
   
   // Gebruik prop selectedDays als beschikbaar, anders lege array
   const selectedDays = propSelectedDays ?? [];
@@ -166,6 +167,7 @@ export function SplitView({
                 onZoomChange={handleZoomChange}
                 showExpiredEvents={showExpiredEvents}
                 onShowExpiredEventsChange={(show) => setShowExpiredEvents(show)}
+                hoveredEventId={hoveredEventId}
               />
               
             </div>
@@ -202,8 +204,10 @@ export function SplitView({
                   searchQuery={searchQuery} 
                   radius={50} 
                   filteredEvents={visibleEvents} 
-                  gridView={true} // Gebruik de nieuwe grid weergave
+                  gridView={true}
                   onEventClick={handleTileEventClick}
+                  onEventHover={setHoveredEventId}
+                  hoveredEventId={hoveredEventId}
                 />
                 
 

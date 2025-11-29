@@ -473,10 +473,12 @@ function createEventIcon(
   category: string, 
   isExpired: boolean = false, 
   isSelected: boolean = false, 
-  eventAngle: number = 0
+  eventAngle: number = 0,
+  isHovered: boolean = false
 ) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
-  const size = isSelected ? 28 : 24;
+  // Vergroot de marker als geselecteerd of gehovered
+  const size = isSelected ? 28 : (isHovered ? 30 : 24);
   const wrapperSize = size + 20;
   const innerSize = size - 4;
   
@@ -489,13 +491,16 @@ function createEventIcon(
   // Bereken gesynchroniseerde delay - wanneer de radar dit event zal bereiken
   const syncedDelay = calculateSyncedAnimationDelay(eventAngle);
   
+  // Extra styling voor hovered state
+  const hoverGlow = isHovered ? `box-shadow: 0 0 20px 6px ${scanColor}, 0 4px 12px rgba(0,0,0,0.3);` : '';
+  
   return L.divIcon({
     className: 'custom-div-icon event-marker-radar',
     html: `
       <div class="evt-radar-pin">
         <div class="evt-scan-ring" style="animation-delay: ${syncedDelay}s;"></div>
         <div class="evt-scan-glow" style="animation-delay: ${syncedDelay}s;"></div>
-        <div class="evt-dot ${isSelected ? 'selected' : ''}">
+        <div class="evt-dot ${isSelected ? 'selected' : ''} ${isHovered ? 'hovered' : ''}">
           <div class="evt-inner" style="background-color: ${color};"></div>
         </div>
       </div>
@@ -540,11 +545,22 @@ function createEventIcon(
           justify-content: center;
           box-shadow: 0 2px 6px rgba(0,0,0,0.35);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
+          ${hoverGlow}
         }
         
         .evt-dot.selected {
           transform: scale(1.2);
           box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+        }
+        
+        .evt-dot.hovered {
+          transform: scale(1.25);
+          animation: hoverPulse 0.6s ease-in-out infinite;
+        }
+        
+        @keyframes hoverPulse {
+          0%, 100% { box-shadow: 0 0 20px 6px ${scanColor}, 0 4px 12px rgba(0,0,0,0.3); }
+          50% { box-shadow: 0 0 30px 10px ${scanColor}, 0 4px 16px rgba(0,0,0,0.4); }
         }
         
         .evt-inner {
@@ -611,6 +627,7 @@ interface MapViewProps {
   showExpiredEvents?: boolean;
   onShowExpiredEventsChange?: (showExpired: boolean) => void;
   selectedEventId?: number | null;
+  hoveredEventId?: number | null;
 }
 
 export default function MapView({ 
@@ -624,7 +641,8 @@ export default function MapView({
   onZoomChange: propOnZoomChange,
   showExpiredEvents: propShowExpiredEvents,
   onShowExpiredEventsChange,
-  selectedEventId: propSelectedEventId
+  selectedEventId: propSelectedEventId,
+  hoveredEventId: propHoveredEventId
 }: MapViewProps) {
   // State voor locatie van gebruiker
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
@@ -962,6 +980,7 @@ export default function MapView({
         {/* Markers voor events met radar-gesynchroniseerde animatie */}
         {formattedEvents.map((event) => {
           const isSelected = selectedEvent?.id === event.id;
+          const isHovered = propHoveredEventId === event.id;
           // Bereken de hoek van dit event t.o.v. de gebruikerslocatie
           const eventAngle = calculateAngleFromUser(
             userLocation[0], 
@@ -971,13 +990,14 @@ export default function MapView({
           );
           return (
           <Marker 
-            key={`${event.id}-${isSelected ? 'selected' : 'normal'}`}
+            key={`${event.id}-${isSelected ? 'selected' : 'normal'}-${isHovered ? 'hovered' : ''}`}
             position={event.coords}
             icon={createEventIcon(
               event.category, 
               event.expired, 
               isSelected,
-              eventAngle
+              eventAngle,
+              isHovered
             )}
             eventHandlers={{
               click: () => {

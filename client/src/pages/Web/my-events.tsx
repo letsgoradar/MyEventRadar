@@ -50,6 +50,8 @@ export function WebMyEventsPage() {
   const [selectedEvent, setSelectedEvent] = React.useState<EventInterface | null>(null);
   const [managingEvent, setManagingEvent] = React.useState<EventInterface | null>(null);
   const [deleteEventId, setDeleteEventId] = React.useState<number | null>(null);
+  const [hoveredEventId, setHoveredEventId] = React.useState<number | null>(null);
+  
   const { data: organizedEvents = [], isLoading: loadingOrganized } = useQuery<EventInterface[]>({
     queryKey: ['/api/events/byuser', user?.id],
     queryFn: async () => {
@@ -241,11 +243,14 @@ export function WebMyEventsPage() {
   const EventListItem = ({ event }: { event: EventInterface }) => {
     const isOrganized = activeTab === "organized";
     const isActive = selectedEvent?.id === event.id || managingEvent?.id === event.id;
+    const isHovered = hoveredEventId === event.id;
     
     return (
       <div 
-        className={`flex gap-3 p-3 rounded-lg cursor-pointer transition-all hover:bg-accent/50 ${isActive ? 'bg-accent ring-2 ring-primary' : 'bg-card'}`}
+        className={`flex gap-3 p-3 rounded-lg cursor-pointer transition-all hover:bg-accent/50 ${isActive ? 'bg-accent ring-2 ring-primary' : (isHovered ? 'bg-accent/30 ring-2 ring-primary/50' : 'bg-card')}`}
         onClick={() => handleEventClick(event)}
+        onMouseEnter={() => setHoveredEventId(event.id)}
+        onMouseLeave={() => setHoveredEventId(null)}
         data-testid={`listitem-event-${event.id}`}
       >
         <div className="relative w-20 h-20 flex-shrink-0 rounded-md overflow-hidden">
@@ -494,6 +499,7 @@ export function WebMyEventsPage() {
                   filteredEvents={displayEvents}
                   onEventClick={handleMapEventClick}
                   showExpiredEvents={true}
+                  hoveredEventId={hoveredEventId}
                 />
                 
                 {/* Overlay met titel */}

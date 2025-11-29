@@ -23,7 +23,18 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
 });
 
-// Globale radar hoek state (gedeeld tussen componenten)
+// Radar configuratie
+const RADAR_CONFIG = {
+  SWEEP_DURATION: 5000, // 5 seconden per rotatie
+  SIZE: 800, // pixels diameter
+  COLOR: {
+    primary: '34, 197, 94', // Groen RGB (tailwind green-500)
+    glow: '22, 163, 74', // Donkerder groen (green-600)
+  }
+};
+
+// Globale radar start tijd voor synchronisatie
+let radarStartTime: number | null = null;
 let globalRadarAngle = 0;
 let radarAnimationFrame: number | null = null;
 const radarListeners: Set<(angle: number) => void> = new Set();
@@ -32,15 +43,15 @@ const radarListeners: Set<(angle: number) => void> = new Set();
 function startRadarAnimation() {
   if (radarAnimationFrame !== null) return;
   
-  const SWEEP_DURATION = 5000; // 5 seconden per rotatie
-  let lastTime = performance.now();
+  // Zet de start tijd als die nog niet gezet is
+  if (radarStartTime === null) {
+    radarStartTime = performance.now();
+  }
   
   const animate = (currentTime: number) => {
-    const delta = currentTime - lastTime;
-    lastTime = currentTime;
-    
-    // Update hoek (360 graden per SWEEP_DURATION ms)
-    globalRadarAngle = (globalRadarAngle + (delta / SWEEP_DURATION) * 360) % 360;
+    // Bereken hoek gebaseerd op tijd sinds start (voor perfecte synchronisatie)
+    const elapsed = currentTime - (radarStartTime || currentTime);
+    globalRadarAngle = ((elapsed / RADAR_CONFIG.SWEEP_DURATION) * 360) % 360;
     
     // Notify all listeners
     radarListeners.forEach(listener => listener(globalRadarAngle));
@@ -49,6 +60,14 @@ function startRadarAnimation() {
   };
   
   radarAnimationFrame = requestAnimationFrame(animate);
+}
+
+// Krijg de radar start tijd voor CSS synchronisatie
+function getRadarStartTime(): number {
+  if (radarStartTime === null) {
+    radarStartTime = performance.now();
+  }
+  return radarStartTime;
 }
 
 // Hook om de radar hoek te volgen
@@ -119,130 +138,108 @@ function UserLocationMarker({
     fetchAddress();
   }, [position[0], position[1]]);
 
-  // Aangepast icoon voor gebruikerslocatie met grotere radar sweep animatie
+  // Aangepast icoon voor gebruikerslocatie met grote groene radar sweep
+  const size = RADAR_CONFIG.SIZE;
+  const halfSize = size / 2;
+  const { primary, glow } = RADAR_CONFIG.COLOR;
+  
   const userLocationIcon = L.divIcon({
     className: 'user-location-marker',
     html: `
-      <div class="radar-container-large">
-        <!-- Grote radar sweep effect -->
-        <div class="radar-sweep-large" style="transform: rotate(${radarAngle}deg);"></div>
+      <div class="radar-container-xl">
+        <!-- Grote radar sweep effect met groene kleur -->
+        <div class="radar-sweep-xl" style="transform: rotate(${radarAngle}deg);"></div>
         <!-- Radar bereik cirkel -->
-        <div class="radar-range-circle"></div>
-        <!-- Subtiele uitdijende ringen -->
-        <div class="radar-ring-large radar-ring-1"></div>
-        <div class="radar-ring-large radar-ring-2"></div>
+        <div class="radar-range-xl"></div>
         <!-- Centrale punt -->
-        <div class="radar-center-large">
-          <div class="radar-center-dot-large"></div>
+        <div class="radar-center-xl">
+          <div class="radar-center-dot-xl"></div>
         </div>
       </div>
       <style>
-        .radar-container-large {
+        .radar-container-xl {
           position: relative;
-          width: 500px;
-          height: 500px;
+          width: ${size}px;
+          height: ${size}px;
           display: flex;
           align-items: center;
           justify-content: center;
           pointer-events: none;
         }
         
-        /* Radar bereik indicator */
-        .radar-range-circle {
+        /* Radar bereik indicator - subtiele groene rand */
+        .radar-range-xl {
           position: absolute;
-          width: 480px;
-          height: 480px;
+          width: ${size - 20}px;
+          height: ${size - 20}px;
           border-radius: 50%;
-          border: 1px solid rgba(59, 130, 246, 0.08);
-          background: radial-gradient(circle, transparent 0%, transparent 85%, rgba(59, 130, 246, 0.03) 100%);
+          border: 1px solid rgba(${primary}, 0.1);
+          background: radial-gradient(
+            circle, 
+            transparent 0%, 
+            transparent 80%, 
+            rgba(${primary}, 0.02) 90%,
+            rgba(${primary}, 0.04) 100%
+          );
         }
         
-        /* Roterende radar sweep - grotere straal */
-        .radar-sweep-large {
+        /* Roterende radar sweep - grote groene straal */
+        .radar-sweep-xl {
           position: absolute;
-          width: 480px;
-          height: 480px;
+          width: ${size - 20}px;
+          height: ${size - 20}px;
           border-radius: 50%;
           background: conic-gradient(
             from 0deg,
             transparent 0deg,
-            transparent 330deg,
-            rgba(59, 130, 246, 0.12) 345deg,
-            rgba(59, 130, 246, 0.20) 355deg,
-            rgba(59, 130, 246, 0.08) 360deg
+            transparent 300deg,
+            rgba(${primary}, 0.03) 320deg,
+            rgba(${primary}, 0.08) 340deg,
+            rgba(${primary}, 0.15) 350deg,
+            rgba(${primary}, 0.25) 357deg,
+            rgba(${primary}, 0.12) 360deg
           );
           transition: none;
         }
         
-        /* Subtiele uitdijende ringen */
-        .radar-ring-large {
-          position: absolute;
-          border: 1px solid rgba(59, 130, 246, 0.12);
-          border-radius: 50%;
-          animation: radarExpandLarge 5s ease-out infinite;
-        }
-        
-        .radar-ring-large.radar-ring-1 {
-          width: 80px;
-          height: 80px;
-          animation-delay: 0s;
-        }
-        
-        .radar-ring-large.radar-ring-2 {
-          width: 80px;
-          height: 80px;
-          animation-delay: 2.5s;
-        }
-        
-        /* Centraal punt - groter en duidelijker */
-        .radar-center-large {
+        /* Centraal punt - groen thema */
+        .radar-center-xl {
           position: relative;
-          width: 32px;
-          height: 32px;
+          width: 36px;
+          height: 36px;
           background: white;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 2px 12px rgba(59, 130, 246, 0.4);
+          box-shadow: 0 2px 12px rgba(${primary}, 0.5);
           z-index: 10;
           pointer-events: auto;
-          border: 2px solid rgba(59, 130, 246, 0.3);
+          border: 2px solid rgba(${primary}, 0.4);
         }
         
-        .radar-center-dot-large {
-          width: 18px;
-          height: 18px;
-          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        .radar-center-dot-xl {
+          width: 20px;
+          height: 20px;
+          background: linear-gradient(135deg, rgb(${primary}) 0%, rgb(${glow}) 100%);
           border-radius: 50%;
-          animation: centerPulseLarge 2s ease-in-out infinite;
+          animation: centerPulseXL 2s ease-in-out infinite;
         }
         
-        @keyframes radarExpandLarge {
-          0% {
-            transform: scale(1);
-            opacity: 0.5;
-          }
-          100% {
-            transform: scale(5.5);
-            opacity: 0;
-          }
-        }
-        
-        @keyframes centerPulseLarge {
+        @keyframes centerPulseXL {
           0%, 100% {
             transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+            box-shadow: 0 0 0 0 rgba(${primary}, 0.5);
           }
           50% {
-            transform: scale(0.92);
-            box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.1);
+            transform: scale(0.9);
+            box-shadow: 0 0 0 8px rgba(${primary}, 0.15);
           }
         }
       </style>
     `,
-    iconSize: [500, 500],
-    iconAnchor: [250, 250],
+    iconSize: [size, size],
+    iconAnchor: [halfSize, halfSize],
   });
 
   const handleClick = () => {
@@ -451,27 +448,31 @@ function createEventIcon(
   eventAngle: number = 0
 ) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
-  const size = isSelected ? 26 : 22;
-  const wrapperSize = size + 16;
+  const size = isSelected ? 28 : 24;
+  const wrapperSize = size + 20;
   const innerSize = size - 4;
   
-  // Bereken animatie delay gebaseerd op hoek (5 seconden = volledige rotatie)
-  // Hoek 0 = delay 0s, hoek 180 = delay 2.5s, hoek 360 = delay 5s
-  const SWEEP_DURATION = 5; // seconden
-  const animationDelay = (eventAngle / 360) * SWEEP_DURATION;
+  // Radar groene kleur voor scan effect
+  const { primary } = RADAR_CONFIG.COLOR;
+  const scanColor = `rgb(${primary})`;
+  
+  // Bereken animatie delay gebaseerd op hoek
+  // De sweep duurt 5 seconden, dus hoek/360 * 5 = delay in seconden
+  const sweepDurationSec = RADAR_CONFIG.SWEEP_DURATION / 1000;
+  const animationDelay = (eventAngle / 360) * sweepDurationSec;
   
   return L.divIcon({
     className: 'custom-div-icon event-marker-radar',
     html: `
-      <div class="event-radar-pin">
-        <div class="event-radar-scan" style="animation-delay: ${animationDelay}s; border-color: ${color};"></div>
-        <div class="event-radar-glow" style="animation-delay: ${animationDelay}s; background-color: ${color};"></div>
-        <div class="event-radar-dot ${isSelected ? 'selected' : ''}">
-          <div class="event-radar-inner" style="background-color: ${color};"></div>
+      <div class="evt-radar-pin">
+        <div class="evt-scan-ring" style="animation-delay: ${animationDelay}s;"></div>
+        <div class="evt-scan-glow" style="animation-delay: ${animationDelay}s;"></div>
+        <div class="evt-dot ${isSelected ? 'selected' : ''}">
+          <div class="evt-inner" style="background-color: ${color};"></div>
         </div>
       </div>
       <style>
-        .event-radar-pin {
+        .evt-radar-pin {
           position: relative;
           width: ${wrapperSize}px;
           height: ${wrapperSize}px;
@@ -480,26 +481,27 @@ function createEventIcon(
           justify-content: center;
         }
         
-        .event-radar-scan {
+        .evt-scan-ring {
           position: absolute;
           width: ${size}px;
           height: ${size}px;
           border-radius: 50%;
-          border: 2px solid;
+          border: 2px solid ${scanColor};
           opacity: 0;
-          animation: radarScan 5s ease-out infinite;
+          animation: evtScanRing ${sweepDurationSec}s ease-out infinite;
         }
         
-        .event-radar-glow {
+        .evt-scan-glow {
           position: absolute;
-          width: ${size - 4}px;
-          height: ${size - 4}px;
+          width: ${size + 4}px;
+          height: ${size + 4}px;
           border-radius: 50%;
+          background: ${scanColor};
           opacity: 0;
-          animation: radarGlow 5s ease-out infinite;
+          animation: evtScanGlow ${sweepDurationSec}s ease-out infinite;
         }
         
-        .event-radar-dot {
+        .evt-dot {
           position: relative;
           width: ${size}px;
           height: ${size}px;
@@ -509,48 +511,57 @@ function createEventIcon(
           align-items: center;
           justify-content: center;
           box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-          transition: transform 0.2s ease;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         
-        .event-radar-dot.selected {
-          transform: scale(1.15);
-          box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+        .evt-dot.selected {
+          transform: scale(1.2);
+          box-shadow: 0 3px 12px rgba(0,0,0,0.4);
         }
         
-        .event-radar-inner {
+        .evt-inner {
           width: ${innerSize}px;
           height: ${innerSize}px;
           border-radius: 50%;
-          transition: opacity 0.15s ease;
         }
         
-        @keyframes radarScan {
-          0%, 85% {
+        /* Scan ring animatie - kort maar zichtbaar */
+        @keyframes evtScanRing {
+          0% {
             transform: scale(1);
             opacity: 0;
           }
-          90% {
+          2% {
             transform: scale(1);
-            opacity: 0.7;
+            opacity: 0.8;
+          }
+          15% {
+            transform: scale(1.6);
+            opacity: 0;
           }
           100% {
-            transform: scale(1.8);
+            transform: scale(1.6);
             opacity: 0;
           }
         }
         
-        @keyframes radarGlow {
-          0%, 85% {
+        /* Glow effect - subtiele flash */
+        @keyframes evtScanGlow {
+          0% {
             opacity: 0;
             filter: blur(0px);
           }
-          90% {
-            opacity: 0.4;
-            filter: blur(4px);
+          2% {
+            opacity: 0.5;
+            filter: blur(6px);
+          }
+          12% {
+            opacity: 0;
+            filter: blur(10px);
           }
           100% {
             opacity: 0;
-            filter: blur(8px);
+            filter: blur(10px);
           }
         }
       </style>

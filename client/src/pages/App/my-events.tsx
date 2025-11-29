@@ -258,7 +258,8 @@ export function AppMyEventsPage() {
 
   const EventManagementOverlay = ({ event }: { event: EventInterface }) => {
     const navigateToEdit = (section?: string) => {
-      setLocation(`/app/edit-event/${event.id}${section ? `?section=${section}` : ''}`);
+      const url = `/app/edit-event/${event.id}${section ? `?section=${section}` : ''}`;
+      window.location.href = url;
     };
 
     return (

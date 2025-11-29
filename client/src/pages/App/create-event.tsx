@@ -174,10 +174,6 @@ export function AppCreateEvent() {
   const eventId = params.id ? parseInt(params.id) : null;
   const isEditing = eventId !== null && !isNaN(eventId);
   
-  // Parse query parameters voor sectie navigatie
-  const urlParams = new URLSearchParams(window.location.search);
-  const sectionParam = urlParams.get('section');
-  
   // Map section parameter naar stap nummer
   const sectionToStep: Record<string, number> = {
     'description': 1,
@@ -187,15 +183,29 @@ export function AppCreateEvent() {
     'image': 5,
   };
   
-  const initialStep = sectionParam && sectionToStep[sectionParam] ? sectionToStep[sectionParam] : 1;
+  // Parse query parameters voor sectie navigatie - initiële waarde
+  const getInitialStep = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sectionParam = urlParams.get('section');
+    return sectionParam && sectionToStep[sectionParam] ? sectionToStep[sectionParam] : 1;
+  };
   
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [currentStep, setCurrentStep] = useState<number>(initialStep);
+  const [currentStep, setCurrentStep] = useState<number>(getInitialStep);
   const [stepValidations, setStepValidations] = useState<Record<number, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [stepErrors, setStepErrors] = useState<Record<number, string[]>>({});
   const [imageTabValue, setImageTabValue] = useState<string>("auto");
+  
+  // Update step wanneer de URL section parameter verandert
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sectionParam = urlParams.get('section');
+    if (sectionParam && sectionToStep[sectionParam]) {
+      setCurrentStep(sectionToStep[sectionParam]);
+    }
+  }, [window.location.search]);
   
   // Fetch existing event data for editing
   const { data: existingEvent, isLoading: eventLoading } = useQuery({
@@ -296,6 +306,8 @@ export function AppCreateEvent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events/byuser', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
       toast({
         title: "Evenement aangemaakt!",
         description: "Je evenement is succesvol aangemaakt.",

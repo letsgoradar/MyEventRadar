@@ -258,7 +258,8 @@ export function WebMyEventsPage() {
 
   const EventManagementPanel = ({ event }: { event: EventInterface }) => {
     const navigateToEdit = (section?: string) => {
-      setLocation(`/web/edit-event/${event.id}${section ? `?section=${section}` : ''}`);
+      const url = `/web/edit-event/${event.id}${section ? `?section=${section}` : ''}`;
+      window.location.href = url;
     };
 
     return (

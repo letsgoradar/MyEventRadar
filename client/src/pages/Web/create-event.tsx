@@ -130,10 +130,6 @@ const CreateEvent = () => {
   const eventId = params.id ? parseInt(params.id) : null;
   const isEditing = eventId !== null && !isNaN(eventId);
   
-  // Parse query parameters voor sectie navigatie
-  const urlParams = new URLSearchParams(window.location.search);
-  const sectionParam = urlParams.get('section');
-  
   // Map section parameter naar stap nummer
   const sectionToStep: Record<string, number> = {
     'description': 1,
@@ -143,7 +139,12 @@ const CreateEvent = () => {
     'image': 5,
   };
   
-  const initialStep = sectionParam && sectionToStep[sectionParam] ? sectionToStep[sectionParam] : 1;
+  // Parse query parameters voor sectie navigatie - initiële waarde
+  const getInitialStep = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sectionParam = urlParams.get('section');
+    return sectionParam && sectionToStep[sectionParam] ? sectionToStep[sectionParam] : 1;
+  };
   
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
@@ -151,8 +152,17 @@ const CreateEvent = () => {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   
   // Wizard state - MOET VOOR conditionele returns
-  const [currentStep, setCurrentStep] = useState<number>(initialStep);
+  const [currentStep, setCurrentStep] = useState<number>(getInitialStep);
   const [stepValidations, setStepValidations] = useState<Record<number, boolean>>({});
+  
+  // Update step wanneer de URL section parameter verandert
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sectionParam = urlParams.get('section');
+    if (sectionParam && sectionToStep[sectionParam]) {
+      setCurrentStep(sectionToStep[sectionParam]);
+    }
+  }, [window.location.search]);
   
   // Fetch existing event data for editing
   const { data: existingEvent, isLoading: eventLoading } = useQuery({
@@ -269,6 +279,8 @@ const CreateEvent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events/byuser', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events/nearby'] });
       toast({
         title: "Evenement aangemaakt",
         description: "Je evenement is succesvol aangemaakt."

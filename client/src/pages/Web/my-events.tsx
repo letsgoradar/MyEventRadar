@@ -151,9 +151,9 @@ export function WebMyEventsPage() {
   };
 
   const LoadingState = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {[1, 2, 3, 4, 5, 6].map((n) => (
-        <div key={n} className="h-48 bg-muted rounded-lg animate-pulse"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {[1, 2, 3, 4].map((n) => (
+        <div key={n} className="h-72 bg-muted rounded-lg animate-pulse"></div>
       ))}
     </div>
   );
@@ -212,7 +212,7 @@ export function WebMyEventsPage() {
         onClick={() => handleEventClick(event)}
         data-testid={`card-event-${event.id}`}
       >
-        <div className="relative h-32 overflow-hidden">
+        <div className="relative h-48 overflow-hidden">
           <img 
             src={event.imageUrl || getSmartImage(event.title || '', event.description || '').image || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&h=300&fit=crop'}
             alt={event.title}
@@ -221,32 +221,32 @@ export function WebMyEventsPage() {
               e.currentTarget.src = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&h=300&fit=crop';
             }}
           />
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-3 right-3">
             {isOrganized && (
               <Badge variant="secondary" className="bg-primary text-primary-foreground">
-                <Edit className="h-3 w-3 mr-1" />
+                <Edit className="h-3.5 w-3.5 mr-1" />
                 Beheren
               </Badge>
             )}
           </div>
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-            <span className="text-xs font-medium text-white/90 bg-white/20 px-2 py-0.5 rounded">
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+            <span className="text-sm font-medium text-white/90 bg-white/20 px-2.5 py-1 rounded">
               {event.category}
             </span>
           </div>
         </div>
-        <CardContent className="p-3">
-          <h3 className="font-semibold text-sm mb-1 line-clamp-1">{event.title}</h3>
-          <div className="space-y-1 text-xs text-muted-foreground">
+        <CardContent className="p-4">
+          <h3 className="font-semibold text-base mb-2 line-clamp-2">{event.title}</h3>
+          <div className="space-y-1.5 text-sm text-muted-foreground">
             {event.startTime && (
-              <div className="flex items-center gap-1.5">
-                <Calendar className="h-3 w-3 flex-shrink-0" />
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 flex-shrink-0" />
                 <span className="line-clamp-1">{formatEventDate(event.startTime)}</span>
               </div>
             )}
             {event.address && (
-              <div className="flex items-center gap-1.5">
-                <MapPin className="h-3 w-3 flex-shrink-0" />
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 flex-shrink-0" />
                 <span className="line-clamp-1">{event.address}</span>
               </div>
             )}
@@ -435,7 +435,7 @@ export function WebMyEventsPage() {
               ) : displayEvents.length === 0 ? (
                 <EmptyState type={activeTab} />
               ) : (
-                <div className={`grid gap-4 ${selectedEvent || managingEvent ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
+                <div className={`grid gap-6 ${selectedEvent || managingEvent ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                   {displayEvents.map((event) => (
                     <EventCard key={event.id} event={event} />
                   ))}

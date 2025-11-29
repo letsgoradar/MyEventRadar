@@ -33,8 +33,9 @@ const RADAR_CONFIG = {
   }
 };
 
-// Globale radar start tijd voor synchronisatie
-let radarStartTime: number | null = null;
+// Globale radar start tijd voor synchronisatie - PAGE LOAD TIME
+// Dit is de vaste referentie voor alle animaties
+const PAGE_LOAD_TIME = performance.now();
 let globalRadarAngle = 0;
 let radarAnimationFrame: number | null = null;
 const radarListeners: Set<(angle: number) => void> = new Set();
@@ -43,14 +44,9 @@ const radarListeners: Set<(angle: number) => void> = new Set();
 function startRadarAnimation() {
   if (radarAnimationFrame !== null) return;
   
-  // Zet de start tijd als die nog niet gezet is
-  if (radarStartTime === null) {
-    radarStartTime = performance.now();
-  }
-  
   const animate = (currentTime: number) => {
-    // Bereken hoek gebaseerd op tijd sinds start (voor perfecte synchronisatie)
-    const elapsed = currentTime - (radarStartTime || currentTime);
+    // Bereken hoek gebaseerd op tijd sinds page load (vaste referentie)
+    const elapsed = currentTime - PAGE_LOAD_TIME;
     globalRadarAngle = ((elapsed / RADAR_CONFIG.SWEEP_DURATION) * 360) % 360;
     
     // Notify all listeners
@@ -62,12 +58,25 @@ function startRadarAnimation() {
   radarAnimationFrame = requestAnimationFrame(animate);
 }
 
-// Krijg de radar start tijd voor CSS synchronisatie
-function getRadarStartTime(): number {
-  if (radarStartTime === null) {
-    radarStartTime = performance.now();
-  }
-  return radarStartTime;
+// Bereken de CSS animation delay voor een event gebaseerd op zijn hoek
+// Dit zorgt ervoor dat de CSS animatie synchroon loopt met de JS radar sweep
+function calculateSyncedAnimationDelay(eventAngle: number): number {
+  const sweepDurationSec = RADAR_CONFIG.SWEEP_DURATION / 1000;
+  const currentTime = performance.now();
+  const elapsed = currentTime - PAGE_LOAD_TIME;
+  
+  // Huidige radar hoek (0-360)
+  const currentRadarAngle = ((elapsed / RADAR_CONFIG.SWEEP_DURATION) * 360) % 360;
+  
+  // Bereken hoeveel graden de radar nog moet draaien om dit event te bereiken
+  let degreesToEvent = eventAngle - currentRadarAngle;
+  if (degreesToEvent < 0) degreesToEvent += 360;
+  
+  // Converteer naar seconden
+  const timeToEvent = (degreesToEvent / 360) * sweepDurationSec;
+  
+  // Return als positieve delay (CSS zal wachten tot het juiste moment)
+  return timeToEvent;
 }
 
 // Hook om de radar hoek te volgen
@@ -475,17 +484,17 @@ function createEventIcon(
   const { primary } = RADAR_CONFIG.COLOR;
   const scanColor = `rgb(${primary})`;
   
-  // Bereken animatie delay gebaseerd op hoek
-  // De sweep duurt 5 seconden, dus hoek/360 * 5 = delay in seconden
   const sweepDurationSec = RADAR_CONFIG.SWEEP_DURATION / 1000;
-  const animationDelay = (eventAngle / 360) * sweepDurationSec;
+  
+  // Bereken gesynchroniseerde delay - wanneer de radar dit event zal bereiken
+  const syncedDelay = calculateSyncedAnimationDelay(eventAngle);
   
   return L.divIcon({
     className: 'custom-div-icon event-marker-radar',
     html: `
       <div class="evt-radar-pin">
-        <div class="evt-scan-ring" style="animation-delay: ${animationDelay}s;"></div>
-        <div class="evt-scan-glow" style="animation-delay: ${animationDelay}s;"></div>
+        <div class="evt-scan-ring" style="animation-delay: ${syncedDelay}s;"></div>
+        <div class="evt-scan-glow" style="animation-delay: ${syncedDelay}s;"></div>
         <div class="evt-dot ${isSelected ? 'selected' : ''}">
           <div class="evt-inner" style="background-color: ${color};"></div>
         </div>

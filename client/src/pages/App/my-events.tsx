@@ -151,9 +151,9 @@ export function AppMyEventsPage() {
   };
 
   const LoadingState = () => (
-    <div className="grid grid-cols-3 gap-2 px-3">
-      {[1, 2, 3, 4, 5, 6].map((n) => (
-        <div key={n} className="h-32 bg-muted rounded-lg animate-pulse"></div>
+    <div className="grid grid-cols-2 gap-3 px-4">
+      {[1, 2, 3, 4].map((n) => (
+        <div key={n} className="h-48 bg-muted rounded-lg animate-pulse"></div>
       ))}
     </div>
   );
@@ -207,12 +207,12 @@ export function AppMyEventsPage() {
     const isOrganized = activeTab === "organized";
     
     return (
-      <div 
-        className="cursor-pointer group"
+      <Card 
+        className="cursor-pointer group overflow-hidden"
         onClick={() => handleEventClick(event)}
         data-testid={`card-event-${event.id}`}
       >
-        <div className="relative aspect-[4/3] rounded-lg overflow-hidden">
+        <div className="relative h-32 overflow-hidden">
           <img 
             src={event.imageUrl || getSmartImage(event.title || '', event.description || '').image || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&h=300&fit=crop'}
             alt={event.title}
@@ -222,20 +222,37 @@ export function AppMyEventsPage() {
             }}
           />
           {isOrganized && (
-            <div className="absolute top-1 right-1">
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-primary text-primary-foreground">
-                <Edit className="h-2.5 w-2.5" />
+            <div className="absolute top-2 right-2">
+              <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-primary text-primary-foreground">
+                <Edit className="h-3 w-3 mr-1" />
+                Beheren
               </Badge>
             </div>
           )}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-            <p className="text-white text-xs font-medium line-clamp-2 leading-tight">{event.title}</p>
-            {event.startTime && (
-              <p className="text-white/70 text-[10px] mt-0.5">{formatEventDate(event.startTime)}</p>
-            )}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2.5">
+            <span className="text-xs font-medium text-white/90 bg-white/20 px-2 py-0.5 rounded">
+              {event.category}
+            </span>
           </div>
         </div>
-      </div>
+        <CardContent className="p-3">
+          <h3 className="font-semibold text-sm mb-1.5 line-clamp-2">{event.title}</h3>
+          <div className="space-y-1 text-xs text-muted-foreground">
+            {event.startTime && (
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>{formatEventDate(event.startTime)}</span>
+              </div>
+            )}
+            {event.address && (
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="line-clamp-1">{event.address}</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -399,13 +416,13 @@ export function AppMyEventsPage() {
           </div>
           
           {isLoading ? (
-            <div className="pt-3">
+            <div className="pt-4">
               <LoadingState />
             </div>
           ) : displayEvents.length === 0 ? (
             <EmptyState type={activeTab} />
           ) : (
-            <div className="grid grid-cols-3 gap-2 px-3 pt-3">
+            <div className="grid grid-cols-2 gap-3 px-4 pt-4">
               {displayEvents.map((event) => (
                 <CompactEventCard key={event.id} event={event} />
               ))}

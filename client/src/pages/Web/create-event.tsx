@@ -135,6 +135,10 @@ const CreateEvent = () => {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   
+  // Wizard state - MOET VOOR conditionele returns
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [stepValidations, setStepValidations] = useState<Record<number, boolean>>({});
+  
   // Fetch existing event data for editing
   const { data: existingEvent, isLoading: eventLoading } = useQuery({
     queryKey: ['/api/events', eventId],
@@ -146,63 +150,7 @@ const CreateEvent = () => {
     enabled: isEditing,
   });
   
-  // Redirect naar login als niet ingelogd
-  if (!authLoading && !user) {
-    return (
-      <WebLayout>
-        <div className="flex-1 flex items-center justify-center py-12">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Inloggen Vereist</CardTitle>
-              <CardDescription>
-                Je moet ingelogd zijn om een evenement aan te maken.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-center text-muted-foreground">
-                Log in of maak een account aan om evenementen te kunnen aanmaken, 
-                je aan te melden voor evenementen en je favorieten op te slaan.
-              </p>
-              <div className="flex flex-col gap-3">
-                <Button asChild className="w-full">
-                  <Link href="/web/login">Inloggen</Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/web/register">Account aanmaken</Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full">
-                  <Link href="/web">
-                    <ChevronLeft className="mr-2 h-4 w-4" />
-                    Terug naar kaart
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </WebLayout>
-    );
-  }
-  
-  // Laadstatus tonen tijdens authenticatie check
-  if (authLoading) {
-    return (
-      <WebLayout>
-        <div className="flex-1 flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Laden...</p>
-          </div>
-        </div>
-      </WebLayout>
-    );
-  }
-  
-  // Wizard state
-  const [currentStep, setCurrentStep] = useState<number>(1);
-  const [stepValidations, setStepValidations] = useState<Record<number, boolean>>({});
-  
-  // Form setup
+  // Form setup - MOET VOOR conditionele returns
   const form = useForm<CreateEventFormValues>({
     resolver: zodResolver(createEventFormSchema),
     defaultValues: {
@@ -218,26 +166,26 @@ const CreateEvent = () => {
         lng: location?.lng ?? 5.5345,
         notificationReach: 5.0,
       },
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // tomorrow
-      endTime: new Date(Date.now() + 26 * 60 * 60 * 1000), // tomorrow + 2 hours
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 26 * 60 * 60 * 1000),
       tags: [],
       recurrence: 'once',
     },
   });
 
-  // Automatisch eindtijd aanpassen wanneer begintijd wijzigt (2 uur later)
+  // Automatisch eindtijd aanpassen - MOET VOOR conditionele returns
   React.useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === 'startTime' && value.startTime) {
         const startTime = new Date(value.startTime);
-        const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // 2 uur later
+        const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
         form.setValue('endTime', endTime);
       }
     });
     return () => subscription.unsubscribe();
   }, [form]);
   
-  // Populate form with existing event data when editing
+  // Populate form with existing event data when editing - MOET VOOR conditionele returns
   React.useEffect(() => {
     if (isEditing && existingEvent) {
       form.reset({
@@ -261,14 +209,13 @@ const CreateEvent = () => {
         imageUrl: existingEvent.imageUrl || '',
       });
       
-      // Set image preview if existing event has an image
       if (existingEvent.imageUrl) {
         setImagePreviews([existingEvent.imageUrl]);
       }
     }
   }, [isEditing, existingEvent, form]);
   
-  // Event creation mutation
+  // Event creation mutation - MOET VOOR conditionele returns
   const createEventMutation = useMutation({
     mutationFn: async (data: any) => { // We gebruiken 'any' voor type flexibiliteit
       console.log("Data ontvangen in mutatiefunctie:", data);
@@ -371,6 +318,59 @@ const CreateEvent = () => {
       });
     }
   });
+
+  // Conditionele returns NA alle hooks
+  // Redirect naar login als niet ingelogd
+  if (!authLoading && !user) {
+    return (
+      <WebLayout>
+        <div className="flex-1 flex items-center justify-center py-12">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Inloggen Vereist</CardTitle>
+              <CardDescription>
+                Je moet ingelogd zijn om een evenement aan te maken.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-center text-muted-foreground">
+                Log in of maak een account aan om evenementen te kunnen aanmaken, 
+                je aan te melden voor evenementen en je favorieten op te slaan.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Button asChild className="w-full">
+                  <Link href="/web/login">Inloggen</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/web/register">Account aanmaken</Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full">
+                  <Link href="/web">
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Terug naar kaart
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </WebLayout>
+    );
+  }
+  
+  // Laadstatus tonen tijdens authenticatie check of event laden
+  if (authLoading || (isEditing && eventLoading)) {
+    return (
+      <WebLayout>
+        <div className="flex-1 flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">{isEditing ? 'Evenement laden...' : 'Laden...'}</p>
+          </div>
+        </div>
+      </WebLayout>
+    );
+  }
   
   // Voorspel categorie op basis van titel
   const handleTitleBlur = () => {

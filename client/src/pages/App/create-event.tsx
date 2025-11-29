@@ -180,7 +180,7 @@ export function AppCreateEvent() {
   const [stepValidations, setStepValidations] = useState<Record<number, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [stepErrors, setStepErrors] = useState<Record<number, string[]>>({});
-  const [imageTabValue, setImageTabValue] = useState<string>("auto"); // default tab voor afbeeldingen
+  const [imageTabValue, setImageTabValue] = useState<string>("auto");
   
   // Fetch existing event data for editing
   const { data: existingEvent, isLoading: eventLoading } = useQuery({
@@ -193,6 +193,143 @@ export function AppCreateEvent() {
     enabled: isEditing,
   });
 
+  // Maak het formulier met standaardwaarden - MOET VOOR conditionele returns
+  const form = useForm<CreateEventFormValues>({
+    resolver: zodResolver(createEventFormSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      category: undefined,
+      imageUrl: undefined,
+      startTime: new Date(),
+      endTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
+      location: {
+        lat: 51.7767,
+        lng: 5.5345,
+        locationName: "",
+        notificationReach: 1.5,
+      },
+      tags: [],
+      hasMaxParticipants: false,
+      maxParticipants: null,
+      isPaid: false,
+      price: null,
+    },
+    mode: "onChange",
+  });
+
+  // Handler voor locatie wijzigingen - MOET VOOR conditionele returns
+  const handleLocationChange = useCallback((lat: number, lng: number) => {
+    form.setValue("location", {
+      ...form.getValues("location"),
+      lat: lat,
+      lng: lng,
+      locationName: getLocationName(lat, lng),
+      notificationReach: 1.5,
+    });
+  }, [form]);
+
+  // Vul form met bestaande event data bij bewerken - MOET VOOR conditionele returns
+  useEffect(() => {
+    if (isEditing && existingEvent) {
+      form.reset({
+        title: existingEvent.title || "",
+        description: existingEvent.description || "",
+        category: existingEvent.category,
+        imageUrl: existingEvent.imageUrl,
+        startTime: existingEvent.startTime ? new Date(existingEvent.startTime) : new Date(),
+        endTime: existingEvent.endTime ? new Date(existingEvent.endTime) : new Date(Date.now() + 2 * 60 * 60 * 1000),
+        location: {
+          lat: parseFloat(existingEvent.latitude) || 51.7767,
+          lng: parseFloat(existingEvent.longitude) || 5.5345,
+          locationName: existingEvent.address || "",
+          notificationReach: parseFloat(existingEvent.notificationReach) || 1.5,
+        },
+        tags: existingEvent.tags || [],
+        hasMaxParticipants: existingEvent.maxParticipants !== null && existingEvent.maxParticipants !== undefined,
+        maxParticipants: existingEvent.maxParticipants,
+        isPaid: existingEvent.isPaid || false,
+        price: existingEvent.price,
+      });
+      if (existingEvent.imageUrl) {
+        setImagePreviews([existingEvent.imageUrl]);
+      }
+    }
+  }, [isEditing, existingEvent, form]);
+
+  // Automatisch eindtijd aanpassen - MOET VOOR conditionele returns
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'startTime' && value.startTime) {
+        const startTime = new Date(value.startTime);
+        const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
+        form.setValue('endTime', endTime);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Mutatie voor het aanmaken van een evenement - MOET VOOR conditionele returns
+  const createEventMutation = useMutation({
+    mutationFn: async (data: any) => {
+      console.log("Sending event data to server:", JSON.stringify(data, null, 2));
+      
+      return apiRequest('/api/events', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast({
+        title: "Evenement aangemaakt!",
+        description: "Je evenement is succesvol aangemaakt.",
+      });
+      navigate("/app");
+    },
+    onError: (error: Error) => {
+      console.error('Error creating event:', error);
+      toast({
+        title: "Fout bij aanmaken evenement",
+        description: "Er is een fout opgetreden bij het aanmaken van het evenement.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+    },
+  });
+  
+  // Mutatie voor het bijwerken van een evenement - MOET VOOR conditionele returns
+  const updateEventMutation = useMutation({
+    mutationFn: async (data: any) => {
+      console.log("Updating event data:", JSON.stringify(data, null, 2));
+      
+      return apiRequest(`/api/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events/byuser'] });
+      toast({
+        title: "Evenement bijgewerkt!",
+        description: "Je evenement is succesvol aangepast.",
+      });
+      navigate("/app/my-events");
+    },
+    onError: (error: Error) => {
+      console.error('Error updating event:', error);
+      toast({
+        title: "Fout bij bijwerken evenement",
+        description: "Er is een fout opgetreden bij het bijwerken van het evenement.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+    },
+  });
+
+  // Conditionele returns NA alle hooks
   // Redirect naar login als niet ingelogd
   if (!authLoading && !user) {
     return (
@@ -243,143 +380,6 @@ export function AppCreateEvent() {
       </div>
     );
   }
-
-  // Maak het formulier met standaardwaarden
-  const form = useForm<CreateEventFormValues>({
-    resolver: zodResolver(createEventFormSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      category: undefined,
-      imageUrl: undefined,
-      startTime: new Date(),
-      endTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 uur later
-      location: {
-        lat: 51.7767,
-        lng: 5.5345,
-        locationName: "",
-        notificationReach: 1.5, // Standaard bereik in km
-      },
-      // hostId wordt automatisch ingesteld door de backend op basis van de ingelogde gebruiker
-      tags: [],
-      hasMaxParticipants: false,
-      maxParticipants: null,
-      isPaid: false,
-      price: null,
-    },
-    mode: "onChange", // Valideer telkens als er iets verandert
-  });
-
-  // Handler voor locatie wijzigingen
-  const handleLocationChange = useCallback((lat: number, lng: number) => {
-    form.setValue("location", {
-      ...form.getValues("location"),
-      lat: lat,
-      lng: lng,
-      locationName: getLocationName(lat, lng),
-      notificationReach: 1.5, // Zorg dat deze waarde altijd wordt ingesteld
-    });
-  }, [form]);
-
-  // Vul form met bestaande event data bij bewerken
-  useEffect(() => {
-    if (isEditing && existingEvent) {
-      form.reset({
-        title: existingEvent.title || "",
-        description: existingEvent.description || "",
-        category: existingEvent.category,
-        imageUrl: existingEvent.imageUrl,
-        startTime: existingEvent.startTime ? new Date(existingEvent.startTime) : new Date(),
-        endTime: existingEvent.endTime ? new Date(existingEvent.endTime) : new Date(Date.now() + 2 * 60 * 60 * 1000),
-        location: {
-          lat: parseFloat(existingEvent.latitude) || 51.7767,
-          lng: parseFloat(existingEvent.longitude) || 5.5345,
-          locationName: existingEvent.address || "",
-          notificationReach: parseFloat(existingEvent.notificationReach) || 1.5,
-        },
-        tags: existingEvent.tags || [],
-        hasMaxParticipants: existingEvent.maxParticipants !== null && existingEvent.maxParticipants !== undefined,
-        maxParticipants: existingEvent.maxParticipants,
-        isPaid: existingEvent.isPaid || false,
-        price: existingEvent.price,
-      });
-      if (existingEvent.imageUrl) {
-        setImagePreviews([existingEvent.imageUrl]);
-      }
-    }
-  }, [isEditing, existingEvent, form]);
-
-  // Automatisch eindtijd aanpassen wanneer begintijd wijzigt (2 uur later)
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name === 'startTime' && value.startTime) {
-        const startTime = new Date(value.startTime);
-        const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // 2 uur later
-        form.setValue('endTime', endTime);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [form]);
-
-  // Mutatie voor het aanmaken van een evenement
-  const createEventMutation = useMutation({
-    mutationFn: async (data: any) => {
-      console.log("Sending event data to server:", JSON.stringify(data, null, 2));
-      
-      return apiRequest('/api/events', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({
-        title: "Evenement aangemaakt!",
-        description: "Je evenement is succesvol aangemaakt.",
-      });
-      navigate("/app");
-    },
-    onError: (error: Error) => {
-      console.error('Error creating event:', error);
-      toast({
-        title: "Fout bij aanmaken evenement",
-        description: "Er is een fout opgetreden bij het aanmaken van het evenement.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-    },
-  });
-  
-  // Mutatie voor het bijwerken van een evenement
-  const updateEventMutation = useMutation({
-    mutationFn: async (data: any) => {
-      console.log("Updating event data:", JSON.stringify(data, null, 2));
-      
-      return apiRequest(`/api/events/${eventId}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/events', eventId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/events/byuser'] });
-      toast({
-        title: "Evenement bijgewerkt!",
-        description: "Je evenement is succesvol aangepast.",
-      });
-      navigate("/app/my-events");
-    },
-    onError: (error: Error) => {
-      console.error('Error updating event:', error);
-      toast({
-        title: "Fout bij bijwerken evenement",
-        description: "Er is een fout opgetreden bij het bijwerken van het evenement.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-    },
-  });
 
   // Handler voor rechtstreeks naar een stap navigeren
   const handleGoToStep = (stepId: number) => {
@@ -971,7 +971,7 @@ export function AppCreateEvent() {
                           <DateTimePickerSeparate
                             date={field.value ? new Date(field.value) : undefined}
                             setDate={(date) => field.onChange(date)}
-                            minDate={form.watch('startTime') || new Date()}
+                            minDate={form.watch('startTime') ? new Date(form.watch('startTime')) : new Date()}
                           />
                         </FormControl>
                         <FormDescription>

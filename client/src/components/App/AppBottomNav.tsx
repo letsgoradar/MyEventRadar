@@ -57,8 +57,8 @@ export function AppBottomNav() {
       isPrimary: true,
     },
     {
-      label: "Opgeslagen",
-      href: "/app/saved",
+      label: "Mijn Events",
+      href: "/app/my-events",
       icon: Bookmark,
       isActive: location.includes("/app/saved") || location.includes("/app/favorites") || location.includes("/app/my-events"),
     },

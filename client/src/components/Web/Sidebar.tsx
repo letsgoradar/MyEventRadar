@@ -20,8 +20,7 @@ export function Sidebar() {
 
   const navItems = [
     { path: "/web", icon: <MdHome className="h-5 w-5" />, label: "Home" },
-    { path: "/web/events", icon: <MdEvent className="h-5 w-5" />, label: "Mijn Evenementen" },
-    { path: "/web/saved", icon: <MdBookmark className="h-5 w-5" />, label: "Opgeslagen" },
+    { path: "/web/my-events", icon: <MdEvent className="h-5 w-5" />, label: "Mijn Events" },
   ];
 
   return (

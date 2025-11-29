@@ -974,14 +974,24 @@ export default function MapView({
               click: () => {
                 // Alleen popup tonen bij kaart marker click
                 setSelectedEvent(event.event);
+              },
+              popupclose: () => {
+                // Wis de selectie wanneer de popup wordt gesloten
+                // Dit voorkomt dat de popup automatisch opnieuw opent
+                if (selectedEvent?.id === event.id) {
+                  setSelectedEvent(null);
+                }
               }
             }}
             // Open de popup automatisch als dit het geselecteerde event is
             ref={(markerRef) => {
               if (markerRef && selectedEvent && selectedEvent.id === event.id) {
-                setTimeout(() => {
-                  markerRef.openPopup();
-                }, 200);
+                // Check of popup al open is voordat we proberen te openen
+                if (!markerRef.isPopupOpen()) {
+                  setTimeout(() => {
+                    markerRef.openPopup();
+                  }, 200);
+                }
               }
             }}
           >

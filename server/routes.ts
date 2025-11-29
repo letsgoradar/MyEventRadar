@@ -825,7 +825,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Evenement bijwerken - alleen admin of eigenaar
+  // Evenement bijwerken - alleen admin of eigenaar (PUT en PATCH)
+  const handleEventUpdate = async (req: any, res: any) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+      
+      // Haal het bestaande evenement op
+      const existingEvent = await storage.getEvent(eventId);
+      
+      if (!existingEvent) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // Check of de gebruiker de eigenaar is of een admin
+      if (req.user?.id !== existingEvent.hostId && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Update het evenement
+      // Fix voor maxParticipants - zet op 0 als niet gespecificeerd
+      if (req.body.maxParticipants === null) {
+        req.body.maxParticipants = 0;
+      }
+      
+      const updatedEvent = await storage.updateEvent(eventId, req.body);
+      
+      // Broadcast de update
+      broadcastEventUpdate(updatedEvent, 'update');
+      
+      res.json(updatedEvent);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
+
+  app.put("/api/events/:id", isAuthenticated, handleEventUpdate);
   app.patch("/api/events/:id", isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.id);

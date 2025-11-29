@@ -130,13 +130,28 @@ const CreateEvent = () => {
   const eventId = params.id ? parseInt(params.id) : null;
   const isEditing = eventId !== null && !isNaN(eventId);
   
+  // Parse query parameters voor sectie navigatie
+  const urlParams = new URLSearchParams(window.location.search);
+  const sectionParam = urlParams.get('section');
+  
+  // Map section parameter naar stap nummer
+  const sectionToStep: Record<string, number> = {
+    'description': 1,
+    'datetime': 2,
+    'location': 3,
+    'participation': 4,
+    'image': 5,
+  };
+  
+  const initialStep = sectionParam && sectionToStep[sectionParam] ? sectionToStep[sectionParam] : 1;
+  
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   
   // Wizard state - MOET VOOR conditionele returns
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [currentStep, setCurrentStep] = useState<number>(initialStep);
   const [stepValidations, setStepValidations] = useState<Record<number, boolean>>({});
   
   // Fetch existing event data for editing

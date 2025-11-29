@@ -1,18 +1,18 @@
 import * as React from "react";
-import AppLayout from "@/components/App/AppLayout";
+import WebLayout from "@/components/Web/WebLayout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { EventInterface } from "@shared/schema";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bookmark, UserCheck, CalendarPlus, Calendar, MapPin, Users, Edit, Trash2, X, Clock } from "lucide-react";
+import { Bookmark, UserCheck, Calendar, MapPin, Clock, Users, Edit, Trash2, Eye, ChevronRight, CalendarPlus } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getSmartImage } from "@/lib/smartImageSelection";
-import { EventDetailPanel } from "@/components/App/EventDetailPanel";
+import { EventDetailPanel } from "@/components/Web/EventDetailPanel";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -35,7 +35,7 @@ interface ParticipantInfo {
   profilePhoto?: string;
 }
 
-export function AppMyEventsPage() {
+export function WebMyEventsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -136,7 +136,7 @@ export function AppMyEventsPage() {
 
   const formatEventDate = (dateString: string | Date) => {
     const date = new Date(dateString);
-    return format(date, "EEE d MMM", { locale: nl });
+    return format(date, "EEEE d MMMM yyyy", { locale: nl });
   };
 
   const formatEventTime = (dateString: string | Date) => {
@@ -147,13 +147,13 @@ export function AppMyEventsPage() {
   const formatCreatedDate = (dateString: string | Date | undefined) => {
     if (!dateString) return "Onbekend";
     const date = new Date(dateString);
-    return format(date, "d MMM yyyy", { locale: nl });
+    return format(date, "d MMMM yyyy 'om' HH:mm", { locale: nl });
   };
 
   const LoadingState = () => (
-    <div className="grid grid-cols-3 gap-2 px-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {[1, 2, 3, 4, 5, 6].map((n) => (
-        <div key={n} className="h-32 bg-muted rounded-lg animate-pulse"></div>
+        <div key={n} className="h-48 bg-muted rounded-lg animate-pulse"></div>
       ))}
     </div>
   );
@@ -161,39 +161,39 @@ export function AppMyEventsPage() {
   const EmptyState = ({ type }: { type: string }) => {
     const messages = {
       organized: {
-        icon: <CalendarPlus className="h-12 w-12 text-muted-foreground mb-3" />,
-        title: "Nog geen evenementen",
-        description: "Maak je eerste evenement aan!",
+        icon: <CalendarPlus className="h-16 w-16 text-muted-foreground mb-4" />,
+        title: "Nog geen evenementen georganiseerd",
+        description: "Je hebt nog geen evenementen aangemaakt. Maak je eerste evenement aan!",
         buttonText: "Nieuw Evenement",
-        buttonLink: "/app/create-event",
+        buttonLink: "/web/create-event",
       },
       participating: {
-        icon: <UserCheck className="h-12 w-12 text-muted-foreground mb-3" />,
+        icon: <UserCheck className="h-16 w-16 text-muted-foreground mb-4" />,
         title: "Nog niet aangemeld",
-        description: "Meld je aan voor evenementen.",
-        buttonText: "Ontdek",
-        buttonLink: "/app",
+        description: "Je hebt je nog niet aangemeld voor evenementen.",
+        buttonText: "Ontdek evenementen",
+        buttonLink: "/web",
       },
       saved: {
-        icon: <Bookmark className="h-12 w-12 text-muted-foreground mb-3" />,
+        icon: <Bookmark className="h-16 w-16 text-muted-foreground mb-4" />,
         title: "Nog niets bewaard",
-        description: "Bewaar evenementen voor later.",
-        buttonText: "Ontdek",
-        buttonLink: "/app",
+        description: "Je hebt nog geen evenementen bewaard.",
+        buttonText: "Ontdek evenementen",
+        buttonLink: "/web",
       },
     };
 
     const msg = messages[type as keyof typeof messages] || messages.organized;
 
     return (
-      <Card className="mx-3 mt-4">
-        <CardContent className="flex flex-col items-center justify-center py-10">
+      <Card className="mt-8">
+        <CardContent className="flex flex-col items-center justify-center py-16">
           {msg.icon}
-          <h2 className="text-lg font-bold mb-1">{msg.title}</h2>
-          <p className="text-muted-foreground mb-4 text-center text-sm">
+          <h2 className="text-2xl font-bold mb-2">{msg.title}</h2>
+          <p className="text-muted-foreground mb-6 text-center max-w-md">
             {msg.description}
           </p>
-          <Button asChild size="sm">
+          <Button asChild size="lg">
             <Link href={msg.buttonLink}>
               {msg.buttonText}
             </Link>
@@ -203,16 +203,16 @@ export function AppMyEventsPage() {
     );
   };
 
-  const CompactEventCard = ({ event }: { event: EventInterface }) => {
+  const EventCard = ({ event }: { event: EventInterface }) => {
     const isOrganized = activeTab === "organized";
     
     return (
-      <div 
-        className="cursor-pointer group"
+      <Card 
+        className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group h-full"
         onClick={() => handleEventClick(event)}
         data-testid={`card-event-${event.id}`}
       >
-        <div className="relative aspect-[4/3] rounded-lg overflow-hidden">
+        <div className="relative h-32 overflow-hidden">
           <img 
             src={event.imageUrl || getSmartImage(event.title || '', event.description || '').image || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&h=300&fit=crop'}
             alt={event.title}
@@ -221,35 +221,52 @@ export function AppMyEventsPage() {
               e.currentTarget.src = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&h=300&fit=crop';
             }}
           />
-          {isOrganized && (
-            <div className="absolute top-1 right-1">
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-primary text-primary-foreground">
-                <Edit className="h-2.5 w-2.5" />
+          <div className="absolute top-2 right-2">
+            {isOrganized && (
+              <Badge variant="secondary" className="bg-primary text-primary-foreground">
+                <Edit className="h-3 w-3 mr-1" />
+                Beheren
               </Badge>
-            </div>
-          )}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-            <p className="text-white text-xs font-medium line-clamp-2 leading-tight">{event.title}</p>
-            {event.startTime && (
-              <p className="text-white/70 text-[10px] mt-0.5">{formatEventDate(event.startTime)}</p>
             )}
           </div>
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+            <span className="text-xs font-medium text-white/90 bg-white/20 px-2 py-0.5 rounded">
+              {event.category}
+            </span>
+          </div>
         </div>
-      </div>
+        <CardContent className="p-3">
+          <h3 className="font-semibold text-sm mb-1 line-clamp-1">{event.title}</h3>
+          <div className="space-y-1 text-xs text-muted-foreground">
+            {event.startTime && (
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3 w-3 flex-shrink-0" />
+                <span className="line-clamp-1">{formatEventDate(event.startTime)}</span>
+              </div>
+            )}
+            {event.address && (
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-3 w-3 flex-shrink-0" />
+                <span className="line-clamp-1">{event.address}</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     );
   };
 
-  const EventManagementOverlay = ({ event }: { event: EventInterface }) => (
-    <div className="fixed inset-0 bg-background z-50 overflow-auto">
+  const EventManagementPanel = ({ event }: { event: EventInterface }) => (
+    <div className="h-full overflow-auto bg-background">
       <div className="sticky top-0 bg-background border-b p-4 flex items-center justify-between z-10">
-        <h2 className="text-lg font-bold">Beheren</h2>
-        <Button variant="ghost" size="icon" onClick={handleCloseManagement}>
-          <X className="h-5 w-5" />
+        <h2 className="text-xl font-bold">Evenement Beheren</h2>
+        <Button variant="ghost" size="sm" onClick={handleCloseManagement}>
+          ✕
         </Button>
       </div>
       
-      <div className="p-4 pb-24 space-y-4">
-        <div className="relative h-40 rounded-lg overflow-hidden">
+      <div className="p-6 space-y-6">
+        <div className="relative h-48 rounded-lg overflow-hidden">
           <img 
             src={event.imageUrl || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&h=400&fit=crop'}
             alt={event.title}
@@ -258,82 +275,92 @@ export function AppMyEventsPage() {
         </div>
 
         <div>
-          <h1 className="text-xl font-bold mb-1">{event.title}</h1>
-          <Badge variant="outline" className="text-xs">{event.category}</Badge>
+          <h1 className="text-2xl font-bold mb-2">{event.title}</h1>
+          <Badge>{event.category}</Badge>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <Card>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
-                <Calendar className="h-3.5 w-3.5" />
-                <span className="text-xs">Aangemaakt</span>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Calendar className="h-4 w-4" />
+                <span className="text-sm">Aangemaakt</span>
               </div>
               <p className="font-medium text-sm">{formatCreatedDate(event.createdAt)}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
-                <Users className="h-3.5 w-3.5" />
-                <span className="text-xs">Aanmeldingen</span>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Users className="h-4 w-4" />
+                <span className="text-sm">Aanmeldingen</span>
               </div>
-              <p className="font-medium text-base">{participants.length} / {event.maxParticipants || '∞'}</p>
+              <p className="font-medium text-lg">{participants.length} / {event.maxParticipants || '∞'}</p>
             </CardContent>
           </Card>
         </div>
 
         <Card>
-          <CardContent className="p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <div>
-                {event.startTime && (
-                  <p className="text-sm font-medium">{format(new Date(event.startTime), "EEEE d MMMM yyyy", { locale: nl })}</p>
-                )}
-                {event.startTime && event.endTime && (
-                  <p className="text-xs text-muted-foreground">
-                    {formatEventTime(event.startTime)} - {formatEventTime(event.endTime)}
-                  </p>
-                )}
-              </div>
-            </div>
-            {event.address && (
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm">{event.address}</p>
-              </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Wanneer
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {event.startTime && (
+              <p className="text-sm">{formatEventDate(event.startTime)}</p>
+            )}
+            {event.startTime && event.endTime && (
+              <p className="text-sm text-muted-foreground">
+                {formatEventTime(event.startTime)} - {formatEventTime(event.endTime)}
+              </p>
             )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Deelnemers ({participants.length})</span>
-            </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Locatie
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm">{event.address || 'Geen locatie opgegeven'}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Aangemelde Deelnemers ({participants.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
             {participants.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nog geen aanmeldingen</p>
             ) : (
-              <div className="space-y-2 max-h-48 overflow-auto">
+              <div className="space-y-2">
                 {participants.map((participant) => (
-                  <div key={participant.id} className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div key={participant.id} className="flex items-center gap-3 p-2 bg-muted rounded-lg">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                       {participant.profilePhoto ? (
-                        <img src={participant.profilePhoto} alt="" className="h-7 w-7 rounded-full object-cover" />
+                        <img src={participant.profilePhoto} alt="" className="h-8 w-8 rounded-full object-cover" />
                       ) : (
-                        <span className="text-xs font-medium">
+                        <span className="text-sm font-medium">
                           {(participant.firstName?.[0] || participant.username?.[0] || '?').toUpperCase()}
                         </span>
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">
+                    <div>
+                      <p className="text-sm font-medium">
                         {participant.firstName && participant.lastName 
                           ? `${participant.firstName} ${participant.lastName}`
                           : participant.username}
                       </p>
+                      <p className="text-xs text-muted-foreground">{participant.email}</p>
                     </div>
                   </div>
                 ))}
@@ -344,17 +371,19 @@ export function AppMyEventsPage() {
 
         {event.description && (
           <Card>
-            <CardContent className="p-3">
-              <p className="text-sm font-medium mb-1">Beschrijving</p>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Beschrijving</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
               <p className="text-sm text-muted-foreground">{event.description}</p>
             </CardContent>
           </Card>
         )}
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex gap-3 pt-4">
           <Button 
             className="flex-1" 
-            onClick={() => setLocation(`/app/edit-event/${event.id}`)}
+            onClick={() => setLocation(`/web/edit-event/${event.id}`)}
           >
             <Edit className="h-4 w-4 mr-2" />
             Bewerken
@@ -363,7 +392,8 @@ export function AppMyEventsPage() {
             variant="destructive" 
             onClick={() => setDeleteEventId(event.id)}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4 mr-2" />
+            Verwijderen
           </Button>
         </div>
       </div>
@@ -372,75 +402,81 @@ export function AppMyEventsPage() {
 
   return (
     <>
-      <AppLayout title="Mijn Events" hideViewToggle={true} defaultView="list" hideSearchAndFilters={true}>
-        <div className="pb-20">
-          <div className="sticky top-0 bg-background z-10 border-b">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full grid grid-cols-3 h-11 rounded-none">
-                <TabsTrigger value="organized" className="text-xs px-1 gap-1">
-                  <CalendarPlus className="h-3 w-3" />
-                  <span className="hidden xs:inline">Georganiseerd</span>
-                  <span className="xs:hidden">Org.</span>
-                  ({organizedEvents.length})
-                </TabsTrigger>
-                <TabsTrigger value="participating" className="text-xs px-1 gap-1">
-                  <UserCheck className="h-3 w-3" />
-                  <span className="hidden xs:inline">Aangemeld</span>
-                  <span className="xs:hidden">Aanm.</span>
-                  ({participatingEvents.length})
-                </TabsTrigger>
-                <TabsTrigger value="saved" className="text-xs px-1 gap-1">
-                  <Bookmark className="h-3 w-3" />
-                  Bewaard
-                  ({favoriteEvents.length})
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          
-          {isLoading ? (
-            <div className="pt-3">
-              <LoadingState />
+      <WebLayout>
+        <div className="flex h-full">
+          <div className={`${selectedEvent || managingEvent ? 'w-1/2' : 'w-full'} transition-all duration-300 overflow-auto`}>
+            <div className="p-6 max-w-7xl mx-auto">
+              <div className="mb-6">
+                <h1 className="text-3xl font-bold mb-2">Mijn Events</h1>
+                <p className="text-muted-foreground">
+                  Bekijk en beheer al je evenementen op één plek.
+                </p>
+              </div>
+
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+                <TabsList className="grid w-full max-w-lg grid-cols-3">
+                  <TabsTrigger value="organized" className="gap-2">
+                    <CalendarPlus className="h-4 w-4" />
+                    Georganiseerd ({organizedEvents.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="participating" className="gap-2">
+                    <UserCheck className="h-4 w-4" />
+                    Aangemeld ({participatingEvents.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="saved" className="gap-2">
+                    <Bookmark className="h-4 w-4" />
+                    Bewaard ({favoriteEvents.length})
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {isLoading ? (
+                <LoadingState />
+              ) : displayEvents.length === 0 ? (
+                <EmptyState type={activeTab} />
+              ) : (
+                <div className={`grid gap-4 ${selectedEvent || managingEvent ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
+                  {displayEvents.map((event) => (
+                    <EventCard key={event.id} event={event} />
+                  ))}
+                </div>
+              )}
             </div>
-          ) : displayEvents.length === 0 ? (
-            <EmptyState type={activeTab} />
-          ) : (
-            <div className="grid grid-cols-3 gap-2 px-3 pt-3">
-              {displayEvents.map((event) => (
-                <CompactEventCard key={event.id} event={event} />
-              ))}
+          </div>
+
+          {managingEvent && (
+            <div className="w-1/2 border-l border-gray-200 h-full overflow-hidden">
+              <EventManagementPanel event={managingEvent} />
+            </div>
+          )}
+
+          {selectedEvent && !managingEvent && (
+            <div className="w-1/2 border-l border-gray-200 h-full overflow-hidden">
+              <EventDetailPanel
+                event={selectedEvent}
+                events={displayEvents}
+                onClose={handleCloseEventDetail}
+                onPrevious={() => handleNavigateEvent('previous')}
+                onNext={() => handleNavigateEvent('next')}
+              />
             </div>
           )}
         </div>
-      </AppLayout>
-      
-      {managingEvent && (
-        <EventManagementOverlay event={managingEvent} />
-      )}
-
-      {selectedEvent && !managingEvent && (
-        <EventDetailPanel
-          event={selectedEvent}
-          events={displayEvents}
-          onClose={handleCloseEventDetail}
-          onPrevious={() => handleNavigateEvent('previous')}
-          onNext={() => handleNavigateEvent('next')}
-        />
-      )}
+      </WebLayout>
 
       <AlertDialog open={deleteEventId !== null} onOpenChange={() => setDeleteEventId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Evenement verwijderen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Weet je zeker dat je dit evenement wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+              Weet je zeker dat je dit evenement wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuleren</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteEventId && deleteEventMutation.mutate(deleteEventId)}
-              className="bg-destructive text-destructive-foreground"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Verwijderen
             </AlertDialogAction>
@@ -451,4 +487,4 @@ export function AppMyEventsPage() {
   );
 }
 
-export default AppMyEventsPage;
+export default WebMyEventsPage;

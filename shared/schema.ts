@@ -56,6 +56,7 @@ export const events = pgTable("events", {
   recurrence: text("recurrence").notNull().default('once'),
   tags: text("tags").array(),
   imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
   // Highlight/sponsoring system
   isHighlighted: boolean("is_highlighted").default(false),
   highlightStartDate: timestamp("highlight_start_date"),
@@ -212,6 +213,7 @@ export interface EventInterface {
   recurrence: string;
   tags?: string[] | null;
   imageUrl?: string | null;
+  createdAt?: string | Date;
 }
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Favorite = typeof favorites.$inferSelect;

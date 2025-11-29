@@ -37,6 +37,8 @@ import AppCreateEvent from "@/pages/App/create-event"
 import AppEventsPage from "@/pages/App/events"
 import AppSavedPage from "@/pages/App/saved"
 import WebSavedPage from "@/pages/Web/saved"
+import WebMyEventsPage from "@/pages/Web/my-events"
+import AppMyEventsPage from "@/pages/App/my-events"
 import AppProfilePage from "@/pages/App/profile"
 import { AppWelcomePage } from "@/pages/App/welcome"
 import AppForgotPasswordPage from "@/pages/App/forgot-password"
@@ -169,11 +171,14 @@ export default function App() {
                 </div>
               </WebLayout>
             </Route>
+            <Route path="/web/my-events">
+              <WebMyEventsPage />
+            </Route>
             <Route path="/web/saved">
-              <WebSavedPage />
+              <WebMyEventsPage />
             </Route>
             <Route path="/web/favorites">
-              <WebSavedPage />
+              <WebMyEventsPage />
             </Route>
             <Route path="/web/profile">
               <WebProfilePage />
@@ -198,10 +203,13 @@ export default function App() {
               </WebLayout>
             </Route>
             <Route path="/saved">
-              <WebSavedPage />
+              <WebMyEventsPage />
             </Route>
             <Route path="/favorites">
-              <WebSavedPage />
+              <WebMyEventsPage />
+            </Route>
+            <Route path="/my-events">
+              <WebMyEventsPage />
             </Route>
             <Route path="/profile">
               <WebProfilePage />
@@ -238,29 +246,14 @@ export default function App() {
             return null;
           }}
         </Route>
-        <Route path="/app/saved">
-          {() => {
-            const SavedPage = React.lazy(() => import("@/pages/App/saved"));
-            return (
-              <React.Suspense fallback={<div>Laden...</div>}>
-                <SavedPage />
-              </React.Suspense>
-            );
-          }}
-        </Route>
         <Route path="/app/my-events">
-          {() => {
-            // Redirect naar gecombineerde opgeslagen pagina
-            window.location.href = '/app/saved';
-            return null;
-          }}
+          <AppMyEventsPage />
+        </Route>
+        <Route path="/app/saved">
+          <AppMyEventsPage />
         </Route>
         <Route path="/app/favorites">
-          {() => {
-            // Redirect naar gecombineerde opgeslagen pagina
-            window.location.href = '/app/saved';
-            return null;
-          }}
+          <AppMyEventsPage />
         </Route>
         <Route path="/app/events">
           <AppEventsPage />

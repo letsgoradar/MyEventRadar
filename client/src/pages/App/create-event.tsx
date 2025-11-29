@@ -13,12 +13,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { insertEventSchema } from "@shared/schema";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import { getLocationName } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -170,6 +170,10 @@ export function AppCreateEvent() {
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
+  const params = useParams<{ id: string }>();
+  const eventId = params.id ? parseInt(params.id) : null;
+  const isEditing = eventId !== null && !isNaN(eventId);
+  
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -177,6 +181,17 @@ export function AppCreateEvent() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [stepErrors, setStepErrors] = useState<Record<number, string[]>>({});
   const [imageTabValue, setImageTabValue] = useState<string>("auto"); // default tab voor afbeeldingen
+  
+  // Fetch existing event data for editing
+  const { data: existingEvent, isLoading: eventLoading } = useQuery({
+    queryKey: ['/api/events', eventId],
+    queryFn: async () => {
+      const response = await fetch(`/api/events/${eventId}`);
+      if (!response.ok) throw new Error('Failed to fetch event');
+      return response.json();
+    },
+    enabled: isEditing,
+  });
 
   // Redirect naar login als niet ingelogd
   if (!authLoading && !user) {
@@ -214,14 +229,14 @@ export function AppCreateEvent() {
     );
   }
   
-  // Laadstatus tonen tijdens authenticatie check
-  if (authLoading) {
+  // Laadstatus tonen tijdens authenticatie check of event laden
+  if (authLoading || (isEditing && eventLoading)) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Laden...</p>
+            <p className="text-muted-foreground">{isEditing ? 'Evenement laden...' : 'Laden...'}</p>
           </div>
         </div>
         <AppBottomNav />
@@ -266,6 +281,34 @@ export function AppCreateEvent() {
     });
   }, [form]);
 
+  // Vul form met bestaande event data bij bewerken
+  useEffect(() => {
+    if (isEditing && existingEvent) {
+      form.reset({
+        title: existingEvent.title || "",
+        description: existingEvent.description || "",
+        category: existingEvent.category,
+        imageUrl: existingEvent.imageUrl,
+        startTime: existingEvent.startTime ? new Date(existingEvent.startTime) : new Date(),
+        endTime: existingEvent.endTime ? new Date(existingEvent.endTime) : new Date(Date.now() + 2 * 60 * 60 * 1000),
+        location: {
+          lat: parseFloat(existingEvent.latitude) || 51.7767,
+          lng: parseFloat(existingEvent.longitude) || 5.5345,
+          locationName: existingEvent.address || "",
+          notificationReach: parseFloat(existingEvent.notificationReach) || 1.5,
+        },
+        tags: existingEvent.tags || [],
+        hasMaxParticipants: existingEvent.maxParticipants !== null && existingEvent.maxParticipants !== undefined,
+        maxParticipants: existingEvent.maxParticipants,
+        isPaid: existingEvent.isPaid || false,
+        price: existingEvent.price,
+      });
+      if (existingEvent.imageUrl) {
+        setImagePreviews([existingEvent.imageUrl]);
+      }
+    }
+  }, [isEditing, existingEvent, form]);
+
   // Automatisch eindtijd aanpassen wanneer begintijd wijzigt (2 uur later)
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
@@ -281,9 +324,6 @@ export function AppCreateEvent() {
   // Mutatie voor het aanmaken van een evenement
   const createEventMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Data is nu al geformatteerd in het submitForm-functie
-      // zodat het de juiste structuur heeft voor het API endpoint
-      
       console.log("Sending event data to server:", JSON.stringify(data, null, 2));
       
       return apiRequest('/api/events', {
@@ -304,6 +344,37 @@ export function AppCreateEvent() {
       toast({
         title: "Fout bij aanmaken evenement",
         description: "Er is een fout opgetreden bij het aanmaken van het evenement.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+    },
+  });
+  
+  // Mutatie voor het bijwerken van een evenement
+  const updateEventMutation = useMutation({
+    mutationFn: async (data: any) => {
+      console.log("Updating event data:", JSON.stringify(data, null, 2));
+      
+      return apiRequest(`/api/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events/byuser'] });
+      toast({
+        title: "Evenement bijgewerkt!",
+        description: "Je evenement is succesvol aangepast.",
+      });
+      navigate("/app/my-events");
+    },
+    onError: (error: Error) => {
+      console.error('Error updating event:', error);
+      toast({
+        title: "Fout bij bijwerken evenement",
+        description: "Er is een fout opgetreden bij het bijwerken van het evenement.",
         variant: "destructive",
       });
       setIsSubmitting(false);
@@ -707,11 +778,15 @@ export function AppCreateEvent() {
     // Als er geen validatiefouten zijn, probeer de mutatie uit te voeren
     try {
       console.log('Mutatie uitvoeren met data:', dataWithoutLocation);
-      createEventMutation.mutate(dataWithoutLocation as any);
+      if (isEditing) {
+        updateEventMutation.mutate(dataWithoutLocation as any);
+      } else {
+        createEventMutation.mutate(dataWithoutLocation as any);
+      }
     } catch (err) {
-      console.error('Fout bij het uitvoeren van createEventMutation:', err);
+      console.error('Fout bij het uitvoeren van mutatie:', err);
       toast({
-        title: "Fout bij aanmaken evenement",
+        title: isEditing ? "Fout bij bijwerken evenement" : "Fout bij aanmaken evenement",
         description: "Er is een onverwachte fout opgetreden. Probeer het opnieuw.",
         variant: "destructive"
       });
@@ -726,12 +801,12 @@ export function AppCreateEvent() {
       <header className="sticky top-0 z-10 bg-background border-b">
         <div className="container flex items-center justify-between h-14 px-4">
           <Button variant="ghost" size="sm" asChild className="gap-1">
-            <Link href="/app">
+            <Link href={isEditing ? "/app/my-events" : "/app"}>
               <ChevronLeft className="h-4 w-4" />
               <span>Terug</span>
             </Link>
           </Button>
-          <h1 className="text-lg font-semibold">Nieuw Evenement</h1>
+          <h1 className="text-lg font-semibold">{isEditing ? "Evenement Bewerken" : "Nieuw Evenement"}</h1>
           <div className="w-8"></div> {/* Placeholder voor uitlijning */}
         </div>
       </header>
@@ -1178,7 +1253,7 @@ export function AppCreateEvent() {
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <>Aanmaken...</>
+            <>{isEditing ? 'Opslaan...' : 'Aanmaken...'}</>
           ) : currentStep < steps.length ? (
             <>
               Volgende
@@ -1186,7 +1261,7 @@ export function AppCreateEvent() {
             </>
           ) : (
             <>
-              Evenement aanmaken
+              {isEditing ? 'Wijzigingen opslaan' : 'Evenement aanmaken'}
               <Check className="h-4 w-4 ml-1" />
             </>
           )}

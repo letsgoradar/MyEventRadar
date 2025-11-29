@@ -417,7 +417,7 @@ export function WebMyEventsPage() {
                 <TabsList className="grid w-full max-w-lg grid-cols-3">
                   <TabsTrigger value="organized" className="gap-2">
                     <CalendarPlus className="h-4 w-4" />
-                    Georganiseerd ({organizedEvents.length})
+                    Mijn ({organizedEvents.length})
                   </TabsTrigger>
                   <TabsTrigger value="participating" className="gap-2">
                     <UserCheck className="h-4 w-4" />

@@ -4,10 +4,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLocation } from '@/hooks/useLocation';
-import { useLocation as useWouterLocation } from 'wouter';
+import { useLocation as useWouterLocation, useParams } from 'wouter';
 import { insertEventSchema } from '@shared/schema';
 import { CATEGORIES } from '@shared/schema';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
@@ -125,11 +125,26 @@ const LocationPicker = ({
 
 const CreateEvent = () => {
   const { location } = useLocation();
-  const [, setLocation] = useWouterLocation();
+  const [, setWouterLocation] = useWouterLocation();
+  const params = useParams<{ id: string }>();
+  const eventId = params.id ? parseInt(params.id) : null;
+  const isEditing = eventId !== null && !isNaN(eventId);
+  
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  
+  // Fetch existing event data for editing
+  const { data: existingEvent, isLoading: eventLoading } = useQuery({
+    queryKey: ['/api/events', eventId],
+    queryFn: async () => {
+      const response = await fetch(`/api/events/${eventId}`);
+      if (!response.ok) throw new Error('Failed to fetch event');
+      return response.json();
+    },
+    enabled: isEditing,
+  });
   
   // Redirect naar login als niet ingelogd
   if (!authLoading && !user) {
@@ -222,6 +237,37 @@ const CreateEvent = () => {
     return () => subscription.unsubscribe();
   }, [form]);
   
+  // Populate form with existing event data when editing
+  React.useEffect(() => {
+    if (isEditing && existingEvent) {
+      form.reset({
+        title: existingEvent.title || '',
+        description: existingEvent.description || '',
+        category: existingEvent.category || 'Gezellig en Sociaal',
+        isPaid: existingEvent.price !== null && existingEvent.price > 0,
+        price: existingEvent.price || undefined,
+        maxParticipants: existingEvent.maxParticipants || undefined,
+        hasMaxParticipants: existingEvent.maxParticipants !== null && existingEvent.maxParticipants > 0,
+        location: {
+          lat: existingEvent.latitude || 51.7767,
+          lng: existingEvent.longitude || 5.5345,
+          locationName: existingEvent.address || '',
+          notificationReach: existingEvent.notificationReach || 5.0,
+        },
+        startTime: existingEvent.startTime ? new Date(existingEvent.startTime) : new Date(),
+        endTime: existingEvent.endTime ? new Date(existingEvent.endTime) : new Date(),
+        tags: existingEvent.tags || [],
+        recurrence: existingEvent.recurrence || 'once',
+        imageUrl: existingEvent.imageUrl || '',
+      });
+      
+      // Set image preview if existing event has an image
+      if (existingEvent.imageUrl) {
+        setImagePreviews([existingEvent.imageUrl]);
+      }
+    }
+  }, [isEditing, existingEvent, form]);
+  
   // Event creation mutation
   const createEventMutation = useMutation({
     mutationFn: async (data: any) => { // We gebruiken 'any' voor type flexibiliteit
@@ -265,11 +311,61 @@ const CreateEvent = () => {
         title: "Evenement aangemaakt",
         description: "Je evenement is succesvol aangemaakt."
       });
-      setLocation('/web');
+      setWouterLocation('/web');
     },
     onError: (error: Error) => {
       toast({
         title: "Fout bij aanmaken evenement",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Update event mutation (voor editing)
+  const updateEventMutation = useMutation({
+    mutationFn: async (data: any) => {
+      console.log("Update data ontvangen in mutatiefunctie:", data);
+      
+      const { imageFile, hasMaxParticipants, ...apiData } = data;
+      
+      const formattedData = {
+        ...apiData,
+        tags: data.tags || [],
+        price: data.isPaid && data.price ? Number(data.price) : null,
+        maxParticipants: data.hasMaxParticipants && data.maxParticipants ? Number(data.maxParticipants) : 0,
+        imageUrl: data.imageUrl || null,
+      };
+      
+      console.log('Versturen van bijgewerkte evenement data:', formattedData);
+      
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formattedData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update event');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events', eventId] });
+      toast({
+        title: "Evenement bijgewerkt",
+        description: "Je evenement is succesvol bijgewerkt."
+      });
+      setWouterLocation('/web/my-events');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Fout bij bijwerken evenement",
         description: error.message,
         variant: "destructive"
       });
@@ -568,11 +664,15 @@ const CreateEvent = () => {
     // Als er geen validatiefouten zijn, probeer de mutatie uit te voeren
     try {
       console.log('Mutatie uitvoeren met data:', dataWithoutLocation);
-      createEventMutation.mutate(dataWithoutLocation as any);
+      if (isEditing) {
+        updateEventMutation.mutate(dataWithoutLocation as any);
+      } else {
+        createEventMutation.mutate(dataWithoutLocation as any);
+      }
     } catch (err) {
-      console.error('Fout bij het uitvoeren van createEventMutation:', err);
+      console.error('Fout bij het uitvoeren van mutatie:', err);
       toast({
-        title: "Fout bij aanmaken evenement",
+        title: isEditing ? "Fout bij bijwerken evenement" : "Fout bij aanmaken evenement",
         description: "Er is een onverwachte fout opgetreden. Probeer het opnieuw.",
         variant: "destructive"
       });
@@ -585,12 +685,12 @@ const CreateEvent = () => {
         <div className="max-w-5xl mx-auto overflow-visible">
           <div className="flex items-center mb-8">
             <Button variant="ghost" asChild className="mr-4">
-              <Link href="/web">
+              <Link href={isEditing ? "/web/my-events" : "/web"}>
                 <ChevronLeft className="mr-2 h-4 w-4" />
                 Terug
               </Link>
             </Button>
-            <h1 className="text-3xl font-bold">Nieuw Evenement</h1>
+            <h1 className="text-3xl font-bold">{isEditing ? 'Evenement Bewerken' : 'Nieuw Evenement'}</h1>
           </div>
           
           <Form {...form}>
@@ -1155,7 +1255,9 @@ const CreateEvent = () => {
                     }
                   }}
                 >
-                  {createEventMutation.isPending ? 'Bezig met opslaan...' : 'Evenement aanmaken'}
+                  {(isEditing ? updateEventMutation.isPending : createEventMutation.isPending) 
+                    ? 'Bezig met opslaan...' 
+                    : (isEditing ? 'Wijzigingen opslaan' : 'Evenement aanmaken')}
                 </Button>
               </div>
             </form>

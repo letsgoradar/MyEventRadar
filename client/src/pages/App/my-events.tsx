@@ -396,8 +396,7 @@ export function AppMyEventsPage() {
               <TabsList className="w-full grid grid-cols-3 h-11 rounded-none">
                 <TabsTrigger value="organized" className="text-xs px-1 gap-1">
                   <CalendarPlus className="h-3 w-3" />
-                  <span className="hidden xs:inline">Georganiseerd</span>
-                  <span className="xs:hidden">Org.</span>
+                  Mijn
                   ({organizedEvents.length})
                 </TabsTrigger>
                 <TabsTrigger value="participating" className="text-xs px-1 gap-1">

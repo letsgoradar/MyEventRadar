@@ -160,6 +160,9 @@ export default function App() {
             <Route path="/web/create-event">
               <CreateEvent />
             </Route>
+            <Route path="/web/edit-event/:id">
+              <CreateEvent />
+            </Route>
             <Route path="/web/event/:id">
               <EventDetail />
             </Route>
@@ -236,6 +239,9 @@ export default function App() {
           <AppForgotPasswordPage />
         </Route>
         <Route path="/app/create-event">
+          <AppCreateEvent />
+        </Route>
+        <Route path="/app/edit-event/:id">
           <AppCreateEvent />
         </Route>
         <Route path="/app/event/:id">

@@ -127,9 +127,61 @@ const CreateEvent = () => {
   const { location } = useLocation();
   const [, setLocation] = useWouterLocation();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  
+  // Redirect naar login als niet ingelogd
+  if (!authLoading && !user) {
+    return (
+      <WebLayout>
+        <div className="flex-1 flex items-center justify-center py-12">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Inloggen Vereist</CardTitle>
+              <CardDescription>
+                Je moet ingelogd zijn om een evenement aan te maken.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-center text-muted-foreground">
+                Log in of maak een account aan om evenementen te kunnen aanmaken, 
+                je aan te melden voor evenementen en je favorieten op te slaan.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Button asChild className="w-full">
+                  <Link href="/web/login">Inloggen</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/web/register">Account aanmaken</Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full">
+                  <Link href="/web">
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Terug naar kaart
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </WebLayout>
+    );
+  }
+  
+  // Laadstatus tonen tijdens authenticatie check
+  if (authLoading) {
+    return (
+      <WebLayout>
+        <div className="flex-1 flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Laden...</p>
+          </div>
+        </div>
+      </WebLayout>
+    );
+  }
   
   // Wizard state
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -179,10 +231,9 @@ const CreateEvent = () => {
       const { imageFile, hasMaxParticipants, ...apiData } = data;
       
       // Zorg ervoor dat numerieke velden juist worden geconverteerd
-      // En voeg ontbrekende verplichte velden toe als ze ontbreken
+      // hostId wordt automatisch ingesteld door de backend op basis van de ingelogde gebruiker
       const formattedData = {
         ...apiData,
-        hostId: data.hostId || 1, // Gebruik hostId als het aanwezig is, anders gebruik de standaardwaarde
         tags: data.tags || [], // Zorg dat tags altijd een array is
         price: data.isPaid && data.price ? Number(data.price) : null,
         // Zorg dat maxParticipants altijd een nummer is (0 indien niet ingesteld)

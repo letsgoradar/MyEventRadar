@@ -168,7 +168,7 @@ const MAX_IMAGES = 5;
 
 export function AppCreateEvent() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -177,6 +177,57 @@ export function AppCreateEvent() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [stepErrors, setStepErrors] = useState<Record<number, string[]>>({});
   const [imageTabValue, setImageTabValue] = useState<string>("auto"); // default tab voor afbeeldingen
+
+  // Redirect naar login als niet ingelogd
+  if (!authLoading && !user) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-sm">
+            <CardContent className="pt-6 space-y-4">
+              <div className="text-center space-y-2">
+                <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
+                <CardTitle className="text-xl">Inloggen Vereist</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Je moet ingelogd zijn om een evenement aan te maken.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button asChild className="w-full">
+                  <Link href="/app/login">Inloggen</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/app/register">Account aanmaken</Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full">
+                  <Link href="/app">
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Terug naar kaart
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <AppBottomNav />
+      </div>
+    );
+  }
+  
+  // Laadstatus tonen tijdens authenticatie check
+  if (authLoading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Laden...</p>
+          </div>
+        </div>
+        <AppBottomNav />
+      </div>
+    );
+  }
 
   // Maak het formulier met standaardwaarden
   const form = useForm<CreateEventFormValues>({
@@ -194,7 +245,7 @@ export function AppCreateEvent() {
         locationName: "",
         notificationReach: 1.5, // Standaard bereik in km
       },
-      hostId: 1, // Dummy hostId (wordt op de server ingesteld op basis van ingelogde gebruiker)
+      // hostId wordt automatisch ingesteld door de backend op basis van de ingelogde gebruiker
       tags: [],
       hasMaxParticipants: false,
       maxParticipants: null,
@@ -635,6 +686,7 @@ export function AppCreateEvent() {
     });
     
     // Bereid de complete data voor in het juiste formaat voor het API endpoint
+    // hostId wordt automatisch ingesteld door de backend op basis van de ingelogde gebruiker
     const completeData = {
       ...formValues,
       // Verwijder het location object en gebruik de individuele velden
@@ -642,7 +694,6 @@ export function AppCreateEvent() {
       longitude: longitude,
       address: locationName,
       notificationReach: notificationReach,
-      hostId: 1, // Standaard host ID (ingelogde gebruiker of admin)
       maxParticipants: maxParticipants, // Gebruik de aangepaste waarde
       imageUrl: uploadedImageUrl, // Gebruik de geüploade afbeelding URL
     };

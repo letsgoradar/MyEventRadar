@@ -1,13 +1,16 @@
 import * as React from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { MdHome, MdEvent, MdBookmark, MdAccountCircle, MdAdd, MdChevronRight, MdChevronLeft } from "react-icons/md";
+import { MdHome, MdEvent, MdBookmark, MdAccountCircle, MdAdd, MdChevronRight, MdChevronLeft, MdLogin, MdLogout } from "react-icons/md";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/use-auth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function Sidebar() {
   const [location] = useLocation();
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const { user, logoutMutation } = useAuth();
   
   // Sidebar wordt standaard uitgeklapt bij klikken op pijltje
   const toggleExpanded = () => {
@@ -130,6 +133,85 @@ export function Sidebar() {
               <TooltipContent side="right">Nieuw Evenement</TooltipContent>
             )}
           </Tooltip>
+        </TooltipProvider>
+      </div>
+      
+      {/* Login Status Indicator */}
+      <div className={cn(
+        "border-t border-border transition-all duration-300",
+        isExpanded ? "p-4" : "p-2"
+      )}>
+        <TooltipProvider>
+          {user ? (
+            <div className={cn(
+              "flex items-center gap-3",
+              isExpanded ? "" : "justify-center"
+            )}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/web/profile">
+                    <Avatar className="h-9 w-9 cursor-pointer border-2 border-primary/30 hover:border-primary transition-colors">
+                      {user.photoUrl ? (
+                        <AvatarImage src={user.photoUrl} alt={user.username || 'Profiel'} />
+                      ) : (
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                          {user.username ? user.username.charAt(0).toUpperCase() : <MdAccountCircle className="h-5 w-5" />}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  </Link>
+                </TooltipTrigger>
+                {!isExpanded && (
+                  <TooltipContent side="right">
+                    <p>{user.username || user.email}</p>
+                    <p className="text-xs text-muted-foreground">Ingelogd</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+              {isExpanded && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{user.username || 'Gebruiker'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+              )}
+              {isExpanded && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => logoutMutation.mutate()}
+                      className="p-2"
+                    >
+                      <MdLogout className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Uitloggen</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  asChild 
+                  variant="outline"
+                  className={cn(
+                    "flex gap-2 items-center",
+                    isExpanded ? "w-full" : "w-full p-2 justify-center"
+                  )}
+                >
+                  <Link href="/web/login">
+                    <MdLogin className="h-5 w-5" />
+                    {isExpanded && <span>Inloggen</span>}
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              {!isExpanded && (
+                <TooltipContent side="right">Inloggen</TooltipContent>
+              )}
+            </Tooltip>
+          )}
         </TooltipProvider>
       </div>
     </div>

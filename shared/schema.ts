@@ -149,7 +149,7 @@ export const insertEventSchema = z.object({
   isPaid: z.boolean().default(false),
   price: z.number().optional().nullable(),
   maxParticipants: z.number().optional().nullable(), // Let op: Added nullable() to fix form submission
-  hostId: z.number(),
+  hostId: z.number().optional(), // Wordt ingesteld door de backend op basis van ingelogde gebruiker
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
   tags: z.array(z.string()).max(5, "Maximaal 5 tags toegestaan"),
   imageUrl: z.string().optional(),

@@ -746,9 +746,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Evenement aanmaken
-  app.post("/api/events", async (req, res) => {
+  // Evenement aanmaken - alleen voor ingelogde gebruikers
+  app.post("/api/events", isAuthenticated, async (req, res) => {
     try {
+      // Controleer of de gebruiker is ingelogd
+      if (!req.user?.id) {
+        return res.status(401).json({ message: "Je moet ingelogd zijn om een evenement aan te maken" });
+      }
+      
       // Parse de request body met het schema (verplichte velden)
       // We gebruiken een aangepast schema dat de locatie lat/lng verwerkt
       
@@ -792,7 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isPaid: req.body.isPaid,
         price: req.body.price,
         maxParticipants: req.body.maxParticipants,
-        hostId: req.body.hostId,
+        hostId: req.user.id, // Gebruik de ingelogde gebruiker als host
         recurrence: req.body.recurrence || 'once',
         tags: req.body.tags || [],
         imageUrl: req.body.imageUrl,

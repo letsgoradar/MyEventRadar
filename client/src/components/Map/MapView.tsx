@@ -74,66 +74,132 @@ function UserLocationMarker({
     fetchAddress();
   }, [position[0], position[1]]);
 
-  // Aangepast icoon voor gebruikerslocatie met pulserende animatie
+  // Aangepast icoon voor gebruikerslocatie met radar sweep animatie
   const userLocationIcon = L.divIcon({
     className: 'user-location-marker',
     html: `
-      <div class="user-location-container">
-        <div class="user-location-pulse"></div>
-        <div class="user-location-pulse-delayed"></div>
-        <div class="user-location-dot">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="8" fill="white"/>
-            <circle cx="12" cy="12" r="5" fill="#3b82f6"/>
-          </svg>
+      <div class="radar-container">
+        <!-- Radar sweep effect -->
+        <div class="radar-sweep"></div>
+        <!-- Subtiele ring pulsen -->
+        <div class="radar-ring radar-ring-1"></div>
+        <div class="radar-ring radar-ring-2"></div>
+        <div class="radar-ring radar-ring-3"></div>
+        <!-- Centrale punt -->
+        <div class="radar-center">
+          <div class="radar-center-dot"></div>
         </div>
       </div>
       <style>
-        .user-location-container {
+        .radar-container {
           position: relative;
-          width: 40px;
-          height: 40px;
+          width: 200px;
+          height: 200px;
           display: flex;
           align-items: center;
           justify-content: center;
+          pointer-events: none;
         }
-        .user-location-pulse,
-        .user-location-pulse-delayed {
+        
+        /* Roterende radar sweep */
+        .radar-sweep {
           position: absolute;
-          width: 40px;
-          height: 40px;
+          width: 200px;
+          height: 200px;
           border-radius: 50%;
-          background: rgba(59, 130, 246, 0.3);
-          animation: userPulse 2s ease-out infinite;
+          background: conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            transparent 350deg,
+            rgba(59, 130, 246, 0.15) 355deg,
+            rgba(59, 130, 246, 0.08) 360deg
+          );
+          animation: radarSweep 4s linear infinite;
         }
-        .user-location-pulse-delayed {
-          animation-delay: 1s;
+        
+        /* Subtiele uitdijende ringen */
+        .radar-ring {
+          position: absolute;
+          border: 1px solid rgba(59, 130, 246, 0.15);
+          border-radius: 50%;
+          animation: radarExpand 4s ease-out infinite;
         }
-        .user-location-dot {
+        
+        .radar-ring-1 {
+          width: 60px;
+          height: 60px;
+          animation-delay: 0s;
+        }
+        
+        .radar-ring-2 {
+          width: 60px;
+          height: 60px;
+          animation-delay: 1.33s;
+        }
+        
+        .radar-ring-3 {
+          width: 60px;
+          height: 60px;
+          animation-delay: 2.66s;
+        }
+        
+        /* Centraal punt */
+        .radar-center {
           position: relative;
-          width: 24px;
-          height: 24px;
+          width: 28px;
+          height: 28px;
+          background: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
           z-index: 10;
-          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+          pointer-events: auto;
         }
-        .user-location-dot svg {
-          width: 100%;
-          height: 100%;
+        
+        .radar-center-dot {
+          width: 16px;
+          height: 16px;
+          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+          border-radius: 50%;
+          animation: centerPulse 2s ease-in-out infinite;
         }
-        @keyframes userPulse {
+        
+        @keyframes radarSweep {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        
+        @keyframes radarExpand {
           0% {
-            transform: scale(0.5);
-            opacity: 1;
+            transform: scale(1);
+            opacity: 0.4;
           }
           100% {
-            transform: scale(2);
+            transform: scale(3.2);
             opacity: 0;
+          }
+        }
+        
+        @keyframes centerPulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: scale(0.9);
+            opacity: 0.8;
           }
         }
       </style>
     `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
+    iconSize: [200, 200],
+    iconAnchor: [100, 100],
   });
 
   const handleClick = () => {
@@ -318,46 +384,91 @@ function MapEventLoader({
   return null;
 }
 
-// Functie om categorie-specifieke markers te maken - grotere en opvallender
-function createEventIcon(category: string, isExpired: boolean = false, isSelected: boolean = false) {
+// Functie om categorie-specifieke markers te maken met radar-sync animatie
+function createEventIcon(category: string, isExpired: boolean = false, isSelected: boolean = false, eventId?: number) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
-  const size = isSelected ? 24 : 20;
-  const borderWidth = isSelected ? 3 : 2;
-  const borderColor = isSelected ? "#ffffff" : "#ffffff";
-  const innerSize = size - (borderWidth * 2);
+  const size = isSelected ? 26 : 22;
+  const wrapperSize = size + 16;
+  const innerSize = size - 4;
+  
+  // Unieke animatie delay per event voor gespreide "scan" effect (0-4 seconden verspreid)
+  const animationDelay = eventId ? (eventId % 8) * 0.5 : 0;
   
   return L.divIcon({
-    className: 'custom-div-icon',
-    html: `<div style="
-      width: ${size}px; 
-      height: ${size}px; 
-      border-radius: 50%; 
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-      background-color: ${borderColor};
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      transform-origin: center;
-      ${isSelected ? 'transform: scale(1.2);' : ''}
-      ${isSelected ? 'animation: pulse 1.5s infinite;' : ''}
-    ">
-      <div style="
-        width: ${innerSize}px;
-        height: ${innerSize}px;
-        border-radius: 50%;
-        background-color: ${color};
-      "></div>
-    </div>
-    <style>
-      @keyframes pulse {
-        0% { transform: scale(1.1); }
-        50% { transform: scale(1.3); }
-        100% { transform: scale(1.1); }
-      }
-    </style>
+    className: 'custom-div-icon event-marker-radar',
+    html: `
+      <div class="event-pin-wrapper">
+        <div class="event-pin-scan" style="animation-delay: ${animationDelay}s;"></div>
+        <div class="event-pin-dot ${isSelected ? 'selected' : ''}">
+          <div class="event-pin-inner" style="background-color: ${color};"></div>
+        </div>
+      </div>
+      <style>
+        .event-pin-wrapper {
+          position: relative;
+          width: ${wrapperSize}px;
+          height: ${wrapperSize}px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .event-pin-scan {
+          position: absolute;
+          width: ${size}px;
+          height: ${size}px;
+          border-radius: 50%;
+          border: 2px solid ${color};
+          opacity: 0;
+          animation: eventScan 4s ease-out infinite;
+        }
+        
+        .event-pin-dot {
+          position: relative;
+          width: ${size}px;
+          height: ${size}px;
+          background: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+          transition: transform 0.2s ease;
+        }
+        
+        .event-pin-dot.selected {
+          transform: scale(1.15);
+          box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+        }
+        
+        .event-pin-inner {
+          width: ${innerSize}px;
+          height: ${innerSize}px;
+          border-radius: 50%;
+          transition: transform 0.15s ease;
+        }
+        
+        .event-pin-dot:hover .event-pin-inner {
+          transform: scale(0.9);
+        }
+        
+        @keyframes eventScan {
+          0% {
+            transform: scale(1);
+            opacity: 0.6;
+          }
+          50% {
+            opacity: 0.3;
+          }
+          100% {
+            transform: scale(1.8);
+            opacity: 0;
+          }
+        }
+      </style>
     `,
-    iconSize: [size, size],
-    iconAnchor: [size/2, size/2],
+    iconSize: [wrapperSize, wrapperSize],
+    iconAnchor: [wrapperSize/2, wrapperSize/2],
   });
 }
 
@@ -731,7 +842,8 @@ export default function MapView({
             icon={createEventIcon(
               event.category, 
               event.expired, 
-              isSelected
+              isSelected,
+              event.id
             )}
             eventHandlers={{
               click: () => {

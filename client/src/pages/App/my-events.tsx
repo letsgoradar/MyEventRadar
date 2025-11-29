@@ -256,84 +256,69 @@ export function AppMyEventsPage() {
     );
   };
 
-  const EventManagementOverlay = ({ event }: { event: EventInterface }) => (
-    <div className="fixed inset-0 bg-background z-50 overflow-auto">
-      <div className="sticky top-0 bg-background border-b p-4 flex items-center justify-between z-10">
-        <h2 className="text-lg font-bold">Beheren</h2>
-        <Button variant="ghost" size="icon" onClick={handleCloseManagement}>
-          <X className="h-5 w-5" />
-        </Button>
-      </div>
-      
-      <div className="p-4 pb-24 space-y-4">
-        <div className="relative h-40 rounded-lg overflow-hidden">
-          <img 
-            src={event.imageUrl || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&h=400&fit=crop'}
-            alt={event.title}
-            className="w-full h-full object-cover"
-          />
-        </div>
+  const EventManagementOverlay = ({ event }: { event: EventInterface }) => {
+    const navigateToEdit = (section?: string) => {
+      setLocation(`/app/edit-event/${event.id}${section ? `?section=${section}` : ''}`);
+    };
 
-        <div>
-          <h1 className="text-xl font-bold mb-1">{event.title}</h1>
-          <Badge variant="outline" className="text-xs">{event.category}</Badge>
+    return (
+      <div className="fixed inset-0 bg-background z-50 overflow-auto">
+        <div className="sticky top-0 bg-background border-b p-4 flex items-center justify-between z-10">
+          <h2 className="text-lg font-bold">Beheren</h2>
+          <Button variant="ghost" size="icon" onClick={handleCloseManagement}>
+            <X className="h-5 w-5" />
+          </Button>
         </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Card>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
-                <Calendar className="h-3.5 w-3.5" />
-                <span className="text-xs">Aangemaakt</span>
-              </div>
-              <p className="font-medium text-sm">{formatCreatedDate(event.createdAt)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
-                <Users className="h-3.5 w-3.5" />
-                <span className="text-xs">Aanmeldingen</span>
-              </div>
-              <p className="font-medium text-base">{participants.length} / {event.maxParticipants || '∞'}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardContent className="p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <div>
-                {event.startTime && (
-                  <p className="text-sm font-medium">{format(new Date(event.startTime), "EEEE d MMMM yyyy", { locale: nl })}</p>
-                )}
-                {event.startTime && event.endTime && (
-                  <p className="text-xs text-muted-foreground">
-                    {formatEventTime(event.startTime)} - {formatEventTime(event.endTime)}
-                  </p>
-                )}
+        
+        <div className="p-4 pb-24 space-y-4">
+          {/* Afbeelding - Bewerkbaar */}
+          <div 
+            className="relative h-40 rounded-lg overflow-hidden cursor-pointer group"
+            onClick={() => navigateToEdit('image')}
+          >
+            <img 
+              src={event.imageUrl || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&h=400&fit=crop'}
+              alt={event.title}
+              className="w-full h-full object-cover transition-opacity group-hover:opacity-80"
+            />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2">
+                <Edit className="h-5 w-5 text-primary" />
               </div>
             </div>
-            {event.address && (
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm">{event.address}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardContent className="p-3">
+          {/* Statistieken sectie - Niet bewerkbaar */}
+          <div className="bg-muted/50 rounded-lg p-3 border border-dashed border-muted-foreground/20">
+            <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Statistieken</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-background rounded-md p-3 border">
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span className="text-xs">Aangemaakt</span>
+                </div>
+                <p className="font-medium text-sm">{formatCreatedDate(event.createdAt)}</p>
+              </div>
+              <div className="bg-background rounded-md p-3 border">
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
+                  <Users className="h-3.5 w-3.5" />
+                  <span className="text-xs">Aanmeldingen</span>
+                </div>
+                <p className="font-medium text-base">{participants.length} / {event.maxParticipants || '∞'}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Deelnemers sectie - Niet bewerkbaar */}
+          <div className="bg-muted/50 rounded-lg p-3 border border-dashed border-muted-foreground/20">
             <div className="flex items-center gap-2 mb-2">
               <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Deelnemers ({participants.length})</span>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Deelnemers ({participants.length})</span>
             </div>
             {participants.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nog geen aanmeldingen</p>
+              <p className="text-sm text-muted-foreground bg-background rounded-md p-3 border">Nog geen aanmeldingen</p>
             ) : (
-              <div className="space-y-2 max-h-48 overflow-auto">
+              <div className="space-y-2 max-h-48 overflow-auto bg-background rounded-md p-2 border">
                 {participants.map((participant) => (
                   <div key={participant.id} className="flex items-center gap-2 p-2 bg-muted rounded-lg">
                     <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -356,36 +341,112 @@ export function AppMyEventsPage() {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        {event.description && (
-          <Card>
-            <CardContent className="p-3">
-              <p className="text-sm font-medium mb-1">Beschrijving</p>
-              <p className="text-sm text-muted-foreground">{event.description}</p>
-            </CardContent>
-          </Card>
-        )}
+          {/* Bewerkbare velden sectie */}
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-primary uppercase tracking-wide flex items-center gap-1.5">
+              <Edit className="h-3 w-3" />
+              Klik om te bewerken
+            </p>
+            
+            {/* Titel en Categorie - Bewerkbaar */}
+            <Card 
+              className="cursor-pointer hover:border-primary/50 hover:bg-accent/50 transition-colors group"
+              onClick={() => navigateToEdit('description')}
+            >
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h1 className="text-xl font-bold mb-1">{event.title}</h1>
+                    <Badge variant="outline" className="text-xs">{event.category}</Badge>
+                  </div>
+                  <Edit className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </CardContent>
+            </Card>
 
-        <div className="flex gap-2 pt-2">
-          <Button 
-            className="flex-1" 
-            onClick={() => setLocation(`/app/edit-event/${event.id}`)}
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Bewerken
-          </Button>
-          <Button 
-            variant="destructive" 
-            onClick={() => setDeleteEventId(event.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+            {/* Datum en Tijd - Bewerkbaar */}
+            <Card 
+              className="cursor-pointer hover:border-primary/50 hover:bg-accent/50 transition-colors group"
+              onClick={() => navigateToEdit('datetime')}
+            >
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      {event.startTime && (
+                        <p className="text-sm font-medium">{format(new Date(event.startTime), "EEEE d MMMM yyyy", { locale: nl })}</p>
+                      )}
+                      {event.startTime && event.endTime && (
+                        <p className="text-xs text-muted-foreground">
+                          {formatEventTime(event.startTime)} - {formatEventTime(event.endTime)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Edit className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Locatie - Bewerkbaar */}
+            {event.address && (
+              <Card 
+                className="cursor-pointer hover:border-primary/50 hover:bg-accent/50 transition-colors group"
+                onClick={() => navigateToEdit('location')}
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm">{event.address}</p>
+                    </div>
+                    <Edit className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Beschrijving - Bewerkbaar */}
+            {event.description && (
+              <Card 
+                className="cursor-pointer hover:border-primary/50 hover:bg-accent/50 transition-colors group"
+                onClick={() => navigateToEdit('description')}
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium mb-1">Beschrijving</p>
+                      <p className="text-sm text-muted-foreground line-clamp-3">{event.description}</p>
+                    </div>
+                    <Edit className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2" />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button 
+              className="flex-1" 
+              onClick={() => navigateToEdit()}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Alles bewerken
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => setDeleteEventId(event.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>

@@ -139,32 +139,49 @@ function UserLocationMarker({
   }, [position[0], position[1]]);
 
   // Aangepast icoon voor gebruikerslocatie met grote groene radar sweep
+  // BELANGRIJK: iconSize klein houden (50x50) zodat alleen het centrum klikbaar is
+  // De radar sweep wordt visueel groter gerenderd via CSS overflow
   const size = RADAR_CONFIG.SIZE;
-  const halfSize = size / 2;
+  const clickableSize = 50; // Alleen het centrum is klikbaar
+  const halfClickable = clickableSize / 2;
   const { primary, glow } = RADAR_CONFIG.COLOR;
   
   const userLocationIcon = L.divIcon({
     className: 'user-location-marker',
     html: `
-      <div class="radar-container-xl">
-        <!-- Grote radar sweep effect met groene kleur -->
-        <div class="radar-sweep-xl" style="transform: rotate(${radarAngle}deg);"></div>
-        <!-- Radar bereik cirkel -->
-        <div class="radar-range-xl"></div>
-        <!-- Centrale punt -->
+      <div class="radar-wrapper-xl">
+        <div class="radar-container-xl">
+          <!-- Grote radar sweep effect met groene kleur -->
+          <div class="radar-sweep-xl" style="transform: rotate(${radarAngle}deg);"></div>
+          <!-- Radar bereik cirkel -->
+          <div class="radar-range-xl"></div>
+        </div>
+        <!-- Centrale punt - dit is het enige klikbare element -->
         <div class="radar-center-xl">
           <div class="radar-center-dot-xl"></div>
         </div>
       </div>
       <style>
-        .radar-container-xl {
+        .radar-wrapper-xl {
           position: relative;
+          width: ${clickableSize}px;
+          height: ${clickableSize}px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .radar-container-xl {
+          position: absolute;
           width: ${size}px;
           height: ${size}px;
           display: flex;
           align-items: center;
           justify-content: center;
           pointer-events: none;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
         }
         
         /* Radar bereik indicator - subtiele groene rand */
@@ -181,6 +198,7 @@ function UserLocationMarker({
             rgba(${primary}, 0.02) 90%,
             rgba(${primary}, 0.04) 100%
           );
+          pointer-events: none;
         }
         
         /* Roterende radar sweep - grote groene straal */
@@ -200,9 +218,10 @@ function UserLocationMarker({
             rgba(${primary}, 0.12) 360deg
           );
           transition: none;
+          pointer-events: none;
         }
         
-        /* Centraal punt - groen thema */
+        /* Centraal punt - groen thema - dit is klikbaar */
         .radar-center-xl {
           position: relative;
           width: 36px;
@@ -214,8 +233,8 @@ function UserLocationMarker({
           justify-content: center;
           box-shadow: 0 2px 12px rgba(${primary}, 0.5);
           z-index: 10;
-          pointer-events: auto;
           border: 2px solid rgba(${primary}, 0.4);
+          cursor: pointer;
         }
         
         .radar-center-dot-xl {
@@ -238,8 +257,8 @@ function UserLocationMarker({
         }
       </style>
     `,
-    iconSize: [size, size],
-    iconAnchor: [halfSize, halfSize],
+    iconSize: [clickableSize, clickableSize],
+    iconAnchor: [halfClickable, halfClickable],
   });
 
   const handleClick = () => {

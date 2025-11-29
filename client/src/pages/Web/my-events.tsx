@@ -173,6 +173,11 @@ export function WebMyEventsPage() {
     }
   }, [selectedEvent, displayEvents]);
 
+  // Stabiele hover handlers om re-renders te voorkomen
+  const handleEventHover = React.useCallback((eventId: number | null) => {
+    setHoveredEventId(eventId);
+  }, []);
+
   const formatEventDate = (dateString: string | Date) => {
     const date = new Date(dateString);
     return format(date, "EEEE d MMMM yyyy", { locale: nl });
@@ -249,8 +254,8 @@ export function WebMyEventsPage() {
       <div 
         className={`flex gap-3 p-3 rounded-lg cursor-pointer transition-all hover:bg-accent/50 ${isActive ? 'bg-accent ring-2 ring-primary' : (isHovered ? 'bg-accent/30 ring-2 ring-primary/50' : 'bg-card')}`}
         onClick={() => handleEventClick(event)}
-        onMouseEnter={() => setHoveredEventId(event.id)}
-        onMouseLeave={() => setHoveredEventId(null)}
+        onMouseEnter={() => handleEventHover(event.id)}
+        onMouseLeave={() => handleEventHover(null)}
         data-testid={`listitem-event-${event.id}`}
       >
         <div className="relative w-20 h-20 flex-shrink-0 rounded-md overflow-hidden">
@@ -494,6 +499,7 @@ export function WebMyEventsPage() {
             <ResizablePanel defaultSize={55} minSize={35} className="relative">
               <div className="h-full overflow-hidden">
                 <MapView 
+                  key={`myevents-map-${activeTab}`}
                   searchQuery=""
                   radius={50}
                   filteredEvents={displayEvents}

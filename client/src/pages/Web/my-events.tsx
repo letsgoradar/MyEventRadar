@@ -33,6 +33,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import L from "leaflet";
 
+const MemoizedMapView = React.memo(MapView, (prevProps, nextProps) => {
+  return (
+    prevProps.searchQuery === nextProps.searchQuery &&
+    prevProps.radius === nextProps.radius &&
+    prevProps.filteredEvents === nextProps.filteredEvents &&
+    prevProps.showExpiredEvents === nextProps.showExpiredEvents
+  );
+});
+
 interface ParticipantInfo {
   id: number;
   username: string;
@@ -51,6 +60,11 @@ export function WebMyEventsPage() {
   const [managingEvent, setManagingEvent] = React.useState<EventInterface | null>(null);
   const [deleteEventId, setDeleteEventId] = React.useState<number | null>(null);
   const [hoveredEventId, setHoveredEventId] = React.useState<number | null>(null);
+  
+  // Sync hover state to window global for MapView to read without re-render
+  React.useEffect(() => {
+    (window as any).hoveredEventId = hoveredEventId;
+  }, [hoveredEventId]);
   
   const { data: organizedEvents = [], isLoading: loadingOrganized } = useQuery<EventInterface[]>({
     queryKey: ['/api/events/byuser', user?.id],
@@ -498,8 +512,7 @@ export function WebMyEventsPage() {
             {/* Linker paneel: Kaart */}
             <ResizablePanel defaultSize={55} minSize={35} className="relative">
               <div className="h-full overflow-hidden">
-                <MapView 
-                  key={`myevents-map-${activeTab}`}
+                <MemoizedMapView 
                   searchQuery=""
                   radius={50}
                   filteredEvents={displayEvents}

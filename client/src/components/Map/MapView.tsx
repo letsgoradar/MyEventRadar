@@ -639,6 +639,21 @@ export default function MapView({
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [targetEvent, setTargetEvent] = React.useState<EventInterface | null>(null);
   
+  // Interne hover state die pollt van window global (voorkomt re-renders van hele component)
+  const [internalHoveredEventId, setInternalHoveredEventId] = React.useState<number | null>(null);
+  
+  // Poll window.hoveredEventId elke 50ms - werkt ook als component niet re-rendert
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      const windowHoveredId = (window as any).hoveredEventId ?? null;
+      const effectiveHoveredId = propHoveredEventId ?? windowHoveredId;
+      if (effectiveHoveredId !== internalHoveredEventId) {
+        setInternalHoveredEventId(effectiveHoveredId);
+      }
+    }, 50);
+    return () => clearInterval(interval);
+  }, [internalHoveredEventId, propHoveredEventId]);
+  
   // Referentie naar de MapContainer
   const mapRef = React.useRef<L.Map | null>(null);
   
@@ -962,10 +977,10 @@ export default function MapView({
         />
         
         {/* Hover highlight overlay - aparte layer om animatie niet te verstoren */}
-        {propHoveredEventId && formattedEvents.find(e => e.id === propHoveredEventId) && (
+        {internalHoveredEventId && formattedEvents.find(e => e.id === internalHoveredEventId) && (
           <CircleMarker
-            key={`hover-highlight-${propHoveredEventId}`}
-            center={formattedEvents.find(e => e.id === propHoveredEventId)!.coords}
+            key={`hover-highlight-${internalHoveredEventId}`}
+            center={formattedEvents.find(e => e.id === internalHoveredEventId)!.coords}
             radius={25}
             pathOptions={{
               color: `rgb(${RADAR_CONFIG.COLOR.primary})`,

@@ -639,20 +639,26 @@ export default function MapView({
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [targetEvent, setTargetEvent] = React.useState<EventInterface | null>(null);
   
-  // Interne hover state die pollt van window global (voorkomt re-renders van hele component)
+  // Interne hover state via custom event (voorkomt re-renders van hele component)
   const [internalHoveredEventId, setInternalHoveredEventId] = React.useState<number | null>(null);
   
-  // Poll window.hoveredEventId elke 50ms - werkt ook als component niet re-rendert
+  // Luister naar custom eventHover events voor hover synchronisatie
   React.useEffect(() => {
-    const interval = setInterval(() => {
-      const windowHoveredId = (window as any).hoveredEventId ?? null;
-      const effectiveHoveredId = propHoveredEventId ?? windowHoveredId;
-      if (effectiveHoveredId !== internalHoveredEventId) {
-        setInternalHoveredEventId(effectiveHoveredId);
-      }
-    }, 50);
-    return () => clearInterval(interval);
-  }, [internalHoveredEventId, propHoveredEventId]);
+    const handleEventHover = (e: Event) => {
+      const customEvent = e as CustomEvent<{ eventId: number | null }>;
+      setInternalHoveredEventId(customEvent.detail.eventId);
+    };
+    
+    window.addEventListener('eventHover', handleEventHover);
+    return () => window.removeEventListener('eventHover', handleEventHover);
+  }, []);
+  
+  // Sync ook met propHoveredEventId als fallback (voor pagina's die direct de prop gebruiken)
+  React.useEffect(() => {
+    if (propHoveredEventId !== undefined) {
+      setInternalHoveredEventId(propHoveredEventId);
+    }
+  }, [propHoveredEventId]);
   
   // Referentie naar de MapContainer
   const mapRef = React.useRef<L.Map | null>(null);

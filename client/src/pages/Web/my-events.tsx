@@ -61,9 +61,10 @@ export function WebMyEventsPage() {
   const [deleteEventId, setDeleteEventId] = React.useState<number | null>(null);
   const [hoveredEventId, setHoveredEventId] = React.useState<number | null>(null);
   
-  // Sync hover state to window global for MapView to read without re-render
+  // Dispatch custom event voor hover synchronisatie met MapView (voorkomt re-render cycle)
   React.useEffect(() => {
-    (window as any).hoveredEventId = hoveredEventId;
+    const event = new CustomEvent('eventHover', { detail: { eventId: hoveredEventId } });
+    window.dispatchEvent(event);
   }, [hoveredEventId]);
   
   const { data: organizedEvents = [], isLoading: loadingOrganized } = useQuery<EventInterface[]>({

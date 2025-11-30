@@ -599,6 +599,61 @@ function createEventIcon(
   });
 }
 
+interface FormattedEvent {
+  id: number;
+  title: string;
+  coords: [number, number];
+  category: string;
+  expired: boolean;
+  event: EventInterface;
+}
+
+// Component die hover highlight afhandelt via directe Leaflet manipulatie (geen React state/re-render)
+function HoverHighlightLayer({ events }: { events: FormattedEvent[] }) {
+  const map = useMap();
+  const highlightLayerRef = React.useRef<L.CircleMarker | null>(null);
+  
+  React.useEffect(() => {
+    const handleEventHover = (e: Event) => {
+      const customEvent = e as CustomEvent<{ eventId: number | null }>;
+      const eventId = customEvent.detail.eventId;
+      
+      // Verwijder bestaande highlight
+      if (highlightLayerRef.current) {
+        map.removeLayer(highlightLayerRef.current);
+        highlightLayerRef.current = null;
+      }
+      
+      // Voeg nieuwe highlight toe als er een event is
+      if (eventId !== null) {
+        const event = events.find(e => e.id === eventId);
+        if (event) {
+          highlightLayerRef.current = L.circleMarker(event.coords, {
+            radius: 25,
+            color: `rgb(${RADAR_CONFIG.COLOR.primary})`,
+            weight: 3,
+            opacity: 0.8,
+            fillColor: `rgb(${RADAR_CONFIG.COLOR.primary})`,
+            fillOpacity: 0.2,
+            className: 'hover-pulse-ring'
+          }).addTo(map);
+        }
+      }
+    };
+    
+    window.addEventListener('eventHover', handleEventHover);
+    
+    return () => {
+      window.removeEventListener('eventHover', handleEventHover);
+      if (highlightLayerRef.current) {
+        map.removeLayer(highlightLayerRef.current);
+      }
+    };
+  }, [map, events]);
+  
+  return null;
+}
+
 interface MapViewProps {
   searchQuery?: string;
   radius?: number;
@@ -639,26 +694,6 @@ export default function MapView({
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [targetEvent, setTargetEvent] = React.useState<EventInterface | null>(null);
   
-  // Interne hover state via custom event (voorkomt re-renders van hele component)
-  const [internalHoveredEventId, setInternalHoveredEventId] = React.useState<number | null>(null);
-  
-  // Luister naar custom eventHover events voor hover synchronisatie
-  React.useEffect(() => {
-    const handleEventHover = (e: Event) => {
-      const customEvent = e as CustomEvent<{ eventId: number | null }>;
-      setInternalHoveredEventId(customEvent.detail.eventId);
-    };
-    
-    window.addEventListener('eventHover', handleEventHover);
-    return () => window.removeEventListener('eventHover', handleEventHover);
-  }, []);
-  
-  // Sync ook met propHoveredEventId als fallback (voor pagina's die direct de prop gebruiken)
-  React.useEffect(() => {
-    if (propHoveredEventId !== undefined) {
-      setInternalHoveredEventId(propHoveredEventId);
-    }
-  }, [propHoveredEventId]);
   
   // Referentie naar de MapContainer
   const mapRef = React.useRef<L.Map | null>(null);
@@ -982,22 +1017,8 @@ export default function MapView({
           }}
         />
         
-        {/* Hover highlight overlay - aparte layer om animatie niet te verstoren */}
-        {internalHoveredEventId && formattedEvents.find(e => e.id === internalHoveredEventId) && (
-          <CircleMarker
-            key={`hover-highlight-${internalHoveredEventId}`}
-            center={formattedEvents.find(e => e.id === internalHoveredEventId)!.coords}
-            radius={25}
-            pathOptions={{
-              color: `rgb(${RADAR_CONFIG.COLOR.primary})`,
-              weight: 3,
-              opacity: 0.8,
-              fillColor: `rgb(${RADAR_CONFIG.COLOR.primary})`,
-              fillOpacity: 0.2,
-              className: 'hover-pulse-ring'
-            }}
-          />
-        )}
+        {/* Hover highlight component - gebruikt directe Leaflet manipulatie zonder React state */}
+        <HoverHighlightLayer events={formattedEvents} />
         
         {/* Markers voor events met radar-gesynchroniseerde animatie */}
         {formattedEvents.map((event) => {

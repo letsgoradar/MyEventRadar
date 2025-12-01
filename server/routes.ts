@@ -243,6 +243,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Intelligente zoekterm generator - vertaalt Nederlandse titels naar Engelse Unsplash zoektermen
+  app.post("/api/generate-search-term", async (req, res) => {
+    try {
+      const schema = z.object({
+        title: z.string().min(1),
+        excludeTerms: z.array(z.string()).optional().default([]),
+      });
+      
+      const { title, excludeTerms } = schema.parse(req.body);
+      
+      // Gebruik OpenAI om een Engelse zoekterm te genereren
+      const openaiKey = process.env.OPENAI_API_KEY;
+      
+      if (!openaiKey) {
+        // Fallback: eenvoudige vertaling met hardcoded mappings
+        const fallbackTerm = generateFallbackSearchTerm(title, excludeTerms);
+        return res.json({ searchTerm: fallbackTerm, source: 'fallback' });
+      }
+      
+      const excludeClause = excludeTerms.length > 0 
+        ? `Do NOT use these terms: ${excludeTerms.join(', ')}.` 
+        : '';
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an expert at generating English search terms for Unsplash photos. 
+Given a Dutch event title, generate a single, simple English search term (1-3 words) that would find relevant photos.
+Focus on the core activity or subject. Be specific but not too narrow.
+${excludeClause}
+Respond with ONLY the search term, nothing else.`
+            },
+            {
+              role: 'user',
+              content: title
+            }
+          ],
+          max_tokens: 20,
+          temperature: 0.7,
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error('OpenAI API error:', response.status);
+        const fallbackTerm = generateFallbackSearchTerm(title, excludeTerms);
+        return res.json({ searchTerm: fallbackTerm, source: 'fallback' });
+      }
+      
+      const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+      const searchTerm = data.choices?.[0]?.message?.content?.trim() || generateFallbackSearchTerm(title, excludeTerms);
+      
+      console.log(`Generated search term for "${title}": "${searchTerm}"`);
+      res.json({ searchTerm, source: 'openai' });
+    } catch (error) {
+      console.error('Error generating search term:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Fallback functie voor zoekterm generatie zonder OpenAI
+  function generateFallbackSearchTerm(title: string, excludeTerms: string[]): string {
+    // Nederlandse naar Engelse vertalingen voor veelvoorkomende event woorden
+    const translations: Record<string, string[]> = {
+      'voetbal': ['soccer', 'football match', 'sports field'],
+      'basketbal': ['basketball', 'basketball court', 'sports'],
+      'tennis': ['tennis', 'tennis court', 'racket sport'],
+      'yoga': ['yoga class', 'meditation', 'fitness outdoor'],
+      'muziek': ['music concert', 'live music', 'musicians playing'],
+      'concert': ['live concert', 'music performance', 'stage'],
+      'dans': ['dancing', 'dance class', 'dancers'],
+      'kunst': ['art exhibition', 'gallery', 'artwork'],
+      'schilderen': ['painting class', 'art studio', 'canvas'],
+      'fotografie': ['photography', 'camera', 'photo walk'],
+      'wandeling': ['hiking', 'nature walk', 'trail walking'],
+      'hardlopen': ['running', 'jogging', 'marathon'],
+      'fietsen': ['cycling', 'bicycle', 'bike ride'],
+      'zwemmen': ['swimming', 'pool', 'swimmers'],
+      'koken': ['cooking class', 'chef', 'kitchen'],
+      'eten': ['food', 'dining', 'meal'],
+      'bbq': ['barbecue', 'grill', 'outdoor cooking'],
+      'barbecue': ['barbecue party', 'grill outdoors', 'summer bbq'],
+      'picknick': ['picnic', 'outdoor lunch', 'park blanket'],
+      'park': ['park', 'green space', 'outdoor'],
+      'natuur': ['nature', 'outdoors', 'landscape'],
+      'kinderen': ['children playing', 'kids activity', 'family fun'],
+      'speeltuin': ['playground', 'children park', 'kids outdoor'],
+      'hond': ['dog walking', 'dogs', 'pet walk'],
+      'honden': ['dogs playing', 'dog park', 'pet community'],
+      'koffie': ['coffee meeting', 'cafe', 'coffee shop'],
+      'borrel': ['drinks', 'social gathering', 'happy hour'],
+      'feest': ['party', 'celebration', 'festive'],
+      'markt': ['market', 'outdoor market', 'street fair'],
+      'bingo': ['bingo night', 'game night', 'community event'],
+      'quiz': ['pub quiz', 'trivia night', 'game night'],
+      'theater': ['theater', 'stage performance', 'drama'],
+      'film': ['movie night', 'cinema', 'film screening'],
+      'boek': ['book club', 'reading', 'library'],
+      'taal': ['language class', 'learning', 'conversation'],
+      'vrijwilliger': ['volunteering', 'community help', 'charity'],
+      'opruimen': ['cleanup', 'community service', 'volunteers'],
+      'planten': ['planting trees', 'gardening', 'green initiative'],
+      'tuin': ['garden', 'gardening', 'plants'],
+      'repair': ['repair cafe', 'fixing items', 'sustainability'],
+      'sinterklaas': ['dutch celebration', 'winter festival', 'holiday parade'],
+      'kerst': ['christmas', 'winter holiday', 'festive'],
+      'ouderen': ['seniors', 'elderly community', 'retirement'],
+      'buurt': ['neighborhood', 'community', 'local gathering'],
+    };
+    
+    const titleLower = title.toLowerCase();
+    const availableTerms: string[] = [];
+    
+    // Zoek matches in de titel
+    for (const [dutch, english] of Object.entries(translations)) {
+      if (titleLower.includes(dutch)) {
+        for (const term of english) {
+          if (!excludeTerms.includes(term)) {
+            availableTerms.push(term);
+          }
+        }
+      }
+    }
+    
+    // Return een willekeurige term die nog niet gebruikt is
+    if (availableTerms.length > 0) {
+      return availableTerms[Math.floor(Math.random() * availableTerms.length)];
+    }
+    
+    // Fallback: generieke community event termen
+    const genericTerms = ['community event', 'people gathering', 'social activity', 'group activity', 'local event'];
+    const available = genericTerms.filter(t => !excludeTerms.includes(t));
+    return available.length > 0 ? available[0] : 'community';
+  }
+
   // Events zoeken op basis van een query string
   app.get("/api/events/search", async (req, res) => {
     try {
@@ -852,7 +994,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.body.maxParticipants = 0;
       }
       
-      const updatedEvent = await storage.updateEvent(eventId, req.body);
+      // Converteer datum strings naar Date objecten voor Drizzle
+      const updateData = { ...req.body };
+      if (typeof updateData.startTime === 'string') {
+        updateData.startTime = new Date(updateData.startTime);
+      }
+      if (typeof updateData.endTime === 'string') {
+        updateData.endTime = new Date(updateData.endTime);
+      }
+      
+      const updatedEvent = await storage.updateEvent(eventId, updateData);
       
       // Broadcast de update
       broadcastEventUpdate(updatedEvent, 'update');
@@ -891,7 +1042,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.body.maxParticipants = 0;
       }
       
-      const updatedEvent = await storage.updateEvent(eventId, req.body);
+      // Converteer datum strings naar Date objecten voor Drizzle
+      const updateData = { ...req.body };
+      if (typeof updateData.startTime === 'string') {
+        updateData.startTime = new Date(updateData.startTime);
+      }
+      if (typeof updateData.endTime === 'string') {
+        updateData.endTime = new Date(updateData.endTime);
+      }
+      
+      const updatedEvent = await storage.updateEvent(eventId, updateData);
       
       // Broadcast de update
       broadcastEventUpdate(updatedEvent, 'update');

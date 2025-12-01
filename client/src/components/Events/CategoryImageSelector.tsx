@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2, RefreshCw } from 'lucide-react';
+import { Search, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 
 interface CategoryImageSelectorProps {
   category?: string;
@@ -10,17 +10,6 @@ interface CategoryImageSelectorProps {
   defaultImage?: string;
   title?: string;
   description?: string;
-}
-
-function extractSearchWords(text: string): string[] {
-  const stopWords = ['de', 'het', 'een', 'voor', 'van', 'met', 'en', 'of', 'op', 'in', 'bij', 'naar', 'aan', 'om', 'te', 'is', 'zijn', 'was', 'worden', 'wordt'];
-  
-  return text
-    .toLowerCase()
-    .split(/[\s\-_,.\(\)\[\]]+/)
-    .filter(word => word.length > 2)
-    .filter(word => !stopWords.includes(word))
-    .filter(word => !/^\d+$/.test(word));
 }
 
 export function CategoryImageSelector({ 
@@ -36,20 +25,46 @@ export function CategoryImageSelector({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [lastSearchedQuery, setLastSearchedQuery] = useState<string>("");
   const [hasSearched, setHasSearched] = useState<boolean>(false);
+  const [isGeneratingTerm, setIsGeneratingTerm] = useState<boolean>(false);
   
-  const [titleWords, setTitleWords] = useState<string[]>([]);
-  const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
+  const [usedSearchTerms, setUsedSearchTerms] = useState<string[]>([]);
+  const [currentSearchTerm, setCurrentSearchTerm] = useState<string>("");
   const initialSearchDone = useRef(false);
 
-  useEffect(() => {
-    if (title) {
-      const words = extractSearchWords(title);
-      setTitleWords(words);
-      console.log(`Titel woorden geëxtraheerd: ${words.join(', ')}`);
+  const generateSearchTerm = useCallback(async (eventTitle: string, excludeTerms: string[] = []): Promise<string> => {
+    setIsGeneratingTerm(true);
+    try {
+      const response = await fetch('/api/generate-search-term', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: eventTitle, excludeTerms }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`AI zoekterm gegenereerd: "${data.searchTerm}" (bron: ${data.source})`);
+        return data.searchTerm;
+      }
+    } catch (error) {
+      console.error('Fout bij genereren zoekterm:', error);
+    } finally {
+      setIsGeneratingTerm(false);
     }
-  }, [title]);
+    return eventTitle;
+  }, []);
 
-  const fetchUnsplashImages = useCallback(async (query: string, autoTryNextWord: boolean = false): Promise<boolean> => {
+  useEffect(() => {
+    if (title && !initialSearchDone.current) {
+      initialSearchDone.current = true;
+      generateSearchTerm(title, []).then(term => {
+        setSearchQuery(term);
+        setCurrentSearchTerm(term);
+        setUsedSearchTerms([term]);
+      });
+    }
+  }, [title, generateSearchTerm]);
+
+  const fetchUnsplashImages = useCallback(async (query: string): Promise<boolean> => {
     if (!query.trim()) {
       setImages([]);
       return false;
@@ -97,67 +112,37 @@ export function CategoryImageSelector({
     }
   }, [selectedImage, onSelectImage]);
 
-  const tryNextWord = useCallback(async () => {
-    const nextIndex = currentWordIndex + 1;
-    
-    if (nextIndex < titleWords.length) {
-      const nextWord = titleWords[nextIndex];
-      setCurrentWordIndex(nextIndex);
-      setSearchQuery(nextWord);
-      console.log(`Probeer woord ${nextIndex + 1}/${titleWords.length}: "${nextWord}"`);
-      
-      const found = await fetchUnsplashImages(nextWord, true);
-      
-      if (!found && nextIndex + 1 < titleWords.length) {
-        console.log(`Geen resultaten voor "${nextWord}", probeer automatisch volgend woord...`);
-      }
-      
-      return found;
-    } else {
-      console.log('Alle woorden geprobeerd, geen resultaten meer');
-      return false;
-    }
-  }, [currentWordIndex, titleWords, fetchUnsplashImages]);
-
-  useEffect(() => {
-    if (title && !initialSearchDone.current) {
-      setSearchQuery(title);
-      initialSearchDone.current = true;
-    }
-  }, [title]);
-
   useEffect(() => {
     if (searchQuery && searchQuery !== lastSearchedQuery && initialSearchDone.current) {
       const timeoutId = setTimeout(async () => {
-        const found = await fetchUnsplashImages(searchQuery);
-        
-        if (!found && currentWordIndex === -1 && titleWords.length > 0) {
-          console.log('Volledige titel gaf geen resultaten, probeer eerste woord...');
-          tryNextWord();
-        }
+        await fetchUnsplashImages(searchQuery);
       }, 600);
       return () => clearTimeout(timeoutId);
     }
-  }, [searchQuery, lastSearchedQuery, fetchUnsplashImages, currentWordIndex, titleWords, tryNextWord]);
+  }, [searchQuery, lastSearchedQuery, fetchUnsplashImages]);
 
   const handleRefreshClick = async () => {
-    if (titleWords.length > 0 && currentWordIndex < titleWords.length - 1) {
-      await tryNextWord();
-    } else if (searchQuery.trim()) {
-      setCurrentWordIndex(-1);
+    if (!title) return;
+    
+    const newTerm = await generateSearchTerm(title, usedSearchTerms);
+    
+    if (newTerm && newTerm !== currentSearchTerm) {
+      setSearchQuery(newTerm);
+      setCurrentSearchTerm(newTerm);
+      setUsedSearchTerms(prev => [...prev, newTerm]);
+      console.log(`Nieuwe AI zoekterm: "${newTerm}" (uitgesloten: ${usedSearchTerms.join(', ')})`);
+    } else {
       await fetchUnsplashImages(searchQuery);
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    setCurrentWordIndex(-1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      setCurrentWordIndex(-1);
       fetchUnsplashImages(searchQuery);
     }
   };
@@ -165,13 +150,6 @@ export function CategoryImageSelector({
   const handleSelectImage = (imageUrl: string) => {
     setSelectedImage(imageUrl);
     onSelectImage(imageUrl);
-  };
-
-  const getRefreshHint = () => {
-    if (currentWordIndex >= 0 && currentWordIndex < titleWords.length - 1) {
-      return `Klik voor volgend woord: "${titleWords[currentWordIndex + 1]}"`;
-    }
-    return null;
   };
 
   return (
@@ -197,9 +175,17 @@ export function CategoryImageSelector({
       )}
 
       <div className="space-y-2">
-        <p className="text-sm font-medium">
-          Zoek afbeelding op trefwoord
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium">
+            Zoek afbeelding op trefwoord
+          </p>
+          {isGeneratingTerm && (
+            <span className="flex items-center gap-1 text-xs text-primary">
+              <Sparkles className="h-3 w-3 animate-pulse" />
+              AI genereert zoekterm...
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -217,11 +203,11 @@ export function CategoryImageSelector({
             type="button"
             variant="outline"
             onClick={handleRefreshClick}
-            disabled={isLoading}
-            title={getRefreshHint() || "Zoek opnieuw"}
+            disabled={isLoading || isGeneratingTerm}
+            title="Genereer nieuwe zoekterm"
             data-testid="button-search-images"
           >
-            {isLoading ? (
+            {isLoading || isGeneratingTerm ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <RefreshCw className="h-4 w-4" />
@@ -230,16 +216,12 @@ export function CategoryImageSelector({
         </div>
         <div className="flex flex-col gap-1">
           <p className="text-xs text-muted-foreground">
-            De zoekterm is automatisch ingevuld met de titel. Pas aan voor betere resultaten.
+            AI genereert automatisch een Engelse zoekterm. Klik op refresh voor een andere zoekterm.
           </p>
-          {getRefreshHint() && (
-            <p className="text-xs text-primary">
-              {getRefreshHint()}
-            </p>
-          )}
-          {currentWordIndex >= 0 && (
-            <p className="text-xs text-muted-foreground">
-              Zoekwoord {currentWordIndex + 1} van {titleWords.length}: "{titleWords[currentWordIndex]}"
+          {currentSearchTerm && (
+            <p className="text-xs text-primary flex items-center gap-1">
+              <Sparkles className="h-3 w-3" />
+              Zoekterm: "{currentSearchTerm}"
             </p>
           )}
         </div>
@@ -286,15 +268,10 @@ export function CategoryImageSelector({
           <p className="text-sm text-muted-foreground">
             Geen afbeeldingen gevonden voor "{lastSearchedQuery}"
           </p>
-          {currentWordIndex < titleWords.length - 1 && titleWords.length > 0 ? (
-            <p className="text-xs text-primary mt-1">
-              Klik op de refresh knop om "{titleWords[currentWordIndex + 1]}" te proberen
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground mt-1">
-              Probeer een andere zoekterm
-            </p>
-          )}
+          <p className="text-xs text-primary mt-1 flex items-center gap-1">
+            <RefreshCw className="h-3 w-3" />
+            Klik op refresh voor een nieuwe AI zoekterm
+          </p>
         </div>
       ) : null}
     </div>

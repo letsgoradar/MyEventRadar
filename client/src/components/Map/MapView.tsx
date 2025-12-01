@@ -612,11 +612,19 @@ interface FormattedEvent {
 function HoverHighlightLayer({ events }: { events: FormattedEvent[] }) {
   const map = useMap();
   const highlightLayerRef = React.useRef<L.CircleMarker | null>(null);
+  const eventsRef = React.useRef(events);
+  
+  // Update events ref zonder re-render te triggeren
+  React.useEffect(() => {
+    eventsRef.current = events;
+  }, [events]);
   
   React.useEffect(() => {
     const handleEventHover = (e: Event) => {
       const customEvent = e as CustomEvent<{ eventId: number | null }>;
       const eventId = customEvent.detail.eventId;
+      
+      console.log('HoverHighlightLayer received event:', eventId, 'available events:', eventsRef.current.length);
       
       // Verwijder bestaande highlight
       if (highlightLayerRef.current) {
@@ -626,7 +634,8 @@ function HoverHighlightLayer({ events }: { events: FormattedEvent[] }) {
       
       // Voeg nieuwe highlight toe als er een event is
       if (eventId !== null) {
-        const event = events.find(e => e.id === eventId);
+        const event = eventsRef.current.find(e => e.id === eventId);
+        console.log('Found event for highlight:', event?.title);
         if (event) {
           highlightLayerRef.current = L.circleMarker(event.coords, {
             radius: 25,
@@ -649,7 +658,7 @@ function HoverHighlightLayer({ events }: { events: FormattedEvent[] }) {
         map.removeLayer(highlightLayerRef.current);
       }
     };
-  }, [map, events]);
+  }, [map]);
   
   return null;
 }

@@ -35,6 +35,12 @@ export function SplitView({
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [hoveredEventId, setHoveredEventId] = React.useState<number | null>(null);
   
+  // Dispatch custom event voor hover synchronisatie met MapView (voorkomt re-render cycle)
+  React.useEffect(() => {
+    const event = new CustomEvent('eventHover', { detail: { eventId: hoveredEventId } });
+    window.dispatchEvent(event);
+  }, [hoveredEventId]);
+  
   // Gebruik prop selectedDays als beschikbaar, anders lege array
   const selectedDays = propSelectedDays ?? [];
   

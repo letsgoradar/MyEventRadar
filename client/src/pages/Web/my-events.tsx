@@ -1,6 +1,7 @@
 import * as React from "react";
 import WebLayout from "@/components/Web/WebLayout";
 import MapView from "@/components/Map/MapView";
+import { Header } from "@/components/Web/Header";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { EventInterface } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -508,8 +509,19 @@ export function WebMyEventsPage() {
           <Sidebar />
         </React.Suspense>
         
-        <div className="flex-1 flex flex-col relative">
-          <ResizablePanelGroup direction="horizontal" className="h-full">
+        <div className="flex-1 flex flex-col relative w-[calc(100vw-260px)]">
+          {/* Header met zoekbalk - consistent met homepagina */}
+          <div className="sticky top-0 left-0 right-0 z-[100]">
+            <Header 
+              isMapView={true}
+              toggleView={() => {}}
+              hideViewToggle={true}
+              onEventClick={handleEventClick}
+            />
+          </div>
+          
+          <div className="flex-1 relative overflow-hidden">
+            <ResizablePanelGroup direction="horizontal" className="h-full absolute inset-0">
             {/* Linker paneel: Kaart */}
             <ResizablePanel defaultSize={55} minSize={35} className="relative">
               <div className="h-full overflow-hidden">
@@ -591,7 +603,8 @@ export function WebMyEventsPage() {
                 </div>
               </div>
             </ResizablePanel>
-          </ResizablePanelGroup>
+            </ResizablePanelGroup>
+          </div>
         </div>
       </div>
 

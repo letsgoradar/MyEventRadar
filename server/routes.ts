@@ -861,7 +861,38 @@ Respond with ONLY the search term, nothing else.`
     }
   });
   
-  // Gebruikersprofiel bijwerken
+  // Eigen profiel bijwerken (voor de ingelogde gebruiker)
+  app.patch("/api/user/profile", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ message: "Je moet ingelogd zijn" });
+      }
+      
+      const userId = req.user.id;
+      const { name, phone, location, bio } = req.body;
+      
+      // Update alleen toegestane velden
+      const updateData: Record<string, string> = {};
+      if (name !== undefined) updateData.name = name;
+      if (phone !== undefined) updateData.phone = phone;
+      if (location !== undefined) updateData.location = location;
+      if (bio !== undefined) updateData.bio = bio;
+      
+      console.log(`Updating profile for user ${userId}:`, updateData);
+      
+      const updatedUser = await storage.updateUser(userId, updateData);
+      
+      // Verwijder wachtwoord uit de response
+      const { password, ...userWithoutPassword } = updatedUser;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error in PATCH /api/user/profile:', error);
+      res.status(500).json({ message: "Er is iets misgegaan bij het opslaan van je profiel" });
+    }
+  });
+  
+  // Gebruikersprofiel bijwerken (via ID)
   app.patch("/api/users/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = parseInt(req.params.id);

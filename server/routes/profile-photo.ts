@@ -108,8 +108,12 @@ router.post('/',
         return res.status(400).json({ message: 'Geen bestand geüpload' });
       }
       
-      // Demo gebruiker ID (vervang oude authenticatie logica)
-      const userId = 1;
+      // Gebruik de daadwerkelijk ingelogde gebruiker
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: 'Je moet ingelogd zijn om een profielfoto te uploaden' });
+      }
+      
+      const userId = req.user.id;
       console.log(`Database update voor gebruiker: ${userId}`);
       
       // Pad naar het bestand relatief aan de publieke URL
@@ -117,7 +121,7 @@ router.post('/',
       console.log('File saved at:', relativePath);
       
       try {
-        // Update de database voor de demo gebruiker
+        // Update de database voor de ingelogde gebruiker
         await appStorage.updateUser(userId, {
           photoUrl: relativePath,
           avatar: relativePath 
@@ -125,7 +129,7 @@ router.post('/',
         console.log('Database updated successfully for user:', userId);
       } catch (dbError) {
         console.error('Database error while updating user:', dbError);
-        // Vang de database error op maar ga door met de response
+        return res.status(500).json({ message: 'Fout bij het opslaan van de profielfoto in de database' });
       }
       
       res.status(200).json({ 

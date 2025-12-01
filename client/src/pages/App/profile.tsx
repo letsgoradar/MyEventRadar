@@ -1,6 +1,6 @@
 import * as React from "react";
 import { AppLayout } from "@/components/App/AppLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import {
   Card,
@@ -25,15 +25,27 @@ import {
   Moon,
   Sun,
   Info,
+  Edit,
+  X,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import ProfilePhotoUpload from "@/components/App/ProfilePhotoUpload";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Dummy gebruikersgegevens (normaal gesproken zou dit uit een API komen)
 const dummyUser = {
@@ -66,13 +78,45 @@ export function AppProfilePage() {
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const { user: authUser, logoutMutation } = useAuth();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [editForm, setEditForm] = React.useState({
+    name: '',
+    phone: '',
+    location: '',
+    bio: '',
+  });
 
   // Haal gebruikersgegevens op van de API
   const { data: user = dummyUser as UserProfile, isLoading } = useQuery<UserProfile>({
     queryKey: ['/api/user'],
     enabled: true, 
-    // Als er geen data is geladen, gebruik dummyUser als fallback
     placeholderData: dummyUser as UserProfile
+  });
+  
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: { name: string; phone: string; location: string; bio: string }) => {
+      return await apiRequest('/api/user/profile', {
+        method: 'PATCH',
+        data,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      setIsEditDialogOpen(false);
+      toast({
+        title: "Profiel bijgewerkt",
+        description: "Je profielgegevens zijn succesvol opgeslagen.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Fout bij opslaan",
+        description: error.message || "Er is iets misgegaan bij het opslaan van je profiel.",
+        variant: "destructive",
+      });
+    },
   });
 
   const [notifications, setNotifications] = React.useState({
@@ -81,11 +125,24 @@ export function AppProfilePage() {
     eventReminders: true,
     newEvents: false,
   });
+  
+  const handleOpenEditDialog = () => {
+    setEditForm({
+      name: user.name || '',
+      phone: user.phone || '',
+      location: user.location || '',
+      bio: user.bio || '',
+    });
+    setIsEditDialogOpen(true);
+  };
+  
+  const handleSaveProfile = () => {
+    updateProfileMutation.mutate(editForm);
+  };
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
-        // Doorsturen naar welkomstpagina na uitloggen
         setLocation('/app/welcome');
         toast({
           title: "Uitgelogd",
@@ -158,11 +215,92 @@ export function AppProfilePage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleOpenEditDialog}
+                  data-testid="button-edit-profile"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
                   Profiel bewerken
                 </Button>
               </CardFooter>
             </Card>
+            
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="max-w-[90vw] sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Profiel bewerken</DialogTitle>
+                  <DialogDescription>
+                    Pas je profielgegevens aan
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Naam</Label>
+                    <Input
+                      id="edit-name"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Je naam"
+                      data-testid="input-edit-name"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-phone">Telefoonnummer</Label>
+                    <Input
+                      id="edit-phone"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="+31 6 12345678"
+                      data-testid="input-edit-phone"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-location">Locatie</Label>
+                    <Input
+                      id="edit-location"
+                      value={editForm.location}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="Stad of gemeente"
+                      data-testid="input-edit-location"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-bio">Over mij</Label>
+                    <Textarea
+                      id="edit-bio"
+                      value={editForm.bio}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
+                      placeholder="Vertel iets over jezelf..."
+                      className="min-h-[100px]"
+                      data-testid="input-edit-bio"
+                    />
+                  </div>
+                </div>
+                
+                <DialogFooter className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsEditDialogOpen(false)}
+                    data-testid="button-cancel-edit"
+                  >
+                    Annuleren
+                  </Button>
+                  <Button 
+                    onClick={handleSaveProfile}
+                    disabled={updateProfileMutation.isPending}
+                    data-testid="button-save-profile"
+                  >
+                    {updateProfileMutation.isPending ? 'Opslaan...' : 'Opslaan'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             
             <Card>
               <CardHeader>

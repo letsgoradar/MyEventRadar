@@ -34,14 +34,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import L from "leaflet";
 
-const MemoizedMapView = React.memo(MapView, (prevProps, nextProps) => {
-  return (
-    prevProps.searchQuery === nextProps.searchQuery &&
-    prevProps.radius === nextProps.radius &&
-    prevProps.filteredEvents === nextProps.filteredEvents &&
-    prevProps.showExpiredEvents === nextProps.showExpiredEvents
-  );
-});
 
 interface ParticipantInfo {
   id: number;
@@ -129,32 +121,54 @@ export function WebMyEventsPage() {
     return organizedEvents;
   }, [activeTab, organizedEvents, participatingEvents, favoriteEvents]);
 
-  // Zoom kaart naar alle events wanneer tab of events veranderen
+  // Gebruikerslocatie voor kaart centrering
+  const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
+  
+  // Haal gebruikerslocatie op
   React.useEffect(() => {
-    if (displayEvents.length === 0) return;
-    
-    // Verzamel alle event coördinaten
-    const validEvents = displayEvents.filter(e => e.latitude && e.longitude);
-    if (validEvents.length === 0) return;
-    
-    // Maak bounds die alle events bevatten
-    const bounds = L.latLngBounds(
-      validEvents.map(e => L.latLng(Number(e.latitude), Number(e.longitude)))
-    );
-    
-    // Voeg padding toe en zoom naar de bounds - gebruik window.mapRef
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+        },
+        (error) => {
+          console.log('Kon locatie niet ophalen, standaard locatie gebruikt');
+        }
+      );
+    }
+  }, []);
+
+  // Zoom kaart: centreer op gebruikerslocatie en zoom uit tot alle events zichtbaar zijn
+  React.useEffect(() => {
     setTimeout(() => {
       const mapRef = (window as any).mapRef?.current;
-      if (mapRef) {
-        mapRef.fitBounds(bounds, {
-          padding: [50, 50],
-          maxZoom: 14,
-          animate: true,
-          duration: 0.8
-        });
+      if (!mapRef) return;
+      
+      // Verzamel alle event coördinaten
+      const validEvents = displayEvents.filter(e => e.latitude && e.longitude);
+      
+      if (validEvents.length === 0) {
+        // Geen events: centreer alleen op gebruikerslocatie
+        mapRef.setView(userLocation, 13, { animate: true });
+        return;
       }
+      
+      // Maak bounds die gebruikerslocatie EN alle events bevatten
+      const allPoints = [
+        L.latLng(userLocation[0], userLocation[1]),
+        ...validEvents.map(e => L.latLng(Number(e.latitude), Number(e.longitude)))
+      ];
+      const bounds = L.latLngBounds(allPoints);
+      
+      // Fit bounds met padding
+      mapRef.fitBounds(bounds, {
+        padding: [50, 50],
+        maxZoom: 14,
+        animate: true,
+        duration: 0.8
+      });
     }, 500);
-  }, [displayEvents, activeTab]);
+  }, [displayEvents, activeTab, userLocation]);
 
   const handleEventClick = React.useCallback((event: EventInterface) => {
     if (activeTab === "organized") {
@@ -525,7 +539,7 @@ export function WebMyEventsPage() {
             {/* Linker paneel: Kaart */}
             <ResizablePanel defaultSize={55} minSize={35} className="relative">
               <div className="h-full overflow-hidden">
-                <MemoizedMapView 
+                <MapView 
                   searchQuery=""
                   radius={50}
                   filteredEvents={displayEvents}

@@ -624,8 +624,6 @@ function HoverHighlightLayer({ events }: { events: FormattedEvent[] }) {
       const customEvent = e as CustomEvent<{ eventId: number | null }>;
       const eventId = customEvent.detail.eventId;
       
-      console.log('HoverHighlightLayer received event:', eventId, 'available events:', eventsRef.current.length);
-      
       // Verwijder bestaande highlight
       if (highlightLayerRef.current) {
         map.removeLayer(highlightLayerRef.current);
@@ -635,7 +633,6 @@ function HoverHighlightLayer({ events }: { events: FormattedEvent[] }) {
       // Voeg nieuwe highlight toe als er een event is
       if (eventId !== null) {
         const event = eventsRef.current.find(e => e.id === eventId);
-        console.log('Found event for highlight:', event?.title);
         if (event) {
           highlightLayerRef.current = L.circleMarker(event.coords, {
             radius: 25,

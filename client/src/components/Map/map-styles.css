@@ -247,3 +247,29 @@
   pointer-events: auto !important;
   cursor: pointer !important;
 }
+
+/* Fix voor Leaflet marker panes - zorg dat markers altijd boven andere lagen zijn */
+.leaflet-marker-pane {
+  z-index: 700 !important;
+}
+
+.leaflet-marker-icon {
+  pointer-events: auto !important;
+}
+
+/* Zorg dat de user location marker niet de event markers blokkeert */
+.user-location-marker {
+  z-index: 600 !important;
+}
+
+.user-location-marker .radar-wrapper-xl,
+.user-location-marker .radar-container-xl,
+.user-location-marker .radar-sweep-xl,
+.user-location-marker .radar-range-xl {
+  pointer-events: none !important;
+}
+
+/* Alleen het centrum van de user marker is klikbaar */
+.user-location-marker .radar-center-xl {
+  pointer-events: auto !important;
+}

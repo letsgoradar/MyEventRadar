@@ -1037,9 +1037,13 @@ export default function MapView({
               isRevealed,
               isScanning
             )}
+            zIndexOffset={1000}
+            interactive={true}
+            bubblingMouseEvents={false}
             eventHandlers={{
-              click: () => {
+              click: (e) => {
                 console.log('Marker clicked!', event.id, event.title);
+                e.originalEvent?.stopPropagation();
                 // In web versie: alleen overlay tonen, geen popup
                 const isWebVersion = window.location.pathname.includes('/web');
                 console.log('isWebVersion:', isWebVersion, 'onEventClick exists:', !!onEventClick);

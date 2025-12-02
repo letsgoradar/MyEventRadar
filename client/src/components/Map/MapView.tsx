@@ -479,12 +479,8 @@ function createEventIcon(
 ) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
   const size = isSelected ? 28 : 24;
-  const wrapperSize = size + 20;
+  const wrapperSize = 44;
   const innerSize = size - 4;
-  
-  // Radar groene kleur voor scan effect
-  const { primary } = RADAR_CONFIG.COLOR;
-  const scanColor = `rgb(${primary})`;
   
   // Animatie class voor fade-in effect
   const revealClass = isRevealed ? 'revealed' : 'hidden';
@@ -501,106 +497,6 @@ function createEventIcon(
           <div class="evt-inner" style="background-color: ${color};"></div>
         </div>
       </div>
-      <style>
-        .evt-radar-pin {
-          position: relative;
-          width: ${wrapperSize}px;
-          height: ${wrapperSize}px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          opacity: 0;
-          transform: scale(0.3);
-          transition: opacity 0.4s ease-out, transform 0.4s ease-out;
-        }
-        
-        .evt-radar-pin.revealed {
-          opacity: 1;
-          transform: scale(1);
-        }
-        
-        .evt-radar-pin.hidden {
-          opacity: 0;
-          transform: scale(0.3);
-        }
-        
-        .evt-scan-ring {
-          position: absolute;
-          width: ${size}px;
-          height: ${size}px;
-          border-radius: 50%;
-          border: 2px solid ${scanColor};
-          opacity: 0;
-          transform: scale(1);
-        }
-        
-        .evt-scan-glow {
-          position: absolute;
-          width: ${size + 4}px;
-          height: ${size + 4}px;
-          border-radius: 50%;
-          background: ${scanColor};
-          opacity: 0;
-          filter: blur(0px);
-        }
-        
-        /* Wanneer scanning actief is, trigger de pulse animatie */
-        .evt-radar-pin.scanning .evt-scan-ring {
-          animation: evtScanRingOnce 0.6s ease-out forwards;
-        }
-        
-        .evt-radar-pin.scanning .evt-scan-glow {
-          animation: evtScanGlowOnce 0.6s ease-out forwards;
-        }
-        
-        .evt-dot {
-          position: relative;
-          width: ${size}px;
-          height: ${size}px;
-          background: white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        
-        .evt-dot.selected {
-          transform: scale(1.2);
-          box-shadow: 0 3px 12px rgba(0,0,0,0.4);
-        }
-        
-        .evt-inner {
-          width: ${innerSize}px;
-          height: ${innerSize}px;
-          border-radius: 50%;
-        }
-        
-        /* One-shot scan ring animatie */
-        @keyframes evtScanRingOnce {
-          0% {
-            transform: scale(1);
-            opacity: 0.9;
-          }
-          100% {
-            transform: scale(1.8);
-            opacity: 0;
-          }
-        }
-        
-        /* One-shot glow effect */
-        @keyframes evtScanGlowOnce {
-          0% {
-            opacity: 0.6;
-            filter: blur(4px);
-          }
-          100% {
-            opacity: 0;
-            filter: blur(12px);
-          }
-        }
-      </style>
     `,
     iconSize: [wrapperSize, wrapperSize],
     iconAnchor: [wrapperSize/2, wrapperSize/2],
@@ -1143,10 +1039,13 @@ export default function MapView({
             )}
             eventHandlers={{
               click: () => {
+                console.log('Marker clicked!', event.id, event.title);
                 // In web versie: alleen overlay tonen, geen popup
                 const isWebVersion = window.location.pathname.includes('/web');
+                console.log('isWebVersion:', isWebVersion, 'onEventClick exists:', !!onEventClick);
                 if (isWebVersion) {
                   // Alleen de overlay callback aanroepen
+                  console.log('Calling onEventClick for web version');
                   onEventClick?.(event.event);
                 } else {
                   // In app versie: popup tonen

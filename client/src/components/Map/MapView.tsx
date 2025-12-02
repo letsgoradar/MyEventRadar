@@ -1131,7 +1131,7 @@ export default function MapView({
           );
           return (
           <Marker 
-            key={`${event.id}-${isSelected ? 'selected' : 'normal'}-${isRevealed ? 'revealed' : 'hidden'}-${isScanning ? 'scanning' : 'idle'}`}
+            key={event.id}
             position={event.coords}
             icon={createEventIcon(
               event.category, 

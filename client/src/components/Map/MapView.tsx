@@ -606,10 +606,13 @@ export default function MapView({
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [targetEvent, setTargetEvent] = React.useState<EventInterface | null>(null);
   
-  // State voor events die al gescand zijn door de radar sweep (worden zichtbaar)
-  const [revealedEvents, setRevealedEvents] = React.useState<Set<number>>(new Set());
-  // State voor events die momenteel door de radar worden gescand (voor pulse animatie)
-  const [scanningEvents, setScanningEvents] = React.useState<Set<number>>(new Set());
+  // Refs voor events die al gescand zijn door de radar sweep (worden zichtbaar)
+  // BELANGRIJK: Gebruik refs in plaats van state om te voorkomen dat markers opnieuw renderen
+  // bij elke radar sweep, wat de click handlers zou resetten
+  const revealedEventsRef = React.useRef<Set<number>>(new Set());
+  const scanningEventsRef = React.useRef<Set<number>>(new Set());
+  // Refs naar marker DOM elementen voor directe CSS manipulatie
+  const markerElementsRef = React.useRef<Map<number, HTMLElement>>(new Map());
   const radarAngle = useRadarAngle();
   const previousRadarAngle = React.useRef<number>(0);
   
@@ -816,15 +819,13 @@ export default function MapView({
   }, [eventsData, currentBounds, showExpiredEvents]);
   
   // Effect om events te "revealen" en "scannen" wanneer de radar sweep erover heen gaat
+  // BELANGRIJK: Deze effect manipuleert de DOM direct via refs om te voorkomen dat
+  // React re-renders de Leaflet click handlers breken
   React.useEffect(() => {
     if (!formattedEvents.length) return;
     
     const prevAngle = previousRadarAngle.current;
     const currentAngle = radarAngle;
-    
-    // Detecteer welke events gescand worden in dit frame
-    const newlyRevealedIds: number[] = [];
-    const newlyScannedIds: number[] = [];
     
     formattedEvents.forEach(event => {
       const eventAngle = calculateAngleFromUser(
@@ -835,64 +836,55 @@ export default function MapView({
       );
       
       // Check of de radar over dit event is gegaan sinds het vorige frame
-      // Rekening houdend met de wrap-around van 360 naar 0
       let isSweptOver = false;
       
       if (prevAngle <= currentAngle) {
-        // Normale rotatie (geen wrap)
         isSweptOver = eventAngle >= prevAngle && eventAngle <= currentAngle;
       } else {
-        // Wrap-around (bijv. van 350 naar 10)
         isSweptOver = eventAngle >= prevAngle || eventAngle <= currentAngle;
       }
       
       if (isSweptOver) {
-        // Nieuw gescand - voeg toe aan scanningEvents voor pulse animatie
-        newlyScannedIds.push(event.id);
+        const element = markerElementsRef.current.get(event.id);
         
-        // Als nog niet revealed, voeg toe aan revealed
-        if (!revealedEvents.has(event.id)) {
-          newlyRevealedIds.push(event.id);
+        // Reveal het event als nog niet revealed
+        if (!revealedEventsRef.current.has(event.id)) {
+          revealedEventsRef.current.add(event.id);
+          if (element) {
+            element.classList.remove('hidden');
+            element.classList.add('revealed');
+          }
+        }
+        
+        // Scanning animatie
+        if (!scanningEventsRef.current.has(event.id)) {
+          scanningEventsRef.current.add(event.id);
+          if (element) {
+            element.classList.add('scanning');
+          }
+          
+          // Verwijder scanning class na animatie
+          setTimeout(() => {
+            scanningEventsRef.current.delete(event.id);
+            const el = markerElementsRef.current.get(event.id);
+            if (el) {
+              el.classList.remove('scanning');
+            }
+          }, 600);
         }
       }
     });
     
-    // Update de revealed set als er nieuwe events zijn
-    if (newlyRevealedIds.length > 0) {
-      setRevealedEvents(prev => {
-        const newSet = new Set(prev);
-        newlyRevealedIds.forEach(id => newSet.add(id));
-        return newSet;
-      });
-    }
-    
-    // Update de scanning set voor pulse animatie
-    if (newlyScannedIds.length > 0) {
-      setScanningEvents(prev => {
-        const newSet = new Set(prev);
-        newlyScannedIds.forEach(id => newSet.add(id));
-        return newSet;
-      });
-      
-      // Verwijder de scanning status na de animatie duur (600ms)
-      setTimeout(() => {
-        setScanningEvents(prev => {
-          const newSet = new Set(prev);
-          newlyScannedIds.forEach(id => newSet.delete(id));
-          return newSet;
-        });
-      }, 600);
-    }
-    
-    // Update de vorige hoek voor het volgende frame
     previousRadarAngle.current = currentAngle;
-  }, [radarAngle, formattedEvents, userLocation, revealedEvents]);
+  }, [radarAngle, formattedEvents, userLocation]);
   
   // Reset revealed events wanneer er nieuwe data is (nieuwe zoekopdracht of navigatie)
   React.useEffect(() => {
     if (eventsData.length > 0) {
       // Reset revealed events zodat nieuwe events weer verschijnen met de sweep
-      setRevealedEvents(new Set());
+      revealedEventsRef.current = new Set();
+      scanningEventsRef.current = new Set();
+      markerElementsRef.current = new Map();
       previousRadarAngle.current = radarAngle;
     }
   }, [eventsData]);
@@ -1016,8 +1008,6 @@ export default function MapView({
         {/* Markers voor events met radar-gesynchroniseerde animatie */}
         {formattedEvents.map((event) => {
           const isSelected = selectedEvent?.id === event.id;
-          const isRevealed = revealedEvents.has(event.id);
-          const isScanning = scanningEvents.has(event.id);
           // Bereken de hoek van dit event t.o.v. de gebruikerslocatie
           const eventAngle = calculateAngleFromUser(
             userLocation[0], 
@@ -1025,6 +1015,8 @@ export default function MapView({
             event.coords[0], 
             event.coords[1]
           );
+          // Bij initiële render, check of al revealed (uit ref)
+          const initiallyRevealed = revealedEventsRef.current.has(event.id);
           return (
           <Marker 
             key={event.id}
@@ -1034,8 +1026,8 @@ export default function MapView({
               event.expired, 
               isSelected,
               eventAngle,
-              isRevealed,
-              isScanning
+              initiallyRevealed,
+              false
             )}
             zIndexOffset={1000}
             interactive={true}
@@ -1063,6 +1055,17 @@ export default function MapView({
                 if (selectedEvent?.id === event.id) {
                   setSelectedEvent(null);
                 }
+              },
+              add: (e) => {
+                // Registreer het marker DOM element voor directe CSS manipulatie
+                const markerElement = e.target.getElement();
+                if (markerElement) {
+                  markerElementsRef.current.set(event.id, markerElement);
+                }
+              },
+              remove: () => {
+                // Verwijder uit de ref map wanneer marker wordt verwijderd
+                markerElementsRef.current.delete(event.id);
               }
             }}
             // Open de popup automatisch als dit het geselecteerde event is (alleen in app versie)

@@ -473,7 +473,8 @@ function createEventIcon(
   category: string, 
   isExpired: boolean = false, 
   isSelected: boolean = false, 
-  eventAngle: number = 0
+  eventAngle: number = 0,
+  isRevealed: boolean = true
 ) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
   const size = isSelected ? 28 : 24;
@@ -489,10 +490,13 @@ function createEventIcon(
   // Bereken gesynchroniseerde delay - wanneer de radar dit event zal bereiken
   const syncedDelay = calculateSyncedAnimationDelay(eventAngle);
   
+  // Animatie class voor fade-in effect
+  const revealClass = isRevealed ? 'revealed' : 'hidden';
+  
   return L.divIcon({
     className: 'custom-div-icon event-marker-radar',
     html: `
-      <div class="evt-radar-pin">
+      <div class="evt-radar-pin ${revealClass}">
         <div class="evt-scan-ring" style="animation-delay: ${syncedDelay}s;"></div>
         <div class="evt-scan-glow" style="animation-delay: ${syncedDelay}s;"></div>
         <div class="evt-dot ${isSelected ? 'selected' : ''}">
@@ -507,6 +511,19 @@ function createEventIcon(
           display: flex;
           align-items: center;
           justify-content: center;
+          opacity: 0;
+          transform: scale(0.3);
+          transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+        
+        .evt-radar-pin.revealed {
+          opacity: 1;
+          transform: scale(1);
+        }
+        
+        .evt-radar-pin.hidden {
+          opacity: 0;
+          transform: scale(0.3);
         }
         
         .evt-scan-ring {
@@ -606,7 +623,9 @@ interface FormattedEvent {
   category: string;
   expired: boolean;
   event: EventInterface;
+  startTime: string;
 }
+
 
 // Component die hover highlight afhandelt via directe Leaflet manipulatie (geen React state/re-render)
 function HoverHighlightLayer({ events }: { events: FormattedEvent[] }) {
@@ -699,6 +718,11 @@ export default function MapView({
   const [currentZoom, setCurrentZoom] = React.useState<number>(13);
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [targetEvent, setTargetEvent] = React.useState<EventInterface | null>(null);
+  
+  // State voor events die al gescand zijn door de radar sweep (worden zichtbaar)
+  const [revealedEvents, setRevealedEvents] = React.useState<Set<number>>(new Set());
+  const radarAngle = useRadarAngle();
+  const previousRadarAngle = React.useRef<number>(0);
   
   
   // Referentie naar de MapContainer
@@ -910,6 +934,65 @@ export default function MapView({
       }));
   }, [eventsData, currentBounds, showExpiredEvents]);
   
+  // Effect om events te "revealen" wanneer de radar sweep erover heen gaat
+  React.useEffect(() => {
+    if (!formattedEvents.length) return;
+    
+    const prevAngle = previousRadarAngle.current;
+    const currentAngle = radarAngle;
+    
+    // Detecteer welke events gescand worden in dit frame
+    const newlyRevealedIds: number[] = [];
+    
+    formattedEvents.forEach(event => {
+      if (revealedEvents.has(event.id)) return; // Al gescand
+      
+      const eventAngle = calculateAngleFromUser(
+        userLocation[0],
+        userLocation[1],
+        event.coords[0],
+        event.coords[1]
+      );
+      
+      // Check of de radar over dit event is gegaan sinds het vorige frame
+      // Rekening houdend met de wrap-around van 360 naar 0
+      let isSweptOver = false;
+      
+      if (prevAngle <= currentAngle) {
+        // Normale rotatie (geen wrap)
+        isSweptOver = eventAngle >= prevAngle && eventAngle <= currentAngle;
+      } else {
+        // Wrap-around (bijv. van 350 naar 10)
+        isSweptOver = eventAngle >= prevAngle || eventAngle <= currentAngle;
+      }
+      
+      if (isSweptOver) {
+        newlyRevealedIds.push(event.id);
+      }
+    });
+    
+    // Update de revealed set als er nieuwe events zijn
+    if (newlyRevealedIds.length > 0) {
+      setRevealedEvents(prev => {
+        const newSet = new Set(prev);
+        newlyRevealedIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
+    }
+    
+    // Update de vorige hoek voor het volgende frame
+    previousRadarAngle.current = currentAngle;
+  }, [radarAngle, formattedEvents, userLocation, revealedEvents]);
+  
+  // Reset revealed events wanneer er nieuwe data is (nieuwe zoekopdracht of navigatie)
+  React.useEffect(() => {
+    if (eventsData.length > 0) {
+      // Reset revealed events zodat nieuwe events weer verschijnen met de sweep
+      setRevealedEvents(new Set());
+      previousRadarAngle.current = radarAngle;
+    }
+  }, [eventsData]);
+  
   // Render de kaart
   return (
     <div className="h-full w-full relative flex-1 overflow-hidden z-0">
@@ -1029,6 +1112,7 @@ export default function MapView({
         {/* Markers voor events met radar-gesynchroniseerde animatie */}
         {formattedEvents.map((event) => {
           const isSelected = selectedEvent?.id === event.id;
+          const isRevealed = revealedEvents.has(event.id);
           // Bereken de hoek van dit event t.o.v. de gebruikerslocatie
           const eventAngle = calculateAngleFromUser(
             userLocation[0], 
@@ -1038,13 +1122,14 @@ export default function MapView({
           );
           return (
           <Marker 
-            key={`${event.id}-${isSelected ? 'selected' : 'normal'}`}
+            key={`${event.id}-${isSelected ? 'selected' : 'normal'}-${isRevealed ? 'revealed' : 'hidden'}`}
             position={event.coords}
             icon={createEventIcon(
               event.category, 
               event.expired, 
               isSelected,
-              eventAngle
+              eventAngle,
+              isRevealed
             )}
             eventHandlers={{
               click: () => {

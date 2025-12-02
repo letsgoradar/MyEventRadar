@@ -89,8 +89,8 @@ export function AppProfilePage() {
   });
 
   // Haal gebruikersgegevens op van de API
-  const { data: user = dummyUser as UserProfile, isLoading } = useQuery<UserProfile>({
-    queryKey: ['/api/user'],
+  const { data: user = dummyUser as UserProfile, isLoading, refetch: refetchUser } = useQuery<UserProfile>({
+    queryKey: ['/api/current-user'],
     enabled: true, 
     placeholderData: dummyUser as UserProfile
   });
@@ -103,7 +103,8 @@ export function AppProfilePage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/current-user'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
       setIsEditDialogOpen(false);
       toast({
         title: "Profiel bijgewerkt",
@@ -182,9 +183,14 @@ export function AppProfilePage() {
                     if (typeof window !== 'undefined') {
                       localStorage.setItem('profilePhotoUrl', absolutePhotoUrl);
                       console.log("Saved to localStorage from profile page:", absolutePhotoUrl);
-                      
-                      // Er is geen reload meer nodig dankzij onze verbeterde state handling in AppLayout
                     }
+                    
+                    // Invalideer de user queries zodat de nieuwe foto wordt opgehaald
+                    queryClient.invalidateQueries({ queryKey: ['/api/current-user'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+                    
+                    // Refetch user data om direct de nieuwe foto te tonen
+                    refetchUser();
                     
                     toast({
                       title: "Profielfoto bijgewerkt",

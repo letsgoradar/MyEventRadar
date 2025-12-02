@@ -467,45 +467,132 @@ function calculateAngleFromUser(userLat: number, userLng: number, eventLat: numb
   return angle;
 }
 
-// Radar cycle duur (moet matchen met de radar sweep animatie)
-const RADAR_CYCLE_DURATION = 5000; // 5 seconden per rotatie
-
 // Functie om event markers te maken met radar-gesynchroniseerde animatie
-// De fade-in animatie wordt getimed via CSS animation-delay, gebaseerd op de event hoek
+// De animatie delay is gebaseerd op de hoek van het event t.o.v. de gebruiker
 function createEventIcon(
   category: string, 
   isExpired: boolean = false, 
   isSelected: boolean = false, 
-  eventAngle: number = 0,
-  isRevealed: boolean = true,
-  isScanning: boolean = false
+  eventAngle: number = 0
 ) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
-  const wrapperSize = 44;
+  const size = isSelected ? 28 : 24;
+  const wrapperSize = size + 20;
+  const innerSize = size - 4;
   
-  // Bereken de animation-delay zodat het event verschijnt wanneer de radar erover gaat
-  // De radar begint bij 0° (noord) en roteert met de klok mee
-  // Gebruik performance.now() consistent met de bestaande PAGE_LOAD_TIME
-  const timeSinceLoad = performance.now() - PAGE_LOAD_TIME;
-  const currentRadarAngle = (timeSinceLoad / RADAR_CYCLE_DURATION * 360) % 360;
+  // Radar groene kleur voor scan effect
+  const { primary } = RADAR_CONFIG.COLOR;
+  const scanColor = `rgb(${primary})`;
   
-  // Bereken hoeveel graden de radar nog moet draaien om dit event te bereiken
-  let degreesToEvent = eventAngle - currentRadarAngle;
-  if (degreesToEvent < 0) degreesToEvent += 360;
+  const sweepDurationSec = RADAR_CONFIG.SWEEP_DURATION / 1000;
   
-  // Converteer naar milliseconden delay
-  const delayMs = (degreesToEvent / 360) * RADAR_CYCLE_DURATION;
+  // Bereken gesynchroniseerde delay - wanneer de radar dit event zal bereiken
+  const syncedDelay = calculateSyncedAnimationDelay(eventAngle);
   
   return L.divIcon({
     className: 'custom-div-icon event-marker-radar',
     html: `
-      <div class="evt-radar-pin css-reveal" style="--reveal-delay: ${delayMs}ms;">
-        <div class="evt-scan-ring"></div>
-        <div class="evt-scan-glow"></div>
+      <div class="evt-radar-pin">
+        <div class="evt-scan-ring" style="animation-delay: ${syncedDelay}s;"></div>
+        <div class="evt-scan-glow" style="animation-delay: ${syncedDelay}s;"></div>
         <div class="evt-dot ${isSelected ? 'selected' : ''}">
           <div class="evt-inner" style="background-color: ${color};"></div>
         </div>
       </div>
+      <style>
+        .evt-radar-pin {
+          position: relative;
+          width: ${wrapperSize}px;
+          height: ${wrapperSize}px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .evt-scan-ring {
+          position: absolute;
+          width: ${size}px;
+          height: ${size}px;
+          border-radius: 50%;
+          border: 2px solid ${scanColor};
+          opacity: 0;
+          animation: evtScanRing ${sweepDurationSec}s ease-out infinite;
+        }
+        
+        .evt-scan-glow {
+          position: absolute;
+          width: ${size + 4}px;
+          height: ${size + 4}px;
+          border-radius: 50%;
+          background: ${scanColor};
+          opacity: 0;
+          animation: evtScanGlow ${sweepDurationSec}s ease-out infinite;
+        }
+        
+        .evt-dot {
+          position: relative;
+          width: ${size}px;
+          height: ${size}px;
+          background: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .evt-dot.selected {
+          transform: scale(1.2);
+          box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+        }
+        
+        .evt-inner {
+          width: ${innerSize}px;
+          height: ${innerSize}px;
+          border-radius: 50%;
+        }
+        
+        /* Scan ring animatie - kort maar zichtbaar */
+        @keyframes evtScanRing {
+          0% {
+            transform: scale(1);
+            opacity: 0;
+          }
+          2% {
+            transform: scale(1);
+            opacity: 0.8;
+          }
+          15% {
+            transform: scale(1.6);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(1.6);
+            opacity: 0;
+          }
+        }
+        
+        /* Glow effect - subtiele flash */
+        @keyframes evtScanGlow {
+          0% {
+            opacity: 0;
+            filter: blur(0px);
+          }
+          2% {
+            opacity: 0.5;
+            filter: blur(6px);
+          }
+          12% {
+            opacity: 0;
+            filter: blur(10px);
+          }
+          100% {
+            opacity: 0;
+            filter: blur(10px);
+          }
+        }
+      </style>
     `,
     iconSize: [wrapperSize, wrapperSize],
     iconAnchor: [wrapperSize/2, wrapperSize/2],
@@ -519,9 +606,7 @@ interface FormattedEvent {
   category: string;
   expired: boolean;
   event: EventInterface;
-  startTime: string | Date;
 }
-
 
 // Component die hover highlight afhandelt via directe Leaflet manipulatie (geen React state/re-render)
 function HoverHighlightLayer({ events }: { events: FormattedEvent[] }) {
@@ -615,16 +700,6 @@ export default function MapView({
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [targetEvent, setTargetEvent] = React.useState<EventInterface | null>(null);
   
-  // Refs voor events die al gescand zijn door de radar sweep (worden zichtbaar)
-  // BELANGRIJK: Gebruik refs in plaats van state om te voorkomen dat markers opnieuw renderen
-  // bij elke radar sweep, wat de click handlers zou resetten
-  const revealedEventsRef = React.useRef<Set<number>>(new Set());
-  const scanningEventsRef = React.useRef<Set<number>>(new Set());
-  // Refs naar L.Marker objecten voor setIcon() calls (niet DOM elementen!)
-  const markerRefsMap = React.useRef<Map<number, L.Marker>>(new Map());
-  const radarAngle = useRadarAngle();
-  const previousRadarAngle = React.useRef<number>(0);
-  
   
   // Referentie naar de MapContainer
   const mapRef = React.useRef<L.Map | null>(null);
@@ -678,18 +753,26 @@ export default function MapView({
     }
   }, [propShowExpiredEvents]);
   
-  // Als er filteredEvents zijn, gebruik die; anders fetch events op basis van locatie
-  // Gebruik een vaste grote radius (50km) zodat events niet herladen bij zoom
-  const FIXED_FETCH_RADIUS = 50;
+  // Als er filteredEvents zijn, gebruik die; anders fetch events op basis van locatie en radius
   const { data: fetchedEvents, isLoading, refetch } = useQuery<EventInterface[]>({
-    queryKey: ['/api/events/nearby', userLocation[0], userLocation[1], FIXED_FETCH_RADIUS, searchQuery],
+    queryKey: ['/api/events/nearby', userLocation[0], userLocation[1], radius, searchQuery],
     enabled: !filteredEvents && userLocation[0] !== 0 && userLocation[1] !== 0,
   });
   
-  // VERWIJDERD: Automatisch refetch bij bounds verandering
-  // Dit veroorzaakte dat events herladen bij elke zoom actie
-  // De events worden nu geladen met een grote radius bij initiële fetch
-  // en blijven staan bij zoom in/uit
+  // Refetch events wanneer de kaartgrenzen significant zijn gewijzigd
+  React.useEffect(() => {
+    if (currentBounds && !filteredEvents) {
+      refetch();
+      
+      // Als er een radius change handler is, stuur de nieuwe radius door
+      if (propOnRadiusChange && currentZoom) {
+        // Bereken een radius op basis van het huidige zoom niveau
+        // Hoe verder uitgezoomd, hoe groter de radius
+        const calculatedRadius = Math.max(5, Math.round(20 / (currentZoom * 0.4)));
+        propOnRadiusChange(calculatedRadius);
+      }
+    }
+  }, [currentBounds, refetch, filteredEvents, propOnRadiusChange, currentZoom]);
   
   // Update events data als filteredEvents of fetchedEvents wijzigen
   React.useEffect(() => {
@@ -827,13 +910,6 @@ export default function MapView({
       }));
   }, [eventsData, currentBounds, showExpiredEvents]);
   
-  // RADAR REVEAL ANIMATIE - Pure CSS approach
-  // We gebruiken CSS custom properties en animation-delay om de reveal timing te synchroniseren
-  // met de radar sweep, ZONDER React state updates of setIcon() calls die de click handlers breken
-  
-  // Geen runtime radar sweep effect nodig - de CSS animation-delay wordt berekend bij render
-  // en de CSS transitie zorgt voor de fade-in wanneer de radar over het event passeert
-  
   // Render de kaart
   return (
     <div className="h-full w-full relative flex-1 overflow-hidden z-0">
@@ -960,39 +1036,20 @@ export default function MapView({
             event.coords[0], 
             event.coords[1]
           );
-          // Alle markers zijn altijd interactief (revealed=true)
-          // De CSS animation-delay zorgt voor de visuele fade-in sync met radar
           return (
           <Marker 
-            key={event.id}
+            key={`${event.id}-${isSelected ? 'selected' : 'normal'}`}
             position={event.coords}
             icon={createEventIcon(
               event.category, 
               event.expired, 
               isSelected,
-              eventAngle,
-              true,  // Altijd revealed voor click interactie
-              false  // Geen scanning state nodig
+              eventAngle
             )}
-            zIndexOffset={1000}
-            interactive={true}
-            bubblingMouseEvents={false}
             eventHandlers={{
-              click: (e) => {
-                console.log('Marker clicked!', event.id, event.title);
-                e.originalEvent?.stopPropagation();
-                // In web versie: alleen overlay tonen, geen popup
-                const isWebVersion = window.location.pathname.includes('/web');
-                console.log('isWebVersion:', isWebVersion, 'onEventClick exists:', !!onEventClick);
-                if (isWebVersion) {
-                  // Alleen de overlay callback aanroepen
-                  console.log('Calling onEventClick for web version');
-                  onEventClick?.(event.event);
-                } else {
-                  // In app versie: popup tonen
-                  setSelectedEvent(event.event);
-                  onEventClick?.(event.event);
-                }
+              click: () => {
+                // Alleen popup tonen bij kaart marker click
+                setSelectedEvent(event.event);
               },
               popupclose: () => {
                 // Wis de selectie wanneer de popup wordt gesloten
@@ -1002,20 +1059,14 @@ export default function MapView({
                 }
               }
             }}
-            // Sla de L.Marker ref op voor setIcon() calls en open popup indien nodig
+            // Open de popup automatisch als dit het geselecteerde event is
             ref={(markerRef) => {
-              if (markerRef) {
-                // Registreer de marker voor setIcon() calls in radar sweep effect
-                markerRefsMap.current.set(event.id, markerRef);
-                
-                // Open popup voor geselecteerde event (alleen in app versie)
-                const isWebVersion = window.location.pathname.includes('/web');
-                if (!isWebVersion && selectedEvent && selectedEvent.id === event.id) {
-                  if (!markerRef.isPopupOpen()) {
-                    setTimeout(() => {
-                      markerRef.openPopup();
-                    }, 200);
-                  }
+              if (markerRef && selectedEvent && selectedEvent.id === event.id) {
+                // Check of popup al open is voordat we proberen te openen
+                if (!markerRef.isPopupOpen()) {
+                  setTimeout(() => {
+                    markerRef.openPopup();
+                  }, 200);
                 }
               }
             }}

@@ -1,7 +1,7 @@
 import * as React from "react";
 import WebLayout from "@/components/Web/WebLayout";
 import { useLocation } from "wouter";
-import { EventInterface } from "@shared/schema";
+import { Event } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { fetchEventsByRadius } from "@/lib/api"; 
 import { useLocation as useGeoLocation } from "@/hooks/useLocation";
@@ -12,7 +12,7 @@ export default function Web() {
   const { location: geoLocation } = useGeoLocation();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [radius, setRadius] = React.useState(10); // Nog steeds nodig voor API calls, maar niet getoond in UI
-  const [filteredEvents, setFilteredEvents] = React.useState<EventInterface[]>([]);
+  const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
   const [visibleMapArea, setVisibleMapArea] = React.useState<L.LatLngBounds | null>(null);
 
   // Ensure the URL has the web parameter
@@ -25,17 +25,15 @@ export default function Web() {
     }
   }, [location, setLocation]);
   
-  // Fetch events based on location - gebruik vaste grote radius zodat events blijven staan bij zoom
+  // Fetch events based on location - radius wordt nu bepaald door kaartweergave
   const { data } = useQuery({
-    queryKey: ["events", geoLocation?.lat, geoLocation?.lng],
+    queryKey: ["events", geoLocation?.lat, geoLocation?.lng, radius],
     queryFn: async () => {
       if (geoLocation) {
-        // Gebruik vaste grote radius (50km) om alle events in de regio te fetchen
-        // Dit voorkomt dat events herladen bij zoom in/uit
-        const result = await fetchEventsByRadius(geoLocation.lat, geoLocation.lng, 50);
-        return result as EventInterface[];
+        const result = await fetchEventsByRadius(geoLocation.lat, geoLocation.lng, radius);
+        return result as Event[];
       }
-      return [] as EventInterface[];
+      return [] as Event[];
     },
     enabled: !!geoLocation,
   });

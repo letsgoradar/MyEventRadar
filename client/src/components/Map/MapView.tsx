@@ -611,8 +611,8 @@ export default function MapView({
   // bij elke radar sweep, wat de click handlers zou resetten
   const revealedEventsRef = React.useRef<Set<number>>(new Set());
   const scanningEventsRef = React.useRef<Set<number>>(new Set());
-  // Refs naar marker DOM elementen voor directe CSS manipulatie
-  const markerElementsRef = React.useRef<Map<number, HTMLElement>>(new Map());
+  // Refs naar L.Marker objecten voor setIcon() calls (niet DOM elementen!)
+  const markerRefsMap = React.useRef<Map<number, L.Marker>>(new Map());
   const radarAngle = useRadarAngle();
   const previousRadarAngle = React.useRef<number>(0);
   
@@ -819,8 +819,8 @@ export default function MapView({
   }, [eventsData, currentBounds, showExpiredEvents]);
   
   // Effect om events te "revealen" en "scannen" wanneer de radar sweep erover heen gaat
-  // BELANGRIJK: Deze effect manipuleert de DOM direct via refs om te voorkomen dat
-  // React re-renders de Leaflet click handlers breken
+  // BELANGRIJK: Gebruik marker.setIcon() in plaats van directe DOM manipulatie
+  // Dit zorgt dat Leaflet de click handlers opnieuw bindt
   React.useEffect(() => {
     if (!formattedEvents.length) return;
     
@@ -845,38 +845,45 @@ export default function MapView({
       }
       
       if (isSweptOver) {
-        const element = markerElementsRef.current.get(event.id);
+        const marker = markerRefsMap.current.get(event.id);
         
         // Reveal het event als nog niet revealed
         if (!revealedEventsRef.current.has(event.id)) {
           revealedEventsRef.current.add(event.id);
-          if (element) {
-            element.classList.remove('hidden');
-            element.classList.add('revealed');
-          }
-        }
-        
-        // Scanning animatie
-        if (!scanningEventsRef.current.has(event.id)) {
-          scanningEventsRef.current.add(event.id);
-          if (element) {
-            element.classList.add('scanning');
-          }
           
-          // Verwijder scanning class na animatie
-          setTimeout(() => {
-            scanningEventsRef.current.delete(event.id);
-            const el = markerElementsRef.current.get(event.id);
-            if (el) {
-              el.classList.remove('scanning');
-            }
-          }, 600);
+          // Update het icon via setIcon() zodat Leaflet de handlers opnieuw bindt
+          if (marker) {
+            const isSelected = selectedEvent?.id === event.id;
+            marker.setIcon(createEventIcon(
+              event.category,
+              event.expired,
+              isSelected,
+              eventAngle,
+              true,  // revealed
+              true   // scanning (voor de initiële pulse)
+            ));
+            
+            // Verwijder scanning na animatie
+            setTimeout(() => {
+              const m = markerRefsMap.current.get(event.id);
+              if (m) {
+                m.setIcon(createEventIcon(
+                  event.category,
+                  event.expired,
+                  isSelected,
+                  eventAngle,
+                  true,  // revealed
+                  false  // scanning done
+                ));
+              }
+            }, 600);
+          }
         }
       }
     });
     
     previousRadarAngle.current = currentAngle;
-  }, [radarAngle, formattedEvents, userLocation]);
+  }, [radarAngle, formattedEvents, userLocation, selectedEvent]);
   
   // Reset revealed events wanneer er nieuwe data is (nieuwe zoekopdracht of navigatie)
   React.useEffect(() => {
@@ -884,7 +891,7 @@ export default function MapView({
       // Reset revealed events zodat nieuwe events weer verschijnen met de sweep
       revealedEventsRef.current = new Set();
       scanningEventsRef.current = new Set();
-      markerElementsRef.current = new Map();
+      markerRefsMap.current = new Map();
       previousRadarAngle.current = radarAngle;
     }
   }, [eventsData]);
@@ -1055,28 +1062,22 @@ export default function MapView({
                 if (selectedEvent?.id === event.id) {
                   setSelectedEvent(null);
                 }
-              },
-              add: (e) => {
-                // Registreer het marker DOM element voor directe CSS manipulatie
-                const markerElement = e.target.getElement();
-                if (markerElement) {
-                  markerElementsRef.current.set(event.id, markerElement);
-                }
-              },
-              remove: () => {
-                // Verwijder uit de ref map wanneer marker wordt verwijderd
-                markerElementsRef.current.delete(event.id);
               }
             }}
-            // Open de popup automatisch als dit het geselecteerde event is (alleen in app versie)
+            // Sla de L.Marker ref op voor setIcon() calls en open popup indien nodig
             ref={(markerRef) => {
-              const isWebVersion = window.location.pathname.includes('/web');
-              if (!isWebVersion && markerRef && selectedEvent && selectedEvent.id === event.id) {
-                // Check of popup al open is voordat we proberen te openen
-                if (!markerRef.isPopupOpen()) {
-                  setTimeout(() => {
-                    markerRef.openPopup();
-                  }, 200);
+              if (markerRef) {
+                // Registreer de marker voor setIcon() calls in radar sweep effect
+                markerRefsMap.current.set(event.id, markerRef);
+                
+                // Open popup voor geselecteerde event (alleen in app versie)
+                const isWebVersion = window.location.pathname.includes('/web');
+                if (!isWebVersion && selectedEvent && selectedEvent.id === event.id) {
+                  if (!markerRef.isPopupOpen()) {
+                    setTimeout(() => {
+                      markerRef.openPopup();
+                    }, 200);
+                  }
                 }
               }
             }}

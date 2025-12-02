@@ -468,13 +468,14 @@ function calculateAngleFromUser(userLat: number, userLng: number, eventLat: numb
 }
 
 // Functie om event markers te maken met radar-gesynchroniseerde animatie
-// De animatie delay is gebaseerd op de hoek van het event t.o.v. de gebruiker
+// isScanning: true wanneer de radar net over dit event veegt, triggert pulse animatie
 function createEventIcon(
   category: string, 
   isExpired: boolean = false, 
   isSelected: boolean = false, 
   eventAngle: number = 0,
-  isRevealed: boolean = true
+  isRevealed: boolean = true,
+  isScanning: boolean = false
 ) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
   const size = isSelected ? 28 : 24;
@@ -485,20 +486,17 @@ function createEventIcon(
   const { primary } = RADAR_CONFIG.COLOR;
   const scanColor = `rgb(${primary})`;
   
-  const sweepDurationSec = RADAR_CONFIG.SWEEP_DURATION / 1000;
-  
-  // Bereken gesynchroniseerde delay - wanneer de radar dit event zal bereiken
-  const syncedDelay = calculateSyncedAnimationDelay(eventAngle);
-  
   // Animatie class voor fade-in effect
   const revealClass = isRevealed ? 'revealed' : 'hidden';
+  // Scanning class voor radar pulse wanneer de sweep over het event gaat
+  const scanningClass = isScanning ? 'scanning' : '';
   
   return L.divIcon({
     className: 'custom-div-icon event-marker-radar',
     html: `
-      <div class="evt-radar-pin ${revealClass}">
-        <div class="evt-scan-ring" style="animation-delay: ${syncedDelay}s;"></div>
-        <div class="evt-scan-glow" style="animation-delay: ${syncedDelay}s;"></div>
+      <div class="evt-radar-pin ${revealClass} ${scanningClass}">
+        <div class="evt-scan-ring"></div>
+        <div class="evt-scan-glow"></div>
         <div class="evt-dot ${isSelected ? 'selected' : ''}">
           <div class="evt-inner" style="background-color: ${color};"></div>
         </div>
@@ -533,7 +531,7 @@ function createEventIcon(
           border-radius: 50%;
           border: 2px solid ${scanColor};
           opacity: 0;
-          animation: evtScanRing ${sweepDurationSec}s ease-out infinite;
+          transform: scale(1);
         }
         
         .evt-scan-glow {
@@ -543,7 +541,16 @@ function createEventIcon(
           border-radius: 50%;
           background: ${scanColor};
           opacity: 0;
-          animation: evtScanGlow ${sweepDurationSec}s ease-out infinite;
+          filter: blur(0px);
+        }
+        
+        /* Wanneer scanning actief is, trigger de pulse animatie */
+        .evt-radar-pin.scanning .evt-scan-ring {
+          animation: evtScanRingOnce 0.6s ease-out forwards;
+        }
+        
+        .evt-radar-pin.scanning .evt-scan-glow {
+          animation: evtScanGlowOnce 0.6s ease-out forwards;
         }
         
         .evt-dot {
@@ -570,43 +577,27 @@ function createEventIcon(
           border-radius: 50%;
         }
         
-        /* Scan ring animatie - kort maar zichtbaar */
-        @keyframes evtScanRing {
+        /* One-shot scan ring animatie */
+        @keyframes evtScanRingOnce {
           0% {
             transform: scale(1);
-            opacity: 0;
-          }
-          2% {
-            transform: scale(1);
-            opacity: 0.8;
-          }
-          15% {
-            transform: scale(1.6);
-            opacity: 0;
+            opacity: 0.9;
           }
           100% {
-            transform: scale(1.6);
+            transform: scale(1.8);
             opacity: 0;
           }
         }
         
-        /* Glow effect - subtiele flash */
-        @keyframes evtScanGlow {
+        /* One-shot glow effect */
+        @keyframes evtScanGlowOnce {
           0% {
-            opacity: 0;
-            filter: blur(0px);
-          }
-          2% {
-            opacity: 0.5;
-            filter: blur(6px);
-          }
-          12% {
-            opacity: 0;
-            filter: blur(10px);
+            opacity: 0.6;
+            filter: blur(4px);
           }
           100% {
             opacity: 0;
-            filter: blur(10px);
+            filter: blur(12px);
           }
         }
       </style>
@@ -623,7 +614,7 @@ interface FormattedEvent {
   category: string;
   expired: boolean;
   event: EventInterface;
-  startTime: string;
+  startTime: string | Date;
 }
 
 
@@ -721,6 +712,8 @@ export default function MapView({
   
   // State voor events die al gescand zijn door de radar sweep (worden zichtbaar)
   const [revealedEvents, setRevealedEvents] = React.useState<Set<number>>(new Set());
+  // State voor events die momenteel door de radar worden gescand (voor pulse animatie)
+  const [scanningEvents, setScanningEvents] = React.useState<Set<number>>(new Set());
   const radarAngle = useRadarAngle();
   const previousRadarAngle = React.useRef<number>(0);
   
@@ -777,26 +770,18 @@ export default function MapView({
     }
   }, [propShowExpiredEvents]);
   
-  // Als er filteredEvents zijn, gebruik die; anders fetch events op basis van locatie en radius
+  // Als er filteredEvents zijn, gebruik die; anders fetch events op basis van locatie
+  // Gebruik een vaste grote radius (50km) zodat events niet herladen bij zoom
+  const FIXED_FETCH_RADIUS = 50;
   const { data: fetchedEvents, isLoading, refetch } = useQuery<EventInterface[]>({
-    queryKey: ['/api/events/nearby', userLocation[0], userLocation[1], radius, searchQuery],
+    queryKey: ['/api/events/nearby', userLocation[0], userLocation[1], FIXED_FETCH_RADIUS, searchQuery],
     enabled: !filteredEvents && userLocation[0] !== 0 && userLocation[1] !== 0,
   });
   
-  // Refetch events wanneer de kaartgrenzen significant zijn gewijzigd
-  React.useEffect(() => {
-    if (currentBounds && !filteredEvents) {
-      refetch();
-      
-      // Als er een radius change handler is, stuur de nieuwe radius door
-      if (propOnRadiusChange && currentZoom) {
-        // Bereken een radius op basis van het huidige zoom niveau
-        // Hoe verder uitgezoomd, hoe groter de radius
-        const calculatedRadius = Math.max(5, Math.round(20 / (currentZoom * 0.4)));
-        propOnRadiusChange(calculatedRadius);
-      }
-    }
-  }, [currentBounds, refetch, filteredEvents, propOnRadiusChange, currentZoom]);
+  // VERWIJDERD: Automatisch refetch bij bounds verandering
+  // Dit veroorzaakte dat events herladen bij elke zoom actie
+  // De events worden nu geladen met een grote radius bij initiële fetch
+  // en blijven staan bij zoom in/uit
   
   // Update events data als filteredEvents of fetchedEvents wijzigen
   React.useEffect(() => {
@@ -934,7 +919,7 @@ export default function MapView({
       }));
   }, [eventsData, currentBounds, showExpiredEvents]);
   
-  // Effect om events te "revealen" wanneer de radar sweep erover heen gaat
+  // Effect om events te "revealen" en "scannen" wanneer de radar sweep erover heen gaat
   React.useEffect(() => {
     if (!formattedEvents.length) return;
     
@@ -943,10 +928,9 @@ export default function MapView({
     
     // Detecteer welke events gescand worden in dit frame
     const newlyRevealedIds: number[] = [];
+    const newlyScannedIds: number[] = [];
     
     formattedEvents.forEach(event => {
-      if (revealedEvents.has(event.id)) return; // Al gescand
-      
       const eventAngle = calculateAngleFromUser(
         userLocation[0],
         userLocation[1],
@@ -967,7 +951,13 @@ export default function MapView({
       }
       
       if (isSweptOver) {
-        newlyRevealedIds.push(event.id);
+        // Nieuw gescand - voeg toe aan scanningEvents voor pulse animatie
+        newlyScannedIds.push(event.id);
+        
+        // Als nog niet revealed, voeg toe aan revealed
+        if (!revealedEvents.has(event.id)) {
+          newlyRevealedIds.push(event.id);
+        }
       }
     });
     
@@ -978,6 +968,24 @@ export default function MapView({
         newlyRevealedIds.forEach(id => newSet.add(id));
         return newSet;
       });
+    }
+    
+    // Update de scanning set voor pulse animatie
+    if (newlyScannedIds.length > 0) {
+      setScanningEvents(prev => {
+        const newSet = new Set(prev);
+        newlyScannedIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
+      
+      // Verwijder de scanning status na de animatie duur (600ms)
+      setTimeout(() => {
+        setScanningEvents(prev => {
+          const newSet = new Set(prev);
+          newlyScannedIds.forEach(id => newSet.delete(id));
+          return newSet;
+        });
+      }, 600);
     }
     
     // Update de vorige hoek voor het volgende frame
@@ -1113,6 +1121,7 @@ export default function MapView({
         {formattedEvents.map((event) => {
           const isSelected = selectedEvent?.id === event.id;
           const isRevealed = revealedEvents.has(event.id);
+          const isScanning = scanningEvents.has(event.id);
           // Bereken de hoek van dit event t.o.v. de gebruikerslocatie
           const eventAngle = calculateAngleFromUser(
             userLocation[0], 
@@ -1122,14 +1131,15 @@ export default function MapView({
           );
           return (
           <Marker 
-            key={`${event.id}-${isSelected ? 'selected' : 'normal'}-${isRevealed ? 'revealed' : 'hidden'}`}
+            key={`${event.id}-${isSelected ? 'selected' : 'normal'}-${isRevealed ? 'revealed' : 'hidden'}-${isScanning ? 'scanning' : 'idle'}`}
             position={event.coords}
             icon={createEventIcon(
               event.category, 
               event.expired, 
               isSelected,
               eventAngle,
-              isRevealed
+              isRevealed,
+              isScanning
             )}
             eventHandlers={{
               click: () => {

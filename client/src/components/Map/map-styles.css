@@ -147,25 +147,21 @@
 
 /* CSS-gebaseerde reveal animatie - synchroniseert met radar via animation-delay */
 .evt-radar-pin.css-reveal {
-  opacity: 0;
-  transform: scale(0.3);
-  animation: evtFadeIn 0.5s ease-out forwards;
-  animation-delay: var(--reveal-delay, 0ms);
-  /* BELANGRIJK: pointer-events blijft altijd auto zodat clicks werken
-     ook wanneer de marker nog onzichtbaar is (voor het geval de user
-     klikt voordat de radar erover is gegaan) */
+  opacity: 1;
+  transform: scale(1);
   pointer-events: auto !important;
+  cursor: pointer !important;
 }
 
-@keyframes evtFadeIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.3);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
+/* Scan pulse animatie wanneer radar over event gaat - via animation-delay */
+.evt-radar-pin.css-reveal .evt-scan-ring {
+  animation: evtScanRingOnce 0.6s ease-out forwards;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+.evt-radar-pin.css-reveal .evt-scan-glow {
+  animation: evtScanGlowOnce 0.6s ease-out forwards;
+  animation-delay: var(--reveal-delay, 0ms);
 }
 
 .evt-radar-pin.hidden {

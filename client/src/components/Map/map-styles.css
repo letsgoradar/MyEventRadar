@@ -145,12 +145,32 @@
   transform: scale(1);
 }
 
+/* CSS-gebaseerde reveal animatie - synchroniseert met radar via animation-delay */
+.evt-radar-pin.css-reveal {
+  opacity: 0;
+  transform: scale(0.3);
+  animation: evtFadeIn 0.5s ease-out forwards;
+  animation-delay: var(--reveal-delay, 0ms);
+  /* BELANGRIJK: pointer-events blijft altijd auto zodat clicks werken
+     ook wanneer de marker nog onzichtbaar is (voor het geval de user
+     klikt voordat de radar erover is gegaan) */
+  pointer-events: auto !important;
+}
+
+@keyframes evtFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .evt-radar-pin.hidden {
   opacity: 0;
   transform: scale(0.3);
-  /* BELANGRIJK: Geen pointer-events: none hier!
-     Dit zou Leaflet's click handlers breken.
-     De marker is onzichtbaar maar wel klikbaar. */
 }
 
 /* Scan ring animatie element */

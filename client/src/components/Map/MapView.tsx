@@ -467,8 +467,11 @@ function calculateAngleFromUser(userLat: number, userLng: number, eventLat: numb
   return angle;
 }
 
+// Radar cycle duur (moet matchen met de radar sweep animatie)
+const RADAR_CYCLE_DURATION = 5000; // 5 seconden per rotatie
+
 // Functie om event markers te maken met radar-gesynchroniseerde animatie
-// isScanning: true wanneer de radar net over dit event veegt, triggert pulse animatie
+// De fade-in animatie wordt getimed via CSS animation-delay, gebaseerd op de event hoek
 function createEventIcon(
   category: string, 
   isExpired: boolean = false, 
@@ -478,19 +481,25 @@ function createEventIcon(
   isScanning: boolean = false
 ) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
-  const size = isSelected ? 28 : 24;
   const wrapperSize = 44;
-  const innerSize = size - 4;
   
-  // Animatie class voor fade-in effect
-  const revealClass = isRevealed ? 'revealed' : 'hidden';
-  // Scanning class voor radar pulse wanneer de sweep over het event gaat
-  const scanningClass = isScanning ? 'scanning' : '';
+  // Bereken de animation-delay zodat het event verschijnt wanneer de radar erover gaat
+  // De radar begint bij 0° (noord) en roteert met de klok mee
+  // Gebruik performance.now() consistent met de bestaande PAGE_LOAD_TIME
+  const timeSinceLoad = performance.now() - PAGE_LOAD_TIME;
+  const currentRadarAngle = (timeSinceLoad / RADAR_CYCLE_DURATION * 360) % 360;
+  
+  // Bereken hoeveel graden de radar nog moet draaien om dit event te bereiken
+  let degreesToEvent = eventAngle - currentRadarAngle;
+  if (degreesToEvent < 0) degreesToEvent += 360;
+  
+  // Converteer naar milliseconden delay
+  const delayMs = (degreesToEvent / 360) * RADAR_CYCLE_DURATION;
   
   return L.divIcon({
     className: 'custom-div-icon event-marker-radar',
     html: `
-      <div class="evt-radar-pin ${revealClass} ${scanningClass}">
+      <div class="evt-radar-pin css-reveal" style="--reveal-delay: ${delayMs}ms;">
         <div class="evt-scan-ring"></div>
         <div class="evt-scan-glow"></div>
         <div class="evt-dot ${isSelected ? 'selected' : ''}">
@@ -818,83 +827,12 @@ export default function MapView({
       }));
   }, [eventsData, currentBounds, showExpiredEvents]);
   
-  // Effect om events te "revealen" en "scannen" wanneer de radar sweep erover heen gaat
-  // BELANGRIJK: Gebruik marker.setIcon() in plaats van directe DOM manipulatie
-  // Dit zorgt dat Leaflet de click handlers opnieuw bindt
-  React.useEffect(() => {
-    if (!formattedEvents.length) return;
-    
-    const prevAngle = previousRadarAngle.current;
-    const currentAngle = radarAngle;
-    
-    formattedEvents.forEach(event => {
-      const eventAngle = calculateAngleFromUser(
-        userLocation[0],
-        userLocation[1],
-        event.coords[0],
-        event.coords[1]
-      );
-      
-      // Check of de radar over dit event is gegaan sinds het vorige frame
-      let isSweptOver = false;
-      
-      if (prevAngle <= currentAngle) {
-        isSweptOver = eventAngle >= prevAngle && eventAngle <= currentAngle;
-      } else {
-        isSweptOver = eventAngle >= prevAngle || eventAngle <= currentAngle;
-      }
-      
-      if (isSweptOver) {
-        const marker = markerRefsMap.current.get(event.id);
-        
-        // Reveal het event als nog niet revealed
-        if (!revealedEventsRef.current.has(event.id)) {
-          revealedEventsRef.current.add(event.id);
-          
-          // Update het icon via setIcon() zodat Leaflet de handlers opnieuw bindt
-          if (marker) {
-            const isSelected = selectedEvent?.id === event.id;
-            marker.setIcon(createEventIcon(
-              event.category,
-              event.expired,
-              isSelected,
-              eventAngle,
-              true,  // revealed
-              true   // scanning (voor de initiële pulse)
-            ));
-            
-            // Verwijder scanning na animatie
-            setTimeout(() => {
-              const m = markerRefsMap.current.get(event.id);
-              if (m) {
-                m.setIcon(createEventIcon(
-                  event.category,
-                  event.expired,
-                  isSelected,
-                  eventAngle,
-                  true,  // revealed
-                  false  // scanning done
-                ));
-              }
-            }, 600);
-          }
-        }
-      }
-    });
-    
-    previousRadarAngle.current = currentAngle;
-  }, [radarAngle, formattedEvents, userLocation, selectedEvent]);
+  // RADAR REVEAL ANIMATIE - Pure CSS approach
+  // We gebruiken CSS custom properties en animation-delay om de reveal timing te synchroniseren
+  // met de radar sweep, ZONDER React state updates of setIcon() calls die de click handlers breken
   
-  // Reset revealed events wanneer er nieuwe data is (nieuwe zoekopdracht of navigatie)
-  React.useEffect(() => {
-    if (eventsData.length > 0) {
-      // Reset revealed events zodat nieuwe events weer verschijnen met de sweep
-      revealedEventsRef.current = new Set();
-      scanningEventsRef.current = new Set();
-      markerRefsMap.current = new Map();
-      previousRadarAngle.current = radarAngle;
-    }
-  }, [eventsData]);
+  // Geen runtime radar sweep effect nodig - de CSS animation-delay wordt berekend bij render
+  // en de CSS transitie zorgt voor de fade-in wanneer de radar over het event passeert
   
   // Render de kaart
   return (
@@ -1022,8 +960,8 @@ export default function MapView({
             event.coords[0], 
             event.coords[1]
           );
-          // Bij initiële render, check of al revealed (uit ref)
-          const initiallyRevealed = revealedEventsRef.current.has(event.id);
+          // Alle markers zijn altijd interactief (revealed=true)
+          // De CSS animation-delay zorgt voor de visuele fade-in sync met radar
           return (
           <Marker 
             key={event.id}
@@ -1033,8 +971,8 @@ export default function MapView({
               event.expired, 
               isSelected,
               eventAngle,
-              initiallyRevealed,
-              false
+              true,  // Altijd revealed voor click interactie
+              false  // Geen scanning state nodig
             )}
             zIndexOffset={1000}
             interactive={true}

@@ -1143,8 +1143,10 @@ export default function MapView({
             )}
             eventHandlers={{
               click: () => {
-                // Alleen popup tonen bij kaart marker click
+                // Toon de event overlay direct bij marker click
                 setSelectedEvent(event.event);
+                // Roep de onEventClick callback aan voor de overlay
+                onEventClick?.(event.event);
               },
               popupclose: () => {
                 // Wis de selectie wanneer de popup wordt gesloten

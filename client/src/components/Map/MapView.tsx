@@ -1143,10 +1143,16 @@ export default function MapView({
             )}
             eventHandlers={{
               click: () => {
-                // Toon de event overlay direct bij marker click
-                setSelectedEvent(event.event);
-                // Roep de onEventClick callback aan voor de overlay
-                onEventClick?.(event.event);
+                // In web versie: alleen overlay tonen, geen popup
+                const isWebVersion = window.location.pathname.includes('/web');
+                if (isWebVersion) {
+                  // Alleen de overlay callback aanroepen
+                  onEventClick?.(event.event);
+                } else {
+                  // In app versie: popup tonen
+                  setSelectedEvent(event.event);
+                  onEventClick?.(event.event);
+                }
               },
               popupclose: () => {
                 // Wis de selectie wanneer de popup wordt gesloten
@@ -1156,9 +1162,10 @@ export default function MapView({
                 }
               }
             }}
-            // Open de popup automatisch als dit het geselecteerde event is
+            // Open de popup automatisch als dit het geselecteerde event is (alleen in app versie)
             ref={(markerRef) => {
-              if (markerRef && selectedEvent && selectedEvent.id === event.id) {
+              const isWebVersion = window.location.pathname.includes('/web');
+              if (!isWebVersion && markerRef && selectedEvent && selectedEvent.id === event.id) {
                 // Check of popup al open is voordat we proberen te openen
                 if (!markerRef.isPopupOpen()) {
                   setTimeout(() => {

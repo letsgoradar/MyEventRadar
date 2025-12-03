@@ -45,10 +45,17 @@ export const isAuthenticated = (req: Request, res: Response, next: NextFunction)
 
 // Middleware to check if user is an admin
 export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+  // Check Passport.js authentication first (req.user from deserializeUser)
+  if (req.isAuthenticated && req.isAuthenticated() && req.user && (req.user as any).role === 'admin') {
+    return next();
+  }
+  
+  // Fallback check for session-based auth
   if (req.session && req.session.user && req.session.user.role === 'admin') {
     req.user = req.session.user;
     return next();
   }
+  
   return res.status(403).json({ message: 'Forbidden: Admin access required' });
 };
 

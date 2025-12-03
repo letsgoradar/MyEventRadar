@@ -189,6 +189,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Gebruiker verwijderen - alleen admin
+  app.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Ongeldig gebruikers-ID" });
+      }
+      
+      // Voorkom dat admin zichzelf verwijdert
+      if (req.user?.id === userId) {
+        return res.status(400).json({ message: "Je kunt jezelf niet verwijderen" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Gebruiker niet gevonden" });
+      }
+      
+      await storage.deleteUser(userId);
+      
+      console.log(`Admin ${req.user?.username} deleted user ${user.username} (ID: ${userId})`);
+      
+      res.json({ message: "Gebruiker succesvol verwijderd" });
+    } catch (error) {
+      console.error('Error in DELETE /api/admin/users/:id:', error);
+      res.status(500).json({ message: "Er is iets misgegaan bij het verwijderen" });
+    }
+  });
+  
+  // Gebruiker bewerken (rol wijzigen) - alleen admin
+  app.patch("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Ongeldig gebruikers-ID" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Gebruiker niet gevonden" });
+      }
+      
+      const { role, isPremium, name, email } = req.body;
+      
+      // Update alleen toegestane velden
+      const updateData: Record<string, any> = {};
+      if (role !== undefined) updateData.role = role;
+      if (isPremium !== undefined) updateData.isPremium = isPremium;
+      if (name !== undefined) updateData.name = name;
+      if (email !== undefined) updateData.email = email;
+      
+      const updatedUser = await storage.updateUser(userId, updateData);
+      
+      // Verwijder wachtwoord uit de response
+      const { password, ...userWithoutPassword } = updatedUser;
+      
+      console.log(`Admin ${req.user?.username} updated user ${user.username} (ID: ${userId}):`, updateData);
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error in PATCH /api/admin/users/:id:', error);
+      res.status(500).json({ message: "Er is iets misgegaan bij het bijwerken" });
+    }
+  });
+  
+  // Nieuwe gebruiker aanmaken - alleen admin
+  app.post("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const { username, email, password, role, name } = req.body;
+      
+      if (!username || !email || !password) {
+        return res.status(400).json({ message: "Gebruikersnaam, email en wachtwoord zijn verplicht" });
+      }
+      
+      // Check of gebruiker al bestaat
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "Er bestaat al een gebruiker met dit e-mailadres" });
+      }
+      
+      const existingUsername = await storage.getUserByUsername(username);
+      if (existingUsername) {
+        return res.status(400).json({ message: "Deze gebruikersnaam is al in gebruik" });
+      }
+      
+      // Hash het wachtwoord
+      const bcrypt = await import('bcryptjs');
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Maak de gebruiker aan
+      const newUser = await storage.createUser({
+        username,
+        email,
+        password: hashedPassword,
+        role: role || 'user',
+        name: name || username,
+      });
+      
+      // Verwijder wachtwoord uit de response
+      const { password: _, ...userWithoutPassword } = newUser;
+      
+      console.log(`Admin ${req.user?.username} created new user ${username} (ID: ${newUser.id})`);
+      
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error in POST /api/admin/users:', error);
+      res.status(500).json({ message: "Er is iets misgegaan bij het aanmaken" });
+    }
+  });
+  
   // Haal events op die binnen straal vallen
   app.get("/api/events/nearby", async (req, res) => {
     try {

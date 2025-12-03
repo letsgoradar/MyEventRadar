@@ -39,6 +39,7 @@ export const users = pgTable("users", {
   phone: text("phone"),
   location: text("user_location"),
   bio: text("bio"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const events = pgTable("events", {

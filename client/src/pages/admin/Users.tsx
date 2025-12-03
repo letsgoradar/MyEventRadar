@@ -78,9 +78,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User as UserSchemaType } from "@shared/schema";
 
 // Extend the User type to include fields we need that might not be in the schema
-interface UserType extends UserSchemaType {
-  name?: string;
-  createdAt: string;
+interface UserType extends Omit<UserSchemaType, 'createdAt'> {
+  createdAt: string | Date | null;
   updatedAt?: string;
 }
 
@@ -96,6 +95,20 @@ const AdminUsers: React.FC = () => {
   const [limit, setLimit] = useState(10);
   const [searchInput, setSearchInput] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
+  const [isNewUserDialogOpen, setIsNewUserDialogOpen] = useState(false);
+  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    username: "",
+    email: "",
+    password: "",
+    name: "",
+    role: "user",
+  });
+  const [editUserForm, setEditUserForm] = useState({
+    name: "",
+    email: "",
+    role: "user",
+  });
   const [filter, setFilter] = useState<UserFilter>({
     role: "all",
     searchQuery: "",
@@ -106,16 +119,61 @@ const AdminUsers: React.FC = () => {
   const { data, isLoading, error } = useQuery<UserType[]>({
     queryKey: ['/api/admin/users', page, limit, filter],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-        ...(filter.role !== "all" && { role: filter.role }),
-        ...(filter.searchQuery && { search: filter.searchQuery }),
-        sortBy: filter.sortBy,
-      });
-
-      const response = await apiRequest(`/api/admin/users?${params.toString()}`);
+      const response = await apiRequest(`/api/admin/users`);
       return response;
+    },
+  });
+
+  // Filter and sort data client-side
+  const filteredData = data?.filter(user => {
+    const matchesRole = filter.role === "all" || user.role === filter.role;
+    const matchesSearch = !filter.searchQuery || 
+      user.username.toLowerCase().includes(filter.searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(filter.searchQuery.toLowerCase()) ||
+      (user.name && user.name.toLowerCase().includes(filter.searchQuery.toLowerCase()));
+    return matchesRole && matchesSearch;
+  }).sort((a, b) => {
+    switch (filter.sortBy) {
+      case 'newest':
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      case 'oldest':
+        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+      case 'name':
+        return (a.name || a.username).localeCompare(b.name || b.username);
+      case 'email':
+        return a.email.localeCompare(b.email);
+      default:
+        return 0;
+    }
+  });
+
+  // Create user mutation
+  const createUserMutation = useMutation({
+    mutationFn: (userData: typeof newUserForm) => {
+      return apiRequest("/api/admin/users", {
+        method: "POST",
+        data: userData,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      setIsNewUserDialogOpen(false);
+      setNewUserForm({ username: "", email: "", password: "", name: "", role: "user" });
+    },
+  });
+
+  // Update user mutation
+  const updateUserMutation = useMutation({
+    mutationFn: ({ userId, data }: { userId: number; data: typeof editUserForm }) => {
+      return apiRequest(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        data: data,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      setIsEditUserDialogOpen(false);
+      setSelectedUser(null);
     },
   });
 
@@ -128,23 +186,20 @@ const AdminUsers: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      // Log activity
-      logActivityMutation.mutate({
-        activityType: "USER_DELETE",
-        details: `User ${selectedUser?.username || selectedUser?.id} deleted`,
-      });
+      setSelectedUser(null);
     },
   });
 
-  // Activity log mutation
-  const logActivityMutation = useMutation({
-    mutationFn: (logData: { activityType: string; details: string }) => {
-      return apiRequest("/api/admin/log-activity", {
-        method: "POST",
-        data: logData,
-      });
-    },
-  });
+  // Open edit dialog
+  const openEditDialog = (user: UserType) => {
+    setSelectedUser(user);
+    setEditUserForm({
+      name: user.name || "",
+      email: user.email,
+      role: user.role,
+    });
+    setIsEditUserDialogOpen(true);
+  };
 
   // Search handler
   const handleSearch = () => {
@@ -204,14 +259,172 @@ const AdminUsers: React.FC = () => {
           
           <div className="flex items-center gap-3">
             <Button 
-              variant="outline" 
+              onClick={() => setIsNewUserDialogOpen(true)}
               className="flex items-center gap-2"
+              data-testid="button-new-user"
             >
               <User className="h-4 w-4" />
               Nieuwe Gebruiker
             </Button>
           </div>
         </div>
+        
+        {/* New User Dialog */}
+        <Dialog open={isNewUserDialogOpen} onOpenChange={setIsNewUserDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Nieuwe Gebruiker Aanmaken</DialogTitle>
+              <DialogDescription>
+                Vul de gegevens in om een nieuwe gebruiker toe te voegen.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Gebruikersnaam *</label>
+                <Input
+                  value={newUserForm.username}
+                  onChange={(e) => setNewUserForm(prev => ({ ...prev, username: e.target.value }))}
+                  placeholder="gebruikersnaam"
+                  data-testid="input-new-username"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Naam</label>
+                <Input
+                  value={newUserForm.name}
+                  onChange={(e) => setNewUserForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Volledige naam"
+                  data-testid="input-new-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">E-mail *</label>
+                <Input
+                  type="email"
+                  value={newUserForm.email}
+                  onChange={(e) => setNewUserForm(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="email@voorbeeld.nl"
+                  data-testid="input-new-email"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Wachtwoord *</label>
+                <Input
+                  type="password"
+                  value={newUserForm.password}
+                  onChange={(e) => setNewUserForm(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="••••••••"
+                  data-testid="input-new-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Rol</label>
+                <Select
+                  value={newUserForm.role}
+                  onValueChange={(value) => setNewUserForm(prev => ({ ...prev, role: value }))}
+                >
+                  <SelectTrigger data-testid="select-new-role">
+                    <SelectValue placeholder="Selecteer rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Gebruiker</SelectItem>
+                    <SelectItem value="organizer">Organisator</SelectItem>
+                    <SelectItem value="moderator">Moderator</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsNewUserDialogOpen(false)}>
+                Annuleren
+              </Button>
+              <Button 
+                onClick={() => createUserMutation.mutate(newUserForm)}
+                disabled={createUserMutation.isPending || !newUserForm.username || !newUserForm.email || !newUserForm.password}
+                data-testid="button-create-user"
+              >
+                {createUserMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Aanmaken...
+                  </>
+                ) : (
+                  'Aanmaken'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Edit User Dialog */}
+        <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Gebruiker Bewerken</DialogTitle>
+              <DialogDescription>
+                Wijzig de gegevens van {selectedUser?.username}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Naam</label>
+                <Input
+                  value={editUserForm.name}
+                  onChange={(e) => setEditUserForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Volledige naam"
+                  data-testid="input-edit-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">E-mail</label>
+                <Input
+                  type="email"
+                  value={editUserForm.email}
+                  onChange={(e) => setEditUserForm(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="email@voorbeeld.nl"
+                  data-testid="input-edit-email"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Rol</label>
+                <Select
+                  value={editUserForm.role}
+                  onValueChange={(value) => setEditUserForm(prev => ({ ...prev, role: value }))}
+                >
+                  <SelectTrigger data-testid="select-edit-role">
+                    <SelectValue placeholder="Selecteer rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Gebruiker</SelectItem>
+                    <SelectItem value="organizer">Organisator</SelectItem>
+                    <SelectItem value="moderator">Moderator</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditUserDialogOpen(false)}>
+                Annuleren
+              </Button>
+              <Button 
+                onClick={() => selectedUser && updateUserMutation.mutate({ userId: selectedUser.id, data: editUserForm })}
+                disabled={updateUserMutation.isPending}
+                data-testid="button-save-user"
+              >
+                {updateUserMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Opslaan...
+                  </>
+                ) : (
+                  'Opslaan'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         
         <Tabs defaultValue="list" className="mb-6">
           <TabsList>
@@ -299,14 +512,14 @@ const AdminUsers: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data && data.length > 0 ? (
-                        data.map((user) => (
+                      {filteredData && filteredData.length > 0 ? (
+                        filteredData.map((user) => (
                           <TableRow key={user.id}>
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <Avatar>
-                                  <AvatarImage src={user.avatar || undefined} />
-                                  <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
+                                  <AvatarImage src={user.avatar || user.photoUrl || undefined} />
+                                  <AvatarFallback>{getInitials(user.name || user.username)}</AvatarFallback>
                                 </Avatar>
                                 <div>
                                   <p className="font-medium">{user.name || user.username}</p>
@@ -325,7 +538,7 @@ const AdminUsers: React.FC = () => {
                             <TableCell>
                               <div className="flex items-center gap-1.5">
                                 <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                                <span>{formatUserDate(user.createdAt)}</span>
+                                <span>{user.createdAt ? formatUserDate(user.createdAt) : 'Onbekend'}</span>
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
@@ -342,7 +555,10 @@ const AdminUsers: React.FC = () => {
                                     <UserCircle className="h-4 w-4" />
                                     <span>Profiel Bekijken</span>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem className="flex items-center gap-2">
+                                  <DropdownMenuItem 
+                                    className="flex items-center gap-2"
+                                    onClick={() => openEditDialog(user)}
+                                  >
                                     <Edit className="h-4 w-4" />
                                     <span>Bewerken</span>
                                   </DropdownMenuItem>
@@ -412,10 +628,10 @@ const AdminUsers: React.FC = () => {
                   </Table>
                 )}
               </CardContent>
-              {data && data.length > 0 && (
+              {filteredData && filteredData.length > 0 && (
                 <CardFooter className="flex justify-between p-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Toont {(page - 1) * limit + 1} - {Math.min(page * limit, data.length)} van {data.length} gebruikers
+                    Toont {filteredData.length} gebruikers
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -452,8 +668,8 @@ const AdminUsers: React.FC = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {data && data.length > 0 ? (
-                    data.map((user) => (
+                  {filteredData && filteredData.length > 0 ? (
+                    filteredData.map((user) => (
                       <Card key={user.id} className="overflow-hidden">
                         <CardHeader className="p-6">
                           <div className="flex justify-between mb-4">
@@ -470,7 +686,10 @@ const AdminUsers: React.FC = () => {
                                   <UserCircle className="h-4 w-4" />
                                   <span>Profiel Bekijken</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="flex items-center gap-2">
+                                <DropdownMenuItem 
+                                  className="flex items-center gap-2"
+                                  onClick={() => openEditDialog(user)}
+                                >
                                   <Edit className="h-4 w-4" />
                                   <span>Bewerken</span>
                                 </DropdownMenuItem>
@@ -567,10 +786,10 @@ const AdminUsers: React.FC = () => {
                   )}
                 </div>
                 
-                {data && data.length > 0 && (
+                {filteredData && filteredData.length > 0 && (
                   <div className="flex justify-between items-center mt-6">
                     <div className="text-sm text-muted-foreground">
-                      Toont {(page - 1) * limit + 1} - {Math.min(page * limit, data.length)} van {data.length} gebruikers
+                      Toont {filteredData.length} gebruikers
                     </div>
                     <div className="flex gap-2">
                       <Button

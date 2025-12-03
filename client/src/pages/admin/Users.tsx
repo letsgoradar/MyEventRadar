@@ -214,9 +214,11 @@ const AdminUsers: React.FC = () => {
   };
 
   // Format date
-  const formatUserDate = (dateString: string) => {
+  const formatUserDate = (dateValue: string | Date | null) => {
+    if (!dateValue) return "Onbekende datum";
     try {
-      return format(new Date(dateString), 'd MMMM yyyy', { locale: nl });
+      const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
+      return format(date, 'd MMMM yyyy', { locale: nl });
     } catch (e) {
       console.error("Date formatting error:", e);
       return "Onbekende datum";

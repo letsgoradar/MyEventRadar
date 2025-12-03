@@ -10,7 +10,7 @@ declare module 'express-session' {
   }
 }
 
-// Auto-login middleware for testuser
+// Auto-login middleware - uses Jan Jansen for app/web, admin for admin routes
 export const autoLoginTestUser = async (req: Request, res: Response, next: NextFunction) => {
   // Skip auto-login if user is already authenticated
   if (req.isAuthenticated && req.isAuthenticated()) {
@@ -23,15 +23,18 @@ export const autoLoginTestUser = async (req: Request, res: Response, next: NextF
   }
 
   try {
-    // Get testuser for auto-login
-    const testUser = await storage.getUserByUsername("testuser");
-    if (testUser) {
+    // Use admin for admin routes, Jan Jansen for app/web routes
+    const isAdminRoute = req.path.startsWith('/admin') || req.path.startsWith('/api/admin');
+    const username = isAdminRoute ? 'admin' : 'janjansen';
+    
+    const user = await storage.getUserByUsername(username);
+    if (user) {
       // Set user in session for auto-login (Passport.js format)
-      (req.session as any).passport = { user: testUser.id };
-      req.user = testUser;
+      (req.session as any).passport = { user: user.id };
+      req.user = user;
       
       // Log the auto-login for debugging
-      console.log(`🔐 Auto-logged in as testuser (ID: ${testUser.id})`);
+      console.log(`🔐 Auto-logged in as ${user.name || user.username} (ID: ${user.id}, role: ${user.role})`);
     }
   } catch (error) {
     console.log('Auto-login failed, continuing without authentication:', error);

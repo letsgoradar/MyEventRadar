@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
-import AdminNav from "@/components/Layout/AdminNav";
+import AdminSidebar from "@/components/Layout/AdminSidebar";
 import {
   Calendar,
   CalendarDays,
@@ -253,23 +253,27 @@ const AdminUsers: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col">
-      <AdminNav />
-      <div className="flex-1 p-6 overflow-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Gebruikers Beheer</h1>
+    <div className="h-screen flex bg-background">
+      <AdminSidebar />
+      <main className="flex-1 overflow-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">Gebruikers Beheer</h1>
+              <p className="text-muted-foreground">Beheer alle geregistreerde gebruikers</p>
+            </div>
           
-          <div className="flex items-center gap-3">
-            <Button 
-              onClick={() => setIsNewUserDialogOpen(true)}
-              className="flex items-center gap-2"
-              data-testid="button-new-user"
-            >
-              <User className="h-4 w-4" />
-              Nieuwe Gebruiker
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button 
+                onClick={() => setIsNewUserDialogOpen(true)}
+                className="flex items-center gap-2"
+                data-testid="button-new-user"
+              >
+                <User className="h-4 w-4" />
+                Nieuwe Gebruiker
+              </Button>
+            </div>
           </div>
-        </div>
         
         {/* New User Dialog */}
         <Dialog open={isNewUserDialogOpen} onOpenChange={setIsNewUserDialogOpen}>
@@ -817,7 +821,8 @@ const AdminUsers: React.FC = () => {
             )}
           </TabsContent>
         </Tabs>
-      </div>
+        </div>
+      </main>
     </div>
   );
 };

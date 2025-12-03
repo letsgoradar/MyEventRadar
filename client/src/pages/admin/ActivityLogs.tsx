@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
-import AdminNav from "@/components/Layout/AdminNav";
+import AdminSidebar from "@/components/Layout/AdminSidebar";
 import {
   Activity,
   CalendarDays,
@@ -138,12 +138,16 @@ const ActivityLogs: React.FC = () => {
   const totalPages = data?.total ? Math.ceil(data.total / limit) : 0;
 
   return (
-    <div className="h-screen flex flex-col">
-      <AdminNav />
-      <div className="flex-1 p-6 overflow-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Activiteiten Logboek</h1>
-        </div>
+    <div className="h-screen flex bg-background">
+      <AdminSidebar />
+      <main className="flex-1 overflow-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">Activiteiten Logboek</h1>
+              <p className="text-muted-foreground">Bekijk alle systeemactiviteiten</p>
+            </div>
+          </div>
 
         {/* Search and filter */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -294,7 +298,8 @@ const ActivityLogs: React.FC = () => {
             </CardFooter>
           )}
         </Card>
-      </div>
+        </div>
+      </main>
     </div>
   );
 };

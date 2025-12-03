@@ -66,6 +66,7 @@ export interface IStorage {
   getEventParticipants(eventId: number): Promise<User[]>;
   getEventsForParticipant(userId: number): Promise<Event[]>;
   getParticipantCount(): Promise<number>;
+  getAllParticipants(): Promise<Participant[]>;
 
   // SavedSearch operations
   saveSavedSearch(search: InsertSavedSearch): Promise<SavedSearch>;
@@ -381,6 +382,12 @@ export class PgStorage implements IStorage {
     return this.withRetry(async () => {
       const result = await db.select({ count: count() }).from(participants);
       return result[0].count;
+    });
+  }
+  
+  async getAllParticipants(): Promise<Participant[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(participants);
     });
   }
   

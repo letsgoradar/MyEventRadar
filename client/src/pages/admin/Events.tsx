@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import AdminNav from '@/components/Layout/AdminNav';
+import AdminSidebar from '@/components/Layout/AdminSidebar';
 import { 
   CalendarDays, 
   Calendar,
@@ -409,13 +409,17 @@ const AdminEvents: React.FC = () => {
   };
   
   return (
-    <div className="h-screen flex flex-col">
-      <AdminNav />
-      <div className="flex-1 p-6 overflow-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Evenementen Beheer</h1>
+    <div className="h-screen flex bg-background">
+      <AdminSidebar />
+      <main className="flex-1 overflow-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">Evenementen Beheer</h1>
+              <p className="text-muted-foreground">Beheer alle evenementen op het platform</p>
+            </div>
           
-          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
             <Button
               onClick={() => setIsImportDialogOpen(true)}
               variant="outline"
@@ -441,8 +445,8 @@ const AdminEvents: React.FC = () => {
               <PlusCircle className="h-4 w-4" />
               Nieuw Evenement
             </Button>
+            </div>
           </div>
-        </div>
         
         {/* Filter section */}
         <Card className="mb-6">
@@ -970,7 +974,6 @@ const AdminEvents: React.FC = () => {
             )}
           </>
         )}
-      </div>
       
       {/* Import Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
@@ -1030,6 +1033,8 @@ const AdminEvents: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </div>
+      </main>
     </div>
   );
 };

@@ -151,6 +151,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Admin statistieken ophalen
+  app.get("/api/admin/statistics", isAdmin, async (req, res) => {
+    try {
+      // Haal alle data op
+      const users = await storage.getAllUsers();
+      const events = await storage.getAllEvents();
+      const participants = await storage.getAllParticipants();
+      const activityLogs = await storage.getActivityLogs({ limit: 100 });
+      
+      // Bereken statistieken
+      const now = new Date();
+      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      // Gebruikers per maand (laatste 6 maanden)
+      const usersByMonth: { month: string; count: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+        const monthName = monthStart.toLocaleDateString('nl-NL', { month: 'short' });
+        const count = users.filter(u => {
+          const createdAt = u.createdAt ? new Date(u.createdAt) : null;
+          return createdAt && createdAt >= monthStart && createdAt <= monthEnd;
+        }).length;
+        usersByMonth.push({ month: monthName, count });
+      }
+      
+      // Evenementen per categorie
+      const eventsByCategory: { category: string; count: number }[] = [];
+      const categoryMap = new Map<string, number>();
+      events.forEach(e => {
+        const cat = e.category || 'Onbekend';
+        categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
+      });
+      categoryMap.forEach((count, category) => {
+        eventsByCategory.push({ category, count });
+      });
+      eventsByCategory.sort((a, b) => b.count - a.count);
+      
+      // Recente evenementen (laatste 5)
+      const recentEvents = events
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .slice(0, 5)
+        .map(e => ({
+          id: e.id,
+          title: e.title,
+          date: e.startTime ? new Date(e.startTime).toLocaleDateString('nl-NL') : 'Onbekend',
+          category: e.category || 'Onbekend'
+        }));
+      
+      // Top gebruikers (meeste evenementen gehost)
+      const userEventCounts = new Map<number, { hosted: number; participated: number }>();
+      events.forEach(e => {
+        if (e.hostId) {
+          const current = userEventCounts.get(e.hostId) || { hosted: 0, participated: 0 };
+          current.hosted++;
+          userEventCounts.set(e.hostId, current);
+        }
+      });
+      participants.forEach(p => {
+        const current = userEventCounts.get(p.userId) || { hosted: 0, participated: 0 };
+        current.participated++;
+        userEventCounts.set(p.userId, current);
+      });
+      
+      const topUsers = Array.from(userEventCounts.entries())
+        .sort((a, b) => b[1].hosted - a[1].hosted)
+        .slice(0, 5)
+        .map(([userId, counts]) => {
+          const user = users.find(u => u.id === userId);
+          return {
+            id: userId,
+            username: user?.name || user?.username || 'Onbekend',
+            eventsHosted: counts.hosted,
+            eventsParticipated: counts.participated
+          };
+        });
+      
+      // Nieuwe gebruikers deze week/maand
+      const newUsersThisWeek = users.filter(u => {
+        const createdAt = u.createdAt ? new Date(u.createdAt) : null;
+        return createdAt && createdAt >= oneWeekAgo;
+      }).length;
+      
+      const newUsersThisMonth = users.filter(u => {
+        const createdAt = u.createdAt ? new Date(u.createdAt) : null;
+        return createdAt && createdAt >= oneMonthAgo;
+      }).length;
+      
+      // Komende evenementen
+      const upcomingEvents = events.filter(e => {
+        const startTime = e.startTime ? new Date(e.startTime) : null;
+        return startTime && startTime >= now;
+      }).length;
+      
+      // Voorbije evenementen
+      const pastEvents = events.filter(e => {
+        const startTime = e.startTime ? new Date(e.startTime) : null;
+        return startTime && startTime < now;
+      }).length;
+      
+      res.json({
+        userCount: users.length,
+        eventsCount: events.length,
+        participantsCount: participants.length,
+        activityLogsCount: activityLogs.length,
+        newUsersThisWeek,
+        newUsersThisMonth,
+        upcomingEvents,
+        pastEvents,
+        usersByMonth,
+        eventsByCategory: eventsByCategory.slice(0, 8),
+        recentEvents,
+        topUsers
+      });
+    } catch (error) {
+      console.error('Error in /api/admin/statistics:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Alle gebruikers ophalen - alleen admin
   app.get("/api/admin/users", isAdmin, async (req, res) => {
     try {

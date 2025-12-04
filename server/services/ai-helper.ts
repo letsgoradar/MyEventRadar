@@ -23,6 +23,194 @@ const translationCache = new Map<string, { title: string; description: string }>
 let lastApiCall = 0;
 const MIN_DELAY_MS = 25000;
 
+const EN_NL_DICTIONARY: Record<string, string> = {
+  "christmas": "kerst",
+  "christmas market": "kerstmarkt",
+  "market": "markt",
+  "brunch": "brunch",
+  "concert": "concert",
+  "workshop": "workshop",
+  "festival": "festival",
+  "street": "straat",
+  "square": "plein",
+  "park": "park",
+  "museum": "museum",
+  "theater": "theater",
+  "theatre": "theater",
+  "gallery": "galerie",
+  "live": "live",
+  "music": "muziek",
+  "live music": "live muziek",
+  "kids": "kinderen",
+  "children": "kinderen",
+  "family": "familie",
+  "free": "gratis",
+  "tickets": "tickets",
+  "exhibition": "tentoonstelling",
+  "expo": "expo",
+  "fair": "beurs",
+  "food": "eten",
+  "drinks": "drinken",
+  "art": "kunst",
+  "night": "avond",
+  "evening": "avond",
+  "morning": "ochtend",
+  "afternoon": "middag",
+  "day": "dag",
+  "tour": "rondleiding",
+  "walk": "wandeling",
+  "run": "hardloop",
+  "running": "hardlopen",
+  "dance": "dans",
+  "dancing": "dansen",
+  "party": "feest",
+  "celebration": "viering",
+  "open": "open",
+  "outdoor": "buiten",
+  "indoor": "binnen",
+  "winter": "winter",
+  "summer": "zomer",
+  "spring": "lente",
+  "autumn": "herfst",
+  "fall": "herfst",
+  "new year": "nieuwjaar",
+  "new years": "nieuwjaars",
+  "singalong": "meezingen",
+  "sing along": "meezingen",
+  "karaoke": "karaoke",
+  "movie": "film",
+  "film": "film",
+  "screening": "vertoning",
+  "comedy": "comedy",
+  "show": "show",
+  "performance": "optreden",
+  "special": "speciaal",
+  "edition": "editie",
+  "special edition": "speciale editie",
+  "weekly": "wekelijks",
+  "monthly": "maandelijks",
+  "daily": "dagelijks",
+  "every": "elke",
+  "and": "en",
+  "with": "met",
+  "at": "bij",
+  "the": "de",
+  "a": "een",
+  "for": "voor",
+  "in": "in",
+  "on": "op",
+  "to": "naar",
+  "from": "van",
+  "by": "door",
+  "of": "van",
+  "all": "alle",
+  "welcome": "welkom",
+  "join": "doe mee",
+  "enjoy": "geniet",
+  "experience": "beleef",
+  "discover": "ontdek",
+  "explore": "verken",
+  "meet": "ontmoet",
+  "learn": "leer",
+  "create": "creëer",
+  "make": "maak",
+  "play": "speel",
+  "watch": "kijk",
+  "listen": "luister",
+  "taste": "proef",
+  "try": "probeer",
+  "buy": "koop",
+  "get": "krijg",
+  "come": "kom",
+  "bring": "breng",
+  "take": "neem",
+  "have": "heb",
+  "is": "is",
+  "are": "zijn",
+  "will": "zal",
+  "can": "kan",
+  "your": "jouw",
+  "our": "onze",
+  "their": "hun",
+  "this": "dit",
+  "that": "dat",
+  "these": "deze",
+  "those": "die",
+  "here": "hier",
+  "there": "daar",
+  "where": "waar",
+  "when": "wanneer",
+  "what": "wat",
+  "who": "wie",
+  "how": "hoe",
+  "why": "waarom",
+  "more": "meer",
+  "info": "info",
+  "information": "informatie",
+  "details": "details",
+  "read more": "lees meer",
+  "click": "klik",
+  "book": "boek",
+  "reserve": "reserveer",
+  "register": "registreer",
+  "sign up": "aanmelden",
+  "entrance": "entree",
+  "admission": "toegang",
+  "price": "prijs",
+  "cost": "kosten",
+  "duration": "duur",
+  "location": "locatie",
+  "venue": "locatie",
+  "address": "adres",
+  "time": "tijd",
+  "date": "datum",
+  "start": "start",
+  "end": "einde",
+  "begins": "begint",
+  "ends": "eindigt",
+  "hours": "uren",
+  "minutes": "minuten",
+  "about": "over",
+  "local": "lokaal",
+  "city": "stad",
+  "center": "centrum",
+  "centre": "centrum",
+  "downtown": "centrum",
+  "neighborhood": "buurt",
+  "community": "gemeenschap",
+  "people": "mensen",
+  "friends": "vrienden",
+  "guests": "gasten",
+  "visitors": "bezoekers",
+  "artists": "artiesten",
+  "musicians": "muzikanten",
+  "performers": "artiesten",
+  "vendors": "verkopers",
+  "stalls": "kraampjes",
+  "stands": "stands",
+  "activities": "activiteiten",
+  "games": "spelletjes",
+  "fun": "plezier",
+  "entertainment": "entertainment",
+  "food and drinks": "eten en drinken",
+  "snacks": "snacks",
+  "bar": "bar",
+  "cafe": "café",
+  "restaurant": "restaurant",
+  "unique": "uniek",
+  "beautiful": "mooi",
+  "amazing": "geweldig",
+  "great": "geweldig",
+  "fantastic": "fantastisch",
+  "wonderful": "prachtig",
+  "best": "beste",
+  "new": "nieuw",
+  "old": "oud",
+  "classic": "klassiek",
+  "modern": "modern",
+  "traditional": "traditioneel"
+};
+
 async function waitForRateLimit(): Promise<void> {
   const now = Date.now();
   const timeSinceLastCall = now - lastApiCall;
@@ -45,6 +233,46 @@ const BANNED_TITLES = [
   "event",
   "evenement"
 ];
+
+function translateWithDictionary(text: string): { translated: string; replacements: number } {
+  if (!text) return { translated: text, replacements: 0 };
+  
+  let result = text;
+  let replacements = 0;
+  
+  const sortedEntries = Object.entries(EN_NL_DICTIONARY)
+    .sort((a, b) => b[0].length - a[0].length);
+  
+  for (const [en, nl] of sortedEntries) {
+    const regex = new RegExp(`\\b${en}\\b`, "gi");
+    const matches = result.match(regex);
+    if (matches) {
+      replacements += matches.length;
+      result = result.replace(regex, (match) => {
+        if (match[0] === match[0].toUpperCase()) {
+          return nl.charAt(0).toUpperCase() + nl.slice(1);
+        }
+        return nl;
+      });
+    }
+  }
+  
+  return { translated: result, replacements };
+}
+
+function isLikelyEnglish(text: string): boolean {
+  const englishWords = ["the", "and", "for", "with", "this", "that", "from", "have", "will", "your", "are", "was", "were", "been", "being", "has", "had", "having"];
+  const words = text.toLowerCase().split(/\s+/);
+  const englishCount = words.filter(w => englishWords.includes(w)).length;
+  return englishCount >= 2 || (words.length > 3 && englishCount >= 1);
+}
+
+function isLikelyDutch(text: string): boolean {
+  const dutchWords = ["de", "het", "een", "van", "voor", "met", "naar", "bij", "zijn", "hebben", "worden", "kunnen", "zullen", "moeten", "mogen", "jouw", "onze", "deze", "waar", "wanneer", "welkom", "gratis", "toegang"];
+  const words = text.toLowerCase().split(/\s+/);
+  const dutchCount = words.filter(w => dutchWords.includes(w)).length;
+  return dutchCount >= 2;
+}
 
 export class AIHelper {
   static isBadTitle(title: string): boolean {
@@ -298,5 +526,85 @@ Geef je antwoord EXACT in dit JSON formaat (geen markdown):
     }
 
     return null;
+  }
+
+  static fastTranslateEvent(
+    title: string,
+    description: string
+  ): { title: string; description: string; usedAI: boolean; confidence: "high" | "medium" | "low" } {
+    if (isLikelyDutch(title) && isLikelyDutch(description)) {
+      console.log(`[Dictionary] Already Dutch: "${title.substring(0, 30)}..."`);
+      return { title, description, usedAI: false, confidence: "high" };
+    }
+    
+    const titleResult = translateWithDictionary(title);
+    const descResult = translateWithDictionary(description);
+    
+    const totalReplacements = titleResult.replacements + descResult.replacements;
+    const titleWords = title.split(/\s+/).length;
+    const descWords = description.split(/\s+/).length;
+    const totalWords = titleWords + descWords;
+    
+    const replacementRatio = totalWords > 0 ? totalReplacements / totalWords : 0;
+    
+    let confidence: "high" | "medium" | "low";
+    if (replacementRatio >= 0.3 || totalReplacements >= 5) {
+      confidence = "high";
+    } else if (replacementRatio >= 0.15 || totalReplacements >= 3) {
+      confidence = "medium";
+    } else {
+      confidence = "low";
+    }
+    
+    const translatedTitle = titleResult.translated;
+    const translatedDesc = descResult.translated;
+    
+    if (isLikelyDutch(translatedTitle) || confidence === "high") {
+      console.log(`[Dictionary] Translated (${confidence}): "${title.substring(0, 25)}..." -> "${translatedTitle.substring(0, 25)}..." (${totalReplacements} replacements)`);
+      return { 
+        title: translatedTitle, 
+        description: translatedDesc, 
+        usedAI: false, 
+        confidence 
+      };
+    }
+    
+    console.log(`[Dictionary] Partial translation (${confidence}): "${title.substring(0, 25)}..." (${totalReplacements} replacements)`);
+    return { 
+      title: translatedTitle, 
+      description: translatedDesc, 
+      usedAI: false, 
+      confidence 
+    };
+  }
+
+  static async smartTranslateEvent(
+    title: string,
+    description: string,
+    useAIFallback: boolean = false
+  ): Promise<{ title: string; description: string; usedAI: boolean }> {
+    const fastResult = this.fastTranslateEvent(title, description);
+    
+    if (fastResult.confidence === "high" || fastResult.confidence === "medium") {
+      return { 
+        title: fastResult.title, 
+        description: fastResult.description, 
+        usedAI: false 
+      };
+    }
+    
+    if (useAIFallback && process.env.OPENAI_API_KEY) {
+      console.log(`[Translation] Low confidence, trying AI fallback...`);
+      const aiResult = await this.translateEventToNL(title, description);
+      if (aiResult) {
+        return { ...aiResult, usedAI: true };
+      }
+    }
+    
+    return { 
+      title: fastResult.title, 
+      description: fastResult.description, 
+      usedAI: false 
+    };
   }
 }

@@ -501,12 +501,12 @@ export class RssFeedService {
       }
       
       const isEnglish = /\b(the|and|of|for|with|from|this|that|are|was|were|have|has|will|would|could|should)\b/i.test(title + " " + description);
-      if (isEnglish && description.length > 50) {
-        console.log(`[RSS] Content appears English, attempting translation...`);
-        const translation = await AIHelper.translateEventToNL(title, description);
-        if (translation) {
-          title = translation.title;
-          description = translation.description;
+      if (isEnglish) {
+        const translation = await AIHelper.smartTranslateEvent(title, description, false);
+        title = translation.title;
+        description = translation.description;
+        if (translation.usedAI) {
+          console.log(`[RSS] Translated with AI: "${title.substring(0, 30)}..."`);
         }
       }
       

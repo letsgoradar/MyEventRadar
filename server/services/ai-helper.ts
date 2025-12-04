@@ -18,6 +18,21 @@ interface LocationInference {
 
 const titleCache = new Map<string, TitleSuggestion>();
 const locationCache = new Map<string, LocationInference>();
+const translationCache = new Map<string, { title: string; description: string }>();
+
+let lastApiCall = 0;
+const MIN_DELAY_MS = 25000;
+
+async function waitForRateLimit(): Promise<void> {
+  const now = Date.now();
+  const timeSinceLastCall = now - lastApiCall;
+  if (timeSinceLastCall < MIN_DELAY_MS && lastApiCall > 0) {
+    const waitTime = MIN_DELAY_MS - timeSinceLastCall;
+    console.log(`[AI] Rate limit: waiting ${Math.round(waitTime/1000)}s...`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  lastApiCall = Date.now();
+}
 
 const BANNED_TITLES = [
   "read more",
@@ -54,6 +69,8 @@ export class AIHelper {
     }
 
     try {
+      await waitForRateLimit();
+      
       const prompt = `Je bent een expert in het schrijven van pakkende, korte Nederlandse evenementtitels.
 
 Gegeven de volgende informatie over een evenement:
@@ -112,6 +129,8 @@ Antwoord alleen met de titel, zonder aanhalingstekens of extra tekst.`;
     }
 
     try {
+      await waitForRateLimit();
+      
       const prompt = `Je bent een expert in het bepalen van exacte locaties van evenementen in Nederland.
 
 Gegeven de volgende informatie over een evenement:
@@ -169,5 +188,115 @@ Gebruik alleen echte, bestaande locaties in ${city}. Als je niet zeker bent, gee
     titleCache.clear();
     locationCache.clear();
     console.log("[AI] Cache cleared");
+  }
+
+  static async translateToNL(
+    englishText: string,
+    type: "title" | "description"
+  ): Promise<string | null> {
+    if (!process.env.OPENAI_API_KEY) {
+      return null;
+    }
+
+    if (!englishText || englishText.length < 3) return null;
+
+    const cacheKey = `translate:${type}:${englishText.substring(0, 50)}`;
+    const cached = titleCache.get(cacheKey);
+    if (cached) {
+      return cached.title;
+    }
+
+    try {
+      await waitForRateLimit();
+      
+      const prompt = type === "title"
+        ? `Vertaal de volgende Engelse evenementtitel naar een korte, pakkende Nederlandse titel (max 50 karakters). Behoud de essentie en maak het aantrekkelijk.
+
+Engelse titel: "${englishText}"
+
+Antwoord alleen met de Nederlandse titel, zonder aanhalingstekens.`
+        : `Vertaal de volgende Engelse evenementbeschrijving naar vloeiend Nederlands. Behoud de informatie en stijl.
+
+Engels:
+${englishText.substring(0, 1000)}
+
+Antwoord alleen met de Nederlandse vertaling.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+        max_tokens: type === "title" ? 60 : 500
+      });
+
+      const translated = response.choices[0]?.message?.content?.trim();
+      
+      if (translated && translated.length > 2) {
+        titleCache.set(cacheKey, { title: translated, confidence: 1 });
+        console.log(`[AI] Translated ${type}: "${englishText.substring(0, 30)}..." -> "${translated.substring(0, 30)}..."`);
+        return translated;
+      }
+    } catch (error: any) {
+      console.error("[AI] Error translating:", error.message);
+    }
+
+    return null;
+  }
+
+  static async translateEventToNL(
+    title: string,
+    description: string
+  ): Promise<{ title: string; description: string } | null> {
+    if (!process.env.OPENAI_API_KEY) {
+      return null;
+    }
+
+    if (!title || title.length < 3) return null;
+
+    const cacheKey = `translate:${title.substring(0, 30)}:${description.substring(0, 30)}`;
+    const cached = translationCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      await waitForRateLimit();
+      
+      const prompt = `Vertaal het volgende Engelse evenement naar het Nederlands.
+
+TITEL (Engels): ${title}
+BESCHRIJVING (Engels): ${description.substring(0, 800)}
+
+Geef je antwoord EXACT in dit JSON formaat (geen markdown):
+{
+  "title": "Nederlandse titel (max 50 karakters, pakkend)",
+  "description": "Nederlandse beschrijving (vloeiend, informatief)"
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+        max_tokens: 600
+      });
+
+      const content = response.choices[0]?.message?.content?.trim();
+      
+      if (content) {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]) as { title: string; description: string };
+          if (parsed.title && parsed.description) {
+            translationCache.set(cacheKey, parsed);
+            console.log(`[AI] Translated event: "${title.substring(0, 25)}..." -> "${parsed.title.substring(0, 25)}..."`);
+            return parsed;
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error("[AI] Error translating event:", error.message);
+    }
+
+    return null;
   }
 }

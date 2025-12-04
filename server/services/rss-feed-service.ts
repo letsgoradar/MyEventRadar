@@ -221,25 +221,24 @@ export class RssFeedService {
       
       for (let page = 1; page <= 2; page++) {
         const url = page === 1 
-          ? "https://www.thisiseindhoven.com/nl/events"
-          : `https://www.thisiseindhoven.com/nl/events?page=${page}`;
+          ? "https://www.thisiseindhoven.com/en/events"
+          : `https://www.thisiseindhoven.com/en/events?page=${page}`;
         
-        console.log(`[RSS] Scraping This Is Eindhoven NL page ${page}...`);
+        console.log(`[RSS] Scraping This Is Eindhoven page ${page}...`);
         
         const response = await axios.get(url, {
           headers: {
-            "User-Agent": this.USER_AGENT,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "nl-NL,nl;q=0.9"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
           },
           timeout: 30000
         });
 
         const $ = cheerio.load(response.data);
         
-        $('a[href*="/nl/events/"]').each((_, element) => {
+        $('a[href*="/en/events/"]').each((_, element) => {
           const href = $(element).attr("href");
-          if (!href || href === "/nl/events" || href.includes("?page=")) return;
+          if (!href || href === "/en/events" || href.includes("?page=")) return;
           
           const fullLink = href.startsWith("http") 
             ? href 
@@ -267,7 +266,7 @@ export class RssFeedService {
         }
       }
 
-      console.log(`[RSS] Scraped ${items.length} events from This Is Eindhoven (NL)`);
+      console.log(`[RSS] Scraped ${items.length} events from This Is Eindhoven`);
       return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error scraping This Is Eindhoven:`, error.message);
@@ -387,6 +386,12 @@ export class RssFeedService {
             title = titleFromUrl.charAt(0).toUpperCase() + titleFromUrl.slice(1);
           }
         }
+      }
+      
+      const translation = await AIHelper.translateEventToNL(title, description);
+      if (translation) {
+        title = translation.title;
+        description = translation.description;
       }
       
       if (imageUrl && !imageUrl.startsWith("http")) {

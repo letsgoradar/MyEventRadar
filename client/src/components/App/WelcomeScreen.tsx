@@ -191,7 +191,7 @@ export function WelcomeScreen() {
           {locationStep === 'request' && (
             <div className="w-full max-w-md bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-6 border border-border">
               <div className="mb-6 text-center">
-                <h1 className="text-2xl font-bold text-primary mb-2">Welkom bij EventApp</h1>
+                <h1 className="text-2xl font-bold text-primary mb-2">Welkom bij letsgo radar</h1>
                 <p className="text-muted-foreground mb-4">
                   Ontdek evenementen in jouw buurt
                 </p>
@@ -221,7 +221,7 @@ export function WelcomeScreen() {
           {(locationStep === 'loaded' || locationStep === 'error' || showLoginForm) && (
             <div className="w-full max-w-md bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-6 border border-border">
               <div className="mb-6 text-center">
-                <h1 className="text-2xl font-bold text-primary mb-2">Welkom bij EventApp</h1>
+                <h1 className="text-2xl font-bold text-primary mb-2">Welkom bij letsgo radar</h1>
                 <p className="text-muted-foreground mb-2">
                   {nearbyEvents?.length ? 
                     `${nearbyEvents.length} evenementen gevonden in je buurt!` : 

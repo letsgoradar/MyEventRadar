@@ -41,11 +41,14 @@ export function Sidebar() {
           <>
             <div className="flex flex-col items-center mb-2">
               <img 
-                src="/images/event-logo.svg" 
-                alt="EventApp Logo" 
-                className="w-10 h-10" 
+                src="/images/letsgo-radar-logo.png" 
+                alt="letsgo radar" 
+                className="w-12 h-12 object-contain" 
               />
-              <h1 className="text-xl font-bold mt-2">EventApp</h1>
+              <h1 className="text-lg font-bold mt-2 text-center leading-tight">
+                <span className="block">letsgo</span>
+                <span className="block">radar</span>
+              </h1>
             </div>
             <Button variant="ghost" size="sm" className="p-1 w-full" onClick={toggleExpanded}>
               <MdChevronLeft className="h-5 w-5" />
@@ -58,13 +61,13 @@ export function Sidebar() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <img 
-                      src="/images/event-logo.svg" 
-                      alt="EventApp Logo" 
-                      className="w-10 h-10" 
+                      src="/images/letsgo-radar-logo.png" 
+                      alt="letsgo radar" 
+                      className="w-10 h-10 object-contain" 
                     />
                   </TooltipTrigger>
                   <TooltipContent side="right">
-                    <p>EventApp</p>
+                    <p>letsgo radar</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

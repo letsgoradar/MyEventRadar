@@ -16,7 +16,7 @@ import {
   Bell,
   Database
 } from 'lucide-react';
-import { Logo } from '@/components/ui/logo';
+import { LogoIcon } from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -112,10 +112,12 @@ const AdminSidebar: React.FC = () => {
       <div className="p-4 border-b">
         <Link href="/admin">
           <div className="flex items-center gap-3 cursor-pointer" data-testid="link-admin-home">
-            <Logo className="h-8 w-8" />
+            <LogoIcon className="h-10 w-10" />
             <div>
-              <h1 className="font-bold text-lg">Admin Panel</h1>
-              <p className="text-xs text-muted-foreground">Beheer Dashboard</p>
+              <h1 className="font-bold text-lg leading-tight">
+                <span className="block">letsgo</span>
+                <span className="block text-sm">radar admin</span>
+              </h1>
             </div>
           </div>
         </Link>

@@ -1,8 +1,11 @@
-# Event App - Community Event Management Platform
+# letsgo radar - Community Event Discovery Platform
 
 ## Overview
 
-This is a full-stack web application for community event management, built with Express.js backend and React frontend. The application allows users to discover, create, and participate in local events with map-based visualization and comprehensive event management features. It supports both mobile app-style interface and web interface, with admin functionality for platform management.
+letsgo radar is a full-stack web application for community event discovery and management, built with Express.js backend and React frontend. The application allows users to discover, create, and participate in local events with radar-style map visualization and comprehensive event management features. It supports both mobile app-style interface and web interface, with admin functionality for platform management.
+
+**Brand**: letsgo radar
+**Logo**: /public/images/letsgo-radar-logo.png
 
 ## System Architecture
 

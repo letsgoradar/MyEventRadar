@@ -274,6 +274,21 @@ export class RssFeedService {
     }
   }
 
+  static readonly MONTHS: Record<string, number> = {
+    jan: 0, january: 0, januari: 0,
+    feb: 1, february: 1, februari: 1,
+    mar: 2, march: 2, maart: 2,
+    apr: 3, april: 3,
+    may: 4, mei: 4,
+    jun: 5, june: 5, juni: 5,
+    jul: 6, july: 6, juli: 6,
+    aug: 7, august: 7, augustus: 7,
+    sep: 8, sept: 8, september: 8,
+    oct: 9, october: 9, oktober: 9,
+    nov: 10, november: 10,
+    dec: 11, december: 11
+  };
+
   static parseEventDate(dateStr: string): { startTime: Date; endTime: Date } | null {
     try {
       const currentYear = new Date().getFullYear();
@@ -284,22 +299,7 @@ export class RssFeedService {
       
       const [, dayName, day, monthStr, startHour, startMin, endHour, endMin] = match;
       
-      const months: Record<string, number> = {
-        jan: 0, january: 0, januari: 0,
-        feb: 1, february: 1, februari: 1,
-        mar: 2, march: 2, maart: 2,
-        apr: 3, april: 3,
-        may: 4, mei: 4,
-        jun: 5, june: 5, juni: 5,
-        jul: 6, july: 6, juli: 6,
-        aug: 7, august: 7, augustus: 7,
-        sep: 8, sept: 8, september: 8,
-        oct: 9, october: 9, oktober: 9,
-        nov: 10, november: 10,
-        dec: 11, december: 11
-      };
-      
-      const monthNum = months[monthStr.toLowerCase()];
+      const monthNum = this.MONTHS[monthStr.toLowerCase()];
       if (monthNum === undefined) return null;
       
       let year = currentYear;
@@ -317,6 +317,50 @@ export class RssFeedService {
       }
       
       return { startTime, endTime };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static parseDateFromBody(dateStr: string): { startTime: Date; endTime: Date } | null {
+    try {
+      const normalizeMonth = (monthStr: string): number | undefined => {
+        const normalized = monthStr.toLowerCase().substring(0, 3);
+        if (normalized === "maa") return 2;
+        if (normalized === "mei") return 4;
+        if (normalized === "okt") return 9;
+        return this.MONTHS[normalized];
+      };
+      
+      const withTimeMatch = dateStr.match(/(\d{1,2})\s+(\w+)\s+(\d{4}),?\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/i);
+      if (withTimeMatch) {
+        const [, day, monthStr, year, startHour, startMin, endHour, endMin] = withTimeMatch;
+        const monthNum = normalizeMonth(monthStr);
+        if (monthNum === undefined) return null;
+        
+        const startTime = new Date(parseInt(year), monthNum, parseInt(day), parseInt(startHour), parseInt(startMin));
+        const endTime = new Date(parseInt(year), monthNum, parseInt(day), parseInt(endHour), parseInt(endMin));
+        
+        if (endTime < startTime) {
+          endTime.setDate(endTime.getDate() + 1);
+        }
+        
+        return { startTime, endTime };
+      }
+      
+      const dateOnlyMatch = dateStr.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/i);
+      if (dateOnlyMatch) {
+        const [, day, monthStr, year] = dateOnlyMatch;
+        const monthNum = normalizeMonth(monthStr);
+        if (monthNum === undefined) return null;
+        
+        const startTime = new Date(parseInt(year), monthNum, parseInt(day), 10, 0);
+        const endTime = new Date(parseInt(year), monthNum, parseInt(day), 18, 0);
+        
+        return { startTime, endTime };
+      }
+      
+      return null;
     } catch (e) {
       return null;
     }
@@ -354,7 +398,7 @@ export class RssFeedService {
       const dateListItem = $(".list-dates li .date a, .list-dates li .date").first();
       if (dateListItem.length) {
         const dateText = dateListItem.text().trim();
-        console.log(`[RSS] Found date text: "${dateText}"`);
+        console.log(`[RSS] Found date text in list: "${dateText}"`);
         const parsed = this.parseEventDate(dateText);
         if (parsed) {
           startTime = parsed.startTime;
@@ -363,9 +407,42 @@ export class RssFeedService {
         }
       }
       
+      if (!startTime) {
+        const bodyText = $("body").text();
+        const monthPattern = "(?:jan(?:uary|uari)?|feb(?:ruary|ruari)?|ma(?:r(?:ch)?|a(?:rt)?)|apr(?:il)?|ma[yi]|jun[ei]?|jul[yi]?|aug(?:ustus)?|sep(?:t(?:ember)?)?|o[ck]t(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+        const datePatterns = [
+          new RegExp(`(\\d{1,2})\\s+(${monthPattern})\\s+(\\d{4}),?\\s*(\\d{1,2}):(\\d{2})\\s*-\\s*(\\d{1,2}):(\\d{2})`, "gi"),
+          new RegExp(`(\\d{1,2})\\s+(${monthPattern})\\s+(\\d{4})`, "gi")
+        ];
+        
+        for (const pattern of datePatterns) {
+          const match = bodyText.match(pattern);
+          if (match && match[0]) {
+            console.log(`[RSS] Found date in body: "${match[0]}"`);
+            const parsed = this.parseDateFromBody(match[0]);
+            if (parsed) {
+              startTime = parsed.startTime;
+              endTime = parsed.endTime;
+              console.log(`[RSS] Parsed body date: ${startTime.toISOString()} - ${endTime.toISOString()}`);
+              break;
+            }
+          }
+        }
+      }
+      
       const eventListItem = $(".list-dates li .event").first();
       if (eventListItem.length) {
         venue = eventListItem.text().trim();
+      }
+      
+      if (!venue) {
+        const venueEl = $('[itemprop="name"]').first();
+        if (venueEl.length) {
+          const venueText = venueEl.text().trim();
+          if (venueText !== title && venueText.length > 2 && venueText.length < 50) {
+            venue = venueText;
+          }
+        }
       }
       
       const ogImage = $('meta[property="og:image"]').attr("content");

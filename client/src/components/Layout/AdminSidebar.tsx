@@ -14,7 +14,8 @@ import {
   Shield,
   UserCog,
   Bell,
-  Database
+  Database,
+  Rss
 } from 'lucide-react';
 import { LogoIcon } from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,11 @@ const AdminSidebar: React.FC = () => {
       href: '/admin/events',
       label: 'Evenementen',
       icon: <Calendar className="w-5 h-5" />,
+    },
+    {
+      href: '/admin/rss-feeds',
+      label: 'RSS Feeds',
+      icon: <Rss className="w-5 h-5" />,
     },
     {
       href: '/admin/activity-logs',

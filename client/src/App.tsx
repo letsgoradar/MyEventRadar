@@ -18,6 +18,7 @@ import ActivityLogs from "@/pages/admin/ActivityLogs"
 import AdminLogin from "@/pages/admin/Login"
 import AdminEventDetail from "@/pages/admin/EventDetail"
 import AdminEventForm from "@/pages/admin/EventForm"
+import AdminRssFeeds from "@/pages/admin/RssFeeds"
 import AuthGuard from "@/components/Admin/AuthGuard"
 import { WebLayout } from "@/components/Web/WebLayout"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -136,6 +137,11 @@ export default function App() {
         <Route path="/admin/activity-logs">
           <AuthGuard>
             <ActivityLogs />
+          </AuthGuard>
+        </Route>
+        <Route path="/admin/rss-feeds">
+          <AuthGuard>
+            <AdminRssFeeds />
           </AuthGuard>
         </Route>
         <Route path="/admin/events/:id">

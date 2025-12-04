@@ -1,0 +1,568 @@
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient, apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import AdminSidebar from '@/components/Layout/AdminSidebar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle } from 'lucide-react';
+import { format } from 'date-fns';
+import { nl } from 'date-fns/locale';
+import { CATEGORIES } from '@shared/schema';
+
+interface RssFeed {
+  id: number;
+  name: string;
+  url: string;
+  feedType: string;
+  status: string;
+  defaultCategory: string;
+  defaultLatitude: string | null;
+  defaultLongitude: string | null;
+  defaultAddress: string | null;
+  updateFrequencyMinutes: number;
+  lastFetchedAt: string | null;
+  lastErrorMessage: string | null;
+  itemsImported: number;
+  autoCreateEvents: boolean;
+  createdAt: string;
+}
+
+interface RssFeedStats {
+  totalFeeds: number;
+  activeFeeds: number;
+  errorFeeds: number;
+  totalItems: number;
+  totalImported: number;
+}
+
+export default function RssFeedsPage() {
+  const { toast } = useToast();
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
+  
+  const [newFeed, setNewFeed] = useState({
+    name: '',
+    url: '',
+    feedType: 'rss',
+    defaultCategory: 'Gezellig en Sociaal',
+    defaultAddress: 'Eindhoven',
+    defaultLatitude: '51.4416',
+    defaultLongitude: '5.4697',
+    updateFrequencyMinutes: 60,
+    autoCreateEvents: true,
+  });
+
+  const { data: feeds = [], isLoading } = useQuery<RssFeed[]>({
+    queryKey: ['/api/admin/rss-feeds'],
+  });
+
+  const { data: stats } = useQuery<RssFeedStats>({
+    queryKey: ['/api/admin/rss-feeds/stats'],
+  });
+
+  const createFeedMutation = useMutation({
+    mutationFn: async (feed: typeof newFeed) => {
+      return apiRequest('/api/admin/rss-feeds', {
+        method: 'POST',
+        body: JSON.stringify(feed),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+      setIsAddDialogOpen(false);
+      setNewFeed({
+        name: '',
+        url: '',
+        feedType: 'rss',
+        defaultCategory: 'Gezellig en Sociaal',
+        defaultAddress: 'Eindhoven',
+        defaultLatitude: '51.4416',
+        defaultLongitude: '5.4697',
+        updateFrequencyMinutes: 60,
+        autoCreateEvents: true,
+      });
+      toast({
+        title: 'Feed toegevoegd',
+        description: 'De RSS feed is succesvol toegevoegd.',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Fout',
+        description: 'Er is een fout opgetreden bij het toevoegen van de feed.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateFeedMutation = useMutation({
+    mutationFn: async ({ id, ...data }: Partial<RssFeed> & { id: number }) => {
+      return apiRequest(`/api/admin/rss-feeds/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      setEditingFeed(null);
+      toast({
+        title: 'Feed bijgewerkt',
+        description: 'De RSS feed is succesvol bijgewerkt.',
+      });
+    },
+  });
+
+  const deleteFeedMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/admin/rss-feeds/${id}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+      toast({
+        title: 'Feed verwijderd',
+        description: 'De RSS feed is succesvol verwijderd.',
+      });
+    },
+  });
+
+  const refreshFeedsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('/api/admin/rss-feeds/refresh', {
+        method: 'POST',
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+      toast({
+        title: 'Feeds vernieuwd',
+        description: `${data.processed} feeds verwerkt, ${data.errors} fouten.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Fout',
+        description: 'Er is een fout opgetreden bij het vernieuwen van de feeds.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const addEindhovenFeeds = async () => {
+    try {
+      await apiRequest('/api/admin/rss-feeds', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Eindhoven Nieuws',
+          url: 'https://www.eindhoven.nl/nieuws/rss',
+          feedType: 'rss',
+          defaultCategory: 'Gezellig en Sociaal',
+          defaultAddress: 'Eindhoven',
+          defaultLatitude: '51.4416',
+          defaultLongitude: '5.4697',
+          updateFrequencyMinutes: 60,
+          autoCreateEvents: true,
+        }),
+      });
+
+      await apiRequest('/api/admin/rss-feeds', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'This Is Eindhoven Events',
+          url: 'https://www.thisiseindhoven.com/en/events',
+          feedType: 'scraper',
+          defaultCategory: 'Gezellig en Sociaal',
+          defaultAddress: 'Eindhoven',
+          defaultLatitude: '51.4416',
+          defaultLongitude: '5.4697',
+          updateFrequencyMinutes: 120,
+          autoCreateEvents: true,
+        }),
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+      
+      toast({
+        title: 'Eindhoven feeds toegevoegd',
+        description: 'De Eindhoven RSS feeds en scraper zijn toegevoegd.',
+      });
+
+      setTimeout(() => {
+        refreshFeedsMutation.mutate();
+      }, 1000);
+    } catch (error) {
+      toast({
+        title: 'Fout',
+        description: 'Er is een fout opgetreden bij het toevoegen van de Eindhoven feeds.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Actief</Badge>;
+      case 'error':
+        return <Badge variant="destructive"><AlertCircle className="w-3 h-3 mr-1" />Fout</Badge>;
+      case 'paused':
+        return <Badge variant="secondary">Gepauzeerd</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getFeedTypeIcon = (feedType: string) => {
+    switch (feedType) {
+      case 'scraper':
+        return <Globe className="w-4 h-4" />;
+      default:
+        return <Rss className="w-4 h-4" />;
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-background">
+      <AdminSidebar />
+      
+      <main className="flex-1 overflow-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold" data-testid="text-page-title">RSS Feeds</h1>
+              <p className="text-muted-foreground mt-1">
+                Beheer externe bronnen voor automatisch laden van evenementen
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => refreshFeedsMutation.mutate()}
+                disabled={refreshFeedsMutation.isPending}
+                data-testid="button-refresh-feeds"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${refreshFeedsMutation.isPending ? 'animate-spin' : ''}`} />
+                Vernieuwen
+              </Button>
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-add-feed">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Feed toevoegen
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Nieuwe RSS Feed</DialogTitle>
+                    <DialogDescription>
+                      Voeg een nieuwe bron toe voor het automatisch laden van evenementen.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Naam</Label>
+                      <Input
+                        id="name"
+                        value={newFeed.name}
+                        onChange={(e) => setNewFeed({ ...newFeed, name: e.target.value })}
+                        placeholder="Bijvoorbeeld: Gemeente Eindhoven"
+                        data-testid="input-feed-name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="url">URL</Label>
+                      <Input
+                        id="url"
+                        value={newFeed.url}
+                        onChange={(e) => setNewFeed({ ...newFeed, url: e.target.value })}
+                        placeholder="https://example.com/rss"
+                        data-testid="input-feed-url"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="feedType">Type</Label>
+                      <Select
+                        value={newFeed.feedType}
+                        onValueChange={(value) => setNewFeed({ ...newFeed, feedType: value })}
+                      >
+                        <SelectTrigger data-testid="select-feed-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="rss">RSS/Atom Feed</SelectItem>
+                          <SelectItem value="scraper">Web Scraper</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="category">Standaard categorie</Label>
+                      <Select
+                        value={newFeed.defaultCategory}
+                        onValueChange={(value) => setNewFeed({ ...newFeed, defaultCategory: value })}
+                      >
+                        <SelectTrigger data-testid="select-feed-category">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIES.map((cat) => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Standaard locatie</Label>
+                      <Input
+                        id="address"
+                        value={newFeed.defaultAddress}
+                        onChange={(e) => setNewFeed({ ...newFeed, defaultAddress: e.target.value })}
+                        placeholder="Eindhoven"
+                        data-testid="input-feed-address"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="frequency">Update frequentie (minuten)</Label>
+                      <Input
+                        id="frequency"
+                        type="number"
+                        value={newFeed.updateFrequencyMinutes}
+                        onChange={(e) => setNewFeed({ ...newFeed, updateFrequencyMinutes: parseInt(e.target.value) || 60 })}
+                        data-testid="input-feed-frequency"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="autoCreate"
+                        checked={newFeed.autoCreateEvents}
+                        onCheckedChange={(checked) => setNewFeed({ ...newFeed, autoCreateEvents: checked })}
+                        data-testid="switch-auto-create"
+                      />
+                      <Label htmlFor="autoCreate">Automatisch evenementen aanmaken</Label>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                      Annuleren
+                    </Button>
+                    <Button 
+                      onClick={() => createFeedMutation.mutate(newFeed)}
+                      disabled={!newFeed.name || !newFeed.url || createFeedMutation.isPending}
+                      data-testid="button-save-feed"
+                    >
+                      Toevoegen
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Totaal feeds</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalFeeds || 0}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Actieve feeds</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{stats?.activeFeeds || 0}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Feeds met fouten</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{stats?.errorFeeds || 0}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Geïmporteerde items</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalImported || 0}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {feeds.length === 0 && !isLoading && (
+            <Card className="mb-6">
+              <CardContent className="py-8 text-center">
+                <Rss className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Nog geen RSS feeds</h3>
+                <p className="text-muted-foreground mb-4">
+                  Voeg je eerste feed toe om evenementen automatisch te laden.
+                </p>
+                <Button onClick={addEindhovenFeeds} data-testid="button-add-eindhoven">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Eindhoven feeds toevoegen
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {feeds.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Geconfigureerde feeds</CardTitle>
+                <CardDescription>
+                  Alle RSS feeds en scrapers die evenementen importeren
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Naam</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Categorie</TableHead>
+                      <TableHead>Geïmporteerd</TableHead>
+                      <TableHead>Laatst opgehaald</TableHead>
+                      <TableHead className="text-right">Acties</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {feeds.map((feed) => (
+                      <TableRow key={feed.id} data-testid={`row-feed-${feed.id}`}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getFeedTypeIcon(feed.feedType)}
+                            <div>
+                              <div className="font-medium">{feed.name}</div>
+                              <a 
+                                href={feed.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-muted-foreground hover:underline flex items-center gap-1"
+                              >
+                                {feed.url.substring(0, 40)}...
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {feed.feedType === 'scraper' ? 'Scraper' : 'RSS'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(feed.status)}
+                          {feed.lastErrorMessage && (
+                            <p className="text-xs text-red-500 mt-1 max-w-xs truncate" title={feed.lastErrorMessage}>
+                              {feed.lastErrorMessage}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell>{feed.defaultCategory}</TableCell>
+                        <TableCell>{feed.itemsImported || 0}</TableCell>
+                        <TableCell>
+                          {feed.lastFetchedAt 
+                            ? format(new Date(feed.lastFetchedAt), 'dd MMM HH:mm', { locale: nl })
+                            : 'Nog niet opgehaald'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => updateFeedMutation.mutate({ 
+                                id: feed.id, 
+                                status: feed.status === 'active' ? 'paused' : 'active' 
+                              })}
+                              title={feed.status === 'active' ? 'Pauzeren' : 'Activeren'}
+                            >
+                              {feed.status === 'active' ? '⏸' : '▶'}
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" data-testid={`button-delete-feed-${feed.id}`}>
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Feed verwijderen?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Weet je zeker dat je "{feed.name}" wilt verwijderen? 
+                                    Geïmporteerde evenementen blijven behouden.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteFeedMutation.mutate(feed.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Verwijderen
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}

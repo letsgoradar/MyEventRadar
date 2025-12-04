@@ -218,8 +218,9 @@ export class RssFeedService {
     try {
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
+      const maxPages = 15;
       
-      for (let page = 1; page <= 2; page++) {
+      for (let page = 1; page <= maxPages; page++) {
         const url = page === 1 
           ? "https://www.thisiseindhoven.com/en/events"
           : `https://www.thisiseindhoven.com/en/events?page=${page}`;
@@ -235,6 +236,7 @@ export class RssFeedService {
         });
 
         const $ = cheerio.load(response.data);
+        const linksBeforeThisPage = eventLinks.length;
         
         $('a[href*="/en/events/"]').each((_, element) => {
           const href = $(element).attr("href");
@@ -249,24 +251,43 @@ export class RssFeedService {
           }
         });
         
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const newLinksOnPage = eventLinks.length - linksBeforeThisPage;
+        console.log(`[RSS] Page ${page}: found ${newLinksOnPage} new event links (total: ${eventLinks.length})`);
+        
+        if (newLinksOnPage === 0) {
+          console.log(`[RSS] No new events on page ${page}, stopping pagination`);
+          break;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      console.log(`[RSS] Found ${eventLinks.length} event links, fetching details...`);
+      console.log(`[RSS] Found ${eventLinks.length} event links, fetching ALL details...`);
 
-      for (const link of eventLinks.slice(0, 25)) {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (let i = 0; i < eventLinks.length; i++) {
+        const link = eventLinks[i];
         try {
+          console.log(`[RSS] Fetching event ${i + 1}/${eventLinks.length}: ${link.split('/').pop()}`);
           const item = await this.scrapeEventDetail(link);
           if (item) {
             items.push(item);
+            successCount++;
           }
-          await new Promise(resolve => setTimeout(resolve, 800));
+          await new Promise(resolve => setTimeout(resolve, 300));
         } catch (error: any) {
+          errorCount++;
           console.error(`[RSS] Error fetching event ${link}:`, error.message);
+        }
+        
+        if ((i + 1) % 20 === 0) {
+          console.log(`[RSS] Progress: ${i + 1}/${eventLinks.length} events processed (${successCount} success, ${errorCount} errors)`);
         }
       }
 
-      console.log(`[RSS] Scraped ${items.length} events from This Is Eindhoven`);
+      console.log(`[RSS] Scraped ${items.length} events from This Is Eindhoven (${errorCount} errors)`);
       return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error scraping This Is Eindhoven:`, error.message);
@@ -727,6 +748,8 @@ export class RssFeedService {
         ? `${parsedItem.description}${parsedItem.link ? `\n\nMeer info: ${parsedItem.link}` : ""}`
         : (parsedItem.link ? `Meer informatie: ${parsedItem.link}` : "Geen beschrijving beschikbaar.");
 
+      const recurrence = this.detectRecurrence(formattedTitle, fullDescription);
+
       const [event] = await db.insert(events)
         .values({
           title: formattedTitle,
@@ -740,7 +763,7 @@ export class RssFeedService {
           category: category,
           isPaid: false,
           hostId: 1,
-          recurrence: "once",
+          recurrence: recurrence,
           tags: ["rss-import", feed.name.toLowerCase().replace(/\s+/g, "-")],
           imageUrl: imageUrl || null
         })
@@ -758,6 +781,78 @@ export class RssFeedService {
     } catch (error: any) {
       console.error(`[RSS] Error creating event from feed item:`, error.message);
     }
+  }
+
+  private static detectRecurrence(title: string, description: string): "once" | "daily" | "weekly" | "monthly" {
+    const text = `${title} ${description}`.toLowerCase();
+    
+    const weeklyPatterns = [
+      /\bmarkt\b/,
+      /\bmarket\b/,
+      /\bwekelijks\b/,
+      /\bweekly\b/,
+      /\bevery\s+week\b/,
+      /\belke\s+week\b/,
+      /\biedere\s+week\b/,
+      /\balle\s+(zondagen|zaterdagen|vrijdagen|donderdagen|woensdagen|dinsdagen|maandagen)\b/,
+      /\bevery\s+(sunday|saturday|friday|thursday|wednesday|tuesday|monday)\b/,
+      /\biedere\s+(zondag|zaterdag|vrijdag|donderdag|woensdag|dinsdag|maandag)\b/,
+      /\bop\s+(zondagen|zaterdagen|vrijdagen)\b/,
+      /\bfood\s*truck\b/,
+      /\bvlooienmarkt\b/,
+      /\bflea\s*market\b/,
+      /\bboerenmarkt\b/,
+      /\bfarmers?\s*market\b/,
+      /\bweekmarkt\b/,
+      /\bstofmarkt\b/,
+      /\blapjesmarkt\b/,
+      /\bbloemmarkt\b/,
+      /\bantiekmarkt\b/,
+      /\bbroodmarkt\b/,
+      /\bfeelgood\s*market\b/,
+      /\bfeelgood\s*markt\b/,
+    ];
+    
+    const monthlyPatterns = [
+      /\bmaandelijks\b/,
+      /\bmonthly\b/,
+      /\bevery\s+month\b/,
+      /\belke\s+maand\b/,
+      /\biedere\s+maand\b/,
+      /\b(eerste|tweede|derde|vierde|laatste)\s+(zondag|zaterdag|vrijdag)\s+van\s+de\s+maand\b/,
+      /\b(first|second|third|fourth|last)\s+(sunday|saturday|friday)\s+of\s+(the\s+)?month\b/,
+    ];
+    
+    const dailyPatterns = [
+      /\bdagelijks\b/,
+      /\bdaily\b/,
+      /\bevery\s+day\b/,
+      /\belke\s+dag\b/,
+      /\biedere\s+dag\b/,
+    ];
+    
+    for (const pattern of dailyPatterns) {
+      if (pattern.test(text)) {
+        console.log(`[RSS] Detected DAILY recurrence for: "${title.substring(0, 40)}..."`);
+        return "daily";
+      }
+    }
+    
+    for (const pattern of weeklyPatterns) {
+      if (pattern.test(text)) {
+        console.log(`[RSS] Detected WEEKLY recurrence for: "${title.substring(0, 40)}..."`);
+        return "weekly";
+      }
+    }
+    
+    for (const pattern of monthlyPatterns) {
+      if (pattern.test(text)) {
+        console.log(`[RSS] Detected MONTHLY recurrence for: "${title.substring(0, 40)}..."`);
+        return "monthly";
+      }
+    }
+    
+    return "once";
   }
 
   private static shouldFetchFeed(feed: RssFeed): boolean {

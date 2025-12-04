@@ -14,6 +14,7 @@ import { autoLoginTestUser } from "./middleware/auto-login";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startNotificationScheduler } from "./notification-scheduler";
+import { startRssScheduler } from "./rss-scheduler";
 
 const app = express();
 
@@ -89,6 +90,10 @@ const HOST = '0.0.0.0';
     // Start notification scheduler for upcoming events
     startNotificationScheduler();
     console.log('Notification scheduler started');
+
+    // Start RSS feed scheduler
+    startRssScheduler();
+    console.log('RSS feed scheduler started');
 
     // Add error handling middleware
     app.use(errorHandler);

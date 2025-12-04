@@ -1431,6 +1431,149 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
+  // RSS Feed API endpoints
+  app.get("/api/admin/rss-feeds", isAdmin, async (req, res) => {
+    try {
+      const feeds = await storage.getAllRssFeeds();
+      res.json(feeds);
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/rss-feeds/:id", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+      const feed = await storage.getRssFeed(feedId);
+      if (!feed) {
+        return res.status(404).json({ message: "Feed not found" });
+      }
+      res.json(feed);
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/:id:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/admin/rss-feeds", isAdmin, async (req, res) => {
+    try {
+      const { name, url, feedType, defaultCategory, defaultLatitude, defaultLongitude, defaultAddress, updateFrequencyMinutes, autoCreateEvents } = req.body;
+      
+      if (!name || !url || !defaultCategory) {
+        return res.status(400).json({ message: "Name, URL, and default category are required" });
+      }
+
+      const feed = await storage.createRssFeed({
+        name,
+        url,
+        feedType: feedType || 'rss',
+        status: 'active',
+        defaultCategory,
+        defaultLatitude: defaultLatitude || null,
+        defaultLongitude: defaultLongitude || null,
+        defaultAddress: defaultAddress || null,
+        updateFrequencyMinutes: updateFrequencyMinutes || 60,
+        autoCreateEvents: autoCreateEvents !== false
+      });
+
+      res.status(201).json(feed);
+    } catch (error) {
+      console.error('Error in POST /api/admin/rss-feeds:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/admin/rss-feeds/:id", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+
+      const existingFeed = await storage.getRssFeed(feedId);
+      if (!existingFeed) {
+        return res.status(404).json({ message: "Feed not found" });
+      }
+
+      const updatedFeed = await storage.updateRssFeed(feedId, req.body);
+      res.json(updatedFeed);
+    } catch (error) {
+      console.error('Error in PATCH /api/admin/rss-feeds/:id:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/admin/rss-feeds/:id", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+
+      await storage.deleteRssFeed(feedId);
+      res.json({ message: "Feed deleted" });
+    } catch (error) {
+      console.error('Error in DELETE /api/admin/rss-feeds/:id:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/rss-feeds/:id/items", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+
+      const items = await storage.getRssFeedItems(feedId);
+      res.json(items);
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/:id/items:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/admin/rss-feeds/refresh", isAdmin, async (req, res) => {
+    try {
+      const { runManualFeedCheck } = await import('./rss-scheduler');
+      const result = await runManualFeedCheck();
+      res.json({ 
+        message: "Feed refresh completed",
+        processed: result.processed,
+        errors: result.errors
+      });
+    } catch (error) {
+      console.error('Error in POST /api/admin/rss-feeds/refresh:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/rss-feeds/stats", isAdmin, async (req, res) => {
+    try {
+      const feeds = await storage.getAllRssFeeds();
+      const itemsCount = await storage.getRssFeedItemsCount();
+      
+      const activeFeeds = feeds.filter(f => f.status === 'active').length;
+      const errorFeeds = feeds.filter(f => f.status === 'error').length;
+      const totalImported = feeds.reduce((sum, f) => sum + (f.itemsImported || 0), 0);
+
+      res.json({
+        totalFeeds: feeds.length,
+        activeFeeds,
+        errorFeeds,
+        totalItems: itemsCount,
+        totalImported
+      });
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/stats:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Setup VITE server
   await setupVite(app, httpServer);
   

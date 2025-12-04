@@ -9,6 +9,8 @@ import {
   savedSearches,
   activityLogs,
   notifications,
+  rssFeeds,
+  rssFeedItems,
   type User,
   type InsertUser,
   type Event,
@@ -23,6 +25,10 @@ import {
   type InsertActivityLog,
   type Notification,
   type InsertNotification,
+  type RssFeed,
+  type InsertRssFeed,
+  type RssFeedItem,
+  type InsertRssFeedItem,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
@@ -83,6 +89,15 @@ export interface IStorage {
   getNotificationsByUser(userId: number): Promise<Notification[]>;
   markNotificationAsRead(id: number): Promise<void>;
   getUnreadNotificationCount(userId: number): Promise<number>;
+
+  // RSS Feed operations
+  createRssFeed(feed: InsertRssFeed): Promise<RssFeed>;
+  getRssFeed(id: number): Promise<RssFeed | undefined>;
+  getAllRssFeeds(): Promise<RssFeed[]>;
+  updateRssFeed(id: number, feed: Partial<RssFeed>): Promise<RssFeed>;
+  deleteRssFeed(id: number): Promise<void>;
+  getRssFeedItems(feedId: number): Promise<RssFeedItem[]>;
+  getRssFeedItemsCount(): Promise<number>;
 }
 
 export class PgStorage implements IStorage {
@@ -542,6 +557,58 @@ export class PgStorage implements IStorage {
     return this.withRetry(async () => {
       const result = await db.select({ count: count() }).from(notifications)
         .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+      return result[0]?.count || 0;
+    });
+  }
+
+  // RSS Feed operations implementation
+  async createRssFeed(feed: InsertRssFeed): Promise<RssFeed> {
+    return this.withRetry(async () => {
+      const [rssFeed] = await db.insert(rssFeeds).values(feed).returning();
+      return rssFeed;
+    });
+  }
+
+  async getRssFeed(id: number): Promise<RssFeed | undefined> {
+    return this.withRetry(async () => {
+      const [feed] = await db.select().from(rssFeeds).where(eq(rssFeeds.id, id));
+      return feed;
+    });
+  }
+
+  async getAllRssFeeds(): Promise<RssFeed[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(rssFeeds).orderBy(desc(rssFeeds.createdAt));
+    });
+  }
+
+  async updateRssFeed(id: number, feed: Partial<RssFeed>): Promise<RssFeed> {
+    return this.withRetry(async () => {
+      const [updated] = await db.update(rssFeeds)
+        .set(feed)
+        .where(eq(rssFeeds.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async deleteRssFeed(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(rssFeeds).where(eq(rssFeeds.id, id));
+    });
+  }
+
+  async getRssFeedItems(feedId: number): Promise<RssFeedItem[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(rssFeedItems)
+        .where(eq(rssFeedItems.feedId, feedId))
+        .orderBy(desc(rssFeedItems.createdAt));
+    });
+  }
+
+  async getRssFeedItemsCount(): Promise<number> {
+    return this.withRetry(async () => {
+      const result = await db.select({ count: count() }).from(rssFeedItems);
       return result[0]?.count || 0;
     });
   }

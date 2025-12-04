@@ -113,6 +113,42 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const RSS_FEED_TYPES = ['rss', 'atom', 'scraper'] as const;
+export const RSS_FEED_STATUS = ['active', 'paused', 'error'] as const;
+
+export const rssFeeds = pgTable("rss_feeds", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  feedType: text("feed_type").notNull().default('rss'),
+  status: text("status").notNull().default('active'),
+  defaultCategory: text("default_category").notNull(),
+  defaultLatitude: decimal("default_latitude"),
+  defaultLongitude: decimal("default_longitude"),
+  defaultAddress: text("default_address"),
+  updateFrequencyMinutes: integer("update_frequency_minutes").notNull().default(60),
+  lastFetchedAt: timestamp("last_fetched_at"),
+  lastErrorMessage: text("last_error_message"),
+  itemsImported: integer("items_imported").default(0),
+  autoCreateEvents: boolean("auto_create_events").default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const rssFeedItems = pgTable("rss_feed_items", {
+  id: serial("id").primaryKey(),
+  feedId: integer("feed_id").references(() => rssFeeds.id, { onDelete: "cascade" }).notNull(),
+  externalId: text("external_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  link: text("link"),
+  imageUrl: text("image_url"),
+  publishedAt: timestamp("published_at"),
+  rawData: jsonb("raw_data"),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "set null" }),
+  isProcessed: boolean("is_processed").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -231,3 +267,21 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+export const insertRssFeedSchema = createInsertSchema(rssFeeds).omit({
+  id: true,
+  createdAt: true,
+  lastFetchedAt: true,
+  lastErrorMessage: true,
+  itemsImported: true,
+});
+
+export const insertRssFeedItemSchema = createInsertSchema(rssFeedItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type RssFeed = typeof rssFeeds.$inferSelect;
+export type InsertRssFeed = z.infer<typeof insertRssFeedSchema>;
+export type RssFeedItem = typeof rssFeedItems.$inferSelect;
+export type InsertRssFeedItem = z.infer<typeof insertRssFeedItemSchema>;

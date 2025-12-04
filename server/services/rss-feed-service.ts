@@ -369,6 +369,33 @@ export class RssFeedService {
         .replace(/Read more.*$/i, "")
         .trim();
       
+      const isCookieText = (text: string): boolean => {
+        const cookiePatterns = [
+          "cookie", "privacy", "functional cookies", "functionele cookies",
+          "we only place", "we plaatsen alleen", "your data", "uw gegevens",
+          "we can therefore", "we kunnen daarom", "improve our"
+        ];
+        const lowerText = text.toLowerCase();
+        return cookiePatterns.filter(p => lowerText.includes(p)).length >= 2;
+      };
+      
+      if (isCookieText(description) || description.length < 30) {
+        description = "";
+        const contentSections = $(".content-block, .event-content, article, main").find("p, .text, [class*='text']");
+        contentSections.each((_, el) => {
+          const text = $(el).text().trim().replace(/\s+/g, " ");
+          if (text.length > 50 && !isCookieText(text)) {
+            if (!description || text.length > description.length) {
+              description = text;
+            }
+          }
+        });
+        
+        if (!description || description.length < 30) {
+          description = `${title} in Eindhoven. Ontdek dit evenement en geniet van een unieke ervaring.`;
+        }
+      }
+      
       if (!title || title.length < 3) {
         console.log(`[RSS] Skipping event without title: ${url}`);
         return null;

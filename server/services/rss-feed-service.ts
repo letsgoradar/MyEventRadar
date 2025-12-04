@@ -274,6 +274,54 @@ export class RssFeedService {
     }
   }
 
+  static parseEventDate(dateStr: string): { startTime: Date; endTime: Date } | null {
+    try {
+      const currentYear = new Date().getFullYear();
+      const nextYear = currentYear + 1;
+      
+      const match = dateStr.match(/(\w+)\s+(\d{1,2})\s+(\w+),?\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/i);
+      if (!match) return null;
+      
+      const [, dayName, day, monthStr, startHour, startMin, endHour, endMin] = match;
+      
+      const months: Record<string, number> = {
+        jan: 0, january: 0, januari: 0,
+        feb: 1, february: 1, februari: 1,
+        mar: 2, march: 2, maart: 2,
+        apr: 3, april: 3,
+        may: 4, mei: 4,
+        jun: 5, june: 5, juni: 5,
+        jul: 6, july: 6, juli: 6,
+        aug: 7, august: 7, augustus: 7,
+        sep: 8, sept: 8, september: 8,
+        oct: 9, october: 9, oktober: 9,
+        nov: 10, november: 10,
+        dec: 11, december: 11
+      };
+      
+      const monthNum = months[monthStr.toLowerCase()];
+      if (monthNum === undefined) return null;
+      
+      let year = currentYear;
+      const now = new Date();
+      const testDate = new Date(year, monthNum, parseInt(day));
+      if (testDate < now) {
+        year = nextYear;
+      }
+      
+      const startTime = new Date(year, monthNum, parseInt(day), parseInt(startHour), parseInt(startMin));
+      const endTime = new Date(year, monthNum, parseInt(day), parseInt(endHour), parseInt(endMin));
+      
+      if (endTime < startTime) {
+        endTime.setDate(endTime.getDate() + 1);
+      }
+      
+      return { startTime, endTime };
+    } catch (e) {
+      return null;
+    }
+  }
+
   static async scrapeEventDetail(url: string): Promise<ParsedFeedItem | null> {
     try {
       const response = await axios.get(url, {
@@ -291,76 +339,58 @@ export class RssFeedService {
       let description = "";
       let imageUrl = "";
       let venue = "";
-      let address = "";
-      let dateText = "";
+      let streetAddress = "";
+      let city = "";
+      let startTime: Date | undefined;
+      let endTime: Date | undefined;
       
-      const jsonLd = $('script[type="application/ld+json"]').first().html();
-      if (jsonLd) {
-        try {
-          const data = JSON.parse(jsonLd);
-          const eventData = Array.isArray(data) ? data.find((d: any) => d["@type"] === "Event") : data;
-          
-          if (eventData && eventData["@type"] === "Event") {
-            title = eventData.name || "";
-            description = eventData.description || "";
-            imageUrl = Array.isArray(eventData.image) ? eventData.image[0] : eventData.image || "";
-            
-            if (eventData.location) {
-              venue = eventData.location.name || "";
-              if (eventData.location.address) {
-                const addr = eventData.location.address;
-                address = typeof addr === "string" 
-                  ? addr 
-                  : `${addr.streetAddress || ""}, ${addr.addressLocality || "Eindhoven"}`.trim();
-              }
-            }
-            
-            if (eventData.startDate) {
-              dateText = eventData.startDate;
+      title = $("h1").first().text().trim();
+      
+      const streetEl = $('[itemprop="streetAddress"]');
+      const cityEl = $('[itemprop="addressLocality"]');
+      if (streetEl.length) streetAddress = streetEl.text().trim();
+      if (cityEl.length) city = cityEl.text().trim() || "Eindhoven";
+      
+      const dateListItem = $(".list-dates li .date a, .list-dates li .date").first();
+      if (dateListItem.length) {
+        const dateText = dateListItem.text().trim();
+        console.log(`[RSS] Found date text: "${dateText}"`);
+        const parsed = this.parseEventDate(dateText);
+        if (parsed) {
+          startTime = parsed.startTime;
+          endTime = parsed.endTime;
+          console.log(`[RSS] Parsed date: ${startTime.toISOString()} - ${endTime.toISOString()}`);
+        }
+      }
+      
+      const eventListItem = $(".list-dates li .event").first();
+      if (eventListItem.length) {
+        venue = eventListItem.text().trim();
+      }
+      
+      const ogImage = $('meta[property="og:image"]').attr("content");
+      if (ogImage) {
+        imageUrl = ogImage;
+      }
+      
+      const introEl = $(".intro, .c-intro, [class*='intro']").first();
+      if (introEl.length) {
+        description = introEl.text().trim().replace(/\s+/g, " ");
+      }
+      
+      if (!description || description.length < 30) {
+        $("article p, main p, .content p").each((_, el) => {
+          const text = $(el).text().trim().replace(/\s+/g, " ");
+          if (text.length > 50 && !this.isCookieText(text)) {
+            if (!description || text.length > description.length) {
+              description = text;
             }
           }
-        } catch (e) {
-          console.log(`[RSS] Could not parse JSON-LD for ${url}`);
-        }
+        });
       }
       
-      if (!title) {
-        title = $("h1").first().text().trim();
-      }
-      
-      if (!description) {
-        const introEl = $(".intro, .description, .event-description, [class*='intro'], [class*='description']").first();
-        description = introEl.length ? introEl.text().trim() : "";
-        
-        if (!description) {
-          $("p").each((_, el) => {
-            const text = $(el).text().trim();
-            if (text.length > 50 && !text.toLowerCase().includes("cookie") && !text.toLowerCase().includes("privacy")) {
-              if (!description || text.length > description.length) {
-                description = text;
-              }
-            }
-          });
-        }
-      }
-      
-      if (!imageUrl) {
-        const ogImage = $('meta[property="og:image"]').attr("content");
-        if (ogImage) {
-          imageUrl = ogImage;
-        } else {
-          const mainImg = $("article img, .hero img, .event-image img, main img").first();
-          imageUrl = mainImg.attr("src") || mainImg.attr("data-src") || "";
-        }
-      }
-      
-      if (!venue) {
-        const venueEl = $(".location, .venue, [class*='location'], [class*='venue']").first();
-        venue = venueEl.length ? venueEl.text().trim() : "";
-      }
-      
-      if (!address && venue) {
-        address = `${venue}, Eindhoven`;
+      if (!description || description.length < 30) {
+        description = `${title} in ${city || "Eindhoven"}. Ontdek dit evenement en geniet van een unieke ervaring.`;
       }
       
       description = description
@@ -369,61 +399,45 @@ export class RssFeedService {
         .replace(/Read more.*$/i, "")
         .trim();
       
-      const isCookieText = (text: string): boolean => {
-        const cookiePatterns = [
-          "cookie", "privacy", "functional cookies", "functionele cookies",
-          "we only place", "we plaatsen alleen", "your data", "uw gegevens",
-          "we can therefore", "we kunnen daarom", "improve our"
-        ];
-        const lowerText = text.toLowerCase();
-        return cookiePatterns.filter(p => lowerText.includes(p)).length >= 2;
-      };
-      
-      if (isCookieText(description) || description.length < 30) {
-        description = "";
-        const contentSections = $(".content-block, .event-content, article, main").find("p, .text, [class*='text']");
-        contentSections.each((_, el) => {
-          const text = $(el).text().trim().replace(/\s+/g, " ");
-          if (text.length > 50 && !isCookieText(text)) {
-            if (!description || text.length > description.length) {
-              description = text;
-            }
-          }
-        });
-        
-        if (!description || description.length < 30) {
-          description = `${title} in Eindhoven. Ontdek dit evenement en geniet van een unieke ervaring.`;
-        }
-      }
-      
       if (!title || title.length < 3) {
         console.log(`[RSS] Skipping event without title: ${url}`);
         return null;
       }
       
+      let address = "";
+      if (streetAddress && city) {
+        address = `${streetAddress}, ${city}`;
+      } else if (venue && city) {
+        address = `${venue}, ${city}`;
+      } else if (city) {
+        address = city;
+      } else {
+        address = "Eindhoven";
+      }
+      
       if (AIHelper.isBadTitle(title)) {
-        console.log(`[RSS] Bad title detected: "${title}", trying AI...`);
-        const suggestion = await AIHelper.suggestTitle(description, venue);
-        if (suggestion) {
-          title = suggestion.title;
-          console.log(`[RSS] AI suggested title: "${title}"`);
-        } else {
-          const titleFromUrl = url.split("/").pop()?.replace(/-/g, " ");
-          if (titleFromUrl && titleFromUrl.length > 3) {
-            title = titleFromUrl.charAt(0).toUpperCase() + titleFromUrl.slice(1);
-          }
+        console.log(`[RSS] Bad title detected: "${title}", trying fallback...`);
+        const titleFromUrl = url.split("/").pop()?.replace(/-/g, " ");
+        if (titleFromUrl && titleFromUrl.length > 3) {
+          title = titleFromUrl.charAt(0).toUpperCase() + titleFromUrl.slice(1);
         }
       }
       
-      const translation = await AIHelper.translateEventToNL(title, description);
-      if (translation) {
-        title = translation.title;
-        description = translation.description;
+      const isEnglish = /\b(the|and|of|for|with|from|this|that|are|was|were|have|has|will|would|could|should)\b/i.test(title + " " + description);
+      if (isEnglish && description.length > 50) {
+        console.log(`[RSS] Content appears English, attempting translation...`);
+        const translation = await AIHelper.translateEventToNL(title, description);
+        if (translation) {
+          title = translation.title;
+          description = translation.description;
+        }
       }
       
       if (imageUrl && !imageUrl.startsWith("http")) {
         imageUrl = `https://www.thisiseindhoven.com${imageUrl}`;
       }
+      
+      console.log(`[RSS] Scraped: "${title}" at "${address}" on ${startTime?.toLocaleDateString() || "unknown date"}`);
       
       return {
         externalId: `thisiseindhoven-${url.replace(/[^a-z0-9]/gi, "-")}`,
@@ -431,16 +445,27 @@ export class RssFeedService {
         description: this.cleanText(description),
         link: url,
         imageUrl: imageUrl || undefined,
-        publishedAt: dateText ? new Date(dateText) : new Date(),
-        startTime: dateText ? new Date(dateText) : undefined,
-        location: venue || address,
-        address: address || "Eindhoven",
-        rawData: { url, venue, address }
+        publishedAt: startTime || new Date(),
+        startTime,
+        endTime,
+        location: venue || streetAddress || address,
+        address,
+        rawData: { url, venue, streetAddress, city }
       };
     } catch (error: any) {
       console.error(`[RSS] Error scraping detail ${url}:`, error.message);
       return null;
     }
+  }
+  
+  static isCookieText(text: string): boolean {
+    const cookiePatterns = [
+      "cookie", "privacy", "functional cookies", "functionele cookies",
+      "we only place", "we plaatsen alleen", "your data", "uw gegevens",
+      "we can therefore", "we kunnen daarom", "improve our"
+    ];
+    const lowerText = text.toLowerCase();
+    return cookiePatterns.filter(p => lowerText.includes(p)).length >= 2;
   }
 
   static async processFeeds(): Promise<{ processed: number; errors: number }> {
@@ -583,33 +608,22 @@ export class RssFeedService {
         }
       }
       
-      if (!geocodeSuccess) {
-        console.log(`[RSS] Geocoding failed for "${address}", trying AI inference...`);
-        const aiLocation = await AIHelper.inferLocation(
-          formattedTitle,
-          parsedItem.description,
-          parsedItem.location,
-          "Eindhoven"
-        );
-        
-        if (aiLocation && aiLocation.confidence >= 0.4) {
-          const aiAddress = `${aiLocation.address}, ${aiLocation.city}`;
-          const geoResult = await this.geocodeAddress(aiAddress);
-          
-          if (geoResult) {
-            latitude = geoResult.lat.toString();
-            longitude = geoResult.lon.toString();
-            address = `${aiLocation.venueName}, ${aiLocation.address}`;
-            geocodeSuccess = true;
-            console.log(`[RSS] AI location resolved: "${address}" (confidence: ${aiLocation.confidence})`);
-          }
+      if (!geocodeSuccess && parsedItem.location) {
+        const venueQuery = `${parsedItem.location}, Eindhoven, Netherlands`;
+        console.log(`[RSS] Trying venue geocoding: "${venueQuery}"`);
+        const venueResult = await this.geocodeAddress(venueQuery);
+        if (venueResult) {
+          latitude = venueResult.lat.toString();
+          longitude = venueResult.lon.toString();
+          address = parsedItem.address || `${parsedItem.location}, Eindhoven`;
+          geocodeSuccess = true;
         }
       }
       
       if (!geocodeSuccess) {
         latitude = feed.defaultLatitude || "51.4416";
         longitude = feed.defaultLongitude || "5.4697";
-        address = feed.defaultAddress || "Eindhoven Centrum";
+        address = feed.defaultAddress || parsedItem.address || "Eindhoven Centrum";
         console.log(`[RSS] Using default location for event: ${address}`);
       }
 
@@ -710,29 +724,5 @@ export class RssFeedService {
       if (imgLink?.$?.href) return imgLink.$.href;
     }
     return undefined;
-  }
-
-  private static parseEventDate(dateText: string): Date | undefined {
-    try {
-      const months: Record<string, number> = {
-        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-        jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
-      };
-      
-      const match = dateText.match(/(\d{1,2})\s+(\w{3})\s+(\d{4})/i);
-      if (match) {
-        const day = parseInt(match[1]);
-        const month = months[match[2].toLowerCase()];
-        const year = parseInt(match[3]);
-        
-        if (!isNaN(day) && month !== undefined && !isNaN(year)) {
-          return new Date(year, month, day, 10, 0, 0);
-        }
-      }
-      
-      return new Date(dateText);
-    } catch {
-      return undefined;
-    }
   }
 }

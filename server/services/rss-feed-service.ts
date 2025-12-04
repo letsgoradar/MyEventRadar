@@ -5,6 +5,7 @@ import { db } from "../db";
 import { rssFeeds, rssFeedItems, events, CATEGORIES } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import type { RssFeed, RssFeedItem, InsertRssFeedItem } from "@shared/schema";
+import { AIHelper } from "./ai-helper";
 
 interface ParsedFeedItem {
   externalId: string;
@@ -216,130 +217,197 @@ export class RssFeedService {
   static async scrapeThisIsEindhoven(): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
+      const eventLinks: string[] = [];
       
       for (let page = 1; page <= 2; page++) {
         const url = page === 1 
-          ? "https://www.thisiseindhoven.com/en/events"
-          : `https://www.thisiseindhoven.com/en/events?page=${page}`;
+          ? "https://www.thisiseindhoven.com/nl/events"
+          : `https://www.thisiseindhoven.com/nl/events?page=${page}`;
         
-        console.log(`[RSS] Scraping This Is Eindhoven page ${page}...`);
+        console.log(`[RSS] Scraping This Is Eindhoven NL page ${page}...`);
         
         const response = await axios.get(url, {
           headers: {
             "User-Agent": this.USER_AGENT,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "nl-NL,nl;q=0.9"
           },
           timeout: 30000
         });
 
         const $ = cheerio.load(response.data);
         
-        $('a[href*="/en/events/"]').each((_, element) => {
-          const $el = $(element);
-          const href = $el.attr("href");
-          
-          if (!href || href === "/en/events" || href.includes("?page=")) return;
-          
-          let title = $el.find("h2, h3, h4, strong").first().text().trim();
-          
-          if (!title || title.length < 3 || title.toLowerCase() === "read more") {
-            const titleFromUrl = href.split("/").pop()?.replace(/-/g, " ");
-            if (titleFromUrl && titleFromUrl.length > 2) {
-              title = titleFromUrl.charAt(0).toUpperCase() + titleFromUrl.slice(1);
-            } else {
-              return;
-            }
-          }
-          
-          if (title.toLowerCase().includes("read more") || title.length < 4) return;
+        $('a[href*="/nl/events/"]').each((_, element) => {
+          const href = $(element).attr("href");
+          if (!href || href === "/nl/events" || href.includes("?page=")) return;
           
           const fullLink = href.startsWith("http") 
             ? href 
             : `https://www.thisiseindhoven.com${href}`;
           
-          const existingItem = items.find(i => i.link === fullLink);
-          if (existingItem) return;
-          
-          let description = "";
-          const descEl = $el.find("p").first();
-          if (descEl.length) {
-            const descText = descEl.text().trim();
-            if (!descText.includes("Read more") && descText.length > 10) {
-              description = descText;
-            }
+          if (!eventLinks.includes(fullLink)) {
+            eventLinks.push(fullLink);
           }
-          
-          let dateText = "";
-          let venueText = "";
-          let priceText = "";
-          
-          $el.find("*").each((_, child) => {
-            const text = $(child).text().trim();
-            
-            const dateMatch = text.match(/(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4})/i);
-            if (dateMatch && !dateText) {
-              dateText = dateMatch[1];
-            }
-            
-            if ((text.includes("Eindhoven") || text.includes("Veldhoven") || text.includes("Geldrop") ||
-                 text.includes("Muziekgebouw") || text.includes("Parktheater") || text.includes("Plaza")) &&
-                !text.includes("Read more") && text.length < 60 && !text.match(/\d{1,2}\s+(?:Jan|Feb)/i)) {
-              if (!venueText) {
-                venueText = text.replace(/\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}/gi, "").trim();
-              }
-            }
-            
-            if (text.includes("€") || text.toLowerCase().includes("free") || text.toLowerCase().includes("from")) {
-              if (!priceText && text.length < 30) {
-                priceText = text;
-              }
-            }
-          });
-          
-          let imageUrl = "";
-          const imgEl = $el.find("img").first();
-          if (imgEl.length) {
-            imageUrl = imgEl.attr("src") || imgEl.attr("data-src") || "";
-            if (imageUrl && !imageUrl.startsWith("http")) {
-              imageUrl = `https://www.thisiseindhoven.com${imageUrl}`;
-            }
-            if (imageUrl.includes("placeholder") || imageUrl.includes("loading")) {
-              imageUrl = "";
-            }
-          }
-
-          const cleanVenue = venueText
-            .replace(/Free|From\s+[\d.,]+.*$/gi, "")
-            .replace(/\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/gi, "")
-            .replace(/p\.p\./gi, "")
-            .trim();
-          
-          const address = cleanVenue && cleanVenue.length > 3 
-            ? `${cleanVenue}, Eindhoven`
-            : "Eindhoven Centrum";
-          
-          items.push({
-            externalId: `thisiseindhoven-${href.replace(/[^a-z0-9]/gi, "-")}`,
-            title: this.cleanText(title),
-            description: this.cleanText(description),
-            link: fullLink,
-            imageUrl: imageUrl || undefined,
-            publishedAt: dateText ? this.parseEventDate(dateText) : new Date(),
-            startTime: dateText ? this.parseEventDate(dateText) : undefined,
-            location: address,
-            address: address,
-            rawData: { href, dateText, venueText: cleanVenue, priceText }
-          });
         });
         
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      console.log(`[RSS] Scraped ${items.length} events from This Is Eindhoven`);
+      console.log(`[RSS] Found ${eventLinks.length} event links, fetching details...`);
+
+      for (const link of eventLinks.slice(0, 25)) {
+        try {
+          const item = await this.scrapeEventDetail(link);
+          if (item) {
+            items.push(item);
+          }
+          await new Promise(resolve => setTimeout(resolve, 800));
+        } catch (error: any) {
+          console.error(`[RSS] Error fetching event ${link}:`, error.message);
+        }
+      }
+
+      console.log(`[RSS] Scraped ${items.length} events from This Is Eindhoven (NL)`);
       return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error scraping This Is Eindhoven:`, error.message);
       return { success: false, items: [], error: error.message };
+    }
+  }
+
+  static async scrapeEventDetail(url: string): Promise<ParsedFeedItem | null> {
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          "User-Agent": this.USER_AGENT,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "nl-NL,nl;q=0.9"
+        },
+        timeout: 15000
+      });
+
+      const $ = cheerio.load(response.data);
+      
+      let title = "";
+      let description = "";
+      let imageUrl = "";
+      let venue = "";
+      let address = "";
+      let dateText = "";
+      
+      const jsonLd = $('script[type="application/ld+json"]').first().html();
+      if (jsonLd) {
+        try {
+          const data = JSON.parse(jsonLd);
+          const eventData = Array.isArray(data) ? data.find((d: any) => d["@type"] === "Event") : data;
+          
+          if (eventData && eventData["@type"] === "Event") {
+            title = eventData.name || "";
+            description = eventData.description || "";
+            imageUrl = Array.isArray(eventData.image) ? eventData.image[0] : eventData.image || "";
+            
+            if (eventData.location) {
+              venue = eventData.location.name || "";
+              if (eventData.location.address) {
+                const addr = eventData.location.address;
+                address = typeof addr === "string" 
+                  ? addr 
+                  : `${addr.streetAddress || ""}, ${addr.addressLocality || "Eindhoven"}`.trim();
+              }
+            }
+            
+            if (eventData.startDate) {
+              dateText = eventData.startDate;
+            }
+          }
+        } catch (e) {
+          console.log(`[RSS] Could not parse JSON-LD for ${url}`);
+        }
+      }
+      
+      if (!title) {
+        title = $("h1").first().text().trim();
+      }
+      
+      if (!description) {
+        const introEl = $(".intro, .description, .event-description, [class*='intro'], [class*='description']").first();
+        description = introEl.length ? introEl.text().trim() : "";
+        
+        if (!description) {
+          $("p").each((_, el) => {
+            const text = $(el).text().trim();
+            if (text.length > 50 && !text.toLowerCase().includes("cookie") && !text.toLowerCase().includes("privacy")) {
+              if (!description || text.length > description.length) {
+                description = text;
+              }
+            }
+          });
+        }
+      }
+      
+      if (!imageUrl) {
+        const ogImage = $('meta[property="og:image"]').attr("content");
+        if (ogImage) {
+          imageUrl = ogImage;
+        } else {
+          const mainImg = $("article img, .hero img, .event-image img, main img").first();
+          imageUrl = mainImg.attr("src") || mainImg.attr("data-src") || "";
+        }
+      }
+      
+      if (!venue) {
+        const venueEl = $(".location, .venue, [class*='location'], [class*='venue']").first();
+        venue = venueEl.length ? venueEl.text().trim() : "";
+      }
+      
+      if (!address && venue) {
+        address = `${venue}, Eindhoven`;
+      }
+      
+      description = description
+        .replace(/\s+/g, " ")
+        .replace(/Lees meer.*$/i, "")
+        .replace(/Read more.*$/i, "")
+        .trim();
+      
+      if (!title || title.length < 3) {
+        console.log(`[RSS] Skipping event without title: ${url}`);
+        return null;
+      }
+      
+      if (AIHelper.isBadTitle(title)) {
+        console.log(`[RSS] Bad title detected: "${title}", trying AI...`);
+        const suggestion = await AIHelper.suggestTitle(description, venue);
+        if (suggestion) {
+          title = suggestion.title;
+          console.log(`[RSS] AI suggested title: "${title}"`);
+        } else {
+          const titleFromUrl = url.split("/").pop()?.replace(/-/g, " ");
+          if (titleFromUrl && titleFromUrl.length > 3) {
+            title = titleFromUrl.charAt(0).toUpperCase() + titleFromUrl.slice(1);
+          }
+        }
+      }
+      
+      if (imageUrl && !imageUrl.startsWith("http")) {
+        imageUrl = `https://www.thisiseindhoven.com${imageUrl}`;
+      }
+      
+      return {
+        externalId: `thisiseindhoven-${url.replace(/[^a-z0-9]/gi, "-")}`,
+        title: this.cleanText(title),
+        description: this.cleanText(description),
+        link: url,
+        imageUrl: imageUrl || undefined,
+        publishedAt: dateText ? new Date(dateText) : new Date(),
+        startTime: dateText ? new Date(dateText) : undefined,
+        location: venue || address,
+        address: address || "Eindhoven",
+        rawData: { url, venue, address }
+      };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping detail ${url}:`, error.message);
+      return null;
     }
   }
 
@@ -467,9 +535,10 @@ export class RssFeedService {
         ? detectedCategory 
         : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Gezellig en Sociaal");
 
-      let latitude = parsedItem.latitude?.toString() || feed.defaultLatitude || "51.4416";
-      let longitude = parsedItem.longitude?.toString() || feed.defaultLongitude || "5.4697";
-      let address = parsedItem.address || parsedItem.location || feed.defaultAddress || "Eindhoven";
+      let latitude = parsedItem.latitude?.toString() || "";
+      let longitude = parsedItem.longitude?.toString() || "";
+      let address = parsedItem.address || parsedItem.location || "";
+      let geocodeSuccess = false;
 
       if (parsedItem.address || parsedItem.location) {
         const locationQuery = parsedItem.address || parsedItem.location;
@@ -478,14 +547,38 @@ export class RssFeedService {
           latitude = geoResult.lat.toString();
           longitude = geoResult.lon.toString();
           address = geoResult.displayName.split(",").slice(0, 3).join(",").trim();
+          geocodeSuccess = true;
         }
-      } else if (!parsedItem.latitude && feed.defaultAddress) {
-        const geoResult = await this.geocodeAddress(feed.defaultAddress + ", Netherlands");
-        if (geoResult) {
-          latitude = geoResult.lat.toString();
-          longitude = geoResult.lon.toString();
-          address = geoResult.displayName.split(",").slice(0, 3).join(",").trim();
+      }
+      
+      if (!geocodeSuccess) {
+        console.log(`[RSS] Geocoding failed for "${address}", trying AI inference...`);
+        const aiLocation = await AIHelper.inferLocation(
+          formattedTitle,
+          parsedItem.description,
+          parsedItem.location,
+          "Eindhoven"
+        );
+        
+        if (aiLocation && aiLocation.confidence >= 0.4) {
+          const aiAddress = `${aiLocation.address}, ${aiLocation.city}`;
+          const geoResult = await this.geocodeAddress(aiAddress);
+          
+          if (geoResult) {
+            latitude = geoResult.lat.toString();
+            longitude = geoResult.lon.toString();
+            address = `${aiLocation.venueName}, ${aiLocation.address}`;
+            geocodeSuccess = true;
+            console.log(`[RSS] AI location resolved: "${address}" (confidence: ${aiLocation.confidence})`);
+          }
         }
+      }
+      
+      if (!geocodeSuccess) {
+        latitude = feed.defaultLatitude || "51.4416";
+        longitude = feed.defaultLongitude || "5.4697";
+        address = feed.defaultAddress || "Eindhoven Centrum";
+        console.log(`[RSS] Using default location for event: ${address}`);
       }
 
       let imageUrl = parsedItem.imageUrl;

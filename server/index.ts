@@ -8,6 +8,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import session from "express-session";
 import cookieParser from "cookie-parser";
+import path from "path";
 import { attachUser } from "./middleware/auth";
 import { autoLoginTestUser } from "./middleware/auto-login";
 import { registerRoutes } from "./routes";
@@ -15,6 +16,9 @@ import { setupVite, serveStatic, log } from "./vite";
 import { startNotificationScheduler } from "./notification-scheduler";
 
 const app = express();
+
+// Serve static files from public folder (for logo and other assets)
+app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
 
 // Security: Essential security headers
 app.use(helmet({

@@ -433,13 +433,12 @@ export class RssFeedService {
               description = `${name} bij ${venueName || city}. ${fullAddress ? `Locatie: ${fullAddress}.` : ""} Ontdek dit evenement in Oss!`;
             }
             
-            const translatedTitle = this.translateToNLTitle(name);
-            const translatedDescription = this.translateToNLDescription(description);
+            const formattedTitle = RssFeedService.formatTitle(name);
             
             items.push({
               externalId,
-              title: translatedTitle,
-              description: translatedDescription,
+              title: formattedTitle,
+              description: description,
               link: url,
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
@@ -460,11 +459,11 @@ export class RssFeedService {
       if (items.length === 0) {
         const title = $('h1').first().text().trim() || $('title').text().split('|')[0].trim();
         if (title) {
-          const translatedTitle = this.translateToNLTitle(title);
+          const formattedTitle = RssFeedService.formatTitle(title);
           items.push({
             externalId: `oss-fallback-${url.split('/')[4] || Date.now()}`,
-            title: translatedTitle,
-            description: `${translatedTitle} - Evenement in Oss`,
+            title: formattedTitle,
+            description: `${formattedTitle} - Evenement in Oss`,
             link: url,
             location: "Oss",
             address: "Oss, Netherlands"

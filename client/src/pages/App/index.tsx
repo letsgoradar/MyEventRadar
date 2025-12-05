@@ -15,6 +15,18 @@ interface EventWithDistance extends EventInterface {
   distance?: number;
 }
 
+// Functie om afstand te berekenen (Haversine formule)
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return parseFloat((R * c).toFixed(1));
+}
+
 export function AppHomePage() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [filteredEvents, setFilteredEvents] = React.useState<EventWithDistance[]>([]);
@@ -33,7 +45,7 @@ export function AppHomePage() {
     enabled: !!location,
   });
 
-  // Filter events based on search query and selected days
+  // Filter events based on search query and selected days, then sort by distance
   React.useEffect(() => {
     if (!events || !Array.isArray(events)) {
       setFilteredEvents([]);
@@ -64,15 +76,31 @@ export function AppHomePage() {
         });
       });
     }
+    
+    // Bereken afstand en sorteer op afstand (dichtst bij eerst)
+    const eventsWithDistance: EventWithDistance[] = filtered.map(event => {
+      const distance = location 
+        ? calculateDistance(location.lat, location.lng, Number(event.latitude), Number(event.longitude))
+        : undefined;
+      return { ...event, distance };
+    });
+    
+    // Sorteer op afstand (dichtst bij eerst)
+    eventsWithDistance.sort((a, b) => {
+      if (a.distance === undefined && b.distance === undefined) return 0;
+      if (a.distance === undefined) return 1;
+      if (b.distance === undefined) return -1;
+      return a.distance - b.distance;
+    });
 
     setFilteredEvents(prev => {
       // Only update if the filtered results are different
-      if (JSON.stringify(prev.map(e => e.id)) === JSON.stringify(filtered.map(e => e.id))) {
+      if (JSON.stringify(prev.map(e => e.id)) === JSON.stringify(eventsWithDistance.map(e => e.id))) {
         return prev;
       }
-      return filtered;
+      return eventsWithDistance;
     });
-  }, [events, searchQuery, selectedDays]);
+  }, [events, searchQuery, selectedDays, location]);
 
   // Gebruik state om bij te houden of de tegelweergave actief is
   const [gridView, setGridView] = React.useState(true);

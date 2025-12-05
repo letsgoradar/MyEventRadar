@@ -1,7 +1,8 @@
 import { RssFeedService } from "./services/rss-feed-service";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
-const CHECK_INTERVAL_MS = 5 * 60 * 1000;
+let isProcessing = false;
+const CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
 export function startRssScheduler(): void {
   if (schedulerInterval) {
@@ -12,22 +13,36 @@ export function startRssScheduler(): void {
   console.log("[RSS Scheduler] Starting RSS feed scheduler...");
   
   setTimeout(async () => {
+    if (isProcessing) {
+      console.log("[RSS Scheduler] Skipping initial check - already processing");
+      return;
+    }
     console.log("[RSS Scheduler] Running initial feed check...");
+    isProcessing = true;
     try {
       const result = await RssFeedService.processFeeds();
       console.log(`[RSS Scheduler] Initial check: ${result.processed} feeds processed, ${result.errors} errors`);
     } catch (error: any) {
       console.error("[RSS Scheduler] Error during initial check:", error.message);
+    } finally {
+      isProcessing = false;
     }
   }, 10000);
 
   schedulerInterval = setInterval(async () => {
+    if (isProcessing) {
+      console.log("[RSS Scheduler] Skipping scheduled check - previous run still in progress");
+      return;
+    }
     console.log("[RSS Scheduler] Running scheduled feed check...");
+    isProcessing = true;
     try {
       const result = await RssFeedService.processFeeds();
       console.log(`[RSS Scheduler] Check complete: ${result.processed} feeds processed, ${result.errors} errors`);
     } catch (error: any) {
       console.error("[RSS Scheduler] Error during scheduled check:", error.message);
+    } finally {
+      isProcessing = false;
     }
   }, CHECK_INTERVAL_MS);
 

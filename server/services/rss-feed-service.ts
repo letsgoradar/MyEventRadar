@@ -21,6 +21,7 @@ interface ParsedFeedItem {
   latitude?: number;
   longitude?: number;
   rawData?: any;
+  allDates?: Date[];
 }
 
 interface GeocodingResult {
@@ -46,6 +47,47 @@ interface FeedParseResult {
 export class RssFeedService {
   private static readonly USER_AGENT = "letsgo-radar/1.0 (+https://letsgo-radar.nl)";
   private static geocodeCache: Map<string, GeocodingResult> = new Map();
+
+  static consolidateMultiDayEvents(items: ParsedFeedItem[]): ParsedFeedItem[] {
+    const eventMap = new Map<string, ParsedFeedItem>();
+    
+    for (const item of items) {
+      const key = item.link || item.externalId;
+      
+      if (eventMap.has(key)) {
+        const existing = eventMap.get(key)!;
+        const allDates = existing.allDates || [];
+        
+        if (item.startTime) {
+          allDates.push(item.startTime);
+        }
+        
+        if (item.startTime && (!existing.startTime || item.startTime < existing.startTime)) {
+          existing.startTime = item.startTime;
+        }
+        
+        if (item.startTime && (!existing.endTime || item.startTime > existing.endTime)) {
+          existing.endTime = item.startTime;
+        }
+        
+        existing.allDates = allDates;
+        
+        if (!existing.imageUrl && item.imageUrl) {
+          existing.imageUrl = item.imageUrl;
+        }
+      } else {
+        const allDates: Date[] = [];
+        if (item.startTime) {
+          allDates.push(item.startTime);
+        }
+        eventMap.set(key, { ...item, allDates });
+      }
+    }
+    
+    const consolidated = Array.from(eventMap.values());
+    console.log(`[RSS] Consolidated ${items.length} items into ${consolidated.length} multi-day events`);
+    return consolidated;
+  }
 
   static async geocodeAddress(address: string): Promise<GeocodingResult | null> {
     if (this.geocodeCache.has(address)) {
@@ -372,7 +414,8 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from Tref het in Oss (${errorCount} errors)`);
-      return { success: true, items };
+      const consolidated = this.consolidateMultiDayEvents(items);
+      return { success: true, items: consolidated };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Tref het in Oss:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -456,7 +499,8 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from Visit Helmond (${errorCount} errors)`);
-      return { success: true, items };
+      const consolidated = this.consolidateMultiDayEvents(items);
+      return { success: true, items: consolidated };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Visit Helmond:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -510,7 +554,8 @@ export class RssFeedService {
             
             if (startDate && startDate < new Date()) continue;
             
-            const externalId = `helmond-${url.split('/')[5] || Date.now()}-${startDate?.getTime() || i}`;
+            const urlSlug = url.split('/')[5] || url.replace(/[^a-z0-9]/gi, "-");
+            const externalId = `helmond-${urlSlug}`;
             
             let description = event.description || "";
             if (!description || description.length < 20) {
@@ -609,7 +654,8 @@ export class RssFeedService {
             
             if (startDate && startDate < new Date()) continue;
             
-            const externalId = `oss-${url.split('/')[4] || Date.now()}-${startDate?.getTime() || i}`;
+            const urlSlug = url.split('/')[4] || url.replace(/[^a-z0-9]/gi, "-");
+            const externalId = `oss-${urlSlug}`;
             
             let description = event.description || "";
             if (!description || description.length < 20) {

@@ -14,6 +14,7 @@ import "leaflet/dist/leaflet.css";
 import "./map-styles.css";
 import { useOutsideClick } from "@/hooks/use-outside-click";
 import { getLocationName } from "@/utils/location-utils";
+import { ClusterLayer, shouldUseCluster } from "./ClusterLayer";
 
 // Fix voor Leaflet iconen in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -606,6 +607,7 @@ interface FormattedEvent {
   category: string;
   expired: boolean;
   event: EventInterface;
+  startTime: string | Date;
 }
 
 // Component die hover highlight afhandelt via directe Leaflet manipulatie (geen React state/re-render)
@@ -1026,51 +1028,57 @@ export default function MapView({
         {/* Hover highlight component - gebruikt directe Leaflet manipulatie zonder React state */}
         <HoverHighlightLayer events={formattedEvents} />
         
-        {/* Markers voor events met radar-gesynchroniseerde animatie */}
-        {formattedEvents.map((event) => {
-          const isSelected = selectedEvent?.id === event.id;
-          // Bereken de hoek van dit event t.o.v. de gebruikerslocatie
-          const eventAngle = calculateAngleFromUser(
-            userLocation[0], 
-            userLocation[1], 
-            event.coords[0], 
-            event.coords[1]
-          );
-          return (
-          <Marker 
-            key={`${event.id}-${isSelected ? 'selected' : 'normal'}`}
-            position={event.coords}
-            icon={createEventIcon(
-              event.category, 
-              event.expired, 
-              isSelected,
-              eventAngle
-            )}
-            eventHandlers={{
-              click: () => {
-                // Alleen popup tonen bij kaart marker click
-                setSelectedEvent(event.event);
-              },
-              popupclose: () => {
-                // Wis de selectie wanneer de popup wordt gesloten
-                // Dit voorkomt dat de popup automatisch opnieuw opent
-                if (selectedEvent?.id === event.id) {
-                  setSelectedEvent(null);
-                }
-              }
+        {/* Gebruik ClusterLayer bij veel events, anders individuele markers met radar animatie */}
+        {shouldUseCluster(formattedEvents.length, currentZoom) ? (
+          <ClusterLayer
+            events={formattedEvents}
+            onEventClick={(event) => {
+              setSelectedEvent(event);
+              if (onEventClick) onEventClick(event);
             }}
-            // Open de popup automatisch als dit het geselecteerde event is
-            ref={(markerRef) => {
-              if (markerRef && selectedEvent && selectedEvent.id === event.id) {
-                // Check of popup al open is voordat we proberen te openen
-                if (!markerRef.isPopupOpen()) {
-                  setTimeout(() => {
-                    markerRef.openPopup();
-                  }, 200);
+            selectedEventId={selectedEvent?.id}
+            userLocation={userLocation}
+          />
+        ) : (
+          /* Markers voor events met radar-gesynchroniseerde animatie */
+          formattedEvents.map((event) => {
+            const isSelected = selectedEvent?.id === event.id;
+            const eventAngle = calculateAngleFromUser(
+              userLocation[0], 
+              userLocation[1], 
+              event.coords[0], 
+              event.coords[1]
+            );
+            return (
+            <Marker 
+              key={`${event.id}-${isSelected ? 'selected' : 'normal'}`}
+              position={event.coords}
+              icon={createEventIcon(
+                event.category, 
+                event.expired, 
+                isSelected,
+                eventAngle
+              )}
+              eventHandlers={{
+                click: () => {
+                  setSelectedEvent(event.event);
+                },
+                popupclose: () => {
+                  if (selectedEvent?.id === event.id) {
+                    setSelectedEvent(null);
+                  }
                 }
-              }
-            }}
-          >
+              }}
+              ref={(markerRef) => {
+                if (markerRef && selectedEvent && selectedEvent.id === event.id) {
+                  if (!markerRef.isPopupOpen()) {
+                    setTimeout(() => {
+                      markerRef.openPopup();
+                    }, 200);
+                  }
+                }
+              }}
+            >
             <Popup>
               <Card className="border-0 shadow-none">
                 {event.event.imageUrl && (
@@ -1142,8 +1150,9 @@ export default function MapView({
               </Card>
             </Popup>
           </Marker>
-          );
-        })}
+            );
+          })
+        )}
         
         {/* Component om kaart te centreren op gebruiker */}
         <MapCenter lat={userLocation[0]} lng={userLocation[1]} />

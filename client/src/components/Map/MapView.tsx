@@ -26,97 +26,25 @@ L.Icon.Default.mergeOptions({
 // Radar configuratie
 const RADAR_CONFIG = {
   SWEEP_DURATION: 5000, // 5 seconden per rotatie
-  MIN_SIZE_KM: 2, // Minimale straal in kilometers
-  MAX_SIZE_KM: 10, // Maximale straal in kilometers
-  TARGET_EVENTS_IN_SWEEP: 75, // Target aantal events binnen sweep bereik (50-100)
-  MAX_HIGHLIGHTS_PER_TICK: 100, // Maximum highlights per animatie tick
-  THROTTLE_FPS: 12, // Throttle naar ~12 FPS voor performance
+  SIZE: 800, // pixels diameter
   COLOR: {
     primary: '34, 197, 94', // Groen RGB (tailwind green-500)
     glow: '22, 163, 74', // Donkerder groen (green-600)
   }
 };
 
-// Bereken afstand tussen twee punten in kilometers (Haversine)
-function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Aarde's straal in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// Bereken adaptieve radar straal op basis van event dichtheid
-function calculateAdaptiveRadiusKm(
-  userLat: number, 
-  userLng: number, 
-  events: Array<{ coords: [number, number] }>
-): number {
-  if (events.length === 0) return RADAR_CONFIG.MAX_SIZE_KM;
-  
-  // Bereken afstanden van alle events tot gebruiker
-  const distances = events.map(e => 
-    calculateDistanceKm(userLat, userLng, e.coords[0], e.coords[1])
-  ).sort((a, b) => a - b);
-  
-  // Vind de straal waarbij we ~TARGET_EVENTS hebben
-  const targetIndex = Math.min(RADAR_CONFIG.TARGET_EVENTS_IN_SWEEP, distances.length - 1);
-  let radiusKm = distances[targetIndex] || RADAR_CONFIG.MAX_SIZE_KM;
-  
-  // Clamp tussen min en max
-  radiusKm = Math.max(RADAR_CONFIG.MIN_SIZE_KM, Math.min(RADAR_CONFIG.MAX_SIZE_KM, radiusKm));
-  
-  return radiusKm;
-}
-
-// Converteer km naar pixels op basis van zoom niveau en latitude
-function kmToPixels(km: number, lat: number, zoom: number): number {
-  // Meters per pixel op een bepaald zoom niveau en latitude
-  const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
-  return (km * 1000) / metersPerPixel;
-}
-
 // Globale radar start tijd voor synchronisatie - PAGE LOAD TIME
 // Dit is de vaste referentie voor alle animaties
 const PAGE_LOAD_TIME = performance.now();
 let globalRadarAngle = 0;
 let radarAnimationFrame: number | null = null;
-let isRadarPaused = false;
-let lastThrottleTime = 0;
-const THROTTLE_INTERVAL = 1000 / RADAR_CONFIG.THROTTLE_FPS; // ~83ms voor 12 FPS
 const radarListeners: Set<(angle: number) => void> = new Set();
 
-// Pauzeer radar tijdens map interactie
-export function pauseRadar() {
-  isRadarPaused = true;
-}
-
-export function resumeRadar() {
-  isRadarPaused = false;
-}
-
-// Start de globale radar animatie (met throttling)
+// Start de globale radar animatie
 function startRadarAnimation() {
   if (radarAnimationFrame !== null) return;
   
   const animate = (currentTime: number) => {
-    // Throttle updates voor betere performance
-    if (currentTime - lastThrottleTime < THROTTLE_INTERVAL) {
-      radarAnimationFrame = requestAnimationFrame(animate);
-      return;
-    }
-    lastThrottleTime = currentTime;
-    
-    // Skip updates als radar is gepauzeerd (tijdens pan/zoom)
-    if (isRadarPaused) {
-      radarAnimationFrame = requestAnimationFrame(animate);
-      return;
-    }
-    
     // Bereken hoek gebaseerd op tijd sinds page load (vaste referentie)
     const elapsed = currentTime - PAGE_LOAD_TIME;
     globalRadarAngle = ((elapsed / RADAR_CONFIG.SWEEP_DURATION) * 360) % 360;
@@ -170,12 +98,10 @@ function useRadarAngle() {
 // Component voor de gebruikerslocatie marker met animaties en adres
 function UserLocationMarker({ 
   position, 
-  onCenterMap,
-  radarSizePixels = 400
+  onCenterMap 
 }: { 
   position: [number, number]; 
   onCenterMap: () => void;
-  radarSizePixels?: number;
 }) {
   const [address, setAddress] = React.useState<string>("Adres laden...");
   const [isLoadingAddress, setIsLoadingAddress] = React.useState(true);
@@ -221,10 +147,10 @@ function UserLocationMarker({
     fetchAddress();
   }, [position[0], position[1]]);
 
-  // Adaptieve radar grootte - clamp tussen minimum en maximum pixels
-  const MIN_SIZE_PIXELS = 200;
-  const MAX_SIZE_PIXELS = 600;
-  const size = Math.max(MIN_SIZE_PIXELS, Math.min(MAX_SIZE_PIXELS, radarSizePixels));
+  // Aangepast icoon voor gebruikerslocatie met grote groene radar sweep
+  // BELANGRIJK: iconSize klein houden (50x50) zodat alleen het centrum klikbaar is
+  // De radar sweep wordt visueel groter gerenderd via CSS overflow
+  const size = RADAR_CONFIG.SIZE;
   const clickableSize = 50; // Alleen het centrum is klikbaar
   const halfClickable = clickableSize / 2;
   const { primary, glow } = RADAR_CONFIG.COLOR;
@@ -405,7 +331,6 @@ function MapCenter({ lat, lng, shouldFlyTo = false }: { lat: number; lng: number
 }
 
 // Component om events bij te werken op basis van het huidige zoomniveau en grenzen
-// Ook verantwoordelijk voor het pauzeren van de radar tijdens pan/zoom
 function MapEventLoader({ 
   onBoundsChange, 
   onZoomChange 
@@ -420,7 +345,6 @@ function MapEventLoader({
   const prevZoomRef = React.useRef<number | null>(null);
   const onBoundsChangeRef = React.useRef(onBoundsChange);
   const onZoomChangeRef = React.useRef(onZoomChange);
-  const resumeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Update refs wanneer callbacks veranderen (zonder hernieuwde registratie van event handlers)
   React.useEffect(() => {
@@ -478,24 +402,6 @@ function MapEventLoader({
     // Geef de kaart even tijd om te laden
     const initTimer = setTimeout(sendInitialValues, 100);
     
-    // Pauzeer radar bij start van interactie
-    const handleMoveStart = () => {
-      pauseRadar();
-      // Cancel any pending resume
-      if (resumeTimeoutRef.current) {
-        clearTimeout(resumeTimeoutRef.current);
-        resumeTimeoutRef.current = null;
-      }
-    };
-    
-    const handleZoomStart = () => {
-      pauseRadar();
-      if (resumeTimeoutRef.current) {
-        clearTimeout(resumeTimeoutRef.current);
-        resumeTimeoutRef.current = null;
-      }
-    };
-    
     // Handler voor bewegingen van de kaart
     const handleMoveEnd = () => {
       try {
@@ -507,11 +413,6 @@ function MapEventLoader({
       } catch (err) {
         console.error("Fout bij bounds update:", err);
       }
-      
-      // Resume radar na korte delay (voorkomt flickering bij snel pannen)
-      resumeTimeoutRef.current = setTimeout(() => {
-        resumeRadar();
-      }, 300);
     };
     
     // Handler voor zoom acties
@@ -534,27 +435,15 @@ function MapEventLoader({
       } catch (err) {
         console.error("Fout bij zoom update:", err);
       }
-      
-      // Resume radar na korte delay
-      resumeTimeoutRef.current = setTimeout(() => {
-        resumeRadar();
-      }, 300);
     };
     
-    // Registreer event handlers inclusief start events voor radar pause
-    map.on('movestart', handleMoveStart);
-    map.on('zoomstart', handleZoomStart);
+    // Registreer event handlers
     map.on('moveend', handleMoveEnd);
     map.on('zoomend', handleZoomEnd);
     
     // Cleanup functie
     return () => {
       clearTimeout(initTimer);
-      if (resumeTimeoutRef.current) {
-        clearTimeout(resumeTimeoutRef.current);
-      }
-      map.off('movestart', handleMoveStart);
-      map.off('zoomstart', handleZoomStart);
       map.off('moveend', handleMoveEnd);
       map.off('zoomend', handleZoomEnd);
     };
@@ -580,7 +469,6 @@ function calculateAngleFromUser(userLat: number, userLng: number, eventLat: numb
 
 // Functie om event markers te maken met radar-gesynchroniseerde animatie
 // De animatie delay is gebaseerd op de hoek van het event t.o.v. de gebruiker
-// eventAngle = -1 betekent geen animatie (event is buiten radar bereik)
 function createEventIcon(
   category: string, 
   isExpired: boolean = false, 
@@ -592,9 +480,6 @@ function createEventIcon(
   const wrapperSize = size + 20;
   const innerSize = size - 4;
   
-  // Check of dit event animatie moet hebben
-  const hasAnimation = eventAngle >= 0;
-  
   // Radar groene kleur voor scan effect
   const { primary } = RADAR_CONFIG.COLOR;
   const scanColor = `rgb(${primary})`;
@@ -602,57 +487,7 @@ function createEventIcon(
   const sweepDurationSec = RADAR_CONFIG.SWEEP_DURATION / 1000;
   
   // Bereken gesynchroniseerde delay - wanneer de radar dit event zal bereiken
-  const syncedDelay = hasAnimation ? calculateSyncedAnimationDelay(eventAngle) : 0;
-  
-  // Statische marker zonder animatie (voor events buiten radar bereik)
-  if (!hasAnimation) {
-    return L.divIcon({
-      className: 'custom-div-icon event-marker-static',
-      html: `
-        <div class="evt-static-pin">
-          <div class="evt-dot ${isSelected ? 'selected' : ''}">
-            <div class="evt-inner" style="background-color: ${color};"></div>
-          </div>
-        </div>
-        <style>
-          .evt-static-pin {
-            position: relative;
-            width: ${wrapperSize}px;
-            height: ${wrapperSize}px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          
-          .evt-dot {
-            position: relative;
-            width: ${size}px;
-            height: ${size}px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-          }
-          
-          .evt-dot.selected {
-            transform: scale(1.2);
-            box-shadow: 0 3px 12px rgba(0,0,0,0.4);
-          }
-          
-          .evt-inner {
-            width: ${innerSize}px;
-            height: ${innerSize}px;
-            border-radius: 50%;
-          }
-        </style>
-      `,
-      iconSize: [wrapperSize, wrapperSize],
-      iconAnchor: [wrapperSize/2, wrapperSize/2],
-    });
-  }
+  const syncedDelay = calculateSyncedAnimationDelay(eventAngle);
   
   return L.divIcon({
     className: 'custom-div-icon event-marker-radar',
@@ -1075,38 +910,6 @@ export default function MapView({
       }));
   }, [eventsData, currentBounds, showExpiredEvents]);
   
-  // Bereken adaptieve radar straal gebaseerd op event dichtheid
-  const { adaptiveRadarSizePixels, adaptiveRadiusKm } = React.useMemo(() => {
-    if (formattedEvents.length === 0) return { adaptiveRadarSizePixels: 400, adaptiveRadiusKm: RADAR_CONFIG.MAX_SIZE_KM };
-    
-    // Bereken de optimale straal in km
-    const radiusKm = calculateAdaptiveRadiusKm(
-      userLocation[0],
-      userLocation[1],
-      formattedEvents
-    );
-    
-    // Converteer naar pixels gebaseerd op zoom niveau
-    const pixels = kmToPixels(radiusKm, userLocation[0], currentZoom);
-    
-    return { adaptiveRadarSizePixels: pixels, adaptiveRadiusKm: radiusKm };
-  }, [formattedEvents, userLocation, currentZoom]);
-  
-  // Bepaal welke events binnen de radar straal vallen voor animatie
-  // Alleen deze krijgen de sweep animatie, anderen worden statisch getoond
-  const eventsWithAnimationInfo = React.useMemo(() => {
-    return formattedEvents.map(event => {
-      const distanceKm = calculateDistanceKm(
-        userLocation[0],
-        userLocation[1],
-        event.coords[0],
-        event.coords[1]
-      );
-      const isInRadarRange = distanceKm <= adaptiveRadiusKm;
-      return { ...event, distanceKm, isInRadarRange };
-    });
-  }, [formattedEvents, userLocation, adaptiveRadiusKm]);
-  
   // Render de kaart
   return (
     <div className="h-full w-full relative flex-1 overflow-hidden z-0">
@@ -1218,26 +1021,21 @@ export default function MapView({
           onCenterMap={() => {
             console.log('Kaart gecentreerd op gebruikerslocatie');
           }}
-          radarSizePixels={adaptiveRadarSizePixels}
         />
         
         {/* Hover highlight component - gebruikt directe Leaflet manipulatie zonder React state */}
         <HoverHighlightLayer events={formattedEvents} />
         
         {/* Markers voor events met radar-gesynchroniseerde animatie */}
-        {/* Alleen events binnen radar bereik krijgen animatie */}
-        {eventsWithAnimationInfo.map((event) => {
+        {formattedEvents.map((event) => {
           const isSelected = selectedEvent?.id === event.id;
           // Bereken de hoek van dit event t.o.v. de gebruikerslocatie
-          // Alleen voor events binnen radar bereik
-          const eventAngle = event.isInRadarRange 
-            ? calculateAngleFromUser(
-                userLocation[0], 
-                userLocation[1], 
-                event.coords[0], 
-                event.coords[1]
-              )
-            : -1; // -1 betekent geen animatie
+          const eventAngle = calculateAngleFromUser(
+            userLocation[0], 
+            userLocation[1], 
+            event.coords[0], 
+            event.coords[1]
+          );
           return (
           <Marker 
             key={`${event.id}-${isSelected ? 'selected' : 'normal'}`}

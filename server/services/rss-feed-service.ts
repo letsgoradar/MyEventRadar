@@ -887,9 +887,21 @@ export class RssFeedService {
             const now = new Date();
             let year = now.getFullYear();
             const testDate = new Date(year, monthNum, parseInt(day));
+            testDate.setHours(23, 59, 59, 999);
             if (testDate < now) year++;
             startTime = new Date(year, monthNum, parseInt(day), 10, 0);
             endTime = new Date(year, monthNum, parseInt(day), 22, 0);
+          }
+        }
+      }
+      
+      if (!startTime) {
+        const dailyMatch = dateText.match(/dagelijks\s+vanaf\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
+        if (dailyMatch) {
+          const [, day, month, year] = dailyMatch;
+          const monthNum = this.MONTHS[month.toLowerCase()];
+          if (monthNum !== undefined) {
+            startTime = new Date(parseInt(year), monthNum, parseInt(day), 10, 0);
           }
         }
       }

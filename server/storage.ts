@@ -52,7 +52,7 @@ export interface IStorage {
   // Event operations
   createEvent(event: InsertEvent): Promise<Event>;
   getEvent(id: number): Promise<Event | undefined>;
-  getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]>;
+  getEventsByRadius(lat: number, lng: number, radius: number, windowDays?: number | null): Promise<Event[]>;
   getEventsByHost(hostId: number): Promise<Event[]>;
   clearEvents(): Promise<void>; // Added clearEvents method
   getAllEvents(): Promise<Event[]>;
@@ -210,27 +210,37 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async getEventsByRadius(lat: number, lng: number, radius: number): Promise<Event[]> {
+  async getEventsByRadius(lat: number, lng: number, radius: number, windowDays: number | null = 14): Promise<Event[]> {
     try {
-      console.log('Fetching events with params:', { lat, lng, radius });
+      console.log('Fetching events with params:', { lat, lng, radius, windowDays });
       const result = await db.select().from(events);
 
+      const now = new Date();
+      
+      // Filter events op tijdsvenster (standaard 14 dagen vooruit)
+      const filteredByTime = windowDays !== null 
+        ? result.filter(event => {
+            const eventStart = new Date(event.startTime);
+            const eventEnd = event.endTime ? new Date(event.endTime) : eventStart;
+            const maxDate = new Date(now.getTime() + windowDays * 24 * 60 * 60 * 1000);
+            
+            // Event is relevant als het nog niet voorbij is EN start binnen het venster
+            return eventEnd >= now && eventStart <= maxDate;
+          })
+        : result;
+
       // Convert coordinates to numbers consistently
-      const formattedEvents = result.map(event => {
+      const formattedEvents = filteredByTime.map(event => {
         const formattedEvent = {
           ...event,
           latitude: parseFloat(event.latitude),
           longitude: parseFloat(event.longitude),
           notificationReach: parseFloat(event.notificationReach)
         };
-        console.log('Formatted event:', {
-          id: formattedEvent.id,
-          title: formattedEvent.title,
-          coords: [formattedEvent.latitude, formattedEvent.longitude]
-        });
         return formattedEvent;
       });
 
+      console.log(`Found ${formattedEvents.length} events within ${windowDays ?? 'all'} days window`);
       return formattedEvents;
     } catch (error) {
       console.error('Error fetching events:', error);

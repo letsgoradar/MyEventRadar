@@ -429,17 +429,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lat: z.coerce.number(),
         lng: z.coerce.number(),
         radius: z.coerce.number().default(10),
+        windowDays: z.union([z.coerce.number(), z.literal('all')]).optional().default(14),
       });
 
-      const { lat, lng, radius } = schema.parse({
+      const parsed = schema.parse({
         lat: req.query.lat,
         lng: req.query.lng,
         radius: req.query.radius,
+        windowDays: req.query.windowDays,
       });
-
-      console.log('GET /api/events/nearby params:', { lat, lng, radius });
       
-      const events = await storage.getEventsByRadius(lat, lng, radius);
+      const { lat, lng, radius } = parsed;
+      // windowDays: standaard 14 dagen, 'all' betekent geen filter
+      const windowDays = parsed.windowDays === 'all' ? null : parsed.windowDays;
+
+      console.log('GET /api/events/nearby params:', { lat, lng, radius, windowDays });
+      
+      const events = await storage.getEventsByRadius(lat, lng, radius, windowDays);
       
       // Sorteer events: highlights eerst (op priority), dan dichtstbij
       const sortedEvents = events.sort((a, b) => {

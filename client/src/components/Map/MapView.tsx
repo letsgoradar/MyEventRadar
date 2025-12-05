@@ -96,13 +96,24 @@ function useRadarAngle() {
   return angle;
 }
 
+// Bereken adaptieve radar grootte op basis van zoomlevel
+function getAdaptiveRadarSize(zoomLevel: number): number {
+  // Radar grootte neemt toe bij uitzoomen, af bij inzoomen
+  // Zoom 8 = 1200px, Zoom 12 = 800px, Zoom 16 = 400px
+  const baseSize = 800;
+  const zoomFactor = Math.pow(1.15, 12 - zoomLevel);
+  return Math.max(300, Math.min(1500, baseSize * zoomFactor));
+}
+
 // Component voor de gebruikerslocatie marker met animaties en adres
 function UserLocationMarker({ 
   position, 
-  onCenterMap 
+  onCenterMap,
+  zoomLevel = 12
 }: { 
   position: [number, number]; 
   onCenterMap: () => void;
+  zoomLevel?: number;
 }) {
   const [address, setAddress] = React.useState<string>("Adres laden...");
   const [isLoadingAddress, setIsLoadingAddress] = React.useState(true);
@@ -151,7 +162,8 @@ function UserLocationMarker({
   // Aangepast icoon voor gebruikerslocatie met grote groene radar sweep
   // BELANGRIJK: iconSize klein houden (50x50) zodat alleen het centrum klikbaar is
   // De radar sweep wordt visueel groter gerenderd via CSS overflow
-  const size = RADAR_CONFIG.SIZE;
+  // Adaptieve grootte op basis van zoomlevel
+  const size = getAdaptiveRadarSize(zoomLevel);
   const clickableSize = 50; // Alleen het centrum is klikbaar
   const halfClickable = clickableSize / 2;
   const { primary, glow } = RADAR_CONFIG.COLOR;
@@ -1017,9 +1029,10 @@ export default function MapView({
           />
         )}
         
-        {/* Marker voor gebruiker locatie met animaties en adres */}
+        {/* Marker voor gebruiker locatie met animaties en adres - adaptieve radar grootte */}
         <UserLocationMarker 
           position={userLocation}
+          zoomLevel={currentZoom}
           onCenterMap={() => {
             console.log('Kaart gecentreerd op gebruikerslocatie');
           }}

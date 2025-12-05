@@ -925,20 +925,26 @@ export class RssFeedService {
   static async processFeeds(): Promise<{ processed: number; errors: number }> {
     let processed = 0;
     let errors = 0;
+    const totalStartTime = Date.now();
 
     const activeFeeds = await db.select().from(rssFeeds).where(eq(rssFeeds.status, "active"));
     
-    console.log(`[RSS] Processing ${activeFeeds.length} active feeds...`);
+    console.log(`[RSS] ========================================`);
+    console.log(`[RSS] Starting feed processing: ${activeFeeds.length} active feeds`);
+    console.log(`[RSS] ========================================`);
 
-    for (const feed of activeFeeds) {
+    for (let i = 0; i < activeFeeds.length; i++) {
+      const feed = activeFeeds[i];
+      const feedStartTime = Date.now();
+      
       try {
         const shouldFetch = this.shouldFetchFeed(feed);
         if (!shouldFetch) {
-          console.log(`[RSS] Skipping feed ${feed.name} - not due for update yet`);
+          console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: SKIPPED (recently updated)`);
           continue;
         }
 
-        console.log(`[RSS] Processing feed: ${feed.name} (${feed.feedType})`);
+        console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: Starting...`);
 
         let result: FeedParseResult;
 
@@ -952,7 +958,10 @@ export class RssFeedService {
           result = await this.fetchAndParseRssFeed(feed.url);
         }
 
+        const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
+
         if (!result.success) {
+          console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: FAILED after ${feedDuration} min - ${result.error}`);
           await db.update(rssFeeds)
             .set({ 
               status: "error", 
@@ -979,10 +988,11 @@ export class RssFeedService {
           })
           .where(eq(rssFeeds.id, feed.id));
 
-        console.log(`[RSS] Feed ${feed.name}: ${newItemsCount} new items imported`);
+        console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: SUCCESS - ${newItemsCount} new items in ${feedDuration} min (total: ${result.items.length} found)`);
         processed++;
       } catch (error: any) {
-        console.error(`[RSS] Error processing feed ${feed.name}:`, error.message);
+        const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
+        console.error(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: ERROR after ${feedDuration} min - ${error.message}`);
         await db.update(rssFeeds)
           .set({ 
             status: "error", 
@@ -993,6 +1003,13 @@ export class RssFeedService {
         errors++;
       }
     }
+
+    const totalDuration = ((Date.now() - totalStartTime) / 1000 / 60).toFixed(1);
+    console.log(`[RSS] ========================================`);
+    console.log(`[RSS] Feed processing complete`);
+    console.log(`[RSS] Total duration: ${totalDuration} minutes`);
+    console.log(`[RSS] Processed: ${processed}, Errors: ${errors}, Skipped: ${activeFeeds.length - processed - errors}`);
+    console.log(`[RSS] ========================================`);
 
     return { processed, errors };
   }

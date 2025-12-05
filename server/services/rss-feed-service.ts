@@ -295,6 +295,190 @@ export class RssFeedService {
     }
   }
 
+  static async scrapeTrefhetInOss(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const eventLinks: string[] = [];
+      const maxPages = 20;
+      
+      for (let page = 1; page <= maxPages; page++) {
+        const url = page === 1 
+          ? "https://www.trefhetinoss.nl/uitagenda"
+          : `https://www.trefhetinoss.nl/uitagenda?page=${page}`;
+        
+        console.log(`[RSS] Scraping Tref het in Oss page ${page}...`);
+        
+        const response = await axios.get(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+          },
+          timeout: 30000
+        });
+
+        const $ = cheerio.load(response.data);
+        const linksBeforeThisPage = eventLinks.length;
+        
+        $('a[href*="/uitagenda/"]').each((_, element) => {
+          const href = $(element).attr("href");
+          if (!href || href === "/uitagenda" || href.includes("?page=") || href.includes("?calendar")) return;
+          
+          const match = href.match(/\/uitagenda\/\d+\//);
+          if (!match) return;
+          
+          const fullLink = href.startsWith("http") 
+            ? href 
+            : `https://www.trefhetinoss.nl${href}`;
+          
+          if (!eventLinks.includes(fullLink)) {
+            eventLinks.push(fullLink);
+          }
+        });
+        
+        const newLinksOnPage = eventLinks.length - linksBeforeThisPage;
+        console.log(`[RSS] Page ${page}: found ${newLinksOnPage} new event links (total: ${eventLinks.length})`);
+        
+        if (newLinksOnPage === 0) {
+          console.log(`[RSS] No new events on page ${page}, stopping pagination`);
+          break;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      console.log(`[RSS] Found ${eventLinks.length} Oss event links, fetching details...`);
+
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (let i = 0; i < eventLinks.length; i++) {
+        const link = eventLinks[i];
+        try {
+          console.log(`[RSS] Fetching Oss event ${i + 1}/${eventLinks.length}: ${link.split('/').pop()}`);
+          const eventItems = await this.scrapeOssEventDetail(link);
+          if (eventItems.length > 0) {
+            items.push(...eventItems);
+            successCount++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (error: any) {
+          errorCount++;
+          console.error(`[RSS] Error fetching Oss event ${link}:`, error.message);
+        }
+        
+        if ((i + 1) % 20 === 0) {
+          console.log(`[RSS] Progress: ${i + 1}/${eventLinks.length} events processed (${successCount} success, ${errorCount} errors)`);
+        }
+      }
+
+      console.log(`[RSS] Scraped ${items.length} events from Tref het in Oss (${errorCount} errors)`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Tref het in Oss:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  static async scrapeOssEventDetail(url: string): Promise<ParsedFeedItem[]> {
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "text/html,application/xhtml+xml"
+        },
+        timeout: 15000
+      });
+
+      const $ = cheerio.load(response.data);
+      const items: ParsedFeedItem[] = [];
+      
+      const jsonLdScripts = $('script[type="application/ld+json"]');
+      
+      for (let i = 0; i < jsonLdScripts.length; i++) {
+        const scriptContent = $(jsonLdScripts[i]).html();
+        if (!scriptContent) continue;
+        
+        try {
+          const jsonData = JSON.parse(scriptContent);
+          const events = Array.isArray(jsonData) ? jsonData : [jsonData];
+          
+          for (const event of events) {
+            if (event["@type"] !== "Event") continue;
+            
+            const name = event.name || "";
+            if (!name) continue;
+            
+            const imageUrl = event.image || "";
+            const location = event.location;
+            const venueName = location?.name || "";
+            const address = location?.address;
+            const streetAddress = address?.streetAddress || "";
+            const postalCode = address?.postalCode || "";
+            const city = address?.addressLocality || "Oss";
+            const fullAddress = [streetAddress, postalCode, city].filter(Boolean).join(", ");
+            
+            const geo = location?.geo;
+            const latitude = geo?.latitude;
+            const longitude = geo?.longitude;
+            
+            const startDate = event.startDate ? new Date(event.startDate) : undefined;
+            const endDate = event.endDate ? new Date(event.endDate) : undefined;
+            
+            if (startDate && startDate < new Date()) continue;
+            
+            const externalId = `oss-${url.split('/')[4] || Date.now()}-${startDate?.getTime() || i}`;
+            
+            let description = event.description || "";
+            if (!description || description.length < 20) {
+              description = `${name} bij ${venueName || city}. ${fullAddress ? `Locatie: ${fullAddress}.` : ""} Ontdek dit evenement in Oss!`;
+            }
+            
+            const translatedTitle = this.translateToNLTitle(name);
+            const translatedDescription = this.translateToNLDescription(description);
+            
+            items.push({
+              externalId,
+              title: translatedTitle,
+              description: translatedDescription,
+              link: url,
+              imageUrl: imageUrl || undefined,
+              publishedAt: new Date(),
+              startTime: startDate,
+              endTime: endDate || (startDate ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : undefined),
+              location: venueName || city,
+              address: fullAddress || `${city}, Netherlands`,
+              latitude,
+              longitude,
+              rawData: event
+            });
+          }
+        } catch (parseError) {
+          continue;
+        }
+      }
+      
+      if (items.length === 0) {
+        const title = $('h1').first().text().trim() || $('title').text().split('|')[0].trim();
+        if (title) {
+          const translatedTitle = this.translateToNLTitle(title);
+          items.push({
+            externalId: `oss-fallback-${url.split('/')[4] || Date.now()}`,
+            title: translatedTitle,
+            description: `${translatedTitle} - Evenement in Oss`,
+            link: url,
+            location: "Oss",
+            address: "Oss, Netherlands"
+          });
+        }
+      }
+      
+      return items;
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Oss event detail ${url}:`, error.message);
+      return [];
+    }
+  }
+
   static readonly MONTHS: Record<string, number> = {
     jan: 0, january: 0, januari: 0,
     feb: 1, february: 1, februari: 1,
@@ -588,6 +772,8 @@ export class RssFeedService {
 
         if (feed.feedType === "scraper" && feed.url.includes("thisiseindhoven")) {
           result = await this.scrapeThisIsEindhoven();
+        } else if (feed.feedType === "scraper" && feed.url.includes("trefhetinoss")) {
+          result = await this.scrapeTrefhetInOss();
         } else {
           result = await this.fetchAndParseRssFeed(feed.url);
         }

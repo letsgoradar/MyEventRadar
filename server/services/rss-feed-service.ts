@@ -707,6 +707,257 @@ export class RssFeedService {
     }
   }
 
+  static async scrapeMeierijstad(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const eventLinks: string[] = [];
+      const maxPages = 10;
+      
+      for (let page = 1; page <= maxPages; page++) {
+        const url = page === 1 
+          ? "https://www.bezoekmeierijstad.nl/agenda"
+          : `https://www.bezoekmeierijstad.nl/agenda?order=desc&sort=calendar&page=${page}`;
+        
+        console.log(`[RSS] Scraping Meierijstad page ${page}...`);
+        
+        const response = await axios.get(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+          },
+          timeout: 30000
+        });
+
+        const $ = cheerio.load(response.data);
+        const linksBeforeThisPage = eventLinks.length;
+        
+        $('a[href*="/agenda/"]').each((_, element) => {
+          const href = $(element).attr("href");
+          if (!href || href === "/agenda" || href.includes("?page=") || href.includes("?order=")) return;
+          
+          const match = href.match(/\/agenda\/\d+\//);
+          if (!match) return;
+          
+          const fullLink = href.startsWith("http") 
+            ? href 
+            : `https://www.bezoekmeierijstad.nl${href}`;
+          
+          if (!eventLinks.includes(fullLink)) {
+            eventLinks.push(fullLink);
+          }
+        });
+        
+        const newLinksOnPage = eventLinks.length - linksBeforeThisPage;
+        console.log(`[RSS] Page ${page}: found ${newLinksOnPage} new event links (total: ${eventLinks.length})`);
+        
+        if (newLinksOnPage === 0) {
+          console.log(`[RSS] No new events on page ${page}, stopping pagination`);
+          break;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      console.log(`[RSS] Found ${eventLinks.length} Meierijstad event links, fetching details...`);
+
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (let i = 0; i < eventLinks.length; i++) {
+        const link = eventLinks[i];
+        try {
+          console.log(`[RSS] Fetching Meierijstad event ${i + 1}/${eventLinks.length}: ${link.split('/').pop()}`);
+          const eventItems = await this.scrapeMeierijstadEventDetail(link);
+          if (eventItems.length > 0) {
+            items.push(...eventItems);
+            successCount++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (error: any) {
+          errorCount++;
+          console.error(`[RSS] Error fetching Meierijstad event ${link}:`, error.message);
+        }
+        
+        if ((i + 1) % 20 === 0) {
+          console.log(`[RSS] Progress: ${i + 1}/${eventLinks.length} events processed (${successCount} success, ${errorCount} errors)`);
+        }
+      }
+
+      console.log(`[RSS] Scraped ${items.length} events from Meierijstad (${errorCount} errors)`);
+      const consolidated = this.consolidateMultiDayEvents(items);
+      return { success: true, items: consolidated };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Meierijstad:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  static async scrapeMeierijstadEventDetail(url: string): Promise<ParsedFeedItem[]> {
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "text/html,application/xhtml+xml"
+        },
+        timeout: 15000
+      });
+
+      const $ = cheerio.load(response.data);
+      const items: ParsedFeedItem[] = [];
+      
+      const title = $('h1').first().text().trim();
+      if (!title) return items;
+      
+      let description = '';
+      $('p').each((_, el) => {
+        const text = $(el).text().trim();
+        if (text.length > 50 && !this.isCookieText(text)) {
+          description = text;
+          return false;
+        }
+      });
+      
+      let imageUrl = '';
+      $('img').each((_, el) => {
+        const src = $(el).attr('src') || '';
+        if (src.includes('assets.plaece.nl') && !imageUrl) {
+          imageUrl = src;
+        }
+      });
+      
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+      const googleMapsLink = $('a[href*="google.com/maps/dir"]').attr('href');
+      if (googleMapsLink) {
+        const coordMatch = googleMapsLink.match(/destination=([0-9.-]+)%2C([0-9.-]+)/);
+        if (coordMatch) {
+          latitude = parseFloat(coordMatch[1]);
+          longitude = parseFloat(coordMatch[2]);
+        }
+      }
+      
+      let location = '';
+      let address = '';
+      $('a[href*="google.com/maps"]').parent().find('*').each((_, el) => {
+        const text = $(el).text().trim();
+        if (text && text.length < 100 && !text.includes('Plan je route') && !text.includes('Route')) {
+          if (!location) {
+            location = text;
+          } else if (!address && text !== location) {
+            address = text;
+          }
+        }
+      });
+      
+      const dateText = $('body').text();
+      let startTime: Date | undefined;
+      let endTime: Date | undefined;
+      
+      const dateRangeMatch = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})\s+t\/m\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
+      if (dateRangeMatch) {
+        const [, startDay, startMonth, startYear, endDay, endMonth, endYear] = dateRangeMatch;
+        const startMonthNum = this.MONTHS[startMonth.toLowerCase()];
+        const endMonthNum = this.MONTHS[endMonth.toLowerCase()];
+        if (startMonthNum !== undefined && endMonthNum !== undefined) {
+          startTime = new Date(parseInt(startYear), startMonthNum, parseInt(startDay), 10, 0);
+          endTime = new Date(parseInt(endYear), endMonthNum, parseInt(endDay), 22, 0);
+        }
+      }
+      
+      if (!startTime) {
+        const tmMatch = dateText.match(/t\/m\s+(\d{1,2})\s+(\w+)\s+(\d{4})?/i);
+        if (tmMatch) {
+          const [, day, month, year] = tmMatch;
+          const monthNum = this.MONTHS[month.toLowerCase()];
+          if (monthNum !== undefined) {
+            const eventYear = year ? parseInt(year) : new Date().getFullYear();
+            endTime = new Date(eventYear, monthNum, parseInt(day), 22, 0);
+            startTime = new Date();
+            startTime.setHours(10, 0, 0, 0);
+          }
+        }
+      }
+      
+      if (!startTime) {
+        const simpleDateMatch = dateText.match(/(\w+dag)\s+(\d{1,2})\s+(\w+)/i);
+        if (simpleDateMatch) {
+          const [, , day, month] = simpleDateMatch;
+          const monthNum = this.MONTHS[month.toLowerCase()];
+          if (monthNum !== undefined) {
+            const now = new Date();
+            let year = now.getFullYear();
+            const testDate = new Date(year, monthNum, parseInt(day));
+            if (testDate < now) year++;
+            startTime = new Date(year, monthNum, parseInt(day), 10, 0);
+            endTime = new Date(year, monthNum, parseInt(day), 22, 0);
+          }
+        }
+      }
+      
+      if (startTime && startTime < new Date() && !endTime) return items;
+      if (endTime && endTime < new Date()) return items;
+      
+      const urlSlug = url.split('/')[4] || url.replace(/[^a-z0-9]/gi, "-");
+      const externalId = `meierijstad-${urlSlug}`;
+      
+      const formattedTitle = this.formatTitle(title);
+      
+      const meierijstadPlaces: Record<string, {lat: number, lng: number}> = {
+        'schijndel': { lat: 51.6178, lng: 5.4363 },
+        'veghel': { lat: 51.6167, lng: 5.5500 },
+        'sint-oedenrode': { lat: 51.5667, lng: 5.4500 },
+        'sint oedenrode': { lat: 51.5667, lng: 5.4500 },
+        'erp': { lat: 51.5833, lng: 5.6000 },
+        'mariaheide': { lat: 51.5833, lng: 5.5000 },
+        'boskant': { lat: 51.5500, lng: 5.4833 },
+        'nijnsel': { lat: 51.5500, lng: 5.5167 },
+        'olland': { lat: 51.5667, lng: 5.3833 },
+        'meierijstad': { lat: 51.6000, lng: 5.5000 }
+      };
+      
+      if (!latitude || !longitude) {
+        const locationLower = (location + ' ' + address).toLowerCase();
+        for (const [place, coords] of Object.entries(meierijstadPlaces)) {
+          if (locationLower.includes(place)) {
+            latitude = coords.lat;
+            longitude = coords.lng;
+            break;
+          }
+        }
+      }
+      
+      if (!latitude || !longitude) {
+        latitude = 51.6167;
+        longitude = 5.5500;
+      }
+      
+      if (!address) {
+        address = location ? `${location}, Meierijstad` : 'Meierijstad, Nederland';
+      }
+      
+      items.push({
+        externalId,
+        title: formattedTitle,
+        description: description || `${formattedTitle} - Evenement in Meierijstad`,
+        link: url,
+        imageUrl: imageUrl || undefined,
+        publishedAt: new Date(),
+        startTime,
+        endTime: endTime || (startTime ? new Date(startTime.getTime() + 4 * 60 * 60 * 1000) : undefined),
+        location: location || 'Meierijstad',
+        address,
+        latitude,
+        longitude,
+        rawData: { url, location, address }
+      });
+      
+      return items;
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Meierijstad event detail ${url}:`, error.message);
+      return [];
+    }
+  }
+
   static readonly MONTHS: Record<string, number> = {
     jan: 0, january: 0, januari: 0,
     feb: 1, february: 1, februari: 1,
@@ -1000,6 +1251,8 @@ export class RssFeedService {
           result = await this.scrapeTrefhetInOss();
         } else if (feed.feedType === "scraper" && feed.url.includes("visithelmond")) {
           result = await this.scrapeVisitHelmond();
+        } else if (feed.feedType === "scraper" && feed.url.includes("bezoekmeierijstad")) {
+          result = await this.scrapeMeierijstad();
         } else {
           result = await this.fetchAndParseRssFeed(feed.url);
         }

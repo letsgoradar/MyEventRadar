@@ -25,8 +25,8 @@ interface ClusterLayerProps {
   isInteracting?: boolean;
 }
 
-const CLUSTER_THRESHOLD = 100;
-const RADAR_COLOR = "34, 197, 94";
+const CLUSTER_THRESHOLD = 200;
+const CLUSTER_COLOR = "96, 208, 184";
 
 function createSimpleMarkerIcon(category: string, isExpired: boolean = false, isSelected: boolean = false) {
   const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
@@ -78,7 +78,7 @@ function createClusterIcon(cluster: L.MarkerCluster) {
       <div style="
         width: ${size}px;
         height: ${size}px;
-        background: linear-gradient(135deg, rgb(${RADAR_COLOR}) 0%, rgb(22, 163, 74) 100%);
+        background: linear-gradient(135deg, rgb(${CLUSTER_COLOR}) 0%, rgb(64, 180, 156) 100%);
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -86,7 +86,7 @@ function createClusterIcon(cluster: L.MarkerCluster) {
         color: white;
         font-weight: bold;
         font-size: ${fontSize}px;
-        box-shadow: 0 3px 10px rgba(${RADAR_COLOR}, 0.5);
+        box-shadow: 0 3px 10px rgba(${CLUSTER_COLOR}, 0.5);
         border: 3px solid white;
       ">
         ${count}
@@ -210,8 +210,8 @@ export function ClusterLayer({
 }
 
 export function shouldUseCluster(eventCount: number, zoom: number): boolean {
-  if (eventCount > CLUSTER_THRESHOLD) return true;
-  if (eventCount > 50 && zoom < 12) return true;
-  if (eventCount > 30 && zoom < 10) return true;
+  // Alleen clusteren bij veel events EN uitgezoomd
+  if (eventCount > CLUSTER_THRESHOLD && zoom < 10) return true;
+  if (eventCount > 100 && zoom < 8) return true;
   return false;
 }

@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { Toaster } from '@/components/ui/toaster'
 import { Link, Route, Switch, useLocation, useParams } from "wouter"
 import { AuthProvider } from "@/hooks/use-auth"
+import { LanguageProvider } from "@/contexts/LanguageContext"
 import TopNav from "@/components/Layout/TopNav"
 import MapView from "@/components/Map/MapView"
 import { EventList } from "@/components/EventList"
@@ -109,9 +110,10 @@ export default function App() {
   // Mobiel → App interface
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeInjector />
-        <Switch>
+      <LanguageProvider>
+        <AuthProvider>
+          <ThemeInjector />
+          <Switch>
         {/* Admin Routes - beschikbaar op alle apparaten */}
         <Route path="/login">
           <AdminLogin />
@@ -298,9 +300,10 @@ export default function App() {
         <Route>
           {isMobile ? <AppHomePage /> : <WebPage />}
         </Route>
-      </Switch>
-      <Toaster />
-    </AuthProvider>
-  </QueryClientProvider>
+          </Switch>
+          <Toaster />
+        </AuthProvider>
+      </LanguageProvider>
+    </QueryClientProvider>
   );
 }

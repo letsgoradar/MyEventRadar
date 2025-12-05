@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Search, Filter, Map, List, CalendarIcon, Euro, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -225,6 +226,8 @@ export function AppHeader({
             >
               {isMapView ? <List className="h-4 w-4" /> : <Map className="h-4 w-4" />}
             </Button>
+            
+            <LanguageSwitcher />
           </div>
         </div>
       </div>

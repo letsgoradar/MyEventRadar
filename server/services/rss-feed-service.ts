@@ -379,6 +379,189 @@ export class RssFeedService {
     }
   }
 
+  static async scrapeVisitHelmond(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const eventLinks: string[] = [];
+      const maxPages = 20;
+      
+      for (let page = 1; page <= maxPages; page++) {
+        const url = page === 1 
+          ? "https://www.visithelmond.nl/nl/agenda"
+          : `https://www.visithelmond.nl/nl/agenda?page=${page}`;
+        
+        console.log(`[RSS] Scraping Visit Helmond page ${page}...`);
+        
+        const response = await axios.get(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+          },
+          timeout: 30000
+        });
+
+        const $ = cheerio.load(response.data);
+        const linksBeforeThisPage = eventLinks.length;
+        
+        $('a[href*="/nl/agenda/"]').each((_, element) => {
+          const href = $(element).attr("href");
+          if (!href || href === "/nl/agenda" || href.includes("?page=") || href.includes("?calendar")) return;
+          
+          const match = href.match(/\/nl\/agenda\/\d+\//);
+          if (!match) return;
+          
+          const fullLink = href.startsWith("http") 
+            ? href 
+            : `https://www.visithelmond.nl${href}`;
+          
+          if (!eventLinks.includes(fullLink)) {
+            eventLinks.push(fullLink);
+          }
+        });
+        
+        const newLinksOnPage = eventLinks.length - linksBeforeThisPage;
+        console.log(`[RSS] Page ${page}: found ${newLinksOnPage} new event links (total: ${eventLinks.length})`);
+        
+        if (newLinksOnPage === 0) {
+          console.log(`[RSS] No new events on page ${page}, stopping pagination`);
+          break;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      console.log(`[RSS] Found ${eventLinks.length} Helmond event links, fetching details...`);
+
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (let i = 0; i < eventLinks.length; i++) {
+        const link = eventLinks[i];
+        try {
+          console.log(`[RSS] Fetching Helmond event ${i + 1}/${eventLinks.length}: ${link.split('/').pop()}`);
+          const eventItems = await this.scrapeHelmondEventDetail(link);
+          if (eventItems.length > 0) {
+            items.push(...eventItems);
+            successCount++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (error: any) {
+          errorCount++;
+          console.error(`[RSS] Error fetching Helmond event ${link}:`, error.message);
+        }
+        
+        if ((i + 1) % 20 === 0) {
+          console.log(`[RSS] Progress: ${i + 1}/${eventLinks.length} events processed (${successCount} success, ${errorCount} errors)`);
+        }
+      }
+
+      console.log(`[RSS] Scraped ${items.length} events from Visit Helmond (${errorCount} errors)`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Visit Helmond:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  static async scrapeHelmondEventDetail(url: string): Promise<ParsedFeedItem[]> {
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "text/html,application/xhtml+xml"
+        },
+        timeout: 15000
+      });
+
+      const $ = cheerio.load(response.data);
+      const items: ParsedFeedItem[] = [];
+      
+      const jsonLdScripts = $('script[type="application/ld+json"]');
+      
+      for (let i = 0; i < jsonLdScripts.length; i++) {
+        const scriptContent = $(jsonLdScripts[i]).html();
+        if (!scriptContent) continue;
+        
+        try {
+          const jsonData = JSON.parse(scriptContent);
+          const events = Array.isArray(jsonData) ? jsonData : [jsonData];
+          
+          for (const event of events) {
+            if (event["@type"] !== "Event") continue;
+            
+            const name = event.name || "";
+            if (!name) continue;
+            
+            const imageUrl = event.image || "";
+            const location = event.location;
+            const venueName = location?.name || "";
+            const address = location?.address;
+            const streetAddress = address?.streetAddress || "";
+            const postalCode = address?.postalCode || "";
+            const city = address?.addressLocality || "Helmond";
+            const fullAddress = [streetAddress, postalCode, city].filter(Boolean).join(", ");
+            
+            const geo = location?.geo;
+            const latitude = geo?.latitude;
+            const longitude = geo?.longitude;
+            
+            const startDate = event.startDate ? new Date(event.startDate) : undefined;
+            const endDate = event.endDate ? new Date(event.endDate) : undefined;
+            
+            if (startDate && startDate < new Date()) continue;
+            
+            const externalId = `helmond-${url.split('/')[5] || Date.now()}-${startDate?.getTime() || i}`;
+            
+            let description = event.description || "";
+            if (!description || description.length < 20) {
+              description = `${name} in ${venueName || city}. ${fullAddress ? `Locatie: ${fullAddress}.` : ""} Ontdek dit evenement in Helmond!`;
+            }
+            
+            const formattedTitle = RssFeedService.formatTitle(name);
+            
+            items.push({
+              externalId,
+              title: formattedTitle,
+              description: description,
+              link: url,
+              imageUrl: imageUrl || undefined,
+              publishedAt: new Date(),
+              startTime: startDate,
+              endTime: endDate || (startDate ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : undefined),
+              location: venueName || city,
+              address: fullAddress || `${city}, Netherlands`,
+              latitude,
+              longitude,
+              rawData: event
+            });
+          }
+        } catch (parseError) {
+          continue;
+        }
+      }
+      
+      if (items.length === 0) {
+        const title = $('h1').first().text().trim() || $('title').text().split('|')[0].trim();
+        if (title) {
+          const formattedTitle = RssFeedService.formatTitle(title);
+          items.push({
+            externalId: `helmond-fallback-${url.split('/')[5] || Date.now()}`,
+            title: formattedTitle,
+            description: `${formattedTitle} - Evenement in Helmond`,
+            link: url,
+            location: "Helmond",
+            address: "Helmond, Netherlands"
+          });
+        }
+      }
+      
+      return items;
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Helmond event detail ${url}:`, error.message);
+      return [];
+    }
+  }
+
   static async scrapeOssEventDetail(url: string): Promise<ParsedFeedItem[]> {
     try {
       const response = await axios.get(url, {
@@ -704,16 +887,6 @@ export class RssFeedService {
         }
       }
       
-      const isEnglish = /\b(the|and|of|for|with|from|this|that|are|was|were|have|has|will|would|could|should)\b/i.test(title + " " + description);
-      if (isEnglish) {
-        const translation = await AIHelper.smartTranslateEvent(title, description, false);
-        title = translation.title;
-        description = translation.description;
-        if (translation.usedAI) {
-          console.log(`[RSS] Translated with AI: "${title.substring(0, 30)}..."`);
-        }
-      }
-      
       if (imageUrl && !imageUrl.startsWith("http")) {
         imageUrl = `https://www.thisiseindhoven.com${imageUrl}`;
       }
@@ -773,6 +946,8 @@ export class RssFeedService {
           result = await this.scrapeThisIsEindhoven();
         } else if (feed.feedType === "scraper" && feed.url.includes("trefhetinoss")) {
           result = await this.scrapeTrefhetInOss();
+        } else if (feed.feedType === "scraper" && feed.url.includes("visithelmond")) {
+          result = await this.scrapeVisitHelmond();
         } else {
           result = await this.fetchAndParseRssFeed(feed.url);
         }

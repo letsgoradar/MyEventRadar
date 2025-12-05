@@ -39,9 +39,21 @@ const RADAR_CONFIG = {
 const PAGE_LOAD_TIME = performance.now();
 let globalRadarAngle = 0;
 let radarAnimationFrame: number | null = null;
+let isRadarPaused = false;
+let lastRadarUpdateTime = 0;
+const RADAR_THROTTLE_MS = 16; // ~60fps, maar kan hoger voor minder CPU
 const radarListeners: Set<(angle: number) => void> = new Set();
 
-// Start de globale radar animatie
+// Pauzeer/hervat radar animatie (tijdens pan/zoom)
+export function pauseRadarAnimation() {
+  isRadarPaused = true;
+}
+
+export function resumeRadarAnimation() {
+  isRadarPaused = false;
+}
+
+// Start de globale radar animatie met throttling
 function startRadarAnimation() {
   if (radarAnimationFrame !== null) return;
   
@@ -50,8 +62,11 @@ function startRadarAnimation() {
     const elapsed = currentTime - PAGE_LOAD_TIME;
     globalRadarAngle = ((elapsed / RADAR_CONFIG.SWEEP_DURATION) * 360) % 360;
     
-    // Notify all listeners
-    radarListeners.forEach(listener => listener(globalRadarAngle));
+    // Throttle updates naar listeners (niet elke frame)
+    if (!isRadarPaused && (currentTime - lastRadarUpdateTime >= RADAR_THROTTLE_MS)) {
+      lastRadarUpdateTime = currentTime;
+      radarListeners.forEach(listener => listener(globalRadarAngle));
+    }
     
     radarAnimationFrame = requestAnimationFrame(animate);
   };
@@ -450,15 +465,33 @@ function MapEventLoader({
       }
     };
     
+    // Handler voor start van pan/zoom - pauzeer radar animatie
+    const handleInteractionStart = () => {
+      pauseRadarAnimation();
+    };
+    
+    // Handler voor einde van pan/zoom - hervat radar animatie
+    const handleInteractionEnd = () => {
+      resumeRadarAnimation();
+    };
+    
     // Registreer event handlers
+    map.on('movestart', handleInteractionStart);
+    map.on('zoomstart', handleInteractionStart);
     map.on('moveend', handleMoveEnd);
+    map.on('moveend', handleInteractionEnd);
     map.on('zoomend', handleZoomEnd);
+    map.on('zoomend', handleInteractionEnd);
     
     // Cleanup functie
     return () => {
       clearTimeout(initTimer);
+      map.off('movestart', handleInteractionStart);
+      map.off('zoomstart', handleInteractionStart);
       map.off('moveend', handleMoveEnd);
+      map.off('moveend', handleInteractionEnd);
       map.off('zoomend', handleZoomEnd);
+      map.off('zoomend', handleInteractionEnd);
     };
   }, [map]); // Alleen afhankelijk van map, niet van callback functies
   

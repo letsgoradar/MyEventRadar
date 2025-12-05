@@ -11,6 +11,24 @@ import {
 } from "@/components/ui/resizable";
 import { startOfDay } from "date-fns";
 import L from "leaflet";
+import { useLocation } from "@/hooks/useLocation";
+import { MapPin } from "lucide-react";
+
+// Functie om afstand te berekenen (Haversine formule)
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return parseFloat((R * c).toFixed(1));
+}
+
+interface EventWithDistance extends Event {
+  distance?: number;
+}
 
 interface SplitViewProps {
   searchQuery: string;
@@ -31,9 +49,12 @@ export function SplitView({
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
   const [mapZoom, setMapZoom] = React.useState<number>(13);
-  const [visibleEvents, setVisibleEvents] = React.useState<Event[]>(filteredEvents);
+  const [visibleEvents, setVisibleEvents] = React.useState<EventWithDistance[]>([]);
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [hoveredEventId, setHoveredEventId] = React.useState<number | null>(null);
+  
+  // Haal gebruikerslocatie op
+  const { location } = useLocation();
   
   // Dispatch custom event voor hover synchronisatie met MapView (voorkomt re-render cycle)
   React.useEffect(() => {
@@ -50,6 +71,7 @@ export function SplitView({
   };
   
   // Filter events op basis van de huidige kaartgrenzen, datum selectie en verlopen events status
+  // En sorteer op afstand van gebruikerslocatie
   React.useEffect(() => {
     if (!filteredEvents) {
       setVisibleEvents([]);
@@ -62,25 +84,22 @@ export function SplitView({
       filteredEvents.filter(event => !isEventExpired(event));
     
     // Als er geen mapBounds zijn, toon alleen gefilterd op verlopen status
-    if (!mapBounds) {
-      setVisibleEvents(nonExpiredEvents);
-      return;
-    }
+    let eventsToProcess = nonExpiredEvents;
     
-    // Filter events die binnen de huidige kaartgrenzen vallen
-    let eventsInBounds = nonExpiredEvents.filter(event => {
-      // Filter op kaartgrenzen
-      const eventLatLng = L.latLng(Number(event.latitude), Number(event.longitude));
-      return mapBounds.contains(eventLatLng);
-    });
+    if (mapBounds) {
+      // Filter events die binnen de huidige kaartgrenzen vallen
+      eventsToProcess = nonExpiredEvents.filter(event => {
+        const eventLatLng = L.latLng(Number(event.latitude), Number(event.longitude));
+        return mapBounds.contains(eventLatLng);
+      });
+    }
     
     // Filter op geselecteerde dagen (als er dagen zijn geselecteerd)
     if (selectedDays.length > 0) {
-      eventsInBounds = eventsInBounds.filter(event => {
+      eventsToProcess = eventsToProcess.filter(event => {
         const eventStart = startOfDay(new Date(event.startTime));
         const eventEnd = startOfDay(new Date(event.endTime || event.startTime));
         
-        // Check of het event op een van de geselecteerde dagen valt
         return selectedDays.some(selectedDay => {
           const selected = startOfDay(selectedDay);
           return (eventStart <= selected && eventEnd >= selected) || 
@@ -89,8 +108,24 @@ export function SplitView({
       });
     }
     
-    setVisibleEvents(eventsInBounds);
-  }, [filteredEvents, mapBounds, showExpiredEvents, selectedDays]);
+    // Bereken afstand en sorteer op afstand (dichtst bij eerst)
+    const eventsWithDistance: EventWithDistance[] = eventsToProcess.map(event => {
+      const distance = location 
+        ? calculateDistance(location.lat, location.lng, Number(event.latitude), Number(event.longitude))
+        : undefined;
+      return { ...event, distance };
+    });
+    
+    // Sorteer op afstand (dichtst bij eerst)
+    eventsWithDistance.sort((a, b) => {
+      if (a.distance === undefined && b.distance === undefined) return 0;
+      if (a.distance === undefined) return 1;
+      if (b.distance === undefined) return -1;
+      return a.distance - b.distance;
+    });
+    
+    setVisibleEvents(eventsWithDistance);
+  }, [filteredEvents, mapBounds, showExpiredEvents, selectedDays, location]);
 
   // Nieuwe states voor kaart preview mode vs detail mode
   const [isPreviewMode, setIsPreviewMode] = React.useState<boolean>(false);
@@ -133,17 +168,18 @@ export function SplitView({
   const handleNavigateEvent = React.useCallback((direction: 'previous' | 'next') => {
     if (!selectedEvent) return;
     
-    const currentIndex = filteredEvents.findIndex(e => e.id === selectedEvent.id);
+    // Gebruik visibleEvents (gesorteerd op afstand) voor navigatie
+    const currentIndex = visibleEvents.findIndex(e => e.id === selectedEvent.id);
     if (direction === 'previous' && currentIndex > 0) {
-      const newEvent = filteredEvents[currentIndex - 1];
+      const newEvent = visibleEvents[currentIndex - 1];
       setSelectedEvent(newEvent);
       setActiveEventId(newEvent.id);
-    } else if (direction === 'next' && currentIndex < filteredEvents.length - 1) {
-      const newEvent = filteredEvents[currentIndex + 1];
+    } else if (direction === 'next' && currentIndex < visibleEvents.length - 1) {
+      const newEvent = visibleEvents[currentIndex + 1];
       setSelectedEvent(newEvent);
       setActiveEventId(newEvent.id);
     }
-  }, [selectedEvent, filteredEvents]);
+  }, [selectedEvent, visibleEvents]);
 
   const handleBoundsChange = React.useCallback((bounds: L.LatLngBounds) => {
     setMapBounds(bounds);
@@ -188,7 +224,7 @@ export function SplitView({
               /* Event Detail Panel */
               <EventDetailPanel
                 event={selectedEvent}
-                events={filteredEvents}
+                events={visibleEvents}
                 onClose={handleCloseEventDetail}
                 onPrevious={() => handleNavigateEvent('previous')}
                 onNext={() => handleNavigateEvent('next')}
@@ -197,12 +233,15 @@ export function SplitView({
               /* Event List/Grid View with optional preview */
               <div className="h-full overflow-y-auto pb-20 px-4 relative">
                 {/* Toon het aantal resultaten binnen het zichtbare gebied */}
-                <div className="sticky top-0 pt-4 pb-3 bg-background z-10 mb-2 flex justify-between items-center">
-                  <div className="text-lg font-medium">
-                    {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'} in huidige zoekgebied
-                  </div>
-                  <div className="text-sm text-muted-foreground hidden sm:block">
-                    Zoom in/uit op de kaart om resultaten aan te passen
+                <div className="sticky top-0 pt-4 pb-3 bg-background z-10 mb-2">
+                  <div className="flex justify-between items-center">
+                    <div className="text-lg font-medium">
+                      {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'}
+                    </div>
+                    <div className="flex items-center gap-1 text-sm text-primary font-medium">
+                      <MapPin className="h-4 w-4" />
+                      <span>Gesorteerd op afstand</span>
+                    </div>
                   </div>
                 </div>
                 

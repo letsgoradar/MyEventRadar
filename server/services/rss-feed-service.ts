@@ -549,6 +549,12 @@ export class RssFeedService {
             const latitude = geo?.latitude;
             const longitude = geo?.longitude;
             
+            // QUALITY FILTER: Only import events with verified GPS coordinates
+            if (!latitude || !longitude) {
+              console.log(`[RSS] SKIPPED Helmond event (no GPS): ${name}`);
+              continue;
+            }
+            
             const startDate = event.startDate ? new Date(event.startDate) : undefined;
             const endDate = event.endDate ? new Date(event.endDate) : undefined;
             
@@ -585,21 +591,7 @@ export class RssFeedService {
         }
       }
       
-      if (items.length === 0) {
-        const title = $('h1').first().text().trim() || $('title').text().split('|')[0].trim();
-        if (title) {
-          const formattedTitle = RssFeedService.formatTitle(title);
-          items.push({
-            externalId: `helmond-fallback-${url.split('/')[5] || Date.now()}`,
-            title: formattedTitle,
-            description: `${formattedTitle} - Evenement in Helmond`,
-            link: url,
-            location: "Helmond",
-            address: "Helmond, Netherlands"
-          });
-        }
-      }
-      
+      // No fallback - only verified locations
       return items;
     } catch (error: any) {
       console.error(`[RSS] Error scraping Helmond event detail ${url}:`, error.message);
@@ -649,6 +641,12 @@ export class RssFeedService {
             const latitude = geo?.latitude;
             const longitude = geo?.longitude;
             
+            // QUALITY FILTER: Only import events with verified GPS coordinates
+            if (!latitude || !longitude) {
+              console.log(`[RSS] SKIPPED Oss event (no GPS): ${name}`);
+              continue;
+            }
+            
             const startDate = event.startDate ? new Date(event.startDate) : undefined;
             const endDate = event.endDate ? new Date(event.endDate) : undefined;
             
@@ -685,21 +683,7 @@ export class RssFeedService {
         }
       }
       
-      if (items.length === 0) {
-        const title = $('h1').first().text().trim() || $('title').text().split('|')[0].trim();
-        if (title) {
-          const formattedTitle = RssFeedService.formatTitle(title);
-          items.push({
-            externalId: `oss-fallback-${url.split('/')[4] || Date.now()}`,
-            title: formattedTitle,
-            description: `${formattedTitle} - Evenement in Oss`,
-            link: url,
-            location: "Oss",
-            address: "Oss, Netherlands"
-          });
-        }
-      }
-      
+      // No fallback - only verified locations
       return items;
     } catch (error: any) {
       console.error(`[RSS] Error scraping Oss event detail ${url}:`, error.message);
@@ -952,60 +936,55 @@ export class RssFeedService {
       
       const formattedTitle = this.formatTitle(title);
       
-      const meierijstadVenues: Record<string, {lat: number, lng: number}> = {
-        'noordkade': { lat: 51.6155, lng: 5.5301 },
-        'theater aan de noordkade': { lat: 51.6155, lng: 5.5301 },
-        'blauwe kei': { lat: 51.6154, lng: 5.5301 },
-        'afzakkerij': { lat: 51.6149, lng: 5.5299 },
-        'de beckart': { lat: 51.6167, lng: 5.5492 },
-        'de pas': { lat: 51.6183, lng: 5.4360 },
-        'den brouwer': { lat: 51.5675, lng: 5.4510 },
-        'd\'n brouwer': { lat: 51.5675, lng: 5.4510 },
-        'hoeve arbeidslust': { lat: 51.5710, lng: 5.4650 },
-        'kienehoef': { lat: 51.5690, lng: 5.4480 },
-        'kulturhus': { lat: 51.5850, lng: 5.6010 }
+      // Known venues with EXACT coordinates - only these are trusted
+      const meierijstadVenues: Record<string, {lat: number, lng: number, address: string}> = {
+        'noordkade': { lat: 51.6155, lng: 5.5301, address: 'Noordkade, Veghel' },
+        'theater aan de noordkade': { lat: 51.6155, lng: 5.5301, address: 'Noordkade 64a, Veghel' },
+        'blauwe kei': { lat: 51.6154, lng: 5.5301, address: 'Noordkade 10, Veghel' },
+        'afzakkerij': { lat: 51.6149, lng: 5.5299, address: 'Noordkade 58, Veghel' },
+        'de beckart': { lat: 51.6167, lng: 5.5492, address: 'Pastoor Clercxstraat 2, Veghel' },
+        'de pas': { lat: 51.6183, lng: 5.4360, address: 'Steeg 9, Schijndel' },
+        'den brouwer': { lat: 51.5675, lng: 5.4510, address: 'Heuvel 26, Sint-Oedenrode' },
+        'd\'n brouwer': { lat: 51.5675, lng: 5.4510, address: 'Heuvel 26, Sint-Oedenrode' },
+        'hoeve arbeidslust': { lat: 51.5710, lng: 5.4650, address: 'Schijndelseweg 52, Sint-Oedenrode' },
+        'kienehoef': { lat: 51.5690, lng: 5.4480, address: 'Kienehoef, Sint-Oedenrode' },
+        'kulturhus erp': { lat: 51.5850, lng: 5.6010, address: 'Pastoor Beenenstraat 2, Erp' },
+        'gemeentehuis veghel': { lat: 51.6175, lng: 5.5478, address: 'Stadhuisplein 1, Veghel' },
+        'jumbo dome': { lat: 51.6189, lng: 5.5412, address: 'De Amert 201, Veghel' },
+        'the chocolate factory': { lat: 51.6158, lng: 5.5275, address: 'Noordkade 56, Veghel' },
+        'markt schijndel': { lat: 51.6180, lng: 5.4365, address: 'Markt, Schijndel' },
+        'markt veghel': { lat: 51.6162, lng: 5.5458, address: 'Markt, Veghel' },
+        'heuvel sint-oedenrode': { lat: 51.5680, lng: 5.4520, address: 'Heuvel, Sint-Oedenrode' }
       };
       
-      const meierijstadPlaces: Record<string, {lat: number, lng: number}> = {
-        'schijndel': { lat: 51.6178, lng: 5.4363 },
-        'veghel': { lat: 51.6167, lng: 5.5500 },
-        'sint-oedenrode': { lat: 51.5667, lng: 5.4500 },
-        'sint oedenrode': { lat: 51.5667, lng: 5.4500 },
-        'rooi': { lat: 51.5667, lng: 5.4500 },
-        'erp': { lat: 51.5833, lng: 5.6000 },
-        'mariaheide': { lat: 51.5833, lng: 5.5000 },
-        'boskant': { lat: 51.5500, lng: 5.4833 },
-        'nijnsel': { lat: 51.5500, lng: 5.5167 },
-        'olland': { lat: 51.5667, lng: 5.3833 },
-        'zijtaart': { lat: 51.5950, lng: 5.5833 }
-      };
+      let locationSource: 'gps' | 'venue' | 'unknown' = 'unknown';
       
+      // Check if we have GPS coordinates from Google Maps
+      if (latitude && longitude) {
+        locationSource = 'gps';
+      }
+      
+      // If no GPS, try to match known venues (exact coordinates)
       if (!latitude || !longitude) {
         const searchText = (location + ' ' + address + ' ' + title).toLowerCase();
         
-        for (const [venue, coords] of Object.entries(meierijstadVenues)) {
+        for (const [venue, venueData] of Object.entries(meierijstadVenues)) {
           if (searchText.includes(venue)) {
-            latitude = coords.lat + (Math.random() - 0.5) * 0.001;
-            longitude = coords.lng + (Math.random() - 0.5) * 0.001;
+            latitude = venueData.lat;
+            longitude = venueData.lng;
+            if (!address || address.length < 10) {
+              address = venueData.address;
+            }
+            locationSource = 'venue';
             break;
           }
         }
       }
       
-      if (!latitude || !longitude) {
-        const searchText = (location + ' ' + address + ' ' + fullText.substring(0, 1000)).toLowerCase();
-        for (const [place, coords] of Object.entries(meierijstadPlaces)) {
-          if (searchText.includes(place)) {
-            latitude = coords.lat + (Math.random() - 0.5) * 0.01;
-            longitude = coords.lng + (Math.random() - 0.5) * 0.01;
-            break;
-          }
-        }
-      }
-      
-      if (!latitude || !longitude) {
-        latitude = 51.6100 + (Math.random() - 0.5) * 0.05;
-        longitude = 5.5200 + (Math.random() - 0.5) * 0.1;
+      // QUALITY FILTER: Only import events with known locations
+      if (!latitude || !longitude || locationSource === 'unknown') {
+        console.log(`[RSS] SKIPPED Meierijstad event (no exact location): ${title}`);
+        return items;
       }
       
       if (!address) {
@@ -1536,11 +1515,17 @@ export class RssFeedService {
         }
       }
       
-      if (!geocodeSuccess) {
-        latitude = feed.defaultLatitude || "51.4416";
-        longitude = feed.defaultLongitude || "5.4697";
-        address = feed.defaultAddress || parsedItem.address || "Eindhoven Centrum";
-        console.log(`[RSS] Using default location for event: ${address}`);
+      // QUALITY FILTER: Only create events with verified locations
+      if (!geocodeSuccess && (!parsedItem.latitude || !parsedItem.longitude)) {
+        console.log(`[RSS] SKIPPED event (no verified location): ${parsedItem.title}`);
+        return;
+      }
+      
+      // Use parsed coordinates if geocoding failed but we have GPS from scraper
+      if (!geocodeSuccess && parsedItem.latitude && parsedItem.longitude) {
+        latitude = parsedItem.latitude.toString();
+        longitude = parsedItem.longitude.toString();
+        address = parsedItem.address || parsedItem.location || "Nederland";
       }
 
       let imageUrl = parsedItem.imageUrl;

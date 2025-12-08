@@ -169,6 +169,34 @@ export default function RssFeedsPage() {
     },
   });
 
+  const [syncingFeedId, setSyncingFeedId] = useState<number | null>(null);
+
+  const syncSingleFeedMutation = useMutation({
+    mutationFn: async (id: number) => {
+      setSyncingFeedId(id);
+      return apiRequest(`/api/admin/rss-feeds/${id}/sync`, {
+        method: 'POST',
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+      setSyncingFeedId(null);
+      toast({
+        title: 'Feed gesynchroniseerd',
+        description: `${data.feedName}: ${data.eventsCreated} nieuwe events aangemaakt.`,
+      });
+    },
+    onError: (error: any) => {
+      setSyncingFeedId(null);
+      toast({
+        title: 'Sync mislukt',
+        description: error.message || 'Er is een fout opgetreden.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const refreshFeedsMutation = useMutation({
     mutationFn: async () => {
       return apiRequest('/api/admin/rss-feeds/refresh', {
@@ -516,6 +544,16 @@ export default function RssFeedsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => syncSingleFeedMutation.mutate(feed.id)}
+                              disabled={syncingFeedId === feed.id}
+                              title="Nu synchroniseren"
+                              data-testid={`button-sync-feed-${feed.id}`}
+                            >
+                              <RefreshCw className={`w-4 h-4 ${syncingFeedId === feed.id ? 'animate-spin' : ''}`} />
+                            </Button>
                             <Button 
                               variant="ghost" 
                               size="icon"

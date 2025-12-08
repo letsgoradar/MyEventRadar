@@ -827,27 +827,65 @@ export class RssFeedService {
       
       let latitude: number | undefined;
       let longitude: number | undefined;
-      const googleMapsLink = $('a[href*="google.com/maps/dir"]').attr('href');
-      if (googleMapsLink) {
-        const coordMatch = googleMapsLink.match(/destination=([0-9.-]+)%2C([0-9.-]+)/);
-        if (coordMatch) {
-          latitude = parseFloat(coordMatch[1]);
-          longitude = parseFloat(coordMatch[2]);
+      
+      $('a[href*="google.com/maps"]').each((_, el) => {
+        if (latitude && longitude) return;
+        const href = $(el).attr('href') || '';
+        
+        let coordMatch = href.match(/destination=([0-9.-]+)%2C([0-9.-]+)/);
+        if (!coordMatch) {
+          coordMatch = href.match(/destination=([0-9.-]+),([0-9.-]+)/);
         }
-      }
+        if (!coordMatch) {
+          coordMatch = href.match(/@([0-9.-]+),([0-9.-]+)/);
+        }
+        if (!coordMatch) {
+          coordMatch = href.match(/q=([0-9.-]+),([0-9.-]+)/);
+        }
+        
+        if (coordMatch) {
+          const lat = parseFloat(coordMatch[1]);
+          const lng = parseFloat(coordMatch[2]);
+          if (lat >= 50 && lat <= 54 && lng >= 3 && lng <= 8) {
+            latitude = lat;
+            longitude = lng;
+          }
+        }
+      });
       
       let location = '';
       let address = '';
-      $('a[href*="google.com/maps"]').parent().find('*').each((_, el) => {
+      const fullText = $('body').text();
+      
+      $('a[href*="google.com/maps"]').parent().parent().find('*').each((_, el) => {
+        if (location && address) return;
         const text = $(el).text().trim();
-        if (text && text.length < 100 && !text.includes('Plan je route') && !text.includes('Route')) {
+        if (text && text.length > 3 && text.length < 100 && 
+            !text.includes('Plan je route') && !text.includes('Route') &&
+            !text.includes('Google Maps') && !text.includes('Bekijk')) {
           if (!location) {
             location = text;
-          } else if (!address && text !== location) {
+          } else if (!address && text !== location && text.length > location.length) {
             address = text;
           }
         }
       });
+      
+      const venuePatterns = [
+        /(?:Locatie|Venue|Waar):\s*([^\n]+)/i,
+        /(?:bij|in)\s+(?:het\s+)?([A-Z][a-zA-Z\s]+(?:Café|Theater|Zaal|Centrum|Kerk|Museum|Park|Plein|Huis|Gebouw))/,
+        /([A-Z][a-zA-Z\s]+(?:kade|straat|weg|laan|plein))\s*\d*/i
+      ];
+      
+      if (!location || location.length < 5) {
+        for (const pattern of venuePatterns) {
+          const match = fullText.match(pattern);
+          if (match) {
+            location = match[1].trim();
+            break;
+          }
+        }
+      }
       
       const dateText = $('body').text();
       let startTime: Date | undefined;
@@ -914,33 +952,60 @@ export class RssFeedService {
       
       const formattedTitle = this.formatTitle(title);
       
+      const meierijstadVenues: Record<string, {lat: number, lng: number}> = {
+        'noordkade': { lat: 51.6155, lng: 5.5301 },
+        'theater aan de noordkade': { lat: 51.6155, lng: 5.5301 },
+        'blauwe kei': { lat: 51.6154, lng: 5.5301 },
+        'afzakkerij': { lat: 51.6149, lng: 5.5299 },
+        'de beckart': { lat: 51.6167, lng: 5.5492 },
+        'de pas': { lat: 51.6183, lng: 5.4360 },
+        'den brouwer': { lat: 51.5675, lng: 5.4510 },
+        'd\'n brouwer': { lat: 51.5675, lng: 5.4510 },
+        'hoeve arbeidslust': { lat: 51.5710, lng: 5.4650 },
+        'kienehoef': { lat: 51.5690, lng: 5.4480 },
+        'kulturhus': { lat: 51.5850, lng: 5.6010 }
+      };
+      
       const meierijstadPlaces: Record<string, {lat: number, lng: number}> = {
         'schijndel': { lat: 51.6178, lng: 5.4363 },
         'veghel': { lat: 51.6167, lng: 5.5500 },
         'sint-oedenrode': { lat: 51.5667, lng: 5.4500 },
         'sint oedenrode': { lat: 51.5667, lng: 5.4500 },
+        'rooi': { lat: 51.5667, lng: 5.4500 },
         'erp': { lat: 51.5833, lng: 5.6000 },
         'mariaheide': { lat: 51.5833, lng: 5.5000 },
         'boskant': { lat: 51.5500, lng: 5.4833 },
         'nijnsel': { lat: 51.5500, lng: 5.5167 },
         'olland': { lat: 51.5667, lng: 5.3833 },
-        'meierijstad': { lat: 51.6000, lng: 5.5000 }
+        'zijtaart': { lat: 51.5950, lng: 5.5833 }
       };
       
       if (!latitude || !longitude) {
-        const locationLower = (location + ' ' + address).toLowerCase();
-        for (const [place, coords] of Object.entries(meierijstadPlaces)) {
-          if (locationLower.includes(place)) {
-            latitude = coords.lat;
-            longitude = coords.lng;
+        const searchText = (location + ' ' + address + ' ' + title).toLowerCase();
+        
+        for (const [venue, coords] of Object.entries(meierijstadVenues)) {
+          if (searchText.includes(venue)) {
+            latitude = coords.lat + (Math.random() - 0.5) * 0.001;
+            longitude = coords.lng + (Math.random() - 0.5) * 0.001;
             break;
           }
         }
       }
       
       if (!latitude || !longitude) {
-        latitude = 51.6167;
-        longitude = 5.5500;
+        const searchText = (location + ' ' + address + ' ' + fullText.substring(0, 1000)).toLowerCase();
+        for (const [place, coords] of Object.entries(meierijstadPlaces)) {
+          if (searchText.includes(place)) {
+            latitude = coords.lat + (Math.random() - 0.5) * 0.01;
+            longitude = coords.lng + (Math.random() - 0.5) * 0.01;
+            break;
+          }
+        }
+      }
+      
+      if (!latitude || !longitude) {
+        latitude = 51.6100 + (Math.random() - 0.5) * 0.05;
+        longitude = 5.5200 + (Math.random() - 0.5) * 0.1;
       }
       
       if (!address) {
@@ -1229,6 +1294,71 @@ export class RssFeedService {
     ];
     const lowerText = text.toLowerCase();
     return cookiePatterns.filter(p => lowerText.includes(p)).length >= 2;
+  }
+
+  static async processFeed(feed: RssFeed, storage?: any): Promise<{ success: boolean; itemsProcessed: number; eventsCreated: number; error?: string }> {
+    const feedStartTime = Date.now();
+    
+    try {
+      console.log(`[RSS] Single feed sync: ${feed.name}...`);
+
+      let result: FeedParseResult;
+
+      if (feed.feedType === "scraper" && feed.url.includes("thisiseindhoven")) {
+        result = await this.scrapeThisIsEindhoven();
+      } else if (feed.feedType === "scraper" && feed.url.includes("trefhetinoss")) {
+        result = await this.scrapeTrefhetInOss();
+      } else if (feed.feedType === "scraper" && feed.url.includes("visithelmond")) {
+        result = await this.scrapeVisitHelmond();
+      } else if (feed.feedType === "scraper" && feed.url.includes("bezoekmeierijstad")) {
+        result = await this.scrapeMeierijstad();
+      } else {
+        result = await this.fetchAndParseRssFeed(feed.url);
+      }
+
+      const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
+
+      if (!result.success) {
+        console.log(`[RSS] ${feed.name}: FAILED after ${feedDuration} min - ${result.error}`);
+        await db.update(rssFeeds)
+          .set({ 
+            status: "error", 
+            lastErrorMessage: result.error,
+            lastFetchedAt: new Date()
+          })
+          .where(eq(rssFeeds.id, feed.id));
+        return { success: false, itemsProcessed: 0, eventsCreated: 0, error: result.error };
+      }
+
+      let newItemsCount = 0;
+      for (const item of result.items) {
+        const created = await this.createOrUpdateFeedItem(feed, item);
+        if (created) newItemsCount++;
+      }
+
+      await db.update(rssFeeds)
+        .set({
+          status: "active",
+          lastFetchedAt: new Date(),
+          lastErrorMessage: null,
+          itemsImported: (feed.itemsImported || 0) + newItemsCount
+        })
+        .where(eq(rssFeeds.id, feed.id));
+
+      console.log(`[RSS] ${feed.name}: SUCCESS - ${newItemsCount} new items in ${feedDuration} min (total: ${result.items.length} found)`);
+      return { success: true, itemsProcessed: result.items.length, eventsCreated: newItemsCount };
+    } catch (error: any) {
+      const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
+      console.error(`[RSS] ${feed.name}: ERROR after ${feedDuration} min - ${error.message}`);
+      await db.update(rssFeeds)
+        .set({ 
+          status: "error", 
+          lastErrorMessage: error.message,
+          lastFetchedAt: new Date()
+        })
+        .where(eq(rssFeeds.id, feed.id));
+      return { success: false, itemsProcessed: 0, eventsCreated: 0, error: error.message };
+    }
   }
 
   static async processFeeds(): Promise<{ processed: number; errors: number }> {

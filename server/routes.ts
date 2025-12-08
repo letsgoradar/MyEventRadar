@@ -1558,6 +1558,34 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
+  app.post("/api/admin/rss-feeds/:id/sync", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+
+      const feed = await storage.getRssFeed(feedId);
+      if (!feed) {
+        return res.status(404).json({ message: "Feed not found" });
+      }
+
+      const { RssFeedService } = await import('./services/rss-feed-service');
+      const result = await RssFeedService.processFeed(feed, storage);
+      
+      res.json({ 
+        message: "Feed sync completed",
+        feedName: feed.name,
+        itemsProcessed: result.itemsProcessed || 0,
+        eventsCreated: result.eventsCreated || 0,
+        success: result.success
+      });
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/rss-feeds/:id/sync:', error);
+      res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+
   app.get("/api/admin/rss-feeds/stats", isAdmin, async (req, res) => {
     try {
       const feeds = await storage.getAllRssFeeds();

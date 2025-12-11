@@ -64,8 +64,16 @@ export default function MunicipalityMap({ onSelectMunicipality, onAddFeed }: Mun
       .catch(err => console.error('Failed to load municipality GeoJSON:', err));
   }, []);
 
+  const normalizeKey = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/^['']/, '') // Remove leading apostrophe ('s-Hertogenbosch -> s-Hertogenbosch)
+      .replace(/\s+/g, '-')
+      .replace(/['']/g, ''); // Remove any remaining apostrophes
+  };
+
   const getStatusForMunicipality = (name: string): 'active' | 'error' | 'paused' | 'none' => {
-    const key = name.toLowerCase().replace(/\s+/g, '-');
+    const key = normalizeKey(name);
     const status = municipalityStatus[key];
     if (!status) return 'none';
     if (status.errorCount > 0) return 'error';
@@ -113,7 +121,7 @@ export default function MunicipalityMap({ onSelectMunicipality, onAddFeed }: Mun
     layersRef.current.set(name, layer);
     
     const getStatusFromRef = (n: string): 'active' | 'error' | 'paused' | 'none' => {
-      const key = n.toLowerCase().replace(/\s+/g, '-');
+      const key = n.toLowerCase().replace(/^['']/, '').replace(/\s+/g, '-').replace(/['']/g, '');
       const status = municipalityStatusRef.current[key];
       if (!status) return 'none';
       if (status.errorCount > 0) return 'error';
@@ -167,7 +175,7 @@ export default function MunicipalityMap({ onSelectMunicipality, onAddFeed }: Mun
     const prevSelected = selectedRef.current;
     if (prevSelected) {
       const getStatusFromRef = (n: string): 'active' | 'error' | 'paused' | 'none' => {
-        const key = n.toLowerCase().replace(/\s+/g, '-');
+        const key = n.toLowerCase().replace(/^['']/, '').replace(/\s+/g, '-').replace(/['']/g, '');
         const status = municipalityStatusRef.current[key];
         if (!status) return 'none';
         if (status.errorCount > 0) return 'error';
@@ -188,7 +196,7 @@ export default function MunicipalityMap({ onSelectMunicipality, onAddFeed }: Mun
 
   const selectedStatus = useMemo(() => {
     if (!selectedMunicipality) return null;
-    const key = selectedMunicipality.toLowerCase().replace(/\s+/g, '-');
+    const key = selectedMunicipality.toLowerCase().replace(/^['']/, '').replace(/\s+/g, '-').replace(/['']/g, '');
     return municipalityStatus[key] || null;
   }, [selectedMunicipality, municipalityStatus]);
 

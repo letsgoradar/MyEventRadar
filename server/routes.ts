@@ -1471,6 +1471,85 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
+  // Stats route - MUST be before :id route
+  app.get("/api/admin/rss-feeds/stats", isAdmin, async (req, res) => {
+    try {
+      const feeds = await storage.getAllRssFeeds();
+      const itemsCount = await storage.getRssFeedItemsCount();
+      
+      const activeFeeds = feeds.filter(f => f.status === 'active').length;
+      const errorFeeds = feeds.filter(f => f.status === 'error').length;
+      const totalImported = feeds.reduce((sum, f) => sum + (f.itemsImported || 0), 0);
+
+      res.json({
+        totalFeeds: feeds.length,
+        activeFeeds,
+        errorFeeds,
+        totalItems: itemsCount,
+        totalImported
+      });
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/stats:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Municipalities route - MUST be before :id route
+  app.get("/api/admin/rss-feeds/municipalities", isAdmin, async (req, res) => {
+    try {
+      const feeds = await storage.getAllRssFeeds();
+      
+      const municipalityStatus: Record<string, {
+        name: string;
+        feeds: Array<{
+          id: number;
+          name: string;
+          status: string;
+          lastFetchedAt: string | null;
+          itemsImported: number;
+          lastErrorMessage: string | null;
+        }>;
+        activeCount: number;
+        errorCount: number;
+        totalImported: number;
+      }> = {};
+
+      for (const feed of feeds) {
+        if (!feed.municipality) continue;
+        
+        const key = feed.municipality.toLowerCase().replace(/\s+/g, '-');
+        
+        if (!municipalityStatus[key]) {
+          municipalityStatus[key] = {
+            name: feed.municipality,
+            feeds: [],
+            activeCount: 0,
+            errorCount: 0,
+            totalImported: 0
+          };
+        }
+        
+        municipalityStatus[key].feeds.push({
+          id: feed.id,
+          name: feed.name,
+          status: feed.status,
+          lastFetchedAt: feed.lastFetchedAt ? feed.lastFetchedAt.toISOString() : null,
+          itemsImported: feed.itemsImported || 0,
+          lastErrorMessage: feed.lastErrorMessage || null
+        });
+        
+        if (feed.status === 'active') municipalityStatus[key].activeCount++;
+        if (feed.status === 'error') municipalityStatus[key].errorCount++;
+        municipalityStatus[key].totalImported += feed.itemsImported || 0;
+      }
+
+      res.json(municipalityStatus);
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/municipalities:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.get("/api/admin/rss-feeds/:id", isAdmin, async (req, res) => {
     try {
       const feedId = parseInt(req.params.id);
@@ -1654,83 +1733,6 @@ Respond with ONLY the search term, nothing else.`
       res.json(feeds.map(f => ({ id: f.id, name: f.name, municipality: f.municipality })));
     } catch (error) {
       console.error('Error in GET /api/admin/feeds-list:', error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.get("/api/admin/rss-feeds/stats", isAdmin, async (req, res) => {
-    try {
-      const feeds = await storage.getAllRssFeeds();
-      const itemsCount = await storage.getRssFeedItemsCount();
-      
-      const activeFeeds = feeds.filter(f => f.status === 'active').length;
-      const errorFeeds = feeds.filter(f => f.status === 'error').length;
-      const totalImported = feeds.reduce((sum, f) => sum + (f.itemsImported || 0), 0);
-
-      res.json({
-        totalFeeds: feeds.length,
-        activeFeeds,
-        errorFeeds,
-        totalItems: itemsCount,
-        totalImported
-      });
-    } catch (error) {
-      console.error('Error in GET /api/admin/rss-feeds/stats:', error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.get("/api/admin/rss-feeds/municipalities", isAdmin, async (req, res) => {
-    try {
-      const feeds = await storage.getAllRssFeeds();
-      
-      const municipalityStatus: Record<string, {
-        name: string;
-        feeds: Array<{
-          id: number;
-          name: string;
-          status: string;
-          lastFetchedAt: string | null;
-          itemsImported: number;
-          lastErrorMessage: string | null;
-        }>;
-        activeCount: number;
-        errorCount: number;
-        totalImported: number;
-      }> = {};
-
-      for (const feed of feeds) {
-        if (!feed.municipality) continue;
-        
-        const key = feed.municipality.toLowerCase().replace(/\s+/g, '-');
-        
-        if (!municipalityStatus[key]) {
-          municipalityStatus[key] = {
-            name: feed.municipality,
-            feeds: [],
-            activeCount: 0,
-            errorCount: 0,
-            totalImported: 0
-          };
-        }
-        
-        municipalityStatus[key].feeds.push({
-          id: feed.id,
-          name: feed.name,
-          status: feed.status,
-          lastFetchedAt: feed.lastFetchedAt ? feed.lastFetchedAt.toISOString() : null,
-          itemsImported: feed.itemsImported || 0,
-          lastErrorMessage: feed.lastErrorMessage || null
-        });
-        
-        if (feed.status === 'active') municipalityStatus[key].activeCount++;
-        if (feed.status === 'error') municipalityStatus[key].errorCount++;
-        municipalityStatus[key].totalImported += feed.itemsImported || 0;
-      }
-
-      res.json(municipalityStatus);
-    } catch (error) {
-      console.error('Error in GET /api/admin/rss-feeds/municipalities:', error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

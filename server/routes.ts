@@ -1586,6 +1586,55 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
+  app.get("/api/admin/rss-feeds/:id/events", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+
+      const feed = await storage.getRssFeed(feedId);
+      if (!feed) {
+        return res.status(404).json({ message: "Feed not found" });
+      }
+
+      const items = await storage.getRssFeedItems(feedId);
+      const eventIds = items.filter(item => item.eventId).map(item => item.eventId as number);
+      
+      const events = await Promise.all(
+        eventIds.map(id => storage.getEvent(id))
+      );
+      
+      const validEvents = events.filter(e => e !== undefined);
+      
+      res.json({
+        feed: {
+          id: feed.id,
+          name: feed.name,
+          municipality: feed.municipality,
+          province: feed.province
+        },
+        totalEvents: validEvents.length,
+        events: validEvents.sort((a, b) => 
+          new Date(a!.startTime).getTime() - new Date(b!.startTime).getTime()
+        )
+      });
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/:id/events:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/feeds-list", isAdmin, async (req, res) => {
+    try {
+      const feeds = await storage.getAllRssFeeds();
+      res.json(feeds.map(f => ({ id: f.id, name: f.name, municipality: f.municipality })));
+    } catch (error) {
+      console.error('Error in GET /api/admin/feeds-list:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.get("/api/admin/rss-feeds/stats", isAdmin, async (req, res) => {
     try {
       const feeds = await storage.getAllRssFeeds();

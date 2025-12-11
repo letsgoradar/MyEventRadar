@@ -44,8 +44,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye } from 'lucide-react';
 import { format } from 'date-fns';
+import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
 import { CATEGORIES } from '@shared/schema';
 
@@ -79,6 +80,7 @@ interface RssFeedStats {
 
 export default function RssFeedsPage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
   
@@ -553,7 +555,16 @@ export default function RssFeedsPage() {
                             </p>
                           )}
                         </TableCell>
-                        <TableCell>{feed.itemsImported || 0}</TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="link" 
+                            className="p-0 h-auto font-medium text-primary hover:underline"
+                            onClick={() => navigate(`/admin/events?feed=${feed.id}`)}
+                            title="Bekijk events van deze feed"
+                          >
+                            {feed.itemsImported || 0} events
+                          </Button>
+                        </TableCell>
                         <TableCell>
                           {feed.lastFetchedAt 
                             ? format(new Date(feed.lastFetchedAt), 'dd MMM HH:mm', { locale: nl })

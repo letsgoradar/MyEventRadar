@@ -105,19 +105,30 @@ interface EventsFilter {
   searchQuery: string;
   sortBy: 'newest' | 'oldest' | 'title' | 'category' | 'address';
   timeFrame: 'all' | 'upcoming' | 'past' | 'today';
+  feedId: string;
+}
+
+interface FeedInfo {
+  id: number;
+  name: string;
+  municipality: string | null;
 }
 
 const AdminEvents: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialFeedId = urlParams.get('feed') || 'all';
   
   // State for filters and pagination
   const [filter, setFilter] = useState<EventsFilter>({
     category: 'all',
     searchQuery: '',
     sortBy: 'newest',
-    timeFrame: 'all'
+    timeFrame: 'all',
+    feedId: initialFeedId
   });
   
   const [page, setPage] = useState(1);
@@ -128,13 +139,31 @@ const AdminEvents: React.FC = () => {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [view, setView] = useState<'list' | 'grid'>('list');
   
-  // Fetch events data
-  const { data: allEvents, isLoading, error } = useQuery<Event[]>({
+  // Fetch feeds list for filter dropdown
+  const { data: feedsList = [] } = useQuery<FeedInfo[]>({
+    queryKey: ['/api/admin/feeds-list'],
+    queryFn: () => apiRequest('/api/admin/feeds-list'),
+  });
+
+  // Fetch events by feed if filter is active
+  const { data: feedEventsData } = useQuery<{ feed: FeedInfo; totalEvents: number; events: Event[] }>({
+    queryKey: ['/api/admin/rss-feeds', filter.feedId, 'events'],
+    queryFn: () => apiRequest(`/api/admin/rss-feeds/${filter.feedId}/events`),
+    enabled: filter.feedId !== 'all',
+  });
+
+  // Fetch all events data
+  const { data: allEventsData, isLoading, error } = useQuery<Event[]>({
     queryKey: ['/api/admin/events'],
     queryFn: async () => {
       return await apiRequest('/api/admin/events');
     }
   });
+
+  // Use feed events when filter is active, otherwise use all events
+  const allEvents = filter.feedId !== 'all' && feedEventsData?.events 
+    ? feedEventsData.events 
+    : allEventsData;
   
   // Filter and sort events
   const filteredEvents = React.useMemo(() => {
@@ -318,10 +347,12 @@ const AdminEvents: React.FC = () => {
       category: 'all',
       searchQuery: '',
       sortBy: 'newest',
-      timeFrame: 'all'
+      timeFrame: 'all',
+      feedId: 'all'
     });
     setSearchInput('');
     setPage(1);
+    window.history.replaceState({}, '', '/admin/events');
   };
   
   // Handle CSV file upload
@@ -415,8 +446,19 @@ const AdminEvents: React.FC = () => {
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold">Evenementen Beheer</h1>
-              <p className="text-muted-foreground">Beheer alle evenementen op het platform</p>
+              <h1 className="text-3xl font-bold">
+                Evenementen Beheer
+                {filter.feedId !== 'all' && feedEventsData?.feed && (
+                  <Badge className="ml-3 text-sm font-normal" variant="secondary">
+                    {feedEventsData.feed.municipality || feedEventsData.feed.name}
+                  </Badge>
+                )}
+              </h1>
+              <p className="text-muted-foreground">
+                {filter.feedId !== 'all' && feedEventsData 
+                  ? `${feedEventsData.totalEvents} events van ${feedEventsData.feed?.name}`
+                  : 'Beheer alle evenementen op het platform'}
+              </p>
             </div>
           
             <div className="flex items-center gap-3">
@@ -522,6 +564,30 @@ const AdminEvents: React.FC = () => {
                           <CategoryIcon category={category as any} size={16} />
                           <span>{category}</span>
                         </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select
+                  value={filter.feedId}
+                  onValueChange={(value) => {
+                    handleFilterChange('feedId', value);
+                    if (value === 'all') {
+                      window.history.replaceState({}, '', '/admin/events');
+                    } else {
+                      window.history.replaceState({}, '', `/admin/events?feed=${value}`);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Feed/Bron" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle Feeds</SelectItem>
+                    {feedsList.map((feed) => (
+                      <SelectItem key={feed.id} value={feed.id.toString()}>
+                        {feed.municipality || feed.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

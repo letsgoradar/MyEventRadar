@@ -1775,6 +1775,228 @@ export class RssFeedService {
     }
   }
 
+  /**
+   * Scrape Den Bosch events from zinindenbosch.nl
+   * Uses Puppeteer because the site is client-side rendered with Next.js
+   */
+  static async scrapeDenBosch(): Promise<FeedParseResult> {
+    let browser: any = null;
+    try {
+      const puppeteer = await import('puppeteer');
+      const items: ParsedFeedItem[] = [];
+      
+      console.log(`[RSS] Starting Den Bosch scraper with Puppeteer...`);
+      
+      browser = await puppeteer.default.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      });
+      
+      const page = await browser.newPage();
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+      await page.setViewport({ width: 1920, height: 1080 });
+      
+      // Navigate to events page
+      console.log(`[RSS] Loading Den Bosch events page...`);
+      await page.goto('https://www.zinindenbosch.nl/nl/page/events', { 
+        waitUntil: 'networkidle2',
+        timeout: 60000 
+      });
+      
+      // Wait for event cards to load
+      await page.waitForSelector('a[href*="/nl/event/"]', { timeout: 30000 });
+      
+      // Scroll to load more events
+      console.log(`[RSS] Scrolling to load more events...`);
+      for (let i = 0; i < 10; i++) {
+        await page.evaluate(() => window.scrollBy(0, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Extract event links
+      const eventLinks = await page.evaluate(() => {
+        const links: string[] = [];
+        document.querySelectorAll('a[href*="/nl/event/"]').forEach((a: any) => {
+          const href = a.getAttribute('href');
+          if (href && !links.includes(href) && href !== '/nl/event/stadswandelingen') {
+            links.push(href.startsWith('http') ? href : `https://www.zinindenbosch.nl${href}`);
+          }
+        });
+        return links;
+      });
+      
+      console.log(`[RSS] Found ${eventLinks.length} Den Bosch event links`);
+      
+      // Fetch details for each event
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (let i = 0; i < eventLinks.length; i++) {
+        const link = eventLinks[i];
+        try {
+          const slug = link.split('/').pop() || '';
+          console.log(`[RSS] Fetching Den Bosch event ${i + 1}/${eventLinks.length}: ${slug}`);
+          
+          const eventItems = await this.scrapeDenBoschEventDetail(page, link);
+          if (eventItems.length > 0) {
+            items.push(...eventItems);
+            successCount++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error: any) {
+          errorCount++;
+          console.log(`[RSS] Error fetching Den Bosch event ${link}: ${error.message}`);
+        }
+        
+        if ((i + 1) % 20 === 0) {
+          console.log(`[RSS] Progress: ${i + 1}/${eventLinks.length} events processed (${successCount} success, ${errorCount} errors)`);
+        }
+      }
+      
+      await browser.close();
+      browser = null;
+      
+      console.log(`[RSS] Scraped ${items.length} events from Den Bosch (${errorCount} errors)`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Den Bosch:`, error.message);
+      if (browser) await browser.close();
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  static async scrapeDenBoschEventDetail(page: any, url: string): Promise<ParsedFeedItem[]> {
+    const items: ParsedFeedItem[] = [];
+    
+    try {
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const eventData = await page.evaluate(() => {
+        const title = document.querySelector('h1')?.textContent?.trim() || '';
+        
+        // Get description from main content
+        const paragraphs = document.querySelectorAll('p');
+        let description = '';
+        paragraphs.forEach((p: any) => {
+          const text = p.textContent?.trim() || '';
+          if (text.length > 50 && text.length > description.length && !text.includes('cookie')) {
+            description = text;
+          }
+        });
+        
+        // Get image URL
+        const img = document.querySelector('img[src*="api/uploads"]') as HTMLImageElement;
+        const imageUrl = img?.src || '';
+        
+        // Get dates - look for "Wanneer" section or date elements
+        const dateText = document.body.innerText;
+        
+        // Get location
+        const locationLink = document.querySelector('a[href*="/nl/location/"]');
+        const location = locationLink?.textContent?.trim() || 's-Hertogenbosch';
+        
+        return { title, description, imageUrl, dateText, location };
+      });
+      
+      if (!eventData.title || eventData.title.length < 3) return items;
+      
+      // Parse dates from the page text
+      const { startTime, endTime } = this.parseDenBoschDates(eventData.dateText);
+      
+      // Skip past events
+      const now = new Date();
+      if (!startTime || startTime < now) return items;
+      
+      // Den Bosch coordinates (city center)
+      const DEN_BOSCH_CENTER = { lat: 51.6881, lng: 5.3036 };
+      
+      // Known venue coordinates in Den Bosch
+      const VENUES: Record<string, { lat: number; lng: number; address: string }> = {
+        'de markt': { lat: 51.6878, lng: 5.3066, address: 'Markt, 5211 JZ \'s-Hertogenbosch' },
+        'markt': { lat: 51.6878, lng: 5.3066, address: 'Markt, 5211 JZ \'s-Hertogenbosch' },
+        'theater aan de parade': { lat: 51.6871, lng: 5.3031, address: 'Parade 2, 5211 KL \'s-Hertogenbosch' },
+        'sint-janskathedraal': { lat: 51.6890, lng: 5.3075, address: 'Torenstraat 16, 5211 KK \'s-Hertogenbosch' },
+        'het noordbrabants museum': { lat: 51.6847, lng: 5.3048, address: 'Verwersstraat 41, 5211 HT \'s-Hertogenbosch' },
+        'noordbrabants museum': { lat: 51.6847, lng: 5.3048, address: 'Verwersstraat 41, 5211 HT \'s-Hertogenbosch' },
+        'willem twee': { lat: 51.6875, lng: 5.2967, address: 'Boschdijkstraat 100, 5211 VD \'s-Hertogenbosch' },
+        'verkadefabriek': { lat: 51.6829, lng: 5.2827, address: 'Boschdijkstraat 45, 5211 VD \'s-Hertogenbosch' },
+        'de verkadefabriek': { lat: 51.6829, lng: 5.2827, address: 'Boschdijkstraat 45, 5211 VD \'s-Hertogenbosch' },
+        'jheronimus bosch art center': { lat: 51.6867, lng: 5.3017, address: 'Jeroen Boschplein 2, 5211 ML \'s-Hertogenbosch' },
+        'efteling': { lat: 51.6499, lng: 5.0498, address: 'Europalaan 1, 5171 KW Kaatsheuvel' },
+        'mainstage': { lat: 51.6832, lng: 5.2981, address: 'Stationsplein, 5211 AP \'s-Hertogenbosch' },
+        'tramkade': { lat: 51.6805, lng: 5.2855, address: 'Tramkade, 5211 VD \'s-Hertogenbosch' }
+      };
+      
+      // Find coordinates based on location name
+      let latitude = DEN_BOSCH_CENTER.lat;
+      let longitude = DEN_BOSCH_CENTER.lng;
+      let address = '\'s-Hertogenbosch, Nederland';
+      
+      const locationLower = eventData.location.toLowerCase();
+      for (const [venueName, venueData] of Object.entries(VENUES)) {
+        if (locationLower.includes(venueName)) {
+          latitude = venueData.lat;
+          longitude = venueData.lng;
+          address = venueData.address;
+          break;
+        }
+      }
+      
+      const slug = url.split('/').pop() || Date.now().toString();
+      const externalId = `denbosch-${slug}`;
+      
+      items.push({
+        externalId,
+        title: this.formatTitle(eventData.title),
+        description: eventData.description.substring(0, 1000) || `${eventData.title} - Evenement in 's-Hertogenbosch`,
+        link: url,
+        imageUrl: eventData.imageUrl || undefined,
+        publishedAt: new Date(),
+        startTime,
+        endTime: endTime || new Date(startTime.getTime() + 4 * 60 * 60 * 1000),
+        location: eventData.location || '\'s-Hertogenbosch',
+        address,
+        latitude,
+        longitude,
+        rawData: { url, location: eventData.location }
+      });
+      
+      return items;
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Den Bosch event detail ${url}:`, error.message);
+      return [];
+    }
+  }
+
+  private static parseDenBoschDates(text: string): { startTime: Date | undefined; endTime: Date | undefined } {
+    try {
+      // Look for patterns like "18 december 2025 - 24 december 2025" or "Vandonderdag 18 december"
+      const currentYear = new Date().getFullYear();
+      const nextYear = currentYear + 1;
+      
+      // Pattern: "DD month YYYY" or "DD month"
+      const datePattern = /(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s*(\d{4})?/gi;
+      const matches = Array.from(text.matchAll(datePattern));
+      
+      if (matches.length === 0) return { startTime: undefined, endTime: undefined };
+      
+      const parseDateMatch = (match: RegExpMatchArray): Date => {
+        const day = parseInt(match[1]);
+        const monthName = match[2].toLowerCase();
+        const year = match[3] ? parseInt(match[3]) : (new Date().getMonth() < this.MONTHS[monthName] ? currentYear : nextYear);
+        return new Date(year, this.MONTHS[monthName], day, 10, 0);
+      };
+      
+      const startTime = parseDateMatch(matches[0]);
+      const endTime = matches.length > 1 ? parseDateMatch(matches[matches.length - 1]) : undefined;
+      
+      return { startTime, endTime };
+    } catch (e) {
+      return { startTime: undefined, endTime: undefined };
+    }
+  }
+
   static readonly MONTHS: Record<string, number> = {
     jan: 0, january: 0, januari: 0,
     feb: 1, february: 1, februari: 1,
@@ -2058,6 +2280,8 @@ export class RssFeedService {
         result = await this.scrapeSonEnBreugel();
       } else if (feed.feedType === "scraper" && feed.url.includes("mooibernheze")) {
         result = await this.scrapeBernheze();
+      } else if (feed.feedType === "scraper" && feed.url.includes("zinindenbosch")) {
+        result = await this.scrapeDenBosch();
       } else {
         result = await this.fetchAndParseRssFeed(feed.url);
       }
@@ -2151,6 +2375,8 @@ export class RssFeedService {
           result = await this.scrapeSonEnBreugel();
         } else if (feed.feedType === "scraper" && feed.url.includes("mooibernheze")) {
           result = await this.scrapeBernheze();
+        } else if (feed.feedType === "scraper" && feed.url.includes("zinindenbosch")) {
+          result = await this.scrapeDenBosch();
         } else {
           result = await this.fetchAndParseRssFeed(feed.url);
         }

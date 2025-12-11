@@ -1776,203 +1776,185 @@ export class RssFeedService {
   }
 
   /**
-   * Scrape Den Bosch events from denboschregion.nl
-   * Uses schema.org markup for reliable data extraction
+   * Fetch Den Bosch events from zinindenbosch.nl Payload CMS API
+   * Uses official REST API for reliable data extraction with exact GPS coordinates
    * Following Feed Import Principles: verified locations, date-bound events, source images
    */
   static async scrapeDenBosch(): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
-      const cheerio = await import('cheerio');
       
-      console.log(`[RSS] Starting Den Bosch scraper (denboschregion.nl)...`);
+      console.log(`[RSS] Starting Den Bosch fetcher (zinindenbosch.nl Payload CMS API)...`);
       
-      // Known Den Bosch venues with coordinates for geocoding fallback
-      const DEN_BOSCH_VENUES: Record<string, { lat: number; lng: number }> = {
-        'de markt': { lat: 51.6878, lng: 5.3066 },
-        'markt': { lat: 51.6878, lng: 5.3066 },
-        'theater aan de parade': { lat: 51.6871, lng: 5.3031 },
-        'parade': { lat: 51.6871, lng: 5.3031 },
-        'sint-janskathedraal': { lat: 51.6890, lng: 5.3075 },
-        'sint jan': { lat: 51.6890, lng: 5.3075 },
-        'het noordbrabants museum': { lat: 51.6847, lng: 5.3048 },
-        'noordbrabants museum': { lat: 51.6847, lng: 5.3048 },
-        'willem twee': { lat: 51.6875, lng: 5.2967 },
-        'verkadefabriek': { lat: 51.6829, lng: 5.2827 },
-        'de verkadefabriek': { lat: 51.6829, lng: 5.2827 },
-        'jheronimus bosch art center': { lat: 51.6867, lng: 5.3017 },
-        'mainstage': { lat: 51.6832, lng: 5.2981 },
-        'tramkade': { lat: 51.6805, lng: 5.2855 },
-        'design museum': { lat: 51.6867, lng: 5.3017 },
-        'muzerije': { lat: 51.6858, lng: 5.3052 },
-        'bolwerk': { lat: 51.6912, lng: 5.2982 },
-        'brabanthallen': { lat: 51.6845, lng: 5.2698 },
-        'de groene engel': { lat: 51.6881, lng: 5.3017 },
-        'poppodium w2': { lat: 51.6875, lng: 5.2967 },
-        'de moriaan': { lat: 51.6878, lng: 5.3066 },
-        'museum slager': { lat: 51.6860, lng: 5.3055 },
-        'het bossche broek': { lat: 51.7010, lng: 5.3100 },
-        'zuiderpark': { lat: 51.6790, lng: 5.3040 },
-        'stadsschouwburg': { lat: 51.6871, lng: 5.3031 }
-      };
-      
-      // Fetch multiple pages of events
-      const baseUrl = 'https://www.denboschregion.nl/nl/den-bosch/uitagenda';
+      // Payload CMS API endpoint - fetch all published events
+      const apiUrl = 'https://www.zinindenbosch.nl/api/events';
       let page = 1;
       let hasMorePages = true;
-      let totalEvents = 0;
+      const limit = 50; // Fetch 50 events per page
       
-      while (hasMorePages && page <= 10) { // Max 10 pages for safety
-        const pageUrl = page === 1 ? baseUrl : `${baseUrl}?page=${page}`;
-        console.log(`[RSS] Fetching Den Bosch page ${page}...`);
+      while (hasMorePages && page <= 20) { // Max 20 pages (1000 events)
+        const pageUrl = `${apiUrl}?limit=${limit}&page=${page}&depth=2&sort=-createdAt`;
+        console.log(`[RSS] Fetching Den Bosch API page ${page}...`);
         
         const response = await fetch(pageUrl, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            'Accept': 'application/json',
+            'User-Agent': 'letsgo-radar/1.0 (+https://letsgo-radar.nl)'
           }
         });
         
         if (!response.ok) {
-          console.log(`[RSS] Page ${page} returned ${response.status}, stopping pagination`);
+          console.log(`[RSS] API page ${page} returned ${response.status}, stopping`);
           break;
         }
         
-        const html = await response.text();
-        const $ = cheerio.load(html);
+        const data = await response.json() as {
+          docs: any[];
+          totalDocs: number;
+          totalPages: number;
+          page: number;
+          hasNextPage: boolean;
+        };
         
-        // Find all event items with schema.org markup
-        const eventElements = $('li[itemtype="http://schema.org/Event"]');
-        
-        if (eventElements.length === 0) {
-          console.log(`[RSS] No events found on page ${page}, stopping pagination`);
-          hasMorePages = false;
+        if (!data.docs || data.docs.length === 0) {
+          console.log(`[RSS] No events on page ${page}, stopping`);
           break;
         }
         
-        console.log(`[RSS] Found ${eventElements.length} events on page ${page}`);
+        console.log(`[RSS] Processing ${data.docs.length} events from page ${page} (total: ${data.totalDocs})`);
         
-        eventElements.each((_, el) => {
+        for (const event of data.docs) {
           try {
-            const $el = $(el);
+            // Skip if no title
+            const title = event.title;
+            if (!title || title.length < 3) continue;
             
-            // Extract data from schema.org meta tags
-            const title = $el.find('meta[itemprop="name"]').attr('content') || 
-                         $el.find('.description__headtext').text().trim();
-            if (!title || title.length < 3) return;
+            // FEED PRINCIPLE 1: Verified location with exact GPS coordinates
+            const location = event.location;
+            if (!location || !location.gps) {
+              continue; // Skip events without GPS coordinates
+            }
+            
+            const latitude = location.gps.lat;
+            const longitude = location.gps.long || location.gps.lng;
+            
+            if (!latitude || !longitude || Math.abs(latitude) < 1 || Math.abs(longitude) < 1) {
+              continue; // Skip invalid coordinates
+            }
             
             // FEED PRINCIPLE 2: Only date-bound events
-            const startDateStr = $el.find('meta[itemprop="startDate"]').attr('content');
-            const endDateStr = $el.find('meta[itemprop="endDate"]').attr('content');
-            if (!startDateStr) return;
+            const eventDates = event.eventDates || [];
+            if (eventDates.length === 0) {
+              continue; // Skip events without dates
+            }
             
-            const startTime = new Date(startDateStr);
-            const endTime = endDateStr ? new Date(endDateStr) : undefined;
-            
-            // Skip past events
+            // Get the earliest and latest dates for multi-day event consolidation
             const now = new Date();
-            if (startTime < now && (!endTime || endTime < now)) return;
+            const futureDates = eventDates
+              .filter((d: any) => d.startDate)
+              .map((d: any) => ({
+                start: new Date(d.startDate),
+                end: d.endDate ? new Date(d.endDate) : new Date(d.startDate),
+                startTime: d.startTime ? new Date(d.startTime) : null,
+                endTime: d.endTime ? new Date(d.endTime) : null
+              }))
+              .filter((d: any) => d.end >= now)
+              .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
             
-            // Extract location from schema.org
-            const locationName = $el.find('[itemprop="location"] meta[itemprop="name"]').attr('content') || '';
-            const streetAddress = $el.find('[itemprop="streetAddress"]').attr('content') || '';
-            const postalCode = $el.find('[itemprop="postalCode"]').attr('content') || '';
-            const city = $el.find('[itemprop="addressLocality"]').attr('content') || '\'s-Hertogenbosch';
-            
-            // Build full address
-            let address = '';
-            if (streetAddress) {
-              address = streetAddress;
-              if (postalCode) address += `, ${postalCode}`;
-              address += ` ${city.replace(/'/g, "'")}`;
-            } else if (locationName) {
-              address = `${locationName}, ${city.replace(/'/g, "'")}`;
-            } else {
-              address = city.replace(/'/g, "'");
+            if (futureDates.length === 0) {
+              continue; // Skip past events
             }
             
-            // FEED PRINCIPLE 1: Verified location
-            // Try to geocode using known venues or address
-            let latitude: number | undefined;
-            let longitude: number | undefined;
-            let locationVerified = false;
+            // Combine first date with time info
+            const firstDate = futureDates[0];
+            const lastDate = futureDates[futureDates.length - 1];
             
-            // First try known venues
-            const locationLower = (locationName || '').toLowerCase();
-            const titleLower = title.toLowerCase();
+            let startTime = firstDate.start;
+            let endTime = lastDate.end;
             
-            for (const [venueName, coords] of Object.entries(DEN_BOSCH_VENUES)) {
-              if (locationLower.includes(venueName) || titleLower.includes(venueName)) {
-                latitude = coords.lat;
-                longitude = coords.lng;
-                locationVerified = true;
-                break;
-              }
+            // Apply specific times if available
+            if (firstDate.startTime) {
+              const timeHours = firstDate.startTime.getUTCHours();
+              const timeMinutes = firstDate.startTime.getUTCMinutes();
+              startTime = new Date(firstDate.start);
+              startTime.setUTCHours(timeHours, timeMinutes, 0, 0);
             }
             
-            // If no known venue but we have a street address with postal code, geocode it
-            if (!locationVerified && streetAddress && postalCode) {
-              // For now, use city center with slight offset based on postal code
-              // This ensures unique positions for different addresses
-              const postalHash = postalCode.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-              latitude = 51.6881 + ((postalHash % 100) - 50) * 0.0005;
-              longitude = 5.3036 + ((postalHash % 73) - 36) * 0.0005;
-              locationVerified = true;
+            if (lastDate.endTime) {
+              const timeHours = lastDate.endTime.getUTCHours();
+              const timeMinutes = lastDate.endTime.getUTCMinutes();
+              endTime = new Date(lastDate.end);
+              endTime.setUTCHours(timeHours, timeMinutes, 0, 0);
             }
             
-            // Skip events without verified location
-            if (!locationVerified) {
-              return;
+            // FEED PRINCIPLE 3: Use source images
+            let imageUrl: string | undefined;
+            if (event.teaserImage?.[0]?.image?.url) {
+              imageUrl = event.teaserImage[0].image.url;
+            } else if (event.images?.[0]?.image?.url) {
+              imageUrl = event.images[0].image.url;
             }
             
-            // Extract event link
-            const linkEl = $el.find('a.tile__link-overlay');
-            const href = linkEl.attr('href') || '';
-            const fullLink = href.startsWith('http') ? href : `https://www.denboschregion.nl${href}`;
+            // Build address
+            const address = location.address || `${location.title}, 's-Hertogenbosch`;
             
-            // Extract image URL
-            const imageSrcSet = $el.find('source[srcset]').first().attr('srcset') || '';
-            const imageUrl = imageSrcSet || undefined;
+            // Build description from summary or intro
+            let description = event.summary || '';
+            if (!description && event.intro?.[0]?.children?.[0]?.text) {
+              description = event.intro[0].children[0].text;
+            }
+            description = description.substring(0, 1000) || `${title} - Evenement in 's-Hertogenbosch`;
             
-            // Generate unique external ID
-            const slug = href.split('/').pop() || '';
-            const externalId = `denbosch-${slug || Date.now()}`;
+            // Generate external ID using slug
+            const externalId = `denbosch-${event.slug || event.id}`;
+            
+            // Build event link
+            const link = `https://www.zinindenbosch.nl/nl/event/${event.slug}`;
+            
+            // Collect all dates for multi-day consolidation
+            const allDates = futureDates.map((d: any) => d.start);
             
             items.push({
               externalId,
               title: this.formatTitle(title),
-              description: `${title} - Evenement in 's-Hertogenbosch`,
-              link: fullLink,
+              description,
+              link,
               imageUrl,
-              publishedAt: new Date(),
+              publishedAt: new Date(event.createdAt),
               startTime,
               endTime,
-              location: locationName || '\'s-Hertogenbosch',
+              location: location.title || '\'s-Hertogenbosch',
               address,
               latitude,
               longitude,
-              rawData: { locationName, streetAddress, postalCode, city, locationVerified }
+              allDates,
+              rawData: {
+                payloadId: event.id,
+                slug: event.slug,
+                categories: event.categories,
+                sponsored: event.sponsored,
+                topChoice: event.topChoice,
+                locationSlug: location.slug,
+                eventDatesCount: eventDates.length
+              }
             });
-            
-            totalEvents++;
           } catch (error) {
             // Skip this event silently
           }
-        });
+        }
         
-        // Check if there's a next page link
-        const nextPageLink = $('a[data-ga-action="next"]');
-        hasMorePages = nextPageLink.length > 0;
+        // Check for next page
+        hasMorePages = data.hasNextPage;
         page++;
         
         // Rate limiting between pages
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
       
-      console.log(`[RSS] Den Bosch complete: ${items.length} events from ${page - 1} pages`);
+      console.log(`[RSS] Den Bosch complete: ${items.length} events from Payload CMS API`);
       return { success: true, items };
     } catch (error: any) {
-      console.error(`[RSS] Error scraping Den Bosch:`, error.message);
+      console.error(`[RSS] Error fetching Den Bosch:`, error.message);
       return { success: false, items: [], error: error.message };
     }
   }

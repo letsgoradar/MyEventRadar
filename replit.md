@@ -144,6 +144,12 @@ Alle feeds moeten voldoen aan deze gestandaardiseerde regels (zie `server/config
 API endpoint voor principes: `GET /api/admin/feed-import-principles`
 
 ## Recent Changes
+- December 11, 2025: **DEN BOSCH PAYLOAD CMS API** - Nieuwe integratie met zinindenbosch.nl via Payload CMS REST API
+  - Ontdekt dat zinindenbosch.nl Payload CMS gebruikt met publieke REST API
+  - `/api/events` endpoint levert 388 events met exacte GPS coördinaten
+  - Nieuwe scraper haalt events op via API in plaats van HTML scraping
+  - 221 Den Bosch events geïmporteerd met exacte locaties en afbeeldingen
+  - Payload CMS data structuur: eventDates[], location.gps{lat,long}, teaserImage[]
 - December 11, 2025: **FEED IMPORT PRINCIPES** - Gestandaardiseerde import regels voor alle RSS feeds
   - Duplicate detectie toegevoegd aan import service
   - 252 bestaande duplicaten opgeschoond uit database (878 unieke events behouden)

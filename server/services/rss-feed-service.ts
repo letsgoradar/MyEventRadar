@@ -49,45 +49,145 @@ export class RssFeedService {
   private static readonly USER_AGENT = "letsgo-radar/1.0 (+https://letsgo-radar.nl)";
   private static geocodeCache: Map<string, GeocodingResult> = new Map();
 
-  static consolidateMultiDayEvents(items: ParsedFeedItem[]): ParsedFeedItem[] {
-    const eventMap = new Map<string, ParsedFeedItem>();
+  /**
+   * Normalize title for comparison (lowercase, trim, remove special chars)
+   */
+  private static normalizeTitle(title: string): string {
+    return title
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ');
+  }
+
+  /**
+   * Create a grouping key for multi-day consolidation based on title + location
+   * Returns null if event doesn't have verified location (prevents title-only grouping)
+   */
+  private static createConsolidationKey(item: ParsedFeedItem): string | null {
+    const normalizedTitle = this.normalizeTitle(item.title);
     
-    for (const item of items) {
-      const key = item.link || item.externalId;
-      
-      if (eventMap.has(key)) {
-        const existing = eventMap.get(key)!;
-        const allDates = existing.allDates || [];
-        
-        if (item.startTime) {
-          allDates.push(item.startTime);
-        }
-        
-        if (item.startTime && (!existing.startTime || item.startTime < existing.startTime)) {
-          existing.startTime = item.startTime;
-        }
-        
-        if (item.startTime && (!existing.endTime || item.startTime > existing.endTime)) {
-          existing.endTime = item.startTime;
-        }
-        
-        existing.allDates = allDates;
-        
-        if (!existing.imageUrl && item.imageUrl) {
-          existing.imageUrl = item.imageUrl;
-        }
-      } else {
-        const allDates: Date[] = [];
-        if (item.startTime) {
-          allDates.push(item.startTime);
-        }
-        eventMap.set(key, { ...item, allDates });
-      }
+    // Round coordinates to 3 decimals (~100m precision)
+    const lat = item.latitude ? Math.round(item.latitude * 1000) / 1000 : 0;
+    const lng = item.longitude ? Math.round(item.longitude * 1000) / 1000 : 0;
+    
+    // REQUIRE verified coordinates for consolidation
+    // This prevents unrelated events with same title from merging
+    if (lat === 0 || lng === 0 || Math.abs(lat) < 1 || Math.abs(lng) < 1) {
+      // No valid coords - return unique key to prevent consolidation
+      return null;
     }
     
-    const consolidated = Array.from(eventMap.values());
-    console.log(`[RSS] Consolidated ${items.length} items into ${consolidated.length} multi-day events`);
-    return consolidated;
+    return `${normalizedTitle}|${lat},${lng}`;
+  }
+
+  /**
+   * Check if dates are contiguous (within 1 day of each other)
+   */
+  private static areContiguousDates(dates: Date[]): boolean {
+    if (dates.length <= 1) return true;
+    
+    const sortedDates = [...dates].sort((a, b) => a.getTime() - b.getTime());
+    
+    for (let i = 1; i < sortedDates.length; i++) {
+      const diff = sortedDates[i].getTime() - sortedDates[i - 1].getTime();
+      const daysDiff = diff / (1000 * 60 * 60 * 24);
+      // Allow up to 2 days gap for weekend events
+      if (daysDiff > 2) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * UNIVERSAL MULTI-DAY CONSOLIDATION
+   * Groups events by title+location and merges contiguous dates into single events.
+   * Works for all feeds without per-feed configuration.
+   */
+  static consolidateMultiDayEvents(items: ParsedFeedItem[]): ParsedFeedItem[] {
+    const eventGroups = new Map<string, ParsedFeedItem[]>();
+    const ungroupedItems: ParsedFeedItem[] = [];
+    
+    // Group items by consolidated key (title + location)
+    for (const item of items) {
+      const key = this.createConsolidationKey(item);
+      
+      // Items without valid key (no coords) cannot be consolidated
+      if (key === null) {
+        item.allDates = item.startTime ? [item.startTime] : [];
+        ungroupedItems.push(item);
+        continue;
+      }
+      
+      if (!eventGroups.has(key)) {
+        eventGroups.set(key, []);
+      }
+      eventGroups.get(key)!.push(item);
+    }
+    
+    const consolidated: ParsedFeedItem[] = [];
+    
+    for (const [key, group] of Array.from(eventGroups.entries())) {
+      if (group.length === 1) {
+        // Single item, no consolidation needed
+        const item = group[0];
+        item.allDates = item.startTime ? [item.startTime] : [];
+        consolidated.push(item);
+        continue;
+      }
+      
+      // Collect all dates from the group
+      const allDates: Date[] = [];
+      for (const item of group) {
+        if (item.startTime) {
+          allDates.push(item.startTime);
+        }
+      }
+      
+      // Check if dates are contiguous (not recurring weekly events)
+      if (!this.areContiguousDates(allDates)) {
+        // Not contiguous - treat as separate recurring events
+        for (const item of group) {
+          item.allDates = item.startTime ? [item.startTime] : [];
+          consolidated.push(item);
+        }
+        console.log(`[RSS] Non-contiguous dates for "${group[0].title}" - keeping ${group.length} separate events`);
+        continue;
+      }
+      
+      // Merge into single multi-day event
+      const sortedDates = allDates.sort((a, b) => a.getTime() - b.getTime());
+      const baseItem = group[0];
+      
+      // Use earliest startTime and latest as endTime
+      baseItem.startTime = sortedDates[0];
+      baseItem.endTime = sortedDates[sortedDates.length - 1];
+      baseItem.allDates = sortedDates;
+      
+      // Prefer item with image
+      for (const item of group) {
+        if (item.imageUrl && !baseItem.imageUrl) {
+          baseItem.imageUrl = item.imageUrl;
+          break;
+        }
+      }
+      
+      // Prefer item with longest description
+      for (const item of group) {
+        if (item.description && item.description.length > (baseItem.description?.length || 0)) {
+          baseItem.description = item.description;
+        }
+      }
+      
+      consolidated.push(baseItem);
+      console.log(`[RSS] MERGED ${group.length} days into 1 event: "${baseItem.title}" (${sortedDates[0].toDateString()} - ${sortedDates[sortedDates.length - 1].toDateString()})`);
+    }
+    
+    // Add ungrouped items (those without valid coords)
+    const allResults = [...consolidated, ...ungroupedItems];
+    console.log(`[RSS] Consolidated ${items.length} items into ${allResults.length} events (${ungroupedItems.length} ungrouped)`);
+    return allResults;
   }
 
   static async geocodeAddress(address: string): Promise<GeocodingResult | null> {
@@ -415,8 +515,8 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from Tref het in Oss (${errorCount} errors)`);
-      const consolidated = this.consolidateMultiDayEvents(items);
-      return { success: true, items: consolidated };
+      // Note: Multi-day consolidation now happens in syncFeed/processFeeds
+      return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Tref het in Oss:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -500,8 +600,8 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from Visit Helmond (${errorCount} errors)`);
-      const consolidated = this.consolidateMultiDayEvents(items);
-      return { success: true, items: consolidated };
+      // Note: Multi-day consolidation now happens in syncFeed/processFeeds
+      return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Visit Helmond:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -769,8 +869,8 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from Meierijstad (${errorCount} errors)`);
-      const consolidated = this.consolidateMultiDayEvents(items);
-      return { success: true, items: consolidated };
+      // Note: Multi-day consolidation now happens in syncFeed/processFeeds
+      return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Meierijstad:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -1092,8 +1192,8 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from Maashorst (${errorCount} errors)`);
-      const consolidated = this.consolidateMultiDayEvents(items);
-      return { success: true, items: consolidated };
+      // Note: Multi-day consolidation now happens in syncFeed/processFeeds
+      return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Maashorst:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -1976,8 +2076,12 @@ export class RssFeedService {
         return { success: false, itemsProcessed: 0, eventsCreated: 0, error: result.error };
       }
 
+      // UNIVERSAL MULTI-DAY CONSOLIDATION - apply to ALL feeds
+      const consolidatedItems = this.consolidateMultiDayEvents(result.items);
+      console.log(`[RSS] ${feed.name}: Consolidated ${result.items.length} items into ${consolidatedItems.length} events`);
+
       let newItemsCount = 0;
-      for (const item of result.items) {
+      for (const item of consolidatedItems) {
         const created = await this.createOrUpdateFeedItem(feed, item);
         if (created) newItemsCount++;
       }
@@ -1991,7 +2095,7 @@ export class RssFeedService {
         })
         .where(eq(rssFeeds.id, feed.id));
 
-      console.log(`[RSS] ${feed.name}: SUCCESS - ${newItemsCount} new items in ${feedDuration} min (total: ${result.items.length} found)`);
+      console.log(`[RSS] ${feed.name}: SUCCESS - ${newItemsCount} new items in ${feedDuration} min (total: ${consolidatedItems.length} consolidated from ${result.items.length})`);
       return { success: true, itemsProcessed: result.items.length, eventsCreated: newItemsCount };
     } catch (error: any) {
       const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
@@ -2066,8 +2170,11 @@ export class RssFeedService {
           continue;
         }
 
+        // UNIVERSAL MULTI-DAY CONSOLIDATION - apply to ALL feeds
+        const consolidatedItems = this.consolidateMultiDayEvents(result.items);
+        
         let newItemsCount = 0;
-        for (const item of result.items) {
+        for (const item of consolidatedItems) {
           const created = await this.createOrUpdateFeedItem(feed, item);
           if (created) newItemsCount++;
         }
@@ -2081,7 +2188,7 @@ export class RssFeedService {
           })
           .where(eq(rssFeeds.id, feed.id));
 
-        console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: SUCCESS - ${newItemsCount} new items in ${feedDuration} min (total: ${result.items.length} found)`);
+        console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: SUCCESS - ${newItemsCount} new items in ${feedDuration} min (consolidated: ${consolidatedItems.length} from ${result.items.length})`);
         processed++;
       } catch (error: any) {
         const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);

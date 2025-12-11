@@ -3,9 +3,10 @@ import * as cheerio from "cheerio";
 import { parseStringPromise } from "xml2js";
 import { db } from "../db";
 import { rssFeeds, rssFeedItems, events, CATEGORIES } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql, ilike } from "drizzle-orm";
 import type { RssFeed, RssFeedItem, InsertRssFeedItem } from "@shared/schema";
 import { AIHelper } from "./ai-helper";
+import { DEFAULT_FEED_RULES, FEED_IMPORT_PRINCIPLES, createDuplicateKey, validateEventForImport } from "../config/rss-feed-rules";
 
 interface ParsedFeedItem {
   externalId: string;
@@ -2153,6 +2154,23 @@ export class RssFeedService {
 
       const formattedTitle = this.formatTitle(parsedItem.title);
       
+      // DUPLICATE DETECTION: Check if this event already exists in the database
+      const isDuplicate = await this.checkForDuplicateEvent(
+        formattedTitle,
+        parsedItem.latitude,
+        parsedItem.longitude,
+        startTime,
+        parsedItem.link
+      );
+      
+      if (isDuplicate) {
+        console.log(`[RSS] DUPLICATE SKIPPED: "${formattedTitle}" already exists in database`);
+        await db.update(rssFeedItems)
+          .set({ isProcessed: true })
+          .where(eq(rssFeedItems.id, feedItem.id));
+        return;
+      }
+      
       const validCategories = CATEGORIES as readonly string[];
       const detectedCategory = this.detectCategory(parsedItem.title, parsedItem.description);
       const category = validCategories.includes(detectedCategory) 
@@ -2371,5 +2389,131 @@ export class RssFeedService {
       if (imgLink?.$?.href) return imgLink.$.href;
     }
     return undefined;
+  }
+
+  /**
+   * Check if an event already exists in the database to prevent duplicates.
+   * Uses multiple detection methods:
+   * 1. Exact title match + same date
+   * 2. Similar location coordinates + same date
+   * 3. Same source link (externalId in description)
+   */
+  private static async checkForDuplicateEvent(
+    title: string,
+    latitude: number | undefined,
+    longitude: number | undefined,
+    startTime: Date,
+    sourceLink: string | undefined
+  ): Promise<boolean> {
+    try {
+      const normalizedTitle = title.toLowerCase().trim();
+      const startDate = startTime.toISOString().split('T')[0];
+      
+      // Method 1: Check for exact title match on same date
+      const titleMatches = await db.select({ id: events.id, title: events.title })
+        .from(events)
+        .where(
+          sql`LOWER(TRIM(${events.title})) = ${normalizedTitle} 
+              AND DATE(${events.startTime}) = ${startDate}`
+        )
+        .limit(1);
+      
+      if (titleMatches.length > 0) {
+        return true;
+      }
+      
+      // Method 2: Check for same location (within ~100m) on same date with similar title
+      if (latitude && longitude) {
+        const coordMatches = await db.select({ id: events.id, title: events.title })
+          .from(events)
+          .where(
+            sql`ABS(CAST(${events.latitude} AS DECIMAL) - ${latitude}) < 0.001
+                AND ABS(CAST(${events.longitude} AS DECIMAL) - ${longitude}) < 0.001
+                AND DATE(${events.startTime}) = ${startDate}
+                AND (
+                  LOWER(TRIM(${events.title})) = ${normalizedTitle}
+                  OR similarity(LOWER(${events.title}), ${normalizedTitle}) > 0.6
+                )`
+          )
+          .limit(1);
+        
+        if (coordMatches.length > 0) {
+          return true;
+        }
+      }
+      
+      // Method 3: Check if source link is already in description (matches previous import)
+      if (sourceLink) {
+        const linkMatches = await db.select({ id: events.id })
+          .from(events)
+          .where(sql`${events.description} LIKE ${'%' + sourceLink + '%'}`)
+          .limit(1);
+        
+        if (linkMatches.length > 0) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error: any) {
+      // If similarity extension not available, fall back to basic check
+      if (error.message?.includes('similarity')) {
+        console.log(`[RSS] Note: pg_trgm extension not available, using basic duplicate check`);
+        return this.checkForDuplicateEventBasic(title, startTime, sourceLink);
+      }
+      console.error(`[RSS] Error checking for duplicate:`, error.message);
+      return false;
+    }
+  }
+  
+  /**
+   * Basic duplicate check without pg_trgm extension
+   */
+  private static async checkForDuplicateEventBasic(
+    title: string,
+    startTime: Date,
+    sourceLink: string | undefined
+  ): Promise<boolean> {
+    try {
+      const normalizedTitle = title.toLowerCase().trim();
+      const startDate = startTime.toISOString().split('T')[0];
+      
+      // Check for exact title match on same date
+      const titleMatches = await db.select({ id: events.id })
+        .from(events)
+        .where(
+          sql`LOWER(TRIM(${events.title})) = ${normalizedTitle} 
+              AND DATE(${events.startTime}) = ${startDate}`
+        )
+        .limit(1);
+      
+      if (titleMatches.length > 0) {
+        return true;
+      }
+      
+      // Check if source link already in description
+      if (sourceLink) {
+        const linkMatches = await db.select({ id: events.id })
+          .from(events)
+          .where(sql`${events.description} LIKE ${'%' + sourceLink + '%'}`)
+          .limit(1);
+        
+        if (linkMatches.length > 0) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error: any) {
+      console.error(`[RSS] Error in basic duplicate check:`, error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Get feed import principles documentation
+   */
+  static getFeedImportPrinciples(): string {
+    return FEED_IMPORT_PRINCIPLES;
   }
 }

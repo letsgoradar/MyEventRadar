@@ -59,6 +59,8 @@ interface RssFeed {
   defaultLatitude: string | null;
   defaultLongitude: string | null;
   defaultAddress: string | null;
+  municipality: string | null;
+  province: string | null;
   updateFrequencyMinutes: number;
   lastFetchedAt: string | null;
   lastErrorMessage: string | null;
@@ -486,25 +488,41 @@ export default function RssFeedsPage() {
               <CardHeader>
                 <CardTitle>Geconfigureerde feeds</CardTitle>
                 <CardDescription>
-                  Alle RSS feeds en scrapers die evenementen importeren
+                  Alle RSS feeds en scrapers die evenementen importeren, gegroepeerd per provincie
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {Object.entries(
+                  feeds.reduce((acc, feed) => {
+                    const province = feed.province || 'Overig';
+                    if (!acc[province]) acc[province] = [];
+                    acc[province].push(feed);
+                    return acc;
+                  }, {} as Record<string, RssFeed[]>)
+                ).sort(([a], [b]) => a.localeCompare(b)).map(([province, provinceFeeds]) => (
+                  <div key={province} className="mb-6">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Badge variant="outline" className="text-sm">{province}</Badge>
+                      <span className="text-muted-foreground text-sm">({provinceFeeds.length} feeds)</span>
+                    </h3>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Naam</TableHead>
+                      <TableHead>Gemeente</TableHead>
+                      <TableHead>Feed</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Categorie</TableHead>
                       <TableHead>Geïmporteerd</TableHead>
                       <TableHead>Laatst opgehaald</TableHead>
                       <TableHead className="text-right">Acties</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {feeds.map((feed) => (
+                    {provinceFeeds.map((feed) => (
                       <TableRow key={feed.id} data-testid={`row-feed-${feed.id}`}>
+                        <TableCell>
+                          <span className="font-medium">{feed.municipality || '-'}</span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {getFeedTypeIcon(feed.feedType)}
@@ -535,7 +553,6 @@ export default function RssFeedsPage() {
                             </p>
                           )}
                         </TableCell>
-                        <TableCell>{feed.defaultCategory}</TableCell>
                         <TableCell>{feed.itemsImported || 0}</TableCell>
                         <TableCell>
                           {feed.lastFetchedAt 
@@ -596,6 +613,8 @@ export default function RssFeedsPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
+                ))}
               </CardContent>
             </Card>
           )}

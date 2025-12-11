@@ -126,6 +126,8 @@ export const rssFeeds = pgTable("rss_feeds", {
   defaultLatitude: decimal("default_latitude"),
   defaultLongitude: decimal("default_longitude"),
   defaultAddress: text("default_address"),
+  municipality: text("municipality"),
+  province: text("province"),
   updateFrequencyMinutes: integer("update_frequency_minutes").notNull().default(60),
   lastFetchedAt: timestamp("last_fetched_at"),
   lastErrorMessage: text("last_error_message"),

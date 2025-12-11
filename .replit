@@ -22,50 +22,6 @@ externalPort = 80
 localPort = 5001
 externalPort = 3000
 
-[[ports]]
-localPort = 35281
-externalPort = 8000
-
-[[ports]]
-localPort = 35845
-externalPort = 4200
-
-[[ports]]
-localPort = 37079
-externalPort = 6000
-
-[[ports]]
-localPort = 38537
-externalPort = 5000
-
-[[ports]]
-localPort = 39855
-externalPort = 8008
-
-[[ports]]
-localPort = 39873
-externalPort = 3002
-
-[[ports]]
-localPort = 41629
-externalPort = 5173
-
-[[ports]]
-localPort = 42625
-externalPort = 3003
-
-[[ports]]
-localPort = 44683
-externalPort = 8081
-
-[[ports]]
-localPort = 45653
-externalPort = 6800
-
-[[ports]]
-localPort = 46789
-externalPort = 8080
-
 [workflows]
 runButton = "Project"
 
@@ -102,4 +58,4 @@ task = "shell.exec"
 args = "npm run dev"
 
 [agent]
-integrations = ["javascript_websocket==1.0.0", "javascript_openai==1.0.0"]
+integrations = ["javascript_websocket:1.0.0", "javascript_openai:1.0.0"]

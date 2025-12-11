@@ -1476,6 +1476,204 @@ export class RssFeedService {
     }
   }
 
+  // Bernheze scraper - fetches event list and extracts GPS from detail pages
+  static async scrapeBernheze(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const eventLinks: string[] = [];
+      const maxPages = 15;
+      
+      // Collect event links from overview pages
+      for (let page = 1; page <= maxPages; page++) {
+        const url = page === 1 
+          ? "https://www.mooibernheze.nl/agenda"
+          : `https://www.mooibernheze.nl/agenda?page=${page}`;
+        
+        console.log(`[RSS] Scraping Bernheze page ${page}...`);
+        
+        try {
+          const response = await axios.get(url, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            },
+            timeout: 30000
+          });
+
+          const $ = cheerio.load(response.data);
+          const linksBeforeThisPage = eventLinks.length;
+          
+          // Extract event links - format: /agenda/2025/12/11/event-name-12345
+          $('a[href*="/agenda/"]').each((_, element) => {
+            const href = $(element).attr("href");
+            if (!href) return;
+            
+            // Match pattern /agenda/YYYY/MM/DD/event-name-id
+            const match = href.match(/\/agenda\/\d{4}\/\d{1,2}\/\d{1,2}\/[\w-]+-\d+$/);
+            if (!match) return;
+            
+            const fullLink = href.startsWith("http") 
+              ? href 
+              : `https://www.mooibernheze.nl${href}`;
+            
+            if (!eventLinks.includes(fullLink)) {
+              eventLinks.push(fullLink);
+            }
+          });
+          
+          const newLinksOnPage = eventLinks.length - linksBeforeThisPage;
+          console.log(`[RSS] Page ${page}: found ${newLinksOnPage} new event links (total: ${eventLinks.length})`);
+          
+          if (newLinksOnPage === 0) {
+            console.log(`[RSS] No new events on page ${page}, stopping pagination`);
+            break;
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error: any) {
+          console.log(`[RSS] Could not fetch page ${page}: ${error.message}`);
+          break;
+        }
+      }
+
+      console.log(`[RSS] Found ${eventLinks.length} Bernheze event links, fetching details...`);
+
+      let successCount = 0;
+      let skippedCount = 0;
+      
+      for (let i = 0; i < eventLinks.length; i++) {
+        const link = eventLinks[i];
+        try {
+          console.log(`[RSS] Fetching Bernheze event ${i + 1}/${eventLinks.length}: ${link.split('/').pop()}`);
+          const eventItems = await this.scrapeBernhezeEventDetail(link);
+          if (eventItems.length > 0) {
+            items.push(...eventItems);
+            successCount++;
+          } else {
+            skippedCount++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (error: any) {
+          console.log(`[RSS] Error fetching ${link}: ${error.message}`);
+          skippedCount++;
+        }
+      }
+
+      console.log(`[RSS] Scraped ${items.length} events from Bernheze (${successCount} with GPS, ${skippedCount} skipped)`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Bernheze:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  static async scrapeBernhezeEventDetail(url: string): Promise<ParsedFeedItem[]> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      
+      const response = await axios.get(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "text/html,application/xhtml+xml"
+        },
+        timeout: 15000
+      });
+      
+      const $ = cheerio.load(response.data);
+      const html = response.data;
+      
+      // Extract GPS from Google Maps embed: ?q=51.6547905027,5.47214570354
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+      
+      const gpsMatch = html.match(/google\.com\/maps\/embed\/v1\/place\?q=([\d.]+),([\d.]+)/);
+      if (gpsMatch) {
+        latitude = parseFloat(gpsMatch[1]);
+        longitude = parseFloat(gpsMatch[2]);
+      }
+      
+      // QUALITY FILTER: Skip if no GPS coordinates
+      if (!latitude || !longitude) {
+        return items;
+      }
+      
+      // Extract title
+      const title = $('h1').first().text().trim();
+      if (!title || title.length < 3) return items;
+      
+      // Extract description
+      const description = $('article p, .content p, main p').first().text().trim() ||
+                         $('meta[name="description"]').attr('content') || '';
+      
+      // Extract image
+      const imageUrl = $('article img, .content img, main img').first().attr('src') ||
+                      $('meta[property="og:image"]').attr('content');
+      
+      // Extract date from URL: /agenda/2025/12/11/event-name
+      const dateMatch = url.match(/\/agenda\/(\d{4})\/(\d{1,2})\/(\d{1,2})\//);
+      let startTime: Date | undefined;
+      let endTime: Date | undefined;
+      
+      if (dateMatch) {
+        const year = parseInt(dateMatch[1]);
+        const month = parseInt(dateMatch[2]) - 1;
+        const day = parseInt(dateMatch[3]);
+        
+        // Try to extract time from page content
+        const timeText = $('time, .date, .time').text() || html;
+        const timeMatch = timeText.match(/(\d{1,2}):(\d{2})\s*(?:-|tot|–)\s*(\d{1,2}):(\d{2})/);
+        
+        if (timeMatch) {
+          startTime = new Date(year, month, day, parseInt(timeMatch[1]), parseInt(timeMatch[2]));
+          endTime = new Date(year, month, day, parseInt(timeMatch[3]), parseInt(timeMatch[4]));
+        } else {
+          // Default times
+          startTime = new Date(year, month, day, 10, 0);
+          endTime = new Date(year, month, day, 22, 0);
+        }
+      }
+      
+      // Skip past events
+      const now = new Date();
+      if (!startTime || startTime < now) return items;
+      
+      // Extract location name
+      const locationSection = $('h4:contains("Locatie")').next().text().trim() ||
+                             $('li:contains("Locatie")').text().replace('Locatie', '').trim();
+      const location = locationSection.split('\n')[0]?.trim() || 'Bernheze';
+      
+      // Extract address
+      const addressMatch = html.match(/(\d{4}\s*[A-Z]{2})\s*([\w-]+)/);
+      const address = addressMatch 
+        ? `${location}, ${addressMatch[0]}` 
+        : `${location}, Bernheze, Nederland`;
+      
+      // Generate external ID
+      const externalId = `bernheze-${url.split('/').pop() || Date.now()}`;
+      
+      items.push({
+        externalId,
+        title: this.formatTitle(title),
+        description: description.substring(0, 500) || `${title} - Evenement in Bernheze`,
+        link: url,
+        imageUrl: imageUrl || undefined,
+        publishedAt: new Date(),
+        startTime,
+        endTime: endTime || new Date(startTime.getTime() + 2 * 60 * 60 * 1000),
+        location,
+        address,
+        latitude,
+        longitude,
+        rawData: { url, location, address }
+      });
+      
+      return items;
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Bernheze event detail ${url}:`, error.message);
+      return [];
+    }
+  }
+
   static readonly MONTHS: Record<string, number> = {
     jan: 0, january: 0, januari: 0,
     feb: 1, february: 1, februari: 1,
@@ -1757,6 +1955,8 @@ export class RssFeedService {
         result = await this.scrapeMaashorst();
       } else if (feed.feedType === "scraper" && feed.url.includes("sonenbreugel")) {
         result = await this.scrapeSonEnBreugel();
+      } else if (feed.feedType === "scraper" && feed.url.includes("mooibernheze")) {
+        result = await this.scrapeBernheze();
       } else {
         result = await this.fetchAndParseRssFeed(feed.url);
       }
@@ -1844,6 +2044,8 @@ export class RssFeedService {
           result = await this.scrapeMaashorst();
         } else if (feed.feedType === "scraper" && feed.url.includes("sonenbreugel")) {
           result = await this.scrapeSonEnBreugel();
+        } else if (feed.feedType === "scraper" && feed.url.includes("mooibernheze")) {
+          result = await this.scrapeBernheze();
         } else {
           result = await this.fetchAndParseRssFeed(feed.url);
         }

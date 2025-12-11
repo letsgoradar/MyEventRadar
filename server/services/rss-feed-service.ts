@@ -1274,6 +1274,208 @@ export class RssFeedService {
     }
   }
 
+  // Known venues in Son en Breugel with coordinates
+  static readonly SON_EN_BREUGEL_VENUES: Record<string, { lat: number; lng: number; address: string }> = {
+    'dommelhuis': { lat: 51.5132, lng: 5.4974, address: 'Dommelhuis, Raadhuisplein 1, Son en Breugel' },
+    'vestzaktheater': { lat: 51.5132, lng: 5.4974, address: 'Vestzaktheater, Raadhuisplein 1, Son en Breugel' },
+    'st. genovevakerk': { lat: 51.5179, lng: 5.5039, address: 'St. Genovevakerk, Kerkplein, Breugel' },
+    'genovevakerk': { lat: 51.5179, lng: 5.5039, address: 'St. Genovevakerk, Kerkplein, Breugel' },
+    'raadhuisplein': { lat: 51.5132, lng: 5.4974, address: 'Raadhuisplein, Son en Breugel' },
+    'de bongerd': { lat: 51.5148, lng: 5.4963, address: 'De Bongerd, Son en Breugel' },
+    'erfgoedpark': { lat: 51.5095, lng: 5.4950, address: 'Erfgoedpark, Son en Breugel' },
+    'braecklant': { lat: 51.5120, lng: 5.4920, address: 'Braecklant, Son en Breugel' },
+    'dorpsstraat': { lat: 51.5130, lng: 5.4970, address: 'Dorpsstraat, Son en Breugel' },
+    'centrum': { lat: 51.5130, lng: 5.4970, address: 'Centrum, Son en Breugel' },
+  };
+
+  static async scrapeSonEnBreugel(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      // Build list of relevant month pages (current + next 3 months)
+      const monthPages: { url: string; month: number; year: number }[] = [];
+      
+      for (let i = 0; i < 4; i++) {
+        const targetMonth = (currentMonth + i) % 12;
+        const targetYear = currentYear + Math.floor((currentMonth + i) / 12);
+        const monthNames = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 
+                           'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+        const monthName = monthNames[targetMonth];
+        const url = `https://www.sonenbreugel.nl/evenementen-${monthName}-${targetYear}`;
+        monthPages.push({ url, month: targetMonth, year: targetYear });
+      }
+      
+      console.log(`[RSS] Scraping Son en Breugel: ${monthPages.length} month pages...`);
+      
+      for (const page of monthPages) {
+        try {
+          console.log(`[RSS] Fetching: ${page.url}`);
+          const response = await axios.get(page.url, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              "Accept": "text/html,application/xhtml+xml"
+            },
+            timeout: 15000
+          });
+          
+          const $ = cheerio.load(response.data);
+          
+          // Find all h2 headers which contain event titles
+          $('h2').each((_, element) => {
+            const title = $(element).text().trim();
+            if (!title || title.length < 5 || title.includes('Cookie') || title.includes('Gemeente')) return;
+            
+            // Get the text after the h2 until the next h2
+            let contentText = '';
+            let nextEl = $(element).next();
+            while (nextEl.length && !nextEl.is('h2')) {
+              contentText += ' ' + nextEl.text();
+              nextEl = nextEl.next();
+            }
+            contentText = contentText.trim();
+            if (!contentText || contentText.length < 20) return;
+            
+            // Parse date patterns
+            let startTime: Date | undefined;
+            let endTime: Date | undefined;
+            
+            // Pattern: "Zaterdag 6 december t/m woensdag 24 december 2025"
+            const dateRangeMatch = contentText.match(/(\w+dag)\s+(\d{1,2})\s+(\w+)\s+t\/m\s+\w+dag\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
+            if (dateRangeMatch) {
+              const [, , startDay, startMonth, endDay, endMonth, year] = dateRangeMatch;
+              const startMonthNum = this.MONTHS[startMonth.toLowerCase()];
+              const endMonthNum = this.MONTHS[endMonth.toLowerCase()];
+              if (startMonthNum !== undefined && endMonthNum !== undefined) {
+                startTime = new Date(parseInt(year), startMonthNum, parseInt(startDay), 10, 0);
+                endTime = new Date(parseInt(year), endMonthNum, parseInt(endDay), 22, 0);
+              }
+            }
+            
+            // Pattern: "Woensdag 3 december 2025"
+            if (!startTime) {
+              const simpleDateMatch = contentText.match(/(\w+dag)\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
+              if (simpleDateMatch) {
+                const [, , day, month, year] = simpleDateMatch;
+                const monthNum = this.MONTHS[month.toLowerCase()];
+                if (monthNum !== undefined) {
+                  startTime = new Date(parseInt(year), monthNum, parseInt(day), 10, 0);
+                  endTime = new Date(parseInt(year), monthNum, parseInt(day), 22, 0);
+                }
+              }
+            }
+            
+            // Pattern: "Zondag 7 december 2025"  (from title itself)
+            if (!startTime) {
+              const titleDateMatch = title.match(/(\w+dag)\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
+              if (titleDateMatch) {
+                const [, , day, month, year] = titleDateMatch;
+                const monthNum = this.MONTHS[month.toLowerCase()];
+                if (monthNum !== undefined) {
+                  startTime = new Date(parseInt(year), monthNum, parseInt(day), 10, 0);
+                  endTime = new Date(parseInt(year), monthNum, parseInt(day), 22, 0);
+                }
+              }
+            }
+            
+            // Parse time: "Van 14.00 tot 16.30 uur" or "van 15.00 tot 17.00 uur"
+            const timeMatch = contentText.match(/van\s+(\d{1,2})[.:](\d{2})\s+tot\s+(\d{1,2})[.:](\d{2})\s*uur/i);
+            if (timeMatch && startTime) {
+              const [, startHour, startMin, endHour, endMin] = timeMatch;
+              startTime.setHours(parseInt(startHour), parseInt(startMin));
+              if (endTime) {
+                endTime = new Date(startTime);
+                endTime.setHours(parseInt(endHour), parseInt(endMin));
+              }
+            }
+            
+            // Skip past events
+            if (!startTime || startTime < now) return;
+            
+            // Find location in content
+            let latitude: number | undefined;
+            let longitude: number | undefined;
+            let address: string = 'Son en Breugel, Nederland';
+            let location: string = 'Son en Breugel';
+            
+            // Check for known venues
+            const contentLower = (title + ' ' + contentText).toLowerCase();
+            for (const [venueName, venueData] of Object.entries(this.SON_EN_BREUGEL_VENUES)) {
+              if (contentLower.includes(venueName)) {
+                latitude = venueData.lat;
+                longitude = venueData.lng;
+                address = venueData.address;
+                location = venueName.charAt(0).toUpperCase() + venueName.slice(1);
+                break;
+              }
+            }
+            
+            // If no known venue found, try geocoding
+            if (!latitude || !longitude) {
+              // Extract location hints from text like "in het Dommelhuis" or "op het Raadhuisplein"
+              const locationMatch = contentText.match(/(?:in het|in de|bij de|op het|op de)\s+([A-Z][a-zA-Z\s]+?)(?:\s|,|\.|\)|$)/);
+              if (locationMatch) {
+                const extractedLocation = locationMatch[1].trim();
+                // Check if it matches a known venue
+                for (const [venueName, venueData] of Object.entries(this.SON_EN_BREUGEL_VENUES)) {
+                  if (extractedLocation.toLowerCase().includes(venueName)) {
+                    latitude = venueData.lat;
+                    longitude = venueData.lng;
+                    address = venueData.address;
+                    location = extractedLocation;
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // QUALITY FILTER: Skip if no exact location
+            if (!latitude || !longitude) {
+              console.log(`[RSS] SKIPPED Son en Breugel event (no exact location): ${title.substring(0, 50)}`);
+              return;
+            }
+            
+            // Clean title
+            const cleanTitle = this.formatTitle(title.replace(/^(Ars longa\s+)?/i, ''));
+            
+            // Create description from content
+            const description = contentText.substring(0, 500).replace(/\s+/g, ' ').trim();
+            
+            const externalId = `sonenbreugel-${cleanTitle.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 50)}-${startTime.getTime()}`;
+            
+            items.push({
+              externalId,
+              title: cleanTitle,
+              description: description || `${cleanTitle} - Evenement in Son en Breugel`,
+              link: page.url,
+              imageUrl: undefined,
+              publishedAt: new Date(),
+              startTime,
+              endTime: endTime || new Date(startTime.getTime() + 2 * 60 * 60 * 1000),
+              location,
+              address,
+              latitude,
+              longitude,
+              rawData: { url: page.url, location }
+            });
+          });
+          
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error: any) {
+          console.log(`[RSS] Could not fetch ${page.url}: ${error.message}`);
+        }
+      }
+      
+      console.log(`[RSS] Scraped ${items.length} events from Son en Breugel`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Son en Breugel:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
   static readonly MONTHS: Record<string, number> = {
     jan: 0, january: 0, januari: 0,
     feb: 1, february: 1, februari: 1,
@@ -1553,6 +1755,8 @@ export class RssFeedService {
         result = await this.scrapeMeierijstad();
       } else if (feed.feedType === "scraper" && feed.url.includes("exploremaashorst")) {
         result = await this.scrapeMaashorst();
+      } else if (feed.feedType === "scraper" && feed.url.includes("sonenbreugel")) {
+        result = await this.scrapeSonEnBreugel();
       } else {
         result = await this.fetchAndParseRssFeed(feed.url);
       }
@@ -1638,6 +1842,8 @@ export class RssFeedService {
           result = await this.scrapeMeierijstad();
         } else if (feed.feedType === "scraper" && feed.url.includes("exploremaashorst")) {
           result = await this.scrapeMaashorst();
+        } else if (feed.feedType === "scraper" && feed.url.includes("sonenbreugel")) {
+          result = await this.scrapeSonEnBreugel();
         } else {
           result = await this.fetchAndParseRssFeed(feed.url);
         }

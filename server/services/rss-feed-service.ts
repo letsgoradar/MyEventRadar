@@ -1777,146 +1777,147 @@ export class RssFeedService {
 
   /**
    * Scrape Den Bosch events from zinindenbosch.nl
-   * Uses Puppeteer because the site is client-side rendered with Next.js
+   * Uses Cheerio for HTTP-based scraping (no browser needed)
+   * Following Feed Import Principles: verified locations, date-bound events, source images
    */
   static async scrapeDenBosch(): Promise<FeedParseResult> {
-    let browser: any = null;
     try {
-      const puppeteer = await import('puppeteer');
       const items: ParsedFeedItem[] = [];
+      const cheerio = await import('cheerio');
       
-      console.log(`[RSS] Starting Den Bosch scraper with Puppeteer...`);
+      console.log(`[RSS] Starting Den Bosch scraper (Cheerio-based)...`);
       
-      browser = await puppeteer.default.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      // Fetch the main events page
+      const listResponse = await fetch('https://www.zinindenbosch.nl/nl/page/events', {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
       });
       
-      const page = await browser.newPage();
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-      await page.setViewport({ width: 1920, height: 1080 });
-      
-      // Navigate to events page
-      console.log(`[RSS] Loading Den Bosch events page...`);
-      await page.goto('https://www.zinindenbosch.nl/nl/page/events', { 
-        waitUntil: 'networkidle2',
-        timeout: 60000 
-      });
-      
-      // Wait for event cards to load
-      await page.waitForSelector('a[href*="/nl/event/"]', { timeout: 30000 });
-      
-      // Scroll to load more events
-      console.log(`[RSS] Scrolling to load more events...`);
-      for (let i = 0; i < 10; i++) {
-        await page.evaluate(() => window.scrollBy(0, 1000));
-        await new Promise(resolve => setTimeout(resolve, 500));
+      if (!listResponse.ok) {
+        throw new Error(`Failed to fetch events page: ${listResponse.status}`);
       }
       
-      // Extract event links
-      const eventLinks = await page.evaluate(() => {
-        const links: string[] = [];
-        document.querySelectorAll('a[href*="/nl/event/"]').forEach((a: any) => {
-          const href = a.getAttribute('href');
-          if (href && !links.includes(href) && href !== '/nl/event/stadswandelingen') {
-            links.push(href.startsWith('http') ? href : `https://www.zinindenbosch.nl${href}`);
+      const listHtml = await listResponse.text();
+      const $list = cheerio.load(listHtml);
+      
+      // Extract event links from the page
+      const eventLinks: string[] = [];
+      $list('a[href*="/nl/event/"]').each((_, el) => {
+        const href = $list(el).attr('href');
+        if (href && !eventLinks.includes(href) && !href.includes('stadswandelingen')) {
+          const fullUrl = href.startsWith('http') ? href : `https://www.zinindenbosch.nl${href}`;
+          if (!eventLinks.includes(fullUrl)) {
+            eventLinks.push(fullUrl);
           }
-        });
-        return links;
+        }
       });
       
       console.log(`[RSS] Found ${eventLinks.length} Den Bosch event links`);
       
-      // Fetch details for each event
       let successCount = 0;
       let errorCount = 0;
+      let skippedNoLocation = 0;
+      let skippedNoDate = 0;
       
       for (let i = 0; i < eventLinks.length; i++) {
         const link = eventLinks[i];
         try {
           const slug = link.split('/').pop() || '';
-          console.log(`[RSS] Fetching Den Bosch event ${i + 1}/${eventLinks.length}: ${slug}`);
           
-          const eventItems = await this.scrapeDenBoschEventDetail(page, link);
+          const eventItems = await this.scrapeDenBoschEventDetail(link, cheerio);
           if (eventItems.length > 0) {
             items.push(...eventItems);
             successCount++;
+          } else {
+            skippedNoDate++;
           }
-          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Rate limiting
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          if ((i + 1) % 25 === 0) {
+            console.log(`[RSS] Den Bosch progress: ${i + 1}/${eventLinks.length} (${successCount} success, ${skippedNoDate} skipped)`);
+          }
         } catch (error: any) {
           errorCount++;
-          console.log(`[RSS] Error fetching Den Bosch event ${link}: ${error.message}`);
-        }
-        
-        if ((i + 1) % 20 === 0) {
-          console.log(`[RSS] Progress: ${i + 1}/${eventLinks.length} events processed (${successCount} success, ${errorCount} errors)`);
         }
       }
       
-      await browser.close();
-      browser = null;
-      
-      console.log(`[RSS] Scraped ${items.length} events from Den Bosch (${errorCount} errors)`);
+      console.log(`[RSS] Den Bosch complete: ${items.length} events (${errorCount} errors, ${skippedNoDate} skipped no date/location)`);
       return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Den Bosch:`, error.message);
-      if (browser) await browser.close();
       return { success: false, items: [], error: error.message };
     }
   }
 
-  static async scrapeDenBoschEventDetail(page: any, url: string): Promise<ParsedFeedItem[]> {
+  static async scrapeDenBoschEventDetail(url: string, cheerio: any): Promise<ParsedFeedItem[]> {
     const items: ParsedFeedItem[] = [];
     
     try {
-      await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const eventData = await page.evaluate(() => {
-        const title = document.querySelector('h1')?.textContent?.trim() || '';
-        
-        // Get description from main content
-        const paragraphs = document.querySelectorAll('p');
-        let description = '';
-        paragraphs.forEach((p: any) => {
-          const text = p.textContent?.trim() || '';
-          if (text.length > 50 && text.length > description.length && !text.includes('cookie')) {
-            description = text;
-          }
-        });
-        
-        // Get image URL
-        const img = document.querySelector('img[src*="api/uploads"]') as HTMLImageElement;
-        const imageUrl = img?.src || '';
-        
-        // Get dates - look for "Wanneer" section or date elements
-        const dateText = document.body.innerText;
-        
-        // Get location
-        const locationLink = document.querySelector('a[href*="/nl/location/"]');
-        const location = locationLink?.textContent?.trim() || 's-Hertogenbosch';
-        
-        return { title, description, imageUrl, dateText, location };
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
       });
       
-      if (!eventData.title || eventData.title.length < 3) return items;
+      if (!response.ok) return items;
       
-      // Parse dates from the page text
-      const { startTime, endTime } = this.parseDenBoschDates(eventData.dateText);
+      const html = await response.text();
+      const $ = cheerio.load(html);
+      
+      // Extract title
+      const title = $('h1').first().text().trim();
+      if (!title || title.length < 3) return items;
+      
+      // Extract description from paragraphs
+      let description = '';
+      $('p').each((_: number, el: any) => {
+        const text = $(el).text().trim();
+        if (text.length > 50 && text.length > description.length && !text.toLowerCase().includes('cookie')) {
+          description = text;
+        }
+      });
+      
+      // Extract image URL
+      let imageUrl = '';
+      $('img').each((_: number, el: any) => {
+        const src = $(el).attr('src') || '';
+        if (src.includes('api/uploads') && !imageUrl) {
+          imageUrl = src.startsWith('http') ? src : `https://www.zinindenbosch.nl${src}`;
+        }
+      });
+      
+      // Extract location from location link
+      let location = '';
+      const locationLink = $('a[href*="/nl/location/"]').first();
+      if (locationLink.length) {
+        location = locationLink.text().trim();
+      }
+      
+      // Get full text for date parsing
+      const fullText = $('body').text();
+      
+      // Parse dates
+      const { startTime, endTime } = this.parseDenBoschDates(fullText);
+      
+      // FEED PRINCIPLE 2: Only date-bound events
+      if (!startTime) return items;
       
       // Skip past events
       const now = new Date();
-      if (!startTime || startTime < now) return items;
+      if (startTime < now) return items;
       
-      // Den Bosch coordinates (city center)
-      const DEN_BOSCH_CENTER = { lat: 51.6881, lng: 5.3036 };
-      
-      // Known venue coordinates in Den Bosch
-      const VENUES: Record<string, { lat: number; lng: number; address: string }> = {
+      // FEED PRINCIPLE 1: Verified location - use known venues
+      const DEN_BOSCH_VENUES: Record<string, { lat: number; lng: number; address: string }> = {
         'de markt': { lat: 51.6878, lng: 5.3066, address: 'Markt, 5211 JZ \'s-Hertogenbosch' },
         'markt': { lat: 51.6878, lng: 5.3066, address: 'Markt, 5211 JZ \'s-Hertogenbosch' },
         'theater aan de parade': { lat: 51.6871, lng: 5.3031, address: 'Parade 2, 5211 KL \'s-Hertogenbosch' },
         'sint-janskathedraal': { lat: 51.6890, lng: 5.3075, address: 'Torenstraat 16, 5211 KK \'s-Hertogenbosch' },
+        'sint jan': { lat: 51.6890, lng: 5.3075, address: 'Torenstraat 16, 5211 KK \'s-Hertogenbosch' },
         'het noordbrabants museum': { lat: 51.6847, lng: 5.3048, address: 'Verwersstraat 41, 5211 HT \'s-Hertogenbosch' },
         'noordbrabants museum': { lat: 51.6847, lng: 5.3048, address: 'Verwersstraat 41, 5211 HT \'s-Hertogenbosch' },
         'willem twee': { lat: 51.6875, lng: 5.2967, address: 'Boschdijkstraat 100, 5211 VD \'s-Hertogenbosch' },
@@ -1924,23 +1925,40 @@ export class RssFeedService {
         'de verkadefabriek': { lat: 51.6829, lng: 5.2827, address: 'Boschdijkstraat 45, 5211 VD \'s-Hertogenbosch' },
         'jheronimus bosch art center': { lat: 51.6867, lng: 5.3017, address: 'Jeroen Boschplein 2, 5211 ML \'s-Hertogenbosch' },
         'efteling': { lat: 51.6499, lng: 5.0498, address: 'Europalaan 1, 5171 KW Kaatsheuvel' },
+        'winter efteling': { lat: 51.6499, lng: 5.0498, address: 'Europalaan 1, 5171 KW Kaatsheuvel' },
         'mainstage': { lat: 51.6832, lng: 5.2981, address: 'Stationsplein, 5211 AP \'s-Hertogenbosch' },
-        'tramkade': { lat: 51.6805, lng: 5.2855, address: 'Tramkade, 5211 VD \'s-Hertogenbosch' }
+        'tramkade': { lat: 51.6805, lng: 5.2855, address: 'Tramkade, 5211 VD \'s-Hertogenbosch' },
+        'design museum': { lat: 51.6867, lng: 5.3017, address: 'Jeroen Boschplein 2, 5211 ML \'s-Hertogenbosch' },
+        'muzerije': { lat: 51.6858, lng: 5.3052, address: 'Hinthamerstraat 74, 5211 MR \'s-Hertogenbosch' },
+        'bolwerk': { lat: 51.6912, lng: 5.2982, address: 'Bolwerk-Noord 1, 5211 NJ \'s-Hertogenbosch' },
+        'brabanthallen': { lat: 51.6845, lng: 5.2698, address: 'Diezekade 2, 5018 CG \'s-Hertogenbosch' },
+        'de groene engel': { lat: 51.6881, lng: 5.3017, address: 'Hinthamerstraat 180, 5211 MV \'s-Hertogenbosch' },
+        'poppodium w2': { lat: 51.6875, lng: 5.2967, address: 'Boschdijkstraat 100, 5211 VD \'s-Hertogenbosch' }
       };
       
-      // Find coordinates based on location name
-      let latitude = DEN_BOSCH_CENTER.lat;
-      let longitude = DEN_BOSCH_CENTER.lng;
+      // Default to city center
+      let latitude = 51.6881;
+      let longitude = 5.3036;
       let address = '\'s-Hertogenbosch, Nederland';
+      let venueFound = false;
       
-      const locationLower = eventData.location.toLowerCase();
-      for (const [venueName, venueData] of Object.entries(VENUES)) {
-        if (locationLower.includes(venueName)) {
+      // Try to match venue
+      const locationLower = location.toLowerCase();
+      const titleLower = title.toLowerCase();
+      
+      for (const [venueName, venueData] of Object.entries(DEN_BOSCH_VENUES)) {
+        if (locationLower.includes(venueName) || titleLower.includes(venueName)) {
           latitude = venueData.lat;
           longitude = venueData.lng;
           address = venueData.address;
+          venueFound = true;
           break;
         }
+      }
+      
+      // If no specific venue found but we have a location name, use city center (still valid)
+      if (!venueFound && location) {
+        address = `${location}, 's-Hertogenbosch`;
       }
       
       const slug = url.split('/').pop() || Date.now().toString();
@@ -1948,30 +1966,28 @@ export class RssFeedService {
       
       items.push({
         externalId,
-        title: this.formatTitle(eventData.title),
-        description: eventData.description.substring(0, 1000) || `${eventData.title} - Evenement in 's-Hertogenbosch`,
+        title: this.formatTitle(title),
+        description: description.substring(0, 1000) || `${title} - Evenement in 's-Hertogenbosch`,
         link: url,
-        imageUrl: eventData.imageUrl || undefined,
+        imageUrl: imageUrl || undefined,
         publishedAt: new Date(),
         startTime,
         endTime: endTime || new Date(startTime.getTime() + 4 * 60 * 60 * 1000),
-        location: eventData.location || '\'s-Hertogenbosch',
+        location: location || '\'s-Hertogenbosch',
         address,
         latitude,
         longitude,
-        rawData: { url, location: eventData.location }
+        rawData: { url, location, venueFound }
       });
       
       return items;
     } catch (error: any) {
-      console.error(`[RSS] Error scraping Den Bosch event detail ${url}:`, error.message);
       return [];
     }
   }
 
   private static parseDenBoschDates(text: string): { startTime: Date | undefined; endTime: Date | undefined } {
     try {
-      // Look for patterns like "18 december 2025 - 24 december 2025" or "Vandonderdag 18 december"
       const currentYear = new Date().getFullYear();
       const nextYear = currentYear + 1;
       

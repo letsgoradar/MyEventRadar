@@ -2409,6 +2409,12 @@ export class RssFeedService {
       const normalizedTitle = title.toLowerCase().trim();
       const startDate = startTime.toISOString().split('T')[0];
       
+      // Ensure latitude and longitude are valid numbers (not 0 or undefined)
+      const hasValidCoords = latitude !== undefined && longitude !== undefined 
+        && !isNaN(latitude) && !isNaN(longitude)
+        && latitude !== 0 && longitude !== 0
+        && Math.abs(latitude) > 1 && Math.abs(longitude) > 1;
+      
       // Method 1: Check for exact title match on same date
       const titleMatches = await db.select({ id: events.id, title: events.title })
         .from(events)
@@ -2423,17 +2429,14 @@ export class RssFeedService {
       }
       
       // Method 2: Check for same location (within ~100m) on same date with similar title
-      if (latitude && longitude) {
+      if (hasValidCoords) {
         const coordMatches = await db.select({ id: events.id, title: events.title })
           .from(events)
           .where(
             sql`ABS(CAST(${events.latitude} AS DECIMAL) - ${latitude}) < 0.001
                 AND ABS(CAST(${events.longitude} AS DECIMAL) - ${longitude}) < 0.001
                 AND DATE(${events.startTime}) = ${startDate}
-                AND (
-                  LOWER(TRIM(${events.title})) = ${normalizedTitle}
-                  OR similarity(LOWER(${events.title}), ${normalizedTitle}) > 0.6
-                )`
+                AND LOWER(TRIM(${events.title})) = ${normalizedTitle}`
           )
           .limit(1);
         

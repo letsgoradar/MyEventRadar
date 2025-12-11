@@ -130,7 +130,25 @@ The application uses PostgreSQL with the following main entities:
 - Admin tools for user and event management
 - Activity logging for audit trails
 
+## RSS Feed Import Principes
+
+Alle feeds moeten voldoen aan deze gestandaardiseerde regels (zie `server/config/rss-feed-rules.ts`):
+
+1. **LOCATIE VERIFICATIE** - Alleen events met geverifieerde locatie importeren (GPS coördinaten, bekend venue, of succesvol ge-geocoded adres)
+2. **DATUM GEBONDEN** - Alleen events met specifieke datum/datumperiode, geen algemene activiteiten
+3. **BRON AFBEELDINGEN** - Altijd de afbeelding uit de bron gebruiken als beschikbaar
+4. **MULTIDAG EVENTS** - Events op meerdere dagen als 1 event met datumbereik importeren
+5. **DUPLICATE DETECTIE** - Events overslaan die al bestaan (check op titel+datum+locatie of bron-link)
+6. **TIJD HANTERING** - Tijden meenemen als vindbaar, "onbekend" als niet - nooit random tijden invullen
+
+API endpoint voor principes: `GET /api/admin/feed-import-principles`
+
 ## Recent Changes
+- December 11, 2025: **FEED IMPORT PRINCIPES** - Gestandaardiseerde import regels voor alle RSS feeds
+  - Duplicate detectie toegevoegd aan import service
+  - 252 bestaande duplicaten opgeschoond uit database (878 unieke events behouden)
+  - Feed configuratie principes vastgelegd in server/config/rss-feed-rules.ts
+  - API endpoint toegevoegd voor principes documentatie
 - November 28, 2025: **UNIFIED SAVED EVENTS** - Verwijderd "Favorieten" concept, nu alleen "Opgeslagen" terminologie
   - Web sidebar nu met Bookmark icoon naar /web/saved route
   - App BottomNav nu met Bookmark icoon naar /app/saved route

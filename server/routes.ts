@@ -1438,6 +1438,29 @@ Respond with ONLY the search term, nothing else.`
   });
 
   // RSS Feed API endpoints
+  
+  // Get feed import principles/rules documentation
+  app.get("/api/admin/feed-import-principles", isAdmin, async (req, res) => {
+    try {
+      const { RssFeedService } = await import("./services/rss-feed-service");
+      const principles = RssFeedService.getFeedImportPrinciples();
+      res.json({ 
+        principles,
+        rules: {
+          requireVerifiedLocation: true,
+          requireDateBound: true,
+          preferSourceImage: true,
+          consolidateMultiDayEvents: true,
+          skipDuplicates: true,
+          useUnknownForMissingTime: true
+        }
+      });
+    } catch (error) {
+      console.error('Error in GET /api/admin/feed-import-principles:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.get("/api/admin/rss-feeds", isAdmin, async (req, res) => {
     try {
       const feeds = await storage.getAllRssFeeds();

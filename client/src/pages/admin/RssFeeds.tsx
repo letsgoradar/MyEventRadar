@@ -44,11 +44,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
 import { CATEGORIES } from '@shared/schema';
+import { lazy, Suspense } from 'react';
+
+const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
 
 interface RssFeed {
   id: number;
@@ -469,6 +473,34 @@ export default function RssFeedsPage() {
             </Card>
           </div>
 
+          <Tabs defaultValue="list" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="list" className="flex items-center gap-2">
+                <List className="w-4 h-4" />
+                Lijst
+              </TabsTrigger>
+              <TabsTrigger value="map" className="flex items-center gap-2">
+                <Map className="w-4 h-4" />
+                Kaart
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="map">
+              <Suspense fallback={
+                <div className="flex items-center justify-center h-[600px] bg-muted rounded-lg">
+                  <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+                </div>
+              }>
+                <MunicipalityMap 
+                  onAddFeed={(municipality) => {
+                    setNewFeed(prev => ({ ...prev, name: `${municipality} Events`, defaultAddress: municipality }));
+                    setIsAddDialogOpen(true);
+                  }}
+                />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="list">
           {feeds.length === 0 && !isLoading && (
             <Card className="mb-6">
               <CardContent className="py-8 text-center">
@@ -629,6 +661,8 @@ export default function RssFeedsPage() {
               </CardContent>
             </Card>
           )}
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </div>

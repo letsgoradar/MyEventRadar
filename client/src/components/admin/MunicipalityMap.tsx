@@ -75,23 +75,23 @@ export default function MunicipalityMap({ onSelectMunicipality, onAddFeed }: Mun
 
   const getStyleForStatus = (status: 'active' | 'error' | 'paused' | 'none', isHovered: boolean, isSelected: boolean): PathOptions => {
     const baseStyles: Record<string, PathOptions> = {
-      active: { fillColor: '#86efac', fillOpacity: 0.35, color: '#22c55e', weight: 1 },
-      error: { fillColor: '#fca5a5', fillOpacity: 0.4, color: '#ef4444', weight: 1 },
-      paused: { fillColor: '#fde68a', fillOpacity: 0.3, color: '#f59e0b', weight: 1 },
-      none: { fillColor: '#f5f5f5', fillOpacity: 0.1, color: '#d4d4d4', weight: 0.5 },
+      active: { fillColor: '#22c55e', fillOpacity: 0.6, color: '#16a34a', weight: 1 },
+      error: { fillColor: '#ef4444', fillOpacity: 0.6, color: '#dc2626', weight: 1 },
+      paused: { fillColor: '#f59e0b', fillOpacity: 0.5, color: '#d97706', weight: 1 },
+      none: { fillColor: '#e5e7eb', fillOpacity: 0.3, color: '#9ca3af', weight: 1 },
     };
 
     const style = { ...baseStyles[status] };
     
     if (isHovered) {
-      style.fillOpacity = (style.fillOpacity || 0.3) + 0.25;
+      style.fillOpacity = 0.8;
       style.weight = 2;
     }
     
     if (isSelected) {
       style.weight = 3;
       style.color = '#3b82f6';
-      style.fillOpacity = 0.6;
+      style.fillOpacity = 0.9;
     }
     
     return style;

@@ -2682,11 +2682,15 @@ export class RssFeedService {
             longitude = 5.0886;
           }
           
+          // Generate unique link for each event to avoid false duplicate detection
+          const uniqueEventSlug = eventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50);
+          const uniqueLink = `${calendarUrl}#${uniqueEventSlug}-${currentYear}-${monthIndex + 1}-${startDay}`;
+          
           items.push({
             externalId: `tilburg-${currentYear}-${monthIndex}-${startDay}-${eventName.substring(0, 20).replace(/[^a-z0-9]/gi, '')}`,
             title: this.formatTitle(eventName),
             description: `${eventName} vindt plaats in ${location}, Tilburg.`,
-            link: calendarUrl,
+            link: uniqueLink,
             publishedAt: new Date(),
             startTime,
             endTime,
@@ -4300,7 +4304,7 @@ export class RssFeedService {
 
       if (event) {
         await db.update(rssFeedItems)
-          .set({ eventId: event.id, isProcessed: true })
+          .set({ eventId: event.id, isProcessed: true, processingStatus: 'imported' })
           .where(eq(rssFeedItems.id, feedItem.id));
         
         console.log(`[RSS] Created event "${event.title}" at ${address} (ID: ${event.id})`);

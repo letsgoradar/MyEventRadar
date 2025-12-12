@@ -11,6 +11,7 @@ import {
   notifications,
   rssFeeds,
   rssFeedItems,
+  rssItemCorrections,
   type User,
   type InsertUser,
   type Event,
@@ -29,6 +30,8 @@ import {
   type InsertRssFeed,
   type RssFeedItem,
   type InsertRssFeedItem,
+  type RssItemCorrection,
+  type InsertRssItemCorrection,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
@@ -98,6 +101,21 @@ export interface IStorage {
   deleteRssFeed(id: number): Promise<void>;
   getRssFeedItems(feedId: number): Promise<RssFeedItem[]>;
   getRssFeedItemsCount(): Promise<number>;
+  
+  // Incomplete RSS Feed Items operations
+  getIncompleteItems(feedId?: number): Promise<RssFeedItem[]>;
+  getIncompleteItemsCount(feedId?: number): Promise<number>;
+  updateRssFeedItem(id: number, item: Partial<RssFeedItem>): Promise<RssFeedItem>;
+  createRssFeedItem(item: InsertRssFeedItem): Promise<RssFeedItem>;
+  deleteRssFeedItem(id: number): Promise<void>;
+  getFeedItemsSummary(feedId: number): Promise<{ imported: number; incomplete: number; skipped: number }>;
+  
+  // RSS Item Corrections operations
+  createCorrection(correction: InsertRssItemCorrection): Promise<RssItemCorrection>;
+  getCorrectionsForFeed(feedId?: number): Promise<RssItemCorrection[]>;
+  findMatchingCorrections(fieldKey: string, originalValue: string): Promise<RssItemCorrection[]>;
+  incrementCorrectionCount(id: number): Promise<void>;
+  deleteCorrection(id: number): Promise<void>;
 }
 
 export class PgStorage implements IStorage {
@@ -620,6 +638,130 @@ export class PgStorage implements IStorage {
     return this.withRetry(async () => {
       const result = await db.select({ count: count() }).from(rssFeedItems);
       return result[0]?.count || 0;
+    });
+  }
+
+  async getIncompleteItems(feedId?: number): Promise<RssFeedItem[]> {
+    return this.withRetry(async () => {
+      if (feedId) {
+        return await db.select().from(rssFeedItems)
+          .where(and(
+            eq(rssFeedItems.feedId, feedId),
+            eq(rssFeedItems.processingStatus, 'incomplete')
+          ))
+          .orderBy(desc(rssFeedItems.createdAt));
+      }
+      return await db.select().from(rssFeedItems)
+        .where(eq(rssFeedItems.processingStatus, 'incomplete'))
+        .orderBy(desc(rssFeedItems.createdAt));
+    });
+  }
+
+  async getIncompleteItemsCount(feedId?: number): Promise<number> {
+    return this.withRetry(async () => {
+      if (feedId) {
+        const result = await db.select({ count: count() }).from(rssFeedItems)
+          .where(and(
+            eq(rssFeedItems.feedId, feedId),
+            eq(rssFeedItems.processingStatus, 'incomplete')
+          ));
+        return result[0]?.count || 0;
+      }
+      const result = await db.select({ count: count() }).from(rssFeedItems)
+        .where(eq(rssFeedItems.processingStatus, 'incomplete'));
+      return result[0]?.count || 0;
+    });
+  }
+
+  async updateRssFeedItem(id: number, item: Partial<RssFeedItem>): Promise<RssFeedItem> {
+    return this.withRetry(async () => {
+      const [updated] = await db.update(rssFeedItems)
+        .set(item)
+        .where(eq(rssFeedItems.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async createRssFeedItem(item: InsertRssFeedItem): Promise<RssFeedItem> {
+    return this.withRetry(async () => {
+      const [created] = await db.insert(rssFeedItems).values(item).returning();
+      return created;
+    });
+  }
+
+  async deleteRssFeedItem(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(rssFeedItems).where(eq(rssFeedItems.id, id));
+    });
+  }
+
+  async getFeedItemsSummary(feedId: number): Promise<{ imported: number; incomplete: number; skipped: number }> {
+    return this.withRetry(async () => {
+      const importedResult = await db.select({ count: count() }).from(rssFeedItems)
+        .where(and(
+          eq(rssFeedItems.feedId, feedId),
+          eq(rssFeedItems.processingStatus, 'imported')
+        ));
+      const incompleteResult = await db.select({ count: count() }).from(rssFeedItems)
+        .where(and(
+          eq(rssFeedItems.feedId, feedId),
+          eq(rssFeedItems.processingStatus, 'incomplete')
+        ));
+      const skippedResult = await db.select({ count: count() }).from(rssFeedItems)
+        .where(and(
+          eq(rssFeedItems.feedId, feedId),
+          eq(rssFeedItems.processingStatus, 'skipped')
+        ));
+      return {
+        imported: importedResult[0]?.count || 0,
+        incomplete: incompleteResult[0]?.count || 0,
+        skipped: skippedResult[0]?.count || 0
+      };
+    });
+  }
+
+  async createCorrection(correction: InsertRssItemCorrection): Promise<RssItemCorrection> {
+    return this.withRetry(async () => {
+      const [created] = await db.insert(rssItemCorrections).values(correction).returning();
+      return created;
+    });
+  }
+
+  async getCorrectionsForFeed(feedId?: number): Promise<RssItemCorrection[]> {
+    return this.withRetry(async () => {
+      if (feedId) {
+        return await db.select().from(rssItemCorrections)
+          .where(eq(rssItemCorrections.feedId, feedId))
+          .orderBy(desc(rssItemCorrections.createdAt));
+      }
+      return await db.select().from(rssItemCorrections)
+        .orderBy(desc(rssItemCorrections.createdAt));
+    });
+  }
+
+  async findMatchingCorrections(fieldKey: string, originalValue: string): Promise<RssItemCorrection[]> {
+    return this.withRetry(async () => {
+      const normalizedValue = originalValue.toLowerCase().trim();
+      return await db.select().from(rssItemCorrections)
+        .where(and(
+          eq(rssItemCorrections.fieldKey, fieldKey),
+          eq(rssItemCorrections.originalValuePattern, normalizedValue)
+        ));
+    });
+  }
+
+  async incrementCorrectionCount(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.update(rssItemCorrections)
+        .set({ appliedCount: sql`${rssItemCorrections.appliedCount} + 1` })
+        .where(eq(rssItemCorrections.id, id));
+    });
+  }
+
+  async deleteCorrection(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(rssItemCorrections).where(eq(rssItemCorrections.id, id));
     });
   }
 }

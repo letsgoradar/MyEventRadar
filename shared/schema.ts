@@ -115,6 +115,7 @@ export const notifications = pgTable("notifications", {
 
 export const RSS_FEED_TYPES = ['rss', 'atom', 'scraper'] as const;
 export const RSS_FEED_STATUS = ['active', 'paused', 'error'] as const;
+export const RSS_ITEM_STATUS = ['imported', 'incomplete', 'skipped'] as const;
 
 export const rssFeeds = pgTable("rss_feeds", {
   id: serial("id").primaryKey(),
@@ -148,6 +149,29 @@ export const rssFeedItems = pgTable("rss_feed_items", {
   rawData: jsonb("raw_data"),
   eventId: integer("event_id").references(() => events.id, { onDelete: "set null" }),
   isProcessed: boolean("is_processed").default(false),
+  processingStatus: text("processing_status").default('incomplete'),
+  missingFields: jsonb("missing_fields").$type<string[]>(),
+  derivedData: jsonb("derived_data").$type<{
+    geocodedAddress?: string;
+    geocodedLat?: number;
+    geocodedLng?: number;
+    parsedStartDate?: string;
+    parsedEndDate?: string;
+    detectedVenue?: string;
+    validationErrors?: string[];
+  }>(),
+  lastAttemptedAt: timestamp("last_attempted_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const rssItemCorrections = pgTable("rss_item_corrections", {
+  id: serial("id").primaryKey(),
+  feedId: integer("feed_id").references(() => rssFeeds.id, { onDelete: "cascade" }),
+  fieldKey: text("field_key").notNull(),
+  originalValuePattern: text("original_value_pattern").notNull(),
+  correctedValue: jsonb("corrected_value").notNull(),
+  appliedCount: integer("applied_count").default(0),
+  createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -287,3 +311,11 @@ export type RssFeed = typeof rssFeeds.$inferSelect;
 export type InsertRssFeed = z.infer<typeof insertRssFeedSchema>;
 export type RssFeedItem = typeof rssFeedItems.$inferSelect;
 export type InsertRssFeedItem = z.infer<typeof insertRssFeedItemSchema>;
+export type RssItemCorrection = typeof rssItemCorrections.$inferSelect;
+
+export const insertRssItemCorrectionSchema = createInsertSchema(rssItemCorrections).omit({
+  id: true,
+  createdAt: true,
+  appliedCount: true,
+});
+export type InsertRssItemCorrection = z.infer<typeof insertRssItemCorrectionSchema>;

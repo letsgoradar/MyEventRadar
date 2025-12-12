@@ -3903,7 +3903,96 @@ export class RssFeedService {
   }
 
   /**
-   * Try generic HTML parsing with multiple selectors
+   * Detect pagination patterns in the page
+   * Returns pagination info: type, next URL patterns, or null if no pagination
+   */
+  private static detectPagination($: cheerio.CheerioAPI, baseUrl: string): { type: string; nextUrls: string[] } | null {
+    const baseUrlObj = new URL(baseUrl);
+    const nextUrls: string[] = [];
+    
+    // Pattern 1: WordPress-style /page/N/ pagination
+    const wpPageLinks = $('a[href*="/page/"]').map((_, el) => $(el).attr('href')).get();
+    if (wpPageLinks.length > 0) {
+      const pageNumbers = new Set<number>();
+      wpPageLinks.forEach(href => {
+        const match = href?.match(/\/page\/(\d+)/);
+        if (match) pageNumbers.add(parseInt(match[1]));
+      });
+      if (pageNumbers.size > 0) {
+        const maxPage = Math.max(...Array.from(pageNumbers));
+        for (let i = 2; i <= Math.min(maxPage + 5, 50); i++) {
+          const pageUrl = baseUrl.replace(/\/$/, '') + `/page/${i}/`;
+          if (!nextUrls.includes(pageUrl)) nextUrls.push(pageUrl);
+        }
+        return { type: 'wordpress', nextUrls };
+      }
+    }
+    
+    // Pattern 2: Query string ?page=N or ?p=N pagination
+    const queryPageLinks = $('a[href*="page="], a[href*="p="]').map((_, el) => $(el).attr('href')).get();
+    if (queryPageLinks.length > 0) {
+      const pageNumbers = new Set<number>();
+      queryPageLinks.forEach(href => {
+        const match = href?.match(/[?&](?:page|p)=(\d+)/);
+        if (match) pageNumbers.add(parseInt(match[1]));
+      });
+      if (pageNumbers.size > 0) {
+        const maxPage = Math.max(...Array.from(pageNumbers));
+        for (let i = 2; i <= Math.min(maxPage + 5, 50); i++) {
+          const pageUrl = baseUrl.includes('?') 
+            ? baseUrl.replace(/([?&])(?:page|p)=\d+/, `$1page=${i}`)
+            : `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}page=${i}`;
+          if (!nextUrls.includes(pageUrl)) nextUrls.push(pageUrl);
+        }
+        return { type: 'query', nextUrls };
+      }
+    }
+    
+    // Pattern 3: Dutch pagination /pagina/N/
+    const dutchPageLinks = $('a[href*="/pagina/"]').map((_, el) => $(el).attr('href')).get();
+    if (dutchPageLinks.length > 0) {
+      const pageNumbers = new Set<number>();
+      dutchPageLinks.forEach(href => {
+        const match = href?.match(/\/pagina\/(\d+)/);
+        if (match) pageNumbers.add(parseInt(match[1]));
+      });
+      if (pageNumbers.size > 0) {
+        const maxPage = Math.max(...Array.from(pageNumbers));
+        for (let i = 2; i <= Math.min(maxPage + 5, 50); i++) {
+          const pageUrl = baseUrl.replace(/\/$/, '') + `/pagina/${i}/`;
+          if (!nextUrls.includes(pageUrl)) nextUrls.push(pageUrl);
+        }
+        return { type: 'dutch', nextUrls };
+      }
+    }
+    
+    // Pattern 4: Next/Previous buttons with rel="next"
+    const nextLink = $('a[rel="next"], .next a, .pagination-next a, [class*="next"] a').first().attr('href');
+    if (nextLink) {
+      const fullUrl = nextLink.startsWith('http') ? nextLink : `${baseUrlObj.origin}${nextLink.startsWith('/') ? '' : '/'}${nextLink}`;
+      nextUrls.push(fullUrl);
+      return { type: 'next-link', nextUrls };
+    }
+    
+    // Pattern 5: Numeric pagination links
+    const numericLinks = $('a.page-numbers, .pagination a, nav.pagination a').map((_, el) => $(el).attr('href')).get();
+    if (numericLinks.length > 0) {
+      numericLinks.forEach(href => {
+        if (href && !href.includes('#') && !nextUrls.includes(href)) {
+          const fullUrl = href.startsWith('http') ? href : `${baseUrlObj.origin}${href.startsWith('/') ? '' : '/'}${href}`;
+          nextUrls.push(fullUrl);
+        }
+      });
+      if (nextUrls.length > 0) {
+        return { type: 'numeric', nextUrls };
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Try generic HTML parsing with multiple selectors and intelligent pagination detection
    */
   private static async tryGenericHtml($: cheerio.CheerioAPI, baseUrl: string, municipality: string, feed: RssFeed): Promise<FeedParseResult> {
     try {
@@ -3911,6 +4000,10 @@ export class RssFeedService {
       
       // Common event selectors used across different CMSs
       const eventSelectors = [
+        // Grid item patterns (like Tilburg)
+        'a.tb-grid-item',
+        '.grid-item a[href*="/agenda/"]',
+        '.grid-item a[href*="/event"]',
         // Elementor
         'article.elementor-post',
         '.elementor-post',
@@ -3935,60 +4028,110 @@ export class RssFeedService {
         '[data-event-id]'
       ];
       
-      let eventElements: cheerio.Cheerio<any> | null = null;
-      let usedSelector = '';
-      
-      for (const selector of eventSelectors) {
-        const elements = $(selector);
-        if (elements.length > 0) {
-          eventElements = elements;
-          usedSelector = selector;
-          console.log(`[RSS] Found ${elements.length} elements with selector: ${selector}`);
-          break;
-        }
-      }
-      
-      if (!eventElements || eventElements.length === 0) {
-        // Try to find any article elements as fallback
-        eventElements = $('article').filter((_, el) => {
-          const classes = $(el).attr('class') || '';
-          return classes.includes('post') || classes.includes('event') || classes.includes('agenda');
-        });
+      // Helper function to extract event links from a page
+      const extractEventLinks = ($page: cheerio.CheerioAPI, baseUrlObj: URL, collectedLinks: string[]): string[] => {
+        const newLinks: string[] = [];
         
-        if (eventElements.length > 0) {
-          usedSelector = 'article (filtered)';
-          console.log(`[RSS] Found ${eventElements.length} article elements`);
+        // First try specific selectors
+        for (const selector of eventSelectors) {
+          const elements = $page(selector);
+          if (elements.length > 0) {
+            elements.each((_, el) => {
+              const $el = $page(el);
+              let link = $el.is('a') ? $el.attr('href') : ($el.find('a').first().attr('href') || $el.find('h2 a, h3 a').attr('href'));
+              if (!link) return;
+              
+              if (!link.startsWith('http')) {
+                link = `${baseUrlObj.origin}${link.startsWith('/') ? '' : '/'}${link}`;
+              }
+              
+              if (link.includes('/category/') || link.includes('/tag/') || link.includes('#') || link.includes('/page/')) return;
+              if (!collectedLinks.includes(link) && !newLinks.includes(link)) {
+                newLinks.push(link);
+              }
+            });
+            if (newLinks.length > 0) break;
+          }
+        }
+        
+        // Fallback: find any article elements
+        if (newLinks.length === 0) {
+          const articles = $page('article').filter((_, el) => {
+            const classes = $page(el).attr('class') || '';
+            return classes.includes('post') || classes.includes('event') || classes.includes('agenda');
+          });
+          
+          articles.each((_, el) => {
+            const $el = $page(el);
+            let link = $el.find('a').first().attr('href') || $el.find('h2 a, h3 a').attr('href');
+            if (!link) return;
+            
+            if (!link.startsWith('http')) {
+              link = `${baseUrlObj.origin}${link.startsWith('/') ? '' : '/'}${link}`;
+            }
+            
+            if (link.includes('/category/') || link.includes('/tag/') || link.includes('#')) return;
+            if (!collectedLinks.includes(link) && !newLinks.includes(link)) {
+              newLinks.push(link);
+            }
+          });
+        }
+        
+        return newLinks;
+      };
+      
+      const baseUrlObj = new URL(baseUrl);
+      const allEventLinks: string[] = [];
+      
+      // Extract from first page
+      const page1Links = extractEventLinks($, baseUrlObj, allEventLinks);
+      allEventLinks.push(...page1Links);
+      console.log(`[RSS] Page 1: found ${page1Links.length} event links`);
+      
+      // Detect and handle pagination
+      const pagination = this.detectPagination($, baseUrl);
+      if (pagination && pagination.nextUrls.length > 0) {
+        console.log(`[RSS] Detected ${pagination.type} pagination with ${pagination.nextUrls.length} potential pages`);
+        
+        for (const pageUrl of pagination.nextUrls.slice(0, 30)) {
+          try {
+            await new Promise(resolve => setTimeout(resolve, 300)); // Rate limiting
+            
+            const pageResponse = await axios.get(pageUrl, {
+              headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
+              timeout: 30000
+            });
+            
+            const $page = cheerio.load(pageResponse.data);
+            const pageLinks = extractEventLinks($page, baseUrlObj, allEventLinks);
+            
+            if (pageLinks.length === 0) {
+              console.log(`[RSS] ${pageUrl}: no new events, stopping pagination`);
+              break;
+            }
+            
+            allEventLinks.push(...pageLinks);
+            console.log(`[RSS] ${pageUrl}: found ${pageLinks.length} new links (total: ${allEventLinks.length})`);
+            
+          } catch (error: any) {
+            if (error.response?.status === 404) {
+              console.log(`[RSS] ${pageUrl}: 404, end of pagination`);
+              break;
+            }
+            console.log(`[RSS] ${pageUrl}: error ${error.message}`);
+            break;
+          }
         }
       }
       
-      if (!eventElements || eventElements.length === 0) {
+      if (allEventLinks.length === 0) {
         return { success: false, items: [], error: "No event elements found with any selector" };
       }
       
-      const baseUrlObj = new URL(baseUrl);
-      const eventLinks: string[] = [];
+      console.log(`[RSS] Total: found ${allEventLinks.length} event links across all pages`);
       
-      eventElements.each((_, el) => {
-        const $el = $(el);
-        
-        // Find the event link
-        let link = $el.find('a').first().attr('href') || $el.find('h2 a, h3 a').attr('href');
-        if (!link) return;
-        
-        if (!link.startsWith('http')) {
-          link = `${baseUrlObj.origin}${link.startsWith('/') ? '' : '/'}${link}`;
-        }
-        
-        // Skip non-event links
-        if (link.includes('/category/') || link.includes('/tag/') || link.includes('#')) return;
-        
-        eventLinks.push(link);
-      });
-      
-      console.log(`[RSS] Found ${eventLinks.length} event links to scrape`);
-      
-      // Limit to first 30 to avoid overwhelming
-      const linksToProcess = [...new Set(eventLinks)].slice(0, 30);
+      // Limit to first 100 to avoid overwhelming (increased from 30 due to pagination)
+      const linksToProcess = Array.from(new Set(allEventLinks)).slice(0, 100);
       
       for (const link of linksToProcess) {
         try {

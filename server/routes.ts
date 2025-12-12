@@ -1471,18 +1471,18 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
-  app.get("/api/admin/rss-feeds/incomplete-counts", isAdmin, async (req, res) => {
+  app.get("/api/admin/rss-feeds/summaries", isAdmin, async (req, res) => {
     try {
       const feeds = await storage.getAllRssFeeds();
-      const counts: Record<number, number> = {};
+      const summaries: Record<number, { imported: number; incomplete: number; skipped: number }> = {};
       
       for (const feed of feeds) {
-        counts[feed.id] = await storage.getIncompleteItemsCount(feed.id);
+        summaries[feed.id] = await storage.getFeedItemsSummary(feed.id);
       }
       
-      res.json(counts);
+      res.json(summaries);
     } catch (error) {
-      console.error('Error in GET /api/admin/rss-feeds/incomplete-counts:', error);
+      console.error('Error in GET /api/admin/rss-feeds/summaries:', error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

@@ -2516,35 +2516,18 @@ export class RssFeedService {
   }
 
   /**
-   * TILBURG SCRAPER - Custom scraper for tilburg.com evenementenkalender
-   * Extracts structured event data from the annual calendar page
-   * Pattern: "datum: evenement – locatie" or "datum t/m datum: evenement – locatie"
+   * TILBURG SCRAPER - Custom scraper for tilburg.com agenda
+   * Scrapes the full agenda page and fetches event details from individual pages
+   * Each event page contains: title, date, time, venue, description, image
    */
   static async scrapeTilburg(): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
-      const calendarUrl = 'https://tilburg.com/nieuws/dit-is-de-evenementenkalender-van-tilburg-in-2025/';
+      const agendaUrl = 'https://tilburg.com/agenda-tilburg/';
       
-      console.log(`[RSS] Scraping Tilburg evenementenkalender...`);
+      console.log(`[RSS] Scraping Tilburg full agenda...`);
       
-      const response = await axios.get(calendarUrl, {
-        headers: {
-          "User-Agent": this.USER_AGENT,
-          "Accept": "text/html,application/xhtml+xml"
-        },
-        timeout: 30000
-      });
-      
-      const $ = cheerio.load(response.data);
-      
-      // Dutch month names for parsing
-      const monthNames: Record<string, number> = {
-        'januari': 0, 'februari': 1, 'maart': 2, 'april': 3,
-        'mei': 4, 'juni': 5, 'juli': 6, 'augustus': 7,
-        'september': 8, 'oktober': 9, 'november': 10, 'december': 11
-      };
-      
-      // Known Tilburg venues with approximate GPS coordinates
+      // Known Tilburg venues with GPS coordinates
       const tilburgVenues: Record<string, { lat: number; lng: number; address: string }> = {
         'koepelhal': { lat: 51.5577, lng: 5.0790, address: 'Koepelhal, Tilburg' },
         'binnenstad': { lat: 51.5594, lng: 5.0854, address: 'Binnenstad, Tilburg' },
@@ -2554,6 +2537,7 @@ export class RssFeedService {
         'piusplein': { lat: 51.5605, lng: 5.0825, address: 'Piusplein, Tilburg' },
         'piushaven': { lat: 51.5610, lng: 5.0705, address: 'Piushaven, Tilburg' },
         'reeshofpark': { lat: 51.5310, lng: 5.0270, address: 'Reeshofpark, Tilburg' },
+        'reeshofplein': { lat: 51.5310, lng: 5.0270, address: 'Reeshofplein, Tilburg' },
         'het laar': { lat: 51.5440, lng: 5.0665, address: 'Het Laar, Tilburg' },
         'de heuvel': { lat: 51.5585, lng: 5.0855, address: 'De Heuvel, Tilburg' },
         'stadhuisstraat': { lat: 51.5590, lng: 5.0840, address: 'Stadhuisstraat, Tilburg' },
@@ -2566,109 +2550,243 @@ export class RssFeedService {
         '013': { lat: 51.5565, lng: 5.0830, address: 'Poppodium 013, Tilburg' },
         'wagenmakerij': { lat: 51.5610, lng: 5.0870, address: 'Wagenmakerij, Tilburg' },
         'hall of fame': { lat: 51.5550, lng: 5.0640, address: 'Hall of Fame, Tilburg' },
+        'prise d\'eau': { lat: 51.5425, lng: 5.1230, address: 'Prise d\'Eau Golf, Tilburg' },
+        'prise deau': { lat: 51.5425, lng: 5.1230, address: 'Prise d\'Eau Golf, Tilburg' },
+        'klasse': { lat: 51.5583, lng: 5.0848, address: 'Klasse, Tilburg' },
+        'lochal': { lat: 51.5615, lng: 5.0868, address: 'LocHal, Tilburg' },
+        'pathé': { lat: 51.5580, lng: 5.0850, address: 'Pathé Tilburg Centrum, Tilburg' },
+        'pathe': { lat: 51.5580, lng: 5.0850, address: 'Pathé Tilburg Centrum, Tilburg' },
+        'rosalie': { lat: 51.5600, lng: 5.0820, address: 'Rosalie, Tilburg' },
+        'capt. j\'s hurricane': { lat: 51.5575, lng: 5.0835, address: 'Capt. J\'s Hurricane, Tilburg' },
+        'capt j': { lat: 51.5575, lng: 5.0835, address: 'Capt. J\'s Hurricane, Tilburg' },
+        'hurricane': { lat: 51.5575, lng: 5.0835, address: 'Capt. J\'s Hurricane, Tilburg' },
+        'boemel': { lat: 51.5565, lng: 5.0830, address: 'Stadstheater De Boemel, Tilburg' },
+        'cenakel': { lat: 51.5580, lng: 5.0870, address: 'Het Cenakel, Tilburg' },
+        'bet kolen': { lat: 51.5570, lng: 5.0840, address: 'Café Bet Kolen, Tilburg' },
+        'de schalm': { lat: 51.5320, lng: 5.0290, address: 'SCC De Schalm, Tilburg' },
+        'koning willem ii': { lat: 51.5535, lng: 5.0730, address: 'Koning Willem II Stadion, Tilburg' },
+        'willem ii stadion': { lat: 51.5535, lng: 5.0730, address: 'Koning Willem II Stadion, Tilburg' },
+        'trappers': { lat: 51.5555, lng: 5.0480, address: 'IJssportcentrum Stappegoor, Tilburg' },
+        'ijssportcentrum': { lat: 51.5555, lng: 5.0480, address: 'IJssportcentrum Stappegoor, Tilburg' },
+        'stappegoor': { lat: 51.5535, lng: 5.0730, address: 'Stappegoor, Tilburg' },
+        'jeruzalem': { lat: 51.5520, lng: 5.0550, address: 'Buurthuis Jeruzalem, Tilburg' },
+        'contourdetwern': { lat: 51.5560, lng: 5.0800, address: 'ContourdeTwern, Tilburg' },
+        'giardino': { lat: 51.5310, lng: 5.0270, address: 'Giardino D\'Italia, Tilburg' },
+        'zeven geitjes': { lat: 51.5480, lng: 5.0920, address: 'De Zeven Geitjes, Tilburg' },
       };
       
-      let currentMonth = '';
-      let currentYear = 2025;
+      // Dutch month names for parsing
+      const monthNames: Record<string, number> = {
+        'januari': 0, 'februari': 1, 'maart': 2, 'april': 3,
+        'mei': 4, 'juni': 5, 'juli': 6, 'augustus': 7,
+        'september': 8, 'oktober': 9, 'november': 10, 'december': 11
+      };
       
-      // Process all H2 (month headers) and following UL elements
-      $('h2').each((_, monthHeader) => {
-        const monthText = $(monthHeader).text().trim();
-        
-        // Check if this is a month header (e.g., "December 2025")
-        for (const [monthName, monthIndex] of Object.entries(monthNames)) {
-          if (monthText.toLowerCase().includes(monthName)) {
-            currentMonth = monthName;
-            // Extract year if present
-            const yearMatch = monthText.match(/20\d{2}/);
-            if (yearMatch) {
-              currentYear = parseInt(yearMatch[0]);
-            }
-            break;
+      // Step 1: Fetch the main agenda page to get all event links
+      const agendaResponse = await axios.get(agendaUrl, {
+        headers: {
+          "User-Agent": this.USER_AGENT,
+          "Accept": "text/html,application/xhtml+xml"
+        },
+        timeout: 30000
+      });
+      
+      const $agenda = cheerio.load(agendaResponse.data);
+      
+      // Extract all event links from tb-grid-item elements
+      const eventLinks: string[] = [];
+      $agenda('a.tb-grid-item').each((_, el) => {
+        const href = $agenda(el).attr('href');
+        if (href && href.includes('/agenda/') && !eventLinks.includes(href)) {
+          eventLinks.push(href);
+        }
+      });
+      
+      // Also check for regular links to agenda pages
+      $agenda('a[href*="/agenda/"]').each((_, el) => {
+        const href = $agenda(el).attr('href');
+        if (href && href.includes('tilburg.com/agenda/') && !href.endsWith('/agenda/') && !href.endsWith('/agenda-tilburg/')) {
+          if (!eventLinks.includes(href)) {
+            eventLinks.push(href);
           }
         }
-        
-        if (!currentMonth) return;
-        
-        // Find the next UL element after this header
-        const nextUl = $(monthHeader).next('ul');
-        if (!nextUl.length) return;
-        
-        nextUl.find('li').each((_, li) => {
-          const text = $(li).text().trim();
-          if (!text || text.length < 5) return;
+      });
+      
+      console.log(`[RSS] Found ${eventLinks.length} event links on Tilburg agenda`);
+      
+      // Step 2: Fetch each event page for details
+      let successCount = 0;
+      let skippedCount = 0;
+      
+      for (const eventUrl of eventLinks) {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 500)); // Rate limiting
           
-          // Parse patterns like:
-          // "21 maart: Happy Bachdag – Binnenstad"
-          // "22 t/m 23 maart: Brabant Art Fair – Koepelhal"
-          // "16 t/m 20 april: Roadburn – Spoorboulevard & Koepelhal"
+          const eventResponse = await axios.get(eventUrl, {
+            headers: {
+              "User-Agent": this.USER_AGENT,
+              "Accept": "text/html,application/xhtml+xml"
+            },
+            timeout: 15000
+          });
           
-          // Extract date part (before the colon)
-          const colonIndex = text.indexOf(':');
-          if (colonIndex === -1) return;
+          const $event = cheerio.load(eventResponse.data);
           
-          const datePart = text.substring(0, colonIndex).trim();
-          const eventPart = text.substring(colonIndex + 1).trim();
+          // Extract title from h1.tribe-events-single-event-title or og:title
+          let title = $event('h1.tribe-events-single-event-title').first().text().trim();
+          if (!title) {
+            title = $event('meta[property="og:title"]').attr('content') || '';
+          }
+          title = this.formatTitle(title.replace(' - Tilburg.com', '').trim());
           
-          // Parse event name and location (split by –)
-          let eventName = eventPart;
-          let location = 'Tilburg';
-          
-          const dashIndex = eventPart.lastIndexOf('–');
-          if (dashIndex !== -1) {
-            eventName = eventPart.substring(0, dashIndex).trim();
-            location = eventPart.substring(dashIndex + 1).trim();
+          if (!title || title.length < 3) {
+            skippedCount++;
+            continue;
           }
           
-          // Skip if event name is too short
-          if (eventName.length < 3) return;
+          // Extract description from og:description or meta description
+          let description = $event('meta[property="og:description"]').attr('content') || 
+                           $event('meta[name="description"]').attr('content') || '';
           
-          // Parse dates
-          let startDay: number | undefined;
-          let endDay: number | undefined;
-          let eventMonth = currentMonth;
+          // Extract image from og:image
+          const imageUrl = $event('meta[property="og:image"]').attr('content') || undefined;
           
-          // Pattern: "22 t/m 23 maart" or "16 t/m 20 april"
-          const rangeMatch = datePart.match(/(\d{1,2})\s*(?:t\/m|tot)\s*(\d{1,2})(?:\s+(\w+))?/i);
-          if (rangeMatch) {
-            startDay = parseInt(rangeMatch[1]);
-            endDay = parseInt(rangeMatch[2]);
-            if (rangeMatch[3]) {
-              const foundMonth = Object.keys(monthNames).find(m => rangeMatch[3].toLowerCase().includes(m));
-              if (foundMonth) eventMonth = foundMonth;
+          // Extract date and time from event-informatie div
+          // Pattern: <div class='informate-data-item'><span class='informate-sub-text'>Datum:</span><div class='info-date-item'>12 december 2025</div></div>
+          let dateText = '';
+          let timeText = '';
+          let locationName = 'Tilburg';
+          let priceText = '';
+          
+          $event('.informate-data-item').each((_, infoItem) => {
+            const label = $event(infoItem).find('.informate-sub-text').text().trim().toLowerCase();
+            const value = $event(infoItem).find('.info-date-item').text().trim() || 
+                         $event(infoItem).contents().filter(function() { return this.type === 'text'; }).text().trim();
+            
+            if (label.includes('datum')) {
+              dateText = value;
+            } else if (label.includes('tijd')) {
+              timeText = value;
+            } else if (label.includes('prijs')) {
+              priceText = value;
+            }
+          });
+          
+          // Also check for location in informate-sub-text with "Locatie:"
+          $event('.informate-sub-text').each((_, labelEl) => {
+            const labelText = $event(labelEl).text().trim().toLowerCase();
+            if (labelText.includes('locatie')) {
+              // Get next sibling text node or element
+              const parent = $event(labelEl).parent();
+              const fullText = parent.text();
+              const locMatch = fullText.match(/locatie[:\s]*(.*?)(?:$|datum|tijd|prijs)/i);
+              if (locMatch) {
+                locationName = locMatch[1].trim();
+              }
+            }
+          });
+          
+          // Try to get venue from bedrijf link
+          const venueLink = $event('a[href*="/bedrijf/"]').first();
+          if (venueLink.length) {
+            const venueName = venueLink.text().trim();
+            if (venueName && venueName.length > 2) {
+              locationName = venueName;
+            }
+          }
+          
+          // Parse date: "12 december 2025" or "12 december 2025 19:30 - 13 december 2025 00:30"
+          let startTime: Date | undefined;
+          let endTime: Date | undefined;
+          
+          // Handle multi-day format: "12 december 2025 19:30 - 13 december 2025 00:30"
+          const multiDayMatch = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})(?:\s+(\d{1,2}:\d{2}))?\s*[-–]\s*(\d{1,2})\s+(\w+)\s+(\d{4})(?:\s+(\d{1,2}:\d{2}))?/);
+          
+          if (multiDayMatch) {
+            const startDay = parseInt(multiDayMatch[1]);
+            const startMonthName = multiDayMatch[2].toLowerCase();
+            const startYear = parseInt(multiDayMatch[3]);
+            const startTimeStr = multiDayMatch[4] || '12:00';
+            
+            const endDay = parseInt(multiDayMatch[5]);
+            const endMonthName = multiDayMatch[6].toLowerCase();
+            const endYear = parseInt(multiDayMatch[7]);
+            const endTimeStr = multiDayMatch[8] || '23:59';
+            
+            const startMonth = monthNames[startMonthName];
+            const endMonth = monthNames[endMonthName];
+            
+            if (startMonth !== undefined && endMonth !== undefined) {
+              const [startHour, startMin] = startTimeStr.split(':').map(Number);
+              const [endHour, endMin] = endTimeStr.split(':').map(Number);
+              
+              startTime = new Date(startYear, startMonth, startDay, startHour || 12, startMin || 0);
+              endTime = new Date(endYear, endMonth, endDay, endHour || 23, endMin || 59);
             }
           } else {
-            // Pattern: "21 maart" or just "21"
-            const singleMatch = datePart.match(/(\d{1,2})(?:\s+(\w+))?/);
-            if (singleMatch) {
-              startDay = parseInt(singleMatch[1]);
-              if (singleMatch[2]) {
-                const foundMonth = Object.keys(monthNames).find(m => singleMatch[2].toLowerCase().includes(m));
-                if (foundMonth) eventMonth = foundMonth;
+            // Single day format: "12 december 2025"
+            const singleDayMatch = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+            if (singleDayMatch) {
+              const day = parseInt(singleDayMatch[1]);
+              const monthName = singleDayMatch[2].toLowerCase();
+              const year = parseInt(singleDayMatch[3]);
+              const month = monthNames[monthName];
+              
+              if (month !== undefined) {
+                // Parse time from timeText: "19:00 tot 20:30"
+                let startHour = 12, startMin = 0, endHour = 23, endMin = 59;
+                
+                const timeMatch = timeText.match(/(\d{1,2}):(\d{2})\s*(?:tot|[-–])\s*(\d{1,2}):(\d{2})/);
+                if (timeMatch) {
+                  startHour = parseInt(timeMatch[1]);
+                  startMin = parseInt(timeMatch[2]);
+                  endHour = parseInt(timeMatch[3]);
+                  endMin = parseInt(timeMatch[4]);
+                } else {
+                  // Try single time: "19:00"
+                  const singleTimeMatch = timeText.match(/(\d{1,2}):(\d{2})/);
+                  if (singleTimeMatch) {
+                    startHour = parseInt(singleTimeMatch[1]);
+                    startMin = parseInt(singleTimeMatch[2]);
+                    endHour = startHour + 3; // Assume 3 hour duration
+                    if (endHour > 23) endHour = 23;
+                  }
+                }
+                
+                startTime = new Date(year, month, day, startHour, startMin);
+                endTime = new Date(year, month, day, endHour, endMin);
+                
+                // Handle overnight events
+                if (endTime <= startTime) {
+                  endTime.setDate(endTime.getDate() + 1);
+                }
               }
             }
           }
           
-          if (!startDay) return;
-          
-          // Create date objects
-          const monthIndex = monthNames[eventMonth];
-          const startTime = new Date(currentYear, monthIndex, startDay, 12, 0, 0);
-          const endTime = endDay 
-            ? new Date(currentYear, monthIndex, endDay, 23, 59, 0)
-            : new Date(startTime.getTime() + 6 * 60 * 60 * 1000); // 6 hours if single day
+          if (!startTime || !endTime) {
+            console.log(`[RSS] Tilburg: Skipping "${title}" - could not parse date: "${dateText}"`);
+            skippedCount++;
+            continue;
+          }
           
           // Skip past events
-          if (endTime < new Date()) return;
+          if (endTime < new Date()) {
+            skippedCount++;
+            continue;
+          }
           
-          // Try to find GPS coordinates for known venues
+          // Find GPS coordinates for venue
           let latitude: number | undefined;
           let longitude: number | undefined;
-          let address = `${location}, Tilburg`;
+          let address = `${locationName}, Tilburg`;
           
-          const locationLower = location.toLowerCase();
+          const locationLower = locationName.toLowerCase();
+          const titleLower = title.toLowerCase();
+          
+          // Check venues in both location and title
           for (const [venueName, coords] of Object.entries(tilburgVenues)) {
-            if (locationLower.includes(venueName)) {
+            if (locationLower.includes(venueName) || titleLower.includes(venueName)) {
               latitude = coords.lat;
               longitude = coords.lng;
               address = coords.address;
@@ -2676,34 +2794,61 @@ export class RssFeedService {
             }
           }
           
-          // Default to Tilburg center if no specific venue found
+          // If no venue found, try geocoding
+          if (!latitude || !longitude) {
+            try {
+              const geoResult = await this.geocodeAddress(`${locationName}, Tilburg, Netherlands`);
+              if (geoResult && geoResult.lat && geoResult.lon) {
+                latitude = geoResult.lat;
+                longitude = geoResult.lon;
+              }
+            } catch (e) {
+              // Geocoding failed, use default
+            }
+          }
+          
+          // Default to Tilburg center if still no coordinates
           if (!latitude || !longitude) {
             latitude = 51.5562;
             longitude = 5.0886;
+            console.log(`[RSS] Tilburg: Using default coords for "${title}" (venue: ${locationName})`);
           }
           
-          // Generate unique link for each event to avoid false duplicate detection
-          const uniqueEventSlug = eventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50);
-          const uniqueLink = `${calendarUrl}#${uniqueEventSlug}-${currentYear}-${monthIndex + 1}-${startDay}`;
+          // Generate external ID from URL slug
+          const urlSlug = eventUrl.split('/agenda/')[1]?.replace(/\/$/, '') || '';
+          const externalId = `tilburg-${urlSlug || title.substring(0, 30).replace(/[^a-z0-9]/gi, '-')}`;
           
           items.push({
-            externalId: `tilburg-${currentYear}-${monthIndex}-${startDay}-${eventName.substring(0, 20).replace(/[^a-z0-9]/gi, '')}`,
-            title: this.formatTitle(eventName),
-            description: `${eventName} vindt plaats in ${location}, Tilburg.`,
-            link: uniqueLink,
+            externalId,
+            title,
+            description: description || `${title} bij ${locationName} in Tilburg.`,
+            link: eventUrl,
+            imageUrl,
             publishedAt: new Date(),
             startTime,
             endTime,
             latitude,
             longitude,
-            location,
+            location: locationName,
             address,
-            rawData: { source: 'tilburg-calendar', originalText: text }
+            rawData: { 
+              source: 'tilburg-agenda', 
+              dateText, 
+              timeText, 
+              price: priceText 
+            }
           });
-        });
-      });
+          
+          successCount++;
+          console.log(`[RSS] Tilburg: Parsed "${title}" at ${locationName} (${startTime.toLocaleDateString('nl-NL')})`);
+          
+        } catch (error: any) {
+          console.log(`[RSS] Error fetching ${eventUrl}: ${error.message}`);
+          skippedCount++;
+        }
+      }
 
-      console.log(`[RSS] Scraped ${items.length} events from Tilburg evenementenkalender`);
+      console.log(`[RSS] Scraped ${items.length} events from Tilburg agenda (${successCount} success, ${skippedCount} skipped)`);
       return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Tilburg:`, error.message);

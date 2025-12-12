@@ -144,6 +144,13 @@ Alle feeds moeten voldoen aan deze gestandaardiseerde regels (zie `server/config
 API endpoint voor principes: `GET /api/admin/feed-import-principles`
 
 ## Recent Changes
+- December 12, 2025: **BREDA PREPR CMS SCRAPER** - Succesvol geïntegreerd met explorebreda.com
+  - Ontdekt dat explorebreda.com Next.js gebruikt met Prepr CMS via __NEXT_DATA__ JSON extractie
+  - GPS coördinaten extraheren via `coordinates.latitude/longitude` veld
+  - Date handling voor `from`/`until` formaat (Prepr CMS specifiek)
+  - Address formatting via `formatBredaAddress()` helper voor Prepr address objecten
+  - 136 Breda events succesvol geïmporteerd met exacte locaties
+  - Multi-day event consolidatie werkt: bijv. "Breda Straalt" (24 dagen) → 1 event
 - December 11, 2025: **DEN BOSCH PAYLOAD CMS API** - Nieuwe integratie met zinindenbosch.nl via Payload CMS REST API
   - Ontdekt dat zinindenbosch.nl Payload CMS gebruikt met publieke REST API
   - `/api/events` endpoint levert 388 events met exacte GPS coördinaten

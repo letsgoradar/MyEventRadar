@@ -296,6 +296,39 @@ export class RssFeedService {
     return "Gezellig en Sociaal";
   }
 
+  // Format Breda address from Prepr CMS address object
+  static formatBredaAddress(address: any): string | null {
+    if (!address) return null;
+    
+    const parts: string[] = [];
+    
+    // Add street with number
+    if (address.street) {
+      let streetPart = address.street;
+      if (address.streetNumber) {
+        streetPart += ` ${address.streetNumber}`;
+        if (address.streetNumberSuffix) {
+          streetPart += address.streetNumberSuffix;
+        }
+      }
+      parts.push(streetPart);
+    }
+    
+    // Add zipcode and city
+    if (address.zipcode || address.city) {
+      const cityPart = [address.zipcode, address.city].filter(Boolean).join(' ');
+      parts.push(cityPart);
+    }
+    
+    // Add title if no other info
+    if (parts.length === 0 && address.title) {
+      parts.push(address.title);
+      parts.push('Breda');
+    }
+    
+    return parts.length > 0 ? parts.join(', ') : null;
+  }
+
   static async fetchAndParseRssFeed(url: string): Promise<FeedParseResult> {
     try {
       const response = await axios.get(url, {
@@ -2052,17 +2085,18 @@ export class RssFeedService {
     });
   }
 
-  // Breda scraper - uses Prepr CMS via Next.js
+  // Breda scraper - uses Prepr CMS via Next.js with __NEXT_DATA__ extraction
   static async scrapeBreda(): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
       const maxPages = 10;
       
+      // Step 1: Collect event URLs from /nl/evenementen pages
       for (let page = 1; page <= maxPages; page++) {
         const url = page === 1 
-          ? "https://www.explorebreda.com/nl/events"
-          : `https://www.explorebreda.com/nl/events?page=${page}`;
+          ? "https://www.explorebreda.com/nl/evenementen"
+          : `https://www.explorebreda.com/nl/evenementen?page=${page}`;
         
         console.log(`[RSS] Scraping Breda page ${page}...`);
         
@@ -2078,15 +2112,16 @@ export class RssFeedService {
           const $ = cheerio.load(response.data);
           const linksBeforeThisPage = eventLinks.length;
           
-          $('a[href*="/nl/events/"]').each((_, element) => {
+          // Find event links with pattern /nl/evenementen/slug
+          $('a[href*="/nl/evenementen/"]').each((_, element) => {
             const href = $(element).attr("href");
-            if (!href || href === "/nl/events" || href.includes("?page=")) return;
+            if (!href || href === "/nl/evenementen" || href.includes("?page=") || href.includes("?")) return;
             
             const fullLink = href.startsWith("http") 
               ? href 
               : `https://www.explorebreda.com${href}`;
             
-            if (!eventLinks.includes(fullLink) && fullLink.match(/\/nl\/events\/[a-z0-9-]+/)) {
+            if (!eventLinks.includes(fullLink) && fullLink.match(/\/nl\/evenementen\/[a-z0-9-]+$/)) {
               eventLinks.push(fullLink);
             }
           });
@@ -2108,19 +2143,160 @@ export class RssFeedService {
       let successCount = 0;
       let skippedCount = 0;
       
+      // Step 2: Fetch each event page and extract __NEXT_DATA__
       for (let i = 0; i < eventLinks.length; i++) {
         const link = eventLinks[i];
         try {
           console.log(`[RSS] Fetching Breda event ${i + 1}/${eventLinks.length}`);
-          const eventItems = await this.scrapePlaeceSiteEventDetail(link, 'Breda');
-          if (eventItems.length > 0) {
-            items.push(...eventItems);
-            successCount++;
-          } else {
+          
+          const response = await axios.get(link, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              "Accept": "text/html,application/xhtml+xml"
+            },
+            timeout: 30000
+          });
+          
+          const $ = cheerio.load(response.data);
+          
+          // Extract __NEXT_DATA__ JSON
+          const nextDataScript = $('script#__NEXT_DATA__').html();
+          if (!nextDataScript) {
             skippedCount++;
+            continue;
           }
+          
+          const nextData = JSON.parse(nextDataScript);
+          const page = nextData?.props?.pageProps?.page;
+          
+          if (!page || page.typename !== 'EventPage') {
+            skippedCount++;
+            continue;
+          }
+          
+          // Extract GPS coordinates from coordinates field
+          const coordinates = page.coordinates;
+          if (!coordinates || !coordinates.latitude || !coordinates.longitude) {
+            console.log(`[RSS] Skipping ${page.title}: no GPS coordinates`);
+            skippedCount++;
+            continue;
+          }
+          
+          const latitude = coordinates.latitude;
+          const longitude = coordinates.longitude;
+          
+          // Validate coordinates
+          if (Math.abs(latitude) < 1 || Math.abs(longitude) < 0.1) {
+            skippedCount++;
+            continue;
+          }
+          
+          // Extract dates - Breda uses 'from' and 'until' instead of 'startDate' and 'endDate'
+          const dates = page.dates || [];
+          const now = new Date();
+          let startTime: Date | undefined;
+          let endTime: Date | undefined;
+          
+          if (dates.length > 0) {
+            // Find future dates using 'from' and 'until' fields (Prepr CMS format)
+            const futureDates = dates
+              .filter((d: any) => d.from)
+              .map((d: any) => ({
+                start: new Date(d.from),
+                end: d.until ? new Date(d.until) : new Date(d.from)
+              }))
+              .filter((d: any) => d.end >= now)
+              .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
+            
+            if (futureDates.length > 0) {
+              startTime = futureDates[0].start;
+              endTime = futureDates[futureDates.length - 1].end;
+            }
+          }
+          
+          // Skip past events (but allow events without dates if they have future content)
+          if (!startTime) {
+            // If no dates but event exists, use current date as fallback
+            startTime = new Date();
+            endTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 1 week from now
+          }
+          
+          // Extract image
+          let imageUrl: string | undefined;
+          if (page.image?.url) {
+            imageUrl = page.image.url;
+          } else if (page.extraImages?.[0]?.url) {
+            imageUrl = page.extraImages[0].url;
+          }
+          
+          // Build description
+          let description = '';
+          if (page.introText) {
+            description = page.introText.replace(/<[^>]+>/g, '').trim();
+          }
+          if (page.description) {
+            const descText = typeof page.description === 'string' 
+              ? page.description 
+              : JSON.stringify(page.description);
+            description = description 
+              ? `${description}\n\n${descText.replace(/<[^>]+>/g, '').trim()}`
+              : descText.replace(/<[^>]+>/g, '').trim();
+          }
+          
+          // Add source link
+          description = description 
+            ? `${description}\n\nMeer info: ${link}`
+            : `Meer info: ${link}`;
+          
+          // Create event item
+          const slug = page.slug || link.split('/').pop() || '';
+          
+          // For multi-day events, create one item per date (using 'from' and 'until')
+          if (dates.length > 1) {
+            for (const dateEntry of dates) {
+              const dateStart = new Date(dateEntry.from);
+              const dateEnd = dateEntry.until ? new Date(dateEntry.until) : dateStart;
+              
+              if (dateEnd < now) continue;
+              
+              items.push({
+                externalId: `breda-${page.id}-${dateStart.toISOString().split('T')[0]}`,
+                title: this.formatTitle(page.title),
+                description: this.cleanText(description),
+                link,
+                imageUrl,
+                publishedAt: new Date(),
+                startTime: dateStart,
+                endTime: dateEnd,
+                latitude,
+                longitude,
+                location: page.location?.[0]?.title || page.address?.title || 'Breda',
+                address: this.formatBredaAddress(page.address) || 'Breda, Nederland',
+                rawData: { preprId: page.id, slug, category: page.category?.title }
+              });
+            }
+          } else {
+            items.push({
+              externalId: `breda-${page.id}`,
+              title: this.formatTitle(page.title),
+              description: this.cleanText(description),
+              link,
+              imageUrl,
+              publishedAt: new Date(),
+              startTime,
+              endTime,
+              latitude,
+              longitude,
+              location: page.location?.[0]?.title || page.address?.title || 'Breda',
+              address: this.formatBredaAddress(page.address) || 'Breda, Nederland',
+              rawData: { preprId: page.id, slug, category: page.category?.title }
+            });
+          }
+          
+          successCount++;
           await new Promise(resolve => setTimeout(resolve, 300));
         } catch (error: any) {
+          console.log(`[RSS] Error fetching ${link}: ${error.message}`);
           skippedCount++;
         }
       }

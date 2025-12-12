@@ -1,0 +1,321 @@
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import { point } from '@turf/helpers';
+import turfCentroid from '@turf/centroid';
+import turfBbox from '@turf/bbox';
+import turfDistance from '@turf/distance';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+interface MunicipalityFeature {
+  type: 'Feature';
+  properties: {
+    code: string;
+    naam: string;
+    provincie: string;
+  };
+  geometry: {
+    type: 'Polygon' | 'MultiPolygon';
+    coordinates: number[][][] | number[][][][];
+  };
+}
+
+interface GeoJsonData {
+  type: 'FeatureCollection';
+  features: MunicipalityFeature[];
+}
+
+let cachedGeoJson: GeoJsonData | null = null;
+let municipalityPolygons: Map<string, MunicipalityFeature> = new Map();
+
+function normalizeGemeenteName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/['']/g, "'")
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const GEMEENTE_ALIASES: Record<string, string> = {
+  'den bosch': "'s hertogenbosch",
+  's hertogenbosch': "'s hertogenbosch",
+  'hertogenbosch': "'s hertogenbosch",
+  's-hertogenbosch': "'s hertogenbosch",
+  'veghel': 'meierijstad',
+  'schijndel': 'meierijstad',
+  'sint oedenrode': 'meierijstad',
+  'uden': 'maashorst',
+  'landerd': 'maashorst',
+  'oss': 'oss',
+  'gilze': 'gilze en rijen',
+  'rijen': 'gilze en rijen',
+  'bernheze': 'bernheze',
+  'eindhoven': 'eindhoven',
+  'helmond': 'helmond',
+  'tilburg': 'tilburg',
+  'breda': 'breda',
+  'oosterhout': 'oosterhout',
+  'son en breugel': 'son en breugel',
+  'boxtel': 'boxtel',
+  'vught': 'vught',
+  'etten leur': 'etten leur',
+  'etten-leur': 'etten leur',
+};
+
+export interface KnownVenue {
+  lat: number;
+  lng: number;
+  address: string;
+}
+
+export const KNOWN_VENUES: Record<string, Record<string, KnownVenue>> = {
+  'meierijstad': {
+    'noordkade': { lat: 51.5494, lng: 5.4603, address: 'Noordkade, Veghel' },
+    'noordkade veghel': { lat: 51.5494, lng: 5.4603, address: 'Noordkade, Veghel' },
+    'de chocoladefabriek': { lat: 51.5472, lng: 5.4556, address: 'De Chocoladefabriek, Veghel' },
+    'chocoladefabriek': { lat: 51.5472, lng: 5.4556, address: 'De Chocoladefabriek, Veghel' },
+    'chocolate factory': { lat: 51.5472, lng: 5.4556, address: 'De Chocoladefabriek, Veghel' },
+    'theater de blauwe kei': { lat: 51.5521, lng: 5.4611, address: 'Theater De Blauwe Kei, Veghel' },
+    'blauwe kei': { lat: 51.5521, lng: 5.4611, address: 'Theater De Blauwe Kei, Veghel' },
+  },
+  'breda': {
+    'chassé theater': { lat: 51.5875, lng: 4.7822, address: 'Chassé Theater, Breda' },
+    'chasse theater': { lat: 51.5875, lng: 4.7822, address: 'Chassé Theater, Breda' },
+    'mezz': { lat: 51.5838, lng: 4.7787, address: 'Mezz, Breda' },
+    'grote kerk': { lat: 51.5889, lng: 4.7753, address: 'Grote Kerk, Breda' },
+    'grote markt': { lat: 51.5884, lng: 4.7762, address: 'Grote Markt, Breda' },
+    'stedelijk museum': { lat: 51.5896, lng: 4.7810, address: 'Stedelijk Museum, Breda' },
+    'rat verlegh stadion': { lat: 51.5846, lng: 4.7940, address: 'Rat Verlegh Stadion, Breda' },
+    'nac': { lat: 51.5846, lng: 4.7940, address: 'Rat Verlegh Stadion, Breda' },
+    'nassau baronie': { lat: 51.5846, lng: 4.7940, address: 'Rat Verlegh Stadion, Breda' },
+    'barones': { lat: 51.5881, lng: 4.7739, address: 'De Barones, Breda' },
+  },
+  "'s hertogenbosch": {
+    'theater aan de parade': { lat: 51.6875, lng: 5.3055, address: 'Theater aan de Parade, Den Bosch' },
+    'verkadefabriek': { lat: 51.6852, lng: 5.3180, address: 'Verkadefabriek, Den Bosch' },
+    'w2': { lat: 51.6852, lng: 5.3180, address: 'W2, Den Bosch' },
+    'sint jan': { lat: 51.6874, lng: 5.3077, address: 'Sint-Janskathedraal, Den Bosch' },
+    'markt': { lat: 51.6876, lng: 5.3047, address: 'Markt, Den Bosch' },
+  },
+  'oss': {
+    'de lievekamp': { lat: 51.7649, lng: 5.5268, address: 'De Lievekamp, Oss' },
+    'lievekamp': { lat: 51.7649, lng: 5.5268, address: 'De Lievekamp, Oss' },
+    'groene engel': { lat: 51.7660, lng: 5.5287, address: 'Groene Engel, Oss' },
+  },
+};
+
+export function getKnownVenue(municipality: string, venueName: string): KnownVenue | null {
+  const normalizedMunicipality = normalizeGemeenteName(municipality);
+  const normalizedVenue = venueName.toLowerCase().trim();
+  
+  const municipalityKey = GEMEENTE_ALIASES[normalizedMunicipality] || normalizedMunicipality;
+  const venues = KNOWN_VENUES[municipalityKey];
+  
+  if (!venues) return null;
+  
+  if (venues[normalizedVenue]) {
+    return venues[normalizedVenue];
+  }
+  
+  for (const [key, venue] of Object.entries(venues)) {
+    if (normalizedVenue.includes(key) || key.includes(normalizedVenue)) {
+      return venue;
+    }
+  }
+  
+  return null;
+}
+
+let geoJsonLoadError: string | null = null;
+
+function loadGeoJson(): GeoJsonData | null {
+  if (cachedGeoJson) return cachedGeoJson;
+  if (geoJsonLoadError) return null;
+  
+  try {
+    const filePath = join(process.cwd(), 'public/assets/gemeenten-simplified.json');
+    const data = readFileSync(filePath, 'utf-8');
+    cachedGeoJson = JSON.parse(data) as GeoJsonData;
+    
+    for (const feature of cachedGeoJson.features) {
+      const normalizedName = normalizeGemeenteName(feature.properties.naam);
+      municipalityPolygons.set(normalizedName, feature);
+      
+      const code = feature.properties.code;
+      municipalityPolygons.set(code, feature);
+    }
+    
+    console.log(`[MunicipalityValidator] Loaded ${cachedGeoJson.features.length} municipality polygons`);
+    return cachedGeoJson;
+  } catch (error: any) {
+    geoJsonLoadError = error.message;
+    console.warn(`[MunicipalityValidator] Could not load GeoJSON: ${error.message}. Validation will be skipped.`);
+    return null;
+  }
+}
+
+function findMunicipalityPolygon(municipalityName: string): MunicipalityFeature | null {
+  loadGeoJson();
+  
+  const normalized = normalizeGemeenteName(municipalityName);
+  
+  if (municipalityPolygons.has(normalized)) {
+    return municipalityPolygons.get(normalized)!;
+  }
+  
+  const aliasKey = GEMEENTE_ALIASES[normalized];
+  if (aliasKey && municipalityPolygons.has(aliasKey)) {
+    return municipalityPolygons.get(aliasKey)!;
+  }
+  
+  for (const [key, polygon] of Array.from(municipalityPolygons.entries())) {
+    if (key.includes(normalized) || normalized.includes(key)) {
+      return polygon;
+    }
+  }
+  
+  return null;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  municipality?: string;
+  distance?: number;
+  message: string;
+}
+
+export function validateCoordinatesInMunicipality(
+  latitude: number,
+  longitude: number,
+  expectedMunicipality: string
+): ValidationResult {
+  const polygon = findMunicipalityPolygon(expectedMunicipality);
+  
+  if (!polygon) {
+    console.warn(`[MunicipalityValidator] Polygon not found for "${expectedMunicipality}" - allowing coordinates (graceful degradation)`);
+    return {
+      isValid: true,
+      message: `Municipality polygon not found for: ${expectedMunicipality} - validation skipped`
+    };
+  }
+  
+  const pt = point([longitude, latitude]);
+  const isInside = booleanPointInPolygon(pt, polygon as any);
+  
+  if (isInside) {
+    return {
+      isValid: true,
+      municipality: polygon.properties?.naam || expectedMunicipality,
+      message: 'Coordinates are within municipality boundaries'
+    };
+  }
+  
+  try {
+    const center = turfCentroid(polygon as any);
+    const dist = turfDistance(pt, center, { units: 'kilometers' });
+    
+    return {
+      isValid: false,
+      municipality: polygon.properties?.naam,
+      distance: Math.round(dist * 10) / 10,
+      message: `Coordinates (${latitude}, ${longitude}) are ${dist.toFixed(1)}km outside ${expectedMunicipality}`
+    };
+  } catch {
+    return {
+      isValid: false,
+      message: `Coordinates (${latitude}, ${longitude}) are outside ${expectedMunicipality}`
+    };
+  }
+}
+
+export function getMunicipalityCentroid(municipalityName: string): { lat: number; lng: number } | null {
+  const polygon = findMunicipalityPolygon(municipalityName);
+  
+  if (!polygon) {
+    console.log(`[MunicipalityValidator] No polygon found for: ${municipalityName}`);
+    return null;
+  }
+  
+  try {
+    const center = turfCentroid(polygon as any);
+    return {
+      lat: center.geometry.coordinates[1],
+      lng: center.geometry.coordinates[0]
+    };
+  } catch (error) {
+    console.error(`[MunicipalityValidator] Error calculating centroid for ${municipalityName}:`, error);
+    return null;
+  }
+}
+
+export function findActualMunicipality(latitude: number, longitude: number): string | null {
+  const geoJson = loadGeoJson();
+  if (!geoJson) return null;
+  
+  const pt = point([longitude, latitude]);
+  
+  for (const feature of geoJson.features) {
+    try {
+      if (booleanPointInPolygon(pt, feature as any)) {
+        return feature.properties.naam;
+      }
+    } catch {
+      continue;
+    }
+  }
+  
+  return null;
+}
+
+export function getMunicipalityBoundingBox(municipalityName: string): {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+} | null {
+  const polygon = findMunicipalityPolygon(municipalityName);
+  
+  if (!polygon) return null;
+  
+  try {
+    const bb = turfBbox(polygon as any);
+    return {
+      minLng: bb[0],
+      minLat: bb[1],
+      maxLng: bb[2],
+      maxLat: bb[3]
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function isCoordinateInNoordBrabant(latitude: number, longitude: number): boolean {
+  const geoJson = loadGeoJson();
+  if (!geoJson) return false;
+  
+  const pt = point([longitude, latitude]);
+  
+  for (const feature of geoJson.features) {
+    if (feature.properties.provincie === 'Noord-Brabant') {
+      try {
+        if (booleanPointInPolygon(pt, feature as any)) {
+          return true;
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+  
+  return false;
+}
+
+export function getNoordBrabantMunicipalities(): string[] {
+  const geoJson = loadGeoJson();
+  if (!geoJson) return [];
+  
+  return geoJson.features
+    .filter(f => f.properties.provincie === 'Noord-Brabant')
+    .map(f => f.properties.naam);
+}

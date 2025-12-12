@@ -144,6 +144,12 @@ Alle feeds moeten voldoen aan deze gestandaardiseerde regels (zie `server/config
 API endpoint voor principes: `GET /api/admin/feed-import-principles`
 
 ## Recent Changes
+- December 12, 2025: **MUNICIPALITY BOUNDARY VALIDATION** - Geocoding validatie om events op verkeerde locaties te voorkomen
+  - Nieuwe municipality-validator.ts met turf.js point-in-polygon checks
+  - Graceful degradation: als polygon niet gevonden wordt, validatie overslaan met warning
+  - Known venues cache voor ambigue adressen (Noordkade Veghel, Chocoladefabriek, etc.)
+  - Geocoding fallback: gemeente suffix → provincie suffix → alleen Netherlands
+  - 64 foutieve events verwijderd (46 Breda in Den Haag, 17 Veghel in Waddinxveen, 1 Barendrecht)
 - December 12, 2025: **BREDA PREPR CMS SCRAPER** - Succesvol geïntegreerd met explorebreda.com
   - Ontdekt dat explorebreda.com Next.js gebruikt met Prepr CMS via __NEXT_DATA__ JSON extractie
   - GPS coördinaten extraheren via `coordinates.latitude/longitude` veld

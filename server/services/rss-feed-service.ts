@@ -7,6 +7,7 @@ import { eq, and, sql, ilike } from "drizzle-orm";
 import type { RssFeed, RssFeedItem, InsertRssFeedItem } from "@shared/schema";
 import { AIHelper } from "./ai-helper";
 import { DEFAULT_FEED_RULES, FEED_IMPORT_PRINCIPLES, createDuplicateKey, validateEventForImport } from "../config/rss-feed-rules";
+import { validateCoordinatesInMunicipality, findActualMunicipality, getMunicipalityCentroid, getKnownVenue } from "./municipality-validator";
 
 interface ParsedFeedItem {
   externalId: string;
@@ -218,6 +219,85 @@ export class RssFeedService {
       console.error(`[RSS] Geocoding error for "${address}":`, error.message);
     }
     return null;
+  }
+
+  /**
+   * Geocode address with municipality validation
+   * Returns null if coordinates fall outside expected municipality
+   */
+  static async geocodeWithMunicipalityValidation(
+    address: string, 
+    expectedMunicipality: string
+  ): Promise<GeocodingResult | null> {
+    // Strategy 0: Check known venues first for exact matches
+    const knownVenue = getKnownVenue(expectedMunicipality, address);
+    if (knownVenue) {
+      console.log(`[RSS] Known venue MATCH: "${address}" -> ${knownVenue.address}`);
+      return {
+        lat: knownVenue.lat,
+        lon: knownVenue.lng,
+        displayName: knownVenue.address
+      };
+    }
+    
+    // Strategy 1: Try geocoding with municipality suffix for disambiguation
+    const addressWithMunicipality = `${address}, ${expectedMunicipality}, Netherlands`;
+    let result = await this.geocodeAddress(addressWithMunicipality);
+    
+    if (result) {
+      const validation = validateCoordinatesInMunicipality(result.lat, result.lon, expectedMunicipality);
+      if (validation.isValid) {
+        console.log(`[RSS] Geocode VALID: "${address}" in ${expectedMunicipality}`);
+        return result;
+      } else {
+        const actualMunicipality = findActualMunicipality(result.lat, result.lon);
+        console.log(`[RSS] Geocode REJECTED: "${address}" -> ${actualMunicipality || 'unknown'} (expected ${expectedMunicipality})`);
+      }
+    }
+    
+    // Strategy 2: Try with province suffix for Noord-Brabant
+    const addressWithProvince = `${address}, ${expectedMunicipality}, Noord-Brabant, Netherlands`;
+    result = await this.geocodeAddress(addressWithProvince);
+    
+    if (result) {
+      const validation = validateCoordinatesInMunicipality(result.lat, result.lon, expectedMunicipality);
+      if (validation.isValid) {
+        console.log(`[RSS] Geocode VALID (with province): "${address}" in ${expectedMunicipality}`);
+        return result;
+      }
+    }
+    
+    // Strategy 3: Try original address with Netherlands only, but validate
+    result = await this.geocodeAddress(`${address}, Netherlands`);
+    
+    if (result) {
+      const validation = validateCoordinatesInMunicipality(result.lat, result.lon, expectedMunicipality);
+      if (validation.isValid) {
+        console.log(`[RSS] Geocode VALID (NL only): "${address}" in ${expectedMunicipality}`);
+        return result;
+      } else {
+        const actualMunicipality = findActualMunicipality(result.lat, result.lon);
+        console.log(`[RSS] Geocode FINAL REJECTED: "${address}" -> ${actualMunicipality || 'unknown'} (expected ${expectedMunicipality}), distance: ${validation.distance}km`);
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Validate existing coordinates against expected municipality
+   */
+  static validateExistingCoordinates(
+    latitude: number,
+    longitude: number,
+    expectedMunicipality: string
+  ): boolean {
+    const validation = validateCoordinatesInMunicipality(latitude, longitude, expectedMunicipality);
+    if (!validation.isValid) {
+      const actualMunicipality = findActualMunicipality(latitude, longitude);
+      console.log(`[RSS] Coordinate validation FAILED: (${latitude}, ${longitude}) in ${actualMunicipality || 'unknown'}, expected ${expectedMunicipality}`);
+    }
+    return validation.isValid;
   }
 
   static async getUnsplashImage(category: string, searchTerms?: string): Promise<string | null> {
@@ -3270,10 +3350,32 @@ export class RssFeedService {
       let longitude = parsedItem.longitude?.toString() || "";
       let address = parsedItem.address || parsedItem.location || "";
       let geocodeSuccess = false;
+      const expectedMunicipality = feed.municipality || "";
 
-      if (parsedItem.address || parsedItem.location) {
-        const locationQuery = parsedItem.address || parsedItem.location;
-        const geoResult = await this.geocodeAddress(locationQuery + ", Netherlands");
+      // STEP 1: If we have GPS coordinates from the source, validate them first
+      if (parsedItem.latitude && parsedItem.longitude) {
+        const isValid = this.validateExistingCoordinates(
+          parsedItem.latitude, 
+          parsedItem.longitude, 
+          expectedMunicipality
+        );
+        
+        if (isValid) {
+          latitude = parsedItem.latitude.toString();
+          longitude = parsedItem.longitude.toString();
+          address = parsedItem.address || parsedItem.location || expectedMunicipality;
+          geocodeSuccess = true;
+          console.log(`[RSS] Source GPS validated for "${formattedTitle}" in ${expectedMunicipality}`);
+        } else {
+          console.log(`[RSS] Source GPS REJECTED for "${formattedTitle}" - outside ${expectedMunicipality}`);
+          // Don't use invalid source coordinates, try geocoding instead
+        }
+      }
+
+      // STEP 2: Try geocoding with municipality validation if no valid GPS
+      if (!geocodeSuccess && (parsedItem.address || parsedItem.location)) {
+        const locationQuery = parsedItem.address || parsedItem.location || "";
+        const geoResult = await this.geocodeWithMunicipalityValidation(locationQuery, expectedMunicipality);
         if (geoResult) {
           latitude = geoResult.lat.toString();
           longitude = geoResult.lon.toString();
@@ -3282,29 +3384,21 @@ export class RssFeedService {
         }
       }
       
+      // STEP 3: Try venue-only geocoding with municipality
       if (!geocodeSuccess && parsedItem.location) {
-        const venueQuery = `${parsedItem.location}, Eindhoven, Netherlands`;
-        console.log(`[RSS] Trying venue geocoding: "${venueQuery}"`);
-        const venueResult = await this.geocodeAddress(venueQuery);
+        const venueResult = await this.geocodeWithMunicipalityValidation(parsedItem.location, expectedMunicipality);
         if (venueResult) {
           latitude = venueResult.lat.toString();
           longitude = venueResult.lon.toString();
-          address = parsedItem.address || `${parsedItem.location}, Eindhoven`;
+          address = parsedItem.address || `${parsedItem.location}, ${expectedMunicipality}`;
           geocodeSuccess = true;
         }
       }
       
-      // QUALITY FILTER: Only create events with verified locations
-      if (!geocodeSuccess && (!parsedItem.latitude || !parsedItem.longitude)) {
-        console.log(`[RSS] SKIPPED event (no verified location): ${parsedItem.title}`);
+      // QUALITY FILTER: Only create events with verified AND validated locations
+      if (!geocodeSuccess) {
+        console.log(`[RSS] SKIPPED event (no valid location in ${expectedMunicipality}): ${parsedItem.title}`);
         return;
-      }
-      
-      // Use parsed coordinates if geocoding failed but we have GPS from scraper
-      if (!geocodeSuccess && parsedItem.latitude && parsedItem.longitude) {
-        latitude = parsedItem.latitude.toString();
-        longitude = parsedItem.longitude.toString();
-        address = parsedItem.address || parsedItem.location || "Nederland";
       }
 
       let imageUrl = parsedItem.imageUrl;

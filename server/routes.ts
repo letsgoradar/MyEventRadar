@@ -1485,16 +1485,15 @@ Respond with ONLY the search term, nothing else.`
         const summary = await storage.getFeedItemsSummary(feed.id);
         
         const feedItems = await storage.getRssFeedItems(feed.id);
-        const activeEvents = feedItems.filter(item => 
-          item.processingStatus === 'imported' && item.eventId !== null
-        ).length;
+        // Count items that have a linked event (regardless of processingStatus)
+        const activeEvents = feedItems.filter(item => item.eventId !== null).length;
         
         let addedLastSync = 0;
         if (feed.lastFetchedAt) {
           const lastSync = new Date(feed.lastFetchedAt);
           const oneHourBefore = new Date(lastSync.getTime() - 60 * 60 * 1000);
           addedLastSync = feedItems.filter(item => {
-            if (item.processingStatus !== 'imported' || !item.eventId) return false;
+            if (!item.eventId) return false;
             const itemDate = item.createdAt ? new Date(item.createdAt) : null;
             return itemDate && itemDate >= oneHourBefore;
           }).length;

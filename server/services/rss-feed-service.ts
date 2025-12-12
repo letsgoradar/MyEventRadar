@@ -2582,37 +2582,77 @@ export class RssFeedService {
         'september': 8, 'oktober': 9, 'november': 10, 'december': 11
       };
       
-      // Step 1: Fetch the main agenda page to get all event links
-      const agendaResponse = await axios.get(agendaUrl, {
-        headers: {
-          "User-Agent": this.USER_AGENT,
-          "Accept": "text/html,application/xhtml+xml"
-        },
+      // Step 1: Fetch all pages of the agenda (paginated at /page/2/, /page/3/, etc.)
+      const eventLinks: string[] = [];
+      const maxPages = 50; // Safety limit
+      
+      // Helper function to extract event links from a page
+      const extractEventLinks = ($: cheerio.CheerioAPI) => {
+        const links: string[] = [];
+        $('a.tb-grid-item').each((_, el) => {
+          const href = $(el).attr('href');
+          if (href && href.includes('/agenda/') && !links.includes(href) && !eventLinks.includes(href)) {
+            links.push(href);
+          }
+        });
+        $('a[href*="/agenda/"]').each((_, el) => {
+          const href = $(el).attr('href');
+          if (href && href.includes('tilburg.com/agenda/') && 
+              !href.endsWith('/agenda/') && !href.endsWith('/agenda-tilburg/') &&
+              !href.includes('/page/') && !links.includes(href) && !eventLinks.includes(href)) {
+            links.push(href);
+          }
+        });
+        return links;
+      };
+      
+      // Fetch page 1 (main agenda URL)
+      console.log(`[RSS] Fetching Tilburg agenda page 1...`);
+      const page1Response = await axios.get(agendaUrl, {
+        headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
         timeout: 30000
       });
+      const $page1 = cheerio.load(page1Response.data);
+      const page1Links = extractEventLinks($page1);
+      eventLinks.push(...page1Links);
+      console.log(`[RSS] Page 1: found ${page1Links.length} event links`);
       
-      const $agenda = cheerio.load(agendaResponse.data);
-      
-      // Extract all event links from tb-grid-item elements
-      const eventLinks: string[] = [];
-      $agenda('a.tb-grid-item').each((_, el) => {
-        const href = $agenda(el).attr('href');
-        if (href && href.includes('/agenda/') && !eventLinks.includes(href)) {
-          eventLinks.push(href);
-        }
-      });
-      
-      // Also check for regular links to agenda pages
-      $agenda('a[href*="/agenda/"]').each((_, el) => {
-        const href = $agenda(el).attr('href');
-        if (href && href.includes('tilburg.com/agenda/') && !href.endsWith('/agenda/') && !href.endsWith('/agenda-tilburg/')) {
-          if (!eventLinks.includes(href)) {
-            eventLinks.push(href);
+      // Fetch subsequent pages (start at page 2)
+      for (let pageNum = 2; pageNum <= maxPages; pageNum++) {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 300)); // Rate limiting
+          
+          const pageUrl = `${agendaUrl}page/${pageNum}/`;
+          console.log(`[RSS] Fetching Tilburg agenda page ${pageNum}...`);
+          
+          const pageResponse = await axios.get(pageUrl, {
+            headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
+            timeout: 30000
+          });
+          
+          const $page = cheerio.load(pageResponse.data);
+          const pageLinks = extractEventLinks($page);
+          
+          if (pageLinks.length === 0) {
+            console.log(`[RSS] Page ${pageNum}: no new events, stopping pagination`);
+            break;
           }
+          
+          eventLinks.push(...pageLinks);
+          console.log(`[RSS] Page ${pageNum}: found ${pageLinks.length} new event links (total: ${eventLinks.length})`);
+          
+        } catch (error: any) {
+          // 404 means we've reached the end of pagination
+          if (error.response?.status === 404) {
+            console.log(`[RSS] Page ${pageNum}: 404, end of pagination reached`);
+            break;
+          }
+          console.log(`[RSS] Page ${pageNum}: error ${error.message}, stopping pagination`);
+          break;
         }
-      });
+      }
       
-      console.log(`[RSS] Found ${eventLinks.length} event links on Tilburg agenda`);
+      console.log(`[RSS] Total: found ${eventLinks.length} event links across all pages`);
       
       // Step 2: Fetch each event page for details
       let successCount = 0;

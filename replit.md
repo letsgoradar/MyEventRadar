@@ -144,13 +144,13 @@ Alle feeds moeten voldoen aan deze gestandaardiseerde regels (zie `server/config
 API endpoint voor principes: `GET /api/admin/feed-import-principles`
 
 ## Recent Changes
-- December 12, 2025: **TILBURG AGENDA SCRAPER V2** - Volledig herschreven scraper voor tilburg.com/agenda-tilburg/
-  - Scrapt nu de volledige agenda pagina in plaats van alleen de jaarlijkse kalender
+- December 12, 2025: **TILBURG AGENDA SCRAPER V3 (PAGINATIE)** - Volledig gepagineerde scraper voor tilburg.com/agenda-tilburg/
+  - URL-paginering toegevoegd: scrapt /agenda-tilburg/, /agenda-tilburg/page/2/, etc. tot einde
+  - 278 unieke event links gevonden over 14 pagina's (was 21 op eerste pagina)
   - Haalt individuele event pagina's op voor exacte datum/tijd/locatie/afbeelding
   - 35+ bekende Tilburg venue GPS coördinaten (Koepelhal, LocHal, 013, Pathé, Hall of Fame, etc.)
-  - Parseert zowel single-day ("12 december 2025") als multi-day ("12 december 2025 19:30 - 13 december 2025 00:30") formaten
-  - Haalt venue uit /bedrijf/ links voor nauwkeurige locatie-identificatie
-  - 21 actieve events gevonden op agenda pagina (vs 7 in oude versie)
+  - Parseert single-day en multi-day datum formaten
+  - Rate limiting: 300ms tussen pagina fetches, 500ms tussen event detail fetches
   - Fix: processingStatus wordt nu correct naar 'imported' gezet bij event creatie
 - December 12, 2025: **INCOMPLETE EVENTS MANAGEMENT** - Admin workflow voor events die niet volledig geïmporteerd konden worden
   - Nieuwe `rss_item_corrections` tabel voor herbruikbare correcties

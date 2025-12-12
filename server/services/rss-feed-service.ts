@@ -2291,6 +2291,16 @@ export class RssFeedService {
     });
   }
 
+  // Oisterwijk scraper using Plaece CMS
+  static async scrapeOisterwijk(): Promise<FeedParseResult> {
+    return this.scrapePlaeceSite({
+      baseUrl: 'https://www.bezoekoisterwijk.nl',
+      agendaPath: '/uitagenda',
+      linkPattern: /\/uitagenda\/\d+\/[a-z0-9-]+/,
+      municipality: 'Oisterwijk'
+    });
+  }
+
   // Breda scraper - uses Prepr CMS via Next.js with __NEXT_DATA__ extraction
   static async scrapeBreda(): Promise<FeedParseResult> {
     try {
@@ -4277,6 +4287,8 @@ export class RssFeedService {
         result = await this.scrapeVught();
       } else if (feed.feedType === "scraper" && feed.url.includes("beleveninoosterhout")) {
         result = await this.scrapeOosterhout();
+      } else if (feed.feedType === "scraper" && feed.url.includes("bezoekoisterwijk")) {
+        result = await this.scrapeOisterwijk();
       } else if (feed.feedType === "scraper" && feed.url.includes("explorebreda")) {
         result = await this.scrapeBreda();
       } else if (feed.feedType === "scraper" && feed.url.includes("grenslanddebaronie")) {
@@ -4389,6 +4401,8 @@ export class RssFeedService {
           result = await this.scrapeVught();
         } else if (feed.feedType === "scraper" && feed.url.includes("beleveninoosterhout")) {
           result = await this.scrapeOosterhout();
+        } else if (feed.feedType === "scraper" && feed.url.includes("bezoekoisterwijk")) {
+          result = await this.scrapeOisterwijk();
         } else if (feed.feedType === "scraper" && feed.url.includes("explorebreda")) {
           result = await this.scrapeBreda();
         } else if (feed.feedType === "scraper" && feed.url.includes("grenslanddebaronie")) {

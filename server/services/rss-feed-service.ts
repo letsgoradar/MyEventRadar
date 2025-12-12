@@ -3196,6 +3196,531 @@ export class RssFeedService {
     return cookiePatterns.filter(p => lowerText.includes(p)).length >= 2;
   }
 
+  /**
+   * INTELLIGENT UNIVERSAL SCRAPER
+   * Automatically detects website type and applies appropriate extraction strategy.
+   * Uses a cascade of detection methods:
+   * 1. WordPress REST API (wp-json)
+   * 2. Next.js __NEXT_DATA__ 
+   * 3. JSON-LD structured data (schema.org/Event)
+   * 4. Generic HTML parsing with multiple selectors
+   */
+  static async scrapeUniversal(feed: RssFeed): Promise<FeedParseResult> {
+    const url = feed.url;
+    const municipality = feed.municipality || 'Unknown';
+    
+    console.log(`[RSS] Universal scraper starting for ${municipality}: ${url}`);
+    
+    try {
+      // First, fetch the page to analyze its structure
+      const response = await axios.get(url, {
+        headers: { 
+          "User-Agent": this.USER_AGENT,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        },
+        timeout: 30000
+      });
+      
+      const html = response.data;
+      const $ = cheerio.load(html);
+      
+      // STRATEGY 1: Try WordPress REST API
+      const wpApiResult = await this.tryWordPressApi(url, municipality, feed);
+      if (wpApiResult.success && wpApiResult.items.length > 0) {
+        console.log(`[RSS] WordPress API succeeded: ${wpApiResult.items.length} items`);
+        return wpApiResult;
+      }
+      
+      // STRATEGY 2: Try Next.js __NEXT_DATA__
+      const nextDataResult = this.tryNextJsData($, url, municipality);
+      if (nextDataResult.success && nextDataResult.items.length > 0) {
+        console.log(`[RSS] Next.js __NEXT_DATA__ succeeded: ${nextDataResult.items.length} items`);
+        return nextDataResult;
+      }
+      
+      // STRATEGY 3: Try JSON-LD structured data
+      const jsonLdResult = this.tryJsonLd($, url, municipality);
+      if (jsonLdResult.success && jsonLdResult.items.length > 0) {
+        console.log(`[RSS] JSON-LD succeeded: ${jsonLdResult.items.length} items`);
+        return jsonLdResult;
+      }
+      
+      // STRATEGY 4: Generic HTML parsing with multiple selectors
+      const htmlResult = await this.tryGenericHtml($, url, municipality, feed);
+      if (htmlResult.success && htmlResult.items.length > 0) {
+        console.log(`[RSS] Generic HTML succeeded: ${htmlResult.items.length} items`);
+        return htmlResult;
+      }
+      
+      console.log(`[RSS] All strategies failed for ${municipality}`);
+      return { success: false, items: [], error: "No events found with any extraction strategy" };
+      
+    } catch (error: any) {
+      console.error(`[RSS] Universal scraper error for ${municipality}:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  /**
+   * Try WordPress REST API extraction
+   */
+  private static async tryWordPressApi(baseUrl: string, municipality: string, feed: RssFeed): Promise<FeedParseResult> {
+    try {
+      const urlObj = new URL(baseUrl);
+      const wpApiUrl = `${urlObj.origin}/wp-json/wp/v2`;
+      
+      // First check if wp-json is available
+      const testResponse = await axios.get(`${wpApiUrl}/posts?per_page=1`, {
+        headers: { "User-Agent": this.USER_AGENT },
+        timeout: 10000,
+        validateStatus: (status) => status < 500
+      });
+      
+      if (testResponse.status !== 200) {
+        return { success: false, items: [], error: "WordPress API not available" };
+      }
+      
+      // Try to find event categories
+      const categoriesResponse = await axios.get(`${wpApiUrl}/categories?per_page=100`, {
+        headers: { "User-Agent": this.USER_AGENT },
+        timeout: 10000
+      });
+      
+      const categories = categoriesResponse.data;
+      const eventCategory = categories.find((c: any) => 
+        c.slug.includes('event') || 
+        c.slug.includes('agenda') || 
+        c.slug.includes('uitagenda') ||
+        c.name.toLowerCase().includes('evenement')
+      );
+      
+      let postsUrl = `${wpApiUrl}/posts?per_page=50&_embed`;
+      if (eventCategory) {
+        postsUrl += `&categories=${eventCategory.id}`;
+        console.log(`[RSS] Found event category: ${eventCategory.name} (${eventCategory.id})`);
+      }
+      
+      const postsResponse = await axios.get(postsUrl, {
+        headers: { "User-Agent": this.USER_AGENT },
+        timeout: 30000
+      });
+      
+      const posts = postsResponse.data;
+      if (!Array.isArray(posts) || posts.length === 0) {
+        return { success: false, items: [], error: "No posts found" };
+      }
+      
+      const items: ParsedFeedItem[] = [];
+      
+      for (const post of posts) {
+        const title = this.cleanText(post.title?.rendered || '');
+        const description = this.cleanText(post.excerpt?.rendered?.replace(/<[^>]*>/g, '') || '');
+        const link = post.link;
+        const publishedAt = post.date ? new Date(post.date) : new Date();
+        
+        // Get featured image
+        let imageUrl = post._embedded?.['wp:featuredmedia']?.[0]?.source_url;
+        
+        // Skip if title is empty or too short
+        if (!title || title.length < 3) continue;
+        
+        items.push({
+          externalId: `wp-${municipality.toLowerCase()}-${post.id}`,
+          title,
+          description,
+          link,
+          imageUrl,
+          publishedAt,
+          startTime: publishedAt,
+          location: municipality,
+          address: municipality,
+          rawData: { source: 'wordpress-api', postId: post.id }
+        });
+      }
+      
+      console.log(`[RSS] WordPress API: found ${items.length} items for ${municipality}`);
+      return { success: true, items };
+      
+    } catch (error: any) {
+      return { success: false, items: [], error: `WordPress API failed: ${error.message}` };
+    }
+  }
+
+  /**
+   * Try Next.js __NEXT_DATA__ extraction
+   */
+  private static tryNextJsData($: cheerio.CheerioAPI, baseUrl: string, municipality: string): FeedParseResult {
+    try {
+      const nextDataScript = $('script#__NEXT_DATA__').html();
+      if (!nextDataScript) {
+        return { success: false, items: [], error: "No __NEXT_DATA__ found" };
+      }
+      
+      const nextData = JSON.parse(nextDataScript);
+      const pageProps = nextData?.props?.pageProps;
+      
+      if (!pageProps) {
+        return { success: false, items: [], error: "No pageProps in __NEXT_DATA__" };
+      }
+      
+      // Look for events in various common locations
+      let events: any[] = [];
+      
+      // Common Next.js patterns
+      if (pageProps.events) events = pageProps.events;
+      else if (pageProps.items) events = pageProps.items;
+      else if (pageProps.data?.events) events = pageProps.data.events;
+      else if (pageProps.data?.items) events = pageProps.data.items;
+      else if (pageProps.page?.items) events = pageProps.page.items;
+      else if (pageProps.initialData?.items) events = pageProps.initialData.items;
+      
+      if (!Array.isArray(events) || events.length === 0) {
+        return { success: false, items: [], error: "No events array found in __NEXT_DATA__" };
+      }
+      
+      const items: ParsedFeedItem[] = [];
+      
+      for (const event of events) {
+        const title = event.title || event.name || '';
+        const description = event.description || event.intro || event.excerpt || '';
+        const link = event.url || event.link || event.slug ? `${new URL(baseUrl).origin}/${event.slug}` : baseUrl;
+        
+        // Try to extract dates
+        let startTime: Date | undefined;
+        let endTime: Date | undefined;
+        
+        if (event.startDate || event.start_date || event.date || event.from) {
+          startTime = new Date(event.startDate || event.start_date || event.date || event.from);
+        }
+        if (event.endDate || event.end_date || event.until || event.to) {
+          endTime = new Date(event.endDate || event.end_date || event.until || event.to);
+        }
+        
+        // Try to extract location
+        let latitude: number | undefined;
+        let longitude: number | undefined;
+        let address: string | undefined;
+        
+        if (event.location) {
+          if (event.location.coordinates) {
+            latitude = event.location.coordinates.latitude;
+            longitude = event.location.coordinates.longitude;
+          }
+          if (event.location.gps) {
+            latitude = event.location.gps.lat || event.location.gps.latitude;
+            longitude = event.location.gps.long || event.location.gps.lng || event.location.gps.longitude;
+          }
+          address = event.location.address || event.location.street;
+        }
+        
+        // Get image
+        let imageUrl = event.image?.url || event.teaserImage?.[0]?.url || event.thumbnail || event.image;
+        
+        if (typeof imageUrl !== 'string') imageUrl = undefined;
+        
+        items.push({
+          externalId: `nextjs-${municipality.toLowerCase()}-${event.id || event._id || items.length}`,
+          title: this.cleanText(title),
+          description: this.cleanText(description),
+          link,
+          imageUrl,
+          startTime,
+          endTime,
+          latitude,
+          longitude,
+          location: address || municipality,
+          address: address || municipality,
+          rawData: { source: 'nextjs-data', event }
+        });
+      }
+      
+      console.log(`[RSS] Next.js: found ${items.length} items for ${municipality}`);
+      return { success: true, items };
+      
+    } catch (error: any) {
+      return { success: false, items: [], error: `Next.js parsing failed: ${error.message}` };
+    }
+  }
+
+  /**
+   * Try JSON-LD structured data extraction
+   */
+  private static tryJsonLd($: cheerio.CheerioAPI, baseUrl: string, municipality: string): FeedParseResult {
+    try {
+      const items: ParsedFeedItem[] = [];
+      
+      $('script[type="application/ld+json"]').each((_, el) => {
+        try {
+          const jsonText = $(el).html();
+          if (!jsonText) return;
+          
+          const data = JSON.parse(jsonText);
+          const events = Array.isArray(data) ? data : [data];
+          
+          for (const item of events) {
+            // Check if it's an Event schema
+            if (item['@type'] !== 'Event' && !item['@type']?.includes?.('Event')) continue;
+            
+            const title = item.name || '';
+            const description = item.description || '';
+            const link = item.url || baseUrl;
+            
+            let startTime: Date | undefined;
+            let endTime: Date | undefined;
+            
+            if (item.startDate) startTime = new Date(item.startDate);
+            if (item.endDate) endTime = new Date(item.endDate);
+            
+            let latitude: number | undefined;
+            let longitude: number | undefined;
+            let address: string | undefined;
+            
+            if (item.location) {
+              if (item.location.geo) {
+                latitude = parseFloat(item.location.geo.latitude);
+                longitude = parseFloat(item.location.geo.longitude);
+              }
+              if (item.location.address) {
+                address = typeof item.location.address === 'string' 
+                  ? item.location.address 
+                  : item.location.address.streetAddress || item.location.address.name;
+              }
+            }
+            
+            const imageUrl = Array.isArray(item.image) ? item.image[0] : item.image;
+            
+            items.push({
+              externalId: `jsonld-${municipality.toLowerCase()}-${items.length}`,
+              title: this.cleanText(title),
+              description: this.cleanText(description),
+              link,
+              imageUrl,
+              startTime,
+              endTime,
+              latitude,
+              longitude,
+              location: address || municipality,
+              address: address || municipality,
+              rawData: { source: 'json-ld', item }
+            });
+          }
+        } catch (e) {
+          // Skip invalid JSON-LD
+        }
+      });
+      
+      if (items.length === 0) {
+        return { success: false, items: [], error: "No Event JSON-LD found" };
+      }
+      
+      console.log(`[RSS] JSON-LD: found ${items.length} items for ${municipality}`);
+      return { success: true, items };
+      
+    } catch (error: any) {
+      return { success: false, items: [], error: `JSON-LD parsing failed: ${error.message}` };
+    }
+  }
+
+  /**
+   * Try generic HTML parsing with multiple selectors
+   */
+  private static async tryGenericHtml($: cheerio.CheerioAPI, baseUrl: string, municipality: string, feed: RssFeed): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      
+      // Common event selectors used across different CMSs
+      const eventSelectors = [
+        // Elementor
+        'article.elementor-post',
+        '.elementor-post',
+        // Generic article patterns
+        'article[class*="event"]',
+        '.event-item',
+        '.event-card',
+        '.agenda-item',
+        '.uitagenda-item',
+        // List patterns
+        '.events-list article',
+        '.event-list-item',
+        '.agenda-list-item',
+        // Card patterns
+        '[class*="event-card"]',
+        '[class*="agenda-card"]',
+        // WordPress patterns
+        '.type-tribe_events',
+        '.tribe-events-calendar-list__event',
+        // Generic patterns
+        '[data-event]',
+        '[data-event-id]'
+      ];
+      
+      let eventElements: cheerio.Cheerio<any> | null = null;
+      let usedSelector = '';
+      
+      for (const selector of eventSelectors) {
+        const elements = $(selector);
+        if (elements.length > 0) {
+          eventElements = elements;
+          usedSelector = selector;
+          console.log(`[RSS] Found ${elements.length} elements with selector: ${selector}`);
+          break;
+        }
+      }
+      
+      if (!eventElements || eventElements.length === 0) {
+        // Try to find any article elements as fallback
+        eventElements = $('article').filter((_, el) => {
+          const classes = $(el).attr('class') || '';
+          return classes.includes('post') || classes.includes('event') || classes.includes('agenda');
+        });
+        
+        if (eventElements.length > 0) {
+          usedSelector = 'article (filtered)';
+          console.log(`[RSS] Found ${eventElements.length} article elements`);
+        }
+      }
+      
+      if (!eventElements || eventElements.length === 0) {
+        return { success: false, items: [], error: "No event elements found with any selector" };
+      }
+      
+      const baseUrlObj = new URL(baseUrl);
+      const eventLinks: string[] = [];
+      
+      eventElements.each((_, el) => {
+        const $el = $(el);
+        
+        // Find the event link
+        let link = $el.find('a').first().attr('href') || $el.find('h2 a, h3 a').attr('href');
+        if (!link) return;
+        
+        if (!link.startsWith('http')) {
+          link = `${baseUrlObj.origin}${link.startsWith('/') ? '' : '/'}${link}`;
+        }
+        
+        // Skip non-event links
+        if (link.includes('/category/') || link.includes('/tag/') || link.includes('#')) return;
+        
+        eventLinks.push(link);
+      });
+      
+      console.log(`[RSS] Found ${eventLinks.length} event links to scrape`);
+      
+      // Limit to first 30 to avoid overwhelming
+      const linksToProcess = [...new Set(eventLinks)].slice(0, 30);
+      
+      for (const link of linksToProcess) {
+        try {
+          const detail = await this.scrapeGenericEventPage(link, municipality);
+          if (detail) {
+            items.push(detail);
+          }
+        } catch (e: any) {
+          console.log(`[RSS] Failed to scrape ${link}: ${e.message}`);
+        }
+        
+        // Small delay to be polite
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
+      if (items.length === 0) {
+        return { success: false, items: [], error: "No events could be extracted from detail pages" };
+      }
+      
+      console.log(`[RSS] Generic HTML: found ${items.length} items for ${municipality}`);
+      return { success: true, items };
+      
+    } catch (error: any) {
+      return { success: false, items: [], error: `Generic HTML parsing failed: ${error.message}` };
+    }
+  }
+
+  /**
+   * Scrape a single event detail page with intelligent extraction
+   */
+  private static async scrapeGenericEventPage(url: string, municipality: string): Promise<ParsedFeedItem | null> {
+    try {
+      const response = await axios.get(url, {
+        headers: { "User-Agent": this.USER_AGENT },
+        timeout: 15000
+      });
+      
+      const $ = cheerio.load(response.data);
+      
+      // Extract title
+      let title = $('h1').first().text().trim() ||
+                  $('meta[property="og:title"]').attr('content') ||
+                  $('title').text().split('|')[0].trim();
+      
+      // Extract description
+      let description = $('meta[name="description"]').attr('content') ||
+                        $('meta[property="og:description"]').attr('content') ||
+                        $('.entry-content p, .content p, article p').first().text().trim();
+      
+      // Extract image
+      let imageUrl = $('meta[property="og:image"]').attr('content') ||
+                     $('article img, .entry-content img, .featured-image img').first().attr('src');
+      
+      // Try to extract date from various places
+      let startTime: Date | undefined;
+      let endTime: Date | undefined;
+      
+      // Look for JSON-LD first
+      $('script[type="application/ld+json"]').each((_, el) => {
+        try {
+          const data = JSON.parse($(el).html() || '');
+          if (data['@type'] === 'Event' || data['@type']?.includes?.('Event')) {
+            if (data.startDate) startTime = new Date(data.startDate);
+            if (data.endDate) endTime = new Date(data.endDate);
+          }
+        } catch (e) {}
+      });
+      
+      // Look for common date patterns in text if not found
+      if (!startTime) {
+        const datePatterns = [
+          /(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/gi,
+          /(\d{1,2})-(\d{1,2})-(\d{4})/g,
+          /(\d{4})-(\d{1,2})-(\d{1,2})/g
+        ];
+        
+        const pageText = $('body').text();
+        for (const pattern of datePatterns) {
+          const match = pattern.exec(pageText);
+          if (match) {
+            try {
+              startTime = new Date(match[0]);
+              if (isNaN(startTime.getTime())) startTime = undefined;
+            } catch (e) {}
+            break;
+          }
+        }
+      }
+      
+      // Skip if no title
+      if (!title || title.length < 3 || this.isCookieText(title)) {
+        return null;
+      }
+      
+      return {
+        externalId: `generic-${municipality.toLowerCase()}-${url.replace(/[^a-z0-9]/gi, '-').slice(-50)}`,
+        title: this.cleanText(title),
+        description: this.cleanText(description || ''),
+        link: url,
+        imageUrl,
+        startTime,
+        endTime,
+        location: municipality,
+        address: municipality,
+        rawData: { source: 'generic-html', url }
+      };
+      
+    } catch (error: any) {
+      console.log(`[RSS] Failed to scrape generic page ${url}: ${error.message}`);
+      return null;
+    }
+  }
+
   static async processFeed(feed: RssFeed, storage?: any): Promise<{ success: boolean; itemsProcessed: number; eventsCreated: number; error?: string }> {
     const feedStartTime = Date.now();
     
@@ -3232,6 +3757,9 @@ export class RssFeedService {
         result = await this.scrapeBreda();
       } else if (feed.feedType === "scraper" && feed.url.includes("grenslanddebaronie")) {
         result = await this.scrapeGrensland();
+      } else if (feed.feedType === "scraper") {
+        // Use intelligent universal scraper for unknown scraper feeds
+        result = await this.scrapeUniversal(feed);
       } else {
         result = await this.fetchAndParseRssFeed(feed.url);
       }
@@ -3339,6 +3867,9 @@ export class RssFeedService {
           result = await this.scrapeBreda();
         } else if (feed.feedType === "scraper" && feed.url.includes("grenslanddebaronie")) {
           result = await this.scrapeGrensland();
+        } else if (feed.feedType === "scraper") {
+          // Use intelligent universal scraper for unknown scraper feeds
+          result = await this.scrapeUniversal(feed);
         } else {
           result = await this.fetchAndParseRssFeed(feed.url);
         }

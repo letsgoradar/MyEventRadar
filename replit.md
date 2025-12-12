@@ -144,6 +144,12 @@ Alle feeds moeten voldoen aan deze gestandaardiseerde regels (zie `server/config
 API endpoint voor principes: `GET /api/admin/feed-import-principles`
 
 ## Recent Changes
+- December 12, 2025: **INCOMPLETE EVENTS MANAGEMENT** - Admin workflow voor events die niet volledig geïmporteerd konden worden
+  - Nieuwe `rss_item_corrections` tabel voor herbruikbare correcties
+  - `rssFeedItems` uitgebreid met `processingStatus` (imported/incomplete/skipped), `missingFields`, `derivedData`
+  - Admin UI tab "Onvolledige Items" in RSS Feeds pagina met bewerk/import/skip/delete acties
+  - Import actie maakt event aan van gecorrigeerde incomplete item
+  - 2131 bestaande incomplete items geïdentificeerd voor handmatige afhandeling
 - December 12, 2025: **MUNICIPALITY BOUNDARY VALIDATION** - Geocoding validatie om events op verkeerde locaties te voorkomen
   - Nieuwe municipality-validator.ts met turf.js point-in-polygon checks
   - Graceful degradation: als polygon niet gevonden wordt, validatie overslaan met warning

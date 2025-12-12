@@ -109,8 +109,8 @@ export default function RssFeedsPage() {
     queryKey: ['/api/admin/rss-feeds/stats'],
   });
 
-  const { data: feedSummaries = {} } = useQuery<Record<number, { imported: number; incomplete: number; skipped: number }>>({
-    queryKey: ['/api/admin/rss-feeds/summaries'],
+  const { data: feedOverview = {} } = useQuery<Record<number, { totalActive: number; incomplete: number; addedLastSync: number; lastSyncDate: string | null }>>({
+    queryKey: ['/api/admin/rss-feeds/overview'],
   });
 
   const createFeedMutation = useMutation({
@@ -555,10 +555,10 @@ export default function RssFeedsPage() {
                       <TableHead>Feed</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Totaal</TableHead>
-                      <TableHead>Geïmporteerd</TableHead>
+                      <TableHead>Actief</TableHead>
                       <TableHead>Incompleet</TableHead>
                       <TableHead>Laatst opgehaald</TableHead>
+                      <TableHead>Toegevoegd</TableHead>
                       <TableHead className="text-right">Acties</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -599,25 +599,30 @@ export default function RssFeedsPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <span className="text-muted-foreground">
-                            {(feedSummaries[feed.id]?.imported || 0) + (feedSummaries[feed.id]?.incomplete || 0)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
                           <Button 
                             variant="link" 
                             className="p-0 h-auto font-medium text-primary hover:underline"
                             onClick={() => navigate(`/admin/events?feed=${feed.id}`)}
-                            title="Bekijk events van deze feed"
+                            title="Bekijk actieve events van deze feed"
                           >
-                            {feedSummaries[feed.id]?.imported || 0}
+                            {feedOverview[feed.id]?.totalActive || 0}
                           </Button>
                         </TableCell>
                         <TableCell>
-                          {(feedSummaries[feed.id]?.incomplete || 0) > 0 ? (
-                            <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-                              {feedSummaries[feed.id]?.incomplete || 0}
-                            </Badge>
+                          {(feedOverview[feed.id]?.incomplete || 0) > 0 ? (
+                            <Button 
+                              variant="link" 
+                              className="p-0 h-auto font-medium text-orange-600 hover:underline"
+                              onClick={() => {
+                                const tab = document.querySelector('[data-tab="incomplete"]');
+                                if (tab) (tab as HTMLElement).click();
+                              }}
+                              title="Bekijk incomplete items"
+                            >
+                              <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                                {feedOverview[feed.id]?.incomplete || 0}
+                              </Badge>
+                            </Button>
                           ) : (
                             <span className="text-muted-foreground">0</span>
                           )}
@@ -626,6 +631,15 @@ export default function RssFeedsPage() {
                           {feed.lastFetchedAt 
                             ? format(new Date(feed.lastFetchedAt), 'dd MMM HH:mm', { locale: nl })
                             : 'Nog niet opgehaald'}
+                        </TableCell>
+                        <TableCell>
+                          {(feedOverview[feed.id]?.addedLastSync || 0) > 0 ? (
+                            <Badge variant="default" className="bg-green-100 text-green-700">
+                              +{feedOverview[feed.id]?.addedLastSync || 0}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">0</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">

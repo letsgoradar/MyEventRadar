@@ -1471,18 +1471,46 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
-  app.get("/api/admin/rss-feeds/summaries", isAdmin, async (req, res) => {
+  app.get("/api/admin/rss-feeds/overview", isAdmin, async (req, res) => {
     try {
       const feeds = await storage.getAllRssFeeds();
-      const summaries: Record<number, { imported: number; incomplete: number; skipped: number }> = {};
+      const overview: Record<number, { 
+        totalActive: number; 
+        incomplete: number; 
+        addedLastSync: number;
+        lastSyncDate: string | null;
+      }> = {};
       
       for (const feed of feeds) {
-        summaries[feed.id] = await storage.getFeedItemsSummary(feed.id);
+        const summary = await storage.getFeedItemsSummary(feed.id);
+        
+        const feedItems = await storage.getRssFeedItems(feed.id);
+        const activeEvents = feedItems.filter(item => 
+          item.processingStatus === 'imported' && item.eventId !== null
+        ).length;
+        
+        let addedLastSync = 0;
+        if (feed.lastFetchedAt) {
+          const lastSync = new Date(feed.lastFetchedAt);
+          const oneHourBefore = new Date(lastSync.getTime() - 60 * 60 * 1000);
+          addedLastSync = feedItems.filter(item => {
+            if (item.processingStatus !== 'imported' || !item.eventId) return false;
+            const itemDate = item.createdAt ? new Date(item.createdAt) : null;
+            return itemDate && itemDate >= oneHourBefore;
+          }).length;
+        }
+        
+        overview[feed.id] = {
+          totalActive: activeEvents,
+          incomplete: summary.incomplete,
+          addedLastSync,
+          lastSyncDate: feed.lastFetchedAt ? feed.lastFetchedAt.toISOString() : null,
+        };
       }
       
-      res.json(summaries);
+      res.json(overview);
     } catch (error) {
-      console.error('Error in GET /api/admin/rss-feeds/summaries:', error);
+      console.error('Error in GET /api/admin/rss-feeds/overview:', error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

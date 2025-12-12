@@ -109,6 +109,10 @@ export default function RssFeedsPage() {
     queryKey: ['/api/admin/rss-feeds/stats'],
   });
 
+  const { data: incompleteCounts = {} } = useQuery<Record<number, number>>({
+    queryKey: ['/api/admin/rss-feeds/incomplete-counts'],
+  });
+
   const createFeedMutation = useMutation({
     mutationFn: async (feed: typeof newFeed) => {
       return apiRequest('/api/admin/rss-feeds', {
@@ -551,7 +555,9 @@ export default function RssFeedsPage() {
                       <TableHead>Feed</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Totaal</TableHead>
                       <TableHead>Geïmporteerd</TableHead>
+                      <TableHead>Incompleet</TableHead>
                       <TableHead>Laatst opgehaald</TableHead>
                       <TableHead className="text-right">Acties</TableHead>
                     </TableRow>
@@ -593,14 +599,28 @@ export default function RssFeedsPage() {
                           )}
                         </TableCell>
                         <TableCell>
+                          <span className="text-muted-foreground">
+                            {(feed.itemsImported || 0) + (incompleteCounts[feed.id] || 0)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
                           <Button 
                             variant="link" 
                             className="p-0 h-auto font-medium text-primary hover:underline"
                             onClick={() => navigate(`/admin/events?feed=${feed.id}`)}
                             title="Bekijk events van deze feed"
                           >
-                            {feed.itemsImported || 0} events
+                            {feed.itemsImported || 0}
                           </Button>
+                        </TableCell>
+                        <TableCell>
+                          {(incompleteCounts[feed.id] || 0) > 0 ? (
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                              {incompleteCounts[feed.id] || 0}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">0</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {feed.lastFetchedAt 

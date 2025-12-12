@@ -2017,7 +2017,7 @@ export class RssFeedService {
     return this.scrapePlaeceSite({
       baseUrl: 'https://www.beleefboxtel.nl',
       agendaPath: '/uitagenda',
-      linkPattern: /\/uitagenda\/\d+\//,
+      linkPattern: /\/uitagenda\/\d+\/[a-z0-9-]+/,
       municipality: 'Boxtel'
     });
   }
@@ -2027,7 +2027,7 @@ export class RssFeedService {
     return this.scrapePlaeceSite({
       baseUrl: 'https://www.goedgestel.nl',
       agendaPath: '/uitagenda',
-      linkPattern: /\/uitagenda\/\d+\//,
+      linkPattern: /\/uitagenda\/\d+\/[a-z0-9-]+/,
       municipality: 'Sint-Michielsgestel'
     });
   }
@@ -2037,7 +2037,7 @@ export class RssFeedService {
     return this.scrapePlaeceSite({
       baseUrl: 'https://www.visitvught.nl',
       agendaPath: '/agenda',
-      linkPattern: /\/agenda\/\d+\//,
+      linkPattern: /\/agenda\/\d+\/[a-z0-9-]+/,
       municipality: 'Vught'
     });
   }
@@ -2047,7 +2047,7 @@ export class RssFeedService {
     return this.scrapePlaeceSite({
       baseUrl: 'https://www.beleveninoosterhout.nl',
       agendaPath: '/uitagenda',
-      linkPattern: /\/uitagenda\/\d+\//,
+      linkPattern: /\/uitagenda\/\d+\/[a-z0-9-]+/,
       municipality: 'Oosterhout'
     });
   }

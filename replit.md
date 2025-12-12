@@ -144,14 +144,23 @@ Alle feeds moeten voldoen aan deze gestandaardiseerde regels (zie `server/config
 API endpoint voor principes: `GET /api/admin/feed-import-principles`
 
 ## Recent Changes
+- December 12, 2025: **INTELLIGENTE PAGINATIE-DETECTIE** - Standaard scraper nu met automatische paginatie
+  - Nieuwe `detectPagination()` functie detecteert 5 paginatie-patronen:
+    1. WordPress-style /page/N/ (zoals tilburg.com)
+    2. Query string ?page=N of ?p=N
+    3. Nederlandse /pagina/N/
+    4. rel="next" links en .pagination-next buttons
+    5. Numerieke paginatie (.page-numbers, nav.pagination)
+  - Scraper volgt automatisch alle pagina's tot einde (max 30 pagina's)
+  - Rate limiting: 300ms tussen pagina fetches
+  - Limiet verhoogd naar 100 event links per feed (was 30)
 - December 12, 2025: **TILBURG AGENDA SCRAPER V3 (PAGINATIE)** - Volledig gepagineerde scraper voor tilburg.com/agenda-tilburg/
   - URL-paginering toegevoegd: scrapt /agenda-tilburg/, /agenda-tilburg/page/2/, etc. tot einde
   - 278 unieke event links gevonden over 14 pagina's (was 21 op eerste pagina)
-  - Haalt individuele event pagina's op voor exacte datum/tijd/locatie/afbeelding
+  - 261 Tilburg events succesvol geïmporteerd met exacte locaties
   - 35+ bekende Tilburg venue GPS coördinaten (Koepelhal, LocHal, 013, Pathé, Hall of Fame, etc.)
   - Parseert single-day en multi-day datum formaten
   - Rate limiting: 300ms tussen pagina fetches, 500ms tussen event detail fetches
-  - Fix: processingStatus wordt nu correct naar 'imported' gezet bij event creatie
 - December 12, 2025: **INCOMPLETE EVENTS MANAGEMENT** - Admin workflow voor events die niet volledig geïmporteerd konden worden
   - Nieuwe `rss_item_corrections` tabel voor herbruikbare correcties
   - `rssFeedItems` uitgebreid met `processingStatus` (imported/incomplete/skipped), `missingFields`, `derivedData`

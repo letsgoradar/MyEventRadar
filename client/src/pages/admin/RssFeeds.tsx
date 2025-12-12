@@ -93,10 +93,11 @@ export default function RssFeedsPage() {
     name: '',
     url: '',
     feedType: 'rss',
-    defaultCategory: 'Gezellig en Sociaal',
-    defaultAddress: 'Eindhoven',
-    defaultLatitude: '51.4416',
-    defaultLongitude: '5.4697',
+    defaultCategory: '',
+    defaultAddress: '',
+    defaultLatitude: '',
+    defaultLongitude: '',
+    municipality: '',
     updateFrequencyMinutes: 60,
     autoCreateEvents: true,
   });
@@ -117,7 +118,7 @@ export default function RssFeedsPage() {
     mutationFn: async (feed: typeof newFeed) => {
       return apiRequest('/api/admin/rss-feeds', {
         method: 'POST',
-        body: JSON.stringify(feed),
+        data: feed,
       });
     },
     onSuccess: () => {
@@ -128,10 +129,11 @@ export default function RssFeedsPage() {
         name: '',
         url: '',
         feedType: 'rss',
-        defaultCategory: 'Gezellig en Sociaal',
-        defaultAddress: 'Eindhoven',
-        defaultLatitude: '51.4416',
-        defaultLongitude: '5.4697',
+        defaultCategory: '',
+        defaultAddress: '',
+        defaultLatitude: '',
+        defaultLongitude: '',
+        municipality: '',
         updateFrequencyMinutes: 60,
         autoCreateEvents: true,
       });
@@ -153,7 +155,7 @@ export default function RssFeedsPage() {
     mutationFn: async ({ id, ...data }: Partial<RssFeed> & { id: number }) => {
       return apiRequest(`/api/admin/rss-feeds/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify(data),
+        data: data,
       });
     },
     onSuccess: () => {
@@ -237,7 +239,7 @@ export default function RssFeedsPage() {
     try {
       await apiRequest('/api/admin/rss-feeds', {
         method: 'POST',
-        body: JSON.stringify({
+        data: {
           name: 'Eindhoven Nieuws',
           url: 'https://www.eindhoven.nl/nieuws/rss',
           feedType: 'rss',
@@ -245,14 +247,15 @@ export default function RssFeedsPage() {
           defaultAddress: 'Eindhoven',
           defaultLatitude: '51.4416',
           defaultLongitude: '5.4697',
+          municipality: 'Eindhoven',
           updateFrequencyMinutes: 60,
           autoCreateEvents: true,
-        }),
+        },
       });
 
       await apiRequest('/api/admin/rss-feeds', {
         method: 'POST',
-        body: JSON.stringify({
+        data: {
           name: 'This Is Eindhoven Events',
           url: 'https://www.thisiseindhoven.com/en/events',
           feedType: 'scraper',
@@ -260,9 +263,10 @@ export default function RssFeedsPage() {
           defaultAddress: 'Eindhoven',
           defaultLatitude: '51.4416',
           defaultLongitude: '5.4697',
+          municipality: 'Eindhoven',
           updateFrequencyMinutes: 120,
           autoCreateEvents: true,
-        }),
+        },
       });
 
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
@@ -381,30 +385,33 @@ export default function RssFeedsPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="category">Standaard categorie</Label>
+                      <Label htmlFor="municipality">Gemeente <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="municipality"
+                        value={newFeed.municipality}
+                        onChange={(e) => setNewFeed({ ...newFeed, municipality: e.target.value, defaultAddress: e.target.value })}
+                        placeholder="Oisterwijk"
+                        data-testid="input-feed-municipality"
+                      />
+                      <p className="text-xs text-muted-foreground">De gemeente waartoe deze feed behoort</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="category">Standaard categorie <span className="text-muted-foreground">(optioneel)</span></Label>
                       <Select
-                        value={newFeed.defaultCategory}
+                        value={newFeed.defaultCategory || ''}
                         onValueChange={(value) => setNewFeed({ ...newFeed, defaultCategory: value })}
                       >
                         <SelectTrigger data-testid="select-feed-category">
-                          <SelectValue />
+                          <SelectValue placeholder="Bepaal per event" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="">Bepaal per event</SelectItem>
                           {CATEGORIES.map((cat) => (
                             <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Standaard locatie</Label>
-                      <Input
-                        id="address"
-                        value={newFeed.defaultAddress}
-                        onChange={(e) => setNewFeed({ ...newFeed, defaultAddress: e.target.value })}
-                        placeholder="Eindhoven"
-                        data-testid="input-feed-address"
-                      />
+                      <p className="text-xs text-muted-foreground">Leeg laten = categorie wordt per event bepaald</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="frequency">Update frequentie (minuten)</Label>
@@ -432,7 +439,7 @@ export default function RssFeedsPage() {
                     </Button>
                     <Button 
                       onClick={() => createFeedMutation.mutate(newFeed)}
-                      disabled={!newFeed.name || !newFeed.url || createFeedMutation.isPending}
+                      disabled={!newFeed.name || !newFeed.url || !newFeed.municipality || createFeedMutation.isPending}
                       data-testid="button-save-feed"
                     >
                       Toevoegen

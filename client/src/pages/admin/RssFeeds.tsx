@@ -45,7 +45,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
@@ -53,6 +53,7 @@ import { CATEGORIES } from '@shared/schema';
 import { lazy, Suspense } from 'react';
 
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
+const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
 
 interface RssFeed {
   id: number;
@@ -483,6 +484,10 @@ export default function RssFeedsPage() {
                 <Map className="w-4 h-4" />
                 Kaart
               </TabsTrigger>
+              <TabsTrigger value="incomplete" className="flex items-center gap-2" data-testid="tab-incomplete">
+                <AlertTriangle className="w-4 h-4" />
+                Incompleet
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="map">
@@ -661,6 +666,16 @@ export default function RssFeedsPage() {
               </CardContent>
             </Card>
           )}
+            </TabsContent>
+
+            <TabsContent value="incomplete">
+              <Suspense fallback={
+                <div className="flex items-center justify-center h-[300px] bg-muted rounded-lg">
+                  <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+                </div>
+              }>
+                <IncompleteItemsManager />
+              </Suspense>
             </TabsContent>
           </Tabs>
         </div>

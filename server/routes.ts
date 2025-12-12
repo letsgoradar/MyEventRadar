@@ -1819,6 +1819,73 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
+  app.post("/api/admin/incomplete-items/:id/import", isAdmin, async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      if (isNaN(itemId)) {
+        return res.status(400).json({ message: "Invalid item ID" });
+      }
+
+      const items = await storage.getIncompleteItems();
+      const item = items.find(i => i.id === itemId);
+      if (!item) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+
+      const derivedData = item.derivedData as any || {};
+      const rawData = item.rawData as any || {};
+      
+      const latitude = derivedData.geocodedLat || rawData.latitude;
+      const longitude = derivedData.geocodedLng || rawData.longitude;
+      const startDate = derivedData.parsedStartDate ? new Date(derivedData.parsedStartDate) : rawData.startTime ? new Date(rawData.startTime) : null;
+      
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "Locatie ontbreekt nog steeds" });
+      }
+      if (!startDate) {
+        return res.status(400).json({ message: "Datum ontbreekt nog steeds" });
+      }
+
+      const feed = await storage.getRssFeed(item.feedId);
+      const category = feed?.defaultCategory || 'Gezellig en Sociaal';
+
+      const eventData = {
+        title: item.title.substring(0, 40),
+        description: item.description || '',
+        latitude: latitude,
+        longitude: longitude,
+        address: derivedData.geocodedAddress || rawData.address || '',
+        notificationReach: 2.5,
+        startTime: startDate.toISOString(),
+        endTime: rawData.endTime || null,
+        category: category as any,
+        hostId: 1,
+        recurrence: 'once' as const,
+        tags: ['rss-import', 'manual-import'],
+        imageUrl: item.imageUrl || null,
+      };
+
+      const newEvent = await storage.createEvent(eventData);
+      
+      await storage.updateRssFeedItem(itemId, {
+        eventId: newEvent.id,
+        processingStatus: 'imported',
+        isProcessed: true,
+      });
+
+      if (feed) {
+        await storage.updateRssFeed(feed.id, {
+          itemsImported: (feed.itemsImported || 0) + 1,
+        });
+      }
+
+      res.json({ success: true, event: newEvent });
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/incomplete-items/:id/import:', error);
+      res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+
   // Corrections endpoints
   app.get("/api/admin/corrections", isAdmin, async (req, res) => {
     try {

@@ -422,59 +422,59 @@ export default function IncompleteItemsManager({ feedId }: IncompleteItemsManage
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            {selectedItem?.missingFields?.includes('location') && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Adres</Label>
-                  <Input
-                    id="address"
-                    value={editForm.address}
-                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                    placeholder="Straatnaam 123, Stad"
-                    data-testid="input-edit-address"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="latitude">Breedtegraad</Label>
-                    <Input
-                      id="latitude"
-                      type="number"
-                      step="0.0001"
-                      value={editForm.latitude}
-                      onChange={(e) => setEditForm({ ...editForm, latitude: e.target.value })}
-                      placeholder="51.4416"
-                      data-testid="input-edit-latitude"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="longitude">Lengtegraad</Label>
-                    <Input
-                      id="longitude"
-                      type="number"
-                      step="0.0001"
-                      value={editForm.longitude}
-                      onChange={(e) => setEditForm({ ...editForm, longitude: e.target.value })}
-                      placeholder="5.4697"
-                      data-testid="input-edit-longitude"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {selectedItem?.missingFields?.includes('date') && (
+            <div className="space-y-2">
+              <Label htmlFor="address">Adres</Label>
+              <Input
+                id="address"
+                value={editForm.address}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                placeholder="Straatnaam 123, Stad"
+                data-testid="input-edit-address"
+              />
+              {selectedItem?.missingFields?.includes('location') && (
+                <p className="text-xs text-orange-600">Locatie ontbreekt - vul adres of coördinaten in</p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="startDate">Startdatum</Label>
+                <Label htmlFor="latitude">Breedtegraad</Label>
                 <Input
-                  id="startDate"
-                  type="date"
-                  value={editForm.startDate}
-                  onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
-                  data-testid="input-edit-date"
+                  id="latitude"
+                  type="number"
+                  step="0.0001"
+                  value={editForm.latitude}
+                  onChange={(e) => setEditForm({ ...editForm, latitude: e.target.value })}
+                  placeholder="51.4416"
+                  data-testid="input-edit-latitude"
                 />
               </div>
-            )}
+              <div className="space-y-2">
+                <Label htmlFor="longitude">Lengtegraad</Label>
+                <Input
+                  id="longitude"
+                  type="number"
+                  step="0.0001"
+                  value={editForm.longitude}
+                  onChange={(e) => setEditForm({ ...editForm, longitude: e.target.value })}
+                  placeholder="5.4697"
+                  data-testid="input-edit-longitude"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Startdatum</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={editForm.startDate}
+                onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+                data-testid="input-edit-date"
+              />
+              {selectedItem?.missingFields?.includes('date') && (
+                <p className="text-xs text-orange-600">Datum ontbreekt - vul startdatum in</p>
+              )}
+            </div>
 
             {selectedItem?.derivedData?.validationErrors && (
               <div className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">

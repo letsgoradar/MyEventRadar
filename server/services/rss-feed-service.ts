@@ -1776,6 +1776,440 @@ export class RssFeedService {
   }
 
   /**
+   * Generic Plaece CMS scraper - works for multiple sites using Plaece platform
+   * Extracts GPS from JSON-LD data in detail pages
+   */
+  static async scrapePlaeceSite(config: {
+    baseUrl: string;
+    agendaPath: string;
+    linkPattern: RegExp;
+    municipality: string;
+    maxPages?: number;
+  }): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const eventLinks: string[] = [];
+      const maxPages = config.maxPages || 10;
+      
+      for (let page = 1; page <= maxPages; page++) {
+        const url = page === 1 
+          ? `${config.baseUrl}${config.agendaPath}`
+          : `${config.baseUrl}${config.agendaPath}?page=${page}`;
+        
+        console.log(`[RSS] Scraping ${config.municipality} page ${page}...`);
+        
+        try {
+          const response = await axios.get(url, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              "Accept": "text/html,application/xhtml+xml"
+            },
+            timeout: 30000
+          });
+
+          const $ = cheerio.load(response.data);
+          const linksBeforeThisPage = eventLinks.length;
+          
+          $(`a[href*="${config.agendaPath}/"]`).each((_, element) => {
+            const href = $(element).attr("href");
+            if (!href) return;
+            if (href === config.agendaPath || href.includes("?page=") || href.includes("?calendar")) return;
+            
+            if (!config.linkPattern.test(href)) return;
+            
+            const fullLink = href.startsWith("http") 
+              ? href 
+              : `${config.baseUrl}${href}`;
+            
+            if (!eventLinks.includes(fullLink)) {
+              eventLinks.push(fullLink);
+            }
+          });
+          
+          const newLinksOnPage = eventLinks.length - linksBeforeThisPage;
+          console.log(`[RSS] Page ${page}: found ${newLinksOnPage} new event links (total: ${eventLinks.length})`);
+          
+          if (newLinksOnPage === 0) break;
+          
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error: any) {
+          console.log(`[RSS] Could not fetch page ${page}: ${error.message}`);
+          break;
+        }
+      }
+
+      console.log(`[RSS] Found ${eventLinks.length} ${config.municipality} event links, fetching details...`);
+
+      let successCount = 0;
+      let skippedCount = 0;
+      
+      for (let i = 0; i < eventLinks.length; i++) {
+        const link = eventLinks[i];
+        try {
+          console.log(`[RSS] Fetching ${config.municipality} event ${i + 1}/${eventLinks.length}`);
+          const eventItems = await this.scrapePlaeceSiteEventDetail(link, config.municipality);
+          if (eventItems.length > 0) {
+            items.push(...eventItems);
+            successCount++;
+          } else {
+            skippedCount++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (error: any) {
+          skippedCount++;
+        }
+      }
+
+      console.log(`[RSS] Scraped ${items.length} events from ${config.municipality} (${successCount} with GPS, ${skippedCount} skipped)`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping ${config.municipality}:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  static async scrapePlaeceSiteEventDetail(url: string, municipality: string): Promise<ParsedFeedItem[]> {
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "text/html,application/xhtml+xml"
+        },
+        timeout: 15000
+      });
+
+      const $ = cheerio.load(response.data);
+      const items: ParsedFeedItem[] = [];
+      
+      // Try JSON-LD first (most Plaece sites have this)
+      const jsonLdScripts = $('script[type="application/ld+json"]');
+      
+      for (let i = 0; i < jsonLdScripts.length; i++) {
+        const scriptContent = $(jsonLdScripts[i]).html();
+        if (!scriptContent) continue;
+        
+        try {
+          const jsonData = JSON.parse(scriptContent);
+          const events = Array.isArray(jsonData) ? jsonData : [jsonData];
+          
+          for (const event of events) {
+            if (event["@type"] !== "Event") continue;
+            
+            const name = event.name || "";
+            if (!name) continue;
+            
+            const imageUrl = event.image || "";
+            const location = event.location;
+            const venueName = location?.name || "";
+            const address = location?.address;
+            const streetAddress = address?.streetAddress || "";
+            const postalCode = address?.postalCode || "";
+            const city = address?.addressLocality || municipality;
+            const fullAddress = [streetAddress, postalCode, city].filter(Boolean).join(", ");
+            
+            const geo = location?.geo;
+            const latitude = geo?.latitude;
+            const longitude = geo?.longitude;
+            
+            // QUALITY FILTER: Only import events with verified GPS
+            if (!latitude || !longitude) {
+              console.log(`[RSS] SKIPPED ${municipality} event (no GPS): ${name}`);
+              continue;
+            }
+            
+            const startDate = event.startDate ? new Date(event.startDate) : undefined;
+            const endDate = event.endDate ? new Date(event.endDate) : undefined;
+            
+            if (startDate && startDate < new Date()) continue;
+            
+            const urlSlug = url.split('/').pop() || url.replace(/[^a-z0-9]/gi, "-");
+            const externalId = `${municipality.toLowerCase().replace(/\s+/g, '-')}-${urlSlug}`;
+            
+            let description = event.description || "";
+            if (!description || description.length < 20) {
+              description = `${name} bij ${venueName || city}. ${fullAddress ? `Locatie: ${fullAddress}.` : ""}`;
+            }
+            
+            items.push({
+              externalId,
+              title: this.formatTitle(name),
+              description: this.cleanText(description.substring(0, 500)),
+              link: url,
+              imageUrl: imageUrl || undefined,
+              publishedAt: new Date(),
+              startTime: startDate,
+              endTime: endDate || (startDate ? new Date(startDate.getTime() + 3 * 60 * 60 * 1000) : undefined),
+              location: venueName || city,
+              address: fullAddress,
+              latitude,
+              longitude,
+              rawData: { url, venueName, city }
+            });
+          }
+        } catch (parseError) {
+          continue;
+        }
+      }
+      
+      // Fallback: Try to extract GPS from Google Maps links if JSON-LD failed
+      if (items.length === 0) {
+        let latitude: number | undefined;
+        let longitude: number | undefined;
+        
+        $('a[href*="google.com/maps"]').each((_, el) => {
+          if (latitude && longitude) return;
+          const href = $(el).attr('href') || '';
+          
+          let coordMatch = href.match(/destination=([0-9.-]+)%2C([0-9.-]+)/);
+          if (!coordMatch) coordMatch = href.match(/destination=([0-9.-]+),([0-9.-]+)/);
+          if (!coordMatch) coordMatch = href.match(/@([0-9.-]+),([0-9.-]+)/);
+          if (!coordMatch) coordMatch = href.match(/q=([0-9.-]+),([0-9.-]+)/);
+          
+          if (coordMatch) {
+            const lat = parseFloat(coordMatch[1]);
+            const lng = parseFloat(coordMatch[2]);
+            if (lat >= 50 && lat <= 54 && lng >= 3 && lng <= 8) {
+              latitude = lat;
+              longitude = lng;
+            }
+          }
+        });
+        
+        if (latitude && longitude) {
+          const title = $('h1').first().text().trim();
+          if (title && title.length > 3) {
+            let imageUrl = '';
+            $('img').each((_, el) => {
+              const src = $(el).attr('src') || '';
+              if (src.includes('assets.plaece.nl') && !imageUrl) {
+                imageUrl = src;
+              }
+            });
+            
+            items.push({
+              externalId: `${municipality.toLowerCase().replace(/\s+/g, '-')}-${url.split('/').pop() || Date.now()}`,
+              title: this.formatTitle(title),
+              description: `${title} - Evenement in ${municipality}`,
+              link: url,
+              imageUrl: imageUrl || undefined,
+              publishedAt: new Date(),
+              startTime: new Date(),
+              endTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+              location: municipality,
+              address: `${municipality}, Nederland`,
+              latitude,
+              longitude,
+              rawData: { url }
+            });
+          }
+        }
+      }
+      
+      return items;
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping ${municipality} event detail ${url}:`, error.message);
+      return [];
+    }
+  }
+
+  // Boxtel scraper using Plaece CMS
+  static async scrapeBoxtel(): Promise<FeedParseResult> {
+    return this.scrapePlaeceSite({
+      baseUrl: 'https://www.beleefboxtel.nl',
+      agendaPath: '/uitagenda',
+      linkPattern: /\/uitagenda\/\d+\//,
+      municipality: 'Boxtel'
+    });
+  }
+
+  // Sint-Michielsgestel scraper using Plaece CMS
+  static async scrapeSintMichielsgestel(): Promise<FeedParseResult> {
+    return this.scrapePlaeceSite({
+      baseUrl: 'https://www.goedgestel.nl',
+      agendaPath: '/uitagenda',
+      linkPattern: /\/uitagenda\/\d+\//,
+      municipality: 'Sint-Michielsgestel'
+    });
+  }
+
+  // Vught scraper using Plaece CMS
+  static async scrapeVught(): Promise<FeedParseResult> {
+    return this.scrapePlaeceSite({
+      baseUrl: 'https://www.visitvught.nl',
+      agendaPath: '/agenda',
+      linkPattern: /\/agenda\/\d+\//,
+      municipality: 'Vught'
+    });
+  }
+
+  // Oosterhout scraper using Plaece CMS
+  static async scrapeOosterhout(): Promise<FeedParseResult> {
+    return this.scrapePlaeceSite({
+      baseUrl: 'https://www.beleveninoosterhout.nl',
+      agendaPath: '/uitagenda',
+      linkPattern: /\/uitagenda\/\d+\//,
+      municipality: 'Oosterhout'
+    });
+  }
+
+  // Breda scraper - uses Prepr CMS via Next.js
+  static async scrapeBreda(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const eventLinks: string[] = [];
+      const maxPages = 10;
+      
+      for (let page = 1; page <= maxPages; page++) {
+        const url = page === 1 
+          ? "https://www.explorebreda.com/nl/events"
+          : `https://www.explorebreda.com/nl/events?page=${page}`;
+        
+        console.log(`[RSS] Scraping Breda page ${page}...`);
+        
+        try {
+          const response = await axios.get(url, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              "Accept": "text/html,application/xhtml+xml"
+            },
+            timeout: 30000
+          });
+
+          const $ = cheerio.load(response.data);
+          const linksBeforeThisPage = eventLinks.length;
+          
+          $('a[href*="/nl/events/"]').each((_, element) => {
+            const href = $(element).attr("href");
+            if (!href || href === "/nl/events" || href.includes("?page=")) return;
+            
+            const fullLink = href.startsWith("http") 
+              ? href 
+              : `https://www.explorebreda.com${href}`;
+            
+            if (!eventLinks.includes(fullLink) && fullLink.match(/\/nl\/events\/[a-z0-9-]+/)) {
+              eventLinks.push(fullLink);
+            }
+          });
+          
+          const newLinksOnPage = eventLinks.length - linksBeforeThisPage;
+          console.log(`[RSS] Page ${page}: found ${newLinksOnPage} new event links (total: ${eventLinks.length})`);
+          
+          if (newLinksOnPage === 0) break;
+          
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error: any) {
+          console.log(`[RSS] Could not fetch page ${page}: ${error.message}`);
+          break;
+        }
+      }
+
+      console.log(`[RSS] Found ${eventLinks.length} Breda event links, fetching details...`);
+
+      let successCount = 0;
+      let skippedCount = 0;
+      
+      for (let i = 0; i < eventLinks.length; i++) {
+        const link = eventLinks[i];
+        try {
+          console.log(`[RSS] Fetching Breda event ${i + 1}/${eventLinks.length}`);
+          const eventItems = await this.scrapePlaeceSiteEventDetail(link, 'Breda');
+          if (eventItems.length > 0) {
+            items.push(...eventItems);
+            successCount++;
+          } else {
+            skippedCount++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (error: any) {
+          skippedCount++;
+        }
+      }
+
+      console.log(`[RSS] Scraped ${items.length} events from Breda (${successCount} with GPS, ${skippedCount} skipped)`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Breda:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  // Grensland De Baronie scraper - WordPress site covering Gilze en Rijen, Alphen-Chaam, Baarle-Nassau
+  static async scrapeGrensland(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      
+      console.log(`[RSS] Scraping Grensland De Baronie (WordPress)...`);
+      
+      // Try WordPress REST API first
+      const apiUrl = 'https://www.grenslanddebaronie.nl/wp-json/wp/v2/posts?per_page=50&categories=agenda';
+      
+      try {
+        const response = await axios.get(apiUrl, {
+          headers: {
+            "Accept": "application/json",
+            "User-Agent": "letsgo-radar/1.0"
+          },
+          timeout: 30000
+        });
+        
+        if (Array.isArray(response.data)) {
+          for (const post of response.data) {
+            // WordPress posts may have ACF fields with GPS
+            const latitude = post.acf?.latitude || post.acf?.gps?.lat;
+            const longitude = post.acf?.longitude || post.acf?.gps?.lng;
+            
+            if (!latitude || !longitude) continue;
+            
+            items.push({
+              externalId: `grensland-${post.id}`,
+              title: this.formatTitle(post.title?.rendered || ''),
+              description: this.cleanText((post.excerpt?.rendered || '').replace(/<[^>]+>/g, '')),
+              link: post.link,
+              imageUrl: post._embedded?.['wp:featuredmedia']?.[0]?.source_url,
+              publishedAt: new Date(post.date),
+              startTime: post.acf?.event_date ? new Date(post.acf.event_date) : new Date(post.date),
+              latitude,
+              longitude,
+              location: post.acf?.location || 'Gilze en Rijen',
+              address: post.acf?.address || 'Gilze en Rijen, Nederland',
+              rawData: post
+            });
+          }
+        }
+      } catch (apiError) {
+        console.log(`[RSS] WordPress API not available for Grensland, trying HTML scrape...`);
+      }
+      
+      // Fallback: HTML scraping
+      if (items.length === 0) {
+        const response = await axios.get('https://www.grenslanddebaronie.nl/agenda', {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "text/html,application/xhtml+xml"
+          },
+          timeout: 30000
+        });
+        
+        const $ = cheerio.load(response.data);
+        
+        $('a[href*="/agenda/"]').each((_, element) => {
+          const href = $(element).attr("href");
+          if (!href || href === "/agenda" || href.includes("?")) return;
+          
+          const link = href.startsWith("http") ? href : `https://www.grenslanddebaronie.nl${href}`;
+          console.log(`[RSS] Found Grensland event link: ${link}`);
+        });
+      }
+
+      console.log(`[RSS] Scraped ${items.length} events from Grensland De Baronie`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Grensland:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  /**
    * Fetch Den Bosch events from zinindenbosch.nl Payload CMS API
    * Uses official REST API for reliable data extraction with exact GPS coordinates
    * Following Feed Import Principles: verified locations, date-bound events, source images
@@ -2404,6 +2838,18 @@ export class RssFeedService {
         result = await this.scrapeBernheze();
       } else if (feed.feedType === "scraper" && feed.url.includes("zinindenbosch")) {
         result = await this.scrapeDenBosch();
+      } else if (feed.feedType === "scraper" && feed.url.includes("beleefboxtel")) {
+        result = await this.scrapeBoxtel();
+      } else if (feed.feedType === "scraper" && feed.url.includes("goedgestel")) {
+        result = await this.scrapeSintMichielsgestel();
+      } else if (feed.feedType === "scraper" && feed.url.includes("visitvught")) {
+        result = await this.scrapeVught();
+      } else if (feed.feedType === "scraper" && feed.url.includes("beleveninoosterhout")) {
+        result = await this.scrapeOosterhout();
+      } else if (feed.feedType === "scraper" && feed.url.includes("explorebreda")) {
+        result = await this.scrapeBreda();
+      } else if (feed.feedType === "scraper" && feed.url.includes("grenslanddebaronie")) {
+        result = await this.scrapeGrensland();
       } else {
         result = await this.fetchAndParseRssFeed(feed.url);
       }
@@ -2499,6 +2945,18 @@ export class RssFeedService {
           result = await this.scrapeBernheze();
         } else if (feed.feedType === "scraper" && feed.url.includes("zinindenbosch")) {
           result = await this.scrapeDenBosch();
+        } else if (feed.feedType === "scraper" && feed.url.includes("beleefboxtel")) {
+          result = await this.scrapeBoxtel();
+        } else if (feed.feedType === "scraper" && feed.url.includes("goedgestel")) {
+          result = await this.scrapeSintMichielsgestel();
+        } else if (feed.feedType === "scraper" && feed.url.includes("visitvught")) {
+          result = await this.scrapeVught();
+        } else if (feed.feedType === "scraper" && feed.url.includes("beleveninoosterhout")) {
+          result = await this.scrapeOosterhout();
+        } else if (feed.feedType === "scraper" && feed.url.includes("explorebreda")) {
+          result = await this.scrapeBreda();
+        } else if (feed.feedType === "scraper" && feed.url.includes("grenslanddebaronie")) {
+          result = await this.scrapeGrensland();
         } else {
           result = await this.fetchAndParseRssFeed(feed.url);
         }

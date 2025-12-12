@@ -1737,6 +1737,128 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
+  // Incomplete feed items endpoints
+  app.get("/api/admin/incomplete-items", isAdmin, async (req, res) => {
+    try {
+      const feedId = req.query.feedId ? parseInt(req.query.feedId as string) : undefined;
+      const items = await storage.getIncompleteItems(feedId);
+      res.json(items);
+    } catch (error) {
+      console.error('Error in GET /api/admin/incomplete-items:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/incomplete-items/count", isAdmin, async (req, res) => {
+    try {
+      const feedId = req.query.feedId ? parseInt(req.query.feedId as string) : undefined;
+      const count = await storage.getIncompleteItemsCount(feedId);
+      res.json({ count });
+    } catch (error) {
+      console.error('Error in GET /api/admin/incomplete-items/count:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/rss-feeds/:id/summary", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+      const summary = await storage.getFeedItemsSummary(feedId);
+      res.json(summary);
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/:id/summary:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/admin/incomplete-items/:id", isAdmin, async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      if (isNaN(itemId)) {
+        return res.status(400).json({ message: "Invalid item ID" });
+      }
+      const updated = await storage.updateRssFeedItem(itemId, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error('Error in PATCH /api/admin/incomplete-items/:id:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/admin/incomplete-items/:id", isAdmin, async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      if (isNaN(itemId)) {
+        return res.status(400).json({ message: "Invalid item ID" });
+      }
+      await storage.deleteRssFeedItem(itemId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error in DELETE /api/admin/incomplete-items/:id:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/admin/incomplete-items/:id/skip", isAdmin, async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      if (isNaN(itemId)) {
+        return res.status(400).json({ message: "Invalid item ID" });
+      }
+      const updated = await storage.updateRssFeedItem(itemId, { 
+        processingStatus: 'skipped',
+        isProcessed: true 
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error('Error in POST /api/admin/incomplete-items/:id/skip:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Corrections endpoints
+  app.get("/api/admin/corrections", isAdmin, async (req, res) => {
+    try {
+      const feedId = req.query.feedId ? parseInt(req.query.feedId as string) : undefined;
+      const corrections = await storage.getCorrectionsForFeed(feedId);
+      res.json(corrections);
+    } catch (error) {
+      console.error('Error in GET /api/admin/corrections:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/admin/corrections", isAdmin, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const correction = await storage.createCorrection({
+        ...req.body,
+        createdBy: user?.id
+      });
+      res.json(correction);
+    } catch (error) {
+      console.error('Error in POST /api/admin/corrections:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/admin/corrections/:id", isAdmin, async (req, res) => {
+    try {
+      const correctionId = parseInt(req.params.id);
+      if (isNaN(correctionId)) {
+        return res.status(400).json({ message: "Invalid correction ID" });
+      }
+      await storage.deleteCorrection(correctionId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error in DELETE /api/admin/corrections/:id:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Setup VITE server
   await setupVite(app, httpServer);
   

@@ -300,6 +300,132 @@ export class RssFeedService {
     return validation.isValid;
   }
 
+  /**
+   * Log an incomplete feed item to the database for later manual review
+   */
+  static async logIncompleteItem(
+    feedId: number,
+    data: {
+      externalId: string;
+      title: string;
+      description?: string;
+      link?: string;
+      imageUrl?: string;
+      rawData?: any;
+      missingFields: string[];
+      derivedData?: {
+        geocodedAddress?: string;
+        geocodedLat?: number;
+        geocodedLng?: number;
+        parsedStartDate?: string;
+        parsedEndDate?: string;
+        detectedVenue?: string;
+        validationErrors?: string[];
+      };
+    }
+  ): Promise<void> {
+    try {
+      // Check if item already exists
+      const existing = await db.select().from(rssFeedItems)
+        .where(and(
+          eq(rssFeedItems.feedId, feedId),
+          eq(rssFeedItems.externalId, data.externalId)
+        ))
+        .limit(1);
+      
+      if (existing.length > 0) {
+        // Update existing incomplete item
+        await db.update(rssFeedItems)
+          .set({
+            title: data.title,
+            description: data.description,
+            link: data.link,
+            imageUrl: data.imageUrl,
+            rawData: data.rawData,
+            processingStatus: 'incomplete',
+            missingFields: data.missingFields,
+            derivedData: data.derivedData,
+            lastAttemptedAt: new Date(),
+          })
+          .where(eq(rssFeedItems.id, existing[0].id));
+      } else {
+        // Create new incomplete item
+        await db.insert(rssFeedItems).values([{
+          feedId,
+          externalId: data.externalId,
+          title: data.title,
+          description: data.description,
+          link: data.link,
+          imageUrl: data.imageUrl,
+          rawData: data.rawData,
+          processingStatus: 'incomplete',
+          missingFields: data.missingFields,
+          derivedData: data.derivedData,
+          lastAttemptedAt: new Date(),
+          isProcessed: false,
+        }]);
+      }
+      
+      console.log(`[RSS] Logged incomplete item: "${data.title}" (missing: ${data.missingFields.join(', ')})`);
+    } catch (error: any) {
+      console.error(`[RSS] Failed to log incomplete item:`, error.message);
+    }
+  }
+
+  /**
+   * Mark a feed item as successfully imported
+   */
+  static async markItemImported(
+    feedId: number,
+    externalId: string,
+    eventId: number
+  ): Promise<void> {
+    try {
+      const existing = await db.select().from(rssFeedItems)
+        .where(and(
+          eq(rssFeedItems.feedId, feedId),
+          eq(rssFeedItems.externalId, externalId)
+        ))
+        .limit(1);
+      
+      if (existing.length > 0) {
+        await db.update(rssFeedItems)
+          .set({
+            eventId,
+            processingStatus: 'imported',
+            isProcessed: true,
+            lastAttemptedAt: new Date(),
+          })
+          .where(eq(rssFeedItems.id, existing[0].id));
+      }
+    } catch (error: any) {
+      console.error(`[RSS] Failed to mark item imported:`, error.message);
+    }
+  }
+
+  /**
+   * Mark a feed item as skipped (explicitly excluded by user/admin)
+   */
+  static async markItemSkipped(
+    feedId: number,
+    externalId: string
+  ): Promise<void> {
+    try {
+      await db.update(rssFeedItems)
+        .set({
+          processingStatus: 'skipped',
+          isProcessed: true,
+          lastAttemptedAt: new Date(),
+        })
+        .where(and(
+          eq(rssFeedItems.feedId, feedId),
+          eq(rssFeedItems.externalId, externalId)
+        ));
+    } catch (error: any) {
+      console.error(`[RSS] Failed to mark item skipped:`, error.message);
+    }
+  }
+
   static async getUnsplashImage(category: string, searchTerms?: string): Promise<string | null> {
     const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
     if (!unsplashKey) {

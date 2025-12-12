@@ -685,7 +685,7 @@ export class PgStorage implements IStorage {
 
   async createRssFeedItem(item: InsertRssFeedItem): Promise<RssFeedItem> {
     return this.withRetry(async () => {
-      const [created] = await db.insert(rssFeedItems).values(item).returning();
+      const [created] = await db.insert(rssFeedItems).values([item]).returning();
       return created;
     });
   }

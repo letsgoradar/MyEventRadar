@@ -41,6 +41,7 @@ import {
 import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 import ProfilePhotoUpload from "./ProfilePhotoUpload";
 import { NotificationCenter } from "./NotificationCenter";
+import { InstallPrompt } from "@/components/PWA/InstallPrompt";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -697,6 +698,9 @@ export function AppLayout({
           </AnimatePresence>
         }
       </div>
+      
+      {/* PWA installatie prompt */}
+      <InstallPrompt />
       
       {/* Bottom navigation - alleen tonen als niet verborgen */}
       {!hideBottomNav && <AppBottomNav />}

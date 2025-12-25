@@ -1,0 +1,29 @@
+{
+  "name": "letsgo radar",
+  "short_name": "letsgo",
+  "description": "Ontdek lokale evenementen in jouw buurt met letsgo radar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5fcfa",
+  "theme_color": "#60d0b8",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/letsgo-radar-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/letsgo-radar-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "social", "entertainment"],
+  "lang": "nl",
+  "dir": "ltr",
+  "scope": "/",
+  "prefer_related_applications": false
+}

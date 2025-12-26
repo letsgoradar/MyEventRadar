@@ -319,3 +319,20 @@ export const insertRssItemCorrectionSchema = createInsertSchema(rssItemCorrectio
   appliedCount: true,
 });
 export type InsertRssItemCorrection = z.infer<typeof insertRssItemCorrectionSchema>;
+
+export const leads = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  citySlug: text("city_slug"),
+  source: text("source").default('website'),
+  isSubscribed: boolean("is_subscribed").default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertLeadSchema = createInsertSchema(leads).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = z.infer<typeof insertLeadSchema>;

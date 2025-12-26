@@ -44,6 +44,7 @@ import AppMyEventsPage from "@/pages/App/my-events"
 import AppProfilePage from "@/pages/App/profile"
 import { AppWelcomePage } from "@/pages/App/welcome"
 import AppForgotPasswordPage from "@/pages/App/forgot-password"
+import CityPage from "@/pages/public/CityPage"
 
 // Helper component voor redirects
 function AppRedirect({ to }: { to: string }) {
@@ -277,6 +278,14 @@ export default function App() {
         </Route>
         <Route path="/app">
           <AppHomePage />
+        </Route>
+
+        {/* Public SEO Routes - stadspagina's */}
+        <Route path="/:province/:city/evenementen">
+          <CityPage />
+        </Route>
+        <Route path="/:province/:city">
+          <CityPage />
         </Route>
 
         {/* Theme preview route */}

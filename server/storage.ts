@@ -12,6 +12,7 @@ import {
   rssFeeds,
   rssFeedItems,
   rssItemCorrections,
+  leads,
   type User,
   type InsertUser,
   type Event,
@@ -32,6 +33,8 @@ import {
   type InsertRssFeedItem,
   type RssItemCorrection,
   type InsertRssItemCorrection,
+  type Lead,
+  type InsertLead,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
@@ -116,6 +119,17 @@ export interface IStorage {
   findMatchingCorrections(fieldKey: string, originalValue: string): Promise<RssItemCorrection[]>;
   incrementCorrectionCount(id: number): Promise<void>;
   deleteCorrection(id: number): Promise<void>;
+
+  // Lead operations
+  createLead(lead: InsertLead): Promise<Lead>;
+  getLeadByEmail(email: string): Promise<Lead | undefined>;
+  getLeadsByCitySlug(citySlug: string): Promise<Lead[]>;
+  getAllLeads(): Promise<Lead[]>;
+  getLeadCount(): Promise<number>;
+
+  // Public data operations
+  getEventsByCitySlug(citySlug: string, limit?: number): Promise<Event[]>;
+  getEventCountByCitySlug(citySlug: string): Promise<number>;
 }
 
 export class PgStorage implements IStorage {
@@ -762,6 +776,84 @@ export class PgStorage implements IStorage {
   async deleteCorrection(id: number): Promise<void> {
     return this.withRetry(async () => {
       await db.delete(rssItemCorrections).where(eq(rssItemCorrections.id, id));
+    });
+  }
+
+  async createLead(lead: InsertLead): Promise<Lead> {
+    return this.withRetry(async () => {
+      const [created] = await db.insert(leads).values(lead).returning();
+      return created;
+    });
+  }
+
+  async getLeadByEmail(email: string): Promise<Lead | undefined> {
+    return this.withRetry(async () => {
+      const [lead] = await db.select().from(leads).where(eq(leads.email, email));
+      return lead;
+    });
+  }
+
+  async getLeadsByCitySlug(citySlug: string): Promise<Lead[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(leads)
+        .where(eq(leads.citySlug, citySlug))
+        .orderBy(desc(leads.createdAt));
+    });
+  }
+
+  async getAllLeads(): Promise<Lead[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(leads).orderBy(desc(leads.createdAt));
+    });
+  }
+
+  async getLeadCount(): Promise<number> {
+    return this.withRetry(async () => {
+      const result = await db.select({ count: count() }).from(leads);
+      return result[0]?.count || 0;
+    });
+  }
+
+  async getEventsByCitySlug(citySlug: string, limit: number = 50): Promise<Event[]> {
+    return this.withRetry(async () => {
+      const { getCityBySlug } = await import('@shared/cities');
+      const city = getCityBySlug(citySlug);
+      if (!city) return [];
+
+      const radiusKm = 15;
+      const latDiff = radiusKm / 111;
+      const lonDiff = radiusKm / (111 * Math.cos(city.latitude * Math.PI / 180));
+
+      const now = new Date();
+      return await db.select().from(events)
+        .where(and(
+          sql`${events.latitude}::float BETWEEN ${city.latitude - latDiff} AND ${city.latitude + latDiff}`,
+          sql`${events.longitude}::float BETWEEN ${city.longitude - lonDiff} AND ${city.longitude + lonDiff}`,
+          sql`${events.startTime} >= ${now}`
+        ))
+        .orderBy(events.startTime)
+        .limit(limit);
+    });
+  }
+
+  async getEventCountByCitySlug(citySlug: string): Promise<number> {
+    return this.withRetry(async () => {
+      const { getCityBySlug } = await import('@shared/cities');
+      const city = getCityBySlug(citySlug);
+      if (!city) return 0;
+
+      const radiusKm = 15;
+      const latDiff = radiusKm / 111;
+      const lonDiff = radiusKm / (111 * Math.cos(city.latitude * Math.PI / 180));
+
+      const now = new Date();
+      const result = await db.select({ count: count() }).from(events)
+        .where(and(
+          sql`${events.latitude}::float BETWEEN ${city.latitude - latDiff} AND ${city.latitude + latDiff}`,
+          sql`${events.longitude}::float BETWEEN ${city.longitude - lonDiff} AND ${city.longitude + lonDiff}`,
+          sql`${events.startTime} >= ${now}`
+        ));
+      return result[0]?.count || 0;
     });
   }
 }

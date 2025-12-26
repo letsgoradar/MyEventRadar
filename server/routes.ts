@@ -1969,6 +1969,125 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
+  // ========================================
+  // PUBLIC SEO ENDPOINTS (no authentication)
+  // ========================================
+
+  // Get all active cities
+  app.get("/api/public/cities", async (req, res) => {
+    try {
+      const { getActiveCities, getAllProvinces } = await import('@shared/cities');
+      const cities = getActiveCities();
+      const provinces = getAllProvinces();
+      res.json({ cities, provinces });
+    } catch (error: any) {
+      console.error('Error in GET /api/public/cities:', error);
+      res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+
+  // Get events for a specific city
+  app.get("/api/public/events/:citySlug", async (req, res) => {
+    try {
+      const { citySlug } = req.params;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const events = await storage.getEventsByCitySlug(citySlug, limit);
+      const count = await storage.getEventCountByCitySlug(citySlug);
+      res.json({ events, count });
+    } catch (error: any) {
+      console.error('Error in GET /api/public/events/:citySlug:', error);
+      res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+
+  // Get city info with content
+  app.get("/api/public/city/:citySlug", async (req, res) => {
+    try {
+      const { citySlug } = req.params;
+      const { getCityBySlug } = await import('@shared/cities');
+      const { getCityContent } = await import('@shared/content');
+      
+      const city = getCityBySlug(citySlug);
+      if (!city) {
+        return res.status(404).json({ message: "City not found" });
+      }
+      
+      const content = getCityContent(citySlug, city.name, city.province);
+      const eventCount = await storage.getEventCountByCitySlug(citySlug);
+      
+      res.json({ city, content, eventCount });
+    } catch (error: any) {
+      console.error('Error in GET /api/public/city/:citySlug:', error);
+      res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+
+  // Lead capture endpoint
+  app.post("/api/leads", async (req, res) => {
+    try {
+      const { email, citySlug, source } = req.body;
+      
+      if (!email || !email.includes('@')) {
+        return res.status(400).json({ message: "Ongeldig emailadres" });
+      }
+
+      const existingLead = await storage.getLeadByEmail(email);
+      if (existingLead) {
+        return res.json({ success: true, message: "Je bent al aangemeld!", isExisting: true });
+      }
+
+      const lead = await storage.createLead({
+        email,
+        citySlug: citySlug || null,
+        source: source || 'website',
+      });
+
+      res.json({ success: true, message: "Bedankt voor je aanmelding!", lead });
+    } catch (error: any) {
+      console.error('Error in POST /api/leads:', error);
+      res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+
+  // Admin: get all leads
+  app.get("/api/admin/leads", isAdmin, async (req, res) => {
+    try {
+      const leads = await storage.getAllLeads();
+      const count = await storage.getLeadCount();
+      res.json({ leads, count });
+    } catch (error: any) {
+      console.error('Error in GET /api/admin/leads:', error);
+      res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+
+  // Sitemap.xml generator
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const { getActiveCities, generateCityEventsUrl } = await import('@shared/cities');
+      const cities = getActiveCities();
+      const baseUrl = `https://${req.get('host')}`;
+      
+      let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
+      sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+      
+      sitemap += `  <url>\n    <loc>${baseUrl}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n`;
+      
+      for (const city of cities) {
+        const cityUrl = generateCityEventsUrl(city);
+        sitemap += `  <url>\n    <loc>${baseUrl}${cityUrl}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+      }
+      
+      sitemap += '</urlset>';
+      
+      res.set('Content-Type', 'application/xml');
+      res.send(sitemap);
+    } catch (error: any) {
+      console.error('Error generating sitemap:', error);
+      res.status(500).send('Error generating sitemap');
+    }
+  });
+
   // Setup VITE server
   await setupVite(app, httpServer);
   

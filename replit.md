@@ -143,7 +143,53 @@ Alle feeds moeten voldoen aan deze gestandaardiseerde regels (zie `server/config
 
 API endpoint voor principes: `GET /api/admin/feed-import-principles`
 
+## Public SEO Architecture
+
+### Overview
+The application implements a dual-architecture approach: React SPA for authenticated users and public SEO-optimized pages for discoverability.
+
+### City Landing Pages
+- URL pattern: `/:province/:city/evenementen` (e.g., `/noord-brabant/tilburg/evenementen`)
+- Each city has a dedicated landing page with:
+  - JSON-LD Event schema for Google structured data
+  - Unique content variations per city (intro, description, CTA)
+  - Event listings with category icons and date formatting
+  - Lead capture form for email subscriptions
+
+### Configuration Files
+- `shared/cities.ts` - City configuration with slugs, provinces, coordinates, and `isActive` flags
+- `shared/content.ts` - Content variation templates (intro variants, description variants, CTA variants)
+
+### API Endpoints
+- `GET /api/public/cities` - Get all active cities and provinces
+- `GET /api/public/city/:citySlug?provinceSlug=...` - Get city info with content (validates province)
+- `GET /api/public/events/:citySlug?provinceSlug=...` - Get events for city (validates province)
+- `POST /api/leads` - Lead capture (Zod validated)
+- `GET /sitemap.xml` - Dynamic sitemap based on active cities
+
+### Lead Capture System
+- Database table: `leads` (id, email, citySlug, source, createdAt)
+- LeadForm component with success/loading states
+- Duplicate detection prevents multiple signups
+
+### Adding New Cities
+1. Add city to `CITIES` array in `shared/cities.ts`:
+   ```typescript
+   { slug: 'amsterdam', name: 'Amsterdam', province: 'Noord-Holland', provinceSlug: 'noord-holland', latitude: 52.3676, longitude: 4.9041, isActive: true }
+   ```
+2. Sitemap.xml automatically includes new active cities
+3. Content variations are generated based on city name and province
+
 ## Recent Changes
+- December 26, 2025: **PUBLIC SEO CITY PAGES** - Publieke stadspagina's voor event discovery
+  - Nieuwe `shared/cities.ts` met 5 steden: Tilburg, Den Bosch, Breda, Eindhoven, Veghel
+  - Nieuwe `shared/content.ts` met content variaties voor unieke pagina's per stad
+  - LeadForm component voor email capture met Zod validatie
+  - CityPage met JSON-LD Event schema voor Google structured data
+  - API endpoints: `/api/public/cities`, `/api/public/city/:citySlug`, `/api/public/events/:citySlug`, `/api/leads`
+  - Automatische sitemap.xml generator op basis van actieve steden
+  - Province slug validatie voor canonical URL's
+  - Database tabel: `leads` (email, citySlug, source, createdAt)
 - December 12, 2025: **INTELLIGENTE PAGINATIE-DETECTIE** - Standaard scraper nu met automatische paginatie
   - Nieuwe `detectPagination()` functie detecteert 5 paginatie-patronen:
     1. WordPress-style /page/N/ (zoals tilburg.com)

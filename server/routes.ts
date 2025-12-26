@@ -1990,6 +1990,18 @@ Respond with ONLY the search term, nothing else.`
   app.get("/api/public/events/:citySlug", async (req, res) => {
     try {
       const { citySlug } = req.params;
+      const { provinceSlug } = req.query;
+      const { getCityBySlug } = await import('@shared/cities');
+      
+      const city = getCityBySlug(citySlug);
+      if (!city) {
+        return res.status(404).json({ message: "City not found", events: [], count: 0 });
+      }
+      
+      if (provinceSlug && city.provinceSlug !== provinceSlug) {
+        return res.status(404).json({ message: "City not found in this province", events: [], count: 0 });
+      }
+      
       const limit = parseInt(req.query.limit as string) || 50;
       const events = await storage.getEventsByCitySlug(citySlug, limit);
       const count = await storage.getEventCountByCitySlug(citySlug);
@@ -2000,16 +2012,21 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
-  // Get city info with content
+  // Get city info with content (with optional province validation)
   app.get("/api/public/city/:citySlug", async (req, res) => {
     try {
       const { citySlug } = req.params;
+      const { provinceSlug } = req.query;
       const { getCityBySlug } = await import('@shared/cities');
       const { getCityContent } = await import('@shared/content');
       
       const city = getCityBySlug(citySlug);
       if (!city) {
         return res.status(404).json({ message: "City not found" });
+      }
+      
+      if (provinceSlug && city.provinceSlug !== provinceSlug) {
+        return res.status(404).json({ message: "City not found in this province" });
       }
       
       const content = getCityContent(citySlug, city.name, city.province);
@@ -2025,11 +2042,17 @@ Respond with ONLY the search term, nothing else.`
   // Lead capture endpoint
   app.post("/api/leads", async (req, res) => {
     try {
-      const { email, citySlug, source } = req.body;
+      const { insertLeadSchema } = await import('@shared/schema');
       
-      if (!email || !email.includes('@')) {
-        return res.status(400).json({ message: "Ongeldig emailadres" });
+      const parsed = insertLeadSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          message: "Ongeldig invoer", 
+          errors: parsed.error.flatten().fieldErrors 
+        });
       }
+      
+      const { email, citySlug, source } = parsed.data;
 
       const existingLead = await storage.getLeadByEmail(email);
       if (existingLead) {

@@ -91,14 +91,39 @@ function formatDate(date: string | Date): string {
 export default function CityPage() {
   const params = useParams();
   const citySlug = params.city as string;
+  const provinceSlug = params.province as string;
 
-  const { data: cityData, isLoading: isCityLoading } = useQuery<CityPageData>({
-    queryKey: ['/api/public/city', citySlug],
+  const cityApiUrl = citySlug && provinceSlug 
+    ? `/api/public/city/${citySlug}?provinceSlug=${encodeURIComponent(provinceSlug)}`
+    : null;
+    
+  const { data: cityData, isLoading: isCityLoading, isError: isCityError } = useQuery<CityPageData>({
+    queryKey: ['/api/public/city', provinceSlug, citySlug],
+    queryFn: async () => {
+      if (!cityApiUrl) throw new Error('Missing params');
+      const response = await fetch(cityApiUrl);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'City not found');
+      }
+      return response.json();
+    },
+    enabled: !!citySlug && !!provinceSlug,
   });
 
+  const eventsApiUrl = citySlug && provinceSlug
+    ? `/api/public/events/${citySlug}?provinceSlug=${encodeURIComponent(provinceSlug)}`
+    : null;
+
   const { data: eventsData, isLoading: isEventsLoading } = useQuery<CityEventsData>({
-    queryKey: ['/api/public/events', citySlug],
-    enabled: !!citySlug,
+    queryKey: ['/api/public/events', provinceSlug, citySlug],
+    queryFn: async () => {
+      if (!eventsApiUrl) throw new Error('Missing params');
+      const response = await fetch(eventsApiUrl);
+      if (!response.ok) return { events: [], count: 0 };
+      return response.json();
+    },
+    enabled: !!citySlug && !!provinceSlug && !!cityData?.city,
   });
 
   useEffect(() => {

@@ -2906,6 +2906,287 @@ export class RssFeedService {
     }
   }
 
+  /**
+   * INTONIJMEGEN SCRAPER - Scrapes events from intonijmegen.com
+   * The website has an agenda page with event listings
+   */
+  static async scrapeIntoNijmegen(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const baseUrl = 'https://www.intonijmegen.com';
+      const agendaUrl = `${baseUrl}/agenda/agenda-overzicht`;
+      
+      console.log(`[RSS] Scraping IntoNijmegen agenda...`);
+      
+      // Known Nijmegen venues with GPS coordinates
+      const nijmegenVenues: Record<string, { lat: number; lng: number; address: string }> = {
+        'doornroosje': { lat: 51.8414, lng: 5.8689, address: 'Doornroosje, Nijmegen' },
+        'de vereeniging': { lat: 51.8445, lng: 5.8674, address: 'Concertgebouw De Vereeniging, Nijmegen' },
+        'lindenbergtheater': { lat: 51.8448, lng: 5.8646, address: 'LindenbergTheater, Nijmegen' },
+        'lindenberg': { lat: 51.8448, lng: 5.8646, address: 'LindenbergTheater, Nijmegen' },
+        'honig complex': { lat: 51.8440, lng: 5.8505, address: 'Honig Complex, Nijmegen' },
+        'honigcomplex': { lat: 51.8440, lng: 5.8505, address: 'Honig Complex, Nijmegen' },
+        'waalkade': { lat: 51.8468, lng: 5.8665, address: 'Waalkade, Nijmegen' },
+        'grote markt': { lat: 51.8461, lng: 5.8636, address: 'Grote Markt, Nijmegen' },
+        'valkhof': { lat: 51.8487, lng: 5.8688, address: 'Valkhofpark, Nijmegen' },
+        'valkhofpark': { lat: 51.8487, lng: 5.8688, address: 'Valkhofpark, Nijmegen' },
+        'goffertpark': { lat: 51.8280, lng: 5.8510, address: 'Goffertpark, Nijmegen' },
+        'goffertstadion': { lat: 51.8280, lng: 5.8510, address: 'Goffertstadion, Nijmegen' },
+        'de stevenskerk': { lat: 51.8465, lng: 5.8620, address: 'Stevenskerk, Nijmegen' },
+        'stevenskerk': { lat: 51.8465, lng: 5.8620, address: 'Stevenskerk, Nijmegen' },
+        'merleyn': { lat: 51.8426, lng: 5.8658, address: 'Merleyn, Nijmegen' },
+        'lux': { lat: 51.8465, lng: 5.8570, address: 'LUX, Nijmegen' },
+        'luxor': { lat: 51.8465, lng: 5.8570, address: 'LUX, Nijmegen' },
+        'kronenburgerpark': { lat: 51.8440, lng: 5.8580, address: 'Kronenburgerpark, Nijmegen' },
+        'museum het valkhof': { lat: 51.8495, lng: 5.8700, address: 'Museum Het Valkhof, Nijmegen' },
+        'de bastei': { lat: 51.8495, lng: 5.8660, address: 'De Bastei, Nijmegen' },
+        'de lindenberg': { lat: 51.8448, lng: 5.8646, address: 'De Lindenberg, Nijmegen' },
+        'stadsschouwburg': { lat: 51.8445, lng: 5.8674, address: 'Stadsschouwburg, Nijmegen' },
+        'radboud universiteit': { lat: 51.8203, lng: 5.8657, address: 'Radboud Universiteit, Nijmegen' },
+        'hunnerpark': { lat: 51.8505, lng: 5.8650, address: 'Hunnerpark, Nijmegen' },
+        'de kaaij': { lat: 51.8500, lng: 5.8730, address: 'De Kaaij, Nijmegen' },
+        'onderbroek': { lat: 51.8480, lng: 5.8600, address: 'De Onderbroek, Nijmegen' },
+      };
+      
+      // Dutch month names
+      const monthNames: Record<string, number> = {
+        'januari': 0, 'februari': 1, 'maart': 2, 'april': 3,
+        'mei': 4, 'juni': 5, 'juli': 6, 'augustus': 7,
+        'september': 8, 'oktober': 9, 'november': 10, 'december': 11,
+        'jan': 0, 'feb': 1, 'mrt': 2, 'apr': 3,
+        'jun': 5, 'jul': 6, 'aug': 7, 'sep': 8, 'okt': 9, 'nov': 10, 'dec': 11
+      };
+      
+      // Step 1: Collect all event links from the agenda pages
+      const eventLinks: string[] = [];
+      const maxPages = 30;
+      
+      for (let page = 1; page <= maxPages; page++) {
+        try {
+          const pageUrl = page === 1 ? agendaUrl : `${agendaUrl}?page=${page}`;
+          console.log(`[RSS] Fetching IntoNijmegen agenda page ${page}...`);
+          
+          const response = await axios.get(pageUrl, {
+            headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
+            timeout: 30000
+          });
+          
+          const $ = cheerio.load(response.data);
+          const linksBeforeThisPage = eventLinks.length;
+          
+          // Find event links - look for agenda item links
+          $('a[href*="/agenda/"]').each((_, el) => {
+            const href = $(el).attr('href');
+            if (!href || href === '/agenda' || href.includes('agenda-overzicht') || href.includes('?page=')) return;
+            
+            const fullLink = href.startsWith('http') ? href : `${baseUrl}${href}`;
+            if (!eventLinks.includes(fullLink)) {
+              eventLinks.push(fullLink);
+            }
+          });
+          
+          const newLinksOnPage = eventLinks.length - linksBeforeThisPage;
+          console.log(`[RSS] Page ${page}: found ${newLinksOnPage} new event links (total: ${eventLinks.length})`);
+          
+          if (newLinksOnPage === 0) {
+            console.log(`[RSS] No new events on page ${page}, stopping pagination`);
+            break;
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error: any) {
+          if (error.response?.status === 404) {
+            console.log(`[RSS] Page ${page}: 404, end of pagination`);
+            break;
+          }
+          console.log(`[RSS] Page ${page} error: ${error.message}`);
+          break;
+        }
+      }
+      
+      console.log(`[RSS] Found ${eventLinks.length} Nijmegen event links, fetching details...`);
+      
+      // Step 2: Fetch each event page for details
+      let successCount = 0;
+      let skippedCount = 0;
+      
+      for (let i = 0; i < eventLinks.length; i++) {
+        const eventUrl = eventLinks[i];
+        try {
+          if (i > 0 && i % 20 === 0) {
+            console.log(`[RSS] Progress: ${i}/${eventLinks.length} events processed (${successCount} success, ${skippedCount} skipped)`);
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 400));
+          
+          const eventResponse = await axios.get(eventUrl, {
+            headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
+            timeout: 15000
+          });
+          
+          const $ = cheerio.load(eventResponse.data);
+          
+          // Try to find JSON-LD structured data first
+          let eventData: any = null;
+          const jsonLdScripts = $('script[type="application/ld+json"]');
+          
+          for (let j = 0; j < jsonLdScripts.length; j++) {
+            try {
+              const content = $(jsonLdScripts[j]).html();
+              if (!content) continue;
+              const parsed = JSON.parse(content);
+              const events = Array.isArray(parsed) ? parsed : [parsed];
+              for (const ev of events) {
+                if (ev['@type'] === 'Event') {
+                  eventData = ev;
+                  break;
+                }
+              }
+              if (eventData) break;
+            } catch {}
+          }
+          
+          let title = '';
+          let description = '';
+          let imageUrl = '';
+          let venueName = '';
+          let fullAddress = '';
+          let latitude: number | undefined;
+          let longitude: number | undefined;
+          let startTime: Date | undefined;
+          let endTime: Date | undefined;
+          
+          if (eventData) {
+            // Extract from JSON-LD
+            title = eventData.name || '';
+            description = eventData.description || '';
+            imageUrl = eventData.image || '';
+            
+            const location = eventData.location;
+            if (location) {
+              venueName = location.name || '';
+              const address = location.address;
+              if (typeof address === 'string') {
+                fullAddress = address;
+              } else if (address) {
+                fullAddress = [address.streetAddress, address.postalCode, address.addressLocality].filter(Boolean).join(', ');
+              }
+              if (location.geo) {
+                latitude = parseFloat(location.geo.latitude);
+                longitude = parseFloat(location.geo.longitude);
+              }
+            }
+            
+            if (eventData.startDate) {
+              startTime = new Date(eventData.startDate);
+            }
+            if (eventData.endDate) {
+              endTime = new Date(eventData.endDate);
+            }
+          } else {
+            // Fallback to HTML scraping
+            title = $('h1').first().text().trim() || $('title').text().split('|')[0].trim();
+            description = $('meta[name="description"]').attr('content') || 
+                         $('.event-description, .description, .content').first().text().trim();
+            imageUrl = $('meta[property="og:image"]').attr('content') || 
+                      $('.event-image img, .hero-image img, article img').first().attr('src') || '';
+            
+            // Try to find date info
+            const dateText = $('.event-date, .date, time').first().text().toLowerCase();
+            const dateMatch = dateText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december|jan|feb|mrt|apr|jun|jul|aug|sep|okt|nov|dec)\s*(\d{4})?/);
+            if (dateMatch) {
+              const day = parseInt(dateMatch[1]);
+              const month = monthNames[dateMatch[2]];
+              const year = dateMatch[3] ? parseInt(dateMatch[3]) : new Date().getFullYear();
+              if (!isNaN(day) && month !== undefined) {
+                startTime = new Date(year, month, day);
+              }
+            }
+            
+            venueName = $('.venue, .location-name').first().text().trim();
+          }
+          
+          if (!title) {
+            skippedCount++;
+            continue;
+          }
+          
+          // Try to match venue to known locations
+          if (!latitude || !longitude) {
+            const venueLower = (venueName + ' ' + fullAddress).toLowerCase();
+            for (const [key, venue] of Object.entries(nijmegenVenues)) {
+              if (venueLower.includes(key)) {
+                latitude = venue.lat;
+                longitude = venue.lng;
+                if (!fullAddress) fullAddress = venue.address;
+                break;
+              }
+            }
+          }
+          
+          // Fallback to Nijmegen city center if no GPS
+          if (!latitude || !longitude) {
+            const geoResult = await this.geocodeWithMunicipalityValidation(
+              fullAddress || venueName || 'Nijmegen centrum',
+              'Nijmegen'
+            );
+            if (geoResult) {
+              latitude = geoResult.lat;
+              longitude = geoResult.lon;
+              if (!fullAddress) fullAddress = geoResult.displayName || 'Nijmegen';
+            }
+          }
+          
+          // Skip events without GPS
+          if (!latitude || !longitude) {
+            console.log(`[RSS] SKIPPED Nijmegen event (no GPS): ${title}`);
+            skippedCount++;
+            continue;
+          }
+          
+          // Skip past events
+          if (startTime && startTime < new Date()) {
+            skippedCount++;
+            continue;
+          }
+          
+          const urlSlug = eventUrl.split('/').filter(Boolean).pop() || `${Date.now()}`;
+          const externalId = `intonijmegen-${urlSlug}`;
+          
+          if (!imageUrl.startsWith('http') && imageUrl) {
+            imageUrl = `${baseUrl}${imageUrl}`;
+          }
+          
+          items.push({
+            externalId,
+            title: this.cleanText(title),
+            description: this.cleanText(description || `${title} in Nijmegen. ${fullAddress ? `Locatie: ${fullAddress}.` : ''}`),
+            link: eventUrl,
+            imageUrl: imageUrl || undefined,
+            publishedAt: startTime,
+            startTime,
+            endTime,
+            address: fullAddress || venueName || 'Nijmegen',
+            latitude,
+            longitude,
+            rawData: eventData || { url: eventUrl, venue: venueName }
+          });
+          
+          successCount++;
+        } catch (error: any) {
+          console.log(`[RSS] Error fetching Nijmegen event ${eventUrl}: ${error.message}`);
+          skippedCount++;
+        }
+      }
+      
+      console.log(`[RSS] Scraped ${items.length} events from IntoNijmegen (${successCount} success, ${skippedCount} skipped)`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping IntoNijmegen:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
   // Grensland De Baronie scraper - WordPress site covering Gilze en Rijen, Alphen-Chaam, Baarle-Nassau
   static async scrapeGrensland(): Promise<FeedParseResult> {
     try {
@@ -4409,6 +4690,8 @@ export class RssFeedService {
           result = await this.scrapeGrensland();
         } else if (feed.feedType === "scraper" && feed.url.includes("tilburg.com")) {
           result = await this.scrapeTilburg();
+        } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
+          result = await this.scrapeIntoNijmegen();
         } else if (feed.feedType === "scraper") {
           // Use intelligent universal scraper for unknown scraper feeds
           result = await this.scrapeUniversal(feed);

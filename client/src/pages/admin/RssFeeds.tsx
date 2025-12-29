@@ -905,25 +905,44 @@ export default function RssFeedsPage() {
                         </div>
                       )}
 
-                      {analysisResult.isViable && (
-                        <div className="pt-4 border-t">
-                          <Button
-                            onClick={() => {
+                      <div className="pt-4 border-t flex gap-2">
+                        <Button
+                          onClick={() => {
+                            try {
+                              const hostname = new URL(analyzeUrl).hostname.replace('www.', '');
+                              const cityMatch = hostname.match(/(?:in|van|uit|naar)?([a-z]+)/i);
+                              const suggestedCity = cityMatch ? cityMatch[1].charAt(0).toUpperCase() + cityMatch[1].slice(1) : '';
+                              
                               setNewFeed(prev => ({
                                 ...prev,
                                 url: analyzeUrl,
                                 feedType: analysisResult.feedType === 'html-scraper' ? 'scraper' : 'rss',
-                                name: `Nieuwe feed van ${new URL(analyzeUrl).hostname}`,
+                                name: `Events ${suggestedCity || hostname}`,
+                                municipality: suggestedCity,
+                                defaultAddress: suggestedCity,
                               }));
                               setIsAddDialogOpen(true);
-                            }}
-                            data-testid="button-create-from-analysis"
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Feed aanmaken op basis van analyse
-                          </Button>
-                        </div>
-                      )}
+                            } catch {
+                              setNewFeed(prev => ({
+                                ...prev,
+                                url: analyzeUrl,
+                                feedType: analysisResult.feedType === 'html-scraper' ? 'scraper' : 'rss',
+                              }));
+                              setIsAddDialogOpen(true);
+                            }
+                          }}
+                          variant={analysisResult.isViable ? 'default' : 'outline'}
+                          data-testid="button-create-from-analysis"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          {analysisResult.isViable ? 'Feed aanmaken' : 'Toch feed aanmaken'}
+                        </Button>
+                        {!analysisResult.isViable && (
+                          <p className="text-sm text-muted-foreground self-center">
+                            Je kunt de feed nog steeds handmatig toevoegen
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </CardContent>

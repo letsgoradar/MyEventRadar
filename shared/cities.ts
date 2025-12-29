@@ -63,7 +63,7 @@ export const CITIES: CityConfig[] = [
   { slug: 'veghel', name: 'Veghel', province: 'Noord-Brabant', provinceSlug: 'noord-brabant', latitude: 51.6167, longitude: 5.5500, population: 38000, isActive: true },
   { slug: 'uden', name: 'Uden', province: 'Noord-Brabant', provinceSlug: 'noord-brabant', latitude: 51.6600, longitude: 5.6200, population: 42000, isActive: false },
   { slug: 'maastricht', name: 'Maastricht', province: 'Limburg', provinceSlug: 'limburg', latitude: 50.8514, longitude: 5.6909, population: 121565, isActive: false },
-  { slug: 'nijmegen', name: 'Nijmegen', province: 'Gelderland', provinceSlug: 'gelderland', latitude: 51.8126, longitude: 5.8372, population: 177766, isActive: false },
+  { slug: 'nijmegen', name: 'Nijmegen', province: 'Gelderland', provinceSlug: 'gelderland', latitude: 51.8126, longitude: 5.8372, population: 177766, isActive: true },
   { slug: 'amsterdam', name: 'Amsterdam', province: 'Noord-Holland', provinceSlug: 'noord-holland', latitude: 52.3676, longitude: 4.9041, population: 872680, isActive: false },
   { slug: 'rotterdam', name: 'Rotterdam', province: 'Zuid-Holland', provinceSlug: 'zuid-holland', latitude: 51.9225, longitude: 4.4792, population: 651446, isActive: false },
   { slug: 'utrecht', name: 'Utrecht', province: 'Utrecht', provinceSlug: 'utrecht', latitude: 52.0907, longitude: 5.1214, population: 361924, isActive: false },

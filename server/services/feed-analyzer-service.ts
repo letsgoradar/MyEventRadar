@@ -8,6 +8,14 @@ import { FEED_IMPORT_PRINCIPLES } from "../config/rss-feed-rules";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+export interface AlternativeSource {
+  url: string;
+  type: 'rss' | 'atom' | 'json-api' | 'json-feed' | 'sitemap';
+  itemCount: number;
+  confidence: number;
+  recommendation: string;
+}
+
 export interface FeedAnalysisResult {
   url: string;
   feedType: 'rss' | 'atom' | 'json' | 'html-scraper' | 'unknown';
@@ -39,6 +47,14 @@ export interface FeedAnalysisResult {
   };
   suggestedMunicipality?: string;
   suggestedFeedName?: string;
+  alternativeSources?: AlternativeSource[];
+  discoveredApiEndpoint?: string;
+  recommendedImportMethod?: {
+    method: 'rss' | 'json-api' | 'scraper';
+    url: string;
+    reason: string;
+    estimatedEvents: number;
+  };
 }
 
 export class FeedAnalyzerService {
@@ -57,6 +73,7 @@ export class FeedAnalyzerService {
       warnings: [],
       missingRequiredFields: [],
       suggestions: [],
+      alternativeSources: [],
     };
 
     try {
@@ -78,6 +95,11 @@ export class FeedAnalyzerService {
       result.feedType = await this.detectFeedType(content, contentType, url);
       console.log(`[FeedAnalyzer] Detected feed type: ${result.feedType}`);
 
+      // For HTML pages, discover alternative sources first
+      if (result.feedType === 'html-scraper' && typeof content === 'string') {
+        await this.discoverAlternativeSources(content, url, result);
+      }
+
       switch (result.feedType) {
         case 'rss':
         case 'atom':
@@ -93,6 +115,9 @@ export class FeedAnalyzerService {
           result.warnings.push('Kon feed type niet automatisch detecteren');
           await this.useAiAnalysis(content, url, result);
       }
+
+      // Determine best import method
+      this.determineRecommendedMethod(result);
 
       this.validateAgainstImportRules(result);
       this.calculateConfidenceScore(result);
@@ -573,6 +598,175 @@ export class FeedAnalyzerService {
       }
     } catch {
       // Ignore URL parsing errors
+    }
+  }
+
+  private static async discoverAlternativeSources(
+    html: string,
+    baseUrl: string,
+    result: FeedAnalysisResult
+  ): Promise<void> {
+    const $ = cheerio.load(html);
+    const urlObj = new URL(baseUrl);
+    const origin = urlObj.origin;
+    const alternatives: AlternativeSource[] = [];
+
+    console.log(`[FeedAnalyzer] Discovering alternative sources for ${baseUrl}`);
+
+    // 1. Check for RSS/Atom links in HTML head
+    $('link[rel="alternate"]').each((_, el) => {
+      const type = $(el).attr('type') || '';
+      const href = $(el).attr('href');
+      if (href && (type.includes('rss') || type.includes('atom'))) {
+        const fullUrl = href.startsWith('http') ? href : `${origin}${href}`;
+        alternatives.push({
+          url: fullUrl,
+          type: type.includes('atom') ? 'atom' : 'rss',
+          itemCount: 0,
+          confidence: 90,
+          recommendation: 'Officiële RSS feed gevonden in HTML'
+        });
+      }
+    });
+
+    // 2. Look for embedded API endpoints (Nuxt, Next.js, etc.)
+    const scripts = $('script').map((_, el) => $(el).html()).get().join('\n');
+    
+    // Check for Nuxt hydration data
+    const nuxtMatch = scripts.match(/__NUXT__\s*=\s*(\{[\s\S]*?\});?\s*<\/script>/);
+    if (nuxtMatch) {
+      try {
+        // Look for API URLs in the data
+        const apiMatch = scripts.match(/["']([\/](?:api|nl\/api|en\/api)[\/][^"']+events[^"']*?)["']/i);
+        if (apiMatch) {
+          result.discoveredApiEndpoint = `${origin}${apiMatch[1]}`;
+          console.log(`[FeedAnalyzer] Found Nuxt API endpoint: ${result.discoveredApiEndpoint}`);
+        }
+      } catch {}
+    }
+
+    // Check for Next.js data
+    const nextDataScript = $('script#__NEXT_DATA__').html();
+    if (nextDataScript) {
+      try {
+        const nextData = JSON.parse(nextDataScript);
+        // Look for event data or API routes
+        if (nextData.props?.pageProps?.events?.length) {
+          result.eventStats = {
+            totalFound: nextData.props.pageProps.events.length,
+            importable: nextData.props.pageProps.events.length,
+            withGps: 0,
+            withDate: 0,
+            withImage: 0,
+            rejected: 0
+          };
+        }
+      } catch {}
+    }
+
+    // 3. Try common feed endpoints
+    const commonEndpoints = [
+      '/feed', '/feed.xml', '/rss', '/rss.xml', '/atom.xml',
+      '/api/events', '/api/events.json', '/events.json',
+      '/wp-json/wp/v2/events', '/feed/events'
+    ];
+
+    for (const endpoint of commonEndpoints) {
+      try {
+        const testUrl = `${origin}${endpoint}`;
+        const testResponse = await axios.head(testUrl, {
+          headers: { "User-Agent": this.USER_AGENT },
+          timeout: 5000,
+          validateStatus: (status) => status < 400
+        });
+        
+        if (testResponse.status === 200) {
+          const contentType = testResponse.headers['content-type'] || '';
+          let type: AlternativeSource['type'] = 'rss';
+          if (contentType.includes('json')) type = 'json-api';
+          else if (contentType.includes('atom')) type = 'atom';
+          
+          alternatives.push({
+            url: testUrl,
+            type,
+            itemCount: 0, // Would need GET request to determine
+            confidence: 75,
+            recommendation: `Standaard ${type} endpoint gevonden`
+          });
+          console.log(`[FeedAnalyzer] Found endpoint: ${testUrl} (${type})`);
+        }
+      } catch {
+        // Endpoint doesn't exist, continue
+      }
+    }
+
+    // 4. Look for specific known API patterns
+    if (baseUrl.includes('intonijmegen')) {
+      const apiUrl = `${origin}/nl/api/search/events?size=50&page=1`;
+      try {
+        const apiResponse = await axios.get(apiUrl, {
+          headers: { "User-Agent": this.USER_AGENT },
+          timeout: 10000
+        });
+        if (apiResponse.data?.items?.length) {
+          const totalItems = apiResponse.data.totalCount || apiResponse.data.items.length;
+          alternatives.push({
+            url: `${origin}/nl/api/search/events`,
+            type: 'json-api',
+            itemCount: totalItems,
+            confidence: 95,
+            recommendation: `API endpoint met ${totalItems} events ontdekt`
+          });
+          result.discoveredApiEndpoint = `${origin}/nl/api/search/events`;
+          console.log(`[FeedAnalyzer] IntoNijmegen API: ${totalItems} events found`);
+        }
+      } catch {}
+    }
+
+    result.alternativeSources = alternatives;
+    
+    if (alternatives.length > 0) {
+      result.suggestions.push(`${alternatives.length} alternatieve bronnen ontdekt - bekijk de opties hieronder`);
+    }
+  }
+
+  private static determineRecommendedMethod(result: FeedAnalysisResult): void {
+    const alternatives = result.alternativeSources || [];
+    
+    // Priority: JSON API > RSS/Atom > HTML Scraper
+    const jsonApi = alternatives.find(a => a.type === 'json-api' && a.itemCount > 0);
+    const rssFeed = alternatives.find(a => a.type === 'rss' || a.type === 'atom');
+    
+    if (jsonApi && jsonApi.itemCount > 10) {
+      result.recommendedImportMethod = {
+        method: 'json-api',
+        url: jsonApi.url,
+        reason: `JSON API met ${jsonApi.itemCount} events - meest betrouwbaar en volledig`,
+        estimatedEvents: jsonApi.itemCount
+      };
+      result.confidenceScore = Math.max(result.confidenceScore, 85);
+    } else if (rssFeed) {
+      result.recommendedImportMethod = {
+        method: 'rss',
+        url: rssFeed.url,
+        reason: 'Officiële RSS feed - stabiel en gestandaardiseerd',
+        estimatedEvents: rssFeed.itemCount || 0
+      };
+      result.confidenceScore = Math.max(result.confidenceScore, 80);
+    } else if (result.discoveredApiEndpoint) {
+      result.recommendedImportMethod = {
+        method: 'json-api',
+        url: result.discoveredApiEndpoint,
+        reason: 'API endpoint ontdekt in pagina - aanbevolen voor volledige import',
+        estimatedEvents: result.eventStats?.totalFound || 0
+      };
+    } else if (result.sampleItems.length > 0) {
+      result.recommendedImportMethod = {
+        method: 'scraper',
+        url: result.url,
+        reason: 'HTML scraping - kan beperkt zijn door paginering',
+        estimatedEvents: result.eventStats?.totalFound || result.sampleItems.length
+      };
     }
   }
 

@@ -936,6 +936,50 @@ export default function RssFeedsPage() {
                         </div>
                       )}
 
+                      {(analysisResult as any).recommendedImportMethod && (
+                        <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                          <h4 className="font-medium mb-2 flex items-center gap-2 text-green-800 dark:text-green-200">
+                            <CheckCircle className="w-4 h-4" />
+                            Aanbevolen importmethode
+                          </h4>
+                          <div className="text-sm space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="default" className="bg-green-600">
+                                {(analysisResult as any).recommendedImportMethod.method.toUpperCase()}
+                              </Badge>
+                              <span className="text-green-700 dark:text-green-300">
+                                ~{(analysisResult as any).recommendedImportMethod.estimatedEvents} events
+                              </span>
+                            </div>
+                            <p className="text-green-700 dark:text-green-300">
+                              {(analysisResult as any).recommendedImportMethod.reason}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {(analysisResult as any).alternativeSources?.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="font-medium">Ontdekte bronnen ({(analysisResult as any).alternativeSources.length})</h4>
+                          <div className="space-y-2">
+                            {(analysisResult as any).alternativeSources.map((source: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded text-sm">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline">{source.type}</Badge>
+                                  <span className="truncate max-w-xs" title={source.url}>{source.url}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {source.itemCount > 0 && (
+                                    <span className="text-green-600 font-medium">{source.itemCount} events</span>
+                                  )}
+                                  <Badge variant="secondary">{source.confidence}%</Badge>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="grid gap-4 md:grid-cols-2">
                         <div>
                           <h4 className="font-medium mb-2">Gedetecteerde velden</h4>

@@ -185,6 +185,14 @@ export default function RssFeedsPage() {
   });
 
   const [syncingFeedId, setSyncingFeedId] = useState<number | null>(null);
+  const [syncProgress, setSyncProgress] = useState<{
+    status: string;
+    totalItems: number;
+    processedItems: number;
+    eventsCreated: number;
+    percentComplete: number;
+    message?: string;
+  } | null>(null);
   
   const [analyzeUrl, setAnalyzeUrl] = useState('');
   const [analysisResult, setAnalysisResult] = useState<FeedAnalysisResult | null>(null);
@@ -215,17 +223,72 @@ export default function RssFeedsPage() {
     },
   });
 
+  const pollIntervalRef = { current: null as NodeJS.Timeout | null };
+  
+  const pollProgress = async (feedId: number) => {
+    try {
+      const response = await fetch(`/api/admin/rss-feeds/${feedId}/sync-progress`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        // Handle auth errors or other failures
+        if (response.status === 401) {
+          setSyncProgress(null);
+          setSyncingFeedId(null);
+        }
+        return null;
+      }
+      const progress = await response.json();
+      if (progress.status !== 'idle' && progress.feedId === feedId) {
+        setSyncProgress(progress);
+      }
+      return progress;
+    } catch {
+      return null;
+    }
+  };
+
   const syncSingleFeedMutation = useMutation({
     mutationFn: async (id: number) => {
       setSyncingFeedId(id);
-      return apiRequest(`/api/admin/rss-feeds/${id}/sync`, {
-        method: 'POST',
+      setSyncProgress({ 
+        status: 'pending', 
+        totalItems: 0, 
+        processedItems: 0, 
+        eventsCreated: 0, 
+        percentComplete: 0,
+        message: 'Verbinden met feed...' 
       });
+      
+      // Start polling for progress
+      pollIntervalRef.current = setInterval(async () => {
+        const progress = await pollProgress(id);
+        if (progress?.status === 'completed' || progress?.status === 'error') {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+        }
+      }, 500);
+      
+      try {
+        const result = await apiRequest(`/api/admin/rss-feeds/${id}/sync`, {
+          method: 'POST',
+        });
+        return result;
+      } finally {
+        // Always clean up polling
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+      }
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
       setSyncingFeedId(null);
+      setSyncProgress(null);
       toast({
         title: 'Feed gesynchroniseerd',
         description: `${data.feedName}: ${data.eventsCreated} nieuwe events aangemaakt.`,
@@ -233,6 +296,7 @@ export default function RssFeedsPage() {
     },
     onError: (error: any) => {
       setSyncingFeedId(null);
+      setSyncProgress(null);
       toast({
         title: 'Sync mislukt',
         description: error.message || 'Er is een fout opgetreden.',
@@ -682,6 +746,26 @@ export default function RssFeedsPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
+                          {syncingFeedId === feed.id && syncProgress ? (
+                            <div className="flex flex-col items-end gap-1 min-w-[150px]">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>{syncProgress.message || 'Bezig...'}</span>
+                              </div>
+                              {syncProgress.totalItems > 0 && (
+                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                  <div 
+                                    className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                                    style={{ width: `${syncProgress.percentComplete || 0}%` }}
+                                  />
+                                </div>
+                              )}
+                              <span className="text-[10px] text-muted-foreground">
+                                {syncProgress.processedItems}/{syncProgress.totalItems} items
+                                {syncProgress.eventsCreated > 0 && ` • ${syncProgress.eventsCreated} nieuw`}
+                              </span>
+                            </div>
+                          ) : (
                           <div className="flex justify-end gap-2">
                             <Button 
                               variant="ghost" 
@@ -730,6 +814,7 @@ export default function RssFeedsPage() {
                               </AlertDialogContent>
                             </AlertDialog>
                           </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -823,6 +908,34 @@ export default function RssFeedsPage() {
                         </div>
                       </div>
 
+                      {analysisResult.eventStats && (
+                        <div className="grid gap-4 md:grid-cols-4 p-3 bg-background rounded-lg border">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-primary">{analysisResult.eventStats.totalFound}</div>
+                            <div className="text-xs text-muted-foreground">Gevonden</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-green-600">{analysisResult.eventStats.importable}</div>
+                            <div className="text-xs text-muted-foreground">Importeerbaar</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-600">{analysisResult.eventStats.withDate}</div>
+                            <div className="text-xs text-muted-foreground">Met datum</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-amber-600">{analysisResult.eventStats.withImage}</div>
+                            <div className="text-xs text-muted-foreground">Met afbeelding</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {analysisResult.suggestedMunicipality && (
+                        <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950 rounded text-sm">
+                          <Globe className="w-4 h-4 text-blue-600" />
+                          <span>Herkende gemeente: <strong>{analysisResult.suggestedMunicipality}</strong></span>
+                        </div>
+                      )}
+
                       <div className="grid gap-4 md:grid-cols-2">
                         <div>
                           <h4 className="font-medium mb-2">Gedetecteerde velden</h4>
@@ -908,28 +1021,18 @@ export default function RssFeedsPage() {
                       <div className="pt-4 border-t flex gap-2">
                         <Button
                           onClick={() => {
-                            try {
-                              const hostname = new URL(analyzeUrl).hostname.replace('www.', '');
-                              const cityMatch = hostname.match(/(?:in|van|uit|naar)?([a-z]+)/i);
-                              const suggestedCity = cityMatch ? cityMatch[1].charAt(0).toUpperCase() + cityMatch[1].slice(1) : '';
+                            const suggestedCity = analysisResult.suggestedMunicipality || '';
+                            const suggestedName = analysisResult.suggestedFeedName || `Events ${suggestedCity}`;
                               
-                              setNewFeed(prev => ({
-                                ...prev,
-                                url: analyzeUrl,
-                                feedType: analysisResult.feedType === 'html-scraper' ? 'scraper' : 'rss',
-                                name: `Events ${suggestedCity || hostname}`,
-                                municipality: suggestedCity,
-                                defaultAddress: suggestedCity,
-                              }));
-                              setIsAddDialogOpen(true);
-                            } catch {
-                              setNewFeed(prev => ({
-                                ...prev,
-                                url: analyzeUrl,
-                                feedType: analysisResult.feedType === 'html-scraper' ? 'scraper' : 'rss',
-                              }));
-                              setIsAddDialogOpen(true);
-                            }
+                            setNewFeed(prev => ({
+                              ...prev,
+                              url: analyzeUrl,
+                              feedType: analysisResult.feedType === 'html-scraper' ? 'scraper' : 'rss',
+                              name: suggestedName,
+                              municipality: suggestedCity,
+                              defaultAddress: suggestedCity,
+                            }));
+                            setIsAddDialogOpen(true);
                           }}
                           variant={analysisResult.isViable ? 'default' : 'outline'}
                           data-testid="button-create-from-analysis"

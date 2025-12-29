@@ -28,6 +28,17 @@ export interface FeedAnalysisResult {
   suggestions: string[];
   aiAnalysis?: string;
   rawContentSample?: string;
+  eventStats?: {
+    totalFound: number;
+    importable: number;
+    withGps: number;
+    withDate: number;
+    withImage: number;
+    rejected: number;
+    rejectionReasons?: Record<string, number>;
+  };
+  suggestedMunicipality?: string;
+  suggestedFeedName?: string;
 }
 
 export class FeedAnalyzerService {
@@ -459,8 +470,109 @@ export class FeedAnalyzerService {
       result.warnings.push('HTML scraping vereist: handmatige configuratie kan nodig zijn');
       result.suggestions.push('Controleer of er een RSS/JSON alternatief beschikbaar is');
 
+      // Calculate event stats based on found items
+      this.calculateEventStats(foundItems, result);
+      
+      // Extract suggested municipality and feed name from URL
+      this.extractUrlMetadata(url, result);
+
     } catch (error: any) {
       result.warnings.push(`HTML parsing error: ${error.message}`);
+    }
+  }
+
+  private static calculateEventStats(items: any[], result: FeedAnalysisResult): void {
+    const stats = {
+      totalFound: items.length,
+      importable: 0,
+      withGps: 0,
+      withDate: 0,
+      withImage: 0,
+      rejected: 0,
+      rejectionReasons: {} as Record<string, number>,
+    };
+
+    for (const item of items) {
+      let canImport = true;
+      
+      // Check for title
+      if (!item.title || item.title.length < 3) {
+        canImport = false;
+        stats.rejectionReasons['Geen titel'] = (stats.rejectionReasons['Geen titel'] || 0) + 1;
+      }
+      
+      // Check for date
+      if (item.date && item.date.length > 0) {
+        stats.withDate++;
+      } else {
+        canImport = false;
+        stats.rejectionReasons['Geen datum'] = (stats.rejectionReasons['Geen datum'] || 0) + 1;
+      }
+      
+      // Check for location (potential GPS)
+      if (item.location && item.location.length > 0) {
+        stats.withGps++; // Assume location can be geocoded
+      }
+      
+      // Check for image
+      if (item.image && item.image.length > 0) {
+        stats.withImage++;
+      }
+      
+      if (canImport) {
+        stats.importable++;
+      } else {
+        stats.rejected++;
+      }
+    }
+
+    result.eventStats = stats;
+  }
+
+  private static extractUrlMetadata(url: string, result: FeedAnalysisResult): void {
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname.replace('www.', '');
+      
+      // Known municipality patterns
+      const municipalityPatterns: Record<string, string> = {
+        'intonijmegen': 'Nijmegen',
+        'thisiseindhoven': 'Eindhoven',
+        'trefhetinoss': 'Oss',
+        'visithelmond': 'Helmond',
+        'bezoekmeierijstad': 'Meierijstad',
+        'exploremaashorst': 'Maashorst',
+        'sonenbreugel': 'Son en Breugel',
+        'mooibernheze': 'Bernheze',
+        'zinindenbosch': "'s-Hertogenbosch",
+        'beleefboxtel': 'Boxtel',
+        'goedgestel': 'Sint-Michielsgestel',
+        'visitvught': 'Vught',
+        'beleveninoosterhout': 'Oosterhout',
+        'bezoekoisterwijk': 'Oisterwijk',
+        'explorebreda': 'Breda',
+        'tilburg': 'Tilburg',
+        'grenslanddebaronie': 'Gilze en Rijen',
+      };
+
+      // Check for known patterns
+      for (const [pattern, municipality] of Object.entries(municipalityPatterns)) {
+        if (hostname.includes(pattern)) {
+          result.suggestedMunicipality = municipality;
+          result.suggestedFeedName = `Events ${municipality}`;
+          return;
+        }
+      }
+
+      // Try to extract city name from URL
+      const match = hostname.match(/(?:in|visit|bezoek|ontdek|explore)?([a-z]+)(?:\.com|\.nl)/i);
+      if (match && match[1]) {
+        const cityName = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+        result.suggestedMunicipality = cityName;
+        result.suggestedFeedName = `Events ${cityName}`;
+      }
+    } catch {
+      // Ignore URL parsing errors
     }
   }
 

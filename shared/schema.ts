@@ -395,6 +395,17 @@ export const feedAnalysisResultSchema = z.object({
   suggestions: z.array(z.string()).optional().default([]),
   aiAnalysis: z.string().optional(),
   rawContentSample: z.string().optional(),
+  eventStats: z.object({
+    totalFound: z.number(),
+    importable: z.number(),
+    withGps: z.number(),
+    withDate: z.number(),
+    withImage: z.number(),
+    rejected: z.number(),
+    rejectionReasons: z.record(z.number()).optional(),
+  }).optional(),
+  suggestedMunicipality: z.string().optional(),
+  suggestedFeedName: z.string().optional(),
 });
 
 export type FeedAnalysisResult = z.infer<typeof feedAnalysisResultSchema>;

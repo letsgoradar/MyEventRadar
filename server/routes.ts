@@ -24,6 +24,20 @@ import themeHandler from "./theme-handler";
 const GEOCODING_CACHE = new Map();
 const CACHE_EXPIRES_MS = 24 * 60 * 60 * 1000; // 24 uur
 
+// Progress tracking voor feed sync operaties
+interface SyncProgress {
+  feedId: number;
+  feedName: string;
+  status: 'pending' | 'fetching' | 'processing' | 'completed' | 'error';
+  totalItems: number;
+  processedItems: number;
+  eventsCreated: number;
+  startTime: number;
+  message?: string;
+  error?: string;
+}
+const SYNC_PROGRESS = new Map<number, SyncProgress>();
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Security: Rate limiting voor login/register endpoints
   const authLimiter = rateLimit({
@@ -1737,6 +1751,34 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
+  // Get sync progress for a feed
+  app.get("/api/admin/rss-feeds/:id/sync-progress", isAdmin, async (req, res) => {
+    const feedId = parseInt(req.params.id);
+    if (isNaN(feedId)) {
+      return res.status(400).json({ message: "Invalid feed ID" });
+    }
+    
+    const progress = SYNC_PROGRESS.get(feedId);
+    if (!progress) {
+      return res.json({ status: 'idle', feedId });
+    }
+    
+    // Calculate estimated time remaining
+    const elapsed = Date.now() - progress.startTime;
+    const itemsPerMs = progress.processedItems / Math.max(elapsed, 1);
+    const remainingItems = progress.totalItems - progress.processedItems;
+    const estimatedRemainingMs = itemsPerMs > 0 ? remainingItems / itemsPerMs : 0;
+    
+    res.json({
+      ...progress,
+      elapsedMs: elapsed,
+      estimatedRemainingMs: Math.round(estimatedRemainingMs),
+      percentComplete: progress.totalItems > 0 
+        ? Math.round((progress.processedItems / progress.totalItems) * 100) 
+        : 0
+    });
+  });
+
   app.post("/api/admin/rss-feeds/:id/sync", isAdmin, async (req, res) => {
     try {
       const feedId = parseInt(req.params.id);
@@ -1749,8 +1791,46 @@ Respond with ONLY the search term, nothing else.`
         return res.status(404).json({ message: "Feed not found" });
       }
 
+      // Initialize progress tracking
+      SYNC_PROGRESS.set(feedId, {
+        feedId,
+        feedName: feed.name,
+        status: 'fetching',
+        totalItems: 0,
+        processedItems: 0,
+        eventsCreated: 0,
+        startTime: Date.now(),
+        message: 'Feed ophalen...'
+      });
+
       const { RssFeedService } = await import('./services/rss-feed-service');
-      const result = await RssFeedService.processFeed(feed, storage);
+      
+      // Use progress callback
+      const result = await RssFeedService.processFeed(feed, storage, (progress) => {
+        const current = SYNC_PROGRESS.get(feedId);
+        if (current) {
+          SYNC_PROGRESS.set(feedId, {
+            ...current,
+            ...progress,
+            status: progress.status || current.status,
+          });
+        }
+      });
+      
+      // Mark as completed
+      SYNC_PROGRESS.set(feedId, {
+        feedId,
+        feedName: feed.name,
+        status: 'completed',
+        totalItems: result.itemsProcessed || 0,
+        processedItems: result.itemsProcessed || 0,
+        eventsCreated: result.eventsCreated || 0,
+        startTime: SYNC_PROGRESS.get(feedId)?.startTime || Date.now(),
+        message: 'Synchronisatie voltooid'
+      });
+      
+      // Clean up after 30 seconds
+      setTimeout(() => SYNC_PROGRESS.delete(feedId), 30000);
       
       res.json({ 
         message: "Feed sync completed",
@@ -1761,6 +1841,22 @@ Respond with ONLY the search term, nothing else.`
       });
     } catch (error: any) {
       console.error('Error in POST /api/admin/rss-feeds/:id/sync:', error);
+      
+      const feedId = parseInt(req.params.id);
+      if (!isNaN(feedId)) {
+        SYNC_PROGRESS.set(feedId, {
+          feedId,
+          feedName: SYNC_PROGRESS.get(feedId)?.feedName || 'Unknown',
+          status: 'error',
+          totalItems: 0,
+          processedItems: 0,
+          eventsCreated: 0,
+          startTime: SYNC_PROGRESS.get(feedId)?.startTime || Date.now(),
+          error: error.message
+        });
+        setTimeout(() => SYNC_PROGRESS.delete(feedId), 30000);
+      }
+      
       res.status(500).json({ message: error.message || "Internal server error" });
     }
   });

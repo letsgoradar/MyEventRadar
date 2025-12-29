@@ -4536,11 +4536,18 @@ export class RssFeedService {
     }
   }
 
-  static async processFeed(feed: RssFeed, storage?: any): Promise<{ success: boolean; itemsProcessed: number; eventsCreated: number; error?: string }> {
+  static async processFeed(
+    feed: RssFeed, 
+    storage?: any,
+    onProgress?: (progress: { status?: string; totalItems?: number; processedItems?: number; eventsCreated?: number; message?: string }) => void
+  ): Promise<{ success: boolean; itemsProcessed: number; eventsCreated: number; error?: string }> {
     const feedStartTime = Date.now();
     
     try {
       console.log(`[RSS] Single feed sync: ${feed.name}...`);
+      
+      // Report fetching status
+      onProgress?.({ status: 'fetching', message: 'Feed ophalen...' });
 
       let result: FeedParseResult;
 
@@ -4601,10 +4608,29 @@ export class RssFeedService {
       const consolidatedItems = this.consolidateMultiDayEvents(result.items);
       console.log(`[RSS] ${feed.name}: Consolidated ${result.items.length} items into ${consolidatedItems.length} events`);
 
+      // Report processing status with total items
+      onProgress?.({ 
+        status: 'processing', 
+        totalItems: consolidatedItems.length,
+        processedItems: 0,
+        message: `${consolidatedItems.length} items verwerken...`
+      });
+
       let newItemsCount = 0;
-      for (const item of consolidatedItems) {
+      for (let i = 0; i < consolidatedItems.length; i++) {
+        const item = consolidatedItems[i];
         const created = await this.createOrUpdateFeedItem(feed, item);
         if (created) newItemsCount++;
+        
+        // Report progress every 5 items or at the end
+        if (i % 5 === 0 || i === consolidatedItems.length - 1) {
+          onProgress?.({
+            status: 'processing',
+            processedItems: i + 1,
+            eventsCreated: newItemsCount,
+            message: `${i + 1}/${consolidatedItems.length} items verwerkt, ${newItemsCount} nieuwe events`
+          });
+        }
       }
 
       await db.update(rssFeeds)

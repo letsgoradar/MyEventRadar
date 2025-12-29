@@ -12,19 +12,30 @@ declare module 'express-session' {
 
 // Auto-login middleware - uses Jan Jansen for app/web, admin for admin routes
 export const autoLoginTestUser = async (req: Request, res: Response, next: NextFunction) => {
-  // Skip auto-login if user is already authenticated
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    return next();
+  const isAdminRoute = req.path.startsWith('/admin') || req.path.startsWith('/api/admin');
+  
+  // Check if currently logged in user matches what's needed for this route
+  const currentUser = req.user as any;
+  if (currentUser) {
+    // If on admin route but logged in as non-admin, switch to admin
+    if (isAdminRoute && currentUser.role !== 'admin') {
+      // Clear session to force re-login as admin
+      delete (req.session as any).passport;
+      req.user = undefined;
+    } 
+    // If on non-admin route and logged in as admin, that's fine - admin can access everything
+    else {
+      return next();
+    }
   }
 
-  // Skip if session already has passport data
+  // Skip if session already has passport data and we haven't cleared it above
   if ((req.session as any).passport) {
     return next();
   }
 
   try {
     // Use admin for admin routes, Jan Jansen for app/web routes
-    const isAdminRoute = req.path.startsWith('/admin') || req.path.startsWith('/api/admin');
     const username = isAdminRoute ? 'admin' : 'janjansen';
     
     const user = await storage.getUserByUsername(username);

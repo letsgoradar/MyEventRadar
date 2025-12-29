@@ -36,7 +36,37 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
 - **User Authentication & Authorization**: Session-based, role-based access control (user/admin), and profile management.
 - **Search & Discovery**: Text, category, location-radius, and date range filtering with saved search functionality.
 - **Public SEO Architecture**: Dual-architecture with React SPA for authenticated users and SEO-optimized public city landing pages. Features include JSON-LD, dynamic content, event listings, lead capture, and sitemap generation.
-- **RSS Feed Import Principles**: Standardized rules for importing events, including location verification, date dependency, image sourcing, multi-day event handling, duplicate detection, and time handling.
+- **RSS Feed Import Principles**: Standardized rules for importing events (see detailed rules below).
+
+### RSS Feed Import Richtlijnen
+
+1. **Locatie Verificatie** (verplicht)
+   - Alleen events met geverifieerde locatie importeren
+   - Accepteer: GPS coördinaten, bekend venue, geocodeerbaar adres
+   - Weiger: Events zonder locatie of met alleen regio-aanduiding
+
+2. **Datum Gebonden** (verplicht)
+   - Alleen events met specifieke datum of datumperiode
+   - Weiger: Algemene activiteiten zonder specifieke datum
+
+3. **Bron Afbeeldingen** (voorkeur)
+   - Altijd afbeelding uit de bron gebruiken als beschikbaar
+   - Alleen fallback naar stock images als geen bron-afbeelding
+
+4. **Multi-dag Events** 
+   - Events op meerdere aaneengesloten dagen als 1 event importeren
+   - Startdatum en einddatum opslaan als bereik
+
+5. **Duplicaat Detectie**
+   - Check op bestaande events voordat je importeert
+   - Detectie op: externalId, titel + locatie + startdatum
+
+6. **Tijd Hantering** (kritiek)
+   - Importeer starttijd/eindtijd ALLEEN als 100% zeker is welke tijd wat is
+   - Bij 2 verschillende tijden: automatisch bepalen welke begin- en eindtijd is
+   - Bij onzekerheid: importeer event op juiste datum ZONDER tijden
+   - NOOIT willekeurige tijden invullen
+   - Bij alleen datum bekend: 00:00 als start, 23:59 als eind
 
 ## External Dependencies
 

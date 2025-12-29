@@ -35,28 +35,28 @@ const AdminEventDetail = React.lazy(() => import("@/pages/admin/EventDetail"));
 const AdminEventForm = React.lazy(() => import("@/pages/admin/EventForm"));
 const AdminRssFeeds = React.lazy(() => import("@/pages/admin/RssFeeds"));
 
-// Web componenten (lazy loaded)
-const WebPage = React.lazy(() => import("@/pages/Web"));
+// Web componenten (lazy loaded) - Let op: Web.tsx is direct in pages, niet in Web/
+const WebPage = React.lazy(() => import("@/pages/Web.tsx"));
 const WebProfilePage = React.lazy(() => import("@/pages/Web/ProfilePage"));
 const CreateEvent = React.lazy(() => import("@/pages/Web/create-event"));
 const EventDetail = React.lazy(() => import("@/pages/Web/event-detail"));
 const WebMyEventsPage = React.lazy(() => import("@/pages/Web/my-events"));
 
 // App componenten (lazy loaded)
-const AppHomePage = React.lazy(() => import("@/pages/App").then(m => ({ default: m.AppHomePage })));
-const AppLoginPage = React.lazy(() => import("@/pages/App/login").then(m => ({ default: m.AppLoginPage })));
-const AppRegisterPage = React.lazy(() => import("@/pages/App/register").then(m => ({ default: m.AppRegisterPage })));
+const AppHomePage = React.lazy(() => import("@/pages/App/index"));
+const AppLoginPage = React.lazy(() => import("@/pages/App/login"));
+const AppRegisterPage = React.lazy(() => import("@/pages/App/register"));
 const AppCreateEvent = React.lazy(() => import("@/pages/App/create-event"));
 const AppEventsPage = React.lazy(() => import("@/pages/App/events"));
 const AppMyEventsPage = React.lazy(() => import("@/pages/App/my-events"));
 const AppProfilePage = React.lazy(() => import("@/pages/App/profile"));
-const AppWelcomePage = React.lazy(() => import("@/pages/App/welcome").then(m => ({ default: m.AppWelcomePage })));
+const AppWelcomePage = React.lazy(() => import("@/pages/App/welcome"));
 const AppForgotPasswordPage = React.lazy(() => import("@/pages/App/forgot-password"));
 
 // Public SEO pagina's (lazy loaded)
 const CityPage = React.lazy(() => import("@/pages/public/CityPage"));
 
-// Layout componenten (altijd nodig, niet lazy)
+// Layout componenten
 const WebLayout = React.lazy(() => import("@/components/Web/WebLayout").then(m => ({ default: m.WebLayout })));
 
 // Helper component voor redirects

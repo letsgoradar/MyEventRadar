@@ -45,11 +45,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Search, Loader2, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
-import { CATEGORIES } from '@shared/schema';
+import { CATEGORIES, type FeedAnalysisResult } from '@shared/schema';
 import { lazy, Suspense } from 'react';
 
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
@@ -185,6 +185,35 @@ export default function RssFeedsPage() {
   });
 
   const [syncingFeedId, setSyncingFeedId] = useState<number | null>(null);
+  
+  const [analyzeUrl, setAnalyzeUrl] = useState('');
+  const [analysisResult, setAnalysisResult] = useState<FeedAnalysisResult | null>(null);
+  
+  const analyzeFeedMutation = useMutation({
+    mutationFn: async (url: string): Promise<FeedAnalysisResult> => {
+      return apiRequest('/api/admin/rss-feeds/analyze', {
+        method: 'POST',
+        data: { url },
+      });
+    },
+    onSuccess: (data: FeedAnalysisResult) => {
+      setAnalysisResult(data);
+      toast({
+        title: data.isViable ? 'Feed is geschikt!' : 'Feed analyse voltooid',
+        description: data.isViable 
+          ? `Betrouwbaarheid: ${data.confidenceScore}% - ${data.feedType} feed gevonden`
+          : `Let op: ${data.warnings?.length || 0} waarschuwingen`,
+        variant: data.isViable ? 'default' : 'destructive',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Analyse mislukt',
+        description: error.message || 'Er is een fout opgetreden.',
+        variant: 'destructive',
+      });
+    },
+  });
 
   const syncSingleFeedMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -499,6 +528,10 @@ export default function RssFeedsPage() {
                 <AlertTriangle className="w-4 h-4" />
                 Incompleet
               </TabsTrigger>
+              <TabsTrigger value="analyzer" className="flex items-center gap-2" data-testid="tab-analyzer">
+                <Sparkles className="w-4 h-4" />
+                Feed Analyzer
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="map">
@@ -717,6 +750,184 @@ export default function RssFeedsPage() {
               }>
                 <IncompleteItemsManager />
               </Suspense>
+            </TabsContent>
+
+            <TabsContent value="analyzer">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    Slimme Feed Analyzer
+                  </CardTitle>
+                  <CardDescription>
+                    Analyseer automatisch een nieuwe event-bron om te bepalen of deze geschikt is voor import.
+                    De analyzer detecteert het feed-type, beschikbare velden en geeft een geschiktheidsscore.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="analyze-url">URL van de event-bron</Label>
+                      <Input
+                        id="analyze-url"
+                        placeholder="https://example.com/events of /feed.xml"
+                        value={analyzeUrl}
+                        onChange={(e) => setAnalyzeUrl(e.target.value)}
+                        data-testid="input-analyze-url"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        onClick={() => {
+                          if (analyzeUrl) {
+                            setAnalysisResult(null);
+                            analyzeFeedMutation.mutate(analyzeUrl);
+                          }
+                        }}
+                        disabled={!analyzeUrl || analyzeFeedMutation.isPending}
+                        data-testid="button-analyze-feed"
+                      >
+                        {analyzeFeedMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Analyseren...
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-4 h-4 mr-2" />
+                            Analyseer Feed
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {analysisResult && (
+                    <div className="space-y-4 border rounded-lg p-4 bg-muted/50">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          {analysisResult.isViable ? (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-red-600" />
+                          )}
+                          Analyse Resultaat
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={analysisResult.feedType === 'unknown' ? 'destructive' : 'outline'}>
+                            {analysisResult.feedType?.toUpperCase()}
+                          </Badge>
+                          <Badge variant={analysisResult.isViable ? 'default' : 'destructive'}>
+                            {analysisResult.confidenceScore}% betrouwbaar
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <h4 className="font-medium mb-2">Gedetecteerde velden</h4>
+                          <div className="space-y-1">
+                            {Object.entries(analysisResult.detectedFields || {}).map(([field, info]: [string, any]) => (
+                              <div key={field} className="flex items-center justify-between text-sm">
+                                <span className="capitalize">{field}</span>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={info.confidence >= 70 ? 'default' : 'secondary'} className="text-xs">
+                                    {info.confidence}%
+                                  </Badge>
+                                  {info.sample && (
+                                    <span className="text-muted-foreground text-xs truncate max-w-32" title={info.sample}>
+                                      {info.sample.substring(0, 30)}...
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                            {Object.keys(analysisResult.detectedFields || {}).length === 0 && (
+                              <span className="text-muted-foreground text-sm">Geen velden gedetecteerd</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="font-medium mb-2">Ontbrekende verplichte velden</h4>
+                          {analysisResult.missingRequiredFields?.length > 0 ? (
+                            <div className="space-y-1">
+                              {analysisResult.missingRequiredFields.map((field: string) => (
+                                <div key={field} className="flex items-center gap-2 text-sm text-red-600">
+                                  <AlertCircle className="w-3 h-3" />
+                                  {field}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-green-600 text-sm flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" />
+                              Alle verplichte velden aanwezig
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {analysisResult.warnings?.length > 0 && (
+                        <div>
+                          <h4 className="font-medium mb-2">Waarschuwingen</h4>
+                          <div className="space-y-1">
+                            {analysisResult.warnings.map((warning: string, idx: number) => (
+                              <div key={idx} className="flex items-start gap-2 text-sm text-amber-700">
+                                <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                {warning}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {analysisResult.suggestions?.length > 0 && (
+                        <div>
+                          <h4 className="font-medium mb-2">Suggesties</h4>
+                          <div className="space-y-1">
+                            {analysisResult.suggestions.map((suggestion: string, idx: number) => (
+                              <div key={idx} className="flex items-start gap-2 text-sm text-blue-700">
+                                <Sparkles className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                {suggestion}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {analysisResult.sampleItems?.length > 0 && (
+                        <div>
+                          <h4 className="font-medium mb-2">Voorbeeld items ({analysisResult.sampleItems.length})</h4>
+                          <div className="max-h-48 overflow-y-auto bg-background rounded p-2 text-xs font-mono">
+                            <pre>{JSON.stringify(analysisResult.sampleItems[0], null, 2)}</pre>
+                          </div>
+                        </div>
+                      )}
+
+                      {analysisResult.isViable && (
+                        <div className="pt-4 border-t">
+                          <Button
+                            onClick={() => {
+                              setNewFeed(prev => ({
+                                ...prev,
+                                url: analyzeUrl,
+                                feedType: analysisResult.feedType === 'html-scraper' ? 'scraper' : 'rss',
+                                name: `Nieuwe feed van ${new URL(analyzeUrl).hostname}`,
+                              }));
+                              setIsAddDialogOpen(true);
+                            }}
+                            data-testid="button-create-from-analysis"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Feed aanmaken op basis van analyse
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>

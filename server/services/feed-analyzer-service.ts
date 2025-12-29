@@ -93,7 +93,27 @@ export class FeedAnalyzerService {
 
     } catch (error: any) {
       console.error(`[FeedAnalyzer] Error analyzing ${url}:`, error.message);
-      result.warnings.push(`Fout bij ophalen: ${error.message}`);
+      
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        result.warnings.push('De URL reageerde niet binnen de tijdslimiet (30 seconden)');
+        result.suggestions.push('Controleer of de server bereikbaar is en probeer het later opnieuw');
+      } else if (error.response?.status === 404) {
+        result.warnings.push('De opgegeven URL bestaat niet (404 fout)');
+        result.suggestions.push('Controleer of de URL correct is geschreven');
+      } else if (error.response?.status === 403) {
+        result.warnings.push('Toegang geweigerd tot deze URL (403 fout)');
+        result.suggestions.push('De website blokkeert mogelijk automatische toegang');
+      } else if (error.response?.status >= 500) {
+        result.warnings.push('De server heeft een fout (5xx status)');
+        result.suggestions.push('Probeer het later opnieuw wanneer de server weer werkt');
+      } else if (error.code === 'ENOTFOUND') {
+        result.warnings.push('De domeinnaam kon niet worden gevonden');
+        result.suggestions.push('Controleer of het domein correct is geschreven');
+      } else {
+        result.warnings.push('Kon de URL niet ophalen vanwege een verbindingsprobleem');
+        result.suggestions.push('Controleer of de URL correct en bereikbaar is');
+      }
+      
       result.isViable = false;
     }
 
@@ -527,7 +547,8 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
 
     } catch (error: any) {
       console.error(`[FeedAnalyzer] AI analysis error:`, error.message);
-      result.warnings.push(`AI analyse mislukt: ${error.message}`);
+      result.warnings.push('Geavanceerde AI-analyse kon niet worden uitgevoerd');
+      result.suggestions.push('De standaard analyse is nog steeds beschikbaar');
     }
   }
 

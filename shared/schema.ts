@@ -378,3 +378,23 @@ export const insertFeedAnalysisProfileSchema = createInsertSchema(feedAnalysisPr
 
 export type FeedAnalysisProfile = typeof feedAnalysisProfiles.$inferSelect;
 export type InsertFeedAnalysisProfile = z.infer<typeof insertFeedAnalysisProfileSchema>;
+
+export const feedAnalysisResultSchema = z.object({
+  url: z.string(),
+  feedType: z.enum(['rss', 'atom', 'json', 'html-scraper', 'unknown']),
+  isViable: z.boolean(),
+  confidenceScore: z.number().min(0).max(100),
+  detectedFields: z.record(z.object({
+    path: z.string(),
+    confidence: z.number(),
+    sample: z.string().optional(),
+  })).optional().default({}),
+  sampleItems: z.array(z.any()).optional().default([]),
+  warnings: z.array(z.string()).optional().default([]),
+  missingRequiredFields: z.array(z.string()).optional().default([]),
+  suggestions: z.array(z.string()).optional().default([]),
+  aiAnalysis: z.string().optional(),
+  rawContentSample: z.string().optional(),
+});
+
+export type FeedAnalysisResult = z.infer<typeof feedAnalysisResultSchema>;

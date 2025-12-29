@@ -1703,6 +1703,40 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
+  app.post("/api/admin/rss-feeds/analyze", isAdmin, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: "URL is verplicht" });
+      }
+
+      try {
+        new URL(url);
+      } catch {
+        return res.status(400).json({ message: "Ongeldige URL formaat" });
+      }
+
+      console.log(`[API] Starting feed analysis for: ${url}`);
+      const { FeedAnalyzerService } = await import('./services/feed-analyzer-service');
+      const result = await FeedAnalyzerService.analyzeUrl(url);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/rss-feeds/analyze:', error);
+      res.status(500).json({ 
+        url: req.body.url || '',
+        feedType: 'unknown',
+        isViable: false,
+        confidenceScore: 0,
+        detectedFields: {},
+        sampleItems: [],
+        warnings: ["Er is een onverwachte fout opgetreden bij het analyseren van de feed. Probeer het later opnieuw."],
+        missingRequiredFields: [],
+        suggestions: ["Controleer of de URL correct en bereikbaar is"]
+      });
+    }
+  });
+
   app.post("/api/admin/rss-feeds/:id/sync", isAdmin, async (req, res) => {
     try {
       const feedId = parseInt(req.params.id);

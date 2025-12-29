@@ -336,3 +336,45 @@ export const insertLeadSchema = createInsertSchema(leads).omit({
 
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = z.infer<typeof insertLeadSchema>;
+
+// Feed Analysis - voor slimme feed detectie
+export const FEED_ANALYSIS_STATUS = ['pending', 'analyzing', 'completed', 'failed'] as const;
+
+export const feedAnalysisProfiles = pgTable("feed_analysis_profiles", {
+  id: serial("id").primaryKey(),
+  url: text("url").notNull(),
+  status: text("status").notNull().default('pending'),
+  feedType: text("feed_type"), // 'rss', 'atom', 'json', 'html-scraper', 'unknown'
+  detectedFields: jsonb("detected_fields").$type<{
+    title?: { path: string; confidence: number; sample?: string };
+    description?: { path: string; confidence: number; sample?: string };
+    date?: { path: string; confidence: number; sample?: string };
+    time?: { path: string; confidence: number; sample?: string };
+    location?: { path: string; confidence: number; sample?: string };
+    image?: { path: string; confidence: number; sample?: string };
+    link?: { path: string; confidence: number; sample?: string };
+  }>(),
+  fieldMappings: jsonb("field_mappings").$type<Record<string, string>>(),
+  sampleItems: jsonb("sample_items").$type<any[]>(),
+  analysisResult: jsonb("analysis_result").$type<{
+    isViable: boolean;
+    confidenceScore: number;
+    warnings: string[];
+    missingRequiredFields: string[];
+    suggestions: string[];
+    aiAnalysis?: string;
+  }>(),
+  rawContentSample: text("raw_content_sample"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  analyzedAt: timestamp("analyzed_at"),
+  analyzedBy: integer("analyzed_by").references(() => users.id),
+});
+
+export const insertFeedAnalysisProfileSchema = createInsertSchema(feedAnalysisProfiles).omit({
+  id: true,
+  createdAt: true,
+  analyzedAt: true,
+});
+
+export type FeedAnalysisProfile = typeof feedAnalysisProfiles.$inferSelect;
+export type InsertFeedAnalysisProfile = z.infer<typeof insertFeedAnalysisProfileSchema>;

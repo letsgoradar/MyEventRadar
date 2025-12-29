@@ -61,10 +61,11 @@ export const FEED_IMPORT_PRINCIPLES = `
    • Sla events over die al in het systeem staan
    • Log overgeslagen duplicaten voor monitoring
 
-6. TIJD HANTERING (useUnknownForMissingTime: true)
+6. TIJD HANTERING (useUnknownForMissingTime: true) [KRITIEK]
    ─────────────────────────────────────────────────────
-   • Gebruik tijden als ze in de bron staan
-   • Als tijd onbekend: markeer als "onbekend" 
+   • Importeer starttijd/eindtijd ALLEEN als 100% zeker is welke tijd wat is
+   • Bij 2 verschillende tijden: automatisch bepalen welke begin- en eindtijd is
+   • Bij onzekerheid: importeer event op juiste datum ZONDER tijden
    • NOOIT: Willekeurige tijden invullen
    • Standaard: 00:00 als starttijd, 23:59 als eindtijd als alleen datum bekend
 

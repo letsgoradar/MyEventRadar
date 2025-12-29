@@ -700,27 +700,43 @@ export class FeedAnalyzerService {
       }
     }
 
-    // 4. Look for specific known API patterns
-    if (baseUrl.includes('intonijmegen')) {
-      const apiUrl = `${origin}/nl/api/search/events?size=50&page=1`;
-      try {
-        const apiResponse = await axios.get(apiUrl, {
-          headers: { "User-Agent": this.USER_AGENT },
-          timeout: 10000
-        });
-        if (apiResponse.data?.items?.length) {
-          const totalItems = apiResponse.data.totalCount || apiResponse.data.items.length;
-          alternatives.push({
-            url: `${origin}/nl/api/search/events`,
-            type: 'json-api',
-            itemCount: totalItems,
-            confidence: 95,
-            recommendation: `API endpoint met ${totalItems} events ontdekt`
-          });
-          result.discoveredApiEndpoint = `${origin}/nl/api/search/events`;
-          console.log(`[FeedAnalyzer] IntoNijmegen API: ${totalItems} events found`);
+    // 4. Check for pagination support - look for pagination links
+    const paginationLinks = $('a[href*="?page="]').length;
+    if (paginationLinks > 0) {
+      // Estimate total pages by finding highest page number
+      let maxPage = 1;
+      $('a[href*="?page="]').each((_, el) => {
+        const href = $(el).attr('href') || '';
+        const pageMatch = href.match(/page=(\d+)/);
+        if (pageMatch) {
+          maxPage = Math.max(maxPage, parseInt(pageMatch[1]));
         }
-      } catch {}
+      });
+      
+      if (maxPage > 1) {
+        result.suggestions.push(`Paginering gedetecteerd (${maxPage}+ pagina's) - scraper ondersteunt dit automatisch`);
+      }
+    }
+
+    // 5. Check for known sites with specialized scrapers
+    const knownScrapers = [
+      { pattern: 'intonijmegen', name: 'IntoNijmegen', events: '50+' },
+      { pattern: 'uitinoss', name: 'Uit in Oss', events: '30+' },
+      { pattern: 'uitagendabrabant', name: 'Uit Agenda Brabant', events: '100+' },
+    ];
+    
+    for (const scraper of knownScrapers) {
+      if (baseUrl.includes(scraper.pattern)) {
+        alternatives.push({
+          url: baseUrl,
+          type: 'json-api', // Using json-api to indicate specialized handling
+          itemCount: 0,
+          confidence: 95,
+          recommendation: `Gespecialiseerde ${scraper.name} scraper beschikbaar (~${scraper.events} events met paginering)`
+        });
+        console.log(`[FeedAnalyzer] Known scraper detected: ${scraper.name}`);
+        break;
+      }
     }
 
     result.alternativeSources = alternatives;
@@ -732,6 +748,19 @@ export class FeedAnalyzerService {
 
   private static determineRecommendedMethod(result: FeedAnalysisResult): void {
     const alternatives = result.alternativeSources || [];
+    
+    // Check for specialized scraper first (highest priority for known sites)
+    const specializedScraper = alternatives.find(a => a.recommendation.includes('Gespecialiseerde'));
+    if (specializedScraper) {
+      result.recommendedImportMethod = {
+        method: 'scraper',
+        url: specializedScraper.url,
+        reason: specializedScraper.recommendation,
+        estimatedEvents: 50 // Conservative estimate for specialized scrapers
+      };
+      result.confidenceScore = Math.max(result.confidenceScore, 90);
+      return;
+    }
     
     // Priority: JSON API > RSS/Atom > HTML Scraper
     const jsonApi = alternatives.find(a => a.type === 'json-api' && a.itemCount > 0);

@@ -1,50 +1,63 @@
 import * as React from "react"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { Toaster } from '@/components/ui/toaster'
-import { Link, Route, Switch, useLocation, useParams } from "wouter"
+import { Route, Switch } from "wouter"
 import { AuthProvider } from "@/hooks/use-auth"
 import { LanguageProvider } from "@/contexts/LanguageContext"
-import TopNav from "@/components/Layout/TopNav"
-import MapView from "@/components/Map/MapView"
-import { EventList } from "@/components/EventList"
-import CreateEventPage from "@/pages/create-event"
-import EventDetailPage from "@/pages/event-detail"
-import BottomNav from "@/components/Layout/BottomNav"
-import WebPage from "@/pages/Web"
-import WebProfilePage from "@/pages/Web/ProfilePage"
-import AdminDashboard from "@/pages/admin/Dashboard"
-import AdminEvents from "@/pages/admin/Events"
-import AdminUsers from "@/pages/admin/Users"
-import ActivityLogs from "@/pages/admin/ActivityLogs"
-import AdminLogin from "@/pages/admin/Login"
-import AdminEventDetail from "@/pages/admin/EventDetail"
-import AdminEventForm from "@/pages/admin/EventForm"
-import AdminRssFeeds from "@/pages/admin/RssFeeds"
 import AuthGuard from "@/components/Admin/AuthGuard"
-import { WebLayout } from "@/components/Web/WebLayout"
 import { useIsMobile } from "@/hooks/use-mobile"
-import ModeToggle from "@/components/Web/ModeToggle"
-import type { EventInterface } from "@shared/schema"
 import { queryClient } from "@/lib/queryClient"
 import { ThemeInjector } from "@/components/ThemeInjector"
-// Webversie componenten
-import CreateEvent from "@/pages/Web/create-event"
-import EventDetail from "@/pages/Web/event-detail"
-// App componenten (mobiele versie)
-import AppHomePage from "@/pages/App"
-import AppEventDetail from "@/pages/App/event-detail"
-import { AppLoginPage } from "@/pages/App/login"
-import { AppRegisterPage } from "@/pages/App/register"
-import AppCreateEvent from "@/pages/App/create-event"
-import AppEventsPage from "@/pages/App/events"
-import AppSavedPage from "@/pages/App/saved"
-import WebSavedPage from "@/pages/Web/saved"
-import WebMyEventsPage from "@/pages/Web/my-events"
-import AppMyEventsPage from "@/pages/App/my-events"
-import AppProfilePage from "@/pages/App/profile"
-import { AppWelcomePage } from "@/pages/App/welcome"
-import AppForgotPasswordPage from "@/pages/App/forgot-password"
-import CityPage from "@/pages/public/CityPage"
+import { Skeleton } from "@/components/ui/skeleton"
+
+// Lazy loading wrapper voor betere code splitting
+const LazyLoad = ({ children }: { children: React.ReactNode }) => (
+  <React.Suspense fallback={
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="space-y-4 w-full max-w-md p-8">
+        <Skeleton className="h-8 w-3/4" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3" />
+      </div>
+    </div>
+  }>
+    {children}
+  </React.Suspense>
+);
+
+// Admin componenten (lazy loaded)
+const AdminLogin = React.lazy(() => import("@/pages/admin/Login"));
+const AdminDashboard = React.lazy(() => import("@/pages/admin/Dashboard"));
+const AdminEvents = React.lazy(() => import("@/pages/admin/Events"));
+const AdminUsers = React.lazy(() => import("@/pages/admin/Users"));
+const ActivityLogs = React.lazy(() => import("@/pages/admin/ActivityLogs"));
+const AdminEventDetail = React.lazy(() => import("@/pages/admin/EventDetail"));
+const AdminEventForm = React.lazy(() => import("@/pages/admin/EventForm"));
+const AdminRssFeeds = React.lazy(() => import("@/pages/admin/RssFeeds"));
+
+// Web componenten (lazy loaded)
+const WebPage = React.lazy(() => import("@/pages/Web"));
+const WebProfilePage = React.lazy(() => import("@/pages/Web/ProfilePage"));
+const CreateEvent = React.lazy(() => import("@/pages/Web/create-event"));
+const EventDetail = React.lazy(() => import("@/pages/Web/event-detail"));
+const WebMyEventsPage = React.lazy(() => import("@/pages/Web/my-events"));
+
+// App componenten (lazy loaded)
+const AppHomePage = React.lazy(() => import("@/pages/App").then(m => ({ default: m.AppHomePage })));
+const AppLoginPage = React.lazy(() => import("@/pages/App/login").then(m => ({ default: m.AppLoginPage })));
+const AppRegisterPage = React.lazy(() => import("@/pages/App/register").then(m => ({ default: m.AppRegisterPage })));
+const AppCreateEvent = React.lazy(() => import("@/pages/App/create-event"));
+const AppEventsPage = React.lazy(() => import("@/pages/App/events"));
+const AppMyEventsPage = React.lazy(() => import("@/pages/App/my-events"));
+const AppProfilePage = React.lazy(() => import("@/pages/App/profile"));
+const AppWelcomePage = React.lazy(() => import("@/pages/App/welcome").then(m => ({ default: m.AppWelcomePage })));
+const AppForgotPasswordPage = React.lazy(() => import("@/pages/App/forgot-password"));
+
+// Public SEO pagina's (lazy loaded)
+const CityPage = React.lazy(() => import("@/pages/public/CityPage"));
+
+// Layout componenten (altijd nodig, niet lazy)
+const WebLayout = React.lazy(() => import("@/components/Web/WebLayout").then(m => ({ default: m.WebLayout })));
 
 // Helper component voor redirects
 function AppRedirect({ to }: { to: string }) {
@@ -57,54 +70,6 @@ function AppRedirect({ to }: { to: string }) {
 
 export default function App() {
   const isMobile = useIsMobile();
-  const [isMapView, setIsMapView] = React.useState(true);
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [radius, setRadius] = React.useState(10);
-  const [filteredEvents, setFilteredEvents] = React.useState<EventInterface[]>([]);
-
-  // Log information for debugging
-  React.useEffect(() => {
-    console.log("Got user location:", 51.77344, 5.5345152);
-    console.log("Web version enabled:", !isMobile);
-    
-    // Test API verbinding voor nabije evenementen
-    if (navigator.geolocation) {
-      const params = { lat: 51.77344, lng: 5.5345152, radius: 10 };
-      console.log("Fetching events with params:", params);
-      console.log("Making API request to: /api/events/nearby?lat=51.77344&lng=5.5345152&radius=10");
-      
-      fetch(`/api/events/nearby?lat=${params.lat}&lng=${params.lng}&radius=${params.radius}`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log("API response successful:", data);
-          setFilteredEvents(data);
-        })
-        .catch(error => {
-          console.error("API request error:", error);
-        });
-    }
-  }, [isMobile]);
-
-  const toggleView = React.useCallback(() => {
-    setIsMapView(prev => !prev);
-  }, []);
-
-  const handleSearch = React.useCallback((query: string) => {
-    setSearchQuery(query);
-  }, []);
-
-  const handleRadiusChange = React.useCallback((value: number) => {
-    setRadius(value);
-  }, []);
-
-  const handleFilteredEventsChange = React.useCallback((events: EventInterface[]) => {
-    setFilteredEvents(events);
-  }, []);
 
   // We kiezen de juiste interface op basis van het apparaat:
   // Desktop/tablet → Web interface
@@ -114,6 +79,7 @@ export default function App() {
       <LanguageProvider>
         <AuthProvider>
           <ThemeInjector />
+          <LazyLoad>
           <Switch>
         {/* Admin Routes - beschikbaar op alle apparaten */}
         <Route path="/login">
@@ -310,6 +276,7 @@ export default function App() {
           {isMobile ? <AppHomePage /> : <WebPage />}
         </Route>
           </Switch>
+          </LazyLoad>
           <Toaster />
         </AuthProvider>
       </LanguageProvider>

@@ -35,14 +35,15 @@ export function AppHomePage() {
   // Standaard: geen datumfilter actief (lege array = alle toekomstige evenementen)
   const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
 
-  // Fetch events based on user location (large radius to get all nearby events)
+  // Fetch events based on user location (optimized radius for faster loading)
   const { data: events = [] } = useQuery({
     queryKey: ["events", location?.lat, location?.lng],
     queryFn: async () => {
       if (!location) return [];
-      return fetchEventsByRadius(location.lat, location.lng, 50); // Fixed large radius
+      return fetchEventsByRadius(location.lat, location.lng, 15); // Optimized radius for performance
     },
     enabled: !!location,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   // Filter events based on search query and selected days, then sort by distance

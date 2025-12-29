@@ -1,0 +1,105 @@
+}
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+GET /api/events/nearby params: { lat: 51.77344, lng: 5.5345152, radius: 10, windowDays: 14 }
+Fetching events with params: { lat: 51.77344, lng: 5.5345152, radius: 10, windowDays: 14 }
+🔐 Auto-logged in as Jan Jansen (ID: 7, role: user)
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+GET /api/events/nearby params: { lat: 51.77344, lng: 5.5345152, radius: 10, windowDays: 14 }
+Fetching events with params: { lat: 51.77344, lng: 5.5345152, radius: 10, windowDays: 14 }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+🔐 Auto-logged in as Jan Jansen (ID: 7, role: user)
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Found 219 events within 14 days window
+Found 219 events within 14 days window
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+User data sent to client: {
+  id: 7,
+  username: 'janjansen',
+  email: 'jan.jansen@email.nl',
+  avatar: null,
+  photoUrl: null,
+  googleId: null,
+  role: 'user',
+  isPremium: false,
+  name: 'Jan Jansen',
+  phone: null,
+  location: 'Amsterdam',
+  bio: 'Ik hou van lokale evenementen en buurtactiviteiten.',
+  createdAt: 2025-12-03T08:28:03.213Z
+}
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+GET /api/events/nearby params: {
+  lat: 51.76264299377346,
+  lng: 5.511247717790568,
+  radius: 50,
+  windowDays: 14
+}
+Fetching events with params: {
+  lat: 51.76264299377346,
+  lng: 5.511247717790568,
+  radius: 50,
+  windowDays: 14
+}
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Deserialized user: { id: 7, email: 'jan.jansen@email.nl', role: 'user' }
+Found 219 events within 14 days window

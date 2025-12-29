@@ -161,6 +161,15 @@ export class RssFeedService {
       const sortedDates = allDates.sort((a, b) => a.getTime() - b.getTime());
       const baseItem = group[0];
       
+      // Skip if no valid dates
+      if (sortedDates.length === 0) {
+        for (const item of group) {
+          item.allDates = [];
+          consolidated.push(item);
+        }
+        continue;
+      }
+      
       // Use earliest startTime and latest as endTime
       baseItem.startTime = sortedDates[0];
       baseItem.endTime = sortedDates[sortedDates.length - 1];
@@ -2975,9 +2984,17 @@ export class RssFeedService {
           const linksBeforeThisPage = eventLinks.length;
           
           // Find event links - look for agenda item links
+          // New format: /agenda/agenda-overzicht/{id}/{slug}
+          // Old format: /agenda/{slug}
           $('a[href*="/agenda/"]').each((_, el) => {
             const href = $(el).attr('href');
-            if (!href || href === '/agenda' || href.includes('agenda-overzicht') || href.includes('?page=')) return;
+            if (!href || href === '/agenda' || href.includes('?page=')) return;
+            
+            // Skip the overview page itself, but allow event pages under it
+            if (href === '/agenda/agenda-overzicht' || href.endsWith('/agenda-overzicht')) return;
+            
+            // Skip category pages like /agenda/jaarlijkse-evenementen
+            if (href.match(/\/agenda\/[a-z-]+$/) && !href.includes('/agenda/agenda-overzicht/')) return;
             
             const fullLink = href.startsWith('http') ? href : `${baseUrl}${href}`;
             if (!eventLinks.includes(fullLink)) {
@@ -4583,6 +4600,8 @@ export class RssFeedService {
         result = await this.scrapeGrensland();
       } else if (feed.feedType === "scraper" && feed.url.includes("tilburg.com")) {
         result = await this.scrapeTilburg();
+      } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
+        result = await this.scrapeIntoNijmegen();
       } else if (feed.feedType === "scraper") {
         // Use intelligent universal scraper for unknown scraper feeds
         result = await this.scrapeUniversal(feed);

@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Bookmark, BookmarkCheck, UserPlus, UserCheck, Navigation } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Bookmark, BookmarkCheck, UserPlus, UserCheck, Navigation, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import CategoryIcon from "@/components/Events/CategoryIcon";
@@ -122,6 +122,34 @@ export function EventDetailPanel({
       });
     },
   });
+
+  const openExternalPageMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/events/${event.id}/track-external-open`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to track external page open');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.externalUrl) {
+        window.open(data.externalUrl, '_blank', 'noopener,noreferrer');
+      }
+    },
+    onError: () => {
+      if (event.externalUrl) {
+        window.open(event.externalUrl, '_blank', 'noopener,noreferrer');
+      }
+    },
+  });
+
+  const handleOpenExternalPage = () => {
+    if (event.externalUrl) {
+      openExternalPageMutation.mutate();
+    }
+  };
 
   const handleToggleFavorite = () => {
     if (!user) {
@@ -342,27 +370,40 @@ export function EventDetailPanel({
             </div>
           )}
 
-          <div className="flex flex-wrap gap-3 pt-4">
-            <Button 
-              className="flex-1"
-              onClick={handleToggleParticipant}
-              disabled={toggleParticipantMutation.isPending}
-              variant={isParticipating ? "secondary" : "default"}
-            >
-              {isParticipating ? (
-                <>
-                  <UserCheck className="h-4 w-4 mr-2" />
-                  Aangemeld
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Aanmelden
-                </>
-              )}
-            </Button>
+          <div className="flex flex-wrap gap-2 pt-4">
+            {event.externalUrl ? (
+              <Button 
+                className="flex-1 h-9 text-sm"
+                onClick={handleOpenExternalPage}
+                disabled={openExternalPageMutation.isPending}
+                data-testid="button-open-external-page"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Bekijk op originele site
+              </Button>
+            ) : (
+              <Button 
+                className="flex-1 h-9 text-sm"
+                onClick={handleToggleParticipant}
+                disabled={toggleParticipantMutation.isPending}
+                variant={isParticipating ? "secondary" : "default"}
+              >
+                {isParticipating ? (
+                  <>
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Aangemeld
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Aanmelden
+                  </>
+                )}
+              </Button>
+            )}
             
             <Button 
+              className="h-9 text-sm"
               variant={isFavorited ? "secondary" : "outline"}
               onClick={handleToggleFavorite}
               disabled={toggleFavoriteMutation.isPending}
@@ -375,7 +416,7 @@ export function EventDetailPanel({
               {isFavorited ? "Opgeslagen" : "Opslaan"}
             </Button>
             
-            <Button variant="outline" onClick={handleShare}>
+            <Button className="h-9 text-sm" variant="outline" onClick={handleShare}>
               <Share2 className="h-4 w-4 mr-2" />
               Delen
             </Button>

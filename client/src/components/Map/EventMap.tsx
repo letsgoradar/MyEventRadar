@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
-import { Event } from "@shared/schema";
+import type { EventInterface as Event } from "@shared/schema";
 import "leaflet/dist/leaflet.css";
 
 interface EventMapProps {

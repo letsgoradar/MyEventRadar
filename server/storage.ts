@@ -66,11 +66,15 @@ export interface IStorage {
   deleteEvent(id: number): Promise<void>;
   getEventCount(): Promise<number>;
   importEvents(events: InsertEvent[]): Promise<Event[]>;
+  incrementExternalPageOpens(id: number): Promise<void>;
+  incrementSavesCount(id: number): Promise<void>;
+  decrementSavesCount(id: number): Promise<void>;
 
   // Favorite operations
-  addFavorite(favorite: InsertFavorite): Promise<Favorite>;
-  removeFavorite(userId: number, eventId: number): Promise<void>;
+  addFavorite(favorite: InsertFavorite): Promise<Favorite | null>; // Returns null if already exists
+  removeFavorite(userId: number, eventId: number): Promise<boolean>; // Returns true if actually deleted
   getFavoritesByUser(userId: number): Promise<Event[]>;
+  isFavorite(userId: number, eventId: number): Promise<boolean>;
 
   // Participant operations
   addParticipant(participant: InsertParticipant): Promise<Participant>;
@@ -292,22 +296,58 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async addFavorite(insertFavorite: InsertFavorite): Promise<Favorite> {
+  async addFavorite(insertFavorite: InsertFavorite): Promise<Favorite | null> {
     return this.withRetry(async () => {
+      // Check if favorite already exists
+      const existing = await db
+        .select()
+        .from(favorites)
+        .where(
+          and(
+            eq(favorites.userId, insertFavorite.userId),
+            eq(favorites.eventId, insertFavorite.eventId)
+          )
+        )
+        .limit(1);
+      
+      if (existing.length > 0) {
+        return null; // Already exists
+      }
+      
       const [result] = await db.insert(favorites).values(insertFavorite).returning();
       return result;
     });
   }
 
-  async removeFavorite(userId: number, eventId: number): Promise<void> {
+  async removeFavorite(userId: number, eventId: number): Promise<boolean> {
     return this.withRetry(async () => {
-      await db.delete(favorites)
+      const result = await db.delete(favorites)
         .where(
           and(
             eq(favorites.userId, userId),
             eq(favorites.eventId, eventId)
           )
-        );
+        )
+        .returning();
+      
+      return result.length > 0; // True if something was actually deleted
+    });
+  }
+
+  async isFavorite(userId: number, eventId: number): Promise<boolean> {
+    return this.withRetry(async () => {
+      const result = await db
+        .select()
+        .from(favorites)
+        .where(
+          and(
+            eq(favorites.userId, userId),
+            eq(favorites.eventId, eventId)
+          )
+        )
+        .limit(1);
+      
+      return result.length > 0;
     });
   }
 
@@ -411,6 +451,33 @@ export class PgStorage implements IStorage {
   async deleteEvent(id: number): Promise<void> {
     return this.withRetry(async () => {
       await db.delete(events).where(eq(events.id, id));
+    });
+  }
+
+  async incrementExternalPageOpens(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db
+        .update(events)
+        .set({ externalPageOpens: sql`COALESCE(${events.externalPageOpens}, 0) + 1` })
+        .where(eq(events.id, id));
+    });
+  }
+
+  async incrementSavesCount(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db
+        .update(events)
+        .set({ savesCount: sql`COALESCE(${events.savesCount}, 0) + 1` })
+        .where(eq(events.id, id));
+    });
+  }
+
+  async decrementSavesCount(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db
+        .update(events)
+        .set({ savesCount: sql`GREATEST(COALESCE(${events.savesCount}, 0) - 1, 0)` })
+        .where(eq(events.id, id));
     });
   }
   

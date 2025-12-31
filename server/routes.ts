@@ -751,13 +751,20 @@ Respond with ONLY the search term, nothing else.`
         return res.status(400).json({ message: "Invalid event ID" });
       }
       
-      // Voeg de favoriet toe
+      // Voeg de favoriet toe (returns null als deze al bestaat)
       const favorite = await storage.addFavorite({
         userId,
         eventId
       });
       
-      res.status(201).json(favorite);
+      if (favorite) {
+        // Alleen counter verhogen als favoriet daadwerkelijk is toegevoegd
+        await storage.incrementSavesCount(eventId);
+        res.status(201).json(favorite);
+      } else {
+        // Favoriet bestaat al
+        res.status(200).json({ message: "Already favorited" });
+      }
     } catch (error) {
       console.error('Error in POST /api/favorite:', error);
       res.status(500).json({ message: "Internal server error" });
@@ -779,12 +786,50 @@ Respond with ONLY the search term, nothing else.`
         return res.status(400).json({ message: "Invalid event ID" });
       }
       
-      // Verwijder de favoriet
-      await storage.removeFavorite(userId, eventId);
+      // Verwijder de favoriet (returns true als daadwerkelijk verwijderd)
+      const wasDeleted = await storage.removeFavorite(userId, eventId);
+      
+      if (wasDeleted) {
+        // Alleen counter verlagen als favoriet daadwerkelijk is verwijderd
+        await storage.decrementSavesCount(eventId);
+      }
       
       res.status(200).json({ message: "Favorite removed" });
     } catch (error) {
       console.error('Error in DELETE /api/favorite/:eventId:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Track externe pagina openen (voor toekomstige monetisatie)
+  app.post("/api/events/:id/track-external-open", async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+
+      // Check if event exists and has external URL
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      if (!event.externalUrl) {
+        return res.status(400).json({ message: "Event has no external URL" });
+      }
+
+      // Increment the counter
+      await storage.incrementExternalPageOpens(eventId);
+
+      res.json({ 
+        success: true, 
+        externalUrl: event.externalUrl,
+        message: "External page open tracked" 
+      });
+    } catch (error) {
+      console.error('Error in POST /api/events/:id/track-external-open:', error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

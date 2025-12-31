@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { EventInterface } from '@shared/schema';
-import { MapPin, Calendar, Euro, Eye, Image, Clock } from 'lucide-react';
+import { MapPin, Calendar, Euro, Eye, Image, Clock, Bookmark, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -257,6 +257,24 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 </div>
               )}
             </div>
+            
+            {/* Statistieken */}
+            {((event.externalPageOpens && event.externalPageOpens > 0) || (event.savesCount && event.savesCount > 0)) && (
+              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                {event.externalPageOpens && event.externalPageOpens > 0 && (
+                  <div className="flex items-center gap-1" data-testid={`stat-views-${event.id}`}>
+                    <ExternalLink className="h-3 w-3" />
+                    <span>{event.externalPageOpens}</span>
+                  </div>
+                )}
+                {event.savesCount && event.savesCount > 0 && (
+                  <div className="flex items-center gap-1" data-testid={`stat-saves-${event.id}`}>
+                    <Bookmark className="h-3 w-3" />
+                    <span>{event.savesCount}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -375,6 +393,24 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                   </span>
                 </div>
               )}
+              
+              {/* Statistieken */}
+              {((event.externalPageOpens && event.externalPageOpens > 0) || (event.savesCount && event.savesCount > 0)) && (
+                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                  {event.externalPageOpens && event.externalPageOpens > 0 && (
+                    <div className="flex items-center gap-1" data-testid={`stat-views-${event.id}`}>
+                      <ExternalLink className="h-3 w-3" />
+                      <span>{event.externalPageOpens}</span>
+                    </div>
+                  )}
+                  {event.savesCount && event.savesCount > 0 && (
+                    <div className="flex items-center gap-1" data-testid={`stat-saves-${event.id}`}>
+                      <Bookmark className="h-3 w-3" />
+                      <span>{event.savesCount}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </Card>
@@ -482,6 +518,24 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                     })}
                   </span>
                 </div>
+                
+                {/* Statistieken */}
+                {((event.externalPageOpens && event.externalPageOpens > 0) || (event.savesCount && event.savesCount > 0)) && (
+                  <div className="flex items-center gap-3 text-xs">
+                    {event.externalPageOpens && event.externalPageOpens > 0 && (
+                      <div className="flex items-center gap-1" data-testid={`stat-views-${event.id}`}>
+                        <ExternalLink className="h-3 w-3" />
+                        <span>{event.externalPageOpens}</span>
+                      </div>
+                    )}
+                    {event.savesCount && event.savesCount > 0 && (
+                      <div className="flex items-center gap-1" data-testid={`stat-saves-${event.id}`}>
+                        <Bookmark className="h-3 w-3" />
+                        <span>{event.savesCount}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </div>

@@ -4968,7 +4968,8 @@ export class RssFeedService {
           hostId: 1,
           recurrence: recurrence,
           tags: ["rss-import", feed.name.toLowerCase().replace(/\s+/g, "-")],
-          imageUrl: imageUrl || null
+          imageUrl: imageUrl || null,
+          externalUrl: parsedItem.link || null
         })
         .returning();
 

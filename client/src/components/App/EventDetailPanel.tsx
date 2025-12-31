@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Heart, UserPlus, Navigation, Bookmark, BookmarkCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Heart, UserPlus, Navigation, Bookmark, BookmarkCheck, ExternalLink, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -28,6 +28,9 @@ interface Event {
   isHighlighted?: boolean;
   highlightPriority?: number | null;
   distance?: number;
+  externalUrl?: string | null;
+  externalPageOpens?: number;
+  savesCount?: number;
 }
 
 interface UserLocation {
@@ -183,6 +186,35 @@ export function EventDetailPanel({
       return;
     }
     toggleParticipantMutation.mutate();
+  };
+
+  // Track and open external page mutation
+  const openExternalPageMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/events/${event.id}/track-external-open`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to track external page open');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.externalUrl) {
+        window.open(data.externalUrl, '_blank', 'noopener,noreferrer');
+      }
+    },
+    onError: () => {
+      if (event.externalUrl) {
+        window.open(event.externalUrl, '_blank', 'noopener,noreferrer');
+      }
+    },
+  });
+
+  const handleOpenExternalPage = () => {
+    if (event.externalUrl) {
+      openExternalPageMutation.mutate();
+    }
   };
 
   // Find current event index for navigation
@@ -509,15 +541,28 @@ export function EventDetailPanel({
       {/* Fixed Bottom Action Bar - Mobile Style - Helemaal onderaan */}
       <div className="fixed left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg" style={{ bottom: 0, zIndex: 10000 }}>
         <div className="flex gap-3">
-          <Button 
-            className="flex-1 h-12"
-            onClick={handleToggleParticipant}
-            variant={isParticipating ? "secondary" : "default"}
-            disabled={toggleParticipantMutation.isPending}
-          >
-            <UserPlus className="h-4 w-4 mr-2" />
-            {isParticipating ? 'Aangemeld' : 'Aanmelden'}
-          </Button>
+          {event.externalUrl ? (
+            <Button 
+              className="flex-1 h-12"
+              onClick={handleOpenExternalPage}
+              disabled={openExternalPageMutation.isPending}
+              data-testid="button-open-external-page"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Bekijk op originele site
+            </Button>
+          ) : (
+            <Button 
+              className="flex-1 h-12"
+              onClick={handleToggleParticipant}
+              variant={isParticipating ? "secondary" : "default"}
+              disabled={toggleParticipantMutation.isPending}
+              data-testid="button-participate"
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              {isParticipating ? 'Aangemeld' : 'Aanmelden'}
+            </Button>
+          )}
           
           <Button 
             variant="outline" 

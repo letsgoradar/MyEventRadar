@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, serial, integer, boolean, timestamp, jsonb, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, boolean, timestamp, jsonb, decimal, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -67,13 +67,19 @@ export const events = pgTable("events", {
   highlightStartDate: timestamp("highlight_start_date"),
   highlightEndDate: timestamp("highlight_end_date"),
   highlightPriority: integer("highlight_priority").default(0), // Higher numbers = higher priority
+  // External link and tracking
+  externalUrl: text("external_url"), // Link to external event page (from RSS feeds)
+  externalPageOpens: integer("external_page_opens").default(0), // Track how often external page is opened
+  savesCount: integer("saves_count").default(0), // Track how often event is saved/favorited
 });
 
 export const favorites = pgTable("favorites", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   eventId: integer("event_id").notNull(),
-});
+}, (table) => ({
+  uniqueUserEvent: unique().on(table.userId, table.eventId),
+}));
 
 export const participants = pgTable("participants", {
   id: serial("id").primaryKey(),
@@ -281,6 +287,11 @@ export interface EventInterface {
   tags?: string[] | null;
   imageUrl?: string | null;
   createdAt?: string | Date;
+  isHighlighted?: boolean;
+  highlightPriority?: number | null;
+  externalUrl?: string | null;
+  externalPageOpens?: number;
+  savesCount?: number;
 }
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Favorite = typeof favorites.$inferSelect;

@@ -328,6 +328,105 @@ export default function RssFeedsPage() {
     },
   });
 
+  // Sync All Feeds state and mutation
+  const [syncAllProgress, setSyncAllProgress] = useState<{
+    isRunning: boolean;
+    totalFeeds: number;
+    completedFeeds: number;
+    currentFeedName: string | null;
+    percentComplete: number;
+    feedResults: Array<{
+      feedId: number;
+      feedName: string;
+      status: 'success' | 'error' | 'skipped';
+      eventsCreated: number;
+      message?: string;
+    }>;
+    nextFeedIn?: number;
+  } | null>(null);
+  
+  const syncAllPollRef = { current: null as NodeJS.Timeout | null };
+  
+  const pollSyncAllProgress = async () => {
+    try {
+      const response = await fetch('/api/admin/rss-feeds/sync-all/progress', {
+        credentials: 'include'
+      });
+      if (!response.ok) return null;
+      const progress = await response.json();
+      setSyncAllProgress(progress);
+      return progress;
+    } catch {
+      return null;
+    }
+  };
+
+  const syncAllFeedsMutation = useMutation({
+    mutationFn: async () => {
+      setSyncAllProgress({
+        isRunning: true,
+        totalFeeds: 0,
+        completedFeeds: 0,
+        currentFeedName: null,
+        percentComplete: 0,
+        feedResults: []
+      });
+      
+      // Start polling for progress
+      syncAllPollRef.current = setInterval(async () => {
+        const progress = await pollSyncAllProgress();
+        if (progress && !progress.isRunning) {
+          if (syncAllPollRef.current) {
+            clearInterval(syncAllPollRef.current);
+            syncAllPollRef.current = null;
+          }
+        }
+      }, 1000);
+      
+      try {
+        const result = await apiRequest('/api/admin/rss-feeds/sync-all', {
+          method: 'POST',
+          data: { delaySeconds: 10 },
+        });
+        return result;
+      } finally {
+        // Clean up will happen via polling when isRunning becomes false
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Sync All gestart',
+        description: 'Alle feeds worden nu een voor een gesynchroniseerd.',
+      });
+    },
+    onError: (error: any) => {
+      if (syncAllPollRef.current) {
+        clearInterval(syncAllPollRef.current);
+        syncAllPollRef.current = null;
+      }
+      setSyncAllProgress(null);
+      toast({
+        title: 'Sync All mislukt',
+        description: error.message || 'Er is een fout opgetreden.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const cancelSyncAllMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('/api/admin/rss-feeds/sync-all/cancel', {
+        method: 'POST',
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Sync wordt gestopt',
+        description: 'De sync wordt gestopt na de huidige feed.',
+      });
+    },
+  });
+
   const addEindhovenFeeds = async () => {
     try {
       await apiRequest('/api/admin/rss-feeds', {
@@ -418,6 +517,15 @@ export default function RssFeedsPage() {
               </p>
             </div>
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => syncAllFeedsMutation.mutate()}
+                disabled={syncAllFeedsMutation.isPending || syncAllProgress?.isRunning}
+                data-testid="button-sync-all"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${syncAllProgress?.isRunning ? 'animate-spin' : ''}`} />
+                Sync Alle Feeds
+              </Button>
               <Button 
                 variant="outline" 
                 onClick={() => refreshFeedsMutation.mutate()}
@@ -577,6 +685,92 @@ export default function RssFeedsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {syncAllProgress && (syncAllProgress.isRunning || syncAllProgress.feedResults.length > 0) && (
+            <Card className="mb-6 border-blue-200 bg-blue-50/50">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    {syncAllProgress.isRunning ? (
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                    ) : (
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    )}
+                    {syncAllProgress.isRunning ? 'Sync Alle Feeds' : 'Sync Voltooid'}
+                  </CardTitle>
+                  {syncAllProgress.isRunning && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => cancelSyncAllMutation.mutate()}
+                      disabled={cancelSyncAllMutation.isPending}
+                    >
+                      Stoppen
+                    </Button>
+                  )}
+                  {!syncAllProgress.isRunning && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        setSyncAllProgress(null);
+                        queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+                      }}
+                    >
+                      Sluiten
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Voortgang: {syncAllProgress.completedFeeds} / {syncAllProgress.totalFeeds} feeds</span>
+                    <span>{syncAllProgress.percentComplete || 0}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${syncAllProgress.percentComplete || 0}%` }}
+                    />
+                  </div>
+                  {syncAllProgress.currentFeedName && syncAllProgress.isRunning && (
+                    <p className="text-sm text-muted-foreground">
+                      Bezig met: <strong>{syncAllProgress.currentFeedName}</strong>
+                      {syncAllProgress.nextFeedIn && syncAllProgress.nextFeedIn > 0 && (
+                        <span className="ml-2 text-xs">
+                          (wacht {Math.round(syncAllProgress.nextFeedIn / 1000)}s tot volgende)
+                        </span>
+                      )}
+                    </p>
+                  )}
+                  {syncAllProgress.feedResults.length > 0 && (
+                    <div className="mt-3 max-h-40 overflow-y-auto">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Resultaten:</p>
+                      <div className="space-y-1">
+                        {syncAllProgress.feedResults.slice(-5).map((result, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-xs p-1 bg-white/50 rounded">
+                            <span className="flex items-center gap-1">
+                              {result.status === 'success' ? (
+                                <CheckCircle className="w-3 h-3 text-green-600" />
+                              ) : (
+                                <AlertCircle className="w-3 h-3 text-red-600" />
+                              )}
+                              {result.feedName}
+                            </span>
+                            <span className={result.status === 'success' ? 'text-green-600' : 'text-red-600'}>
+                              {result.status === 'success' ? `+${result.eventsCreated} events` : result.message}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Tabs defaultValue="list" className="w-full">
             <TabsList className="mb-4">

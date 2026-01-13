@@ -38,6 +38,26 @@ interface SyncProgress {
 }
 const SYNC_PROGRESS = new Map<number, SyncProgress>();
 
+// Progress tracking voor sync-all operatie
+interface SyncAllProgress {
+  isRunning: boolean;
+  totalFeeds: number;
+  completedFeeds: number;
+  currentFeedId: number | null;
+  currentFeedName: string | null;
+  feedResults: Array<{
+    feedId: number;
+    feedName: string;
+    status: 'success' | 'error' | 'skipped';
+    eventsCreated: number;
+    message?: string;
+  }>;
+  startTime: number;
+  delayBetweenFeeds: number;
+  nextFeedIn?: number;
+}
+let SYNC_ALL_PROGRESS: SyncAllProgress | null = null;
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Security: Rate limiting voor login/register endpoints
   const authLimiter = rateLimit({
@@ -1908,6 +1928,159 @@ Respond with ONLY the search term, nothing else.`
       
       res.status(500).json({ message: error.message || "Internal server error" });
     }
+  });
+
+  // Sync all feeds sequentially with delays and exponential backoff
+  app.post("/api/admin/rss-feeds/sync-all", isAdmin, async (req, res) => {
+    try {
+      // Check if already running
+      if (SYNC_ALL_PROGRESS?.isRunning) {
+        return res.status(409).json({ 
+          message: "Er loopt al een sync-all operatie. Wacht tot deze is voltooid.",
+          progress: SYNC_ALL_PROGRESS
+        });
+      }
+
+      const delayBetweenFeeds = parseInt(req.body.delaySeconds as string) || 10;
+      const feeds = await storage.getAllRssFeeds();
+      const activeFeeds = feeds.filter(f => f.status === 'active');
+
+      if (activeFeeds.length === 0) {
+        return res.json({ message: "Geen actieve feeds gevonden", totalFeeds: 0, results: [] });
+      }
+
+      // Initialize progress
+      SYNC_ALL_PROGRESS = {
+        isRunning: true,
+        totalFeeds: activeFeeds.length,
+        completedFeeds: 0,
+        currentFeedId: null,
+        currentFeedName: null,
+        feedResults: [],
+        startTime: Date.now(),
+        delayBetweenFeeds: delayBetweenFeeds * 1000
+      };
+
+      // Start async processing (don't await - let it run in background)
+      (async () => {
+        const { RssFeedService } = await import('./services/rss-feed-service');
+        let backoffMultiplier = 1;
+        const maxBackoff = 60000; // Max 60 seconds backoff
+        const baseDelay = delayBetweenFeeds * 1000;
+
+        for (let i = 0; i < activeFeeds.length; i++) {
+          const feed = activeFeeds[i];
+          
+          // Check if cancelled (either nulled or isRunning set to false)
+          if (!SYNC_ALL_PROGRESS || !SYNC_ALL_PROGRESS.isRunning) {
+            console.log('[Sync-All] Cancelled by user, stopping...');
+            break;
+          }
+          
+          SYNC_ALL_PROGRESS.currentFeedId = feed.id;
+          SYNC_ALL_PROGRESS.currentFeedName = feed.name;
+          
+          console.log(`[Sync-All] Processing feed ${i + 1}/${activeFeeds.length}: ${feed.name}`);
+          
+          try {
+            // Process the feed
+            const result = await RssFeedService.processFeed(feed, storage);
+            
+            SYNC_ALL_PROGRESS.feedResults.push({
+              feedId: feed.id,
+              feedName: feed.name,
+              status: 'success',
+              eventsCreated: result.eventsCreated || 0,
+              message: `${result.itemsProcessed || 0} items verwerkt, ${result.eventsCreated || 0} events aangemaakt`
+            });
+            
+            // Reset backoff on success
+            backoffMultiplier = 1;
+            
+          } catch (error: any) {
+            console.error(`[Sync-All] Error syncing feed ${feed.name}:`, error.message);
+            
+            SYNC_ALL_PROGRESS.feedResults.push({
+              feedId: feed.id,
+              feedName: feed.name,
+              status: 'error',
+              eventsCreated: 0,
+              message: error.message || 'Onbekende fout'
+            });
+            
+            // Exponential backoff on error (max 60s)
+            backoffMultiplier = Math.min(backoffMultiplier * 2, maxBackoff / baseDelay);
+          }
+          
+          SYNC_ALL_PROGRESS.completedFeeds = i + 1;
+          
+          // Wait before next feed (with exponential backoff if there was an error)
+          if (i < activeFeeds.length - 1) {
+            const waitTime = Math.round(baseDelay * backoffMultiplier);
+            SYNC_ALL_PROGRESS.nextFeedIn = waitTime;
+            console.log(`[Sync-All] Waiting ${waitTime / 1000}s before next feed...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        }
+        
+        // Mark as completed
+        if (SYNC_ALL_PROGRESS) {
+          SYNC_ALL_PROGRESS.isRunning = false;
+          SYNC_ALL_PROGRESS.currentFeedId = null;
+          SYNC_ALL_PROGRESS.currentFeedName = null;
+          SYNC_ALL_PROGRESS.nextFeedIn = undefined;
+          
+          console.log(`[Sync-All] Completed. ${SYNC_ALL_PROGRESS.feedResults.filter(r => r.status === 'success').length}/${SYNC_ALL_PROGRESS.totalFeeds} feeds succesvol.`);
+          
+          // Clean up after 5 minutes
+          setTimeout(() => {
+            SYNC_ALL_PROGRESS = null;
+          }, 5 * 60 * 1000);
+        }
+      })();
+
+      res.json({ 
+        message: "Sync-all gestart",
+        totalFeeds: activeFeeds.length,
+        delayBetweenFeeds: delayBetweenFeeds
+      });
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/rss-feeds/sync-all:', error);
+      SYNC_ALL_PROGRESS = null;
+      res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+
+  // Get sync-all progress
+  app.get("/api/admin/rss-feeds/sync-all/progress", isAdmin, async (req, res) => {
+    if (!SYNC_ALL_PROGRESS) {
+      return res.json({ isRunning: false });
+    }
+    
+    const elapsed = Date.now() - SYNC_ALL_PROGRESS.startTime;
+    const avgTimePerFeed = SYNC_ALL_PROGRESS.completedFeeds > 0 
+      ? elapsed / SYNC_ALL_PROGRESS.completedFeeds 
+      : 0;
+    const remainingFeeds = SYNC_ALL_PROGRESS.totalFeeds - SYNC_ALL_PROGRESS.completedFeeds;
+    
+    res.json({
+      ...SYNC_ALL_PROGRESS,
+      elapsedMs: elapsed,
+      estimatedRemainingMs: Math.round(avgTimePerFeed * remainingFeeds),
+      percentComplete: Math.round((SYNC_ALL_PROGRESS.completedFeeds / SYNC_ALL_PROGRESS.totalFeeds) * 100)
+    });
+  });
+
+  // Cancel sync-all
+  app.post("/api/admin/rss-feeds/sync-all/cancel", isAdmin, async (req, res) => {
+    if (!SYNC_ALL_PROGRESS?.isRunning) {
+      return res.json({ message: "Geen actieve sync-all operatie" });
+    }
+    
+    SYNC_ALL_PROGRESS.isRunning = false;
+    console.log('[Sync-All] Cancelled by user');
+    
+    res.json({ message: "Sync-all wordt gestopt na de huidige feed" });
   });
 
   app.get("/api/admin/rss-feeds/:id/events", isAdmin, async (req, res) => {

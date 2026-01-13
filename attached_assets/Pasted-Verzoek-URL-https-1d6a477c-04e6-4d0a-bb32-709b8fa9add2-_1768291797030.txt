@@ -1,0 +1,84 @@
+Verzoek-URL
+https://1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev/api/admin/rss-feeds/2/sync-progress
+Verzoekmethode
+GET
+Statuscode
+429 Too Many Requests
+Extern adres
+34.173.153.191:443
+Verwijzersbeleid
+no-referrer
+content-length
+53
+content-security-policy
+default-src 'self';style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;font-src 'self' https://fonts.gstatic.com;img-src 'self' data: https: blob:;script-src 'self' 'unsafe-inline' 'unsafe-eval';connect-src 'self' ws: wss: https:;base-uri 'self';form-action 'self';frame-ancestors 'self';object-src 'none';script-src-attr 'none';upgrade-insecure-requests
+content-type
+application/json; charset=utf-8
+cross-origin-opener-policy
+same-origin
+cross-origin-resource-policy
+same-origin
+date
+Tue, 13 Jan 2026 08:06:50 GMT
+etag
+W/"35-D9L4//yeSDo5oP98SOmqZtFHO4k"
+origin-agent-cluster
+?1
+ratelimit-limit
+100
+ratelimit-policy
+100;w=900
+ratelimit-remaining
+0
+ratelimit-reset
+714
+referrer-policy
+no-referrer
+replit-cluster
+riker
+retry-after
+714
+strict-transport-security
+max-age=31536000; includeSubDomains
+x-content-type-options
+nosniff
+x-dns-prefetch-control
+off
+x-download-options
+noopen
+x-frame-options
+SAMEORIGIN
+x-permitted-cross-domain-policies
+none
+x-robots-tag
+none, noindex, noarchive, nofollow, nositelinkssearchbox, noimageindex
+x-robots-tag
+none, noindex, noarchive, nofollow, nositelinkssearchbox, noimageindex
+x-xss-protection
+0
+accept
+*/*
+accept-encoding
+gzip, deflate, br, zstd
+accept-language
+nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7
+connection
+keep-alive
+cookie
+eventapp.sid=s%3AZig7qMt90ODfKQNStAqzGt9Uc_dE6RUs.lzr9f7R9g7juiZ%2BfNUXFpuLL6tK8pjAXDLvd3BbVPqI
+host
+1d6a477c-04e6-4d0a-bb32-709b8fa9add2-00-ejmzo6r8kapc.riker.replit.dev
+sec-ch-ua
+"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"
+sec-ch-ua-mobile
+?0
+sec-ch-ua-platform
+"Windows"
+sec-fetch-dest
+empty
+sec-fetch-mode
+cors
+sec-fetch-site
+same-origin
+user-agent
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36

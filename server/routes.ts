@@ -54,6 +54,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     message: { error: "Te veel verzoeken. Probeer later opnieuw." },
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => {
+      // Skip rate limiting for admin routes (admins are trusted)
+      return req.path.startsWith('/api/admin');
+    }
   });
 
   // Toepassen van rate limiting

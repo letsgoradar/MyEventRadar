@@ -22,6 +22,7 @@ export const autoLoginTestUser = async (req: Request, res: Response, next: NextF
       // Clear session to force re-login as admin
       delete (req.session as any).passport;
       req.user = undefined;
+      // Don't return - fall through to auto-login as admin
     } 
     // If on non-admin route and logged in as admin, that's fine - admin can access everything
     else {
@@ -29,9 +30,26 @@ export const autoLoginTestUser = async (req: Request, res: Response, next: NextF
     }
   }
 
-  // Skip if session already has passport data and we haven't cleared it above
-  if ((req.session as any).passport) {
-    return next();
+  // For admin routes, always ensure we have an admin user
+  if (isAdminRoute) {
+    const passportData = (req.session as any).passport;
+    if (passportData) {
+      const existingUser = await storage.getUser(passportData.user);
+      if (existingUser && existingUser.role !== 'admin') {
+        // Current session user is not admin, clear and re-login
+        delete (req.session as any).passport;
+        req.user = undefined;
+      } else if (existingUser && existingUser.role === 'admin') {
+        // Already admin, continue
+        req.user = existingUser;
+        return next();
+      }
+    }
+  } else {
+    // Skip if session already has passport data for non-admin routes
+    if ((req.session as any).passport) {
+      return next();
+    }
   }
 
   try {

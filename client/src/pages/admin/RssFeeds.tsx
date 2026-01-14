@@ -884,9 +884,23 @@ export default function RssFeedsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">
-                            {feed.feedType === 'scraper' ? 'Scraper' : 'RSS'}
-                          </Badge>
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="outline" className={feed.feedType === 'scraper' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-blue-50 text-blue-700 border-blue-200'}>
+                              {feed.feedType === 'scraper' ? 'Scraper' : 'RSS'}
+                            </Badge>
+                            {(() => {
+                              const active = feedOverview[feed.id]?.totalActive || 0;
+                              const hasError = feed.status === 'error';
+                              const recentSync = feed.lastFetchedAt && (Date.now() - new Date(feed.lastFetchedAt).getTime()) < 24 * 60 * 60 * 1000;
+                              const score = hasError ? 0 : (active > 20 ? 100 : active > 10 ? 75 : active > 0 ? 50 : 25) * (recentSync ? 1 : 0.5);
+                              const scoreColor = score >= 75 ? 'text-green-600' : score >= 50 ? 'text-amber-600' : 'text-red-600';
+                              return (
+                                <span className={`text-xs ${scoreColor} font-medium`} title={`Score: ${Math.round(score)}% (${active} events${hasError ? ', error' : ''}${!recentSync && !hasError ? ', niet recent' : ''})`}>
+                                  {Math.round(score)}% kwaliteit
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {getStatusBadge(feed.status)}

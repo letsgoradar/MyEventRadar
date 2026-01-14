@@ -10,11 +10,27 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface AlternativeSource {
   url: string;
-  type: 'rss' | 'atom' | 'json-api' | 'json-feed' | 'sitemap';
+  type: 'rss' | 'atom' | 'json-api' | 'json-feed' | 'sitemap' | 'ical' | 'json-ld' | 'scraper';
   itemCount: number;
   confidence: number;
   recommendation: string;
+  desirabilityScore: number; // 1-100, higher = more preferred
+  pros: string[];
+  cons: string[];
+  requirements?: string[];
 }
+
+// Desirability ranking (higher = better)
+export const FEED_TYPE_DESIRABILITY: Record<string, { score: number; name: string; description: string }> = {
+  'json-api': { score: 95, name: 'JSON API', description: 'Beste optie: volledige gestructureerde data, makkelijk te parsen' },
+  'json-feed': { score: 90, name: 'JSON Feed', description: 'Moderne standaard met rijke metadata' },
+  'rss': { score: 80, name: 'RSS Feed', description: 'Universele standaard, breed ondersteund' },
+  'atom': { score: 80, name: 'Atom Feed', description: 'Moderne XML standaard met goede metadata' },
+  'ical': { score: 70, name: 'iCal/ICS', description: 'Kalender formaat met datum/tijd, beperkte details' },
+  'json-ld': { score: 55, name: 'JSON-LD Schema', description: 'Gestructureerde data in HTML, vereist parsing' },
+  'sitemap': { score: 40, name: 'Sitemap', description: 'Alleen URLs, vereist per-pagina scraping' },
+  'scraper': { score: 25, name: 'HTML Scraper', description: 'Laatste optie: foutgevoelig, kan breken bij wijzigingen' },
+};
 
 export interface FeedAnalysisResult {
   url: string;
@@ -59,6 +75,64 @@ export interface FeedAnalysisResult {
 
 export class FeedAnalyzerService {
   private static readonly USER_AGENT = "letsgo-radar-analyzer/1.0 (+https://letsgo-radar.nl)";
+
+  private static createAlternativeSource(
+    url: string,
+    type: AlternativeSource['type'],
+    itemCount: number,
+    confidence: number,
+    recommendation: string
+  ): AlternativeSource {
+    const desirability = FEED_TYPE_DESIRABILITY[type] || { score: 25, name: type, description: 'Onbekend type' };
+    
+    const prosConsMap: Record<string, { pros: string[]; cons: string[] }> = {
+      'json-api': {
+        pros: ['Volledige gestructureerde data', 'Makkelijk te parsen', 'Betrouwbare veldmapping'],
+        cons: ['Kan API key vereisen', 'Niet gestandaardiseerd'],
+      },
+      'json-feed': {
+        pros: ['Moderne standaard', 'Rijke metadata', 'Goed gedocumenteerd'],
+        cons: ['Minder wijdverspreid dan RSS'],
+      },
+      'rss': {
+        pros: ['Universele standaard', 'Breed ondersteund', 'Stabiel'],
+        cons: ['Soms beperkte metadata', 'Geen GPS standaard'],
+      },
+      'atom': {
+        pros: ['Moderne XML standaard', 'Goede metadata', 'Betere namespace support'],
+        cons: ['Complexer dan RSS'],
+      },
+      'ical': {
+        pros: ['Perfecte datum/tijd ondersteuning', 'Kalender integratie'],
+        cons: ['Beperkte beschrijvingen', 'Geen afbeeldingen standaard'],
+      },
+      'json-ld': {
+        pros: ['Gestructureerde Schema.org data', 'SEO-gericht, betrouwbaar'],
+        cons: ['Vereist HTML parsing', 'Variabele implementatie'],
+      },
+      'sitemap': {
+        pros: ['Complete lijst van URLs', 'Officiële paginastructuur'],
+        cons: ['Vereist per-pagina scraping', 'Langzaam'],
+      },
+      'scraper': {
+        pros: ['Werkt met elke website'],
+        cons: ['Foutgevoelig', 'Kan breken bij wijzigingen', 'Handmatige configuratie nodig'],
+      },
+    };
+    
+    const { pros, cons } = prosConsMap[type] || { pros: [], cons: [] };
+    
+    return {
+      url,
+      type,
+      itemCount,
+      confidence,
+      recommendation,
+      desirabilityScore: desirability.score,
+      pros,
+      cons,
+    };
+  }
 
   static async analyzeUrl(url: string): Promise<FeedAnalysisResult> {
     console.log(`[FeedAnalyzer] Starting analysis of: ${url}`);
@@ -613,21 +687,65 @@ export class FeedAnalyzerService {
 
     console.log(`[FeedAnalyzer] Discovering alternative sources for ${baseUrl}`);
 
-    // 1. Check for RSS/Atom links in HTML head
+    // 1. Check for RSS/Atom/iCal links in HTML head
     $('link[rel="alternate"]').each((_, el) => {
       const type = $(el).attr('type') || '';
       const href = $(el).attr('href');
-      if (href && (type.includes('rss') || type.includes('atom'))) {
+      if (href) {
         const fullUrl = href.startsWith('http') ? href : `${origin}${href}`;
-        alternatives.push({
-          url: fullUrl,
-          type: type.includes('atom') ? 'atom' : 'rss',
-          itemCount: 0,
-          confidence: 90,
-          recommendation: 'Officiële RSS feed gevonden in HTML'
-        });
+        if (type.includes('rss') || type.includes('atom')) {
+          alternatives.push(this.createAlternativeSource(
+            fullUrl,
+            type.includes('atom') ? 'atom' : 'rss',
+            0,
+            90,
+            'Officiële RSS/Atom feed gevonden in HTML'
+          ));
+        } else if (type.includes('calendar') || href.includes('.ics')) {
+          alternatives.push(this.createAlternativeSource(
+            fullUrl,
+            'ical',
+            0,
+            85,
+            'iCal/ICS kalender feed gevonden'
+          ));
+        }
       }
     });
+
+    // 1b. Check for JSON-LD Schema.org Event data
+    const jsonLdScripts = $('script[type="application/ld+json"]').toArray();
+    for (const script of jsonLdScripts) {
+      try {
+        const ldData = JSON.parse($(script).html() || '{}');
+        const items = Array.isArray(ldData) ? ldData : [ldData];
+        let eventCount = 0;
+        
+        for (const item of items) {
+          if (item['@type'] === 'Event' || item['@type']?.includes('Event')) {
+            eventCount++;
+          }
+          // Check for ItemList containing events
+          if (item['@type'] === 'ItemList' && item.itemListElement) {
+            const events = item.itemListElement.filter((e: any) => 
+              e['@type'] === 'Event' || e.item?.['@type'] === 'Event'
+            );
+            eventCount += events.length;
+          }
+        }
+        
+        if (eventCount > 0) {
+          alternatives.push(this.createAlternativeSource(
+            baseUrl,
+            'json-ld',
+            eventCount,
+            80,
+            `${eventCount} events gevonden in JSON-LD Schema.org data`
+          ));
+          console.log(`[FeedAnalyzer] Found ${eventCount} events in JSON-LD`);
+        }
+      } catch {}
+    }
 
     // 2. Look for embedded API endpoints (Nuxt, Next.js, etc.)
     const scripts = $('script').map((_, el) => $(el).html()).get().join('\n');
@@ -664,16 +782,28 @@ export class FeedAnalyzerService {
       } catch {}
     }
 
-    // 3. Try common feed endpoints
+    // 3. Try common feed endpoints (RSS, JSON, iCal, sitemap)
     const commonEndpoints = [
-      '/feed', '/feed.xml', '/rss', '/rss.xml', '/atom.xml',
-      '/api/events', '/api/events.json', '/events.json',
-      '/wp-json/wp/v2/events', '/feed/events'
-    ];
+      { path: '/feed', expectedType: 'rss' },
+      { path: '/feed.xml', expectedType: 'rss' },
+      { path: '/rss', expectedType: 'rss' },
+      { path: '/rss.xml', expectedType: 'rss' },
+      { path: '/atom.xml', expectedType: 'atom' },
+      { path: '/api/events', expectedType: 'json-api' },
+      { path: '/api/events.json', expectedType: 'json-api' },
+      { path: '/events.json', expectedType: 'json-api' },
+      { path: '/wp-json/wp/v2/events', expectedType: 'json-api' },
+      { path: '/feed/events', expectedType: 'rss' },
+      { path: '/events.ics', expectedType: 'ical' },
+      { path: '/calendar.ics', expectedType: 'ical' },
+      { path: '/agenda.ics', expectedType: 'ical' },
+      { path: '/sitemap.xml', expectedType: 'sitemap' },
+      { path: '/sitemap_index.xml', expectedType: 'sitemap' },
+    ] as const;
 
     for (const endpoint of commonEndpoints) {
       try {
-        const testUrl = `${origin}${endpoint}`;
+        const testUrl = `${origin}${endpoint.path}`;
         const testResponse = await axios.head(testUrl, {
           headers: { "User-Agent": this.USER_AGENT },
           timeout: 5000,
@@ -682,17 +812,20 @@ export class FeedAnalyzerService {
         
         if (testResponse.status === 200) {
           const contentType = testResponse.headers['content-type'] || '';
-          let type: AlternativeSource['type'] = 'rss';
+          let type: AlternativeSource['type'] = endpoint.expectedType as AlternativeSource['type'];
+          
+          // Override based on content-type if available
           if (contentType.includes('json')) type = 'json-api';
           else if (contentType.includes('atom')) type = 'atom';
+          else if (contentType.includes('calendar')) type = 'ical';
           
-          alternatives.push({
-            url: testUrl,
+          alternatives.push(this.createAlternativeSource(
+            testUrl,
             type,
-            itemCount: 0, // Would need GET request to determine
-            confidence: 75,
-            recommendation: `Standaard ${type} endpoint gevonden`
-          });
+            0,
+            75,
+            `Standaard ${FEED_TYPE_DESIRABILITY[type]?.name || type} endpoint gevonden`
+          ));
           console.log(`[FeedAnalyzer] Found endpoint: ${testUrl} (${type})`);
         }
       } catch {
@@ -720,82 +853,124 @@ export class FeedAnalyzerService {
 
     // 5. Check for known sites with specialized scrapers
     const knownScrapers = [
-      { pattern: 'intonijmegen', name: 'IntoNijmegen', events: '50+' },
-      { pattern: 'uitinoss', name: 'Uit in Oss', events: '30+' },
-      { pattern: 'uitagendabrabant', name: 'Uit Agenda Brabant', events: '100+' },
+      { pattern: 'intonijmegen', name: 'IntoNijmegen', events: 50 },
+      { pattern: 'uitinoss', name: 'Uit in Oss', events: 30 },
+      { pattern: 'uitagendabrabant', name: 'Uit Agenda Brabant', events: 100 },
+      { pattern: 'tilburg.com', name: 'Tilburg.com', events: 80 },
+      { pattern: 'trefhetinoss', name: 'Tref het in Oss', events: 40 },
     ];
     
     for (const scraper of knownScrapers) {
       if (baseUrl.includes(scraper.pattern)) {
-        alternatives.push({
-          url: baseUrl,
-          type: 'json-api', // Using json-api to indicate specialized handling
-          itemCount: 0,
-          confidence: 95,
-          recommendation: `Gespecialiseerde ${scraper.name} scraper beschikbaar (~${scraper.events} events met paginering)`
-        });
+        const specializedSource = this.createAlternativeSource(
+          baseUrl,
+          'scraper',
+          scraper.events,
+          95,
+          `Gespecialiseerde ${scraper.name} scraper beschikbaar (~${scraper.events} events met paginering)`
+        );
+        // Boost desirability for known scrapers (they're tested and reliable)
+        specializedSource.desirabilityScore = 85;
+        specializedSource.pros.push('Getest en geoptimaliseerd voor deze site');
+        alternatives.push(specializedSource);
         console.log(`[FeedAnalyzer] Known scraper detected: ${scraper.name}`);
         break;
       }
     }
 
+    // 6. Add fallback HTML scraper option only if no structured sources found
+    const hasStructuredSources = alternatives.some(a => 
+      ['rss', 'atom', 'json-api', 'json-feed', 'ical', 'json-ld'].includes(a.type)
+    );
+    if (!hasStructuredSources && alternatives.length === 0) {
+      alternatives.push(this.createAlternativeSource(
+        baseUrl,
+        'scraper',
+        result.sampleItems?.length || 0,
+        40,
+        'HTML scraping als fallback optie'
+      ));
+    }
+
+    // Sort alternatives by desirability score (highest first)
+    alternatives.sort((a, b) => b.desirabilityScore - a.desirabilityScore);
+    
     result.alternativeSources = alternatives;
     
     if (alternatives.length > 0) {
-      result.suggestions.push(`${alternatives.length} alternatieve bronnen ontdekt - bekijk de opties hieronder`);
+      result.suggestions.push(`${alternatives.length} import opties gevonden, gesorteerd op wenselijkheid`);
+      
+      // Highlight the best option
+      const best = alternatives[0];
+      result.suggestions.push(`Aanbevolen: ${FEED_TYPE_DESIRABILITY[best.type]?.name || best.type} (${best.desirabilityScore}% wenselijkheid)`);
     }
   }
 
   private static determineRecommendedMethod(result: FeedAnalysisResult): void {
     const alternatives = result.alternativeSources || [];
     
-    // Check for specialized scraper first (highest priority for known sites)
-    const specializedScraper = alternatives.find(a => a.recommendation.includes('Gespecialiseerde'));
+    // Check for specialized scraper first (highest priority for known sites with boosted desirability)
+    const specializedScraper = alternatives.find(a => 
+      a.type === 'scraper' && a.desirabilityScore >= 80 && a.recommendation.includes('Gespecialiseerde')
+    );
     if (specializedScraper) {
       result.recommendedImportMethod = {
         method: 'scraper',
         url: specializedScraper.url,
         reason: specializedScraper.recommendation,
-        estimatedEvents: 50 // Conservative estimate for specialized scrapers
+        estimatedEvents: specializedScraper.itemCount || 50
       };
       result.confidenceScore = Math.max(result.confidenceScore, 90);
       return;
     }
     
-    // Priority: JSON API > RSS/Atom > HTML Scraper
-    const jsonApi = alternatives.find(a => a.type === 'json-api' && a.itemCount > 0);
-    const rssFeed = alternatives.find(a => a.type === 'rss' || a.type === 'atom');
+    if (alternatives.length === 0) {
+      // No alternatives found, use discovered API endpoint or scraper
+      if (result.discoveredApiEndpoint) {
+        result.recommendedImportMethod = {
+          method: 'json-api',
+          url: result.discoveredApiEndpoint,
+          reason: 'API endpoint ontdekt in pagina - aanbevolen voor volledige import',
+          estimatedEvents: result.eventStats?.totalFound || 0
+        };
+      } else if (result.sampleItems.length > 0) {
+        result.recommendedImportMethod = {
+          method: 'scraper',
+          url: result.url,
+          reason: 'HTML scraping - kan beperkt zijn door paginering',
+          estimatedEvents: result.eventStats?.totalFound || result.sampleItems.length
+        };
+      }
+      return;
+    }
     
-    if (jsonApi && jsonApi.itemCount > 10) {
-      result.recommendedImportMethod = {
-        method: 'json-api',
-        url: jsonApi.url,
-        reason: `JSON API met ${jsonApi.itemCount} events - meest betrouwbaar en volledig`,
-        estimatedEvents: jsonApi.itemCount
-      };
+    // Use the highest desirability score (alternatives are already sorted)
+    const best = alternatives[0];
+    
+    // Map alternative types to import methods
+    const methodMap: Record<string, 'rss' | 'json-api' | 'scraper'> = {
+      'rss': 'rss',
+      'atom': 'rss',
+      'json-api': 'json-api',
+      'json-feed': 'json-api',
+      'ical': 'rss', // iCal can be processed similar to RSS
+      'json-ld': 'scraper', // Requires HTML parsing with JSON-LD extraction
+      'sitemap': 'scraper',
+      'scraper': 'scraper',
+    };
+    
+    result.recommendedImportMethod = {
+      method: methodMap[best.type] || 'scraper',
+      url: best.url,
+      reason: best.recommendation,
+      estimatedEvents: best.itemCount || result.eventStats?.totalFound || 0
+    };
+    
+    // Boost confidence based on desirability
+    if (best.desirabilityScore >= 80) {
       result.confidenceScore = Math.max(result.confidenceScore, 85);
-    } else if (rssFeed) {
-      result.recommendedImportMethod = {
-        method: 'rss',
-        url: rssFeed.url,
-        reason: 'Officiële RSS feed - stabiel en gestandaardiseerd',
-        estimatedEvents: rssFeed.itemCount || 0
-      };
-      result.confidenceScore = Math.max(result.confidenceScore, 80);
-    } else if (result.discoveredApiEndpoint) {
-      result.recommendedImportMethod = {
-        method: 'json-api',
-        url: result.discoveredApiEndpoint,
-        reason: 'API endpoint ontdekt in pagina - aanbevolen voor volledige import',
-        estimatedEvents: result.eventStats?.totalFound || 0
-      };
-    } else if (result.sampleItems.length > 0) {
-      result.recommendedImportMethod = {
-        method: 'scraper',
-        url: result.url,
-        reason: 'HTML scraping - kan beperkt zijn door paginering',
-        estimatedEvents: result.eventStats?.totalFound || result.sampleItems.length
-      };
+    } else if (best.desirabilityScore >= 60) {
+      result.confidenceScore = Math.max(result.confidenceScore, 70);
     }
   }
 

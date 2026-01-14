@@ -1153,20 +1153,114 @@ export default function RssFeedsPage() {
                       )}
 
                       {(analysisResult as any).alternativeSources?.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Ontdekte bronnen ({(analysisResult as any).alternativeSources.length})</h4>
-                          <div className="space-y-2">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">Import Opties (gerangschikt op wenselijkheid)</h4>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setAnalysisResult(null);
+                                analyzeFeedMutation.mutate(analyzeUrl);
+                              }}
+                              disabled={analyzeFeedMutation.isPending}
+                            >
+                              <RefreshCw className={`w-3 h-3 mr-1 ${analyzeFeedMutation.isPending ? 'animate-spin' : ''}`} />
+                              Opnieuw scannen
+                            </Button>
+                          </div>
+                          <div className="space-y-3">
                             {(analysisResult as any).alternativeSources.map((source: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded text-sm">
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline">{source.type}</Badge>
-                                  <span className="truncate max-w-xs" title={source.url}>{source.url}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {source.itemCount > 0 && (
-                                    <span className="text-green-600 font-medium">{source.itemCount} events</span>
-                                  )}
-                                  <Badge variant="secondary">{source.confidence}%</Badge>
+                              <div 
+                                key={idx} 
+                                className={`p-3 rounded-lg border ${idx === 0 ? 'border-green-300 bg-green-50/50 dark:bg-green-950/30' : 'bg-muted/50'}`}
+                              >
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      {idx === 0 && <Badge className="bg-green-600">Aanbevolen</Badge>}
+                                      <Badge variant="outline">{source.type.toUpperCase()}</Badge>
+                                      <span className="font-medium">{source.desirabilityScore || 50}% wenselijk</span>
+                                      {source.itemCount > 0 && (
+                                        <Badge variant="secondary">{source.itemCount} events</Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground truncate" title={source.url}>
+                                      {source.url}
+                                    </div>
+                                    <div className="text-sm">{source.recommendation}</div>
+                                    {(source.pros?.length > 0 || source.cons?.length > 0) && (
+                                      <div className="flex gap-4 text-xs">
+                                        {source.pros?.length > 0 && (
+                                          <div className="flex-1">
+                                            <span className="text-green-600 font-medium">Voordelen:</span>
+                                            <ul className="list-disc list-inside text-muted-foreground">
+                                              {source.pros.slice(0, 2).map((pro: string, i: number) => (
+                                                <li key={i}>{pro}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+                                        {source.cons?.length > 0 && (
+                                          <div className="flex-1">
+                                            <span className="text-red-600 font-medium">Nadelen:</span>
+                                            <ul className="list-disc list-inside text-muted-foreground">
+                                              {source.cons.slice(0, 2).map((con: string, i: number) => (
+                                                <li key={i}>{con}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant={idx === 0 ? 'default' : 'outline'}
+                                      onClick={() => {
+                                        const feedTypeMap: Record<string, 'rss' | 'scraper'> = {
+                                          'rss': 'rss',
+                                          'atom': 'rss',
+                                          'ical': 'rss',
+                                          'json-api': 'scraper',
+                                          'json-feed': 'scraper',
+                                          'json-ld': 'scraper',
+                                          'sitemap': 'scraper',
+                                          'scraper': 'scraper',
+                                        };
+                                        setNewFeed({
+                                          name: (analysisResult as any).suggestedFeedName || 'Nieuwe feed',
+                                          url: source.url,
+                                          feedType: feedTypeMap[source.type] || 'scraper',
+                                          defaultCategory: '',
+                                          defaultAddress: (analysisResult as any).suggestedMunicipality || '',
+                                          defaultLatitude: '',
+                                          defaultLongitude: '',
+                                          municipality: (analysisResult as any).suggestedMunicipality || '',
+                                          updateFrequencyMinutes: 60,
+                                          autoCreateEvents: true,
+                                        });
+                                        setIsAddDialogOpen(true);
+                                      }}
+                                    >
+                                      <Plus className="w-3 h-3 mr-1" />
+                                      Selecteer
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setAnalyzeUrl(source.url);
+                                        setAnalysisResult(null);
+                                        analyzeFeedMutation.mutate(source.url);
+                                      }}
+                                      disabled={analyzeFeedMutation.isPending}
+                                    >
+                                      <Eye className="w-3 h-3 mr-1" />
+                                      Analyseer
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                             ))}

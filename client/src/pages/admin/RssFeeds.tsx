@@ -45,7 +45,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Search, Loader2, Sparkles } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Search, Loader2, Sparkles, Calendar, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
@@ -1268,49 +1268,69 @@ export default function RssFeedsPage() {
                         </div>
                       )}
 
-                      <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-4">
                         <div>
-                          <h4 className="font-medium mb-2">Gedetecteerde velden</h4>
-                          <div className="space-y-1">
-                            {Object.entries(analysisResult.detectedFields || {}).map(([field, info]: [string, any]) => (
-                              <div key={field} className="flex items-center justify-between text-sm">
-                                <span className="capitalize">{field}</span>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant={info.confidence >= 70 ? 'default' : 'secondary'} className="text-xs">
-                                    {info.confidence}%
-                                  </Badge>
-                                  {info.sample && (
-                                    <span className="text-muted-foreground text-xs truncate max-w-32" title={info.sample}>
-                                      {info.sample.substring(0, 30)}...
-                                    </span>
-                                  )}
+                          <h4 className="font-medium mb-3">Veldanalyse</h4>
+                          <div className="grid gap-2 md:grid-cols-2">
+                            {['title', 'date', 'location', 'description', 'image', 'link', 'time'].map((field) => {
+                              const info = (analysisResult.detectedFields || {})[field];
+                              const isMissing = (analysisResult.missingRequiredFields || []).includes(field);
+                              const isRequired = ['title', 'date'].includes(field);
+                              
+                              return (
+                                <div 
+                                  key={field} 
+                                  className={`p-2 rounded border flex items-center justify-between ${
+                                    info ? 'bg-green-50 dark:bg-green-950/30 border-green-200' : 
+                                    isMissing ? 'bg-red-50 dark:bg-red-950/30 border-red-200' : 
+                                    'bg-muted/50 border-muted'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {info ? (
+                                      <CheckCircle className="w-4 h-4 text-green-600" />
+                                    ) : isMissing ? (
+                                      <AlertCircle className="w-4 h-4 text-red-600" />
+                                    ) : (
+                                      <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
+                                    )}
+                                    <span className="capitalize font-medium text-sm">{field}</span>
+                                    {isRequired && (
+                                      <Badge variant="outline" className="text-xs px-1 py-0">
+                                        verplicht
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    {info && (
+                                      <Badge 
+                                        variant={info.confidence >= 80 ? 'default' : info.confidence >= 50 ? 'secondary' : 'outline'}
+                                        className="text-xs"
+                                      >
+                                        {info.confidence}%
+                                      </Badge>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
-                            {Object.keys(analysisResult.detectedFields || {}).length === 0 && (
-                              <span className="text-muted-foreground text-sm">Geen velden gedetecteerd</span>
-                            )}
+                              );
+                            })}
                           </div>
                         </div>
-
-                        <div>
-                          <h4 className="font-medium mb-2">Ontbrekende verplichte velden</h4>
-                          {analysisResult.missingRequiredFields?.length > 0 ? (
-                            <div className="space-y-1">
-                              {analysisResult.missingRequiredFields.map((field: string) => (
-                                <div key={field} className="flex items-center gap-2 text-sm text-red-600">
-                                  <AlertCircle className="w-3 h-3" />
-                                  {field}
-                                </div>
-                              ))}
+                        
+                        {Object.keys(analysisResult.detectedFields || {}).some(k => !['title', 'date', 'location', 'description', 'image', 'link', 'time'].includes(k)) && (
+                          <div>
+                            <h5 className="text-sm text-muted-foreground mb-2">Extra gevonden velden:</h5>
+                            <div className="flex flex-wrap gap-1">
+                              {Object.entries(analysisResult.detectedFields || {})
+                                .filter(([k]) => !['title', 'date', 'location', 'description', 'image', 'link', 'time'].includes(k))
+                                .map(([field, info]: [string, any]) => (
+                                  <Badge key={field} variant="outline" className="text-xs">
+                                    {field} ({info.confidence}%)
+                                  </Badge>
+                                ))}
                             </div>
-                          ) : (
-                            <span className="text-green-600 text-sm flex items-center gap-1">
-                              <CheckCircle className="w-3 h-3" />
-                              Alle verplichte velden aanwezig
-                            </span>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
 
                       {analysisResult.warnings?.length > 0 && (
@@ -1342,11 +1362,69 @@ export default function RssFeedsPage() {
                       )}
 
                       {analysisResult.sampleItems?.length > 0 && (
-                        <div>
-                          <h4 className="font-medium mb-2">Voorbeeld items ({analysisResult.sampleItems.length})</h4>
-                          <div className="max-h-48 overflow-y-auto bg-background rounded p-2 text-xs font-mono">
-                            <pre>{JSON.stringify(analysisResult.sampleItems[0], null, 2)}</pre>
+                        <div className="space-y-3">
+                          <h4 className="font-medium">Voorbeeld evenementen ({analysisResult.sampleItems.length} gevonden)</h4>
+                          <div className="space-y-2 max-h-80 overflow-y-auto">
+                            {analysisResult.sampleItems.slice(0, 5).map((item: any, idx: number) => (
+                              <div key={idx} className="p-3 bg-background rounded-lg border text-sm">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 space-y-1">
+                                    <div className="font-medium text-primary">
+                                      {item.title || item.name || `Event ${idx + 1}`}
+                                    </div>
+                                    {(item.date || item.startDate) && (
+                                      <div className="flex items-center gap-1 text-muted-foreground text-xs">
+                                        <Calendar className="w-3 h-3" />
+                                        {item.date || item.startDate}
+                                        {item.time && ` om ${item.time}`}
+                                      </div>
+                                    )}
+                                    {(item.location || item.venue || item.address) && (
+                                      <div className="flex items-center gap-1 text-muted-foreground text-xs">
+                                        <MapPin className="w-3 h-3" />
+                                        {item.location || item.venue || item.address}
+                                      </div>
+                                    )}
+                                    {item.description && (
+                                      <div className="text-xs text-muted-foreground line-clamp-2">
+                                        {typeof item.description === 'string' 
+                                          ? item.description.substring(0, 150) 
+                                          : ''}
+                                        {item.description?.length > 150 && '...'}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {item.image && (
+                                    <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0">
+                                      <img 
+                                        src={item.image} 
+                                        alt="" 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  {Object.keys(item).slice(0, 6).map((key) => (
+                                    <Badge key={key} variant="outline" className="text-xs">
+                                      {key}
+                                    </Badge>
+                                  ))}
+                                  {Object.keys(item).length > 6 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      +{Object.keys(item).length - 6} meer
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
+                          {analysisResult.sampleItems.length > 5 && (
+                            <p className="text-xs text-muted-foreground">
+                              En nog {analysisResult.sampleItems.length - 5} andere evenementen...
+                            </p>
+                          )}
                         </div>
                       )}
 

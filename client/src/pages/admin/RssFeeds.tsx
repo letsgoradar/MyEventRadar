@@ -1361,6 +1361,52 @@ export default function RssFeedsPage() {
                         </div>
                       )}
 
+                      {(analysisResult as any).platformDetected && (
+                        <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-200">
+                          <h4 className="font-medium mb-2 flex items-center gap-2 text-indigo-800 dark:text-indigo-200">
+                            <Globe className="w-4 h-4" />
+                            Platform gedetecteerd: {(analysisResult as any).platformDetected}
+                            {(analysisResult as any).platformInfo?.version && (
+                              <Badge variant="outline" className="text-xs">{(analysisResult as any).platformInfo.version}</Badge>
+                            )}
+                          </h4>
+                          <div className="text-sm text-indigo-700 dark:text-indigo-300 space-y-1">
+                            {(analysisResult as any).platformInfo?.feedAvailable && (
+                              <div className="flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" /> RSS feed beschikbaar
+                              </div>
+                            )}
+                            {(analysisResult as any).platformInfo?.apiAvailable && (
+                              <div className="flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" /> REST API beschikbaar
+                              </div>
+                            )}
+                            {(analysisResult as any).platformInfo?.hasEventsPlugin && (
+                              <div className="flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" /> Events plugin gevonden
+                              </div>
+                            )}
+                            {(analysisResult as any).platformInfo?.categories?.length > 0 && (
+                              <div className="flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" /> {(analysisResult as any).platformInfo.categories.length} categorieën gevonden
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {(analysisResult as any).aiRecommendation && (
+                        <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                          <h4 className="font-semibold mb-3 flex items-center gap-2 text-purple-800 dark:text-purple-200">
+                            <Sparkles className="w-5 h-5" />
+                            AI Aanbeveling
+                          </h4>
+                          <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                            {(analysisResult as any).aiRecommendation}
+                          </div>
+                        </div>
+                      )}
+
                       {analysisResult.suggestions?.length > 0 && (
                         <div>
                           <h4 className="font-medium mb-2">Suggesties</h4>

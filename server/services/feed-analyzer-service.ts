@@ -51,6 +51,7 @@ export interface FeedAnalysisResult {
   missingRequiredFields: string[];
   suggestions: string[];
   aiAnalysis?: string;
+  aiRecommendation?: string; // Human-readable AI recommendation
   rawContentSample?: string;
   eventStats?: {
     totalFound: number;
@@ -70,6 +71,15 @@ export interface FeedAnalysisResult {
     url: string;
     reason: string;
     estimatedEvents: number;
+  };
+  platformDetected?: string; // e.g. 'wordpress', 'drupal', 'custom'
+  platformInfo?: {
+    type: string;
+    version?: string;
+    hasEventsPlugin?: boolean;
+    apiAvailable?: boolean;
+    feedAvailable?: boolean;
+    categories?: { id: number; name: string; count: number }[];
   };
 }
 
@@ -198,6 +208,11 @@ export class FeedAnalyzerService {
 
       result.isViable = result.confidenceScore >= 50 && 
                         result.missingRequiredFields.length === 0;
+
+      // Generate AI recommendation if we have alternatives
+      if ((result.alternativeSources?.length || 0) > 0) {
+        await this.generateAiRecommendation(result);
+      }
 
       await this.saveAnalysisProfile(result);
 
@@ -675,6 +690,169 @@ export class FeedAnalyzerService {
     }
   }
 
+  /**
+   * Detect WordPress and fetch its API/feed details
+   */
+  private static async detectWordPress(
+    html: string,
+    origin: string,
+    result: FeedAnalysisResult,
+    alternatives: AlternativeSource[]
+  ): Promise<void> {
+    const $ = cheerio.load(html);
+    
+    // Check for WordPress indicators
+    const isWordPress = 
+      html.includes('wp-content') || 
+      html.includes('wp-includes') ||
+      $('meta[name="generator"]').attr('content')?.toLowerCase().includes('wordpress') ||
+      $('link[rel="https://api.w.org/"]').length > 0;
+    
+    if (!isWordPress) return;
+    
+    console.log(`[FeedAnalyzer] WordPress site detected`);
+    result.platformDetected = 'wordpress';
+    result.platformInfo = { type: 'wordpress', apiAvailable: false, feedAvailable: false };
+    
+    // Extract version if available
+    const generator = $('meta[name="generator"]').attr('content') || '';
+    const versionMatch = generator.match(/WordPress\s*([\d.]+)/i);
+    if (versionMatch) {
+      result.platformInfo.version = versionMatch[1];
+    }
+    
+    // 1. Check WordPress RSS feed
+    try {
+      const feedUrl = `${origin}/feed/`;
+      const feedResponse = await axios.get(feedUrl, {
+        headers: { "User-Agent": this.USER_AGENT },
+        timeout: 10000,
+      });
+      
+      if (feedResponse.status === 200 && feedResponse.headers['content-type']?.includes('xml')) {
+        result.platformInfo.feedAvailable = true;
+        
+        // Parse RSS to count items
+        const feedContent = feedResponse.data;
+        const itemMatches = feedContent.match(/<item>/g);
+        const itemCount = itemMatches ? itemMatches.length : 0;
+        
+        alternatives.push(this.createAlternativeSource(
+          feedUrl,
+          'rss',
+          itemCount,
+          90,
+          `WordPress RSS feed met ${itemCount} recente items`
+        ));
+        console.log(`[FeedAnalyzer] WordPress RSS feed found with ${itemCount} items`);
+      }
+    } catch (e) {
+      console.log(`[FeedAnalyzer] No WordPress RSS feed at /feed/`);
+    }
+    
+    // 2. Check WordPress REST API
+    try {
+      const apiUrl = `${origin}/wp-json/wp/v2/posts?per_page=10`;
+      const apiResponse = await axios.get(apiUrl, {
+        headers: { "User-Agent": this.USER_AGENT },
+        timeout: 10000,
+      });
+      
+      if (apiResponse.status === 200 && Array.isArray(apiResponse.data)) {
+        result.platformInfo.apiAvailable = true;
+        const posts = apiResponse.data;
+        
+        // Get total from headers
+        const totalPosts = parseInt(apiResponse.headers['x-wp-total'] || '0');
+        
+        alternatives.push(this.createAlternativeSource(
+          `${origin}/wp-json/wp/v2/posts`,
+          'json-api',
+          totalPosts || posts.length,
+          95,
+          `WordPress REST API met ${totalPosts || posts.length} posts beschikbaar`
+        ));
+        console.log(`[FeedAnalyzer] WordPress API found with ${totalPosts || posts.length} posts`);
+        
+        // Add sample items from API
+        if (posts.length > 0 && result.sampleItems.length === 0) {
+          result.sampleItems = posts.slice(0, 5).map((post: any) => ({
+            title: post.title?.rendered || '',
+            description: post.excerpt?.rendered?.replace(/<[^>]*>/g, '') || '',
+            link: post.link || '',
+            date: post.date || '',
+            image: post._embedded?.['wp:featuredmedia']?.[0]?.source_url || '',
+          }));
+        }
+      }
+    } catch (e) {
+      console.log(`[FeedAnalyzer] No WordPress REST API available`);
+    }
+    
+    // 3. Check for WordPress categories (to find event-related ones)
+    try {
+      const categoriesUrl = `${origin}/wp-json/wp/v2/categories?per_page=50`;
+      const catResponse = await axios.get(categoriesUrl, {
+        headers: { "User-Agent": this.USER_AGENT },
+        timeout: 10000,
+      });
+      
+      if (catResponse.status === 200 && Array.isArray(catResponse.data)) {
+        result.platformInfo.categories = catResponse.data.map((cat: any) => ({
+          id: cat.id,
+          name: cat.name,
+          count: cat.count,
+        }));
+        
+        // Look for event-related categories
+        const eventCategories = catResponse.data.filter((cat: any) => 
+          /event|agenda|activiteit|programma|uitje|festival/i.test(cat.name)
+        );
+        
+        for (const evtCat of eventCategories) {
+          if (evtCat.count > 0) {
+            alternatives.push(this.createAlternativeSource(
+              `${origin}/wp-json/wp/v2/posts?categories=${evtCat.id}`,
+              'json-api',
+              evtCat.count,
+              93,
+              `WordPress API gefilterd op "${evtCat.name}" (${evtCat.count} items)`
+            ));
+          }
+        }
+        
+        console.log(`[FeedAnalyzer] Found ${result.platformInfo.categories.length} WordPress categories`);
+      }
+    } catch (e) {
+      console.log(`[FeedAnalyzer] Could not fetch WordPress categories`);
+    }
+    
+    // 4. Check for The Events Calendar plugin
+    try {
+      const tecUrl = `${origin}/wp-json/tribe/events/v1/events`;
+      const tecResponse = await axios.get(tecUrl, {
+        headers: { "User-Agent": this.USER_AGENT },
+        timeout: 10000,
+      });
+      
+      if (tecResponse.status === 200 && tecResponse.data?.events) {
+        result.platformInfo.hasEventsPlugin = true;
+        const eventCount = tecResponse.data.total || tecResponse.data.events.length;
+        
+        alternatives.push(this.createAlternativeSource(
+          tecUrl,
+          'json-api',
+          eventCount,
+          98,
+          `The Events Calendar plugin API met ${eventCount} echte evenementen!`
+        ));
+        console.log(`[FeedAnalyzer] The Events Calendar plugin found with ${eventCount} events`);
+      }
+    } catch (e) {
+      // Plugin not installed
+    }
+  }
+
   private static async discoverAlternativeSources(
     html: string,
     baseUrl: string,
@@ -686,6 +864,9 @@ export class FeedAnalyzerService {
     const alternatives: AlternativeSource[] = [];
 
     console.log(`[FeedAnalyzer] Discovering alternative sources for ${baseUrl}`);
+    
+    // First, detect platform (WordPress, Drupal, etc.)
+    await this.detectWordPress(html, origin, result, alternatives);
 
     // 1. Check for RSS/Atom/iCal links in HTML head
     $('link[rel="alternate"]').each((_, el) => {
@@ -971,6 +1152,59 @@ export class FeedAnalyzerService {
       result.confidenceScore = Math.max(result.confidenceScore, 85);
     } else if (best.desirabilityScore >= 60) {
       result.confidenceScore = Math.max(result.confidenceScore, 70);
+    }
+  }
+
+  /**
+   * Generate AI-powered human-readable recommendation based on analysis results
+   */
+  private static async generateAiRecommendation(
+    result: FeedAnalysisResult
+  ): Promise<void> {
+    if (!process.env.OPENAI_API_KEY) {
+      return;
+    }
+
+    try {
+      const alternativesSummary = (result.alternativeSources || []).map(a => ({
+        type: a.type,
+        url: a.url,
+        itemCount: a.itemCount,
+        desirabilityScore: a.desirabilityScore,
+        recommendation: a.recommendation,
+      }));
+
+      const prompt = `Je bent een vriendelijke expert die een website analyseert voor het importeren van evenementen.
+
+URL: ${result.url}
+Platform: ${result.platformDetected || 'onbekend'}
+${result.platformInfo ? `Platform info: ${JSON.stringify(result.platformInfo)}` : ''}
+
+ONTDEKTE IMPORT OPTIES (gesorteerd op wenselijkheid):
+${JSON.stringify(alternativesSummary, null, 2)}
+
+GEVONDEN EVENEMENTEN: ${result.sampleItems?.length || 0} voorbeelden
+${result.sampleItems?.slice(0, 3).map(i => `- ${i.title || 'Geen titel'}`).join('\n') || 'Geen voorbeelden'}
+
+Schrijf een korte, menselijk leesbare aanbeveling in het Nederlands (max 200 woorden) die:
+1. Uitlegt welke opties beschikbaar zijn
+2. Aangeeft welke optie het beste is en waarom
+3. Concrete stappen geeft om de feed toe te voegen
+
+Schrijf in een helpende, duidelijke toon alsof je een collega adviseert. Geen JSON, gewoon tekst.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 500,
+        temperature: 0.7,
+      });
+
+      result.aiRecommendation = response.choices[0].message.content || '';
+      console.log(`[FeedAnalyzer] AI recommendation generated`);
+
+    } catch (error: any) {
+      console.error(`[FeedAnalyzer] AI recommendation error:`, error.message);
     }
   }
 

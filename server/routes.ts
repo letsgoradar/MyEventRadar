@@ -32,6 +32,9 @@ interface SyncProgress {
   totalItems: number;
   processedItems: number;
   eventsCreated: number;
+  eventsSkipped: number;
+  eventsRejected: number;
+  rejectionReasons: Record<string, number>;
   startTime: number;
   message?: string;
   error?: string;
@@ -50,11 +53,18 @@ interface SyncAllProgress {
     feedName: string;
     status: 'success' | 'error' | 'skipped';
     eventsCreated: number;
+    eventsSkipped?: number;
+    eventsRejected?: number;
+    rejectionReasons?: Record<string, number>;
     message?: string;
   }>;
   startTime: number;
   delayBetweenFeeds: number;
   nextFeedIn?: number;
+  // Aggregate stats
+  totalEventsCreated?: number;
+  totalEventsSkipped?: number;
+  totalEventsRejected?: number;
 }
 let SYNC_ALL_PROGRESS: SyncAllProgress | null = null;
 
@@ -1868,6 +1878,9 @@ Respond with ONLY the search term, nothing else.`
         totalItems: 0,
         processedItems: 0,
         eventsCreated: 0,
+        eventsSkipped: 0,
+        eventsRejected: 0,
+        rejectionReasons: {},
         startTime: Date.now(),
         message: 'Feed ophalen...'
       });
@@ -1887,6 +1900,7 @@ Respond with ONLY the search term, nothing else.`
       });
       
       // Mark as completed
+      const resultAny = result as any;
       SYNC_PROGRESS.set(feedId, {
         feedId,
         feedName: feed.name,
@@ -1894,6 +1908,9 @@ Respond with ONLY the search term, nothing else.`
         totalItems: result.itemsProcessed || 0,
         processedItems: result.itemsProcessed || 0,
         eventsCreated: result.eventsCreated || 0,
+        eventsSkipped: resultAny.eventsSkipped || 0,
+        eventsRejected: resultAny.eventsRejected || 0,
+        rejectionReasons: resultAny.rejectionReasons || {},
         startTime: SYNC_PROGRESS.get(feedId)?.startTime || Date.now(),
         message: 'Synchronisatie voltooid'
       });
@@ -1920,6 +1937,9 @@ Respond with ONLY the search term, nothing else.`
           totalItems: 0,
           processedItems: 0,
           eventsCreated: 0,
+          eventsSkipped: 0,
+          eventsRejected: 0,
+          rejectionReasons: {},
           startTime: SYNC_PROGRESS.get(feedId)?.startTime || Date.now(),
           error: error.message
         });

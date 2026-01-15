@@ -191,6 +191,9 @@ export default function RssFeedsPage() {
     totalItems: number;
     processedItems: number;
     eventsCreated: number;
+    eventsSkipped?: number;
+    eventsRejected?: number;
+    rejectionReasons?: Record<string, number>;
     percentComplete: number;
     message?: string;
   } | null>(null);
@@ -341,9 +344,14 @@ export default function RssFeedsPage() {
       feedName: string;
       status: 'success' | 'error' | 'skipped';
       eventsCreated: number;
+      eventsSkipped?: number;
+      eventsRejected?: number;
       message?: string;
     }>;
     nextFeedIn?: number;
+    totalEventsCreated?: number;
+    totalEventsSkipped?: number;
+    totalEventsRejected?: number;
   } | null>(null);
   
   const syncAllPollRef = { current: null as NodeJS.Timeout | null };
@@ -758,8 +766,24 @@ export default function RssFeedsPage() {
                               )}
                               {result.feedName}
                             </span>
-                            <span className={result.status === 'success' ? 'text-green-600' : 'text-red-600'}>
-                              {result.status === 'success' ? `+${result.eventsCreated} events` : result.message}
+                            <span className="flex items-center gap-2">
+                              {result.status === 'success' ? (
+                                <>
+                                  <span className="text-green-600">+{result.eventsCreated}</span>
+                                  {(result.eventsSkipped || 0) > 0 && (
+                                    <span className="text-amber-600" title="Overgeslagen (duplicaten)">
+                                      ~{result.eventsSkipped}
+                                    </span>
+                                  )}
+                                  {(result.eventsRejected || 0) > 0 && (
+                                    <span className="text-red-500" title="Afgewezen (validatie)">
+                                      -{result.eventsRejected}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-red-600">{result.message}</span>
+                              )}
                             </span>
                           </div>
                         ))}

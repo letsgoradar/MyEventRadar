@@ -8,6 +8,72 @@ import { FEED_IMPORT_PRINCIPLES } from "../config/rss-feed-rules";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Domain patterns to municipality mapping for auto-detection
+const DOMAIN_MUNICIPALITY_MAP: Record<string, string> = {
+  'visittiel': 'Tiel',
+  'visittilburg': 'Tilburg',
+  'visitbreda': 'Breda',
+  'visiteindhoven': 'Eindhoven',
+  'visitdenbosch': "'s-Hertogenbosch",
+  'visitshertogenbosch': "'s-Hertogenbosch",
+  'visitoss': 'Oss',
+  'visithelmond': 'Helmond',
+  'visitamersfoort': 'Amersfoort',
+  'visitzwolle': 'Zwolle',
+  'visitarnhem': 'Arnhem',
+  'visitnijmegen': 'Nijmegen',
+  'visitutrecht': 'Utrecht',
+  'visitmaastricht': 'Maastricht',
+  'visitgroningen': 'Groningen',
+  'visitleeuwarden': 'Leeuwarden',
+  'visithaarlem': 'Haarlem',
+  'visitleiden': 'Leiden',
+  'visitdelft': 'Delft',
+  'visitdenhaag': 'Den Haag',
+  'visitrotterdam': 'Rotterdam',
+  'visitamsterdam': 'Amsterdam',
+  'visitveenendaal': 'Veenendaal',
+  'visitede': 'Ede',
+  'visitapeldoorn': 'Apeldoorn',
+  'visitdeventer': 'Deventer',
+  'visitenschede': 'Enschede',
+  'visithengelo': 'Hengelo',
+  'visitalmelo': 'Almelo',
+  'visitroosendaal': 'Roosendaal',
+  'visitbergenopzoom': 'Bergen op Zoom',
+  'visitoosterhout': 'Oosterhout',
+  'visitwaalwijk': 'Waalwijk',
+  'visitboxtel': 'Boxtel',
+  'visitvught': 'Vught',
+  'visitmeierijstad': 'Meierijstad',
+  'visitveghel': 'Meierijstad',
+  'tiel': 'Tiel',
+  'tilburg': 'Tilburg',
+  'breda': 'Breda',
+  'eindhoven': 'Eindhoven',
+  'denbosch': "'s-Hertogenbosch",
+  'oss': 'Oss',
+  'helmond': 'Helmond',
+  'utrecht': 'Utrecht',
+  'amsterdam': 'Amsterdam',
+  'rotterdam': 'Rotterdam',
+  'denhaag': 'Den Haag',
+  'thehague': 'Den Haag',
+  'maastricht': 'Maastricht',
+  'groningen': 'Groningen',
+  'arnhem': 'Arnhem',
+  'nijmegen': 'Nijmegen',
+  'uitinbreda': 'Breda',
+  'uitintilburg': 'Tilburg',
+  'uitinoost': 'Oss',
+  'uitintiel': 'Tiel',
+  'uitineindhoven': 'Eindhoven',
+  'agenda013': 'Tilburg',
+  '013tilburg': 'Tilburg',
+  'mezz': 'Breda',
+  'poppodium013': 'Tilburg',
+};
+
 export interface AlternativeSource {
   url: string;
   type: 'rss' | 'atom' | 'json-api' | 'json-feed' | 'sitemap' | 'ical' | 'json-ld' | 'scraper';
@@ -646,14 +712,24 @@ export class FeedAnalyzerService {
   private static extractUrlMetadata(url: string, result: FeedAnalysisResult): void {
     try {
       const urlObj = new URL(url);
-      const hostname = urlObj.hostname.replace('www.', '');
+      const hostname = urlObj.hostname.replace('www.', '').toLowerCase();
+      const domainWithoutTld = hostname.replace(/\.(nl|com|org|eu|be|de)$/, '');
       
-      // Known municipality patterns
-      const municipalityPatterns: Record<string, string> = {
+      // First check the global DOMAIN_MUNICIPALITY_MAP
+      for (const [pattern, municipality] of Object.entries(DOMAIN_MUNICIPALITY_MAP)) {
+        if (hostname.includes(pattern) || domainWithoutTld === pattern) {
+          result.suggestedMunicipality = municipality;
+          result.suggestedFeedName = `Events ${municipality}`;
+          console.log(`[FeedAnalyzer] Municipality detected from URL pattern: ${municipality}`);
+          return;
+        }
+      }
+      
+      // Additional known municipality patterns
+      const additionalPatterns: Record<string, string> = {
         'intonijmegen': 'Nijmegen',
         'thisiseindhoven': 'Eindhoven',
         'trefhetinoss': 'Oss',
-        'visithelmond': 'Helmond',
         'bezoekmeierijstad': 'Meierijstad',
         'exploremaashorst': 'Maashorst',
         'sonenbreugel': 'Son en Breugel',
@@ -661,29 +737,40 @@ export class FeedAnalyzerService {
         'zinindenbosch': "'s-Hertogenbosch",
         'beleefboxtel': 'Boxtel',
         'goedgestel': 'Sint-Michielsgestel',
-        'visitvught': 'Vught',
         'beleveninoosterhout': 'Oosterhout',
         'bezoekoisterwijk': 'Oisterwijk',
         'explorebreda': 'Breda',
-        'tilburg': 'Tilburg',
         'grenslanddebaronie': 'Gilze en Rijen',
       };
 
-      // Check for known patterns
-      for (const [pattern, municipality] of Object.entries(municipalityPatterns)) {
+      for (const [pattern, municipality] of Object.entries(additionalPatterns)) {
         if (hostname.includes(pattern)) {
           result.suggestedMunicipality = municipality;
           result.suggestedFeedName = `Events ${municipality}`;
+          console.log(`[FeedAnalyzer] Municipality detected from additional pattern: ${municipality}`);
           return;
         }
       }
 
-      // Try to extract city name from URL
-      const match = hostname.match(/(?:in|visit|bezoek|ontdek|explore)?([a-z]+)(?:\.com|\.nl)/i);
-      if (match && match[1]) {
-        const cityName = match[1].charAt(0).toUpperCase() + match[1].slice(1);
-        result.suggestedMunicipality = cityName;
-        result.suggestedFeedName = `Events ${cityName}`;
+      // Try to extract city name from URL using common patterns
+      const patterns = [
+        /visit([a-z]+)\./i,
+        /bezoek([a-z]+)\./i,
+        /ontdek([a-z]+)\./i,
+        /explore([a-z]+)\./i,
+        /uitin([a-z]+)\./i,
+        /agenda([a-z]+)\./i,
+      ];
+      
+      for (const pattern of patterns) {
+        const match = hostname.match(pattern);
+        if (match && match[1] && match[1].length > 2) {
+          const cityName = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+          result.suggestedMunicipality = cityName;
+          result.suggestedFeedName = `Events ${cityName}`;
+          console.log(`[FeedAnalyzer] Municipality extracted from URL: ${cityName}`);
+          return;
+        }
       }
     } catch {
       // Ignore URL parsing errors

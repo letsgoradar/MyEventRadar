@@ -88,6 +88,7 @@ export default function RssFeedsPage() {
   const [, navigate] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
+  const [activeTab, setActiveTab] = useState('analyzer'); // Start with analyzer as primary
   
   const [newFeed, setNewFeed] = useState({
     name: '',
@@ -527,19 +528,17 @@ export default function RssFeedsPage() {
                 Sync Alle Feeds
               </Button>
               <Button 
-                variant="outline" 
-                onClick={() => refreshFeedsMutation.mutate()}
-                disabled={refreshFeedsMutation.isPending}
-                data-testid="button-refresh-feeds"
+                onClick={() => setActiveTab('analyzer')}
+                variant={activeTab === 'analyzer' ? 'default' : 'outline'}
+                data-testid="button-add-feed"
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${refreshFeedsMutation.isPending ? 'animate-spin' : ''}`} />
-                Vernieuwen
+                <Sparkles className="w-4 h-4 mr-2" />
+                Nieuwe Feed
               </Button>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button data-testid="button-add-feed">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Feed toevoegen
+                  <Button variant="ghost" size="sm" data-testid="button-add-feed-manual">
+                    <Plus className="w-4 h-4" />
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-lg">
@@ -772,11 +771,15 @@ export default function RssFeedsPage() {
             </Card>
           )}
 
-          <Tabs defaultValue="list" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="mb-4">
+              <TabsTrigger value="analyzer" className="flex items-center gap-2" data-testid="tab-analyzer">
+                <Sparkles className="w-4 h-4" />
+                Feed Analyzer
+              </TabsTrigger>
               <TabsTrigger value="list" className="flex items-center gap-2">
                 <List className="w-4 h-4" />
-                Lijst
+                Feeds ({feeds.length})
               </TabsTrigger>
               <TabsTrigger value="map" className="flex items-center gap-2">
                 <Map className="w-4 h-4" />
@@ -785,10 +788,6 @@ export default function RssFeedsPage() {
               <TabsTrigger value="incomplete" className="flex items-center gap-2" data-testid="tab-incomplete">
                 <AlertTriangle className="w-4 h-4" />
                 Incompleet
-              </TabsTrigger>
-              <TabsTrigger value="analyzer" className="flex items-center gap-2" data-testid="tab-analyzer">
-                <Sparkles className="w-4 h-4" />
-                Feed Analyzer
               </TabsTrigger>
             </TabsList>
 

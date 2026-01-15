@@ -605,6 +605,121 @@ export class RssFeedService {
     }
   }
 
+  /**
+   * Fetch and parse a WordPress JSON API feed (wp-json/wp/v2/posts)
+   */
+  static async fetchAndParseJsonFeed(url: string): Promise<FeedParseResult> {
+    try {
+      console.log(`[RSS] Fetching JSON feed: ${url}`);
+      
+      const items: ParsedFeedItem[] = [];
+      let currentUrl = url;
+      let page = 1;
+      const maxPages = 10;
+      
+      while (page <= maxPages) {
+        const pageUrl = currentUrl.includes('?') 
+          ? `${currentUrl}&page=${page}`
+          : `${currentUrl}?page=${page}`;
+          
+        const response = await axios.get(page === 1 ? currentUrl : pageUrl, {
+          headers: {
+            "User-Agent": this.USER_AGENT,
+            "Accept": "application/json"
+          },
+          timeout: 30000
+        });
+
+        const data = response.data;
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          break;
+        }
+
+        for (const post of data) {
+          const title = post.title?.rendered || post.title || 'Geen titel';
+          const description = post.excerpt?.rendered || post.content?.rendered || '';
+          
+          let imageUrl: string | undefined;
+          if (post._embedded?.['wp:featuredmedia']?.[0]?.source_url) {
+            imageUrl = post._embedded['wp:featuredmedia'][0].source_url;
+          } else if (post.featured_media_url) {
+            imageUrl = post.featured_media_url;
+          } else if (post.acf?.afbeelding?.url) {
+            imageUrl = post.acf.afbeelding.url;
+          }
+
+          let startTime: Date | undefined;
+          let endTime: Date | undefined;
+          
+          if (post.acf?.startdatum || post.meta?.start_date || post.start_date) {
+            const startStr = post.acf?.startdatum || post.meta?.start_date || post.start_date;
+            try {
+              startTime = new Date(startStr);
+              if (isNaN(startTime.getTime())) startTime = undefined;
+            } catch (e) {}
+          }
+          
+          if (post.acf?.einddatum || post.meta?.end_date || post.end_date) {
+            const endStr = post.acf?.einddatum || post.meta?.end_date || post.end_date;
+            try {
+              endTime = new Date(endStr);
+              if (isNaN(endTime.getTime())) endTime = undefined;
+            } catch (e) {}
+          }
+
+          let location: string | undefined;
+          let address: string | undefined;
+          let latitude: number | undefined;
+          let longitude: number | undefined;
+          
+          if (post.acf?.locatie) {
+            location = post.acf.locatie;
+          }
+          if (post.acf?.adres) {
+            address = post.acf.adres;
+          }
+          if (post.acf?.latitude || post.acf?.lat) {
+            latitude = parseFloat(post.acf.latitude || post.acf.lat);
+          }
+          if (post.acf?.longitude || post.acf?.lng || post.acf?.lon) {
+            longitude = parseFloat(post.acf.longitude || post.acf.lng || post.acf.lon);
+          }
+
+          items.push({
+            externalId: `wp-${post.id}`,
+            title: this.cleanText(title),
+            description: this.cleanText(description),
+            link: post.link || post.guid?.rendered,
+            imageUrl,
+            publishedAt: post.date ? new Date(post.date) : undefined,
+            startTime,
+            endTime,
+            location,
+            address,
+            latitude,
+            longitude,
+            rawData: post
+          });
+        }
+
+        const totalPages = parseInt(response.headers['x-wp-totalpages'] || '1', 10);
+        if (page >= totalPages) {
+          break;
+        }
+        
+        page++;
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      console.log(`[RSS] JSON feed parsed: ${items.length} items from ${page} pages`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error fetching JSON feed ${url}:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
   static async scrapeThisIsEindhoven(): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
@@ -4605,6 +4720,9 @@ export class RssFeedService {
       } else if (feed.feedType === "scraper") {
         // Use intelligent universal scraper for unknown scraper feeds
         result = await this.scrapeUniversal(feed);
+      } else if (feed.feedType === "json") {
+        // Parse WordPress JSON API or similar JSON feeds
+        result = await this.fetchAndParseJsonFeed(feed.url);
       } else {
         result = await this.fetchAndParseRssFeed(feed.url);
       }
@@ -4740,6 +4858,9 @@ export class RssFeedService {
         } else if (feed.feedType === "scraper") {
           // Use intelligent universal scraper for unknown scraper feeds
           result = await this.scrapeUniversal(feed);
+        } else if (feed.feedType === "json") {
+          // Parse WordPress JSON API or similar JSON feeds
+          result = await this.fetchAndParseJsonFeed(feed.url);
         } else {
           result = await this.fetchAndParseRssFeed(feed.url);
         }

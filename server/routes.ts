@@ -1705,7 +1705,7 @@ Respond with ONLY the search term, nothing else.`
 
   app.post("/api/admin/rss-feeds", isAdmin, async (req, res) => {
     try {
-      const { name, url, feedType, defaultCategory, defaultLatitude, defaultLongitude, defaultAddress, updateFrequencyMinutes, autoCreateEvents } = req.body;
+      const { name, url, feedType, defaultCategory, defaultLatitude, defaultLongitude, defaultAddress, updateFrequencyMinutes, autoCreateEvents, municipality } = req.body;
       
       if (!name || !url || !defaultCategory) {
         return res.status(400).json({ message: "Name, URL, and default category are required" });
@@ -1721,7 +1721,8 @@ Respond with ONLY the search term, nothing else.`
         defaultLongitude: defaultLongitude || null,
         defaultAddress: defaultAddress || null,
         updateFrequencyMinutes: updateFrequencyMinutes || 60,
-        autoCreateEvents: autoCreateEvents !== false
+        autoCreateEvents: autoCreateEvents !== false,
+        municipality: municipality || null
       });
 
       res.status(201).json(feed);

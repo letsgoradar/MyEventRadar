@@ -1830,6 +1830,46 @@ Respond with ONLY the search term, nothing else.`
     }
   });
 
+  // Progressive feed analysis - checks methods in order and stops at first viable
+  app.post("/api/admin/rss-feeds/analyze-progressive", isAdmin, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: "URL is verplicht" });
+      }
+
+      let normalizedUrl = url.trim();
+      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = `https://${normalizedUrl}`;
+      }
+
+      try {
+        new URL(normalizedUrl);
+      } catch {
+        return res.status(400).json({ message: "Ongeldige URL formaat" });
+      }
+
+      console.log(`[API] Starting progressive feed analysis for: ${normalizedUrl}`);
+      const { FeedAnalyzerService } = await import('./services/feed-analyzer-service');
+      const result = await FeedAnalyzerService.analyzeProgressively(normalizedUrl);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/rss-feeds/analyze-progressive:', error);
+      res.status(500).json({ 
+        url: req.body.url || '',
+        steps: [],
+        chosenMethod: null,
+        sampleEvent: null,
+        suggestedFeedName: null,
+        suggestedMunicipality: null,
+        importRules: '',
+        isComplete: false,
+        error: "Er is een onverwachte fout opgetreden bij het analyseren."
+      });
+    }
+  });
+
   // Get sync progress for a feed
   app.get("/api/admin/rss-feeds/:id/sync-progress", isAdmin, async (req, res) => {
     const feedId = parseInt(req.params.id);

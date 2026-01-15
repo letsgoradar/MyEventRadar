@@ -1513,4 +1513,413 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
 
     return null;
   }
+
+  // Progressive analysis - checks methods in order of desirability
+  static async analyzeProgressively(url: string): Promise<ProgressiveAnalysisResult> {
+    console.log(`[FeedAnalyzer] Starting progressive analysis of: ${url}`);
+    
+    const result: ProgressiveAnalysisResult = {
+      url,
+      steps: [],
+      chosenMethod: null,
+      sampleEvent: null,
+      suggestedFeedName: null,
+      suggestedMunicipality: null,
+      importRules: FEED_IMPORT_PRINCIPLES,
+      isComplete: false,
+    };
+
+    // Extract municipality from URL
+    try {
+      const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
+      const domain = urlObj.hostname.toLowerCase().replace('www.', '');
+      const domainParts = domain.split('.');
+      const baseDomain = domainParts[0];
+      
+      for (const [pattern, municipality] of Object.entries(DOMAIN_MUNICIPALITY_MAP)) {
+        if (baseDomain.includes(pattern)) {
+          result.suggestedMunicipality = municipality;
+          result.suggestedFeedName = `${municipality} Events`;
+          break;
+        }
+      }
+    } catch {}
+
+    // Methods in order of desirability (highest first)
+    const methodsToCheck: Array<{
+      id: string;
+      name: string;
+      description: string;
+      check: () => Promise<MethodCheckResult | null>;
+    }> = [
+      {
+        id: 'json-api',
+        name: 'JSON API',
+        description: 'WordPress REST API of custom JSON endpoint',
+        check: async () => this.checkJsonApi(url),
+      },
+      {
+        id: 'rss',
+        name: 'RSS/Atom Feed',
+        description: 'Standaard RSS of Atom feed',
+        check: async () => this.checkRssFeed(url),
+      },
+      {
+        id: 'ical',
+        name: 'iCal/ICS',
+        description: 'Kalender export formaat',
+        check: async () => this.checkIcalFeed(url),
+      },
+      {
+        id: 'json-ld',
+        name: 'JSON-LD Schema',
+        description: 'Gestructureerde data in de HTML pagina',
+        check: async () => this.checkJsonLd(url),
+      },
+      {
+        id: 'scraper',
+        name: 'HTML Scraper',
+        description: 'Direct scrapen van de HTML (laatste optie)',
+        check: async () => this.checkHtmlScraper(url),
+      },
+    ];
+
+    for (const method of methodsToCheck) {
+      const step: ProgressiveStep = {
+        id: method.id,
+        name: method.name,
+        description: method.description,
+        status: 'checking',
+        result: null,
+      };
+      result.steps.push(step);
+
+      try {
+        const checkResult = await method.check();
+        if (checkResult && checkResult.viable) {
+          step.status = 'success';
+          step.result = checkResult;
+          result.chosenMethod = {
+            id: method.id,
+            name: method.name,
+            url: checkResult.feedUrl || url,
+            eventCount: checkResult.eventCount || 0,
+            reason: checkResult.reason,
+            pros: FEED_TYPE_DESIRABILITY[method.id]?.description || '',
+          };
+          result.sampleEvent = checkResult.sampleEvent || null;
+          result.isComplete = true;
+          console.log(`[FeedAnalyzer] Found viable method: ${method.id} with ${checkResult.eventCount} events`);
+          break;
+        } else {
+          step.status = 'not_found';
+          step.result = checkResult;
+        }
+      } catch (error: any) {
+        step.status = 'error';
+        step.result = { viable: false, reason: error.message };
+        console.log(`[FeedAnalyzer] Error checking ${method.id}:`, error.message);
+      }
+    }
+
+    return result;
+  }
+
+  private static async checkJsonApi(baseUrl: string): Promise<MethodCheckResult | null> {
+    try {
+      const urlObj = new URL(baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`);
+      const origin = urlObj.origin;
+
+      // Check WordPress REST API
+      const wpEndpoints = [
+        `${origin}/wp-json/wp/v2/posts?per_page=5`,
+        `${origin}/wp-json/tribe/events/v1/events?per_page=5`,
+      ];
+
+      for (const endpoint of wpEndpoints) {
+        try {
+          const response = await axios.get(endpoint, {
+            headers: { 'User-Agent': this.USER_AGENT },
+            timeout: 10000,
+          });
+          
+          if (response.status === 200 && Array.isArray(response.data)) {
+            const events = response.data;
+            if (events.length > 0) {
+              const sample = events[0];
+              return {
+                viable: true,
+                feedUrl: endpoint.replace('per_page=5', 'per_page=100'),
+                eventCount: events.length,
+                reason: 'WordPress REST API gevonden met events',
+                sampleEvent: this.formatSampleEvent(sample, 'json-api'),
+              };
+            }
+          }
+        } catch {}
+      }
+    } catch {}
+    return { viable: false, reason: 'Geen JSON API gevonden' };
+  }
+
+  private static async checkRssFeed(baseUrl: string): Promise<MethodCheckResult | null> {
+    try {
+      const urlObj = new URL(baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`);
+      const origin = urlObj.origin;
+
+      const feedUrls = [
+        `${origin}/feed/`,
+        `${origin}/rss/`,
+        `${origin}/feed`,
+        `${origin}/rss.xml`,
+        `${origin}/events/feed/`,
+        `${origin}/agenda/feed/`,
+        baseUrl.includes('/feed') || baseUrl.includes('.xml') ? baseUrl : null,
+      ].filter(Boolean) as string[];
+
+      for (const feedUrl of feedUrls) {
+        try {
+          const response = await axios.get(feedUrl, {
+            headers: { 
+              'User-Agent': this.USER_AGENT,
+              'Accept': 'application/rss+xml, application/atom+xml, application/xml'
+            },
+            timeout: 10000,
+          });
+          
+          const content = response.data;
+          if (typeof content === 'string' && (content.includes('<rss') || content.includes('<feed') || content.includes('<channel>'))) {
+            const parsed = await parseStringPromise(content, { explicitArray: false });
+            const items = parsed.rss?.channel?.item || parsed.feed?.entry || [];
+            const itemArray = Array.isArray(items) ? items : [items];
+            
+            if (itemArray.length > 0) {
+              return {
+                viable: true,
+                feedUrl,
+                eventCount: itemArray.length,
+                reason: `RSS/Atom feed gevonden met ${itemArray.length} items`,
+                sampleEvent: this.formatSampleEvent(itemArray[0], 'rss'),
+              };
+            }
+          }
+        } catch {}
+      }
+    } catch {}
+    return { viable: false, reason: 'Geen RSS/Atom feed gevonden' };
+  }
+
+  private static async checkIcalFeed(baseUrl: string): Promise<MethodCheckResult | null> {
+    try {
+      const urlObj = new URL(baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`);
+      const origin = urlObj.origin;
+
+      const icalUrls = [
+        `${origin}/events.ics`,
+        `${origin}/calendar.ics`,
+        `${origin}/agenda.ics`,
+        `${origin}/ical/`,
+      ];
+
+      for (const icalUrl of icalUrls) {
+        try {
+          const response = await axios.get(icalUrl, {
+            headers: { 'User-Agent': this.USER_AGENT },
+            timeout: 10000,
+          });
+          
+          if (typeof response.data === 'string' && response.data.includes('BEGIN:VCALENDAR')) {
+            const eventCount = (response.data.match(/BEGIN:VEVENT/g) || []).length;
+            if (eventCount > 0) {
+              return {
+                viable: true,
+                feedUrl: icalUrl,
+                eventCount,
+                reason: `iCal feed gevonden met ${eventCount} events`,
+                sampleEvent: { title: 'iCal event', format: 'iCal parsing vereist' },
+              };
+            }
+          }
+        } catch {}
+      }
+    } catch {}
+    return { viable: false, reason: 'Geen iCal feed gevonden' };
+  }
+
+  private static async checkJsonLd(baseUrl: string): Promise<MethodCheckResult | null> {
+    try {
+      const response = await axios.get(baseUrl, {
+        headers: { 
+          'User-Agent': this.USER_AGENT,
+          'Accept': 'text/html'
+        },
+        timeout: 15000,
+      });
+
+      if (typeof response.data === 'string') {
+        const $ = cheerio.load(response.data);
+        const jsonLdScripts = $('script[type="application/ld+json"]');
+        
+        let eventCount = 0;
+        let sampleEvent: any = null;
+
+        jsonLdScripts.each((_, el) => {
+          try {
+            const content = $(el).html();
+            if (content) {
+              const data = JSON.parse(content);
+              const items = Array.isArray(data) ? data : [data];
+              for (const item of items) {
+                if (item['@type'] === 'Event') {
+                  eventCount++;
+                  if (!sampleEvent) {
+                    sampleEvent = this.formatSampleEvent(item, 'json-ld');
+                  }
+                }
+              }
+            }
+          } catch {}
+        });
+
+        if (eventCount > 0) {
+          return {
+            viable: true,
+            feedUrl: baseUrl,
+            eventCount,
+            reason: `JSON-LD Schema.org data gevonden met ${eventCount} events`,
+            sampleEvent,
+          };
+        }
+      }
+    } catch {}
+    return { viable: false, reason: 'Geen JSON-LD event data gevonden' };
+  }
+
+  private static async checkHtmlScraper(baseUrl: string): Promise<MethodCheckResult | null> {
+    try {
+      const response = await axios.get(baseUrl, {
+        headers: { 
+          'User-Agent': this.USER_AGENT,
+          'Accept': 'text/html'
+        },
+        timeout: 15000,
+      });
+
+      if (typeof response.data === 'string') {
+        const $ = cheerio.load(response.data);
+        
+        // Look for common event listing patterns
+        const eventSelectors = [
+          'article.event', '.event-item', '.event-card',
+          '[class*="event"]', '[data-event]',
+          '.agenda-item', '.calendar-event',
+        ];
+
+        for (const selector of eventSelectors) {
+          const elements = $(selector);
+          if (elements.length > 0) {
+            const firstEl = elements.first();
+            return {
+              viable: true,
+              feedUrl: baseUrl,
+              eventCount: elements.length,
+              reason: `HTML pagina met ${elements.length} event elementen (${selector})`,
+              sampleEvent: {
+                selector,
+                title: firstEl.find('h1, h2, h3, .title').first().text().trim() || 'Event gevonden',
+                note: 'Scraper configuratie vereist',
+              },
+            };
+          }
+        }
+      }
+    } catch {}
+    return { viable: false, reason: 'Geen scrapbare event structuur gevonden' };
+  }
+
+  private static formatSampleEvent(item: any, type: string): SampleEventData {
+    if (type === 'json-api') {
+      return {
+        title: item.title?.rendered || item.title || 'Geen titel',
+        description: (item.excerpt?.rendered || item.content?.rendered || '').replace(/<[^>]*>/g, '').substring(0, 200),
+        date: item.date || item.start_date || null,
+        image: item._embedded?.['wp:featuredmedia']?.[0]?.source_url || item.image?.url || null,
+        link: item.link || item.url || null,
+        location: item.venue?.venue || item.venue || null,
+        rawData: item,
+      };
+    }
+    
+    if (type === 'rss') {
+      return {
+        title: item.title || 'Geen titel',
+        description: (item.description || item.summary || '').replace(/<[^>]*>/g, '').substring(0, 200),
+        date: item.pubDate || item.published || item.updated || null,
+        image: item.enclosure?.$?.url || item['media:content']?.$?.url || null,
+        link: item.link || item.id || null,
+        location: null,
+        rawData: item,
+      };
+    }
+    
+    if (type === 'json-ld') {
+      return {
+        title: item.name || 'Geen titel',
+        description: (item.description || '').substring(0, 200),
+        date: item.startDate || null,
+        image: item.image?.url || item.image || null,
+        link: item.url || null,
+        location: item.location?.name || item.location?.address?.streetAddress || null,
+        rawData: item,
+      };
+    }
+    
+    return { title: 'Onbekend formaat', rawData: item };
+  }
+}
+
+// Types for progressive analysis
+export interface ProgressiveStep {
+  id: string;
+  name: string;
+  description: string;
+  status: 'pending' | 'checking' | 'success' | 'not_found' | 'error';
+  result: MethodCheckResult | null;
+}
+
+export interface MethodCheckResult {
+  viable: boolean;
+  feedUrl?: string;
+  eventCount?: number;
+  reason: string;
+  sampleEvent?: SampleEventData;
+}
+
+export interface SampleEventData {
+  title: string;
+  description?: string;
+  date?: string;
+  image?: string | null;
+  link?: string | null;
+  location?: string | null;
+  rawData?: any;
+  [key: string]: any;
+}
+
+export interface ProgressiveAnalysisResult {
+  url: string;
+  steps: ProgressiveStep[];
+  chosenMethod: {
+    id: string;
+    name: string;
+    url: string;
+    eventCount: number;
+    reason: string;
+    pros: string;
+  } | null;
+  sampleEvent: SampleEventData | null;
+  suggestedFeedName: string | null;
+  suggestedMunicipality: string | null;
+  importRules: string;
+  isComplete: boolean;
 }

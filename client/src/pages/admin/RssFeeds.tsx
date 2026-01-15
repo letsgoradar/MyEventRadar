@@ -45,15 +45,16 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Search, Loader2, Sparkles, Calendar, MapPin } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
-import { CATEGORIES, type FeedAnalysisResult } from '@shared/schema';
+import { CATEGORIES } from '@shared/schema';
 import { lazy, Suspense } from 'react';
 
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
 const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
+const FeedAnalyzerModal = lazy(() => import('@/components/admin/FeedAnalyzerModal'));
 
 interface RssFeed {
   id: number;
@@ -87,8 +88,9 @@ export default function RssFeedsPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isAnalyzerModalOpen, setIsAnalyzerModalOpen] = useState(false);
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
-  const [activeTab, setActiveTab] = useState('analyzer'); // Start with analyzer as primary
+  const [activeTab, setActiveTab] = useState('list');
   
   const [newFeed, setNewFeed] = useState({
     name: '',
@@ -198,35 +200,6 @@ export default function RssFeedsPage() {
     message?: string;
   } | null>(null);
   
-  const [analyzeUrl, setAnalyzeUrl] = useState('');
-  const [analysisResult, setAnalysisResult] = useState<FeedAnalysisResult | null>(null);
-  
-  const analyzeFeedMutation = useMutation({
-    mutationFn: async (url: string): Promise<FeedAnalysisResult> => {
-      return apiRequest('/api/admin/rss-feeds/analyze', {
-        method: 'POST',
-        data: { url },
-      });
-    },
-    onSuccess: (data: FeedAnalysisResult) => {
-      setAnalysisResult(data);
-      toast({
-        title: data.isViable ? 'Feed is geschikt!' : 'Feed analyse voltooid',
-        description: data.isViable 
-          ? `Betrouwbaarheid: ${data.confidenceScore}% - ${data.feedType} feed gevonden`
-          : `Let op: ${data.warnings?.length || 0} waarschuwingen`,
-        variant: data.isViable ? 'default' : 'destructive',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Analyse mislukt',
-        description: error.message || 'Er is een fout opgetreden.',
-        variant: 'destructive',
-      });
-    },
-  });
-
   const pollIntervalRef = { current: null as NodeJS.Timeout | null };
   
   const pollProgress = async (feedId: number) => {
@@ -536,8 +509,7 @@ export default function RssFeedsPage() {
                 Sync Alle Feeds
               </Button>
               <Button 
-                onClick={() => setActiveTab('analyzer')}
-                variant={activeTab === 'analyzer' ? 'default' : 'outline'}
+                onClick={() => setIsAnalyzerModalOpen(true)}
                 data-testid="button-add-feed"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
@@ -797,10 +769,6 @@ export default function RssFeedsPage() {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="mb-4">
-              <TabsTrigger value="analyzer" className="flex items-center gap-2" data-testid="tab-analyzer">
-                <Sparkles className="w-4 h-4" />
-                Feed Analyzer
-              </TabsTrigger>
               <TabsTrigger value="list" className="flex items-center gap-2">
                 <List className="w-4 h-4" />
                 Feeds ({feeds.length})
@@ -1067,484 +1035,18 @@ export default function RssFeedsPage() {
                 <IncompleteItemsManager />
               </Suspense>
             </TabsContent>
-
-            <TabsContent value="analyzer">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    Slimme Feed Analyzer
-                  </CardTitle>
-                  <CardDescription>
-                    Analyseer automatisch een nieuwe event-bron om te bepalen of deze geschikt is voor import.
-                    De analyzer detecteert het feed-type, beschikbare velden en geeft een geschiktheidsscore.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <Label htmlFor="analyze-url">URL van de event-bron</Label>
-                      <Input
-                        id="analyze-url"
-                        placeholder="https://example.com/events of /feed.xml"
-                        value={analyzeUrl}
-                        onChange={(e) => setAnalyzeUrl(e.target.value)}
-                        data-testid="input-analyze-url"
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <Button
-                        onClick={() => {
-                          if (analyzeUrl) {
-                            setAnalysisResult(null);
-                            analyzeFeedMutation.mutate(analyzeUrl);
-                          }
-                        }}
-                        disabled={!analyzeUrl || analyzeFeedMutation.isPending}
-                        data-testid="button-analyze-feed"
-                      >
-                        {analyzeFeedMutation.isPending ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Analyseren...
-                          </>
-                        ) : (
-                          <>
-                            <Search className="w-4 h-4 mr-2" />
-                            Analyseer Feed
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {analysisResult && (
-                    <div className="space-y-4 border rounded-lg p-4 bg-muted/50">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                          {analysisResult.isViable ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <AlertCircle className="w-5 h-5 text-red-600" />
-                          )}
-                          Analyse Resultaat
-                        </h3>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={analysisResult.feedType === 'unknown' ? 'destructive' : 'outline'}>
-                            {analysisResult.feedType?.toUpperCase()}
-                          </Badge>
-                          <Badge variant={analysisResult.isViable ? 'default' : 'destructive'}>
-                            {analysisResult.confidenceScore}% betrouwbaar
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {analysisResult.eventStats && (
-                        <div className="grid gap-4 md:grid-cols-4 p-3 bg-background rounded-lg border">
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-primary">{analysisResult.eventStats.totalFound}</div>
-                            <div className="text-xs text-muted-foreground">Gevonden</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-green-600">{analysisResult.eventStats.importable}</div>
-                            <div className="text-xs text-muted-foreground">Importeerbaar</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-blue-600">{analysisResult.eventStats.withDate}</div>
-                            <div className="text-xs text-muted-foreground">Met datum</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-amber-600">{analysisResult.eventStats.withImage}</div>
-                            <div className="text-xs text-muted-foreground">Met afbeelding</div>
-                          </div>
-                        </div>
-                      )}
-
-                      {analysisResult.suggestedMunicipality && (
-                        <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950 rounded text-sm">
-                          <Globe className="w-4 h-4 text-blue-600" />
-                          <span>Herkende gemeente: <strong>{analysisResult.suggestedMunicipality}</strong></span>
-                        </div>
-                      )}
-
-                      {(analysisResult as any).recommendedImportMethod && (
-                        <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                          <h4 className="font-medium mb-2 flex items-center gap-2 text-green-800 dark:text-green-200">
-                            <CheckCircle className="w-4 h-4" />
-                            Aanbevolen importmethode
-                          </h4>
-                          <div className="text-sm space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="default" className="bg-green-600">
-                                {(analysisResult as any).recommendedImportMethod.method.toUpperCase()}
-                              </Badge>
-                              <span className="text-green-700 dark:text-green-300">
-                                ~{(analysisResult as any).recommendedImportMethod.estimatedEvents} events
-                              </span>
-                            </div>
-                            <p className="text-green-700 dark:text-green-300">
-                              {(analysisResult as any).recommendedImportMethod.reason}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {(analysisResult as any).alternativeSources?.length > 0 && (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-medium">Import Opties (gerangschikt op wenselijkheid)</h4>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setAnalysisResult(null);
-                                analyzeFeedMutation.mutate(analyzeUrl);
-                              }}
-                              disabled={analyzeFeedMutation.isPending}
-                            >
-                              <RefreshCw className={`w-3 h-3 mr-1 ${analyzeFeedMutation.isPending ? 'animate-spin' : ''}`} />
-                              Opnieuw scannen
-                            </Button>
-                          </div>
-                          <div className="space-y-3">
-                            {(analysisResult as any).alternativeSources.map((source: any, idx: number) => (
-                              <div 
-                                key={idx} 
-                                className={`p-3 rounded-lg border ${idx === 0 ? 'border-green-300 bg-green-50/50 dark:bg-green-950/30' : 'bg-muted/50'}`}
-                              >
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex-1 space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      {idx === 0 && <Badge className="bg-green-600">Aanbevolen</Badge>}
-                                      <Badge variant="outline">{source.type.toUpperCase()}</Badge>
-                                      <span className="font-medium">{source.desirabilityScore || 50}% wenselijk</span>
-                                      {source.itemCount > 0 && (
-                                        <Badge variant="secondary">{source.itemCount} events</Badge>
-                                      )}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground truncate" title={source.url}>
-                                      {source.url}
-                                    </div>
-                                    <div className="text-sm">{source.recommendation}</div>
-                                    {(source.pros?.length > 0 || source.cons?.length > 0) && (
-                                      <div className="flex gap-4 text-xs">
-                                        {source.pros?.length > 0 && (
-                                          <div className="flex-1">
-                                            <span className="text-green-600 font-medium">Voordelen:</span>
-                                            <ul className="list-disc list-inside text-muted-foreground">
-                                              {source.pros.slice(0, 2).map((pro: string, i: number) => (
-                                                <li key={i}>{pro}</li>
-                                              ))}
-                                            </ul>
-                                          </div>
-                                        )}
-                                        {source.cons?.length > 0 && (
-                                          <div className="flex-1">
-                                            <span className="text-red-600 font-medium">Nadelen:</span>
-                                            <ul className="list-disc list-inside text-muted-foreground">
-                                              {source.cons.slice(0, 2).map((con: string, i: number) => (
-                                                <li key={i}>{con}</li>
-                                              ))}
-                                            </ul>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-col gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant={idx === 0 ? 'default' : 'outline'}
-                                      onClick={() => {
-                                        const feedTypeMap: Record<string, 'rss' | 'scraper'> = {
-                                          'rss': 'rss',
-                                          'atom': 'rss',
-                                          'ical': 'rss',
-                                          'json-api': 'scraper',
-                                          'json-feed': 'scraper',
-                                          'json-ld': 'scraper',
-                                          'sitemap': 'scraper',
-                                          'scraper': 'scraper',
-                                        };
-                                        setNewFeed({
-                                          name: (analysisResult as any).suggestedFeedName || 'Nieuwe feed',
-                                          url: source.url,
-                                          feedType: feedTypeMap[source.type] || 'scraper',
-                                          defaultCategory: '',
-                                          defaultAddress: (analysisResult as any).suggestedMunicipality || '',
-                                          defaultLatitude: '',
-                                          defaultLongitude: '',
-                                          municipality: (analysisResult as any).suggestedMunicipality || '',
-                                          updateFrequencyMinutes: 60,
-                                          autoCreateEvents: true,
-                                        });
-                                        setIsAddDialogOpen(true);
-                                      }}
-                                    >
-                                      <Plus className="w-3 h-3 mr-1" />
-                                      Selecteer
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => {
-                                        setAnalyzeUrl(source.url);
-                                        setAnalysisResult(null);
-                                        analyzeFeedMutation.mutate(source.url);
-                                      }}
-                                      disabled={analyzeFeedMutation.isPending}
-                                    >
-                                      <Eye className="w-3 h-3 mr-1" />
-                                      Analyseer
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-4">
-                        <div>
-                          <h4 className="font-medium mb-3">Veldanalyse</h4>
-                          <div className="grid gap-2 md:grid-cols-2">
-                            {['title', 'date', 'location', 'description', 'image', 'link', 'time'].map((field) => {
-                              const info = (analysisResult.detectedFields || {})[field];
-                              const isMissing = (analysisResult.missingRequiredFields || []).includes(field);
-                              const isRequired = ['title', 'date'].includes(field);
-                              
-                              return (
-                                <div 
-                                  key={field} 
-                                  className={`p-2 rounded border flex items-center justify-between ${
-                                    info ? 'bg-green-50 dark:bg-green-950/30 border-green-200' : 
-                                    isMissing ? 'bg-red-50 dark:bg-red-950/30 border-red-200' : 
-                                    'bg-muted/50 border-muted'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    {info ? (
-                                      <CheckCircle className="w-4 h-4 text-green-600" />
-                                    ) : isMissing ? (
-                                      <AlertCircle className="w-4 h-4 text-red-600" />
-                                    ) : (
-                                      <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
-                                    )}
-                                    <span className="capitalize font-medium text-sm">{field}</span>
-                                    {isRequired && (
-                                      <Badge variant="outline" className="text-xs px-1 py-0">
-                                        verplicht
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    {info && (
-                                      <Badge 
-                                        variant={info.confidence >= 80 ? 'default' : info.confidence >= 50 ? 'secondary' : 'outline'}
-                                        className="text-xs"
-                                      >
-                                        {info.confidence}%
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        
-                        {Object.keys(analysisResult.detectedFields || {}).some(k => !['title', 'date', 'location', 'description', 'image', 'link', 'time'].includes(k)) && (
-                          <div>
-                            <h5 className="text-sm text-muted-foreground mb-2">Extra gevonden velden:</h5>
-                            <div className="flex flex-wrap gap-1">
-                              {Object.entries(analysisResult.detectedFields || {})
-                                .filter(([k]) => !['title', 'date', 'location', 'description', 'image', 'link', 'time'].includes(k))
-                                .map(([field, info]: [string, any]) => (
-                                  <Badge key={field} variant="outline" className="text-xs">
-                                    {field} ({info.confidence}%)
-                                  </Badge>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {analysisResult.warnings?.length > 0 && (
-                        <div>
-                          <h4 className="font-medium mb-2">Waarschuwingen</h4>
-                          <div className="space-y-1">
-                            {analysisResult.warnings.map((warning: string, idx: number) => (
-                              <div key={idx} className="flex items-start gap-2 text-sm text-amber-700">
-                                <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                                {warning}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {(analysisResult as any).platformDetected && (
-                        <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-200">
-                          <h4 className="font-medium mb-2 flex items-center gap-2 text-indigo-800 dark:text-indigo-200">
-                            <Globe className="w-4 h-4" />
-                            Platform gedetecteerd: {(analysisResult as any).platformDetected}
-                            {(analysisResult as any).platformInfo?.version && (
-                              <Badge variant="outline" className="text-xs">{(analysisResult as any).platformInfo.version}</Badge>
-                            )}
-                          </h4>
-                          <div className="text-sm text-indigo-700 dark:text-indigo-300 space-y-1">
-                            {(analysisResult as any).platformInfo?.feedAvailable && (
-                              <div className="flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3" /> RSS feed beschikbaar
-                              </div>
-                            )}
-                            {(analysisResult as any).platformInfo?.apiAvailable && (
-                              <div className="flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3" /> REST API beschikbaar
-                              </div>
-                            )}
-                            {(analysisResult as any).platformInfo?.hasEventsPlugin && (
-                              <div className="flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3" /> Events plugin gevonden
-                              </div>
-                            )}
-                            {(analysisResult as any).platformInfo?.categories?.length > 0 && (
-                              <div className="flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3" /> {(analysisResult as any).platformInfo.categories.length} categorieën gevonden
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {(analysisResult as any).aiRecommendation && (
-                        <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
-                          <h4 className="font-semibold mb-3 flex items-center gap-2 text-purple-800 dark:text-purple-200">
-                            <Sparkles className="w-5 h-5" />
-                            AI Aanbeveling
-                          </h4>
-                          <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-                            {(analysisResult as any).aiRecommendation}
-                          </div>
-                        </div>
-                      )}
-
-                      {analysisResult.suggestions?.length > 0 && (
-                        <div>
-                          <h4 className="font-medium mb-2">Suggesties</h4>
-                          <div className="space-y-1">
-                            {analysisResult.suggestions.map((suggestion: string, idx: number) => (
-                              <div key={idx} className="flex items-start gap-2 text-sm text-blue-700">
-                                <Sparkles className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                                {suggestion}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {analysisResult.sampleItems?.length > 0 && (
-                        <div className="space-y-3">
-                          <h4 className="font-medium">Voorbeeld evenementen ({analysisResult.sampleItems.length} gevonden)</h4>
-                          <div className="space-y-2 max-h-80 overflow-y-auto">
-                            {analysisResult.sampleItems.slice(0, 5).map((item: any, idx: number) => (
-                              <div key={idx} className="p-3 bg-background rounded-lg border text-sm">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1 space-y-1">
-                                    <div className="font-medium text-primary">
-                                      {item.title || item.name || `Event ${idx + 1}`}
-                                    </div>
-                                    {(item.date || item.startDate) && (
-                                      <div className="flex items-center gap-1 text-muted-foreground text-xs">
-                                        <Calendar className="w-3 h-3" />
-                                        {item.date || item.startDate}
-                                        {item.time && ` om ${item.time}`}
-                                      </div>
-                                    )}
-                                    {(item.location || item.venue || item.address) && (
-                                      <div className="flex items-center gap-1 text-muted-foreground text-xs">
-                                        <MapPin className="w-3 h-3" />
-                                        {item.location || item.venue || item.address}
-                                      </div>
-                                    )}
-                                    {item.description && (
-                                      <div className="text-xs text-muted-foreground line-clamp-2">
-                                        {typeof item.description === 'string' 
-                                          ? item.description.substring(0, 150) 
-                                          : ''}
-                                        {item.description?.length > 150 && '...'}
-                                      </div>
-                                    )}
-                                  </div>
-                                  {item.image && (
-                                    <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0">
-                                      <img 
-                                        src={item.image} 
-                                        alt="" 
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                  {Object.keys(item).slice(0, 6).map((key) => (
-                                    <Badge key={key} variant="outline" className="text-xs">
-                                      {key}
-                                    </Badge>
-                                  ))}
-                                  {Object.keys(item).length > 6 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      +{Object.keys(item).length - 6} meer
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          {analysisResult.sampleItems.length > 5 && (
-                            <p className="text-xs text-muted-foreground">
-                              En nog {analysisResult.sampleItems.length - 5} andere evenementen...
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="pt-4 border-t flex gap-2">
-                        <Button
-                          onClick={() => {
-                            const suggestedCity = analysisResult.suggestedMunicipality || '';
-                            const suggestedName = analysisResult.suggestedFeedName || `Events ${suggestedCity}`;
-                              
-                            setNewFeed(prev => ({
-                              ...prev,
-                              url: analyzeUrl,
-                              feedType: analysisResult.feedType === 'html-scraper' ? 'scraper' : 'rss',
-                              name: suggestedName,
-                              municipality: suggestedCity,
-                              defaultAddress: suggestedCity,
-                            }));
-                            setIsAddDialogOpen(true);
-                          }}
-                          variant={analysisResult.isViable ? 'default' : 'outline'}
-                          data-testid="button-create-from-analysis"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          {analysisResult.isViable ? 'Feed aanmaken' : 'Toch feed aanmaken'}
-                        </Button>
-                        {!analysisResult.isViable && (
-                          <p className="text-sm text-muted-foreground self-center">
-                            Je kunt de feed nog steeds handmatig toevoegen
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
+
+          <Suspense fallback={null}>
+            <FeedAnalyzerModal 
+              open={isAnalyzerModalOpen} 
+              onOpenChange={setIsAnalyzerModalOpen}
+              onFeedCreated={() => {
+                queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+              }}
+            />
+          </Suspense>
         </div>
       </main>
     </div>

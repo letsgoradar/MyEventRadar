@@ -1584,42 +1584,80 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
       },
     ];
 
+    // Initialize all steps as pending
     for (const method of methodsToCheck) {
-      const step: ProgressiveStep = {
+      result.steps.push({
         id: method.id,
         name: method.name,
         description: method.description,
         status: 'checking',
         result: null,
-      };
-      result.steps.push(step);
+      });
+    }
 
+    // Run ALL checks in parallel for speed
+    const checkPromises = methodsToCheck.map(async (method, index) => {
       try {
         const checkResult = await method.check();
-        if (checkResult && checkResult.viable) {
-          step.status = 'success';
-          step.result = checkResult;
-          result.chosenMethod = {
-            id: method.id,
-            name: method.name,
-            url: checkResult.feedUrl || url,
-            eventCount: checkResult.eventCount || 0,
-            reason: checkResult.reason,
-            pros: FEED_TYPE_DESIRABILITY[method.id]?.description || '',
-          };
-          result.sampleEvent = checkResult.sampleEvent || null;
-          result.isComplete = true;
-          console.log(`[FeedAnalyzer] Found viable method: ${method.id} with ${checkResult.eventCount} events`);
-          break;
-        } else {
-          step.status = 'not_found';
-          step.result = checkResult;
-        }
+        return { method, index, checkResult, error: null };
       } catch (error: any) {
+        return { method, index, checkResult: null, error };
+      }
+    });
+
+    const checkResults = await Promise.all(checkPromises);
+    
+    // Process results and find all viable methods
+    const viableMethods: Array<{
+      method: typeof methodsToCheck[0];
+      result: MethodCheckResult;
+      score: number;
+    }> = [];
+
+    for (const { method, index, checkResult, error } of checkResults) {
+      const step = result.steps[index];
+      
+      if (error) {
         step.status = 'error';
         step.result = { viable: false, reason: error.message };
         console.log(`[FeedAnalyzer] Error checking ${method.id}:`, error.message);
+      } else if (checkResult && checkResult.viable) {
+        step.status = 'success';
+        step.result = checkResult;
+        
+        // Calculate score: base desirability + event count bonus
+        const baseScore = FEED_TYPE_DESIRABILITY[method.id]?.score || 0;
+        const eventBonus = Math.min(checkResult.eventCount || 0, 500) / 10; // Max 50 bonus points
+        viableMethods.push({
+          method,
+          result: checkResult,
+          score: baseScore + eventBonus,
+        });
+        
+        console.log(`[FeedAnalyzer] Found viable method: ${method.id} with ${checkResult.eventCount} events (score: ${baseScore + eventBonus})`);
+      } else {
+        step.status = 'not_found';
+        step.result = checkResult;
       }
+    }
+
+    // Choose the best method based on combined score (desirability + event count)
+    if (viableMethods.length > 0) {
+      viableMethods.sort((a, b) => b.score - a.score);
+      const best = viableMethods[0];
+      
+      result.chosenMethod = {
+        id: best.method.id,
+        name: best.method.name,
+        url: best.result.feedUrl || url,
+        eventCount: best.result.eventCount || 0,
+        reason: best.result.reason,
+        pros: FEED_TYPE_DESIRABILITY[best.method.id]?.description || '',
+      };
+      result.sampleEvent = best.result.sampleEvent || null;
+      result.isComplete = true;
+      
+      console.log(`[FeedAnalyzer] Best method chosen: ${best.method.id} with score ${best.score}`);
     }
 
     return result;
@@ -1630,15 +1668,15 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
       const urlObj = new URL(baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`);
       const origin = urlObj.origin;
 
-      // Check WordPress REST API
+      // Check WordPress REST API - use per_page=5 for quick check but read X-WP-Total for actual count
       const wpEndpoints = [
-        `${origin}/wp-json/wp/v2/posts?per_page=5`,
-        `${origin}/wp-json/tribe/events/v1/events?per_page=5`,
+        { url: `${origin}/wp-json/wp/v2/posts?per_page=5`, name: 'WordPress Posts API' },
+        { url: `${origin}/wp-json/tribe/events/v1/events?per_page=5`, name: 'The Events Calendar API' },
       ];
 
       for (const endpoint of wpEndpoints) {
         try {
-          const response = await axios.get(endpoint, {
+          const response = await axios.get(endpoint.url, {
             headers: { 'User-Agent': this.USER_AGENT },
             timeout: 10000,
           });
@@ -1647,11 +1685,15 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
             const events = response.data;
             if (events.length > 0) {
               const sample = events[0];
+              // Get total count from WordPress headers (X-WP-Total or x-wp-total)
+              const totalHeader = response.headers['x-wp-total'] || response.headers['X-WP-Total'];
+              const totalCount = totalHeader ? parseInt(totalHeader, 10) : events.length;
+              
               return {
                 viable: true,
-                feedUrl: endpoint.replace('per_page=5', 'per_page=100'),
-                eventCount: events.length,
-                reason: 'WordPress REST API gevonden met events',
+                feedUrl: endpoint.url.replace('per_page=5', 'per_page=100'),
+                eventCount: totalCount,
+                reason: `${endpoint.name} gevonden met ${totalCount} events`,
                 sampleEvent: this.formatSampleEvent(sample, 'json-api'),
               };
             }

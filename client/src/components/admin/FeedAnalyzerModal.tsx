@@ -17,6 +17,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CATEGORIES } from '@shared/schema';
 import { 
   Check, 
   Loader2, 
@@ -111,6 +113,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
   const [showSampleEvent, setShowSampleEvent] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedName, setFeedName] = useState('');
+  const [category, setCategory] = useState<string>('');
 
   const analyzeMutation = useMutation({
     mutationFn: async (urlToAnalyze: string): Promise<ProgressiveAnalysisResult> => {
@@ -136,7 +139,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
   const createFeedMutation = useMutation({
     mutationFn: async () => {
-      if (!result?.chosenMethod) return;
+      if (!result?.chosenMethod || !category) return;
       
       return apiRequest('/api/admin/rss-feeds', {
         method: 'POST',
@@ -145,7 +148,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
           url: result.chosenMethod.url,
           feedType: result.chosenMethod.id === 'json-api' ? 'json' : 'rss',
           municipality: result.suggestedMunicipality || '',
-          defaultCategory: '',
+          defaultCategory: category,
           autoCreateEvents: true,
           updateFrequencyMinutes: 60,
         },
@@ -184,6 +187,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     setShowSampleEvent(false);
     setFeedback('');
     setFeedName('');
+    setCategory('');
     onOpenChange(false);
   };
 
@@ -248,11 +252,11 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
               <div className="border rounded-lg divide-y">
                 {(result?.steps || [
                   { id: 'json-api', name: 'JSON API', description: 'WordPress REST API of custom JSON endpoint', status: 'checking' as const, result: null },
-                  { id: 'rss', name: 'RSS/Atom Feed', description: 'Standaard RSS of Atom feed', status: 'pending' as const, result: null },
-                  { id: 'ical', name: 'iCal/ICS', description: 'Kalender export formaat', status: 'pending' as const, result: null },
-                  { id: 'json-ld', name: 'JSON-LD Schema', description: 'Gestructureerde data in de HTML pagina', status: 'pending' as const, result: null },
-                  { id: 'scraper', name: 'HTML Scraper', description: 'Direct scrapen van de HTML (laatste optie)', status: 'pending' as const, result: null },
-                ]).map((step, idx) => (
+                  { id: 'rss', name: 'RSS/Atom Feed', description: 'Standaard RSS of Atom feed', status: 'checking' as const, result: null },
+                  { id: 'ical', name: 'iCal/ICS', description: 'Kalender export formaat', status: 'checking' as const, result: null },
+                  { id: 'json-ld', name: 'JSON-LD Schema', description: 'Gestructureerde data in de HTML pagina', status: 'checking' as const, result: null },
+                  { id: 'scraper', name: 'HTML Scraper', description: 'Direct scrapen van de HTML (laatste optie)', status: 'checking' as const, result: null },
+                ]).map((step) => (
                   <div key={step.id} className={`flex items-center gap-3 p-3 ${step.status === 'success' ? 'bg-green-50' : ''}`}>
                     <div className="flex-shrink-0">{getStepIcon(step.status)}</div>
                     <div className="flex-1 min-w-0">
@@ -282,10 +286,12 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <h4 className="font-semibold text-green-800 flex items-center gap-2">
                   <Check className="w-5 h-5" />
-                  Gekozen methode: {result.chosenMethod.name}
+                  Aanbevolen: {result.chosenMethod.name}
+                  <Badge className="bg-green-200 text-green-900">
+                    {result.chosenMethod.eventCount} events
+                  </Badge>
                 </h4>
-                <p className="text-sm text-green-700 mt-1">{result.chosenMethod.reason}</p>
-                <p className="text-xs text-green-600 mt-2">{result.chosenMethod.pros}</p>
+                <p className="text-sm text-green-700 mt-1">{result.chosenMethod.pros}</p>
                 <div className="mt-2 text-xs text-green-700">
                   <strong>Feed URL:</strong>{' '}
                   <code className="bg-green-100 px-1 py-0.5 rounded text-xs break-all">
@@ -294,20 +300,37 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
                 </div>
               </div>
 
-              {/* Feed Name Input */}
-              <div className="space-y-2">
-                <Label htmlFor="feedName">Feed naam</Label>
-                <Input
-                  id="feedName"
-                  value={feedName}
-                  onChange={(e) => setFeedName(e.target.value)}
-                  placeholder={result.suggestedFeedName || 'Geef de feed een naam'}
-                />
-                {result.suggestedMunicipality && (
-                  <p className="text-xs text-muted-foreground">
-                    Gemeente gedetecteerd: <strong>{result.suggestedMunicipality}</strong>
-                  </p>
-                )}
+              {/* Feed Name and Category */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="feedName">Feed naam</Label>
+                  <Input
+                    id="feedName"
+                    value={feedName}
+                    onChange={(e) => setFeedName(e.target.value)}
+                    placeholder={result.suggestedFeedName || 'Geef de feed een naam'}
+                  />
+                  {result.suggestedMunicipality && (
+                    <p className="text-xs text-muted-foreground">
+                      Gemeente: <strong>{result.suggestedMunicipality}</strong>
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Standaard categorie *</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Kies een categorie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Import Rules */}
@@ -435,7 +458,8 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
           {result?.isComplete && result.chosenMethod && (
             <Button 
               onClick={() => createFeedMutation.mutate()}
-              disabled={createFeedMutation.isPending}
+              disabled={createFeedMutation.isPending || !category}
+              title={!category ? 'Selecteer eerst een categorie' : undefined}
             >
               {createFeedMutation.isPending ? (
                 <>

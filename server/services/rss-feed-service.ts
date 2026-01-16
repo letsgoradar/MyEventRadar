@@ -25,6 +25,8 @@ interface ParsedFeedItem {
   longitude?: number;
   rawData?: any;
   allDates?: Date[];
+  detectedCategory?: string;
+  categoryConfidence?: number;
 }
 
 interface GeocodingResult {
@@ -545,7 +547,7 @@ export class RssFeedService {
     return parts.length > 0 ? parts.join(', ') : null;
   }
 
-  static async fetchAndParseRssFeed(url: string): Promise<FeedParseResult> {
+  static async fetchAndParseRssFeed(url: string, municipality?: string): Promise<FeedParseResult> {
     try {
       const response = await axios.get(url, {
         headers: {
@@ -562,6 +564,7 @@ export class RssFeedService {
       });
 
       const items: ParsedFeedItem[] = [];
+      let extractionStats = { structured: 0, extracted: 0, incomplete: 0 };
 
       if (parsed.rss?.channel?.item) {
         const rssItems = Array.isArray(parsed.rss.channel.item) 
@@ -569,13 +572,98 @@ export class RssFeedService {
           : [parsed.rss.channel.item];
         
         for (const item of rssItems) {
+          const title = this.cleanText(item.title || "Geen titel");
+          const description = this.cleanText(item.description || "");
+          
+          let startTime: Date | undefined;
+          let endTime: Date | undefined;
+          let location: string | undefined;
+          let address: string | undefined;
+          let latitude: number | undefined;
+          let longitude: number | undefined;
+          
+          // Check for structured event data in RSS extensions (like events:start, geo:lat, etc.)
+          const hasStructuredDate = !!(item['events:start'] || item['ev:startdate'] || item['dc:date']);
+          const hasStructuredLocation = !!(item['geo:lat'] || item['georss:point']);
+          
+          if (hasStructuredDate) {
+            const dateStr = item['events:start'] || item['ev:startdate'] || item['dc:date'];
+            try {
+              startTime = new Date(dateStr);
+              if (isNaN(startTime.getTime())) startTime = undefined;
+            } catch (e) {}
+          }
+          
+          if (hasStructuredLocation) {
+            if (item['geo:lat'] && item['geo:long']) {
+              latitude = parseFloat(item['geo:lat']);
+              longitude = parseFloat(item['geo:long']);
+            } else if (item['georss:point']) {
+              const [lat, lon] = item['georss:point'].split(' ').map(parseFloat);
+              if (!isNaN(lat) && !isNaN(lon)) {
+                latitude = lat;
+                longitude = lon;
+              }
+            }
+          }
+          
+          // Use ContentExtractor when structured data is missing
+          if (!hasStructuredDate || !hasStructuredLocation) {
+            const combinedText = `${title} ${description}`;
+            const extraction = await ContentExtractor.extractFromContent(
+              title,
+              description,
+              hasStructuredDate,
+              hasStructuredLocation,
+              municipality
+            );
+
+            if (!hasStructuredDate && extraction.startDate) {
+              startTime = extraction.startDate;
+              if (extraction.startTime) {
+                startTime.setHours(extraction.startTime.hours, extraction.startTime.minutes);
+              }
+              if (extraction.endTime && startTime) {
+                endTime = new Date(startTime);
+                endTime.setHours(extraction.endTime.hours, extraction.endTime.minutes);
+              }
+            }
+
+            if (!hasStructuredLocation && extraction.geocodedAddress) {
+              address = extraction.geocodedAddress.fullAddress;
+              latitude = extraction.geocodedAddress.latitude;
+              longitude = extraction.geocodedAddress.longitude;
+              location = extraction.geocodedAddress.street;
+            }
+          }
+          
+          // Track extraction stats
+          if (hasStructuredDate && hasStructuredLocation) {
+            extractionStats.structured++;
+          } else if (startTime && latitude) {
+            extractionStats.extracted++;
+          } else {
+            extractionStats.incomplete++;
+          }
+          
+          // Detect category from content
+          const categoryResult = ContentExtractor.detectCategory(title, description);
+
           items.push({
             externalId: item.guid?._ || item.guid || item.link || `${Date.now()}-${Math.random()}`,
-            title: this.cleanText(item.title || "Geen titel"),
-            description: this.cleanText(item.description || ""),
+            title,
+            description,
             link: item.link,
             imageUrl: this.extractImageFromRssItem(item),
             publishedAt: item.pubDate ? new Date(item.pubDate) : undefined,
+            startTime,
+            endTime,
+            location,
+            address,
+            latitude,
+            longitude,
+            detectedCategory: categoryResult.category,
+            categoryConfidence: categoryResult.confidence,
             rawData: item
           });
         }
@@ -587,18 +675,74 @@ export class RssFeedService {
           : [parsed.feed.entry];
         
         for (const item of atomItems) {
+          const title = this.cleanText(item.title?._ || item.title || "Geen titel");
+          const description = this.cleanText(item.summary?._ || item.summary || item.content?._ || item.content || "");
+          
+          let startTime: Date | undefined;
+          let endTime: Date | undefined;
+          let location: string | undefined;
+          let address: string | undefined;
+          let latitude: number | undefined;
+          let longitude: number | undefined;
+          
+          // Use ContentExtractor for Atom feeds too
+          const extraction = await ContentExtractor.extractFromContent(
+            title,
+            description,
+            false,
+            false,
+            municipality
+          );
+
+          if (extraction.startDate) {
+            startTime = extraction.startDate;
+            if (extraction.startTime) {
+              startTime.setHours(extraction.startTime.hours, extraction.startTime.minutes);
+            }
+            if (extraction.endTime && startTime) {
+              endTime = new Date(startTime);
+              endTime.setHours(extraction.endTime.hours, extraction.endTime.minutes);
+            }
+          }
+
+          if (extraction.geocodedAddress) {
+            address = extraction.geocodedAddress.fullAddress;
+            latitude = extraction.geocodedAddress.latitude;
+            longitude = extraction.geocodedAddress.longitude;
+            location = extraction.geocodedAddress.street;
+          }
+          
+          if (startTime && latitude) {
+            extractionStats.extracted++;
+          } else {
+            extractionStats.incomplete++;
+          }
+          
+          // Detect category from content
+          const categoryResult = ContentExtractor.detectCategory(title, description);
+
           items.push({
             externalId: item.id || item.link?.$ ?.href || `${Date.now()}-${Math.random()}`,
-            title: this.cleanText(item.title?._ || item.title || "Geen titel"),
-            description: this.cleanText(item.summary?._ || item.summary || item.content?._ || item.content || ""),
+            title,
+            description,
             link: item.link?.$ ?.href || item.link,
             imageUrl: this.extractImageFromAtomItem(item),
             publishedAt: item.published || item.updated ? new Date(item.published || item.updated) : undefined,
+            startTime,
+            endTime,
+            location,
+            address,
+            latitude,
+            longitude,
+            detectedCategory: categoryResult.category,
+            categoryConfidence: categoryResult.confidence,
             rawData: item
           });
         }
       }
 
+      console.log(`[RSS] Feed parsed: ${items.length} items`);
+      console.log(`[RSS] Extraction stats: ${extractionStats.structured} structured, ${extractionStats.extracted} extracted, ${extractionStats.incomplete} incomplete`);
       return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error fetching feed ${url}:`, error.message);
@@ -733,6 +877,9 @@ export class RssFeedService {
           } else {
             extractionStats.incomplete++;
           }
+          
+          // Detect category from content
+          const categoryResult = ContentExtractor.detectCategory(title, content);
 
           items.push({
             externalId: `wp-${post.id}`,
@@ -747,6 +894,8 @@ export class RssFeedService {
             address,
             latitude,
             longitude,
+            detectedCategory: categoryResult.category,
+            categoryConfidence: categoryResult.confidence,
             rawData: post
           });
         }
@@ -4773,7 +4922,7 @@ export class RssFeedService {
         // Parse WordPress JSON API or similar JSON feeds with content extraction
         result = await this.fetchAndParseJsonFeed(feed.url, feed.municipality || undefined);
       } else {
-        result = await this.fetchAndParseRssFeed(feed.url);
+        result = await this.fetchAndParseRssFeed(feed.url, feed.municipality || undefined);
       }
 
       const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
@@ -4911,7 +5060,7 @@ export class RssFeedService {
           // Parse WordPress JSON API or similar JSON feeds with content extraction
           result = await this.fetchAndParseJsonFeed(feed.url, feed.municipality || undefined);
         } else {
-          result = await this.fetchAndParseRssFeed(feed.url);
+          result = await this.fetchAndParseRssFeed(feed.url, feed.municipality || undefined);
         }
 
         const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
@@ -5038,10 +5187,15 @@ export class RssFeedService {
       }
       
       const validCategories = CATEGORIES as readonly string[];
-      const detectedCategory = this.detectCategory(parsedItem.title, parsedItem.description);
+      // Use detected category from ContentExtractor, fall back to feed default
+      const detectedCategory = parsedItem.detectedCategory || this.detectCategory(parsedItem.title, parsedItem.description);
       const category = validCategories.includes(detectedCategory) 
         ? detectedCategory 
         : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Gezellig en Sociaal");
+      
+      if (parsedItem.detectedCategory) {
+        console.log(`[RSS] Category detected: "${detectedCategory}" (confidence: ${((parsedItem.categoryConfidence || 0) * 100).toFixed(0)}%)`);
+      }
 
       let latitude = parsedItem.latitude?.toString() || "";
       let longitude = parsedItem.longitude?.toString() || "";

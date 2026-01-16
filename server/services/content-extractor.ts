@@ -58,6 +58,53 @@ export interface ContentExtractionResult {
   extractionQuality: 'high' | 'medium' | 'low' | 'none';
 }
 
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  'Sport en spel': [
+    'voetbal', 'tennis', 'hockey', 'zwemmen', 'fitness', 'sport', 'wedstrijd', 'toernooi',
+    'hardlopen', 'marathon', 'atletiek', 'basketbal', 'volleybal', 'handbal', 'schaatsen',
+    'wielrennen', 'fietsen', 'golf', 'badminton', 'tafeltennis', 'judo', 'karate', 'boksen',
+    'yoga', 'pilates', 'crossfit', 'bootcamp', 'sportdag', 'olympisch', 'kampioenschap',
+    'spelen', 'bordspel', 'puzzel', 'quiz', 'bingo', 'escape room', 'speurtocht'
+  ],
+  'Kunst en Cultuur': [
+    'concert', 'muziek', 'theater', 'toneel', 'musical', 'opera', 'ballet', 'dans',
+    'kunstenaar', 'tentoonstelling', 'museum', 'galerie', 'expositie', 'schilderij',
+    'beeldhouw', 'fotografie', 'film', 'cinema', 'bioscoop', 'cabaret', 'comedy',
+    'literatuur', 'lezing', 'dichter', 'poëzie', 'boek', 'schrijver', 'klassiek',
+    'jazz', 'pop', 'rock', 'orkest', 'koor', 'zang', 'band', 'dj', 'festival',
+    'performance', 'voorstelling', 'premiere', 'show', 'optreden', 'uitvoering',
+    'cultuur', 'erfgoed', 'historie', 'monument', 'rondleiding', 'excursie'
+  ],
+  'Gezellig en Sociaal': [
+    'borrel', 'feest', 'party', 'festival', 'braderie', 'markt', 'kermis', 'fair',
+    'barbecue', 'bbq', 'picknick', 'diner', 'lunch', 'ontbijt', 'brunch', 'eten',
+    'cafe', 'bar', 'kroeg', 'terras', 'restaurant', 'proeverij', 'wijn', 'bier',
+    'buurt', 'wijk', 'straat', 'dorps', 'stads', 'gemeenschap', 'vereniging',
+    'club', 'sociëteit', 'ontmoeting', 'samen', 'gezellig', 'netwerkborrel',
+    'open dag', 'opendag', 'inloop', 'koffie', 'thee', 'happy hour', 'avond',
+    'carnaval', 'koningsdag', 'bevrijdingsdag', 'sinterklaas', 'kerst', 'nieuwjaar',
+    'pasen', 'pinkster', 'jubileum', 'verjaardag', 'reünie'
+  ],
+  'Leren en Ontdekken': [
+    'workshop', 'cursus', 'training', 'les', 'college', 'seminar', 'webinar',
+    'lezing', 'presentatie', 'conferentie', 'congres', 'symposium', 'masterclass',
+    'educatie', 'onderwijs', 'school', 'universiteit', 'academie', 'leren',
+    'ontdekken', 'verkennen', 'excursie', 'rondleiding', 'tour', 'wandeling',
+    'natuur', 'wetenschap', 'technologie', 'innovatie', 'experiment', 'laboratorium',
+    'bibliotheek', 'leesclub', 'boekpresentatie', 'kinderen', 'jeugd', 'familie',
+    'creatief', 'knutsel', 'handwerk', 'tekenen', 'schilderen', 'koken', 'bakken'
+  ],
+  'Vrijwilligerswerk en hulp': [
+    'vrijwilliger', 'vrijwilligerswerk', 'hulp', 'helpen', 'steun', 'ondersteuning',
+    'donatie', 'collecte', 'actie', 'goed doel', 'benefiet', 'charity', 'stichting',
+    'zorg', 'mantelzorg', 'ouderen', 'eenzaamheid', 'dementie', 'hospice',
+    'voedselbank', 'kledingbank', 'opvang', 'vluchtelingen', 'integratie',
+    'milieu', 'duurzaam', 'schoon', 'opruim', 'groen', 'natuur', 'dieren', 'asiel',
+    'sociaal', 'maatschappelijk', 'buurtwerk', 'wijkwerk', 'welzijn', 'preventie',
+    'voorlichting', 'lotgenoten', 'zelfhulp', 'buddy', 'maatje'
+  ]
+};
+
 export class ContentExtractor {
   private static geocodeCache: Map<string, { lat: number; lon: number } | null> = new Map();
 
@@ -440,6 +487,61 @@ export class ContentExtractor {
       estimatedCompletePercentage,
       warnings,
       recommendations,
+    };
+  }
+
+  static detectCategory(title: string, description: string): {
+    category: string;
+    confidence: number;
+    matchedKeywords: string[];
+  } {
+    const text = this.stripHtml(`${title} ${description}`).toLowerCase();
+    
+    const scores: { category: string; score: number; matches: string[] }[] = [];
+    
+    for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+      let score = 0;
+      const matches: string[] = [];
+      
+      for (const keyword of keywords) {
+        const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+        const matchCount = (text.match(regex) || []).length;
+        
+        if (matchCount > 0) {
+          // Title matches are worth more
+          const titleMatch = title.toLowerCase().includes(keyword);
+          const keywordScore = titleMatch ? matchCount * 3 : matchCount;
+          score += keywordScore;
+          matches.push(keyword);
+        }
+      }
+      
+      if (score > 0) {
+        scores.push({ category, score, matches });
+      }
+    }
+    
+    // Sort by score descending
+    scores.sort((a, b) => b.score - a.score);
+    
+    if (scores.length > 0) {
+      const best = scores[0];
+      // Calculate confidence based on score and gap to second place
+      const gap = scores.length > 1 ? best.score - scores[1].score : best.score;
+      const confidence = Math.min(0.95, 0.5 + (gap / 10) * 0.1 + (best.matches.length / 5) * 0.2);
+      
+      return {
+        category: best.category,
+        confidence,
+        matchedKeywords: best.matches.slice(0, 5) // Top 5 matched keywords
+      };
+    }
+    
+    // Default to 'Gezellig en Sociaal' as fallback for social events
+    return {
+      category: 'Gezellig en Sociaal',
+      confidence: 0.3,
+      matchedKeywords: []
     };
   }
 }

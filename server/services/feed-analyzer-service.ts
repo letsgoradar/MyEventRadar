@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import { db } from "../db";
 import { feedAnalysisProfiles } from "@shared/schema";
 import { FEED_IMPORT_PRINCIPLES } from "../config/rss-feed-rules";
+import { ContentExtractor } from "./content-extractor";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -1655,9 +1656,13 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
         pros: FEED_TYPE_DESIRABILITY[best.method.id]?.description || '',
       };
       result.sampleEvent = best.result.sampleEvent || null;
+      result.contentQuality = best.result.contentQuality;
       result.isComplete = true;
       
       console.log(`[FeedAnalyzer] Best method chosen: ${best.method.id} with score ${best.score}`);
+      if (best.result.contentQuality) {
+        console.log(`[FeedAnalyzer] Content quality: ${best.result.contentQuality.estimatedCompletePercentage}% estimated complete`);
+      }
     }
 
     return result;
@@ -1689,12 +1694,16 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
               const totalHeader = response.headers['x-wp-total'] || response.headers['X-WP-Total'];
               const totalCount = totalHeader ? parseInt(totalHeader, 10) : events.length;
               
+              // Analyze content quality
+              const contentQuality = ContentExtractor.analyzeContentQuality(events);
+              
               return {
                 viable: true,
                 feedUrl: endpoint.url.replace('per_page=5', 'per_page=100'),
                 eventCount: totalCount,
                 reason: `${endpoint.name} gevonden met ${totalCount} events`,
                 sampleEvent: this.formatSampleEvent(sample, 'json-api'),
+                contentQuality,
               };
             }
           }
@@ -1929,12 +1938,23 @@ export interface ProgressiveStep {
   result: MethodCheckResult | null;
 }
 
+export interface ContentQualityInfo {
+  hasStructuredDates: boolean;
+  hasStructuredLocations: boolean;
+  canExtractDates: boolean;
+  canExtractLocations: boolean;
+  estimatedCompletePercentage: number;
+  warnings: string[];
+  recommendations: string[];
+}
+
 export interface MethodCheckResult {
   viable: boolean;
   feedUrl?: string;
   eventCount?: number;
   reason: string;
   sampleEvent?: SampleEventData;
+  contentQuality?: ContentQualityInfo;
 }
 
 export interface SampleEventData {
@@ -1964,4 +1984,5 @@ export interface ProgressiveAnalysisResult {
   suggestedMunicipality: string | null;
   importRules: string;
   isComplete: boolean;
+  contentQuality?: ContentQualityInfo;
 }

@@ -8,6 +8,7 @@ import type { RssFeed, RssFeedItem, InsertRssFeedItem } from "@shared/schema";
 import { AIHelper } from "./ai-helper";
 import { DEFAULT_FEED_RULES, FEED_IMPORT_PRINCIPLES, createDuplicateKey, validateEventForImport } from "../config/rss-feed-rules";
 import { validateCoordinatesInMunicipality, findActualMunicipality, getMunicipalityCentroid, getKnownVenue } from "./municipality-validator";
+import { ContentExtractor } from "./content-extractor";
 
 interface ParsedFeedItem {
   externalId: string;
@@ -607,8 +608,9 @@ export class RssFeedService {
 
   /**
    * Fetch and parse a WordPress JSON API feed (wp-json/wp/v2/posts)
+   * Uses smart content extraction when structured fields are missing
    */
-  static async fetchAndParseJsonFeed(url: string): Promise<FeedParseResult> {
+  static async fetchAndParseJsonFeed(url: string, municipality?: string): Promise<FeedParseResult> {
     try {
       console.log(`[RSS] Fetching JSON feed: ${url}`);
       
@@ -616,6 +618,7 @@ export class RssFeedService {
       let currentUrl = url;
       let page = 1;
       const maxPages = 10;
+      let extractionStats = { structured: 0, extracted: 0, incomplete: 0 };
       
       while (page <= maxPages) {
         const pageUrl = currentUrl.includes('?') 
@@ -638,7 +641,9 @@ export class RssFeedService {
 
         for (const post of data) {
           const title = post.title?.rendered || post.title || 'Geen titel';
-          const description = post.excerpt?.rendered || post.content?.rendered || '';
+          const content = post.content?.rendered || '';
+          const excerpt = post.excerpt?.rendered || '';
+          const description = excerpt || content;
           
           let imageUrl: string | undefined;
           if (post._embedded?.['wp:featuredmedia']?.[0]?.source_url) {
@@ -651,12 +656,17 @@ export class RssFeedService {
 
           let startTime: Date | undefined;
           let endTime: Date | undefined;
+          let hasStructuredDate = false;
           
           if (post.acf?.startdatum || post.meta?.start_date || post.start_date) {
             const startStr = post.acf?.startdatum || post.meta?.start_date || post.start_date;
             try {
               startTime = new Date(startStr);
-              if (isNaN(startTime.getTime())) startTime = undefined;
+              if (isNaN(startTime.getTime())) {
+                startTime = undefined;
+              } else {
+                hasStructuredDate = true;
+              }
             } catch (e) {}
           }
           
@@ -672,6 +682,7 @@ export class RssFeedService {
           let address: string | undefined;
           let latitude: number | undefined;
           let longitude: number | undefined;
+          let hasStructuredLocation = false;
           
           if (post.acf?.locatie) {
             location = post.acf.locatie;
@@ -681,9 +692,46 @@ export class RssFeedService {
           }
           if (post.acf?.latitude || post.acf?.lat) {
             latitude = parseFloat(post.acf.latitude || post.acf.lat);
+            if (!isNaN(latitude)) hasStructuredLocation = true;
           }
           if (post.acf?.longitude || post.acf?.lng || post.acf?.lon) {
             longitude = parseFloat(post.acf.longitude || post.acf.lng || post.acf.lon);
+          }
+
+          if (!hasStructuredDate || !hasStructuredLocation) {
+            const extraction = await ContentExtractor.extractFromContent(
+              title,
+              content,
+              hasStructuredDate,
+              hasStructuredLocation,
+              municipality
+            );
+
+            if (!hasStructuredDate && extraction.startDate) {
+              startTime = extraction.startDate;
+              if (extraction.startTime) {
+                startTime.setHours(extraction.startTime.hours, extraction.startTime.minutes);
+              }
+              if (extraction.endTime && startTime) {
+                endTime = new Date(startTime);
+                endTime.setHours(extraction.endTime.hours, extraction.endTime.minutes);
+              }
+            }
+
+            if (!hasStructuredLocation && extraction.geocodedAddress) {
+              address = extraction.geocodedAddress.fullAddress;
+              latitude = extraction.geocodedAddress.latitude;
+              longitude = extraction.geocodedAddress.longitude;
+              location = extraction.geocodedAddress.street;
+            }
+          }
+
+          if (hasStructuredDate && hasStructuredLocation) {
+            extractionStats.structured++;
+          } else if (startTime && latitude) {
+            extractionStats.extracted++;
+          } else {
+            extractionStats.incomplete++;
           }
 
           items.push({
@@ -713,6 +761,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] JSON feed parsed: ${items.length} items from ${page} pages`);
+      console.log(`[RSS] Extraction stats: ${extractionStats.structured} structured, ${extractionStats.extracted} extracted, ${extractionStats.incomplete} incomplete`);
       return { success: true, items };
     } catch (error: any) {
       console.error(`[RSS] Error fetching JSON feed ${url}:`, error.message);
@@ -4721,8 +4770,8 @@ export class RssFeedService {
         // Use intelligent universal scraper for unknown scraper feeds
         result = await this.scrapeUniversal(feed);
       } else if (feed.feedType === "json") {
-        // Parse WordPress JSON API or similar JSON feeds
-        result = await this.fetchAndParseJsonFeed(feed.url);
+        // Parse WordPress JSON API or similar JSON feeds with content extraction
+        result = await this.fetchAndParseJsonFeed(feed.url, feed.municipality || undefined);
       } else {
         result = await this.fetchAndParseRssFeed(feed.url);
       }
@@ -4859,8 +4908,8 @@ export class RssFeedService {
           // Use intelligent universal scraper for unknown scraper feeds
           result = await this.scrapeUniversal(feed);
         } else if (feed.feedType === "json") {
-          // Parse WordPress JSON API or similar JSON feeds
-          result = await this.fetchAndParseJsonFeed(feed.url);
+          // Parse WordPress JSON API or similar JSON feeds with content extraction
+          result = await this.fetchAndParseJsonFeed(feed.url, feed.municipality || undefined);
         } else {
           result = await this.fetchAndParseRssFeed(feed.url);
         }

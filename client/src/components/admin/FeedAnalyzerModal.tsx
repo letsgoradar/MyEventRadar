@@ -59,6 +59,16 @@ interface SampleEventData {
   rawData?: any;
 }
 
+interface ContentQualityInfo {
+  hasStructuredDates: boolean;
+  hasStructuredLocations: boolean;
+  canExtractDates: boolean;
+  canExtractLocations: boolean;
+  estimatedCompletePercentage: number;
+  warnings: string[];
+  recommendations: string[];
+}
+
 interface ProgressiveAnalysisResult {
   url: string;
   steps: ProgressiveStep[];
@@ -75,6 +85,7 @@ interface ProgressiveAnalysisResult {
   suggestedMunicipality: string | null;
   importRules: string;
   isComplete: boolean;
+  contentQuality?: ContentQualityInfo;
 }
 
 interface FeedAnalyzerModalProps {
@@ -299,6 +310,81 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
                   </code>
                 </div>
               </div>
+
+              {/* Content Quality Warning */}
+              {result.contentQuality && (
+                <div className={`rounded-lg p-4 ${
+                  result.contentQuality.estimatedCompletePercentage >= 60 
+                    ? 'bg-green-50 border border-green-200' 
+                    : result.contentQuality.estimatedCompletePercentage >= 30
+                    ? 'bg-yellow-50 border border-yellow-200'
+                    : 'bg-red-50 border border-red-200'
+                }`}>
+                  <h4 className={`font-semibold flex items-center gap-2 ${
+                    result.contentQuality.estimatedCompletePercentage >= 60 
+                      ? 'text-green-800' 
+                      : result.contentQuality.estimatedCompletePercentage >= 30
+                      ? 'text-yellow-800'
+                      : 'text-red-800'
+                  }`}>
+                    <Info className="w-4 h-4" />
+                    Data Kwaliteit: ~{result.contentQuality.estimatedCompletePercentage}% events bruikbaar
+                  </h4>
+                  
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 text-sm">
+                      {result.contentQuality.hasStructuredDates || result.contentQuality.canExtractDates ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <X className="w-4 h-4 text-red-600" />
+                      )}
+                      <span>Datums: {
+                        result.contentQuality.hasStructuredDates 
+                          ? 'Gestructureerd aanwezig' 
+                          : result.contentQuality.canExtractDates 
+                          ? 'Extraheerbaar uit content' 
+                          : 'Niet gevonden'
+                      }</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      {result.contentQuality.hasStructuredLocations || result.contentQuality.canExtractLocations ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <X className="w-4 h-4 text-red-600" />
+                      )}
+                      <span>Locaties: {
+                        result.contentQuality.hasStructuredLocations 
+                          ? 'GPS coördinaten aanwezig' 
+                          : result.contentQuality.canExtractLocations 
+                          ? 'Adressen gevonden, worden gegeocodeerd' 
+                          : 'Niet gevonden'
+                      }</span>
+                    </div>
+                  </div>
+
+                  {result.contentQuality.warnings.length > 0 && (
+                    <div className="mt-2">
+                      {result.contentQuality.warnings.map((warning, idx) => (
+                        <p key={idx} className="text-xs text-red-700 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          {warning}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  {result.contentQuality.recommendations.length > 0 && (
+                    <div className="mt-2">
+                      {result.contentQuality.recommendations.map((rec, idx) => (
+                        <p key={idx} className="text-xs text-blue-700 flex items-center gap-1">
+                          <Info className="w-3 h-3" />
+                          {rec}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Feed Name and Category */}
               <div className="grid grid-cols-2 gap-4">

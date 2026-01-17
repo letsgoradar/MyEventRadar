@@ -466,7 +466,18 @@ export class FeedAnalyzerService {
       }
 
     } catch (error: any) {
-      result.warnings.push(`XML parsing error: ${error.message}`);
+      // Provide helpful error messages for common XML issues
+      if (error.message?.includes('Invalid character in entity name')) {
+        result.warnings.push('XML bevat ongeldige tekens (waarschijnlijk niet-geëscapete & tekens)');
+        result.suggestions.push('De feed heeft technische problemen. We proberen deze automatisch te repareren.');
+      } else if (error.message?.includes('Invalid character')) {
+        result.warnings.push(`XML parsing fout: ongeldige tekens in de feed`);
+        result.suggestions.push('De feed bevat tekens die niet zijn toegestaan in XML');
+      } else if (error.message?.includes('Unexpected close tag')) {
+        result.warnings.push('XML structuur is ongeldig (ontbrekende of verkeerde tags)');
+      } else {
+        result.warnings.push(`XML parsing error: ${error.message}`);
+      }
     }
   }
 

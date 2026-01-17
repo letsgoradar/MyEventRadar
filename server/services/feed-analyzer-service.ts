@@ -12,12 +12,38 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
  * Sanitize XML content to fix common parsing issues.
- * Handles unescaped ampersands which cause "Invalid character in entity name" errors.
+ * Handles:
+ * - Unescaped ampersands ("Invalid character in entity name")
+ * - Attributes without values ("Attribute without value")
+ * - Invalid characters in content
  */
 function sanitizeXmlContent(xml: string): string {
+  let sanitized = xml;
+  
   // Fix unescaped ampersands - replace & not followed by valid entity patterns
   // Valid patterns: &amp; &lt; &gt; &quot; &apos; &#123; &#x1F;
-  return xml.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
+  sanitized = sanitized.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
+  
+  // Fix attributes without values (HTML-style like <tag disabled> -> <tag disabled="disabled">)
+  // Common boolean attributes in HTML that may appear in feeds
+  const booleanAttrs = ['disabled', 'checked', 'selected', 'readonly', 'required', 'multiple', 'autofocus', 'autoplay', 'controls', 'loop', 'muted', 'defer', 'async', 'hidden', 'open', 'novalidate', 'formnovalidate', 'ismap', 'itemscope'];
+  for (const attr of booleanAttrs) {
+    // Match attribute at end of tag or followed by space/other attributes
+    const pattern = new RegExp(`(<[^>]*\\s)${attr}(\\s|>|/>)`, 'gi');
+    sanitized = sanitized.replace(pattern, `$1${attr}="${attr}"$2`);
+  }
+  
+  // Generic fix: find any attribute that looks like name followed by > or space without ="value"
+  // This catches patterns like: attribute> or attribute /> 
+  sanitized = sanitized.replace(/<([^>]+)\s+(\w+)(\s*>)/g, (match, before, attr, after) => {
+    // Only fix if this looks like a boolean attribute (no = sign)
+    if (!before.includes(`${attr}=`) && !before.includes(`${attr} =`)) {
+      return `<${before} ${attr}="${attr}"${after}`;
+    }
+    return match;
+  });
+  
+  return sanitized;
 }
 
 // Domain patterns to municipality mapping for auto-detection

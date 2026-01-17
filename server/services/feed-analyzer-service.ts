@@ -15,7 +15,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  * Handles:
  * - Unescaped ampersands ("Invalid character in entity name")
  * - Attributes without values ("Attribute without value")
- * - Unexpected close tags (orphaned closing tags)
+ * - Invalid attribute names (special chars in attributes)
  * - Self-closing HTML tags in XML context
  */
 function sanitizeXmlContent(xml: string): string {
@@ -31,39 +31,85 @@ function sanitizeXmlContent(xml: string): string {
     sanitized = sanitized.replace(pattern, `$1${attr}="${attr}"$2`);
   }
   
+  // Fix self-closing tags - ensure space before />
+  // e.g., <br/> is fine, but <img src="x"/> needs space: <img src="x" />
+  sanitized = sanitized.replace(/(\S)\/>/g, '$1 />');
+  
   // Fix self-closing HTML tags that should be self-closing in XML
-  // e.g., <br> -> <br/>, <img src="..."> -> <img src="..."/>
   const selfClosingTags = ['br', 'hr', 'img', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr'];
   for (const tag of selfClosingTags) {
-    // Match <tag ...> that isn't already self-closing
-    const pattern = new RegExp(`<(${tag})([^>]*[^/])>`, 'gi');
-    sanitized = sanitized.replace(pattern, '<$1$2/>');
-    // Also fix <tag> without attributes
-    const simplePattern = new RegExp(`<(${tag})>`, 'gi');
-    sanitized = sanitized.replace(simplePattern, '<$1/>');
+    // Match <tag> or <tag ...> that isn't already self-closing, ensure proper spacing
+    const pattern = new RegExp(`<(${tag})(\\s[^>]*)?(?<!\\s)>(?!/)`, 'gi');
+    sanitized = sanitized.replace(pattern, (match, tagName, attrs) => {
+      if (attrs) {
+        return `<${tagName}${attrs.trimEnd()} />`;
+      }
+      return `<${tagName} />`;
+    });
   }
   
-  // Wrap problematic HTML content in CDATA if it appears in description/content fields
-  // This helps with embedded HTML that has tag issues
-  sanitized = sanitized.replace(/<description>([^<]*<[^>]+>[^]*?)<\/description>/gi, (match, content) => {
-    // If content has HTML tags, wrap in CDATA if not already wrapped
-    if (content.includes('<') && !content.includes('<![CDATA[')) {
-      return `<description><![CDATA[${content}]]></description>`;
-    }
-    return match;
-  });
+  // Remove invalid attribute patterns like data-/something or attr/value
+  sanitized = sanitized.replace(/\s+[\w-]+\/[\w-]+(?==)/g, ' ');
   
-  sanitized = sanitized.replace(/<content[^>]*>([^<]*<[^>]+>[^]*?)<\/content>/gi, (match, content) => {
-    if (content.includes('<') && !content.includes('<![CDATA[')) {
-      // Preserve the original content tag with its attributes
-      const tagMatch = match.match(/<content([^>]*)>/);
-      const attrs = tagMatch ? tagMatch[1] : '';
-      return `<content${attrs}><![CDATA[${content}]]></content>`;
-    }
-    return match;
-  });
+  // Fix attributes with slashes that shouldn't have them
+  sanitized = sanitized.replace(/(\s+)([\w-]+)\/(?=\s|>)/g, '$1$2');
   
   return sanitized;
+}
+
+/**
+ * Try to parse XML with multiple strategies, returning the first successful result.
+ */
+async function parseXmlWithFallback(xml: string): Promise<any> {
+  const strategies = [
+    // Strategy 1: Parse sanitized content
+    async () => {
+      const sanitized = sanitizeXmlContent(xml);
+      return await parseStringPromise(sanitized, { explicitArray: false, ignoreAttrs: false });
+    },
+    // Strategy 2: Strip all HTML from content fields and try again
+    async () => {
+      let stripped = sanitizeXmlContent(xml);
+      // Remove HTML tags from description and content fields
+      stripped = stripped.replace(/<description>([^]*?)<\/description>/gi, (match, content) => {
+        const text = content.replace(/<[^>]*>/g, '').replace(/\]\]>/g, '');
+        return `<description>${text}</description>`;
+      });
+      stripped = stripped.replace(/<content[^>]*>([^]*?)<\/content>/gi, (match, content) => {
+        const text = content.replace(/<[^>]*>/g, '').replace(/\]\]>/g, '');
+        return `<content>${text}</content>`;
+      });
+      return await parseStringPromise(stripped, { explicitArray: false, ignoreAttrs: false });
+    },
+    // Strategy 3: Use cheerio to extract RSS structure
+    async () => {
+      const $ = cheerio.load(xml, { xmlMode: true });
+      const items: any[] = [];
+      $('item, entry').each((_, el) => {
+        const item: any = {};
+        $(el).children().each((_, child) => {
+          const tagName = (child as any).tagName || (child as any).name;
+          item[tagName] = $(child).text();
+        });
+        items.push(item);
+      });
+      if (items.length > 0) {
+        return { rss: { channel: { item: items } } };
+      }
+      throw new Error('No items found with cheerio fallback');
+    }
+  ];
+  
+  let lastError: Error | null = null;
+  for (const strategy of strategies) {
+    try {
+      return await strategy();
+    } catch (error: any) {
+      lastError = error;
+      continue;
+    }
+  }
+  throw lastError || new Error('All parsing strategies failed');
 }
 
 // Domain patterns to municipality mapping for auto-detection
@@ -425,12 +471,8 @@ export class FeedAnalyzerService {
 
   private static async analyzeXmlFeed(content: string, result: FeedAnalysisResult): Promise<void> {
     try {
-      // Sanitize XML to fix common issues like unescaped ampersands
-      const sanitizedContent = sanitizeXmlContent(content);
-      const parsed = await parseStringPromise(sanitizedContent, { 
-        explicitArray: false, 
-        ignoreAttrs: false 
-      });
+      // Use fallback parsing to handle various XML issues
+      const parsed = await parseXmlWithFallback(content);
 
       let items: any[] = [];
       
@@ -1876,9 +1918,8 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
           
           const content = response.data;
           if (typeof content === 'string' && (content.includes('<rss') || content.includes('<feed') || content.includes('<channel>'))) {
-            // Sanitize XML to fix common issues like unescaped ampersands
-            const sanitizedContent = sanitizeXmlContent(content);
-            const parsed = await parseStringPromise(sanitizedContent, { explicitArray: false });
+            // Use fallback parsing to handle various XML issues
+            const parsed = await parseXmlWithFallback(content);
             const items = parsed.rss?.channel?.item || parsed.feed?.entry || [];
             const itemArray = Array.isArray(items) ? items : [items];
             

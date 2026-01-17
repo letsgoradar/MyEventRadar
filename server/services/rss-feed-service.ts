@@ -14,58 +14,91 @@ import { FeedFieldDetector } from "./feed-field-detector";
 
 /**
  * Sanitize XML content to fix common parsing issues.
- * Handles:
- * - Unescaped ampersands ("Invalid character in entity name")
- * - Attributes without values ("Attribute without value")
- * - Unexpected close tags (orphaned closing tags)
- * - Self-closing HTML tags in XML context
  */
 function sanitizeXmlContent(xml: string): string {
   let sanitized = xml;
   
-  // Fix unescaped ampersands - replace & not followed by valid entity patterns
+  // Fix unescaped ampersands
   sanitized = sanitized.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
   
-  // Fix attributes without values (HTML-style like <tag disabled> -> <tag disabled="disabled">)
+  // Fix attributes without values
   const booleanAttrs = ['disabled', 'checked', 'selected', 'readonly', 'required', 'multiple', 'autofocus', 'autoplay', 'controls', 'loop', 'muted', 'defer', 'async', 'hidden', 'open', 'novalidate', 'formnovalidate', 'ismap', 'itemscope'];
   for (const attr of booleanAttrs) {
     const pattern = new RegExp(`(<[^>]*\\s)${attr}(\\s|>|/>)`, 'gi');
     sanitized = sanitized.replace(pattern, `$1${attr}="${attr}"$2`);
   }
   
-  // Fix self-closing HTML tags that should be self-closing in XML
-  // e.g., <br> -> <br/>, <img src="..."> -> <img src="..."/>
+  // Fix self-closing tags - ensure space before />
+  sanitized = sanitized.replace(/(\S)\/>/g, '$1 />');
+  
+  // Fix self-closing HTML tags
   const selfClosingTags = ['br', 'hr', 'img', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr'];
   for (const tag of selfClosingTags) {
-    // Match <tag ...> that isn't already self-closing
-    const pattern = new RegExp(`<(${tag})([^>]*[^/])>`, 'gi');
-    sanitized = sanitized.replace(pattern, '<$1$2/>');
-    // Also fix <tag> without attributes
-    const simplePattern = new RegExp(`<(${tag})>`, 'gi');
-    sanitized = sanitized.replace(simplePattern, '<$1/>');
+    const pattern = new RegExp(`<(${tag})(\\s[^>]*)?(?<!\\s)>(?!/)`, 'gi');
+    sanitized = sanitized.replace(pattern, (match, tagName, attrs) => {
+      if (attrs) {
+        return `<${tagName}${attrs.trimEnd()} />`;
+      }
+      return `<${tagName} />`;
+    });
   }
   
-  // Wrap problematic HTML content in CDATA if it appears in description/content fields
-  // This helps with embedded HTML that has tag issues
-  sanitized = sanitized.replace(/<description>([^<]*<[^>]+>[^]*?)<\/description>/gi, (match, content) => {
-    // If content has HTML tags, wrap in CDATA if not already wrapped
-    if (content.includes('<') && !content.includes('<![CDATA[')) {
-      return `<description><![CDATA[${content}]]></description>`;
-    }
-    return match;
-  });
-  
-  sanitized = sanitized.replace(/<content[^>]*>([^<]*<[^>]+>[^]*?)<\/content>/gi, (match, content) => {
-    if (content.includes('<') && !content.includes('<![CDATA[')) {
-      // Preserve the original content tag with its attributes
-      const tagMatch = match.match(/<content([^>]*)>/);
-      const attrs = tagMatch ? tagMatch[1] : '';
-      return `<content${attrs}><![CDATA[${content}]]></content>`;
-    }
-    return match;
-  });
+  // Remove invalid attribute patterns
+  sanitized = sanitized.replace(/\s+[\w-]+\/[\w-]+(?==)/g, ' ');
+  sanitized = sanitized.replace(/(\s+)([\w-]+)\/(?=\s|>)/g, '$1$2');
   
   return sanitized;
+}
+
+/**
+ * Try to parse XML with multiple strategies
+ */
+async function parseXmlWithFallback(xml: string): Promise<any> {
+  const strategies = [
+    async () => {
+      const sanitized = sanitizeXmlContent(xml);
+      return await parseStringPromise(sanitized, { explicitArray: false, ignoreAttrs: false });
+    },
+    async () => {
+      let stripped = sanitizeXmlContent(xml);
+      stripped = stripped.replace(/<description>([^]*?)<\/description>/gi, (match, content) => {
+        const text = content.replace(/<[^>]*>/g, '').replace(/\]\]>/g, '');
+        return `<description>${text}</description>`;
+      });
+      stripped = stripped.replace(/<content[^>]*>([^]*?)<\/content>/gi, (match, content) => {
+        const text = content.replace(/<[^>]*>/g, '').replace(/\]\]>/g, '');
+        return `<content>${text}</content>`;
+      });
+      return await parseStringPromise(stripped, { explicitArray: false, ignoreAttrs: false });
+    },
+    async () => {
+      const $ = cheerio.load(xml, { xmlMode: true });
+      const items: any[] = [];
+      $('item, entry').each((_, el) => {
+        const item: any = {};
+        $(el).children().each((_, child) => {
+          const tagName = (child as any).tagName || (child as any).name;
+          item[tagName] = $(child).text();
+        });
+        items.push(item);
+      });
+      if (items.length > 0) {
+        return { rss: { channel: { item: items } } };
+      }
+      throw new Error('No items found with cheerio fallback');
+    }
+  ];
+  
+  let lastError: Error | null = null;
+  for (const strategy of strategies) {
+    try {
+      return await strategy();
+    } catch (error: any) {
+      lastError = error;
+      continue;
+    }
+  }
+  throw lastError || new Error('All parsing strategies failed');
 }
 
 interface ParsedFeedItem {
@@ -701,12 +734,8 @@ export class RssFeedService {
       });
 
       const xmlData = response.data;
-      // Sanitize XML to fix common issues like unescaped ampersands
-      const sanitizedXml = sanitizeXmlContent(xmlData);
-      const parsed = await parseStringPromise(sanitizedXml, {
-        explicitArray: false,
-        ignoreAttrs: false
-      });
+      // Use fallback parsing to handle various XML issues
+      const parsed = await parseXmlWithFallback(xmlData);
 
       const items: ParsedFeedItem[] = [];
       let extractionStats = { structured: 0, extracted: 0, incomplete: 0 };

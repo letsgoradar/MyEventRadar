@@ -168,7 +168,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
   const createFeedMutation = useMutation({
     mutationFn: async () => {
-      if (!result?.chosenMethod || !category) return;
+      if (!result?.chosenMethod) return;
       
       return apiRequest('/api/admin/rss-feeds', {
         method: 'POST',
@@ -177,7 +177,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
           url: result.chosenMethod.url,
           feedType: result.chosenMethod.id === 'json-api' ? 'json' : 'rss',
           municipality: result.suggestedMunicipality || '',
-          defaultCategory: category,
+          defaultCategory: category || 'Gezellig en Sociaal',
           autoCreateEvents: true,
           updateFrequencyMinutes: 60,
         },
@@ -467,7 +467,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="category">Standaard categorie *</Label>
+                  <Label htmlFor="category">Fallback categorie (optioneel)</Label>
                   <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger id="category">
                       <SelectValue placeholder="Kies een categorie" />

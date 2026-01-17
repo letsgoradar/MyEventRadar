@@ -39,6 +39,29 @@ interface ExtractedAddress {
   fullAddress: string;
 }
 
+interface ExtractedVenue {
+  name: string;
+  type: string;
+  city?: string;
+  address?: string;
+  confidence: number;
+  source: string;
+}
+
+const VENUE_TYPE_PATTERNS: Array<{ type: string; patterns: string[] }> = [
+  { type: 'theater', patterns: ['schouwburg', 'theater', 'theaterzaal', 'podium'] },
+  { type: 'cinema', patterns: ['filmtheater', 'bioscoop', 'cinema'] },
+  { type: 'museum', patterns: ['museum', 'galerie', 'expositie'] },
+  { type: 'church', patterns: ['kerk', 'kapel', 'kathedraal', 'basiliek', 'sint', 'st.'] },
+  { type: 'sports', patterns: ['sporthal', 'sportpark', 'stadion', 'zwembad', 'sportcentrum', 'gymzaal'] },
+  { type: 'community', patterns: ['gemeentehuis', 'wijkcentrum', 'buurthuis', 'dorpshuis', 'kulturhus'] },
+  { type: 'library', patterns: ['bibliotheek', 'bieb'] },
+  { type: 'school', patterns: ['school', 'college', 'academie', 'universiteit', 'lyceum'] },
+  { type: 'venue', patterns: ['centrum', 'zaal', 'hal', 'paviljoen', 'congrescentrum'] },
+  { type: 'outdoor', patterns: ['park', 'plein', 'markt', 'kade', 'haven', 'strand'] },
+  { type: 'hospitality', patterns: ['cafe', 'café', 'restaurant', 'eetcafe', 'grand cafe', 'hotel'] },
+];
+
 interface GeocodedAddress extends ExtractedAddress {
   latitude: number;
   longitude: number;
@@ -48,11 +71,14 @@ export interface ContentExtractionResult {
   dates: ExtractedDate[];
   times: ExtractedTime[];
   addresses: ExtractedAddress[];
+  venues: ExtractedVenue[];
   startDate?: Date;
   startTime?: { hours: number; minutes: number };
   endTime?: { hours: number; minutes: number };
   primaryAddress?: ExtractedAddress;
+  primaryVenue?: ExtractedVenue;
   geocodedAddress?: GeocodedAddress;
+  geocodedVenue?: { name: string; latitude: number; longitude: number; city?: string };
   hasStructuredDate: boolean;
   hasStructuredLocation: boolean;
   extractionQuality: 'high' | 'medium' | 'low' | 'none';
@@ -320,6 +346,91 @@ export class ContentExtractor {
     return results.sort((a, b) => b.confidence - a.confidence);
   }
 
+  static extractVenues(text: string, municipality?: string): ExtractedVenue[] {
+    const results: ExtractedVenue[] = [];
+    const cleanText = this.stripHtml(text);
+
+    for (const venueType of VENUE_TYPE_PATTERNS) {
+      for (const pattern of venueType.patterns) {
+        const regexes = [
+          new RegExp(`(${pattern}(?:\\s+(?:&|en)\\s+\\w+)?\\s+[A-Z][a-zA-Zéèëïöüáàâêîôûç\\-\\s]{2,40})`, 'gi'),
+          new RegExp(`([A-Z][a-zA-Zéèëïöüáàâêîôûç\\-\\s]{2,30}\\s+${pattern})`, 'gi'),
+          new RegExp(`(?:in|bij|op|naar)\\s+(?:de|het)?\\s*([A-Z][a-zA-Zéèëïöüáàâêîôûç\\-\\s]{2,40})\\s+(?:in|te)\\s+([A-Z][a-z]+)`, 'gi'),
+        ];
+
+        for (const regex of regexes) {
+          let match;
+          while ((match = regex.exec(cleanText)) !== null) {
+            const venueName = match[1]?.trim();
+            const cityMatch = match[2]?.trim();
+            
+            if (venueName && venueName.length > 4 && venueName.length < 60) {
+              if (venueName.toLowerCase().includes(pattern)) {
+                const isDuplicate = results.some(r => 
+                  r.name.toLowerCase() === venueName.toLowerCase()
+                );
+                
+                if (!isDuplicate) {
+                  results.push({
+                    name: venueName,
+                    type: venueType.type,
+                    city: cityMatch || municipality,
+                    confidence: 0.8,
+                    source: match[0],
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const locationIndicatorPatterns = [
+      /(?:locatie|waar|adres|plaats)[:\s]+([A-Z][a-zA-Zéèëïöüáàâêîôûç\-\s&]{3,50})/gi,
+      /(?:in|bij|op)\s+(?:de|het)?\s*([A-Z][a-zA-Zéèëïöüáàâêîôûç\-\s&]{3,40})\s+(?:in|te|,)\s*([A-Z][a-z]+)/gi,
+      /(?:vindt\s+plaats|gehouden)\s+(?:in|bij|op)\s+(?:de|het)?\s*([A-Z][a-zA-Zéèëïöüáàâêîôûç\-\s&]{3,50})/gi,
+    ];
+
+    for (const pattern of locationIndicatorPatterns) {
+      let match;
+      while ((match = pattern.exec(cleanText)) !== null) {
+        const venueName = match[1]?.trim();
+        const cityMatch = match[2]?.trim();
+        
+        if (venueName && venueName.length > 3 && venueName.length < 60) {
+          const hasVenueKeyword = VENUE_TYPE_PATTERNS.some(vt => 
+            vt.patterns.some(p => venueName.toLowerCase().includes(p))
+          );
+          
+          const isDuplicate = results.some(r => 
+            r.name.toLowerCase() === venueName.toLowerCase()
+          );
+          
+          if (!isDuplicate) {
+            results.push({
+              name: venueName,
+              type: hasVenueKeyword ? 'venue' : 'location',
+              city: cityMatch || municipality,
+              confidence: hasVenueKeyword ? 0.75 : 0.6,
+              source: match[0],
+            });
+          }
+        }
+      }
+    }
+
+    return results.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  static async geocodeVenue(venueName: string, city?: string): Promise<{ lat: number; lon: number } | null> {
+    const searchQuery = city 
+      ? `${venueName}, ${city}, Nederland`
+      : `${venueName}, Nederland`;
+    
+    return this.geocodeAddress(searchQuery);
+  }
+
   static async geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
     if (this.geocodeCache.has(address)) {
       return this.geocodeCache.get(address) || null;
@@ -369,27 +480,46 @@ export class ContentExtractor {
     const timeRange = this.extractTimeRange(combinedText);
     const times = this.extractTimes(combinedText);
     const addresses = this.extractAddresses(content, municipality);
+    const venues = this.extractVenues(combinedText, municipality);
 
     let geocodedAddress: GeocodedAddress | undefined;
-    if (addresses.length > 0 && !hasStructuredLocation) {
-      const primaryAddress = addresses[0];
-      const searchAddress = primaryAddress.city 
-        ? `${primaryAddress.street} ${primaryAddress.houseNumber}, ${primaryAddress.city}, Nederland`
-        : `${primaryAddress.street} ${primaryAddress.houseNumber}, ${municipality || ''}, Nederland`;
+    let geocodedVenue: { name: string; latitude: number; longitude: number; city?: string } | undefined;
+
+    if (!hasStructuredLocation) {
+      if (addresses.length > 0) {
+        const primaryAddress = addresses[0];
+        const searchAddress = primaryAddress.city 
+          ? `${primaryAddress.street} ${primaryAddress.houseNumber}, ${primaryAddress.city}, Nederland`
+          : `${primaryAddress.street} ${primaryAddress.houseNumber}, ${municipality || ''}, Nederland`;
+        
+        const coords = await this.geocodeAddress(searchAddress);
+        if (coords) {
+          geocodedAddress = {
+            ...primaryAddress,
+            latitude: coords.lat,
+            longitude: coords.lon,
+          };
+        }
+      }
       
-      const coords = await this.geocodeAddress(searchAddress);
-      if (coords) {
-        geocodedAddress = {
-          ...primaryAddress,
-          latitude: coords.lat,
-          longitude: coords.lon,
-        };
+      if (!geocodedAddress && venues.length > 0) {
+        const primaryVenue = venues[0];
+        const venueCity = primaryVenue.city || municipality;
+        const coords = await this.geocodeVenue(primaryVenue.name, venueCity);
+        if (coords) {
+          geocodedVenue = {
+            name: primaryVenue.name,
+            latitude: coords.lat,
+            longitude: coords.lon,
+            city: venueCity,
+          };
+        }
       }
     }
 
     let extractionQuality: 'high' | 'medium' | 'low' | 'none' = 'none';
     const hasDate = hasStructuredDate || dates.length > 0;
-    const hasLocation = hasStructuredLocation || geocodedAddress !== undefined;
+    const hasLocation = hasStructuredLocation || geocodedAddress !== undefined || geocodedVenue !== undefined;
 
     if (hasDate && hasLocation) {
       extractionQuality = 'high';
@@ -403,11 +533,14 @@ export class ContentExtractor {
       dates,
       times,
       addresses,
+      venues,
       startDate: dates[0]?.date,
       startTime: timeRange.start,
       endTime: timeRange.end,
       primaryAddress: addresses[0],
+      primaryVenue: venues[0],
       geocodedAddress,
+      geocodedVenue,
       hasStructuredDate,
       hasStructuredLocation,
       extractionQuality,
@@ -443,9 +576,10 @@ export class ContentExtractor {
 
       const dates = this.extractDutchDates(combinedText);
       const addresses = this.extractAddresses(combinedText);
+      const venues = this.extractVenues(combinedText);
 
       if (dates.length > 0) extractableDateCount++;
-      if (addresses.length > 0) extractableLocationCount++;
+      if (addresses.length > 0 || venues.length > 0) extractableLocationCount++;
     }
 
     const total = samplePosts.length;

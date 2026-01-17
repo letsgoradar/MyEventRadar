@@ -815,6 +815,12 @@ export class RssFeedService {
               latitude = extraction.geocodedAddress.latitude;
               longitude = extraction.geocodedAddress.longitude;
               location = extraction.geocodedAddress.street;
+            } else if (!hasStructuredLocation && extraction.geocodedVenue) {
+              venueName = extraction.geocodedVenue.name;
+              latitude = extraction.geocodedVenue.latitude;
+              longitude = extraction.geocodedVenue.longitude;
+              location = extraction.geocodedVenue.name;
+              city = extraction.geocodedVenue.city;
             }
           }
           
@@ -925,6 +931,10 @@ export class RssFeedService {
             latitude = extraction.geocodedAddress.latitude;
             longitude = extraction.geocodedAddress.longitude;
             location = extraction.geocodedAddress.street;
+          } else if (extraction.geocodedVenue) {
+            location = extraction.geocodedVenue.name;
+            latitude = extraction.geocodedVenue.latitude;
+            longitude = extraction.geocodedVenue.longitude;
           }
           
           if (startTime && latitude) {
@@ -1082,6 +1092,10 @@ export class RssFeedService {
               latitude = extraction.geocodedAddress.latitude;
               longitude = extraction.geocodedAddress.longitude;
               location = extraction.geocodedAddress.street;
+            } else if (!hasStructuredLocation && extraction.geocodedVenue) {
+              location = extraction.geocodedVenue.name;
+              latitude = extraction.geocodedVenue.latitude;
+              longitude = extraction.geocodedVenue.longitude;
             }
           }
 

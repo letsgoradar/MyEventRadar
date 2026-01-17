@@ -10,6 +10,7 @@ import { DEFAULT_FEED_RULES, FEED_IMPORT_PRINCIPLES, createDuplicateKey, validat
 import { validateCoordinatesInMunicipality, findActualMunicipality, getMunicipalityCentroid, getKnownVenue } from "./municipality-validator";
 import { ContentExtractor } from "./content-extractor";
 import { VenueService } from "./venue-service";
+import { FeedFieldDetector } from "./feed-field-detector";
 
 interface ParsedFeedItem {
   externalId: string;
@@ -56,6 +57,81 @@ interface FeedParseResult {
 export class RssFeedService {
   private static readonly USER_AGENT = "letsgo-radar/1.0 (+https://letsgo-radar.nl)";
   private static geocodeCache: Map<string, GeocodingResult> = new Map();
+
+  /**
+   * Extract fields from item using stored field mappings
+   */
+  private static extractMappedFields(item: any, mappings: Record<string, string>): {
+    latitude?: number;
+    longitude?: number;
+    venueName?: string;
+    address?: string;
+    city?: string;
+    postalCode?: string;
+    startDate?: Date;
+    endDate?: Date;
+    calendar?: string;
+  } {
+    const result: any = {};
+    
+    for (const [fieldType, fieldPath] of Object.entries(mappings)) {
+      const value = this.getNestedValue(item, fieldPath);
+      if (value === undefined || value === null) continue;
+      
+      switch (fieldType) {
+        case 'latitude':
+          const lat = parseFloat(String(value));
+          if (!isNaN(lat) && lat >= -90 && lat <= 90) {
+            result.latitude = lat;
+          }
+          break;
+        case 'longitude':
+          const lng = parseFloat(String(value));
+          if (!isNaN(lng) && lng >= -180 && lng <= 180) {
+            result.longitude = lng;
+          }
+          break;
+        case 'venue_name':
+        case 'location_name':
+          result.venueName = String(value);
+          break;
+        case 'address':
+          result.address = String(value);
+          break;
+        case 'city':
+          result.city = String(value);
+          break;
+        case 'postal_code':
+          result.postalCode = String(value);
+          break;
+        case 'start_date':
+        case 'start_time':
+          try {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) result.startDate = date;
+          } catch {}
+          break;
+        case 'end_date':
+          try {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) result.endDate = date;
+          } catch {}
+          break;
+        case 'calendar':
+          result.calendar = String(value);
+          break;
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Get nested value from object using dot notation path
+   */
+  private static getNestedValue(obj: any, path: string): any {
+    return path.split('.').reduce((current, key) => current?.[key], obj);
+  }
 
   /**
    * Normalize title for comparison (lowercase, trim, remove special chars)
@@ -553,6 +629,13 @@ export class RssFeedService {
 
   static async fetchAndParseRssFeed(url: string, municipality?: string): Promise<FeedParseResult> {
     try {
+      // Try to load stored field mappings for this feed domain
+      const domain = FeedFieldDetector.extractDomain(url);
+      const storedMappings = await FeedFieldDetector.getMapping(domain);
+      if (storedMappings) {
+        console.log(`[RssFeed] Using stored field mappings for ${domain}:`, storedMappings);
+      }
+      
       const response = await axios.get(url, {
         headers: {
           "User-Agent": this.USER_AGENT,
@@ -588,6 +671,30 @@ export class RssFeedService {
           let venueName: string | undefined;
           let city: string | undefined;
           let postalCode: string | undefined;
+          
+          // Use stored field mappings if available
+          if (storedMappings) {
+            const mappedFields = this.extractMappedFields(item, storedMappings);
+            if (mappedFields.latitude) latitude = mappedFields.latitude;
+            if (mappedFields.longitude) longitude = mappedFields.longitude;
+            if (mappedFields.venueName) venueName = mappedFields.venueName;
+            if (mappedFields.address) address = mappedFields.address;
+            if (mappedFields.city) city = mappedFields.city;
+            if (mappedFields.postalCode) postalCode = mappedFields.postalCode;
+            if (mappedFields.startDate) startTime = mappedFields.startDate;
+            if (mappedFields.endDate) endTime = mappedFields.endDate;
+            if (mappedFields.calendar) {
+              // Parse calendar string (same as data:calendar format)
+              const match = mappedFields.calendar.match(/(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})(?:\s*-\s*(\d{1,2}:\d{2}))?/);
+              if (match) {
+                const [_, dateStr, startTimeStr, endTimeStr] = match;
+                startTime = new Date(`${dateStr}T${startTimeStr}:00`);
+                if (endTimeStr) {
+                  endTime = new Date(`${dateStr}T${endTimeStr}:00`);
+                }
+              }
+            }
+          }
           
           // Check for structured event data in RSS extensions
           // Standard: events:start, geo:lat, georss:point

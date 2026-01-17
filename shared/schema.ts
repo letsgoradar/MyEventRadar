@@ -200,6 +200,18 @@ export const venues = pgTable("venues", {
 export type Venue = typeof venues.$inferSelect;
 export type InsertVenue = typeof venues.$inferInsert;
 
+export const feedFieldMappings = pgTable("feed_field_mappings", {
+  id: serial("id").primaryKey(),
+  domain: text("domain").notNull().unique(),
+  mappings: jsonb("mappings").notNull().$type<Record<string, string>>(),
+  usageCount: integer("usage_count").default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type FeedFieldMapping = typeof feedFieldMappings.$inferSelect;
+export type InsertFeedFieldMapping = typeof feedFieldMappings.$inferInsert;
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,

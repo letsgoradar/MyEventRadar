@@ -46,6 +46,7 @@ interface ProgressiveStep {
     eventCount?: number;
     reason: string;
     sampleEvent?: any;
+    fieldDetection?: FieldDetectionInfo;
   } | null;
 }
 
@@ -67,6 +68,23 @@ interface ContentQualityInfo {
   estimatedCompletePercentage: number;
   warnings: string[];
   recommendations: string[];
+}
+
+interface DetectedField {
+  fieldPath: string;
+  fieldType: string;
+  confidence: number;
+  sampleValue: any;
+  detectionReason: string;
+}
+
+interface FieldDetectionInfo {
+  detectedFields: DetectedField[];
+  hasLocationData: boolean;
+  hasDateData: boolean;
+  locationCompleteness: number;
+  dateCompleteness: number;
+  suggestedMappings: Record<string, string>;
 }
 
 interface ProgressiveAnalysisResult {
@@ -385,6 +403,52 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
                   )}
                 </div>
               )}
+
+              {/* Field Detection Info */}
+              {(() => {
+                const successStep = result.steps?.find(s => s.status === 'success' && s.result?.fieldDetection);
+                const detection = successStep?.result?.fieldDetection;
+                if (!detection || detection.detectedFields.length === 0) return null;
+                
+                return (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-blue-800 flex items-center gap-2 mb-2">
+                      <Info className="w-4 h-4" />
+                      Automatisch gedetecteerde velden
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {detection.detectedFields.slice(0, 8).map((field, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-sm bg-white rounded px-2 py-1">
+                          <Badge variant="outline" className={`text-xs ${
+                            field.fieldType.includes('lat') || field.fieldType.includes('lng') 
+                              ? 'border-green-500 text-green-700'
+                              : field.fieldType.includes('date') || field.fieldType.includes('calendar')
+                              ? 'border-purple-500 text-purple-700'
+                              : 'border-blue-500 text-blue-700'
+                          }`}>
+                            {field.fieldType.replace('_', ' ')}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground truncate" title={field.fieldPath}>
+                            {field.fieldPath}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {Math.round(field.confidence * 100)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2 flex gap-4 text-xs text-blue-700">
+                      <span>Locatie: {detection.locationCompleteness}% compleet</span>
+                      <span>Datum: {detection.dateCompleteness}% compleet</span>
+                    </div>
+                    {Object.keys(detection.suggestedMappings).length > 0 && (
+                      <p className="mt-1 text-xs text-blue-600">
+                        Mappings worden automatisch opgeslagen en hergebruikt voor deze bron.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Feed Name and Category */}
               <div className="grid grid-cols-2 gap-4">

@@ -6,6 +6,7 @@ import { db } from "../db";
 import { feedAnalysisProfiles } from "@shared/schema";
 import { FEED_IMPORT_PRINCIPLES } from "../config/rss-feed-rules";
 import { ContentExtractor } from "./content-extractor";
+import { FeedFieldDetector } from "./feed-field-detector";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -1745,12 +1746,30 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
             const itemArray = Array.isArray(items) ? items : [items];
             
             if (itemArray.length > 0) {
+              // Analyze feed structure with FeedFieldDetector
+              const itemsWithRaw = itemArray.map((item: any) => ({ rawData: item }));
+              const fieldDetection = FeedFieldDetector.analyzeItems(itemsWithRaw);
+              
+              // Save mapping if location data detected
+              const domain = FeedFieldDetector.extractDomain(feedUrl);
+              if ((fieldDetection.hasLocationData || fieldDetection.hasDateData) && Object.keys(fieldDetection.suggestedMappings).length > 0) {
+                await FeedFieldDetector.saveMapping(domain, fieldDetection.suggestedMappings);
+              }
+              
               return {
                 viable: true,
                 feedUrl,
                 eventCount: itemArray.length,
                 reason: `RSS/Atom feed gevonden met ${itemArray.length} items`,
                 sampleEvent: this.formatSampleEvent(itemArray[0], 'rss'),
+                fieldDetection: {
+                  detectedFields: fieldDetection.detectedFields,
+                  hasLocationData: fieldDetection.hasLocationData,
+                  hasDateData: fieldDetection.hasDateData,
+                  locationCompleteness: fieldDetection.locationCompleteness,
+                  dateCompleteness: fieldDetection.dateCompleteness,
+                  suggestedMappings: fieldDetection.suggestedMappings,
+                },
               };
             }
           }
@@ -1948,6 +1967,21 @@ export interface ContentQualityInfo {
   recommendations: string[];
 }
 
+export interface FieldDetectionInfo {
+  detectedFields: Array<{
+    fieldPath: string;
+    fieldType: string;
+    confidence: number;
+    sampleValue: any;
+    detectionReason: string;
+  }>;
+  hasLocationData: boolean;
+  hasDateData: boolean;
+  locationCompleteness: number;
+  dateCompleteness: number;
+  suggestedMappings: Record<string, string>;
+}
+
 export interface MethodCheckResult {
   viable: boolean;
   feedUrl?: string;
@@ -1955,6 +1989,7 @@ export interface MethodCheckResult {
   reason: string;
   sampleEvent?: SampleEventData;
   contentQuality?: ContentQualityInfo;
+  fieldDetection?: FieldDetectionInfo;
 }
 
 export interface SampleEventData {

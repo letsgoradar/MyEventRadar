@@ -10,6 +10,16 @@ import { FeedFieldDetector } from "./feed-field-detector";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+/**
+ * Sanitize XML content to fix common parsing issues.
+ * Handles unescaped ampersands which cause "Invalid character in entity name" errors.
+ */
+function sanitizeXmlContent(xml: string): string {
+  // Fix unescaped ampersands - replace & not followed by valid entity patterns
+  // Valid patterns: &amp; &lt; &gt; &quot; &apos; &#123; &#x1F;
+  return xml.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
+}
+
 // Domain patterns to municipality mapping for auto-detection
 const DOMAIN_MUNICIPALITY_MAP: Record<string, string> = {
   'visittiel': 'Tiel',
@@ -369,7 +379,9 @@ export class FeedAnalyzerService {
 
   private static async analyzeXmlFeed(content: string, result: FeedAnalysisResult): Promise<void> {
     try {
-      const parsed = await parseStringPromise(content, { 
+      // Sanitize XML to fix common issues like unescaped ampersands
+      const sanitizedContent = sanitizeXmlContent(content);
+      const parsed = await parseStringPromise(sanitizedContent, { 
         explicitArray: false, 
         ignoreAttrs: false 
       });
@@ -1807,7 +1819,9 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
           
           const content = response.data;
           if (typeof content === 'string' && (content.includes('<rss') || content.includes('<feed') || content.includes('<channel>'))) {
-            const parsed = await parseStringPromise(content, { explicitArray: false });
+            // Sanitize XML to fix common issues like unescaped ampersands
+            const sanitizedContent = sanitizeXmlContent(content);
+            const parsed = await parseStringPromise(sanitizedContent, { explicitArray: false });
             const items = parsed.rss?.channel?.item || parsed.feed?.entry || [];
             const itemArray = Array.isArray(items) ? items : [items];
             

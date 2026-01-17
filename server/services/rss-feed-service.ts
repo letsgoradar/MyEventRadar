@@ -12,6 +12,16 @@ import { ContentExtractor } from "./content-extractor";
 import { VenueService } from "./venue-service";
 import { FeedFieldDetector } from "./feed-field-detector";
 
+/**
+ * Sanitize XML content to fix common parsing issues.
+ * Handles unescaped ampersands which cause "Invalid character in entity name" errors.
+ */
+function sanitizeXmlContent(xml: string): string {
+  // Fix unescaped ampersands - replace & not followed by valid entity patterns
+  // Valid patterns: &amp; &lt; &gt; &quot; &apos; &#123; &#x1F;
+  return xml.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
+}
+
 interface ParsedFeedItem {
   externalId: string;
   title: string;
@@ -645,7 +655,9 @@ export class RssFeedService {
       });
 
       const xmlData = response.data;
-      const parsed = await parseStringPromise(xmlData, {
+      // Sanitize XML to fix common issues like unescaped ampersands
+      const sanitizedXml = sanitizeXmlContent(xmlData);
+      const parsed = await parseStringPromise(sanitizedXml, {
         explicitArray: false,
         ignoreAttrs: false
       });

@@ -15,30 +15,50 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  * Handles:
  * - Unescaped ampersands ("Invalid character in entity name")
  * - Attributes without values ("Attribute without value")
- * - Invalid characters in content
+ * - Unexpected close tags (orphaned closing tags)
+ * - Self-closing HTML tags in XML context
  */
 function sanitizeXmlContent(xml: string): string {
   let sanitized = xml;
   
   // Fix unescaped ampersands - replace & not followed by valid entity patterns
-  // Valid patterns: &amp; &lt; &gt; &quot; &apos; &#123; &#x1F;
   sanitized = sanitized.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
   
   // Fix attributes without values (HTML-style like <tag disabled> -> <tag disabled="disabled">)
-  // Common boolean attributes in HTML that may appear in feeds
   const booleanAttrs = ['disabled', 'checked', 'selected', 'readonly', 'required', 'multiple', 'autofocus', 'autoplay', 'controls', 'loop', 'muted', 'defer', 'async', 'hidden', 'open', 'novalidate', 'formnovalidate', 'ismap', 'itemscope'];
   for (const attr of booleanAttrs) {
-    // Match attribute at end of tag or followed by space/other attributes
     const pattern = new RegExp(`(<[^>]*\\s)${attr}(\\s|>|/>)`, 'gi');
     sanitized = sanitized.replace(pattern, `$1${attr}="${attr}"$2`);
   }
   
-  // Generic fix: find any attribute that looks like name followed by > or space without ="value"
-  // This catches patterns like: attribute> or attribute /> 
-  sanitized = sanitized.replace(/<([^>]+)\s+(\w+)(\s*>)/g, (match, before, attr, after) => {
-    // Only fix if this looks like a boolean attribute (no = sign)
-    if (!before.includes(`${attr}=`) && !before.includes(`${attr} =`)) {
-      return `<${before} ${attr}="${attr}"${after}`;
+  // Fix self-closing HTML tags that should be self-closing in XML
+  // e.g., <br> -> <br/>, <img src="..."> -> <img src="..."/>
+  const selfClosingTags = ['br', 'hr', 'img', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr'];
+  for (const tag of selfClosingTags) {
+    // Match <tag ...> that isn't already self-closing
+    const pattern = new RegExp(`<(${tag})([^>]*[^/])>`, 'gi');
+    sanitized = sanitized.replace(pattern, '<$1$2/>');
+    // Also fix <tag> without attributes
+    const simplePattern = new RegExp(`<(${tag})>`, 'gi');
+    sanitized = sanitized.replace(simplePattern, '<$1/>');
+  }
+  
+  // Wrap problematic HTML content in CDATA if it appears in description/content fields
+  // This helps with embedded HTML that has tag issues
+  sanitized = sanitized.replace(/<description>([^<]*<[^>]+>[^]*?)<\/description>/gi, (match, content) => {
+    // If content has HTML tags, wrap in CDATA if not already wrapped
+    if (content.includes('<') && !content.includes('<![CDATA[')) {
+      return `<description><![CDATA[${content}]]></description>`;
+    }
+    return match;
+  });
+  
+  sanitized = sanitized.replace(/<content[^>]*>([^<]*<[^>]+>[^]*?)<\/content>/gi, (match, content) => {
+    if (content.includes('<') && !content.includes('<![CDATA[')) {
+      // Preserve the original content tag with its attributes
+      const tagMatch = match.match(/<content([^>]*)>/);
+      const attrs = tagMatch ? tagMatch[1] : '';
+      return `<content${attrs}><![CDATA[${content}]]></content>`;
     }
     return match;
   });

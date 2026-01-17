@@ -9,6 +9,7 @@ import { AIHelper } from "./ai-helper";
 import { DEFAULT_FEED_RULES, FEED_IMPORT_PRINCIPLES, createDuplicateKey, validateEventForImport } from "../config/rss-feed-rules";
 import { validateCoordinatesInMunicipality, findActualMunicipality, getMunicipalityCentroid, getKnownVenue } from "./municipality-validator";
 import { ContentExtractor } from "./content-extractor";
+import { VenueService } from "./venue-service";
 
 interface ParsedFeedItem {
   externalId: string;
@@ -27,6 +28,9 @@ interface ParsedFeedItem {
   allDates?: Date[];
   detectedCategory?: string;
   categoryConfidence?: number;
+  venueName?: string;
+  venueCity?: string;
+  venuePostalCode?: string;
 }
 
 interface GeocodingResult {
@@ -707,6 +711,37 @@ export class RssFeedService {
             }
           }
           
+          // Store venue if we have one with coordinates (for future lookups)
+          if (venueName && latitude && longitude) {
+            try {
+              await VenueService.findOrCreateVenue(venueName, {
+                municipality: municipality || city,
+                address: address,
+                postalCode: postalCode,
+                city: city,
+                latitude,
+                longitude,
+                sourceUrl: item.link,
+              });
+            } catch (e) {
+              // Venue storage is optional, don't fail the import
+            }
+          }
+          
+          // If we have a venue name but no coordinates, try to look it up
+          if (venueName && !latitude && !longitude) {
+            try {
+              const venueCoords = await VenueService.getVenueCoordinates(venueName, municipality || city);
+              if (venueCoords) {
+                latitude = venueCoords.latitude;
+                longitude = venueCoords.longitude;
+                console.log(`[RSS] Found venue coordinates from cache: ${venueName} -> (${latitude}, ${longitude})`);
+              }
+            } catch (e) {
+              // Venue lookup is optional
+            }
+          }
+          
           // Track extraction stats
           if (hasStructuredDate && hasStructuredLocation) {
             extractionStats.structured++;
@@ -734,6 +769,9 @@ export class RssFeedService {
             longitude,
             detectedCategory: categoryResult.category,
             categoryConfidence: categoryResult.confidence,
+            venueName,
+            venueCity: city,
+            venuePostalCode: postalCode,
             rawData: item
           });
         }

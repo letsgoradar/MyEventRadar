@@ -181,6 +181,25 @@ export const rssItemCorrections = pgTable("rss_item_corrections", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const venues = pgTable("venues", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  normalizedName: text("normalized_name").notNull(),
+  municipality: text("municipality"),
+  address: text("address"),
+  postalCode: text("postal_code"),
+  city: text("city"),
+  latitude: decimal("latitude"),
+  longitude: decimal("longitude"),
+  sourceUrl: text("source_url"),
+  usageCount: integer("usage_count").default(1),
+  lastUsedAt: timestamp("last_used_at").defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type Venue = typeof venues.$inferSelect;
+export type InsertVenue = typeof venues.$inferInsert;
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,

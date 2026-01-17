@@ -581,12 +581,23 @@ export class RssFeedService {
           let address: string | undefined;
           let latitude: number | undefined;
           let longitude: number | undefined;
+          let venueName: string | undefined;
+          let city: string | undefined;
+          let postalCode: string | undefined;
           
-          // Check for structured event data in RSS extensions (like events:start, geo:lat, etc.)
-          const hasStructuredDate = !!(item['events:start'] || item['ev:startdate'] || item['dc:date']);
-          const hasStructuredLocation = !!(item['geo:lat'] || item['georss:point']);
+          // Check for structured event data in RSS extensions
+          // Standard: events:start, geo:lat, georss:point
+          // VisitZwolle/TouristServer: data:calendar, data:lat, data:lng, data:location, data:address
+          const hasStandardDate = !!(item['events:start'] || item['ev:startdate'] || item['dc:date']);
+          const hasDataDate = !!(item['data:calendar']);
+          const hasStructuredDate = hasStandardDate || hasDataDate;
           
-          if (hasStructuredDate) {
+          const hasStandardLocation = !!(item['geo:lat'] || item['georss:point']);
+          const hasDataLocation = !!(item['data:lat'] || item['data:location'] || item['data:address']);
+          const hasStructuredLocation = hasStandardLocation || hasDataLocation;
+          
+          // Parse standard date fields
+          if (hasStandardDate) {
             const dateStr = item['events:start'] || item['ev:startdate'] || item['dc:date'];
             try {
               startTime = new Date(dateStr);
@@ -594,7 +605,29 @@ export class RssFeedService {
             } catch (e) {}
           }
           
-          if (hasStructuredLocation) {
+          // Parse data:calendar (VisitZwolle format: "2026-01-21 20:30" or "2026-01-21 20:30 - 21:45")
+          if (hasDataDate && item['data:calendar']) {
+            try {
+              const calendarStr = item['data:calendar'];
+              // Parse "2026-01-21 20:30 - 21:45" or "2026-01-21 20:30"
+              const match = calendarStr.match(/(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})(?:\s*-\s*(\d{1,2}:\d{2}))?/);
+              if (match) {
+                const [_, dateStr, startTimeStr, endTimeStr] = match;
+                startTime = new Date(`${dateStr}T${startTimeStr}:00`);
+                if (endTimeStr) {
+                  endTime = new Date(`${dateStr}T${endTimeStr}:00`);
+                }
+              } else {
+                // Try simple date parse
+                startTime = new Date(calendarStr);
+              }
+              if (startTime && isNaN(startTime.getTime())) startTime = undefined;
+              if (endTime && isNaN(endTime.getTime())) endTime = undefined;
+            } catch (e) {}
+          }
+          
+          // Parse standard location fields
+          if (hasStandardLocation) {
             if (item['geo:lat'] && item['geo:long']) {
               latitude = parseFloat(item['geo:lat']);
               longitude = parseFloat(item['geo:long']);
@@ -604,6 +637,43 @@ export class RssFeedService {
                 latitude = lat;
                 longitude = lon;
               }
+            }
+          }
+          
+          // Parse data: location fields (VisitZwolle/TouristServer format)
+          if (hasDataLocation) {
+            // GPS coordinates
+            if (item['data:lat'] && item['data:lng']) {
+              const lat = parseFloat(item['data:lat']);
+              const lng = parseFloat(item['data:lng']);
+              if (!isNaN(lat) && !isNaN(lng)) {
+                latitude = lat;
+                longitude = lng;
+              }
+            }
+            
+            // Venue name
+            if (item['data:location']) {
+              venueName = item['data:location'];
+              location = venueName;
+            }
+            
+            // Street address
+            if (item['data:address']) {
+              address = item['data:address'];
+            }
+            
+            // City and postal code
+            if (item['data:city']) {
+              city = item['data:city'];
+            }
+            if (item['data:zipcode']) {
+              postalCode = item['data:zipcode'];
+            }
+            
+            // Build full address if we have components
+            if (address && city) {
+              address = `${address}, ${postalCode ? postalCode + ' ' : ''}${city}`;
             }
           }
           

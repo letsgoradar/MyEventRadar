@@ -4850,10 +4850,16 @@ export class RssFeedService {
       
       // Common event selectors used across different CMSs
       const eventSelectors = [
+        // UBASE/tijdvooramersfoort patterns - tiles system
+        '.tiles__tile a',
+        '.tiles__tile',
+        'a.link-overlay',
         // Grid item patterns (like Tilburg)
         'a.tb-grid-item',
         '.grid-item a[href*="/agenda/"]',
         '.grid-item a[href*="/event"]',
+        '.grid-item a[href*="/uitagenda/"]',
+        '.grid-item a[href*="/evenementen/"]',
         // Elementor
         'article.elementor-post',
         '.elementor-post',
@@ -4870,12 +4876,18 @@ export class RssFeedService {
         // Card patterns
         '[class*="event-card"]',
         '[class*="agenda-card"]',
+        '[class*="tiles__tile"]',
         // WordPress patterns
         '.type-tribe_events',
         '.tribe-events-calendar-list__event',
         // Generic patterns
         '[data-event]',
-        '[data-event-id]'
+        '[data-event-id]',
+        // Visit/Tourism patterns
+        'a[href*="/uitagenda/"]',
+        'a[href*="/evenementen/uitagenda/"]',
+        'a[href*="/evenement/"]',
+        'a[href*="/activiteiten/"]',
       ];
       
       // Helper function to extract event links from a page

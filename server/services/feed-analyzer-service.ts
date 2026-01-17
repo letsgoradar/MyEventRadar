@@ -21,6 +21,7 @@ const DOMAIN_MUNICIPALITY_MAP: Record<string, string> = {
   'visitoss': 'Oss',
   'visithelmond': 'Helmond',
   'visitamersfoort': 'Amersfoort',
+  'tijdvooramersfoort': 'Amersfoort',
   'visitzwolle': 'Zwolle',
   'visitarnhem': 'Arnhem',
   'visitnijmegen': 'Nijmegen',
@@ -1104,62 +1105,127 @@ export class FeedAnalyzerService {
     }
 
     // 4. Check for pagination support - look for pagination links
-    const paginationLinks = $('a[href*="?page="]').length;
-    if (paginationLinks > 0) {
-      // Estimate total pages by finding highest page number
-      let maxPage = 1;
-      $('a[href*="?page="]').each((_, el) => {
+    let maxPage = 1;
+    let itemsOnFirstPage = 0;
+    
+    // Multiple pagination patterns to detect
+    const paginationPatterns = [
+      'a[href*="?page="]', 
+      'a[href*="&page="]',
+      '.pager a',
+      '.pagination a',
+      '[class*="pager"] a',
+      '[class*="pagination"] a',
+    ];
+    
+    for (const pattern of paginationPatterns) {
+      $(pattern).each((_, el) => {
         const href = $(el).attr('href') || '';
+        const text = $(el).text().trim();
+        // Match page=N in URL
         const pageMatch = href.match(/page=(\d+)/);
         if (pageMatch) {
           maxPage = Math.max(maxPage, parseInt(pageMatch[1]));
         }
+        // Also check for numeric text (e.g., "16" for last page)
+        const numMatch = text.match(/^(\d+)$/);
+        if (numMatch) {
+          maxPage = Math.max(maxPage, parseInt(numMatch[1]));
+        }
       });
-      
-      if (maxPage > 1) {
-        result.suggestions.push(`Paginering gedetecteerd (${maxPage}+ pagina's) - scraper ondersteunt dit automatisch`);
+    }
+    
+    // Count items on current page to estimate total
+    const itemSelectors = [
+      '.tiles__tile', '.tile', '.event', '.event-item', '.event-card',
+      '.agenda-item', 'article.item', '.card', '[class*="event-card"]'
+    ];
+    for (const sel of itemSelectors) {
+      const count = $(sel).length;
+      if (count > itemsOnFirstPage) {
+        itemsOnFirstPage = count;
       }
+    }
+    
+    // Store pagination info for later use
+    const paginationInfo = {
+      maxPage,
+      itemsPerPage: itemsOnFirstPage || 24,
+      estimatedTotal: maxPage > 1 ? maxPage * (itemsOnFirstPage || 24) : itemsOnFirstPage
+    };
+    
+    if (maxPage > 1) {
+      result.suggestions.push(`Paginering gedetecteerd: ${maxPage} pagina's x ${paginationInfo.itemsPerPage} items = ~${paginationInfo.estimatedTotal} events`);
+      console.log(`[FeedAnalyzer] Pagination detected: ${maxPage} pages, ~${paginationInfo.estimatedTotal} total events`);
     }
 
     // 5. Check for known sites with specialized scrapers
     const knownScrapers = [
-      { pattern: 'intonijmegen', name: 'IntoNijmegen', events: 50 },
-      { pattern: 'uitinoss', name: 'Uit in Oss', events: 30 },
-      { pattern: 'uitagendabrabant', name: 'Uit Agenda Brabant', events: 100 },
-      { pattern: 'tilburg.com', name: 'Tilburg.com', events: 80 },
-      { pattern: 'trefhetinoss', name: 'Tref het in Oss', events: 40 },
+      { pattern: 'intonijmegen', name: 'IntoNijmegen', events: 50, itemsPerPage: 24 },
+      { pattern: 'uitinoss', name: 'Uit in Oss', events: 30, itemsPerPage: 20 },
+      { pattern: 'uitagendabrabant', name: 'Uit Agenda Brabant', events: 100, itemsPerPage: 20 },
+      { pattern: 'tilburg.com', name: 'Tilburg.com', events: 80, itemsPerPage: 20 },
+      { pattern: 'trefhetinoss', name: 'Tref het in Oss', events: 40, itemsPerPage: 20 },
+      { pattern: 'tijdvooramersfoort', name: 'Tijd voor Amersfoort', events: 350, itemsPerPage: 24 },
+      { pattern: 'visittiel', name: 'Visit Tiel', events: 100, itemsPerPage: 20 },
+      { pattern: 'visitutrecht', name: 'Visit Utrecht', events: 200, itemsPerPage: 20 },
+      { pattern: 'uitagenda', name: 'UITagenda', events: 150, itemsPerPage: 24 },
     ];
     
     for (const scraper of knownScrapers) {
       if (baseUrl.includes(scraper.pattern)) {
+        // Use dynamic pagination estimate if detected, otherwise use static count
+        const estimatedEvents = paginationInfo.estimatedTotal > 0 
+          ? paginationInfo.estimatedTotal 
+          : scraper.events;
+        
         const specializedSource = this.createAlternativeSource(
           baseUrl,
           'scraper',
-          scraper.events,
+          estimatedEvents,
           95,
-          `Gespecialiseerde ${scraper.name} scraper beschikbaar (~${scraper.events} events met paginering)`
+          `Gespecialiseerde ${scraper.name} scraper beschikbaar (~${estimatedEvents} events met paginering over ${maxPage} pagina's)`
         );
         // Boost desirability for known scrapers (they're tested and reliable)
         specializedSource.desirabilityScore = 85;
         specializedSource.pros.push('Getest en geoptimaliseerd voor deze site');
+        specializedSource.pros.push(`Automatische paginering (${maxPage} pagina's)`);
         alternatives.push(specializedSource);
-        console.log(`[FeedAnalyzer] Known scraper detected: ${scraper.name}`);
+        console.log(`[FeedAnalyzer] Known scraper detected: ${scraper.name} with ~${estimatedEvents} events`);
         break;
       }
     }
 
-    // 6. Add fallback HTML scraper option only if no structured sources found
+    // 6. Add fallback HTML scraper option with pagination support
     const hasStructuredSources = alternatives.some(a => 
       ['rss', 'atom', 'json-api', 'json-feed', 'ical', 'json-ld'].includes(a.type)
     );
-    if (!hasStructuredSources && alternatives.length === 0) {
-      alternatives.push(this.createAlternativeSource(
+    const hasSpecializedScraper = alternatives.some(a => 
+      a.type === 'scraper' && a.desirabilityScore >= 80
+    );
+    
+    if (!hasStructuredSources && !hasSpecializedScraper) {
+      // Use pagination estimate for event count
+      const estimatedEvents = paginationInfo.estimatedTotal > 0 
+        ? paginationInfo.estimatedTotal 
+        : (result.sampleItems?.length || itemsOnFirstPage || 0);
+      
+      const scraperSource = this.createAlternativeSource(
         baseUrl,
         'scraper',
-        result.sampleItems?.length || 0,
-        40,
-        'HTML scraping als fallback optie'
-      ));
+        estimatedEvents,
+        maxPage > 1 ? 60 : 40, // Higher confidence if pagination detected
+        maxPage > 1 
+          ? `HTML scraper met automatische paginering (~${estimatedEvents} events over ${maxPage} pagina's)`
+          : 'HTML scraping als fallback optie'
+      );
+      
+      if (maxPage > 1) {
+        scraperSource.pros.push(`Automatische paginering ondersteuning (${maxPage} pagina's)`);
+        scraperSource.desirabilityScore = 55; // Boost if pagination detected
+      }
+      
+      alternatives.push(scraperSource);
     }
 
     // Sort alternatives by desirability score (highest first)
@@ -1878,26 +1944,73 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
       if (typeof response.data === 'string') {
         const $ = cheerio.load(response.data);
         
-        // Look for common event listing patterns
+        // Look for common event listing patterns (ordered by specificity)
         const eventSelectors = [
+          // UBASE/tijdvooramersfoort patterns
+          '.tiles__tile',
+          'a.link-overlay',
+          // Specific event patterns
           'article.event', '.event-item', '.event-card',
+          '.agenda-item', '.calendar-event', '.uitagenda-item',
+          // Tourism patterns
+          'a[href*="/uitagenda/"]', 'a[href*="/evenementen/"]',
+          // Generic patterns
           '[class*="event"]', '[data-event]',
-          '.agenda-item', '.calendar-event',
         ];
+
+        // Detect pagination
+        let maxPage = 1;
+        const paginationPatterns = [
+          'a[href*="?page="]', 
+          'a[href*="&page="]',
+          '.pager a',
+          '.pagination a',
+          '[class*="pager"] a',
+          'a.page-numbers',
+        ];
+        
+        for (const pattern of paginationPatterns) {
+          $(pattern).each((_, el) => {
+            const href = $(el).attr('href') || '';
+            const text = $(el).text().trim();
+            const pageMatch = href.match(/page=(\d+)/);
+            if (pageMatch) {
+              maxPage = Math.max(maxPage, parseInt(pageMatch[1]));
+            }
+            const numMatch = text.match(/^(\d+)$/);
+            if (numMatch) {
+              maxPage = Math.max(maxPage, parseInt(numMatch[1]));
+            }
+          });
+        }
 
         for (const selector of eventSelectors) {
           const elements = $(selector);
-          if (elements.length > 0) {
+          if (elements.length >= 3) { // At least 3 items to be considered viable
             const firstEl = elements.first();
+            const itemsOnPage = elements.length;
+            
+            // Estimate total events based on pagination
+            const estimatedTotal = maxPage > 1 
+              ? maxPage * itemsOnPage 
+              : itemsOnPage;
+            
+            const paginationNote = maxPage > 1 
+              ? ` (~${estimatedTotal} events over ${maxPage} pagina's)` 
+              : '';
+            
             return {
               viable: true,
               feedUrl: baseUrl,
-              eventCount: elements.length,
-              reason: `HTML pagina met ${elements.length} event elementen (${selector})`,
+              eventCount: estimatedTotal,
+              reason: `HTML pagina met ${itemsOnPage} event elementen per pagina${paginationNote}`,
               sampleEvent: {
                 selector,
-                title: firstEl.find('h1, h2, h3, .title').first().text().trim() || 'Event gevonden',
-                note: 'Scraper configuratie vereist',
+                title: firstEl.find('h1, h2, h3, .title, .description__headtext').first().text().trim() || 'Event gevonden',
+                note: maxPage > 1 
+                  ? `Scraper met automatische paginering (${maxPage} pagina's)` 
+                  : 'Scraper configuratie vereist',
+                paginationPages: maxPage,
               },
             };
           }

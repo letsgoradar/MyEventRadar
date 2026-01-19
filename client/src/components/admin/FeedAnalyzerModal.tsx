@@ -251,7 +251,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LinkIcon className="w-5 h-5" />
-            Feed Analyzer
+            AI Feed Analyzer
           </DialogTitle>
           <DialogDescription>
             Plak een website URL om automatisch de beste import methode te vinden

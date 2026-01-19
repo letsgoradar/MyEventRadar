@@ -9,9 +9,13 @@ const gemini = new GoogleGenAI({
   },
 });
 
-const openai = process.env.OPENAI_API_KEY 
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
+let openaiInstance: OpenAI | null = null;
+function getOpenAI(): OpenAI | null {
+  if (!openaiInstance && process.env.OPENAI_API_KEY) {
+    openaiInstance = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openaiInstance;
+}
 
 export interface AiCompletionOptions {
   systemPrompt: string;
@@ -45,16 +49,21 @@ export class AiProvider {
       console.log(`[AI Provider] Gemini error: ${error.message}, trying OpenAI fallback...`);
     }
 
+    const openai = getOpenAI();
     if (openai) {
       try {
+        console.log('[AI Provider] Attempting OpenAI fallback...');
         return await this.tryOpenAI(systemPrompt, userPrompt, maxTokens, temperature, jsonMode);
       } catch (error: any) {
+        console.log(`[AI Provider] OpenAI fallback also failed: ${error.message}`);
         return {
           success: false,
           provider: 'openai',
           error: `Both AI providers failed. OpenAI: ${error.message}`,
         };
       }
+    } else {
+      console.log('[AI Provider] OpenAI not configured (no API key)');
     }
 
     return {
@@ -71,9 +80,23 @@ export class AiProvider {
     temperature: number,
     jsonMode: boolean
   ): Promise<AiCompletionResult> {
-    const fullPrompt = jsonMode 
-      ? `${systemPrompt}\n\nIMPORTANT: Respond ONLY with valid JSON, no markdown or other text.\n\n${userPrompt}`
-      : `${systemPrompt}\n\n${userPrompt}`;
+    let fullPrompt: string;
+    if (jsonMode) {
+      fullPrompt = `${systemPrompt}
+
+CRITICAL INSTRUCTIONS FOR JSON OUTPUT:
+1. You MUST respond with ONLY a valid JSON object
+2. Do NOT include any text before or after the JSON
+3. Do NOT use markdown code blocks (\`\`\`json)
+4. Ensure all strings are properly quoted with double quotes
+5. Ensure all property names are quoted
+6. Do NOT include trailing commas
+7. Start your response with { and end with }
+
+${userPrompt}`;
+    } else {
+      fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+    }
 
     const response = await gemini.models.generateContent({
       model: this.GEMINI_MODEL,
@@ -99,6 +122,35 @@ export class AiProvider {
         .replace(/```json\s*/g, '')
         .replace(/```\s*/g, '')
         .trim();
+      
+      // Try to extract JSON object if response contains extra text
+      const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedContent = jsonMatch[0];
+      }
+      
+      // Validate JSON before returning
+      try {
+        JSON.parse(cleanedContent);
+      } catch (e) {
+        console.log('[AI Provider] Gemini returned invalid JSON, attempting to fix...');
+        // Try to fix common issues
+        cleanedContent = cleanedContent
+          .replace(/,\s*}/g, '}')  // Remove trailing commas
+          .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
+          .replace(/'/g, '"')       // Replace single quotes with double quotes
+          .replace(/(\w+):/g, '"$1":'); // Quote unquoted keys
+        
+        try {
+          JSON.parse(cleanedContent);
+        } catch (e2) {
+          return {
+            success: false,
+            provider: 'gemini',
+            error: `Invalid JSON from Gemini: ${(e as Error).message}`,
+          };
+        }
+      }
     }
 
     return {
@@ -115,7 +167,8 @@ export class AiProvider {
     temperature: number,
     jsonMode: boolean
   ): Promise<AiCompletionResult> {
-    if (!openai) {
+    const openaiClient = getOpenAI();
+    if (!openaiClient) {
       return {
         success: false,
         provider: 'openai',
@@ -123,7 +176,7 @@ export class AiProvider {
       };
     }
 
-    const response = await openai.chat.completions.create({
+    const response = await openaiClient.chat.completions.create({
       model: this.OPENAI_MODEL,
       messages: [
         { role: "system", content: systemPrompt },

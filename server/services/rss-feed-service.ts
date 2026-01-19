@@ -5267,8 +5267,11 @@ export class RssFeedService {
       
       const $ = cheerio.load(response.data);
       
-      // Extract title
-      let title = $('h1').first().text().trim() ||
+      // Extract title (exclude h1 small which contains venue/subtitle in Umbraco CMS)
+      const h1El = $('h1').first();
+      const h1Clone = h1El.clone();
+      h1Clone.find('small').remove();
+      let title = h1Clone.text().trim() ||
                   $('meta[property="og:title"]').attr('content') ||
                   $('title').text().split('|')[0].trim();
       
@@ -5317,6 +5320,47 @@ export class RssFeedService {
           }
         } catch (e) {}
       });
+      
+      // Umbraco CMS pattern (bezoekdelangstraat.nl and similar) - extract AND geocode immediately
+      const agendaWhere = $('.agenda__where');
+      if (agendaWhere.length && (!latitude || !longitude)) {
+        const venueFromAgenda = agendaWhere.find('h2').text().trim();
+        const addressParagraph = agendaWhere.find('p').first().text().trim();
+        
+        if (venueFromAgenda && !venueName) {
+          venueName = venueFromAgenda;
+        }
+        
+        if (addressParagraph) {
+          // Extract clean address: "Raadhuisplein 1, 5171 KG Waalwijk" pattern
+          const lines = addressParagraph.split('\n').map(l => l.trim()).filter(l => l);
+          if (lines.length > 0) {
+            const cleanAddress = lines[0].replace(/Routebeschrijving.*$/i, '').replace(/Bel:.*$/i, '').trim();
+            if (cleanAddress.length > 5) {
+              address = cleanAddress;
+              // Geocode immediately
+              const geocodeResult = await this.geocodeWithMunicipalityValidation(address, municipality);
+              if (geocodeResult) {
+                latitude = geocodeResult.lat;
+                longitude = geocodeResult.lon;
+                console.log(`[RSS] Umbraco pattern: geocoded "${address}" for "${title}"`);
+                
+                if (venueName) {
+                  await VenueService.findOrCreateVenue(venueName, {
+                    municipality, address, latitude, longitude, sourceUrl: url
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Also extract from h1 small (Umbraco CMS subtitle pattern)
+      const h1Small = $('h1 small').text().trim();
+      if (h1Small && !venueName) {
+        venueName = h1Small.split(',')[0].trim();
+      }
       
       // Look for common date patterns in text if not found
       if (!startTime) {

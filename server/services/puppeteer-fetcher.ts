@@ -4,8 +4,12 @@ let browserInstance: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (!browserInstance || !browserInstance.connected) {
+    // Find chromium in Nix store
+    const chromiumPath = '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium';
+    
     browserInstance = await puppeteer.launch({
       headless: true,
+      executablePath: chromiumPath,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

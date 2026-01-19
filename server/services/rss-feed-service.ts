@@ -2,7 +2,7 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import { parseStringPromise } from "xml2js";
 import { db } from "../db";
-import { rssFeeds, rssFeedItems, events, CATEGORIES } from "@shared/schema";
+import { rssFeeds, rssFeedItems, events, CATEGORIES, aiExtractionProfiles } from "@shared/schema";
 import { eq, and, sql, ilike } from "drizzle-orm";
 import type { RssFeed, RssFeedItem, InsertRssFeedItem } from "@shared/schema";
 import { AIHelper } from "./ai-helper";
@@ -11,6 +11,7 @@ import { validateCoordinatesInMunicipality, findActualMunicipality, getMunicipal
 import { ContentExtractor } from "./content-extractor";
 import { VenueService } from "./venue-service";
 import { FeedFieldDetector } from "./feed-field-detector";
+import { AiHtmlAnalyzer, type AiExtractionSelectors, type AiPaginationInfo } from "./ai-html-analyzer";
 
 /**
  * Sanitize XML content to fix common parsing issues.
@@ -5082,7 +5083,69 @@ export class RssFeedService {
       }
       
       if (allEventLinks.length === 0) {
-        return { success: false, items: [], error: "No event elements found with any selector" };
+        console.log(`[RSS] No standard selectors worked, trying AI extraction for ${municipality}`);
+        
+        const fullHtml = $.html();
+        const aiResult = await AiHtmlAnalyzer.analyzeAndExtract(baseUrl, fullHtml);
+        
+        if (aiResult.success && aiResult.selectors && aiResult.eventCount >= 3) {
+          console.log(`[RSS] AI found ${aiResult.eventCount} events with selector: ${aiResult.selectors.eventCard}`);
+          
+          const $fresh = cheerio.load(fullHtml);
+          const aiLinks = this.extractLinksWithAiSelectors($fresh, baseUrlObj, aiResult.selectors);
+          
+          if (aiLinks.length > 0) {
+            allEventLinks.push(...aiLinks);
+            console.log(`[RSS] AI extraction found ${aiLinks.length} event links`);
+            
+            if (aiResult.pagination && aiResult.pagination.type !== 'none' && aiResult.pagination.maxPages) {
+              for (let page = 2; page <= Math.min(aiResult.pagination.maxPages, 30); page++) {
+                try {
+                  await new Promise(resolve => setTimeout(resolve, 300));
+                  
+                  let pageUrl = baseUrl;
+                  if (aiResult.pagination.type === 'query' && aiResult.pagination.paramName) {
+                    const urlObj = new URL(baseUrl);
+                    urlObj.searchParams.set(aiResult.pagination.paramName, String(page));
+                    pageUrl = urlObj.toString();
+                  } else if (aiResult.pagination.type === 'path') {
+                    pageUrl = baseUrl.replace(/\/$/, '') + `/page/${page}`;
+                  }
+                  
+                  const pageResponse = await axios.get(pageUrl, {
+                    headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
+                    timeout: 30000
+                  });
+                  
+                  const $page = cheerio.load(pageResponse.data);
+                  const pageLinks = this.extractLinksWithAiSelectors($page, baseUrlObj, aiResult.selectors);
+                  
+                  if (pageLinks.length === 0) {
+                    console.log(`[RSS] AI pagination page ${page}: no new events, stopping`);
+                    break;
+                  }
+                  
+                  const newLinks = pageLinks.filter(l => !allEventLinks.includes(l));
+                  if (newLinks.length === 0) break;
+                  
+                  allEventLinks.push(...newLinks);
+                  console.log(`[RSS] AI pagination page ${page}: found ${newLinks.length} new links (total: ${allEventLinks.length})`);
+                  
+                } catch (error: any) {
+                  if (error.response?.status === 404) break;
+                  console.log(`[RSS] AI pagination error on page ${page}: ${error.message}`);
+                  break;
+                }
+              }
+            }
+          }
+        } else if (aiResult.error) {
+          console.log(`[RSS] AI extraction failed: ${aiResult.error}`);
+        }
+        
+        if (allEventLinks.length === 0) {
+          return { success: false, items: [], error: "No event elements found with any selector (including AI)" };
+        }
       }
       
       console.log(`[RSS] Total: found ${allEventLinks.length} event links across all pages`);
@@ -5114,6 +5177,48 @@ export class RssFeedService {
     } catch (error: any) {
       return { success: false, items: [], error: `Generic HTML parsing failed: ${error.message}` };
     }
+  }
+
+  /**
+   * Extract event links using AI-detected selectors
+   */
+  private static extractLinksWithAiSelectors(
+    $: cheerio.CheerioAPI,
+    baseUrlObj: URL,
+    selectors: AiExtractionSelectors
+  ): string[] {
+    const links: string[] = [];
+    
+    const cards = $(selectors.eventCard);
+    cards.each((_, card) => {
+      const $card = $(card);
+      let link: string | undefined;
+      
+      if (selectors.link === 'self' && $card.is('a')) {
+        link = $card.attr('href');
+      } else if (selectors.link) {
+        link = $card.find(selectors.link).first().attr('href');
+      }
+      if (!link) {
+        link = $card.find('a').first().attr('href');
+      }
+      if (!link) {
+        link = $card.is('a') ? $card.attr('href') : undefined;
+      }
+      
+      if (link) {
+        if (!link.startsWith('http')) {
+          link = `${baseUrlObj.origin}${link.startsWith('/') ? '' : '/'}${link}`;
+        }
+        if (!link.includes('/category/') && !link.includes('/tag/') && !link.includes('#')) {
+          if (!links.includes(link)) {
+            links.push(link);
+          }
+        }
+      }
+    });
+    
+    return links;
   }
 
   /**

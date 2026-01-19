@@ -195,10 +195,35 @@ export const venues = pgTable("venues", {
   usageCount: integer("usage_count").default(1),
   lastUsedAt: timestamp("last_used_at").defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  slug: text("slug"),
+  description: text("description"),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
+  websiteUrl: text("website_url"),
+  imageUrl: text("image_url"),
+  category: text("category"),
+  isVerified: boolean("is_verified").default(false),
+  claimedByUserId: integer("claimed_by_user_id").references(() => users.id),
+  claimedAt: timestamp("claimed_at"),
+  status: text("status").default("active").$type<"active" | "pending" | "archived">(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export type Venue = typeof venues.$inferSelect;
 export type InsertVenue = typeof venues.$inferInsert;
+
+export const venueOrganizers = pgTable("venue_organizers", {
+  id: serial("id").primaryKey(),
+  venueId: integer("venue_id").notNull().references(() => venues.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  role: text("role").notNull().default("admin").$type<"owner" | "admin" | "editor">(),
+  status: text("status").notNull().default("active").$type<"active" | "pending" | "revoked">(),
+  invitedByUserId: integer("invited_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type VenueOrganizer = typeof venueOrganizers.$inferSelect;
+export type InsertVenueOrganizer = typeof venueOrganizers.$inferInsert;
 
 export const feedFieldMappings = pgTable("feed_field_mappings", {
   id: serial("id").primaryKey(),

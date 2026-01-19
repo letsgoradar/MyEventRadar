@@ -5008,6 +5008,16 @@ export class RssFeedService {
         'a[href*="/evenementen/uitagenda/"]',
         'a[href*="/evenement/"]',
         'a[href*="/activiteiten/"]',
+        // Bezoekdelangstraat / Umbraco patterns
+        '.agenda__list .card',
+        '.agenda__item',
+        '[class*="agenda-"] a',
+        'a[href^="/agenda/"][href$="/"]',
+        '.card[href*="/agenda/"]',
+        // Regional tourism patterns (De Langstraat, etc.)
+        '.event-teaser',
+        '.teaser-event',
+        '[class*="teaser"] a[href*="/agenda/"]',
       ];
       
       // Helper function to extract event links from a page

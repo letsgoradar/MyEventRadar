@@ -8,6 +8,7 @@ import { FEED_IMPORT_PRINCIPLES } from "../config/rss-feed-rules";
 import { ContentExtractor } from "./content-extractor";
 import { FeedFieldDetector } from "./feed-field-detector";
 import { AiHtmlAnalyzer } from "./ai-html-analyzer";
+import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -858,6 +859,7 @@ export class FeedAnalyzerService {
         'bezoekoisterwijk': 'Oisterwijk',
         'explorebreda': 'Breda',
         'grenslanddebaronie': 'Gilze en Rijen',
+        'gowaalwijk': 'Waalwijk',
       };
 
       for (const [pattern, municipality] of Object.entries(additionalPatterns)) {
@@ -2048,6 +2050,10 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
 
   private static async checkHtmlScraper(baseUrl: string): Promise<MethodCheckResult | null> {
     try {
+      let html: string;
+      let usedPuppeteer = false;
+      
+      // First try with regular HTTP request
       const response = await axios.get(baseUrl, {
         headers: { 
           'User-Agent': this.USER_AGENT,
@@ -2055,9 +2061,26 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
         },
         timeout: 15000,
       });
+      
+      html = response.data;
+      
+      // Check if page needs JavaScript rendering
+      if (typeof html === 'string' && detectJsRenderingNeeded(html)) {
+        console.log(`[FeedAnalyzer] Page requires JavaScript rendering, using Puppeteer for ${baseUrl}`);
+        try {
+          const puppeteerResult = await fetchRenderedHtml(baseUrl);
+          if (puppeteerResult.success && puppeteerResult.html) {
+            html = puppeteerResult.html;
+            usedPuppeteer = true;
+            console.log(`[FeedAnalyzer] Puppeteer rendered HTML successfully`);
+          }
+        } catch (puppeteerError: any) {
+          console.log(`[FeedAnalyzer] Puppeteer fallback failed: ${puppeteerError.message}`);
+        }
+      }
 
-      if (typeof response.data === 'string') {
-        const $ = cheerio.load(response.data);
+      if (typeof html === 'string') {
+        const $ = cheerio.load(html);
         
         const eventSelectors = [
           '.tiles__tile',
@@ -2101,29 +2124,32 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
             const itemsOnPage = elements.length;
             const estimatedTotal = maxPage > 1 ? maxPage * itemsOnPage : itemsOnPage;
             const paginationNote = maxPage > 1 ? ` (~${estimatedTotal} events over ${maxPage} pagina's)` : '';
+            const puppeteerNote = usedPuppeteer ? ' (via JavaScript rendering)' : '';
             
             return {
               viable: true,
               feedUrl: baseUrl,
               eventCount: estimatedTotal,
-              reason: `HTML pagina met ${itemsOnPage} event elementen per pagina${paginationNote}`,
+              reason: `HTML pagina met ${itemsOnPage} event elementen per pagina${paginationNote}${puppeteerNote}`,
               sampleEvent: {
                 selector,
                 title: firstEl.find('h1, h2, h3, .title, .description__headtext').first().text().trim() || 'Event gevonden',
                 note: maxPage > 1 ? `Scraper met automatische paginering (${maxPage} pagina's)` : 'Scraper configuratie vereist',
                 paginationPages: maxPage,
+                requiresJsRendering: usedPuppeteer,
               },
             };
           }
         }
 
         console.log(`[FeedAnalyzer] No standard patterns found, trying AI analysis for ${baseUrl}`);
-        const aiResult = await AiHtmlAnalyzer.analyzeAndExtract(baseUrl, response.data);
+        const aiResult = await AiHtmlAnalyzer.analyzeAndExtract(baseUrl, html);
         
         if (aiResult.success && aiResult.eventCount >= 3) {
           const paginationNote = aiResult.pagination?.maxPages && aiResult.pagination.maxPages > 1
             ? ` (~${aiResult.eventCount * aiResult.pagination.maxPages} events over ${aiResult.pagination.maxPages} pagina's)`
             : '';
+          const puppeteerNote = usedPuppeteer ? ' (via JavaScript rendering)' : '';
           
           return {
             viable: true,
@@ -2131,7 +2157,7 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
             eventCount: aiResult.pagination?.maxPages 
               ? aiResult.eventCount * aiResult.pagination.maxPages 
               : aiResult.eventCount,
-            reason: `AI-geanalyseerde HTML structuur met ${aiResult.eventCount} events${paginationNote} (${aiResult.confidence}% zekerheid)`,
+            reason: `AI-geanalyseerde HTML structuur met ${aiResult.eventCount} events${paginationNote}${puppeteerNote} (${aiResult.confidence}% zekerheid)`,
             sampleEvent: {
               selector: aiResult.selectors?.eventCard || 'AI-detected',
               title: aiResult.sampleEvents[0]?.title || 'Event gevonden via AI',
@@ -2142,6 +2168,7 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
               paginationPages: aiResult.pagination?.maxPages || 1,
               aiSelectors: aiResult.selectors,
               aiPagination: aiResult.pagination,
+              requiresJsRendering: usedPuppeteer,
             },
           };
         }

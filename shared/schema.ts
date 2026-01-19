@@ -451,3 +451,46 @@ export const feedAnalysisResultSchema = z.object({
 });
 
 export type FeedAnalysisResult = z.infer<typeof feedAnalysisResultSchema>;
+
+// AI Extraction Profiles - voor het cachen van AI-geleerde extractie patronen per domein
+export const aiExtractionProfiles = pgTable("ai_extraction_profiles", {
+  id: serial("id").primaryKey(),
+  domain: text("domain").notNull().unique(), // e.g., "inroosendaal.nl"
+  pathPattern: text("path_pattern"), // e.g., "/uitagenda" - optional, for path-specific profiles
+  selectors: jsonb("selectors").$type<{
+    eventCard: string; // CSS selector for event cards
+    title?: string; // Relative selector for title within card
+    date?: string; // Relative selector for date
+    time?: string; // Relative selector for time
+    category?: string; // Relative selector for category
+    image?: string; // Relative selector for image
+    link?: string; // Relative selector for link/URL
+    description?: string; // Relative selector for description
+    location?: string; // Relative selector for location
+  }>().notNull(),
+  pagination: jsonb("pagination").$type<{
+    type: 'query' | 'path' | 'loadmore' | 'none';
+    paramName?: string; // e.g., "page_39" or "page"
+    maxPages?: number;
+    itemsPerPage?: number;
+  }>(),
+  confidence: integer("confidence").notNull().default(0), // 0-100
+  validatedEvents: integer("validated_events").default(0), // Number of events successfully extracted
+  lastSuccessfulAt: timestamp("last_successful_at"),
+  lastValidatedAt: timestamp("last_validated_at"),
+  aiModel: text("ai_model"), // e.g., "gpt-4o-mini"
+  aiPromptVersion: text("ai_prompt_version"), // For tracking prompt changes
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAiExtractionProfileSchema = createInsertSchema(aiExtractionProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastSuccessfulAt: true,
+  lastValidatedAt: true,
+});
+
+export type AiExtractionProfile = typeof aiExtractionProfiles.$inferSelect;
+export type InsertAiExtractionProfile = z.infer<typeof insertAiExtractionProfileSchema>;

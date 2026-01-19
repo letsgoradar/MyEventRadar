@@ -1,0 +1,441 @@
+import * as cheerio from "cheerio";
+import OpenAI from "openai";
+import { db } from "../db";
+import { aiExtractionProfiles } from "@shared/schema";
+import { eq } from "drizzle-orm";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+export interface AiExtractionSelectors {
+  eventCard: string;
+  title?: string;
+  date?: string;
+  time?: string;
+  category?: string;
+  image?: string;
+  link?: string;
+  description?: string;
+  location?: string;
+}
+
+export interface AiPaginationInfo {
+  type: 'query' | 'path' | 'loadmore' | 'none';
+  paramName?: string;
+  maxPages?: number;
+  itemsPerPage?: number;
+}
+
+export interface AiAnalysisResult {
+  success: boolean;
+  selectors?: AiExtractionSelectors;
+  pagination?: AiPaginationInfo;
+  confidence: number;
+  eventCount: number;
+  sampleEvents: Array<{
+    title?: string;
+    date?: string;
+    link?: string;
+    image?: string;
+    category?: string;
+  }>;
+  reasoning?: string;
+  error?: string;
+}
+
+export class AiHtmlAnalyzer {
+  private static readonly MAX_HTML_TOKENS = 4000;
+  private static readonly AI_MODEL = "gpt-4o-mini";
+  private static readonly PROMPT_VERSION = "v1.0";
+
+  static async analyzeAndExtract(url: string, html: string): Promise<AiAnalysisResult> {
+    try {
+      const domain = new URL(url).hostname.replace('www.', '');
+      
+      const cachedProfile = await this.getCachedProfile(domain);
+      if (cachedProfile && cachedProfile.confidence >= 70) {
+        console.log(`[AI Analyzer] Using cached profile for ${domain} (confidence: ${cachedProfile.confidence}%)`);
+        const result = await this.extractWithSelectors(html, cachedProfile.selectors as AiExtractionSelectors);
+        if (result.eventCount >= 3) {
+          return {
+            success: true,
+            selectors: cachedProfile.selectors as AiExtractionSelectors,
+            pagination: cachedProfile.pagination as AiPaginationInfo | undefined,
+            confidence: cachedProfile.confidence,
+            eventCount: result.eventCount,
+            sampleEvents: result.sampleEvents,
+            reasoning: "Gebruikt gecachte AI-analyse",
+          };
+        }
+      }
+
+      console.log(`[AI Analyzer] Running AI analysis for ${domain}`);
+      const simplifiedHtml = this.simplifyHtml(html);
+      const candidateCards = this.findCandidateCards(html);
+      
+      if (candidateCards.length === 0) {
+        return {
+          success: false,
+          confidence: 0,
+          eventCount: 0,
+          sampleEvents: [],
+          error: "Geen herhalende kaart-structuren gevonden op de pagina",
+        };
+      }
+
+      const aiResult = await this.callAiForSelectors(url, simplifiedHtml, candidateCards);
+      
+      if (!aiResult.success || !aiResult.selectors) {
+        return aiResult;
+      }
+
+      const validationResult = await this.extractWithSelectors(html, aiResult.selectors);
+      
+      if (validationResult.eventCount < 3) {
+        return {
+          success: false,
+          selectors: aiResult.selectors,
+          confidence: 20,
+          eventCount: validationResult.eventCount,
+          sampleEvents: validationResult.sampleEvents,
+          error: `AI selectors vonden slechts ${validationResult.eventCount} events (minimaal 3 nodig)`,
+        };
+      }
+
+      const paginationInfo = this.detectPagination(html, url);
+
+      await this.saveProfile(domain, aiResult.selectors, paginationInfo, validationResult.eventCount);
+
+      return {
+        success: true,
+        selectors: aiResult.selectors,
+        pagination: paginationInfo,
+        confidence: aiResult.confidence,
+        eventCount: validationResult.eventCount,
+        sampleEvents: validationResult.sampleEvents,
+        reasoning: aiResult.reasoning,
+      };
+    } catch (error: any) {
+      console.error('[AI Analyzer] Error:', error);
+      return {
+        success: false,
+        confidence: 0,
+        eventCount: 0,
+        sampleEvents: [],
+        error: error.message,
+      };
+    }
+  }
+
+  private static simplifyHtml(html: string): string {
+    const $ = cheerio.load(html);
+    
+    $('script, style, noscript, iframe, svg, path, meta, link[rel="stylesheet"]').remove();
+    $('[style]').removeAttr('style');
+    $('header, footer, nav, aside').remove();
+    $('[class*="cookie"], [class*="popup"], [class*="modal"], [id*="cookie"]').remove();
+    $('[class*="menu"], [class*="nav-"], [class*="header"], [class*="footer"]').remove();
+    
+    $('*').each((_, el) => {
+      const $el = $(el);
+      const attrs = (el as any).attribs || {};
+      for (const attr of Object.keys(attrs)) {
+        if (!['class', 'id', 'href', 'src', 'alt', 'datetime', 'data-date', 'data-time'].includes(attr)) {
+          $el.removeAttr(attr);
+        }
+      }
+    });
+
+    let simplified = $.html();
+    simplified = simplified.replace(/\s+/g, ' ');
+    simplified = simplified.replace(/>\s+</g, '><');
+    
+    if (simplified.length > this.MAX_HTML_TOKENS * 4) {
+      const mainContent = $('main, [role="main"], .content, #content, article').first();
+      if (mainContent.length) {
+        simplified = mainContent.html() || simplified.substring(0, this.MAX_HTML_TOKENS * 4);
+      } else {
+        simplified = simplified.substring(0, this.MAX_HTML_TOKENS * 4);
+      }
+    }
+    
+    return simplified;
+  }
+
+  private static findCandidateCards(html: string): Array<{ selector: string; count: number; sample: string }> {
+    const $ = cheerio.load(html);
+    const candidates: Array<{ selector: string; count: number; sample: string }> = [];
+
+    const cardPatterns = [
+      'li:has(a):has(img)',
+      'article',
+      'div:has(> a):has(img)',
+      '[class*="item"]:has(a)',
+      '[class*="card"]:has(a)',
+      '[class*="tile"]:has(a)',
+      '[class*="event"]:has(a)',
+      'a:has(img):has(h1, h2, h3, h4)',
+      'a[href*="/event"], a[href*="/agenda"], a[href*="/uitagenda"], a[href*="/activiteit"]',
+    ];
+
+    for (const pattern of cardPatterns) {
+      try {
+        const elements = $(pattern);
+        if (elements.length >= 3) {
+          const sample = elements.first().html()?.substring(0, 500) || '';
+          candidates.push({
+            selector: pattern,
+            count: elements.length,
+            sample,
+          });
+        }
+      } catch {}
+    }
+
+    candidates.sort((a, b) => b.count - a.count);
+    return candidates.slice(0, 5);
+  }
+
+  private static async callAiForSelectors(
+    url: string,
+    simplifiedHtml: string,
+    candidates: Array<{ selector: string; count: number; sample: string }>
+  ): Promise<AiAnalysisResult> {
+    const candidateInfo = candidates.map(c => 
+      `- Selector: "${c.selector}" (${c.count} items)\n  Sample: ${c.sample.substring(0, 200)}...`
+    ).join('\n\n');
+
+    const prompt = `Analyseer deze Nederlandse evenementen-pagina en bepaal de CSS selectors om events te extraheren.
+
+URL: ${url}
+
+Gevonden kandidaat-patronen:
+${candidateInfo}
+
+HTML fragment (vereenvoudigd):
+${simplifiedHtml.substring(0, 3000)}
+
+Bepaal de beste CSS selectors voor:
+1. eventCard: De hoofd-selector voor elk event kaartje
+2. title: Relatieve selector binnen de kaart voor de titel (bijv. "h2", ".title")
+3. date: Relatieve selector voor de datum
+4. link: Relatieve selector voor de link (of "self" als de kaart zelf een link is)
+5. image: Relatieve selector voor de afbeelding
+6. category: Relatieve selector voor de categorie (optioneel)
+
+Antwoord in JSON formaat:
+{
+  "success": true/false,
+  "selectors": {
+    "eventCard": "...",
+    "title": "...",
+    "date": "...",
+    "link": "...",
+    "image": "...",
+    "category": "..."
+  },
+  "confidence": 0-100,
+  "reasoning": "Korte uitleg van de gekozen strategie"
+}`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: this.AI_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "Je bent een expert in web scraping en CSS selectors. Analyseer HTML structuren en bepaal de beste selectors om event data te extraheren. Wees specifiek en gebruik relatieve selectors waar mogelijk. Antwoord alleen in JSON.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.1,
+        max_tokens: 500,
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("Geen response van AI");
+      }
+
+      const parsed = JSON.parse(content);
+      
+      return {
+        success: parsed.success === true,
+        selectors: parsed.selectors,
+        confidence: parsed.confidence || 0,
+        eventCount: 0,
+        sampleEvents: [],
+        reasoning: parsed.reasoning,
+      };
+    } catch (error: any) {
+      console.error('[AI Analyzer] OpenAI error:', error);
+      return {
+        success: false,
+        confidence: 0,
+        eventCount: 0,
+        sampleEvents: [],
+        error: `AI analyse mislukt: ${error.message}`,
+      };
+    }
+  }
+
+  private static async extractWithSelectors(
+    html: string,
+    selectors: AiExtractionSelectors
+  ): Promise<{ eventCount: number; sampleEvents: Array<any> }> {
+    const $ = cheerio.load(html);
+    const sampleEvents: Array<any> = [];
+    
+    const cards = $(selectors.eventCard);
+    
+    cards.slice(0, 5).each((_, card) => {
+      const $card = $(card);
+      const event: any = {};
+
+      if (selectors.title) {
+        event.title = $card.find(selectors.title).first().text().trim();
+      }
+      if (!event.title && $card.is('a')) {
+        event.title = $card.find('h1, h2, h3, h4').first().text().trim();
+      }
+
+      if (selectors.date) {
+        event.date = $card.find(selectors.date).first().text().trim();
+      }
+
+      if (selectors.link === 'self' && $card.is('a')) {
+        event.link = $card.attr('href');
+      } else if (selectors.link) {
+        event.link = $card.find(selectors.link).first().attr('href');
+      }
+      if (!event.link) {
+        event.link = $card.find('a').first().attr('href');
+      }
+
+      if (selectors.image) {
+        event.image = $card.find(selectors.image).first().attr('src');
+      }
+      if (!event.image) {
+        event.image = $card.find('img').first().attr('src');
+      }
+
+      if (selectors.category) {
+        event.category = $card.find(selectors.category).first().text().trim();
+      }
+
+      if (event.title || event.link) {
+        sampleEvents.push(event);
+      }
+    });
+
+    return {
+      eventCount: cards.length,
+      sampleEvents,
+    };
+  }
+
+  private static detectPagination(html: string, baseUrl: string): AiPaginationInfo {
+    const $ = cheerio.load(html);
+    
+    const pageLinks = $('a[href*="page="], a[href*="page_"], a[href*="pagina="]');
+    if (pageLinks.length > 0) {
+      let maxPage = 1;
+      let paramName = 'page';
+      
+      pageLinks.each((_, el) => {
+        const href = $(el).attr('href') || '';
+        const match = href.match(/[?&](page[_\d]*|pagina)=(\d+)/);
+        if (match) {
+          paramName = match[1];
+          maxPage = Math.max(maxPage, parseInt(match[2]));
+        }
+      });
+      
+      if (maxPage > 1) {
+        return {
+          type: 'query',
+          paramName,
+          maxPages: Math.min(maxPage, 30),
+        };
+      }
+    }
+
+    const pathPagination = $('a[href*="/page/"], a[href*="/pagina/"]');
+    if (pathPagination.length > 0) {
+      let maxPage = 1;
+      pathPagination.each((_, el) => {
+        const href = $(el).attr('href') || '';
+        const match = href.match(/\/page\/(\d+)/);
+        if (match) {
+          maxPage = Math.max(maxPage, parseInt(match[1]));
+        }
+      });
+      
+      if (maxPage > 1) {
+        return {
+          type: 'path',
+          maxPages: Math.min(maxPage, 30),
+        };
+      }
+    }
+
+    return { type: 'none' };
+  }
+
+  private static async getCachedProfile(domain: string) {
+    try {
+      const profiles = await db
+        .select()
+        .from(aiExtractionProfiles)
+        .where(eq(aiExtractionProfiles.domain, domain))
+        .limit(1);
+      
+      return profiles[0] || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private static async saveProfile(
+    domain: string,
+    selectors: AiExtractionSelectors,
+    pagination: AiPaginationInfo,
+    eventCount: number
+  ) {
+    try {
+      const existing = await this.getCachedProfile(domain);
+      
+      const confidence = Math.min(90, 50 + eventCount * 2);
+      
+      if (existing) {
+        await db
+          .update(aiExtractionProfiles)
+          .set({
+            selectors,
+            pagination,
+            confidence,
+            validatedEvents: eventCount,
+            lastValidatedAt: new Date(),
+            updatedAt: new Date(),
+            aiModel: this.AI_MODEL,
+            aiPromptVersion: this.PROMPT_VERSION,
+          })
+          .where(eq(aiExtractionProfiles.domain, domain));
+      } else {
+        await db.insert(aiExtractionProfiles).values({
+          domain,
+          selectors,
+          pagination,
+          confidence,
+          validatedEvents: eventCount,
+          aiModel: this.AI_MODEL,
+          aiPromptVersion: this.PROMPT_VERSION,
+        });
+      }
+      
+      console.log(`[AI Analyzer] Saved profile for ${domain} with ${eventCount} events (confidence: ${confidence}%)`);
+    } catch (error) {
+      console.error('[AI Analyzer] Failed to save profile:', error);
+    }
+  }
+}

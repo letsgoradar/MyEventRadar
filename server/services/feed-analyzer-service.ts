@@ -7,6 +7,7 @@ import { feedAnalysisProfiles } from "@shared/schema";
 import { FEED_IMPORT_PRINCIPLES } from "../config/rss-feed-rules";
 import { ContentExtractor } from "./content-extractor";
 import { FeedFieldDetector } from "./feed-field-detector";
+import { AiHtmlAnalyzer } from "./ai-html-analyzer";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -2058,25 +2059,20 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
       if (typeof response.data === 'string') {
         const $ = cheerio.load(response.data);
         
-        // Look for common event listing patterns (ordered by specificity)
         const eventSelectors = [
-          // UBASE/tijdvooramersfoort patterns
           '.tiles__tile',
           'a.link-overlay',
-          // Specific event patterns
           'article.event', '.event-item', '.event-card',
           '.agenda-item', '.calendar-event', '.uitagenda-item',
-          // Tourism patterns
           'a[href*="/uitagenda/"]', 'a[href*="/evenementen/"]',
-          // Generic patterns
           '[class*="event"]', '[data-event]',
         ];
 
-        // Detect pagination
         let maxPage = 1;
         const paginationPatterns = [
           'a[href*="?page="]', 
           'a[href*="&page="]',
+          'a[href*="page_"]',
           '.pager a',
           '.pagination a',
           '[class*="pager"] a',
@@ -2087,7 +2083,7 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
           $(pattern).each((_, el) => {
             const href = $(el).attr('href') || '';
             const text = $(el).text().trim();
-            const pageMatch = href.match(/page=(\d+)/);
+            const pageMatch = href.match(/page[_=]?(\d+)/);
             if (pageMatch) {
               maxPage = Math.max(maxPage, parseInt(pageMatch[1]));
             }
@@ -2100,18 +2096,11 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
 
         for (const selector of eventSelectors) {
           const elements = $(selector);
-          if (elements.length >= 3) { // At least 3 items to be considered viable
+          if (elements.length >= 3) {
             const firstEl = elements.first();
             const itemsOnPage = elements.length;
-            
-            // Estimate total events based on pagination
-            const estimatedTotal = maxPage > 1 
-              ? maxPage * itemsOnPage 
-              : itemsOnPage;
-            
-            const paginationNote = maxPage > 1 
-              ? ` (~${estimatedTotal} events over ${maxPage} pagina's)` 
-              : '';
+            const estimatedTotal = maxPage > 1 ? maxPage * itemsOnPage : itemsOnPage;
+            const paginationNote = maxPage > 1 ? ` (~${estimatedTotal} events over ${maxPage} pagina's)` : '';
             
             return {
               viable: true,
@@ -2121,17 +2110,50 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
               sampleEvent: {
                 selector,
                 title: firstEl.find('h1, h2, h3, .title, .description__headtext').first().text().trim() || 'Event gevonden',
-                note: maxPage > 1 
-                  ? `Scraper met automatische paginering (${maxPage} pagina's)` 
-                  : 'Scraper configuratie vereist',
+                note: maxPage > 1 ? `Scraper met automatische paginering (${maxPage} pagina's)` : 'Scraper configuratie vereist',
                 paginationPages: maxPage,
               },
             };
           }
         }
+
+        console.log(`[FeedAnalyzer] No standard patterns found, trying AI analysis for ${baseUrl}`);
+        const aiResult = await AiHtmlAnalyzer.analyzeAndExtract(baseUrl, response.data);
+        
+        if (aiResult.success && aiResult.eventCount >= 3) {
+          const paginationNote = aiResult.pagination?.maxPages && aiResult.pagination.maxPages > 1
+            ? ` (~${aiResult.eventCount * aiResult.pagination.maxPages} events over ${aiResult.pagination.maxPages} pagina's)`
+            : '';
+          
+          return {
+            viable: true,
+            feedUrl: baseUrl,
+            eventCount: aiResult.pagination?.maxPages 
+              ? aiResult.eventCount * aiResult.pagination.maxPages 
+              : aiResult.eventCount,
+            reason: `AI-geanalyseerde HTML structuur met ${aiResult.eventCount} events${paginationNote} (${aiResult.confidence}% zekerheid)`,
+            sampleEvent: {
+              selector: aiResult.selectors?.eventCard || 'AI-detected',
+              title: aiResult.sampleEvents[0]?.title || 'Event gevonden via AI',
+              date: aiResult.sampleEvents[0]?.date,
+              link: aiResult.sampleEvents[0]?.link,
+              image: aiResult.sampleEvents[0]?.image,
+              note: `AI-analyse: ${aiResult.reasoning || 'Automatisch gedetecteerd'}`,
+              paginationPages: aiResult.pagination?.maxPages || 1,
+              aiSelectors: aiResult.selectors,
+              aiPagination: aiResult.pagination,
+            },
+          };
+        }
+        
+        if (aiResult.error) {
+          console.log(`[FeedAnalyzer] AI analysis failed: ${aiResult.error}`);
+        }
       }
-    } catch {}
-    return { viable: false, reason: 'Geen scrapbare event structuur gevonden' };
+    } catch (error: any) {
+      console.error(`[FeedAnalyzer] HTML scraper check error:`, error.message);
+    }
+    return { viable: false, reason: 'Geen scrapbare event structuur gevonden (ook niet via AI)' };
   }
 
   private static formatSampleEvent(item: any, type: string): SampleEventData {

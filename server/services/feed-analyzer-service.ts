@@ -124,6 +124,8 @@ const DOMAIN_MUNICIPALITY_MAP: Record<string, string> = {
   'visithelmond': 'Helmond',
   'visitamersfoort': 'Amersfoort',
   'tijdvooramersfoort': 'Amersfoort',
+  'vvvamersfoort': 'Amersfoort',
+  'vvvbrabantsewal': 'Bergen op Zoom',
   'visitzwolle': 'Zwolle',
   'visitarnhem': 'Arnhem',
   'visitnijmegen': 'Nijmegen',

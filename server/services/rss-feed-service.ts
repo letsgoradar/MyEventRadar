@@ -4937,10 +4937,18 @@ export class RssFeedService {
       
       // Common event selectors used across different CMSs
       const eventSelectors = [
-        // UBASE/tijdvooramersfoort patterns - tiles system
+        // VVV platform patterns (vvvbrabantsewal, vvvamersfoort, etc.)
+        '.tiles__tile a.link-overlay',
         '.tiles__tile a',
         '.tiles__tile',
         'a.link-overlay',
+        '.calendar-item a',
+        '.calendar-item',
+        // VVV agenda links
+        'a[href*="/nl/agenda/"]',
+        'a[href*="/agenda/"][data-id]',
+        // UBASE/tijdvooramersfoort patterns - tiles system
+        '.tiles__wrapper a',
         // Grid item patterns (like Tilburg)
         'a.tb-grid-item',
         '.grid-item a[href*="/agenda/"]',

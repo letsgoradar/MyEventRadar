@@ -12,6 +12,7 @@ import { ContentExtractor } from "./content-extractor";
 import { VenueService } from "./venue-service";
 import { FeedFieldDetector } from "./feed-field-detector";
 import { AiHtmlAnalyzer, type AiExtractionSelectors, type AiPaginationInfo } from "./ai-html-analyzer";
+import { AiLocationExtractor } from "./ai-location-extractor";
 
 /**
  * Sanitize XML content to fix common parsing issues.
@@ -5250,6 +5251,11 @@ export class RssFeedService {
       // Try to extract date from various places
       let startTime: Date | undefined;
       let endTime: Date | undefined;
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+      let location: string | undefined;
+      let address: string | undefined;
+      let venueName: string | undefined;
       
       // Look for JSON-LD first
       $('script[type="application/ld+json"]').each((_, el) => {
@@ -5258,6 +5264,23 @@ export class RssFeedService {
           if (data['@type'] === 'Event' || data['@type']?.includes?.('Event')) {
             if (data.startDate) startTime = new Date(data.startDate);
             if (data.endDate) endTime = new Date(data.endDate);
+            
+            if (data.location) {
+              const loc = data.location;
+              if (loc.name) venueName = loc.name;
+              if (loc.address) {
+                if (typeof loc.address === 'string') {
+                  address = loc.address;
+                } else if (loc.address.streetAddress) {
+                  address = loc.address.streetAddress;
+                  if (loc.address.addressLocality) location = loc.address.addressLocality;
+                }
+              }
+              if (loc.geo) {
+                if (loc.geo.latitude) latitude = parseFloat(loc.geo.latitude);
+                if (loc.geo.longitude) longitude = parseFloat(loc.geo.longitude);
+              }
+            }
           }
         } catch (e) {}
       });
@@ -5283,6 +5306,80 @@ export class RssFeedService {
         }
       }
       
+      // Extract location from HTML if not found in JSON-LD
+      if (!latitude || !longitude) {
+        const locationSelectors = [
+          '[class*="locatie"]', '[class*="location"]', '[class*="venue"]', '[class*="waar"]',
+          '[class*="adres"]', '[class*="address"]', '.event-location', '.location-name'
+        ];
+        
+        for (const selector of locationSelectors) {
+          const el = $(selector).first();
+          if (el.length && el.text().trim()) {
+            if (!venueName) venueName = el.text().trim();
+            break;
+          }
+        }
+        
+        if (venueName) {
+          const venueCoords = await VenueService.getVenueCoordinates(venueName, municipality);
+          if (venueCoords) {
+            latitude = venueCoords.latitude;
+            longitude = venueCoords.longitude;
+            console.log(`[RSS] Found venue in cache: ${venueName}`);
+          }
+        }
+        
+        if (!latitude || !longitude) {
+          const addressSelectors = [
+            '[class*="address"]', '[class*="adres"]', '.street-address'
+          ];
+          for (const selector of addressSelectors) {
+            const el = $(selector).first();
+            if (el.length && el.text().trim()) {
+              address = el.text().trim();
+              break;
+            }
+          }
+          
+          if (address && address.length > 5) {
+            const geocodeResult = await this.geocodeWithMunicipalityValidation(address, municipality);
+            if (geocodeResult) {
+              latitude = geocodeResult.lat;
+              longitude = geocodeResult.lon;
+              
+              if (venueName) {
+                await VenueService.findOrCreateVenue(venueName, {
+                  municipality,
+                  address,
+                  latitude,
+                  longitude,
+                  sourceUrl: url
+                });
+              }
+            }
+          }
+        }
+        
+        if (!latitude || !longitude) {
+          const pageText = $('body').text();
+          const combinedText = `${title}\n${description}\n${pageText.substring(0, 2000)}`;
+          
+          const aiResult = await AiLocationExtractor.extractAndResolveLocation(
+            combinedText,
+            { title, municipality, sourceUrl: url },
+            (addr) => this.geocodeWithMunicipalityValidation(addr, municipality).then(r => r ? { lat: r.lat, lon: r.lon } : null)
+          );
+          
+          if (aiResult) {
+            latitude = aiResult.latitude;
+            longitude = aiResult.longitude;
+            if (aiResult.venueName) venueName = aiResult.venueName;
+            console.log(`[RSS] AI extracted location for "${title}": ${aiResult.venueName || 'address'}`);
+          }
+        }
+      }
+      
       // Skip if no title
       if (!title || title.length < 3 || this.isCookieText(title)) {
         return null;
@@ -5296,8 +5393,10 @@ export class RssFeedService {
         imageUrl,
         startTime,
         endTime,
-        location: municipality,
-        address: municipality,
+        location: venueName || location,
+        address,
+        latitude,
+        longitude,
         rawData: { source: 'generic-html', url }
       };
       

@@ -337,32 +337,40 @@ Antwoord in JSON formaat:
   private static detectPagination(html: string, baseUrl: string): AiPaginationInfo {
     const $ = cheerio.load(html);
     
-    const pageLinks = $('a[href*="page="], a[href*="page_"], a[href*="pagina="]');
-    if (pageLinks.length > 0) {
-      let maxPage = 1;
-      let paramName = 'page';
+    let maxPage = 1;
+    let paramName = 'page';
+    
+    const paginationLinks = $('a[href*="page"], .pagination a, .pager a, [class*="pager"] a');
+    paginationLinks.each((_, el) => {
+      const href = $(el).attr('href') || '';
+      const text = $(el).text().trim();
       
-      pageLinks.each((_, el) => {
-        const href = $(el).attr('href') || '';
-        const match = href.match(/[?&](page[_\d]*|pagina)=(\d+)/);
-        if (match) {
-          paramName = match[1];
-          maxPage = Math.max(maxPage, parseInt(match[2]));
-        }
-      });
-      
-      if (maxPage > 1) {
-        return {
-          type: 'query',
-          paramName,
-          maxPages: Math.min(maxPage, 30),
-        };
+      const queryMatch = href.match(/[?&](page[_\d]*|pagina)=(\d+)/);
+      if (queryMatch) {
+        paramName = queryMatch[1];
+        maxPage = Math.max(maxPage, parseInt(queryMatch[2]));
       }
+      
+      const numMatch = text.match(/^(\d+)$/);
+      if (numMatch) {
+        maxPage = Math.max(maxPage, parseInt(numMatch[1]));
+        if (!paramName.includes('_') && href.includes('page_')) {
+          const paramMatch = href.match(/(page_\d+)=/);
+          if (paramMatch) paramName = paramMatch[1];
+        }
+      }
+    });
+    
+    if (maxPage > 1) {
+      return {
+        type: 'query',
+        paramName,
+        maxPages: Math.min(maxPage, 30),
+      };
     }
 
     const pathPagination = $('a[href*="/page/"], a[href*="/pagina/"]');
     if (pathPagination.length > 0) {
-      let maxPage = 1;
       pathPagination.each((_, el) => {
         const href = $(el).attr('href') || '';
         const match = href.match(/\/page\/(\d+)/);

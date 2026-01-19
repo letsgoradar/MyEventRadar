@@ -1,11 +1,9 @@
 import * as cheerio from "cheerio";
-import OpenAI from "openai";
 import { db } from "../db";
 import { aiExtractionProfiles } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { AiProvider } from "./ai-provider";
 
 export interface AiExtractionSelectors {
   eventCard: string;
@@ -50,7 +48,6 @@ export interface AiAnalysisResult {
 
 export class AiHtmlAnalyzer {
   private static readonly MAX_HTML_TOKENS = 4000;
-  private static readonly AI_MODEL = "gpt-4o-mini";
   private static readonly PROMPT_VERSION = "v1.0";
 
   static async analyzeAndExtract(url: string, html: string): Promise<AiAnalysisResult> {
@@ -295,26 +292,20 @@ Antwoord in JSON formaat:
 }`;
 
     try {
-      const response = await openai.chat.completions.create({
-        model: this.AI_MODEL,
-        messages: [
-          {
-            role: "system",
-            content: "Je bent een expert in web scraping en CSS selectors. Analyseer HTML structuren en bepaal de beste selectors om event data te extraheren. Wees specifiek en gebruik relatieve selectors waar mogelijk. Antwoord alleen in JSON.",
-          },
-          { role: "user", content: prompt },
-        ],
+      const result = await AiProvider.complete({
+        systemPrompt: "Je bent een expert in web scraping en CSS selectors. Analyseer HTML structuren en bepaal de beste selectors om event data te extraheren. Wees specifiek en gebruik relatieve selectors waar mogelijk. Antwoord alleen in JSON.",
+        userPrompt: prompt,
+        maxTokens: 500,
         temperature: 0.1,
-        max_tokens: 500,
-        response_format: { type: "json_object" },
+        jsonMode: true,
       });
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error("Geen response van AI");
+      if (!result.success || !result.content) {
+        throw new Error(result.error || "Geen response van AI");
       }
 
-      const parsed = JSON.parse(content);
+      console.log(`[AI Analyzer] Using ${result.provider} for selector analysis`);
+      const parsed = JSON.parse(result.content);
       
       return {
         success: parsed.success === true,
@@ -325,7 +316,7 @@ Antwoord in JSON formaat:
         reasoning: parsed.reasoning,
       };
     } catch (error: any) {
-      console.error('[AI Analyzer] OpenAI error:', error);
+      console.error('[AI Analyzer] AI error:', error);
       return {
         success: false,
         confidence: 0,
@@ -504,7 +495,7 @@ Antwoord in JSON formaat:
             requiresJsRendering,
             lastValidatedAt: new Date(),
             updatedAt: new Date(),
-            aiModel: this.AI_MODEL,
+            aiModel: "gemini-2.5-flash",
             aiPromptVersion: this.PROMPT_VERSION,
           })
           .where(eq(aiExtractionProfiles.domain, domain));
@@ -516,7 +507,7 @@ Antwoord in JSON formaat:
           confidence,
           validatedEvents: eventCount,
           requiresJsRendering,
-          aiModel: this.AI_MODEL,
+          aiModel: "gemini-2.5-flash",
           aiPromptVersion: this.PROMPT_VERSION,
         });
       }

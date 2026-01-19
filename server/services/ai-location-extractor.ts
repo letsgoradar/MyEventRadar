@@ -1,7 +1,5 @@
-import OpenAI from "openai";
 import { VenueService } from "./venue-service";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { AiProvider } from "./ai-provider";
 
 export interface ExtractedLocation {
   venueName?: string;
@@ -20,8 +18,6 @@ export interface LocationExtractionResult {
 }
 
 export class AiLocationExtractor {
-  private static readonly AI_MODEL = "gpt-4o-mini";
-
   static async extractLocationFromText(
     text: string,
     context?: {
@@ -68,29 +64,23 @@ Antwoord alleen in JSON:
   "reasoning": "korte uitleg"
 }`;
 
-      const response = await openai.chat.completions.create({
-        model: this.AI_MODEL,
-        messages: [
-          {
-            role: "system",
-            content: "Je bent een expert in het herkennen van locatie-informatie uit Nederlandse teksten. Focus op venue namen, straatnamen, postcodes en plaatsnamen. Wees conservatief: retourneer alleen informatie waar je zeker van bent.",
-          },
-          { role: "user", content: prompt },
-        ],
+      const result = await AiProvider.complete({
+        systemPrompt: "Je bent een expert in het herkennen van locatie-informatie uit Nederlandse teksten. Focus op venue namen, straatnamen, postcodes en plaatsnamen. Wees conservatief: retourneer alleen informatie waar je zeker van bent.",
+        userPrompt: prompt,
+        maxTokens: 300,
         temperature: 0.1,
-        max_tokens: 300,
-        response_format: { type: "json_object" },
+        jsonMode: true,
       });
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
+      if (!result.success || !result.content) {
         return {
           success: false,
-          error: "Geen response van AI",
+          error: result.error || "Geen response van AI",
         };
       }
 
-      const parsed = JSON.parse(content);
+      console.log(`[AI Location] Using ${result.provider} for location extraction`);
+      const parsed = JSON.parse(result.content);
       
       if (!parsed.success || (!parsed.venueName && !parsed.address && !parsed.city)) {
         return {

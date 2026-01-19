@@ -50,4 +50,4 @@ task = "shell.exec"
 args = "npm run dev"
 
 [agent]
-integrations = ["javascript_websocket:1.0.0", "javascript_openai:1.0.0"]
+integrations = ["javascript_websocket:1.0.0", "javascript_openai:1.0.0", "javascript_gemini_ai_integrations:2.0.0"]

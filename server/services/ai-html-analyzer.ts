@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { db } from "../db";
 import { aiExtractionProfiles } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -40,6 +41,7 @@ export interface AiAnalysisResult {
   }>;
   reasoning?: string;
   error?: string;
+  requiresJsRendering?: boolean;
 }
 
 export class AiHtmlAnalyzer {
@@ -53,7 +55,7 @@ export class AiHtmlAnalyzer {
       
       const cachedProfile = await this.getCachedProfile(domain);
       if (cachedProfile && cachedProfile.confidence >= 70) {
-        console.log(`[AI Analyzer] Using cached profile for ${domain} (confidence: ${cachedProfile.confidence}%)`);
+        console.log(`[AI Analyzer] Using cached profile for ${domain} (confidence: ${cachedProfile.confidence}%, jsRendering: ${cachedProfile.requiresJsRendering})`);
         const result = await this.extractWithSelectors(html, cachedProfile.selectors as AiExtractionSelectors);
         if (result.eventCount >= 3) {
           return {
@@ -64,6 +66,7 @@ export class AiHtmlAnalyzer {
             eventCount: result.eventCount,
             sampleEvents: result.sampleEvents,
             reasoning: "Gebruikt gecachte AI-analyse",
+            requiresJsRendering: cachedProfile.requiresJsRendering ?? false,
           };
         }
       }
@@ -101,9 +104,24 @@ export class AiHtmlAnalyzer {
         };
       }
 
-      const paginationInfo = this.detectPagination(html, url);
+      let paginationInfo = this.detectPagination(html, url);
+      let usedJsRendering = false;
 
-      await this.saveProfile(domain, aiResult.selectors, paginationInfo, validationResult.eventCount);
+      if (paginationInfo.type === 'none') {
+        console.log(`[AI Analyzer] No pagination found in static HTML, trying Puppeteer...`);
+        const puppeteerResult = await fetchRenderedHtml(url, { waitForNetworkIdle: true });
+        
+        if (puppeteerResult.success && puppeteerResult.html) {
+          const jsPaginationInfo = this.detectPagination(puppeteerResult.html, url);
+          if (jsPaginationInfo.type !== 'none') {
+            console.log(`[AI Analyzer] Found pagination via Puppeteer: ${jsPaginationInfo.type} (${jsPaginationInfo.paramName})`);
+            paginationInfo = jsPaginationInfo;
+            usedJsRendering = true;
+          }
+        }
+      }
+
+      await this.saveProfile(domain, aiResult.selectors, paginationInfo, validationResult.eventCount, usedJsRendering);
 
       return {
         success: true,
@@ -113,6 +131,7 @@ export class AiHtmlAnalyzer {
         eventCount: validationResult.eventCount,
         sampleEvents: validationResult.sampleEvents,
         reasoning: aiResult.reasoning,
+        requiresJsRendering: usedJsRendering,
       };
     } catch (error: any) {
       console.error('[AI Analyzer] Error:', error);
@@ -408,7 +427,8 @@ Antwoord in JSON formaat:
     domain: string,
     selectors: AiExtractionSelectors,
     pagination: AiPaginationInfo,
-    eventCount: number
+    eventCount: number,
+    requiresJsRendering: boolean = false
   ) {
     try {
       const existing = await this.getCachedProfile(domain);
@@ -423,6 +443,7 @@ Antwoord in JSON formaat:
             pagination,
             confidence,
             validatedEvents: eventCount,
+            requiresJsRendering,
             lastValidatedAt: new Date(),
             updatedAt: new Date(),
             aiModel: this.AI_MODEL,
@@ -436,12 +457,13 @@ Antwoord in JSON formaat:
           pagination,
           confidence,
           validatedEvents: eventCount,
+          requiresJsRendering,
           aiModel: this.AI_MODEL,
           aiPromptVersion: this.PROMPT_VERSION,
         });
       }
       
-      console.log(`[AI Analyzer] Saved profile for ${domain} with ${eventCount} events (confidence: ${confidence}%)`);
+      console.log(`[AI Analyzer] Saved profile for ${domain} with ${eventCount} events (confidence: ${confidence}%, jsRendering: ${requiresJsRendering})`);
     } catch (error) {
       console.error('[AI Analyzer] Failed to save profile:', error);
     }

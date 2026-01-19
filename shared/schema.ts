@@ -476,6 +476,7 @@ export const aiExtractionProfiles = pgTable("ai_extraction_profiles", {
   }>(),
   confidence: integer("confidence").notNull().default(0), // 0-100
   validatedEvents: integer("validated_events").default(0), // Number of events successfully extracted
+  requiresJsRendering: boolean("requires_js_rendering").default(false), // Whether Puppeteer is needed for this domain
   lastSuccessfulAt: timestamp("last_successful_at"),
   lastValidatedAt: timestamp("last_validated_at"),
   aiModel: text("ai_model"), // e.g., "gpt-4o-mini"

@@ -128,6 +128,21 @@ export function detectJsRenderingNeeded(html: string): boolean {
     }
   }
 
+  const emptyListPatterns = [
+    /<div[^>]*id="filteredList"[^>]*>\s*<\/div>/i,
+    /<div[^>]*class="[^"]*list[^"]*"[^>]*>\s*<\/div>/i,
+    /<div[^>]*class="[^"]*agenda[^"]*list[^"]*"[^>]*>\s*<\/div>/i,
+    /<div[^>]*class="[^"]*events?[^"]*"[^>]*>\s*<\/div>/i,
+    /<ul[^>]*class="[^"]*events?[^"]*"[^>]*>\s*<\/ul>/i,
+  ];
+  
+  for (const pattern of emptyListPatterns) {
+    if (pattern.test(html)) {
+      console.log('[Puppeteer] Detected empty list container - JS rendering likely needed');
+      return true;
+    }
+  }
+
   const scriptTags = (html.match(/<script/gi) || []).length;
   const htmlSize = html.length;
   

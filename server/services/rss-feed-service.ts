@@ -13,6 +13,7 @@ import { VenueService } from "./venue-service";
 import { FeedFieldDetector } from "./feed-field-detector";
 import { AiHtmlAnalyzer, type AiExtractionSelectors, type AiPaginationInfo } from "./ai-html-analyzer";
 import { AiLocationExtractor } from "./ai-location-extractor";
+import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
 
 /**
  * Sanitize XML content to fix common parsing issues.
@@ -4524,6 +4525,7 @@ export class RssFeedService {
    * 2. Next.js __NEXT_DATA__ 
    * 3. JSON-LD structured data (schema.org/Event)
    * 4. Generic HTML parsing with multiple selectors
+   * 5. Puppeteer for JS-rendered pages
    */
   static async scrapeUniversal(feed: RssFeed): Promise<FeedParseResult> {
     const url = feed.url;
@@ -4541,7 +4543,24 @@ export class RssFeedService {
         timeout: 30000
       });
       
-      const html = response.data;
+      let html = response.data;
+      
+      // Check if JS rendering is needed
+      if (detectJsRenderingNeeded(html)) {
+        console.log(`[RSS] JS rendering detected for ${municipality}, using Puppeteer...`);
+        const puppeteerResult = await fetchRenderedHtml(url, { 
+          waitForNetworkIdle: true,
+          timeout: 30000 
+        });
+        
+        if (puppeteerResult.success && puppeteerResult.html) {
+          html = puppeteerResult.html;
+          console.log(`[RSS] Puppeteer rendered ${municipality} in ${puppeteerResult.renderTime}ms`);
+        } else {
+          console.log(`[RSS] Puppeteer failed for ${municipality}: ${puppeteerResult.error}`);
+        }
+      }
+      
       const $ = cheerio.load(html);
       
       // STRATEGY 1: Try WordPress REST API

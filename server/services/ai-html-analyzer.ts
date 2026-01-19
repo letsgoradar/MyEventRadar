@@ -17,6 +17,8 @@ export interface AiExtractionSelectors {
   link?: string;
   description?: string;
   location?: string;
+  venue?: string;
+  address?: string;
 }
 
 export interface AiPaginationInfo {
@@ -38,6 +40,8 @@ export interface AiAnalysisResult {
     link?: string;
     image?: string;
     category?: string;
+    venue?: string;
+    address?: string;
   }>;
   reasoning?: string;
   error?: string;
@@ -265,6 +269,13 @@ Bepaal de beste CSS selectors voor:
 4. link: Relatieve selector voor de link (of "self" als de kaart zelf een link is)
 5. image: Relatieve selector voor de afbeelding
 6. category: Relatieve selector voor de categorie (optioneel)
+7. venue: Relatieve selector voor de locatie/venue naam (bijv. ".location", ".venue", "[class*='locatie']")
+8. address: Relatieve selector voor het adres (bijv. ".address", ".adres", "[class*='address']")
+
+BELANGRIJK: venue en address zijn cruciaal! Zoek ook naar:
+- Locatie-iconen gevolgd door tekst
+- Elementen met 'locatie', 'location', 'venue', 'adres', 'waar' in class/id
+- Adres patronen (straatnaam + nummer, postcode)
 
 Antwoord in JSON formaat:
 {
@@ -275,7 +286,9 @@ Antwoord in JSON formaat:
     "date": "...",
     "link": "...",
     "image": "...",
-    "category": "..."
+    "category": "...",
+    "venue": "...",
+    "address": "..."
   },
   "confidence": 0-100,
   "reasoning": "Korte uitleg van de gekozen strategie"
@@ -365,6 +378,26 @@ Antwoord in JSON formaat:
 
       if (selectors.category) {
         event.category = $card.find(selectors.category).first().text().trim();
+      }
+
+      if (selectors.venue) {
+        event.venue = $card.find(selectors.venue).first().text().trim();
+      }
+      if (!event.venue) {
+        const venueEl = $card.find('[class*="locatie"], [class*="location"], [class*="venue"], [class*="waar"]').first();
+        if (venueEl.length) {
+          event.venue = venueEl.text().trim();
+        }
+      }
+
+      if (selectors.address) {
+        event.address = $card.find(selectors.address).first().text().trim();
+      }
+      if (!event.address) {
+        const addressEl = $card.find('[class*="adres"], [class*="address"]').first();
+        if (addressEl.length) {
+          event.address = addressEl.text().trim();
+        }
       }
 
       if (event.title || event.link) {

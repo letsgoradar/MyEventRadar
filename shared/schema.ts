@@ -492,6 +492,8 @@ export const aiExtractionProfiles = pgTable("ai_extraction_profiles", {
     link?: string; // Relative selector for link/URL
     description?: string; // Relative selector for description
     location?: string; // Relative selector for location
+    venue?: string; // Relative selector for venue name
+    address?: string; // Relative selector for address
   }>().notNull(),
   pagination: jsonb("pagination").$type<{
     type: 'query' | 'path' | 'loadmore' | 'none';

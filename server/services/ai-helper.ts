@@ -1,6 +1,4 @@
-import OpenAI from "openai";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { AiProvider } from "./ai-provider";
 
 interface TitleSuggestion {
   title: string;
@@ -286,11 +284,6 @@ export class AIHelper {
     venue?: string,
     category?: string
   ): Promise<TitleSuggestion | null> {
-    if (!process.env.OPENAI_API_KEY) {
-      console.log("[AI] No OpenAI API key available for title suggestion");
-      return null;
-    }
-
     const cacheKey = `title:${description.substring(0, 100)}`;
     if (titleCache.has(cacheKey)) {
       return titleCache.get(cacheKey)!;
@@ -315,16 +308,17 @@ De titel moet:
 
 Antwoord alleen met de titel, zonder aanhalingstekens of extra tekst.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
+      const response = await AiProvider.complete({
+        systemPrompt: 'Je bent een expert in het schrijven van pakkende evenementtitels.',
+        userPrompt: prompt,
+        maxTokens: 60,
         temperature: 0.3,
-        max_tokens: 60
+        jsonMode: false
       });
 
-      const suggestedTitle = response.choices[0]?.message?.content?.trim();
+      const suggestedTitle = response.content?.trim();
       
-      if (suggestedTitle && suggestedTitle.length > 3 && suggestedTitle.length <= 60) {
+      if (response.success && suggestedTitle && suggestedTitle.length > 3 && suggestedTitle.length <= 60) {
         const result: TitleSuggestion = {
           title: suggestedTitle,
           confidence: 0.9
@@ -346,11 +340,6 @@ Antwoord alleen met de titel, zonder aanhalingstekens of extra tekst.`;
     venueName?: string,
     city: string = "Eindhoven"
   ): Promise<LocationInference | null> {
-    if (!process.env.OPENAI_API_KEY) {
-      console.log("[AI] No OpenAI API key available for location inference");
-      return null;
-    }
-
     const cacheKey = `loc:${title.substring(0, 50)}:${description.substring(0, 100)}`;
     if (locationCache.has(cacheKey)) {
       return locationCache.get(cacheKey)!;
@@ -384,25 +373,21 @@ Antwoord in exact dit JSON formaat (geen markdown, alleen JSON):
 
 Gebruik alleen echte, bestaande locaties in ${city}. Als je niet zeker bent, geef dan een logische locatie met een lagere confidence score (0.3-0.5).`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
+      const response = await AiProvider.complete({
+        systemPrompt: 'Je bent een expert in het bepalen van exacte locaties van evenementen in Nederland.',
+        userPrompt: prompt,
+        maxTokens: 200,
         temperature: 0.2,
-        max_tokens: 200
+        jsonMode: true
       });
 
-      const content = response.choices[0]?.message?.content?.trim();
-      
-      if (content) {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]) as LocationInference;
-          
-          if (parsed.venueName && parsed.address && parsed.confidence > 0) {
-            locationCache.set(cacheKey, parsed);
-            console.log(`[AI] Inferred location: "${parsed.venueName}" at "${parsed.address}" (confidence: ${parsed.confidence})`);
-            return parsed;
-          }
+      if (response.success && response.content) {
+        const parsed = JSON.parse(response.content) as LocationInference;
+        
+        if (parsed.venueName && parsed.address && parsed.confidence > 0) {
+          locationCache.set(cacheKey, parsed);
+          console.log(`[AI] Inferred location: "${parsed.venueName}" at "${parsed.address}" (confidence: ${parsed.confidence})`);
+          return parsed;
         }
       }
     } catch (error: any) {
@@ -422,10 +407,6 @@ Gebruik alleen echte, bestaande locaties in ${city}. Als je niet zeker bent, gee
     englishText: string,
     type: "title" | "description"
   ): Promise<string | null> {
-    if (!process.env.OPENAI_API_KEY) {
-      return null;
-    }
-
     if (!englishText || englishText.length < 3) return null;
 
     const cacheKey = `translate:${type}:${englishText.substring(0, 50)}`;
@@ -450,16 +431,17 @@ ${englishText.substring(0, 1000)}
 
 Antwoord alleen met de Nederlandse vertaling.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
+      const response = await AiProvider.complete({
+        systemPrompt: 'Je bent een vertaler die Engelse evenementteksten naar Nederlands vertaalt.',
+        userPrompt: prompt,
+        maxTokens: type === "title" ? 60 : 500,
         temperature: 0.3,
-        max_tokens: type === "title" ? 60 : 500
+        jsonMode: false
       });
 
-      const translated = response.choices[0]?.message?.content?.trim();
+      const translated = response.content?.trim();
       
-      if (translated && translated.length > 2) {
+      if (response.success && translated && translated.length > 2) {
         titleCache.set(cacheKey, { title: translated, confidence: 1 });
         console.log(`[AI] Translated ${type}: "${englishText.substring(0, 30)}..." -> "${translated.substring(0, 30)}..."`);
         return translated;
@@ -475,10 +457,6 @@ Antwoord alleen met de Nederlandse vertaling.`;
     title: string,
     description: string
   ): Promise<{ title: string; description: string } | null> {
-    if (!process.env.OPENAI_API_KEY) {
-      return null;
-    }
-
     if (!title || title.length < 3) return null;
 
     const cacheKey = `translate:${title.substring(0, 30)}:${description.substring(0, 30)}`;
@@ -501,24 +479,20 @@ Geef je antwoord EXACT in dit JSON formaat (geen markdown):
   "description": "Nederlandse beschrijving (vloeiend, informatief)"
 }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
+      const response = await AiProvider.complete({
+        systemPrompt: 'Je bent een vertaler die Engelse evenementen naar Nederlands vertaalt.',
+        userPrompt: prompt,
+        maxTokens: 600,
         temperature: 0.3,
-        max_tokens: 600
+        jsonMode: true
       });
 
-      const content = response.choices[0]?.message?.content?.trim();
-      
-      if (content) {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]) as { title: string; description: string };
-          if (parsed.title && parsed.description) {
-            translationCache.set(cacheKey, parsed);
-            console.log(`[AI] Translated event: "${title.substring(0, 25)}..." -> "${parsed.title.substring(0, 25)}..."`);
-            return parsed;
-          }
+      if (response.success && response.content) {
+        const parsed = JSON.parse(response.content) as { title: string; description: string };
+        if (parsed.title && parsed.description) {
+          translationCache.set(cacheKey, parsed);
+          console.log(`[AI] Translated event: "${title.substring(0, 25)}..." -> "${parsed.title.substring(0, 25)}..."`);
+          return parsed;
         }
       }
     } catch (error: any) {
@@ -593,7 +567,7 @@ Geef je antwoord EXACT in dit JSON formaat (geen markdown):
       };
     }
     
-    if (useAIFallback && process.env.OPENAI_API_KEY) {
+    if (useAIFallback) {
       console.log(`[Translation] Low confidence, trying AI fallback...`);
       const aiResult = await this.translateEventToNL(title, description);
       if (aiResult) {

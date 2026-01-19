@@ -1,5 +1,4 @@
 import { GoogleGenAI } from "@google/genai";
-import OpenAI from "openai";
 
 const gemini = new GoogleGenAI({
   apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
@@ -8,14 +7,6 @@ const gemini = new GoogleGenAI({
     baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
   },
 });
-
-let openaiInstance: OpenAI | null = null;
-function getOpenAI(): OpenAI | null {
-  if (!openaiInstance && process.env.OPENAI_API_KEY) {
-    openaiInstance = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
-  return openaiInstance;
-}
 
 export interface AiCompletionOptions {
   systemPrompt: string;
@@ -28,48 +19,47 @@ export interface AiCompletionOptions {
 export interface AiCompletionResult {
   success: boolean;
   content?: string;
-  provider: 'gemini' | 'openai';
+  provider: 'gemini';
   error?: string;
 }
 
 export class AiProvider {
   private static readonly GEMINI_MODEL = "gemini-2.5-flash";
-  private static readonly OPENAI_MODEL = "gpt-4o-mini";
+  private static retryCount = 0;
+  private static readonly MAX_RETRIES = 2;
 
   static async complete(options: AiCompletionOptions): Promise<AiCompletionResult> {
     const { systemPrompt, userPrompt, maxTokens = 500, temperature = 0.1, jsonMode = false } = options;
 
-    try {
-      const result = await this.tryGemini(systemPrompt, userPrompt, maxTokens, temperature, jsonMode);
-      if (result.success) {
-        return result;
-      }
-      console.log(`[AI Provider] Gemini failed: ${result.error}, trying OpenAI fallback...`);
-    } catch (error: any) {
-      console.log(`[AI Provider] Gemini error: ${error.message}, trying OpenAI fallback...`);
-    }
-
-    const openai = getOpenAI();
-    if (openai) {
+    let lastError = '';
+    
+    for (let attempt = 0; attempt <= this.MAX_RETRIES; attempt++) {
       try {
-        console.log('[AI Provider] Attempting OpenAI fallback...');
-        return await this.tryOpenAI(systemPrompt, userPrompt, maxTokens, temperature, jsonMode);
+        const result = await this.tryGemini(systemPrompt, userPrompt, maxTokens, temperature, jsonMode);
+        if (result.success) {
+          return result;
+        }
+        lastError = result.error || 'Unknown error';
+        
+        if (attempt < this.MAX_RETRIES) {
+          const delay = Math.pow(2, attempt) * 500;
+          console.log(`[AI Provider] Gemini attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       } catch (error: any) {
-        console.log(`[AI Provider] OpenAI fallback also failed: ${error.message}`);
-        return {
-          success: false,
-          provider: 'openai',
-          error: `Both AI providers failed. OpenAI: ${error.message}`,
-        };
+        lastError = error.message;
+        if (attempt < this.MAX_RETRIES) {
+          const delay = Math.pow(2, attempt) * 500;
+          console.log(`[AI Provider] Gemini error: ${error.message}, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-    } else {
-      console.log('[AI Provider] OpenAI not configured (no API key)');
     }
 
     return {
       success: false,
       provider: 'gemini',
-      error: 'Gemini failed and OpenAI is not configured',
+      error: `Gemini failed after ${this.MAX_RETRIES + 1} attempts: ${lastError}`,
     };
   }
 
@@ -84,14 +74,13 @@ export class AiProvider {
     if (jsonMode) {
       fullPrompt = `${systemPrompt}
 
-CRITICAL INSTRUCTIONS FOR JSON OUTPUT:
-1. You MUST respond with ONLY a valid JSON object
-2. Do NOT include any text before or after the JSON
-3. Do NOT use markdown code blocks (\`\`\`json)
-4. Ensure all strings are properly quoted with double quotes
-5. Ensure all property names are quoted
-6. Do NOT include trailing commas
-7. Start your response with { and end with }
+CRITICAL JSON FORMAT REQUIREMENTS:
+- Respond with ONLY a valid JSON object, nothing else
+- No markdown formatting, no \`\`\`json code blocks
+- All property names must be in double quotes
+- All string values must be in double quotes
+- No trailing commas
+- Your response must start with { and end with }
 
 ${userPrompt}`;
     } else {
@@ -118,38 +107,16 @@ ${userPrompt}`;
 
     let cleanedContent = content;
     if (jsonMode) {
-      cleanedContent = content
-        .replace(/```json\s*/g, '')
-        .replace(/```\s*/g, '')
-        .trim();
+      cleanedContent = this.cleanJsonResponse(content);
       
-      // Try to extract JSON object if response contains extra text
-      const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanedContent = jsonMatch[0];
-      }
-      
-      // Validate JSON before returning
       try {
         JSON.parse(cleanedContent);
       } catch (e) {
-        console.log('[AI Provider] Gemini returned invalid JSON, attempting to fix...');
-        // Try to fix common issues
-        cleanedContent = cleanedContent
-          .replace(/,\s*}/g, '}')  // Remove trailing commas
-          .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
-          .replace(/'/g, '"')       // Replace single quotes with double quotes
-          .replace(/(\w+):/g, '"$1":'); // Quote unquoted keys
-        
-        try {
-          JSON.parse(cleanedContent);
-        } catch (e2) {
-          return {
-            success: false,
-            provider: 'gemini',
-            error: `Invalid JSON from Gemini: ${(e as Error).message}`,
-          };
-        }
+        return {
+          success: false,
+          provider: 'gemini',
+          error: `Invalid JSON: ${(e as Error).message}`,
+        };
       }
     }
 
@@ -160,46 +127,66 @@ ${userPrompt}`;
     };
   }
 
-  private static async tryOpenAI(
-    systemPrompt: string,
-    userPrompt: string,
-    maxTokens: number,
-    temperature: number,
-    jsonMode: boolean
-  ): Promise<AiCompletionResult> {
-    const openaiClient = getOpenAI();
-    if (!openaiClient) {
-      return {
-        success: false,
-        provider: 'openai',
-        error: 'OpenAI not configured',
-      };
+  private static cleanJsonResponse(content: string): string {
+    let cleaned = content
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/gi, '')
+      .trim();
+    
+    // Extract JSON object if response contains extra text
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleaned = jsonMatch[0];
     }
-
-    const response = await openaiClient.chat.completions.create({
-      model: this.OPENAI_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature,
-      max_tokens: maxTokens,
-      ...(jsonMode && { response_format: { type: "json_object" as const } }),
+    
+    // Fix common JSON issues step by step
+    cleaned = cleaned
+      .replace(/\n/g, ' ')
+      .replace(/\r/g, '')
+      .replace(/\t/g, ' ')
+      .replace(/\s+/g, ' ');  // Multiple spaces to single
+    
+    // Try to parse, if fails, attempt fixes
+    try {
+      JSON.parse(cleaned);
+      return cleaned;
+    } catch {}
+    
+    // Fix 1: Remove trailing commas
+    cleaned = cleaned
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']');
+    
+    try {
+      JSON.parse(cleaned);
+      return cleaned;
+    } catch {}
+    
+    // Fix 2: Quote unquoted property names (Gemini often outputs unquoted keys)
+    cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
+    
+    try {
+      JSON.parse(cleaned);
+      return cleaned;
+    } catch {}
+    
+    // Fix 3: Replace single quotes with double quotes
+    cleaned = cleaned.replace(/'/g, '"');
+    
+    try {
+      JSON.parse(cleaned);
+      return cleaned;
+    } catch {}
+    
+    // Fix 4: Handle unescaped quotes in string values (complex fix)
+    // Try to fix double-quoted strings that contain unescaped double quotes
+    cleaned = cleaned.replace(/"([^"]*)"([^:,}\]])/g, (match, p1, p2) => {
+      if (p2 && !':,}]'.includes(p2.trim()[0])) {
+        return `"${p1.replace(/"/g, '\\"')}"${p2}`;
+      }
+      return match;
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      return {
-        success: false,
-        provider: 'openai',
-        error: 'Empty response from OpenAI',
-      };
-    }
-
-    return {
-      success: true,
-      content,
-      provider: 'openai',
-    };
+    
+    return cleaned;
   }
 }

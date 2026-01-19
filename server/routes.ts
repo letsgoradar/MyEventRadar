@@ -9,6 +9,7 @@ import fetch from "node-fetch";
 import rateLimit from "express-rate-limit";
 
 import { setupAuth } from "./auth";
+import { AiProvider } from "./services/ai-provider";
 import { setupVite, serveStatic } from "./vite";
 import { storage } from "./storage";
 import { insertEventSchema, insertUserSchema, insertActivityLogSchema, insertSavedSearchSchema } from "@shared/schema";
@@ -540,57 +541,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { title, excludeTerms } = schema.parse(req.body);
       
-      // Gebruik OpenAI om een Engelse zoekterm te genereren
-      const openaiKey = process.env.OPENAI_API_KEY;
-      
-      if (!openaiKey) {
-        // Fallback: eenvoudige vertaling met hardcoded mappings
-        const fallbackTerm = generateFallbackSearchTerm(title, excludeTerms);
-        return res.json({ searchTerm: fallbackTerm, source: 'fallback' });
-      }
-      
       const excludeClause = excludeTerms.length > 0 
         ? `Do NOT use these terms: ${excludeTerms.join(', ')}.` 
         : '';
       
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${openaiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an expert at generating English search terms for Unsplash photos. 
+      const result = await AiProvider.complete({
+        systemPrompt: `You are an expert at generating English search terms for Unsplash photos. 
 Given a Dutch event title, generate a single, simple English search term (1-3 words) that would find relevant photos.
 Focus on the core activity or subject. Be specific but not too narrow.
 ${excludeClause}
-Respond with ONLY the search term, nothing else.`
-            },
-            {
-              role: 'user',
-              content: title
-            }
-          ],
-          max_tokens: 20,
-          temperature: 0.7,
-        }),
+Respond with ONLY the search term, nothing else.`,
+        userPrompt: title,
+        maxTokens: 20,
+        temperature: 0.7,
+        jsonMode: false
       });
       
-      if (!response.ok) {
-        console.error('OpenAI API error:', response.status);
+      if (!result.success || !result.content) {
         const fallbackTerm = generateFallbackSearchTerm(title, excludeTerms);
         return res.json({ searchTerm: fallbackTerm, source: 'fallback' });
       }
       
-      const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-      const searchTerm = data.choices?.[0]?.message?.content?.trim() || generateFallbackSearchTerm(title, excludeTerms);
+      const searchTerm = result.content.trim();
       
       console.log(`Generated search term for "${title}": "${searchTerm}"`);
-      res.json({ searchTerm, source: 'openai' });
+      res.json({ searchTerm, source: 'gemini' });
     } catch (error) {
       console.error('Error generating search term:', error);
       res.status(500).json({ message: "Internal server error" });

@@ -1,7 +1,6 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import { parseStringPromise } from "xml2js";
-import OpenAI from "openai";
 import { db } from "../db";
 import { feedAnalysisProfiles } from "@shared/schema";
 import { FEED_IMPORT_PRINCIPLES } from "../config/rss-feed-rules";
@@ -9,8 +8,7 @@ import { ContentExtractor } from "./content-extractor";
 import { FeedFieldDetector } from "./feed-field-detector";
 import { AiHtmlAnalyzer } from "./ai-html-analyzer";
 import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { AiProvider } from "./ai-provider";
 
 /**
  * Sanitize XML content to fix common parsing issues.
@@ -1432,10 +1430,6 @@ export class FeedAnalyzerService {
   private static async generateAiRecommendation(
     result: FeedAnalysisResult
   ): Promise<void> {
-    if (!process.env.OPENAI_API_KEY) {
-      return;
-    }
-
     try {
       const alternativesSummary = (result.alternativeSources || []).map(a => ({
         type: a.type,
@@ -1464,15 +1458,18 @@ Schrijf een korte, menselijk leesbare aanbeveling in het Nederlands (max 200 woo
 
 Schrijf in een helpende, duidelijke toon alsof je een collega adviseert. Geen JSON, gewoon tekst.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 500,
+      const response = await AiProvider.complete({
+        systemPrompt: 'Je bent een expert in event feeds en RSS imports.',
+        userPrompt: prompt,
+        maxTokens: 500,
         temperature: 0.7,
+        jsonMode: false
       });
 
-      result.aiRecommendation = response.choices[0].message.content || '';
-      console.log(`[FeedAnalyzer] AI recommendation generated`);
+      if (response.success && response.content) {
+        result.aiRecommendation = response.content;
+        console.log(`[FeedAnalyzer] AI recommendation generated`);
+      }
 
     } catch (error: any) {
       console.error(`[FeedAnalyzer] AI recommendation error:`, error.message);
@@ -1484,19 +1481,12 @@ Schrijf in een helpende, duidelijke toon alsof je een collega adviseert. Geen JS
     url: string, 
     result: FeedAnalysisResult
   ): Promise<void> {
-    if (!process.env.OPENAI_API_KEY) {
-      result.warnings.push('OpenAI API key niet geconfigureerd voor geavanceerde analyse');
-      return;
-    }
-
     try {
       const contentSample = typeof content === 'string' 
         ? content.substring(0, 8000) 
         : JSON.stringify(content).substring(0, 8000);
 
-      const prompt = `Je bent een expert in het analyseren van event feeds en websites.
-
-URL: ${url}
+      const prompt = `URL: ${url}
 
 IMPORT RICHTLIJNEN:
 ${FEED_IMPORT_PRINCIPLES}
@@ -1523,15 +1513,20 @@ Analyseer deze content en geef een JSON response met:
 
 Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start en welke eind is.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        max_tokens: 1000,
+      const response = await AiProvider.complete({
+        systemPrompt: 'Je bent een expert in het analyseren van event feeds en websites.',
+        userPrompt: prompt,
+        maxTokens: 1000,
         temperature: 0.3,
+        jsonMode: true
       });
 
-      const aiResult = JSON.parse(response.choices[0].message.content || '{}');
+      if (!response.success || !response.content) {
+        result.warnings.push(`AI analyse niet beschikbaar: ${response.error || 'geen response'}`);
+        return;
+      }
+
+      const aiResult = JSON.parse(response.content);
       
       result.aiAnalysis = JSON.stringify(aiResult, null, 2);
       

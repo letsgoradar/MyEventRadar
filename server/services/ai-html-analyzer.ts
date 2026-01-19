@@ -52,11 +52,23 @@ export class AiHtmlAnalyzer {
   static async analyzeAndExtract(url: string, html: string): Promise<AiAnalysisResult> {
     try {
       const domain = new URL(url).hostname.replace('www.', '');
+      let workingHtml = html;
+      let usedJsRendering = false;
       
       const cachedProfile = await this.getCachedProfile(domain);
       if (cachedProfile && cachedProfile.confidence >= 70) {
         console.log(`[AI Analyzer] Using cached profile for ${domain} (confidence: ${cachedProfile.confidence}%, jsRendering: ${cachedProfile.requiresJsRendering})`);
-        const result = await this.extractWithSelectors(html, cachedProfile.selectors as AiExtractionSelectors);
+        
+        if (cachedProfile.requiresJsRendering) {
+          console.log(`[AI Analyzer] Profile requires JS rendering, fetching with Puppeteer...`);
+          const puppeteerResult = await fetchRenderedHtml(url, { waitForNetworkIdle: true });
+          if (puppeteerResult.success && puppeteerResult.html) {
+            workingHtml = puppeteerResult.html;
+            usedJsRendering = true;
+          }
+        }
+        
+        const result = await this.extractWithSelectors(workingHtml, cachedProfile.selectors as AiExtractionSelectors);
         if (result.eventCount >= 3) {
           return {
             success: true,
@@ -72,8 +84,22 @@ export class AiHtmlAnalyzer {
       }
 
       console.log(`[AI Analyzer] Running AI analysis for ${domain}`);
-      const simplifiedHtml = this.simplifyHtml(html);
-      const candidateCards = this.findCandidateCards(html);
+      let simplifiedHtml = this.simplifyHtml(workingHtml);
+      let candidateCards = this.findCandidateCards(workingHtml);
+      
+      if (candidateCards.length === 0 && !usedJsRendering) {
+        console.log(`[AI Analyzer] No cards found in static HTML, checking if JS rendering needed...`);
+        if (detectJsRenderingNeeded(html)) {
+          console.log(`[AI Analyzer] JS rendering detected as needed, fetching with Puppeteer...`);
+          const puppeteerResult = await fetchRenderedHtml(url, { waitForNetworkIdle: true });
+          if (puppeteerResult.success && puppeteerResult.html) {
+            workingHtml = puppeteerResult.html;
+            usedJsRendering = true;
+            simplifiedHtml = this.simplifyHtml(workingHtml);
+            candidateCards = this.findCandidateCards(workingHtml);
+          }
+        }
+      }
       
       if (candidateCards.length === 0) {
         return {
@@ -91,7 +117,7 @@ export class AiHtmlAnalyzer {
         return aiResult;
       }
 
-      const validationResult = await this.extractWithSelectors(html, aiResult.selectors);
+      const validationResult = await this.extractWithSelectors(workingHtml, aiResult.selectors);
       
       if (validationResult.eventCount < 3) {
         return {
@@ -104,10 +130,9 @@ export class AiHtmlAnalyzer {
         };
       }
 
-      let paginationInfo = this.detectPagination(html, url);
-      let usedJsRendering = false;
+      let paginationInfo = this.detectPagination(workingHtml, url);
 
-      if (paginationInfo.type === 'none') {
+      if (paginationInfo.type === 'none' && !usedJsRendering) {
         console.log(`[AI Analyzer] No pagination found in static HTML, trying Puppeteer...`);
         const puppeteerResult = await fetchRenderedHtml(url, { waitForNetworkIdle: true });
         

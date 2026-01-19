@@ -4939,6 +4939,10 @@ export class RssFeedService {
       
       // Common event selectors used across different CMSs
       const eventSelectors = [
+        // GoWaalwijk/Leef platform patterns (sport/cultuur portals)
+        '.element-item',
+        '.panel.panel-primary',
+        '.module-list-item-container',
         // VVV platform patterns (vvvbrabantsewal, vvvamersfoort, etc.)
         '.tiles__tile a.link-overlay',
         '.tiles__tile a',

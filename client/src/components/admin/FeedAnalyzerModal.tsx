@@ -17,8 +17,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CATEGORIES } from '@shared/schema';
 import { 
   Check, 
   Loader2, 
@@ -142,7 +140,6 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
   const [showSampleEvent, setShowSampleEvent] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedName, setFeedName] = useState('');
-  const [category, setCategory] = useState<string>('');
 
   const analyzeMutation = useMutation({
     mutationFn: async (urlToAnalyze: string): Promise<ProgressiveAnalysisResult> => {
@@ -170,14 +167,28 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     mutationFn: async () => {
       if (!result?.chosenMethod) return;
       
+      const getFeedType = (methodId: string): string => {
+        switch (methodId) {
+          case 'json-api':
+          case 'json-ld':
+            return 'json';
+          case 'scraper':
+            return 'scraper';
+          case 'rss':
+          case 'atom':
+          default:
+            return 'rss';
+        }
+      };
+      
       return apiRequest('/api/admin/rss-feeds', {
         method: 'POST',
         data: {
           name: feedName || result.suggestedFeedName || 'Nieuwe Feed',
           url: result.chosenMethod.url,
-          feedType: result.chosenMethod.id === 'json-api' ? 'json' : 'rss',
+          feedType: getFeedType(result.chosenMethod.id),
           municipality: result.suggestedMunicipality || '',
-          defaultCategory: category || 'Gezellig en Sociaal',
+          defaultCategory: 'Gezellig en Sociaal',
           autoCreateEvents: true,
           updateFrequencyMinutes: 60,
         },
@@ -216,7 +227,6 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     setShowSampleEvent(false);
     setFeedback('');
     setFeedName('');
-    setCategory('');
     onOpenChange(false);
   };
 
@@ -466,21 +476,6 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
                     </p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Fallback categorie (optioneel)</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger id="category">
-                      <SelectValue placeholder="Kies een categorie" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               {/* Import Rules */}
@@ -608,8 +603,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
           {result?.isComplete && result.chosenMethod && (
             <Button 
               onClick={() => createFeedMutation.mutate()}
-              disabled={createFeedMutation.isPending || !category}
-              title={!category ? 'Selecteer eerst een categorie' : undefined}
+              disabled={createFeedMutation.isPending}
             >
               {createFeedMutation.isPending ? (
                 <>

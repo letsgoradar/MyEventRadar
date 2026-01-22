@@ -820,14 +820,15 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
   useEffect(() => {
     if (result?.isComplete && currentStep === 'analyze') {
-      if (result.chosenMethod?.id === 'scraper' || !result.chosenMethod) {
+      const hasNonScraperSuccess = result.steps?.some(s => s.status === 'success' && s.id !== 'scraper');
+      if (!hasNonScraperSuccess) {
         setCurrentStep('configure');
         setPageContext('overview');
         setIframeLoading(true);
         fetchPageMutation.mutate(overviewUrl);
       }
     }
-  }, [result?.isComplete, result?.chosenMethod]);
+  }, [result?.isComplete, result?.steps]);
 
   const getStepIcon = (status: ProgressiveStep['status']) => {
     switch (status) {
@@ -1470,7 +1471,14 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
         <DialogFooter className="mt-4">
           {currentStep !== 'analyze' && (
-            <Button variant="outline" onClick={() => setCurrentStep(currentStep === 'preview' ? 'configure' : 'analyze')}>
+            <Button variant="outline" onClick={() => {
+              if (currentStep === 'preview') {
+                const usedScraper = selectedMethodId === 'scraper';
+                setCurrentStep(usedScraper ? 'configure' : 'analyze');
+              } else {
+                setCurrentStep('analyze');
+              }
+            }}>
               <ChevronLeft className="w-4 h-4 mr-2" />
               Vorige
             </Button>

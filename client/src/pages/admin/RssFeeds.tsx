@@ -56,6 +56,7 @@ const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'))
 const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
 const FeedAnalyzerModal = lazy(() => import('@/components/admin/FeedAnalyzerModal'));
 const VisualFeedConfigurator = lazy(() => import('@/components/admin/VisualFeedConfigurator'));
+const FeedImportWizard = lazy(() => import('@/components/admin/FeedImportWizard'));
 
 interface RssFeed {
   id: number;
@@ -92,6 +93,7 @@ export default function RssFeedsPage() {
   const [isAnalyzerModalOpen, setIsAnalyzerModalOpen] = useState(false);
   const [isVisualConfiguratorOpen, setIsVisualConfiguratorOpen] = useState(false);
   const [visualConfiguratorUrl, setVisualConfiguratorUrl] = useState('');
+  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
   const [activeTab, setActiveTab] = useState('list');
   
@@ -549,11 +551,19 @@ export default function RssFeedsPage() {
                 Sync Alle Feeds
               </Button>
               <Button 
-                onClick={() => setIsAnalyzerModalOpen(true)}
+                onClick={() => setIsImportWizardOpen(true)}
                 data-testid="button-add-feed"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Nieuwe Feed
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => setIsAnalyzerModalOpen(true)}
+                data-testid="button-analyzer"
+              >
+                <Globe className="w-4 h-4 mr-2" />
+                Feed Analyzer
               </Button>
               <Button 
                 variant="outline"
@@ -1098,6 +1108,17 @@ export default function RssFeedsPage() {
               </Suspense>
             </TabsContent>
           </Tabs>
+
+          <Suspense fallback={null}>
+            <FeedImportWizard 
+              open={isImportWizardOpen} 
+              onOpenChange={setIsImportWizardOpen}
+              onFeedCreated={() => {
+                queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+              }}
+            />
+          </Suspense>
 
           <Suspense fallback={null}>
             <FeedAnalyzerModal 

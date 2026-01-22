@@ -2279,6 +2279,31 @@ Respond with ONLY the search term, nothing else.`,
       // Remove lazy loading classes that might hide images
       html = html.replace(/class="([^"]*)\blazy\b([^"]*)"/gi, 'class="$1$2"');
       html = html.replace(/class="([^"]*)\blazyload\b([^"]*)"/gi, 'class="$1$2"');
+      
+      // Convert relative image URLs to absolute
+      html = html.replace(/src="\/([^"]+)"/gi, `src="${parsedUrl.origin}/$1"`);
+      html = html.replace(/src="\.\/([^"]+)"/gi, `src="${parsedUrl.origin}/$1"`);
+      html = html.replace(/srcset="\/([^"]+)"/gi, `srcset="${parsedUrl.origin}/$1"`);
+      
+      // Also fix background-image URLs
+      html = html.replace(/url\((['"]?)\/([^)]+)\1\)/gi, `url($1${parsedUrl.origin}/$2$1)`);
+      
+      // Limit SVG icon sizes to prevent them from dominating the page
+      const svgStyleFix = `
+        <style>
+          svg:not(.vfc-keep-size) { max-width: 48px !important; max-height: 48px !important; }
+          img { display: block !important; visibility: visible !important; opacity: 1 !important; }
+          img[data-src], img[data-lazy-src] { min-height: 100px; background: #f0f0f0; }
+          .lazy, .lazyload, .lazyloading { opacity: 1 !important; visibility: visible !important; }
+        </style>
+      `;
+      if (html.includes('</head>')) {
+        html = html.replace('</head>', `${svgStyleFix}</head>`);
+      } else if (html.includes('</HEAD>')) {
+        html = html.replace('</HEAD>', `${svgStyleFix}</HEAD>`);
+      } else {
+        html = svgStyleFix + html;
+      }
 
       const suggestedElements: Array<{ selector: string; sampleText: string; tagName: string; count: number }> = [];
       
@@ -2388,6 +2413,124 @@ Respond with ONLY the search term, nothing else.`,
       res.status(500).json({ 
         message: error.message || "Failed to save configuration" 
       });
+    }
+  });
+
+  // Get all saved visual parser configurations
+  app.get("/api/admin/visual-configurator/configs", isAdmin, async (req, res) => {
+    try {
+      const profiles = await storage.getAllAiExtractionProfiles();
+      res.json(profiles);
+    } catch (error: any) {
+      console.error('Error in GET /api/admin/visual-configurator/configs:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch configurations" });
+    }
+  });
+
+  // Delete a visual parser configuration
+  app.delete("/api/admin/visual-configurator/configs/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid configuration ID" });
+      }
+      await storage.deleteAiExtractionProfile(id);
+      res.json({ success: true, message: "Configuratie verwijderd" });
+    } catch (error: any) {
+      console.error('Error in DELETE /api/admin/visual-configurator/configs/:id:', error);
+      res.status(500).json({ message: error.message || "Failed to delete configuration" });
+    }
+  });
+
+  // Test/preview a visual parser configuration - fetch events using the selectors
+  app.post("/api/admin/visual-configurator/test", isAdmin, async (req, res) => {
+    try {
+      const { url, selectors } = req.body;
+      if (!url || !selectors) {
+        return res.status(400).json({ message: "URL en selectors zijn verplicht" });
+      }
+
+      const parsedUrl = new URL(url);
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ message: `Failed to fetch page: ${response.statusText}` });
+      }
+
+      const html = await response.text();
+      
+      // Parse HTML with JSDOM or similar
+      const { JSDOM } = await import('jsdom');
+      const dom = new JSDOM(html);
+      const document = dom.window.document;
+
+      // Find all event cards
+      const eventCards = document.querySelectorAll(selectors.eventCard);
+      const events: Array<{
+        title: string;
+        date: string;
+        location: string;
+        description?: string;
+        image?: string;
+        link?: string;
+        venue?: string;
+      }> = [];
+
+      eventCards.forEach((card: Element, index: number) => {
+        if (index >= 10) return; // Limit to 10 for preview
+        
+        const getText = (selector: string | undefined) => {
+          if (!selector) return undefined;
+          const el = card.querySelector(selector);
+          return el?.textContent?.trim() || undefined;
+        };
+
+        const getAttr = (selector: string | undefined, attr: string) => {
+          if (!selector) return undefined;
+          const el = card.querySelector(selector);
+          return el?.getAttribute(attr) || undefined;
+        };
+
+        const title = getText(selectors.title);
+        const date = getText(selectors.date);
+        const location = getText(selectors.location);
+        
+        if (title && date) {
+          let imageUrl = getAttr(selectors.image, 'src') || 
+                         getAttr(selectors.image, 'data-src') ||
+                         getAttr(selectors.image, 'data-lazy-src');
+          
+          // Convert relative URLs to absolute
+          if (imageUrl && !imageUrl.startsWith('http')) {
+            imageUrl = new URL(imageUrl, parsedUrl.origin).href;
+          }
+
+          events.push({
+            title,
+            date,
+            location: location || 'Locatie onbekend',
+            description: getText(selectors.description),
+            image: imageUrl,
+            link: getAttr(selectors.link, 'href'),
+            venue: getText(selectors.venue),
+          });
+        }
+      });
+
+      res.json({
+        success: true,
+        totalFound: eventCards.length,
+        previewEvents: events,
+        message: `${eventCards.length} events gevonden, ${events.length} met volledige data`,
+      });
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/visual-configurator/test:', error);
+      res.status(500).json({ message: error.message || "Failed to test configuration" });
     }
   });
 

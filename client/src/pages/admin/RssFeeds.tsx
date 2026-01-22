@@ -45,7 +45,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles, Crosshair } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles, Crosshair, FileCode } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
@@ -117,6 +117,43 @@ export default function RssFeedsPage() {
 
   const { data: feedOverview = {} } = useQuery<Record<number, { totalActive: number; incomplete: number; addedLastSync: number; lastSyncDate: string | null }>>({
     queryKey: ['/api/admin/rss-feeds/overview'],
+  });
+
+  // Fetch saved visual parser configurations
+  interface ParserConfig {
+    id: number;
+    domain: string;
+    pathPattern: string;
+    selectors: Record<string, string>;
+    municipality?: string;
+    confidence: number;
+    updatedAt: string;
+  }
+  
+  const { data: parserConfigs = [], isLoading: isLoadingParsers } = useQuery<ParserConfig[]>({
+    queryKey: ['/api/admin/visual-configurator/configs'],
+  });
+
+  const deleteParserMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/admin/visual-configurator/configs/${id}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/visual-configurator/configs'] });
+      toast({
+        title: 'Parser verwijderd',
+        description: 'De visuele parser configuratie is verwijderd.',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Fout',
+        description: 'Er is een fout opgetreden bij het verwijderen.',
+        variant: 'destructive',
+      });
+    },
   });
 
   const createFeedMutation = useMutation({
@@ -783,6 +820,10 @@ export default function RssFeedsPage() {
                 <List className="w-4 h-4" />
                 Feeds ({feeds.length})
               </TabsTrigger>
+              <TabsTrigger value="parsers" className="flex items-center gap-2" data-testid="tab-parsers">
+                <FileCode className="w-4 h-4" />
+                Parsers ({parserConfigs.length})
+              </TabsTrigger>
               <TabsTrigger value="map" className="flex items-center gap-2">
                 <Map className="w-4 h-4" />
                 Kaart
@@ -1034,6 +1075,112 @@ export default function RssFeedsPage() {
               </CardContent>
             </Card>
           )}
+            </TabsContent>
+
+            <TabsContent value="parsers">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileCode className="w-5 h-5" />
+                    Visuele Parser Configuraties
+                  </CardTitle>
+                  <CardDescription>
+                    Opgeslagen configuraties voor het scrapen van event websites. Deze parsers worden gebruikt om automatisch events te extraheren.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingParsers ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    </div>
+                  ) : parserConfigs.length === 0 ? (
+                    <div className="text-center py-8">
+                      <FileCode className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Nog geen parsers</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Gebruik de Visuele Configurator om een parser aan te maken.
+                      </p>
+                      <Button onClick={() => setIsVisualConfiguratorOpen(true)}>
+                        <Crosshair className="w-4 h-4 mr-2" />
+                        Nieuwe Parser
+                      </Button>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Domein</TableHead>
+                          <TableHead>Gemeente</TableHead>
+                          <TableHead>Velden</TableHead>
+                          <TableHead>Laatst bijgewerkt</TableHead>
+                          <TableHead className="w-[100px]">Acties</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {parserConfigs.map((config) => (
+                          <TableRow key={config.id}>
+                            <TableCell>
+                              <div className="font-medium">{config.domain}</div>
+                              <div className="text-xs text-muted-foreground">{config.pathPattern}</div>
+                            </TableCell>
+                            <TableCell>
+                              {config.municipality ? (
+                                <Badge variant="outline">{config.municipality}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {Object.keys(config.selectors || {}).filter(k => config.selectors[k]).map(field => (
+                                  <Badge key={field} variant="secondary" className="text-xs">
+                                    {field}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {config.updatedAt ? format(new Date(config.updatedAt), 'dd MMM yyyy HH:mm', { locale: nl }) : '-'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(`https://${config.domain}${config.pathPattern}`, '_blank')}
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <Trash2 className="w-4 h-4 text-destructive" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Parser verwijderen?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Weet je zeker dat je de parser voor {config.domain} wilt verwijderen?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => deleteParserMutation.mutate(config.id)}>
+                                        Verwijderen
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="incomplete">

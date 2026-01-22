@@ -143,6 +143,7 @@ export interface IStorage {
   getAiExtractionProfileByDomain(domain: string): Promise<AiExtractionProfile | undefined>;
   getAiExtractionProfileByDomainAndPath(domain: string, pathPattern: string): Promise<AiExtractionProfile | undefined>;
   updateAiExtractionProfile(id: number, profile: Partial<AiExtractionProfile>): Promise<AiExtractionProfile>;
+  deleteAiExtractionProfile(id: number): Promise<void>;
   getAllAiExtractionProfiles(): Promise<AiExtractionProfile[]>;
 
   // Public data operations
@@ -946,6 +947,12 @@ export class PgStorage implements IStorage {
         .where(eq(aiExtractionProfiles.id, id))
         .returning();
       return updated;
+    });
+  }
+
+  async deleteAiExtractionProfile(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(aiExtractionProfiles).where(eq(aiExtractionProfiles.id, id));
     });
   }
 

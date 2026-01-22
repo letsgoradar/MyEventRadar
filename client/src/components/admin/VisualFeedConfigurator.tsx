@@ -111,6 +111,7 @@ function MunicipalitySearch({ value, onChange }: { value: string; onChange: (val
   const [search, setSearch] = useState(value || '');
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     if (value && value !== search) {
@@ -118,13 +119,16 @@ function MunicipalitySearch({ value, onChange }: { value: string; onChange: (val
     }
   }, [value]);
   
+  // Filter municipalities - show all when search is empty
   const filteredMunicipalities = DUTCH_MUNICIPALITIES
-    .filter(m => 
-      m.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.province.toLowerCase().includes(search.toLowerCase())
-    )
+    .filter(m => {
+      if (!search.trim()) return true; // Show all when empty
+      const searchLower = search.toLowerCase();
+      return m.name.toLowerCase().includes(searchLower) ||
+             m.province.toLowerCase().includes(searchLower);
+    })
     .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(0, 50);
+    .slice(0, 100); // Show more results
 
   const handleSelect = (municipality: Municipality) => {
     setSearch(municipality.name);
@@ -132,42 +136,69 @@ function MunicipalitySearch({ value, onChange }: { value: string; onChange: (val
     setIsOpen(false);
   };
 
+  const handleClear = () => {
+    setSearch('');
+    onChange('');
+    inputRef.current?.focus();
+  };
+
   return (
     <div className="relative">
-      <Input
-        ref={inputRef}
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setIsOpen(true);
-        }}
-        onFocus={() => setIsOpen(true)}
-        placeholder="Zoek gemeente..."
-        className="h-8 text-xs"
-      />
-      {isOpen && search.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-auto">
-          {filteredMunicipalities.length === 0 ? (
-            <div className="p-2 text-xs text-muted-foreground">Geen gemeentes gevonden</div>
-          ) : (
-            filteredMunicipalities.map((m) => (
-              <div
-                key={m.name}
-                className="px-3 py-2 text-xs cursor-pointer hover:bg-accent flex justify-between"
-                onClick={() => handleSelect(m)}
-              >
-                <span className="font-medium">{m.name}</span>
-                <span className="text-muted-foreground">{m.province}</span>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setIsOpen(false)}
+      <div className="relative">
+        <Input
+          ref={inputRef}
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          placeholder="Typ om te zoeken in 342 gemeentes..."
+          className="h-8 text-xs pr-8"
         />
+        {search && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setIsOpen(false)}
+          />
+          <div 
+            ref={dropdownRef}
+            className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-64 overflow-auto"
+          >
+            <div className="sticky top-0 bg-gray-50 px-3 py-1 text-xs text-muted-foreground border-b">
+              {filteredMunicipalities.length} van {DUTCH_MUNICIPALITIES.length} gemeentes
+            </div>
+            {filteredMunicipalities.length === 0 ? (
+              <div className="p-3 text-xs text-muted-foreground text-center">
+                Geen gemeentes gevonden voor "{search}"
+              </div>
+            ) : (
+              filteredMunicipalities.map((m) => (
+                <div
+                  key={m.name}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-accent flex justify-between ${
+                    m.name === value ? 'bg-accent' : ''
+                  }`}
+                  onClick={() => handleSelect(m)}
+                >
+                  <span className="font-medium">{m.name}</span>
+                  <span className="text-muted-foreground">{m.province}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </>
       )}
     </div>
   );
@@ -188,6 +219,17 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
   const [messageNonce] = useState(() => generateNonce());
   const [selectedMunicipality, setSelectedMunicipality] = useState<string>('');
   const [suggestedMunicipality, setSuggestedMunicipality] = useState<string>('');
+  const [previewEvents, setPreviewEvents] = useState<Array<{
+    title: string;
+    date: string;
+    location: string;
+    description?: string;
+    image?: string;
+    link?: string;
+    venue?: string;
+  }>>([]);
+  const [totalEventsFound, setTotalEventsFound] = useState<number>(0);
+  const [showPreviewPanel, setShowPreviewPanel] = useState(false);
 
   const fetchPageMutation = useMutation({
     mutationFn: async (pageUrl: string) => {
@@ -341,6 +383,45 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
       return;
     }
     saveConfigMutation.mutate();
+  };
+
+  // Test/preview events mutation
+  const testEventsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('/api/admin/visual-configurator/test', {
+        method: 'POST',
+        data: { url, selectors },
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      setPreviewEvents(data.previewEvents || []);
+      setTotalEventsFound(data.totalFound || 0);
+      setShowPreviewPanel(true);
+      toast({
+        title: 'Events gevonden',
+        description: data.message || `${data.totalFound} events gevonden`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Test mislukt',
+        description: error.message || 'Kon events niet ophalen.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleTestEvents = () => {
+    if (!selectors.eventCard || !selectors.title || !selectors.date) {
+      toast({
+        title: 'Configuratie incompleet',
+        description: 'Configureer minimaal Event Card, Titel en Datum voordat je test.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    testEventsMutation.mutate();
   };
 
   const injectHighlightScript = () => {
@@ -694,8 +775,9 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
                   ref={iframeRef}
                   srcDoc={pageHtml + injectHighlightScript()}
                   className="w-full h-full"
-                  sandbox="allow-scripts"
+                  sandbox="allow-scripts allow-same-origin"
                   title="Page Preview"
+                  referrerPolicy="no-referrer"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -709,6 +791,56 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
           </div>
         </div>
 
+        {/* Event Preview Panel */}
+        {showPreviewPanel && previewEvents.length > 0 && (
+          <Card className="mt-4 max-h-56 overflow-auto">
+            <CardHeader className="py-2">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  Preview: {totalEventsFound} events gevonden op deze pagina
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => setShowPreviewPanel(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="py-2">
+              <div className="grid grid-cols-3 gap-2">
+                {previewEvents.slice(0, 6).map((event, idx) => (
+                  <div key={idx} className="border rounded p-2 text-xs">
+                    <div className="font-medium truncate">{event.title}</div>
+                    <div className="text-muted-foreground flex items-center gap-1 mt-1">
+                      <Calendar className="h-3 w-3" />
+                      {event.date}
+                    </div>
+                    <div className="text-muted-foreground flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {event.location || 'Geen locatie'}
+                    </div>
+                    {event.image ? (
+                      <img src={event.image} alt="" className="mt-1 h-12 w-full object-cover rounded" />
+                    ) : (
+                      <div className="mt-1 h-12 bg-muted rounded flex items-center justify-center text-muted-foreground">
+                        Stock foto
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {totalEventsFound > 0 && (
+                <Alert className="mt-3">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle className="text-xs">Paginering Tip</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    Er zijn {totalEventsFound} events gevonden op deze pagina. De parser zoekt automatisch naar paginering links om meer events te vinden tijdens synchronisatie. Events zonder afbeelding krijgen een stock foto.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <DialogFooter className="flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
             {Object.values(selectors).filter(Boolean).length} van {FIELD_CONFIG.length + 1} velden geconfigureerd
@@ -716,6 +848,18 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>
               Annuleren
+            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={handleTestEvents} 
+              disabled={!selectors.eventCard || !selectors.title || !selectors.date || testEventsMutation.isPending}
+            >
+              {testEventsMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Eye className="h-4 w-4 mr-2" />
+              )}
+              Test Events
             </Button>
             <Button onClick={handleSave} disabled={!canSave() || saveConfigMutation.isPending}>
               {saveConfigMutation.isPending ? (

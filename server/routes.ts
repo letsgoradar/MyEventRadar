@@ -2356,6 +2356,7 @@ Respond with ONLY the search term, nothing else.`,
         image: typeof selectors.image === 'string' ? selectors.image : undefined,
         link: typeof selectors.link === 'string' ? selectors.link : undefined,
         venue: typeof selectors.venue === 'string' ? selectors.venue : undefined,
+        venueDescription: typeof selectors.venueDescription === 'string' ? selectors.venueDescription : undefined,
         address: typeof selectors.address === 'string' ? selectors.address : undefined,
       };
 

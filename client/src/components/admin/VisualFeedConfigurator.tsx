@@ -48,7 +48,7 @@ import {
   Building2,
   Map,
 } from 'lucide-react';
-import { CITIES, PROVINCES } from '@shared/cities';
+import { DUTCH_MUNICIPALITIES, type Municipality } from '@shared/dutch-municipalities';
 
 interface EventPrinciple {
   id: string;
@@ -69,6 +69,7 @@ interface SelectorConfig {
   time?: string;
   location?: string;
   venue?: string;
+  venueDescription?: string;
   address?: string;
   image?: string;
   link?: string;
@@ -96,6 +97,7 @@ const FIELD_CONFIG: { id: keyof Omit<SelectorConfig, 'eventCard'>; name: string;
   { id: 'time', name: 'Tijd', required: false, description: 'Start- en eindtijd (alleen als 100% zeker)', icon: <Clock className="h-4 w-4" /> },
   { id: 'location', name: 'Locatie', required: true, description: 'GPS of geocodeerbaar adres', icon: <MapPin className="h-4 w-4" /> },
   { id: 'venue', name: 'Venue', required: false, description: 'Naam van de locatie/zaal (bijv. "Paradiso", "De Oosterpoort")', icon: <Building2 className="h-4 w-4" /> },
+  { id: 'venueDescription', name: 'Venue Omschrijving', required: false, description: 'Beschrijving of info over de venue', icon: <Building2 className="h-4 w-4" /> },
   { id: 'description', name: 'Beschrijving', required: false, description: 'Omschrijving van het event', icon: <FileText className="h-4 w-4" /> },
   { id: 'image', name: 'Afbeelding', required: false, description: 'Afbeelding URL (voorkeur bron)', icon: <ImageIcon className="h-4 w-4" /> },
   { id: 'link', name: 'Link', required: false, description: 'Externe URL naar event', icon: <LinkIcon className="h-4 w-4" /> },
@@ -104,6 +106,72 @@ const FIELD_CONFIG: { id: keyof Omit<SelectorConfig, 'eventCard'>; name: string;
 const generateNonce = () => {
   return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
+
+function MunicipalitySearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [search, setSearch] = useState(value || '');
+  const [isOpen, setIsOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  useEffect(() => {
+    if (value && value !== search) {
+      setSearch(value);
+    }
+  }, [value]);
+  
+  const filteredMunicipalities = DUTCH_MUNICIPALITIES
+    .filter(m => 
+      m.name.toLowerCase().includes(search.toLowerCase()) ||
+      m.province.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 50);
+
+  const handleSelect = (municipality: Municipality) => {
+    setSearch(municipality.name);
+    onChange(municipality.name);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <Input
+        ref={inputRef}
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => setIsOpen(true)}
+        placeholder="Zoek gemeente..."
+        className="h-8 text-xs"
+      />
+      {isOpen && search.length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-auto">
+          {filteredMunicipalities.length === 0 ? (
+            <div className="p-2 text-xs text-muted-foreground">Geen gemeentes gevonden</div>
+          ) : (
+            filteredMunicipalities.map((m) => (
+              <div
+                key={m.name}
+                className="px-3 py-2 text-xs cursor-pointer hover:bg-accent flex justify-between"
+                onClick={() => handleSelect(m)}
+              >
+                <span className="font-medium">{m.name}</span>
+                <span className="text-muted-foreground">{m.province}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
 
 export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '', onSave }: VisualFeedConfiguratorProps) {
   const { toast } = useToast();
@@ -135,15 +203,16 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
       
       // Try to suggest municipality based on URL domain
       const domain = data.domain?.toLowerCase() || '';
-      const matchedCity = CITIES.find(city => 
-        domain.includes(city.slug.replace(/-/g, '')) || 
-        domain.includes(city.name.toLowerCase().replace(/[^a-z]/g, ''))
-      );
-      if (matchedCity) {
-        setSuggestedMunicipality(matchedCity.name);
+      const matchedMunicipality = DUTCH_MUNICIPALITIES.find(m => {
+        const nameNormalized = m.name.toLowerCase().replace(/[^a-z]/g, '');
+        const nameWithDashes = m.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z-]/g, '');
+        return domain.includes(nameNormalized) || domain.includes(nameWithDashes);
+      });
+      if (matchedMunicipality) {
+        setSuggestedMunicipality(matchedMunicipality.name);
         toast({
           title: 'Pagina geladen',
-          description: `Gemeente "${matchedCity.name}" gedetecteerd. Pas aan indien nodig.`,
+          description: `Gemeente "${matchedMunicipality.name}" gedetecteerd. Pas aan indien nodig.`,
         });
       } else {
         toast({
@@ -279,6 +348,45 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
       <script>
         const VFC_NONCE = '${messageNonce}';
         let activeSelector = '';
+        
+        // Fix lazy-loaded images to make them visible and selectable
+        (function fixImages() {
+          document.querySelectorAll('img').forEach(img => {
+            // Convert lazy-load attributes to src
+            const lazySrc = img.getAttribute('data-src') || 
+                           img.getAttribute('data-lazy-src') || 
+                           img.getAttribute('data-original') ||
+                           img.getAttribute('data-lazy') ||
+                           img.getAttribute('data-srcset');
+            // Check if current src is empty, missing, or a placeholder
+            const currentSrc = img.src || '';
+            const isPlaceholder = !currentSrc || 
+                                  currentSrc.includes('placeholder') || 
+                                  currentSrc.includes('blank') ||
+                                  currentSrc.includes('data:image') ||
+                                  currentSrc.includes('1x1') ||
+                                  currentSrc.endsWith('.gif') && currentSrc.includes('pixel');
+            if (lazySrc && (isPlaceholder || !img.src)) {
+              img.src = lazySrc;
+            }
+            // Make all images visible
+            img.style.visibility = 'visible';
+            img.style.opacity = '1';
+            img.style.display = img.style.display === 'none' ? 'block' : img.style.display;
+            // Remove loading="lazy" to force load
+            img.removeAttribute('loading');
+            // Add min dimensions if image is too small
+            if (!img.style.minWidth) {
+              img.style.minWidth = '50px';
+              img.style.minHeight = '50px';
+            }
+          });
+          // Also handle background images in style
+          document.querySelectorAll('[style*="background"]').forEach(el => {
+            el.style.visibility = 'visible';
+            el.style.opacity = '1';
+          });
+        })();
         
         function highlightElements(selector) {
           document.querySelectorAll('.vfc-highlight').forEach(el => {
@@ -520,21 +628,10 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
                     Suggestie: {suggestedMunicipality}
                   </div>
                 )}
-                <Select 
-                  value={selectedMunicipality || suggestedMunicipality} 
-                  onValueChange={setSelectedMunicipality}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecteer gemeente..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {CITIES.sort((a, b) => a.name.localeCompare(b.name)).map((city) => (
-                      <SelectItem key={city.slug} value={city.name} className="text-xs">
-                        {city.name} ({city.province})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MunicipalitySearch
+                  value={selectedMunicipality || suggestedMunicipality || ''}
+                  onChange={setSelectedMunicipality}
+                />
               </CardContent>
             </Card>
 

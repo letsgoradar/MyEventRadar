@@ -54,8 +54,6 @@ import { lazy, Suspense } from 'react';
 
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
 const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
-const FeedAnalyzerModal = lazy(() => import('@/components/admin/FeedAnalyzerModal'));
-const VisualFeedConfigurator = lazy(() => import('@/components/admin/VisualFeedConfigurator'));
 const FeedImportWizard = lazy(() => import('@/components/admin/FeedImportWizard'));
 
 interface RssFeed {
@@ -90,9 +88,6 @@ export default function RssFeedsPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isAnalyzerModalOpen, setIsAnalyzerModalOpen] = useState(false);
-  const [isVisualConfiguratorOpen, setIsVisualConfiguratorOpen] = useState(false);
-  const [visualConfiguratorUrl, setVisualConfiguratorUrl] = useState('');
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
   const [activeTab, setActiveTab] = useState('list');
@@ -557,22 +552,6 @@ export default function RssFeedsPage() {
                 <Sparkles className="w-4 h-4 mr-2" />
                 Nieuwe Feed
               </Button>
-              <Button 
-                variant="outline"
-                onClick={() => setIsAnalyzerModalOpen(true)}
-                data-testid="button-analyzer"
-              >
-                <Globe className="w-4 h-4 mr-2" />
-                Feed Analyzer
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => setIsVisualConfiguratorOpen(true)}
-                data-testid="button-visual-configurator"
-              >
-                <Crosshair className="w-4 h-4 mr-2" />
-                Visuele Configurator
-              </Button>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="sm" data-testid="button-add-feed-manual">
@@ -1034,20 +1013,7 @@ export default function RssFeedsPage() {
                             >
                               <RefreshCw className={`w-4 h-4 ${syncingFeedId === feed.id ? 'animate-spin' : ''}`} />
                             </Button>
-                            {feed.feedType === 'scraper' && (
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => {
-                                  setVisualConfiguratorUrl(feed.url);
-                                  setIsVisualConfiguratorOpen(true);
-                                }}
-                                title="Parser configuratie bewerken"
-                              >
-                                <Crosshair className="w-4 h-4 text-purple-600" />
-                              </Button>
-                            )}
-                            <Button 
+                                                        <Button 
                               variant="ghost" 
                               size="icon"
                               onClick={() => updateFeedMutation.mutate({ 
@@ -1120,39 +1086,7 @@ export default function RssFeedsPage() {
             />
           </Suspense>
 
-          <Suspense fallback={null}>
-            <FeedAnalyzerModal 
-              open={isAnalyzerModalOpen} 
-              onOpenChange={setIsAnalyzerModalOpen}
-              onFeedCreated={() => {
-                queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
-                queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
-              }}
-              onOpenVisualConfigurator={(url) => {
-                setVisualConfiguratorUrl(url);
-                setIsVisualConfiguratorOpen(true);
-              }}
-            />
-          </Suspense>
-
-          <Suspense fallback={null}>
-            <VisualFeedConfigurator 
-              isOpen={isVisualConfiguratorOpen} 
-              onClose={() => {
-                setIsVisualConfiguratorOpen(false);
-                setVisualConfiguratorUrl('');
-              }}
-              initialUrl={visualConfiguratorUrl}
-              onSave={(config) => {
-                toast({
-                  title: 'Configuratie opgeslagen',
-                  description: 'De visuele feed configuratie is succesvol opgeslagen.',
-                });
-                console.log('Visual configurator config:', config);
-              }}
-            />
-          </Suspense>
-        </div>
+                  </div>
       </main>
     </div>
   );

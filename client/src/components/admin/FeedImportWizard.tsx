@@ -749,7 +749,7 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
         </div>
       )}
       
-      <div className="flex gap-4 h-[450px]">
+      <div className="flex gap-4 h-[calc(95vh-280px)]">
         <div className="flex-1 border rounded-lg overflow-hidden relative">
           {iframeLoading && (
             <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
@@ -942,7 +942,7 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${currentStep === 'configure' ? 'max-w-6xl' : 'max-w-2xl'} max-h-[90vh] overflow-hidden flex flex-col`}>
+      <DialogContent className={`${currentStep === 'configure' ? 'max-w-[95vw] w-[95vw]' : 'max-w-2xl'} max-h-[95vh] overflow-hidden flex flex-col`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5" />

@@ -1532,8 +1532,10 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
           {currentStep !== 'analyze' && (
             <Button variant="outline" onClick={() => {
               if (currentStep === 'preview') {
-                const usedScraper = selectedMethodId === 'scraper';
-                setCurrentStep(usedScraper ? 'configure' : 'analyze');
+                setCurrentStep('configure');
+                setPageContext('overview');
+                setIframeLoading(true);
+                fetchPageMutation.mutate(overviewUrl);
               } else {
                 setCurrentStep('analyze');
               }

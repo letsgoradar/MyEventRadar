@@ -38,6 +38,7 @@ import {
   RefreshCw,
   Eye,
   Crosshair,
+  Building2,
 } from 'lucide-react';
 
 interface EventPrinciple {
@@ -85,6 +86,7 @@ const FIELD_CONFIG: { id: keyof Omit<SelectorConfig, 'eventCard'>; name: string;
   { id: 'date', name: 'Datum', required: true, description: 'Startdatum (en eventueel einddatum)', icon: <Calendar className="h-4 w-4" /> },
   { id: 'time', name: 'Tijd', required: false, description: 'Start- en eindtijd (alleen als 100% zeker)', icon: <Clock className="h-4 w-4" /> },
   { id: 'location', name: 'Locatie', required: true, description: 'GPS of geocodeerbaar adres', icon: <MapPin className="h-4 w-4" /> },
+  { id: 'venue', name: 'Venue', required: false, description: 'Naam van de locatie/zaal (bijv. "Paradiso", "De Oosterpoort")', icon: <Building2 className="h-4 w-4" /> },
   { id: 'description', name: 'Beschrijving', required: false, description: 'Omschrijving van het event', icon: <FileText className="h-4 w-4" /> },
   { id: 'image', name: 'Afbeelding', required: false, description: 'Afbeelding URL (voorkeur bron)', icon: <ImageIcon className="h-4 w-4" /> },
   { id: 'link', name: 'Link', required: false, description: 'Externe URL naar event', icon: <LinkIcon className="h-4 w-4" /> },
@@ -412,6 +414,9 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
                           <AlertCircle className="h-4 w-4 text-red-500" />
                         )}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Het container-element dat één evenement omvat. Klik op het blok/kaart dat alle info van één event bevat (titel, datum, locatie etc.).
+                      </p>
                       {selectors.eventCard && (
                         <code className="text-xs text-muted-foreground mt-1 block truncate">
                           {selectors.eventCard}

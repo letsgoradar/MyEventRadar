@@ -2266,6 +2266,19 @@ Respond with ONLY the search term, nothing else.`,
       } else if (html.includes('<HEAD>')) {
         html = html.replace('<HEAD>', `<HEAD>${baseTag}`);
       }
+      
+      // Convert lazy-loaded images to regular images
+      html = html.replace(/data-src="([^"]+)"/gi, 'src="$1"');
+      html = html.replace(/data-lazy-src="([^"]+)"/gi, 'src="$1"');
+      html = html.replace(/data-original="([^"]+)"/gi, 'src="$1"');
+      html = html.replace(/loading="lazy"/gi, 'loading="eager"');
+      
+      // Convert srcset lazy loading
+      html = html.replace(/data-srcset="([^"]+)"/gi, 'srcset="$1"');
+      
+      // Remove lazy loading classes that might hide images
+      html = html.replace(/class="([^"]*)\blazy\b([^"]*)"/gi, 'class="$1$2"');
+      html = html.replace(/class="([^"]*)\blazyload\b([^"]*)"/gi, 'class="$1$2"');
 
       const suggestedElements: Array<{ selector: string; sampleText: string; tagName: string; count: number }> = [];
       

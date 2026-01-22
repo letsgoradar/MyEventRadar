@@ -1874,6 +1874,35 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  app.post("/api/admin/rss-feeds/preview", isAdmin, async (req, res) => {
+    try {
+      const { url, feedType, municipality, scraperConfig } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ message: "URL is verplicht" });
+      }
+
+      const { RssFeedService } = await import('./services/rss-feed-service');
+      
+      const result = await RssFeedService.previewFeed({
+        url,
+        feedType: feedType || 'rss',
+        municipality,
+        scraperConfig
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/rss-feeds/preview:', error);
+      res.status(500).json({ 
+        success: false,
+        items: [],
+        summary: { total: 0, complete: 0, incomplete: 0, missingFieldsCounts: {} },
+        error: error.message || "Er is een fout opgetreden bij de preview."
+      });
+    }
+  });
+
   // Get sync progress for a feed
   app.get("/api/admin/rss-feeds/:id/sync-progress", isAdmin, async (req, res) => {
     const feedId = parseInt(req.params.id);

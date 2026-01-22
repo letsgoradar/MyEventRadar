@@ -137,6 +137,34 @@ interface SelectorConfig {
   category?: string;
 }
 
+interface PreviewEventItem {
+  title: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  imageUrl?: string;
+  link?: string;
+  isComplete: boolean;
+  missingFields: string[];
+  validationIssues: string[];
+}
+
+interface PreviewResult {
+  success: boolean;
+  items: PreviewEventItem[];
+  summary: {
+    total: number;
+    complete: number;
+    incomplete: number;
+    missingFieldsCounts: Record<string, number>;
+  };
+  error?: string;
+}
+
 interface FeedAnalyzerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -306,6 +334,8 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     link?: string;
   }>>([]);
   const [totalEventsFound, setTotalEventsFound] = useState<number>(0);
+  
+  const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
 
   const analyzeMutation = useMutation({
     mutationFn: async (urlToAnalyze: string): Promise<ProgressiveAnalysisResult> => {
@@ -443,25 +473,97 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
   const testEventsMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('/api/admin/visual-configurator/test', {
+      const testResponse = await apiRequest('/api/admin/visual-configurator/test', {
         method: 'POST',
         data: { url: overviewUrl, selectors },
       });
-      return response;
-    },
-    onSuccess: (data: any) => {
-      setPreviewEvents(data.previewEvents || []);
-      setTotalEventsFound(data.totalFound || 0);
-      setCurrentStep('preview');
-      toast({
-        title: 'Events gevonden',
-        description: `${data.totalFound} events gevonden op de overzichtspagina`,
+      
+      setPreviewEvents(testResponse.previewEvents || []);
+      setTotalEventsFound(testResponse.totalFound || 0);
+      
+      const previewResponse = await apiRequest('/api/admin/rss-feeds/preview', {
+        method: 'POST',
+        data: { 
+          url: overviewUrl,
+          feedType: 'scraper',
+          municipality: selectedMunicipality || result?.suggestedMunicipality || '',
+          scraperConfig: selectors,
+        },
       });
+      
+      return previewResponse;
+    },
+    onSuccess: (data: PreviewResult) => {
+      setPreviewResult(data);
+      setCurrentStep('preview');
+      
+      if (data.success) {
+        const description = data.summary.incomplete > 0 
+          ? `${data.summary.complete} compleet, ${data.summary.incomplete} incompleet`
+          : `Alle ${data.summary.total} events zijn compleet`;
+        toast({
+          title: 'Events geanalyseerd',
+          description,
+        });
+      }
     },
     onError: (error: any) => {
       toast({
         title: 'Test mislukt',
         description: error.message || 'Kon events niet ophalen.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const previewFeedMutation = useMutation({
+    mutationFn: async (): Promise<PreviewResult> => {
+      if (!result?.chosenMethod) throw new Error('Geen methode geselecteerd');
+      
+      const getFeedType = (methodId: string): string => {
+        switch (methodId) {
+          case 'json-api':
+          case 'json-ld':
+            return 'json';
+          case 'scraper':
+            return 'scraper';
+          case 'rss':
+          case 'atom':
+          default:
+            return 'rss';
+        }
+      };
+
+            
+      const response = await apiRequest('/api/admin/rss-feeds/preview', {
+        method: 'POST',
+        data: { 
+          url: result.chosenMethod.url,
+          feedType: getFeedType(result.chosenMethod.id),
+          municipality: selectedMunicipality || result.suggestedMunicipality || '',
+          scraperConfig: result.chosenMethod.id === 'scraper' ? selectors : undefined,
+        },
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      setPreviewResult(data);
+      setCurrentStep('preview');
+      
+      if (data.success) {
+        const description = data.summary.incomplete > 0 
+          ? `${data.summary.complete} compleet, ${data.summary.incomplete} incompleet`
+          : `Alle ${data.summary.total} events zijn compleet`;
+        toast({
+          title: 'Preview geladen',
+          description,
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Preview mislukt',
+        description: error.message || 'Kon preview niet laden.',
         variant: 'destructive',
       });
     },
@@ -490,6 +592,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     setPreviewEvents([]);
     setTotalEventsFound(0);
     setPageContext('overview');
+    setPreviewResult(null);
     onOpenChange(false);
   };
 
@@ -1115,57 +1218,161 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     </div>
   );
 
-  const renderPreviewStep = () => (
-    <div className="space-y-4">
-      <Alert>
-        <Check className="h-4 w-4" />
-        <AlertTitle>Configuratie voltooid</AlertTitle>
-        <AlertDescription>
-          {totalEventsFound} events gevonden op de overzichtspagina. Klik op opslaan om de feed aan te maken.
-        </AlertDescription>
-      </Alert>
+  const renderPreviewStep = () => {
+    if (previewFeedMutation.isPending || testEventsMutation.isPending) {
+      return (
+        <div className="space-y-4 py-8">
+          <div className="flex flex-col items-center justify-center">
+            <Loader2 className="w-12 h-12 animate-spin text-blue-500 mb-4" />
+            <p className="text-lg font-medium">Events ophalen en analyseren...</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Dit kan enkele seconden duren afhankelijk van het aantal events
+            </p>
+          </div>
+        </div>
+      );
+    }
 
-      <div className="grid grid-cols-3 gap-3">
-        {previewEvents.slice(0, 6).map((event, idx) => (
-          <Card key={idx} className="overflow-hidden">
-            <CardContent className="p-3">
-              <div className="font-medium text-sm truncate">{event.title}</div>
-              <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                <Calendar className="h-3 w-3" />
-                {event.date}
-              </div>
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {event.location || 'Geen locatie'}
-              </div>
-              {event.image && (
-                <img src={event.image} alt="" className="mt-2 h-16 w-full object-cover rounded" />
+    if (previewResult?.error) {
+      return (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Preview mislukt</AlertTitle>
+          <AlertDescription>{previewResult.error}</AlertDescription>
+        </Alert>
+      );
+    }
+
+    const summary = previewResult?.summary;
+    const items = previewResult?.items || [];
+    const hasIncomplete = summary && summary.incomplete > 0;
+
+    return (
+      <div className="space-y-4">
+        {summary && (
+          <div className={`p-4 rounded-lg border ${hasIncomplete ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+            <div className="flex items-center gap-3 mb-3">
+              {hasIncomplete ? (
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              ) : (
+                <Check className="h-5 w-5 text-green-600" />
               )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              <div>
+                <h3 className="font-semibold">
+                  {hasIncomplete ? 'Sommige events zijn incompleet' : 'Alle events zijn compleet'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {summary.total} events gevonden: {summary.complete} compleet, {summary.incomplete} incompleet
+                </p>
+              </div>
+            </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="feedNamePreview">Feed naam</Label>
-          <Input
-            id="feedNamePreview"
-            value={feedName}
-            onChange={(e) => setFeedName(e.target.value)}
-            placeholder="Geef de feed een naam"
-          />
+            {hasIncomplete && Object.keys(summary.missingFieldsCounts).length > 0 && (
+              <div className="mt-3 pt-3 border-t border-amber-200">
+                <p className="text-sm font-medium mb-2">Ontbrekende velden:</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(summary.missingFieldsCounts).map(([field, count]) => (
+                    <Badge key={field} variant="secondary" className="bg-amber-100">
+                      {field === 'location' ? 'Locatie' : 
+                       field === 'title' ? 'Titel' :
+                       field === 'description' ? 'Beschrijving' :
+                       field === 'startTime' ? 'Datum' :
+                       field === 'imageUrl' ? 'Afbeelding' : field}: {count}x
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <ScrollArea className="h-[250px]">
+          <div className="space-y-2">
+            {items.slice(0, 20).map((event, idx) => (
+              <Card key={idx} className={`overflow-hidden ${!event.isComplete ? 'border-amber-300 bg-amber-50/50' : ''}`}>
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate flex items-center gap-2">
+                        {event.isComplete ? (
+                          <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                        )}
+                        {event.title}
+                      </div>
+                      <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                        {event.startTime && (
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(event.startTime).toLocaleDateString('nl-NL')}
+                          </span>
+                        )}
+                        {(event.location || event.address) && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {event.address || event.location}
+                          </span>
+                        )}
+                      </div>
+                      {!event.isComplete && event.validationIssues.length > 0 && (
+                        <div className="mt-2 text-xs text-amber-700">
+                          {event.validationIssues.map((issue, i) => (
+                            <div key={i} className="flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              {issue}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {event.imageUrl && (
+                      <img src={event.imageUrl} alt="" className="w-16 h-12 object-cover rounded flex-shrink-0" />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {items.length > 20 && (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                En nog {items.length - 20} andere events...
+              </p>
+            )}
+          </div>
+        </ScrollArea>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="feedNamePreview">Feed naam</Label>
+            <Input
+              id="feedNamePreview"
+              value={feedName}
+              onChange={(e) => setFeedName(e.target.value)}
+              placeholder="Geef de feed een naam"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Gemeente</Label>
+            <MunicipalitySearch
+              value={selectedMunicipality}
+              onChange={setSelectedMunicipality}
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label>Gemeente</Label>
-          <MunicipalitySearch
-            value={selectedMunicipality}
-            onChange={setSelectedMunicipality}
-          />
-        </div>
+
+        {hasIncomplete && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Tip</AlertTitle>
+            <AlertDescription>
+              Je kunt de visuele configurator gebruiken om ontbrekende velden te markeren. 
+              Ga terug naar de vorige stap en selecteer de juiste velden.
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1216,18 +1423,18 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
           {currentStep === 'analyze' && result?.isComplete && result.chosenMethod && result.chosenMethod.id !== 'scraper' && (
             <Button 
-              onClick={() => createFeedMutation.mutate()}
-              disabled={createFeedMutation.isPending}
+              onClick={() => previewFeedMutation.mutate()}
+              disabled={previewFeedMutation.isPending}
             >
-              {createFeedMutation.isPending ? (
+              {previewFeedMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Opslaan...
+                  Preview laden...
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Feed Opslaan
+                  <Eye className="w-4 h-4 mr-2" />
+                  Naar Preview
                 </>
               )}
             </Button>
@@ -1254,10 +1461,16 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
           {currentStep === 'preview' && (
             <Button 
-              onClick={() => saveConfigMutation.mutate()}
-              disabled={saveConfigMutation.isPending}
+              onClick={() => {
+                if (result?.chosenMethod?.id === 'scraper') {
+                  saveConfigMutation.mutate();
+                } else {
+                  createFeedMutation.mutate();
+                }
+              }}
+              disabled={saveConfigMutation.isPending || createFeedMutation.isPending}
             >
-              {saveConfigMutation.isPending ? (
+              {(saveConfigMutation.isPending || createFeedMutation.isPending) ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Opslaan...

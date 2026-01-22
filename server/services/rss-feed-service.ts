@@ -5483,6 +5483,203 @@ export class RssFeedService {
     }
   }
 
+  static async previewFeed(
+    feedConfig: {
+      url: string;
+      feedType: string;
+      municipality?: string;
+      scraperConfig?: any;
+    },
+    onProgress?: (progress: { status: string; message: string; current?: number; total?: number }) => void
+  ): Promise<{
+    success: boolean;
+    items: Array<{
+      title: string;
+      description?: string;
+      startTime?: Date;
+      endTime?: Date;
+      location?: string;
+      address?: string;
+      latitude?: number;
+      longitude?: number;
+      imageUrl?: string;
+      link?: string;
+      isComplete: boolean;
+      missingFields: string[];
+      validationIssues: string[];
+    }>;
+    summary: {
+      total: number;
+      complete: number;
+      incomplete: number;
+      missingFieldsCounts: Record<string, number>;
+    };
+    error?: string;
+  }> {
+    try {
+      onProgress?.({ status: 'fetching', message: 'Feed ophalen...' });
+
+      let result: FeedParseResult;
+      const mockFeed = {
+        id: 0,
+        name: 'Preview',
+        url: feedConfig.url,
+        feedType: feedConfig.feedType,
+        municipality: feedConfig.municipality || '',
+        scraperConfig: feedConfig.scraperConfig,
+        autoCreateEvents: false,
+        defaultCategory: 'Gezellig en Sociaal',
+        status: 'active',
+        updateFrequencyMinutes: 60,
+        itemsImported: 0,
+        lastFetchedAt: null,
+        lastErrorMessage: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        defaultLatitude: null,
+        defaultLongitude: null,
+        defaultAddress: null,
+        province: null,
+        aiExtractionProfileId: null
+      } as RssFeed;
+
+      if (feedConfig.feedType === 'scraper') {
+        result = await this.scrapeUniversal(mockFeed);
+      } else if (feedConfig.feedType === 'json') {
+        result = await this.fetchAndParseJsonFeed(feedConfig.url, feedConfig.municipality);
+      } else {
+        result = await this.fetchAndParseRssFeed(feedConfig.url, feedConfig.municipality);
+      }
+
+      if (!result.success) {
+        return {
+          success: false,
+          items: [],
+          summary: { total: 0, complete: 0, incomplete: 0, missingFieldsCounts: {} },
+          error: result.error
+        };
+      }
+
+      onProgress?.({ status: 'analyzing', message: 'Events analyseren...', total: result.items.length });
+
+      const consolidatedItems = this.consolidateMultiDayEvents(result.items);
+      const expectedMunicipality = feedConfig.municipality || '';
+      const missingFieldsCounts: Record<string, number> = {};
+      
+      const analyzedItems = await Promise.all(consolidatedItems.map(async (item, index) => {
+        if (index % 5 === 0) {
+          onProgress?.({ 
+            status: 'analyzing', 
+            message: `Event ${index + 1} van ${consolidatedItems.length} analyseren...`,
+            current: index + 1,
+            total: consolidatedItems.length
+          });
+        }
+
+        const missingFields: string[] = [];
+        const validationIssues: string[] = [];
+        let hasValidLocation = false;
+
+        if (!item.title || item.title.trim().length < 3) {
+          missingFields.push('title');
+        }
+        if (!item.description || item.description.trim().length < 10) {
+          missingFields.push('description');
+        }
+        if (!item.startTime) {
+          missingFields.push('startTime');
+        }
+        if (!item.imageUrl) {
+          missingFields.push('imageUrl');
+        }
+
+        if (item.latitude && item.longitude) {
+          const isValid = this.validateExistingCoordinates(
+            item.latitude,
+            item.longitude,
+            expectedMunicipality
+          );
+          if (isValid) {
+            hasValidLocation = true;
+          } else {
+            validationIssues.push(`GPS coördinaten vallen buiten ${expectedMunicipality}`);
+          }
+        }
+
+        if (!hasValidLocation && (item.address || item.location)) {
+          const locationQuery = item.address || item.location || '';
+          try {
+            const geoResult = await this.geocodeWithMunicipalityValidation(locationQuery, expectedMunicipality);
+            if (geoResult) {
+              hasValidLocation = true;
+              item.latitude = geoResult.lat;
+              item.longitude = geoResult.lon;
+              item.address = geoResult.displayName.split(',').slice(0, 3).join(',').trim();
+            }
+          } catch {
+          }
+        }
+
+        if (!hasValidLocation) {
+          missingFields.push('location');
+          if (!item.address && !item.location) {
+            validationIssues.push('Geen locatie gevonden in de bron');
+          } else {
+            validationIssues.push(`Locatie "${item.address || item.location}" kon niet worden geverifieerd in ${expectedMunicipality}`);
+          }
+        }
+
+        missingFields.forEach(field => {
+          missingFieldsCounts[field] = (missingFieldsCounts[field] || 0) + 1;
+        });
+
+        const isComplete = missingFields.length === 0;
+
+        return {
+          title: item.title,
+          description: item.description,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          location: item.location,
+          address: item.address,
+          latitude: item.latitude,
+          longitude: item.longitude,
+          imageUrl: item.imageUrl,
+          link: item.link,
+          isComplete,
+          missingFields,
+          validationIssues
+        };
+      }));
+
+      const complete = analyzedItems.filter(i => i.isComplete).length;
+      const incomplete = analyzedItems.filter(i => !i.isComplete).length;
+
+      onProgress?.({ 
+        status: 'complete', 
+        message: `Analyse voltooid: ${complete} compleet, ${incomplete} incompleet`
+      });
+
+      return {
+        success: true,
+        items: analyzedItems,
+        summary: {
+          total: analyzedItems.length,
+          complete,
+          incomplete,
+          missingFieldsCounts
+        }
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        items: [],
+        summary: { total: 0, complete: 0, incomplete: 0, missingFieldsCounts: {} },
+        error: error.message
+      };
+    }
+  }
+
   static async processFeed(
     feed: RssFeed, 
     storage?: any,

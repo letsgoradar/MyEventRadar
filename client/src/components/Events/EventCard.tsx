@@ -224,20 +224,12 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                   Event is verlopen
                 </div>
               )}
-              {!isOngoing && !isExpired && (
-                <CountdownTimer 
-                  targetDate={startTime}
-                  showHours={isStartingSoon} 
-                  showMinutesSeconds={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
-                  pulsate={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
-                />
-              )}
             </div>
           </CardHeader>
           
           <CardContent className="p-4 pt-0">
             <div className="flex justify-between items-center text-sm text-muted-foreground">
-              <div className="flex items-center">
+              <div className="flex items-center flex-wrap gap-1">
                 <Calendar className="h-4 w-4 mr-1" />
                 <span>
                   {new Date(event.startTime).toLocaleDateString('nl-NL', {
@@ -247,6 +239,18 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                     hour: '2-digit',
                     minute: '2-digit'
                   })}
+                  {/* Time-to-event indicator achter de datum */}
+                  {!isOngoing && !isExpired && (() => {
+                    const daysUntil = Math.ceil((startTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    const hoursUntil = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60 * 60));
+                    if (hoursUntil < 24) {
+                      return <span className="text-green-600 ml-1">(over {hoursUntil}u)</span>;
+                    } else if (daysUntil === 1) {
+                      return <span className="text-muted-foreground ml-1">(morgen)</span>;
+                    } else {
+                      return <span className="text-muted-foreground ml-1">(over {daysUntil} dagen)</span>;
+                    }
+                  })()}
                 </span>
               </div>
               
@@ -258,21 +262,11 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
               )}
             </div>
             
-            {/* Statistieken */}
-            {((event.externalPageOpens && event.externalPageOpens > 0) || (event.savesCount && event.savesCount > 0)) && (
-              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                {event.externalPageOpens && event.externalPageOpens > 0 && (
-                  <div className="flex items-center gap-1" data-testid={`stat-views-${event.id}`}>
-                    <ExternalLink className="h-3 w-3" />
-                    <span>{event.externalPageOpens}</span>
-                  </div>
-                )}
-                {event.savesCount && event.savesCount > 0 && (
-                  <div className="flex items-center gap-1" data-testid={`stat-saves-${event.id}`}>
-                    <Bookmark className="h-3 w-3" />
-                    <span>{event.savesCount}</span>
-                  </div>
-                )}
+            {/* View counter - alleen tonen als > 0 */}
+            {event.detailViews && event.detailViews > 0 && (
+              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground" data-testid={`stat-views-${event.id}`}>
+                <Eye className="h-3 w-3" />
+                <span>{event.detailViews}x bekeken</span>
               </div>
             )}
           </CardContent>
@@ -359,23 +353,27 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 </span>
               </div>
               
-              {/* Datum en tijd - één regel */}
-              <div className="flex items-center text-muted-foreground mb-1">
+              {/* Datum en tijd met time-to-event indicator */}
+              <div className="flex items-center text-muted-foreground mb-1 flex-wrap gap-1">
                 <Calendar className="h-4 w-4 mr-1 flex-shrink-0" />
-                <span className="text-sm">{formattedDate}</span>
+                <span className="text-sm">
+                  {formattedDate}
+                  {/* Time-to-event indicator achter de datum */}
+                  {!isOngoing && !isExpired && (() => {
+                    const daysUntil = Math.ceil((startTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    const hoursUntil = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60 * 60));
+                    if (hoursUntil < 24) {
+                      return <span className="text-green-600 ml-1">(over {hoursUntil}u)</span>;
+                    } else if (daysUntil === 1) {
+                      return <span className="text-muted-foreground ml-1">(morgen)</span>;
+                    } else {
+                      return <span className="text-muted-foreground ml-1">(over {daysUntil} dagen)</span>;
+                    }
+                  })()}
+                </span>
               </div>
               
-              {/* Countdown component */}
-              {!isOngoing && !isExpired && (
-                <CountdownTimer 
-                  targetDate={startTime}
-                  showHours={isStartingSoon} 
-                  showMinutesSeconds={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
-                  pulsate={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
-                />
-              )}
-              
-              {/* Andere statussen */}
+              {/* Status indicatoren */}
               {isOngoing && (
                 <div className="text-green-500 font-medium text-sm">
                   <span className="flex items-center">
@@ -394,21 +392,11 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 </div>
               )}
               
-              {/* Statistieken */}
-              {((event.externalPageOpens && event.externalPageOpens > 0) || (event.savesCount && event.savesCount > 0)) && (
-                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                  {event.externalPageOpens && event.externalPageOpens > 0 && (
-                    <div className="flex items-center gap-1" data-testid={`stat-views-${event.id}`}>
-                      <ExternalLink className="h-3 w-3" />
-                      <span>{event.externalPageOpens}</span>
-                    </div>
-                  )}
-                  {event.savesCount && event.savesCount > 0 && (
-                    <div className="flex items-center gap-1" data-testid={`stat-saves-${event.id}`}>
-                      <Bookmark className="h-3 w-3" />
-                      <span>{event.savesCount}</span>
-                    </div>
-                  )}
+              {/* View counter - alleen tonen als > 0 */}
+              {event.detailViews && event.detailViews > 0 && (
+                <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground" data-testid={`stat-views-${event.id}`}>
+                  <Eye className="h-3 w-3" />
+                  <span>{event.detailViews}x bekeken</span>
                 </div>
               )}
             </div>
@@ -506,7 +494,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
               </div>
 
               <div className="flex justify-between items-center text-sm text-muted-foreground mt-2">
-                <div className="flex items-center">
+                <div className="flex items-center flex-wrap gap-1">
                   <Calendar className="h-4 w-4 mr-1" />
                   <span>
                     {new Date(event.startTime).toLocaleDateString('nl-NL', {
@@ -516,24 +504,26 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
+                    {/* Time-to-event indicator achter de datum */}
+                    {!isOngoing && !isExpired && (() => {
+                      const daysUntil = Math.ceil((startTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                      const hoursUntil = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60 * 60));
+                      if (hoursUntil < 24) {
+                        return <span className="text-green-600 ml-1">(over {hoursUntil}u)</span>;
+                      } else if (daysUntil === 1) {
+                        return <span className="text-muted-foreground ml-1">(morgen)</span>;
+                      } else {
+                        return <span className="text-muted-foreground ml-1">(over {daysUntil} dagen)</span>;
+                      }
+                    })()}
                   </span>
                 </div>
                 
-                {/* Statistieken */}
-                {((event.externalPageOpens && event.externalPageOpens > 0) || (event.savesCount && event.savesCount > 0)) && (
-                  <div className="flex items-center gap-3 text-xs">
-                    {event.externalPageOpens && event.externalPageOpens > 0 && (
-                      <div className="flex items-center gap-1" data-testid={`stat-views-${event.id}`}>
-                        <ExternalLink className="h-3 w-3" />
-                        <span>{event.externalPageOpens}</span>
-                      </div>
-                    )}
-                    {event.savesCount && event.savesCount > 0 && (
-                      <div className="flex items-center gap-1" data-testid={`stat-saves-${event.id}`}>
-                        <Bookmark className="h-3 w-3" />
-                        <span>{event.savesCount}</span>
-                      </div>
-                    )}
+                {/* View counter - alleen tonen als > 0 */}
+                {event.detailViews && event.detailViews > 0 && (
+                  <div className="flex items-center gap-1 text-xs" data-testid={`stat-views-${event.id}`}>
+                    <Eye className="h-3 w-3" />
+                    <span>{event.detailViews}x</span>
                   </div>
                 )}
               </div>

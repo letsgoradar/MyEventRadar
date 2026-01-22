@@ -52,6 +52,22 @@ export function EventDetailPanel({
   const isFavorited = favorites.some((fav: any) => fav.id === event.id);
   const isParticipating = participatingEvents.some((e: any) => e.id === event.id);
 
+  // Track detail view when panel opens
+  React.useEffect(() => {
+    const trackView = async () => {
+      try {
+        await fetch(`/api/events/${event.id}/track-view`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+      } catch (error) {
+        // Silently fail - tracking is not critical
+      }
+    };
+    trackView();
+  }, [event.id]);
+
   const toggleFavoriteMutation = useMutation({
     mutationFn: async () => {
       if (isFavorited) {

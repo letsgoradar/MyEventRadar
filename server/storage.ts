@@ -67,6 +67,7 @@ export interface IStorage {
   getEventCount(): Promise<number>;
   importEvents(events: InsertEvent[]): Promise<Event[]>;
   incrementExternalPageOpens(id: number): Promise<void>;
+  incrementDetailViews(id: number): Promise<void>;
   incrementSavesCount(id: number): Promise<void>;
   decrementSavesCount(id: number): Promise<void>;
 
@@ -459,6 +460,15 @@ export class PgStorage implements IStorage {
       await db
         .update(events)
         .set({ externalPageOpens: sql`COALESCE(${events.externalPageOpens}, 0) + 1` })
+        .where(eq(events.id, id));
+    });
+  }
+
+  async incrementDetailViews(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db
+        .update(events)
+        .set({ detailViews: sql`COALESCE(${events.detailViews}, 0) + 1` })
         .where(eq(events.id, id));
     });
   }

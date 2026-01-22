@@ -91,6 +91,22 @@ export function EventDetailPanel({
   const [showDetailMap, setShowDetailMap] = React.useState(false);
   const [swipeHintVisible, setSwipeHintVisible] = React.useState(true);
 
+  // Track detail view when panel opens
+  React.useEffect(() => {
+    const trackView = async () => {
+      try {
+        await fetch(`/api/events/${event.id}/track-view`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+      } catch (error) {
+        // Silently fail - tracking is not critical
+      }
+    };
+    trackView();
+  }, [event.id]);
+
   // Toggle favorite mutation
   const toggleFavoriteMutation = useMutation({
     mutationFn: async () => {

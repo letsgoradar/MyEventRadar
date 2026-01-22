@@ -810,6 +810,34 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  // Track detail page views
+  app.post("/api/events/:id/track-view", async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+
+      // Check if event exists
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Increment the detail views counter
+      await storage.incrementDetailViews(eventId);
+
+      res.json({ 
+        success: true, 
+        message: "Detail view tracked" 
+      });
+    } catch (error) {
+      console.error('Error in POST /api/events/:id/track-view:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Track externe pagina openen (voor toekomstige monetisatie)
   app.post("/api/events/:id/track-external-open", async (req, res) => {
     try {

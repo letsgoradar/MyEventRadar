@@ -14,6 +14,7 @@ import {
   rssItemCorrections,
   leads,
   aiExtractionProfiles,
+  venues,
   type User,
   type InsertUser,
   type Event,
@@ -38,6 +39,8 @@ import {
   type InsertLead,
   type AiExtractionProfile,
   type InsertAiExtractionProfile,
+  type Venue,
+  type InsertVenue,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
@@ -145,6 +148,15 @@ export interface IStorage {
   // Public data operations
   getEventsByCitySlug(citySlug: string, limit?: number): Promise<Event[]>;
   getEventCountByCitySlug(citySlug: string): Promise<number>;
+
+  // Venue operations
+  createVenue(venue: InsertVenue): Promise<Venue>;
+  getVenue(id: number): Promise<Venue | undefined>;
+  getVenueByName(name: string): Promise<Venue | undefined>;
+  getAllVenues(): Promise<Venue[]>;
+  searchVenues(query: string): Promise<Venue[]>;
+  updateVenue(id: number, venue: Partial<Venue>): Promise<Venue>;
+  getEventsByVenue(venueId: number): Promise<Event[]>;
 }
 
 export class PgStorage implements IStorage {
@@ -983,6 +995,67 @@ export class PgStorage implements IStorage {
           sql`${events.startTime} >= ${now}`
         ));
       return result[0]?.count || 0;
+    });
+  }
+
+  // Venue operations
+  async createVenue(venue: InsertVenue): Promise<Venue> {
+    return this.withRetry(async () => {
+      const normalizedName = venue.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const result = await db.insert(venues).values({
+        ...venue,
+        normalizedName,
+      }).returning();
+      return result[0];
+    });
+  }
+
+  async getVenue(id: number): Promise<Venue | undefined> {
+    return this.withRetry(async () => {
+      const result = await db.select().from(venues).where(eq(venues.id, id));
+      return result[0];
+    });
+  }
+
+  async getVenueByName(name: string): Promise<Venue | undefined> {
+    return this.withRetry(async () => {
+      const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const result = await db.select().from(venues).where(eq(venues.normalizedName, normalizedName));
+      return result[0];
+    });
+  }
+
+  async getAllVenues(): Promise<Venue[]> {
+    return this.withRetry(async () => {
+      return db.select().from(venues).orderBy(venues.name);
+    });
+  }
+
+  async searchVenues(query: string): Promise<Venue[]> {
+    return this.withRetry(async () => {
+      const searchTerm = `%${query.toLowerCase()}%`;
+      return db.select().from(venues)
+        .where(sql`LOWER(${venues.name}) LIKE ${searchTerm}`)
+        .orderBy(venues.name)
+        .limit(20);
+    });
+  }
+
+  async updateVenue(id: number, venue: Partial<Venue>): Promise<Venue> {
+    return this.withRetry(async () => {
+      const result = await db.update(venues)
+        .set({ ...venue, updatedAt: new Date() })
+        .where(eq(venues.id, id))
+        .returning();
+      return result[0];
+    });
+  }
+
+  async getEventsByVenue(venueId: number): Promise<Event[]> {
+    return this.withRetry(async () => {
+      return db.select().from(events)
+        .where(eq(events.venueId, venueId))
+        .orderBy(desc(events.startTime));
     });
   }
 }

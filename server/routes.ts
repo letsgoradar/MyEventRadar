@@ -2682,6 +2682,126 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  // ============ VENUE ENDPOINTS ============
+  
+  // Get all venues
+  app.get("/api/venues", async (req, res) => {
+    try {
+      const allVenues = await storage.getAllVenues();
+      res.json(allVenues);
+    } catch (error: any) {
+      console.error('Error fetching venues:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch venues" });
+    }
+  });
+
+  // Search venues
+  app.get("/api/venues/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.json([]);
+      }
+      const foundVenues = await storage.searchVenues(query);
+      res.json(foundVenues);
+    } catch (error: any) {
+      console.error('Error searching venues:', error);
+      res.status(500).json({ message: error.message || "Failed to search venues" });
+    }
+  });
+
+  // Get venue by ID
+  app.get("/api/venues/:id", async (req, res) => {
+    try {
+      const venueId = parseInt(req.params.id);
+      if (isNaN(venueId)) {
+        return res.status(400).json({ message: "Invalid venue ID" });
+      }
+      const venue = await storage.getVenue(venueId);
+      if (!venue) {
+        return res.status(404).json({ message: "Venue not found" });
+      }
+      res.json(venue);
+    } catch (error: any) {
+      console.error('Error fetching venue:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch venue" });
+    }
+  });
+
+  // Get events by venue
+  app.get("/api/venues/:id/events", async (req, res) => {
+    try {
+      const venueId = parseInt(req.params.id);
+      if (isNaN(venueId)) {
+        return res.status(400).json({ message: "Invalid venue ID" });
+      }
+      const venueEvents = await storage.getEventsByVenue(venueId);
+      res.json(venueEvents);
+    } catch (error: any) {
+      console.error('Error fetching venue events:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch venue events" });
+    }
+  });
+
+  // Create venue (admin only)
+  app.post("/api/admin/venues", isAdmin, async (req, res) => {
+    try {
+      const { name, address, city, description, latitude, longitude, contactEmail, contactPhone, websiteUrl } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Venue naam is verplicht" });
+      }
+
+      // Check if venue already exists
+      const existing = await storage.getVenueByName(name);
+      if (existing) {
+        return res.json({ 
+          success: true, 
+          venue: existing, 
+          message: "Venue bestaat al",
+          isExisting: true 
+        });
+      }
+
+      const newVenue = await storage.createVenue({
+        name,
+        address,
+        city,
+        description,
+        latitude,
+        longitude,
+        contactEmail,
+        contactPhone,
+        websiteUrl,
+      });
+
+      res.json({ 
+        success: true, 
+        venue: newVenue, 
+        message: "Venue aangemaakt",
+        isExisting: false 
+      });
+    } catch (error: any) {
+      console.error('Error creating venue:', error);
+      res.status(500).json({ message: error.message || "Failed to create venue" });
+    }
+  });
+
+  // Update venue (admin only)
+  app.patch("/api/admin/venues/:id", isAdmin, async (req, res) => {
+    try {
+      const venueId = parseInt(req.params.id);
+      if (isNaN(venueId)) {
+        return res.status(400).json({ message: "Invalid venue ID" });
+      }
+      const updatedVenue = await storage.updateVenue(venueId, req.body);
+      res.json(updatedVenue);
+    } catch (error: any) {
+      console.error('Error updating venue:', error);
+      res.status(500).json({ message: error.message || "Failed to update venue" });
+    }
+  });
+
   // Setup VITE server
   await setupVite(app, httpServer);
   

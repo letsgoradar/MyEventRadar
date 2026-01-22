@@ -2752,7 +2752,7 @@ Respond with ONLY the search term, nothing else.`,
         return res.status(400).json({ message: "Invalid venue ID" });
       }
 
-      const venue = await storage.getVenueById(venueId);
+      const venue = await storage.getVenue(venueId);
       if (!venue) {
         return res.status(404).json({ message: "Venue niet gevonden" });
       }
@@ -2788,7 +2788,7 @@ Respond with ONLY the search term, nothing else.`,
         return res.status(400).json({ message: "Invalid venue ID" });
       }
 
-      const venue = await storage.getVenueById(venueId);
+      const venue = await storage.getVenue(venueId);
       if (!venue) {
         return res.status(404).json({ message: "Venue niet gevonden" });
       }

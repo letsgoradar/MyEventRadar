@@ -379,7 +379,7 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] flex flex-col">
+      <DialogContent className="max-w-[98vw] w-[1600px] h-[92vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Crosshair className="h-5 w-5" />
@@ -390,8 +390,8 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 flex gap-4 min-h-0">
-          <div className="w-80 flex flex-col gap-4">
+        <div className="flex-1 flex gap-6 min-h-0">
+          <div className="w-96 flex flex-col gap-4">
             <div className="flex gap-2">
               <Input
                 placeholder="https://voorbeeld.nl/evenementen"

@@ -2293,6 +2293,51 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  app.post("/api/admin/visual-configurator/save-config", isAdmin, async (req, res) => {
+    try {
+      const { url, domain, selectors } = req.body;
+      
+      if (!url || !selectors || !selectors.eventCard) {
+        return res.status(400).json({ 
+          message: "URL en event card selector zijn verplicht" 
+        });
+      }
+
+      const validationErrors: string[] = [];
+      if (!selectors.title) validationErrors.push('Titel selector is verplicht');
+      if (!selectors.date) validationErrors.push('Datum selector is verplicht');
+      if (!selectors.location) validationErrors.push('Locatie selector is verplicht (geen fallback locaties)');
+
+      if (validationErrors.length > 0) {
+        return res.status(400).json({ 
+          message: 'Validatiefouten',
+          errors: validationErrors,
+        });
+      }
+
+      const config = {
+        url,
+        domain,
+        selectors,
+        createdAt: new Date().toISOString(),
+        createdBy: (req.user as any)?.id,
+      };
+
+      console.log('[Visual Configurator] Saved config:', JSON.stringify(config, null, 2));
+
+      res.json({ 
+        success: true,
+        message: 'Configuratie succesvol opgeslagen',
+        config,
+      });
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/visual-configurator/save-config:', error);
+      res.status(500).json({ 
+        message: error.message || "Failed to save configuration" 
+      });
+    }
+  });
+
   app.patch("/api/admin/incomplete-items/:id", isAdmin, async (req, res) => {
     try {
       const itemId = parseInt(req.params.id);

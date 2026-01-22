@@ -192,8 +192,38 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
 
   const canSave = () => {
     const issues = getValidationSummary();
-    return !issues.some(i => i.type === 'error');
+    return !issues.some(i => i.type === 'error') && pageHtml;
   };
+
+  const saveConfigMutation = useMutation({
+    mutationFn: async () => {
+      const parsedUrl = new URL(url);
+      const response = await apiRequest('/api/admin/visual-configurator/save-config', {
+        method: 'POST',
+        data: { 
+          url, 
+          domain: parsedUrl.hostname,
+          selectors,
+        },
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'Configuratie opgeslagen',
+        description: 'De visuele feed configuratie is succesvol opgeslagen.',
+      });
+      onSave?.(selectors);
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Fout bij opslaan',
+        description: error.message || 'Kon de configuratie niet opslaan.',
+        variant: 'destructive',
+      });
+    },
+  });
 
   const handleSave = () => {
     if (!canSave()) {
@@ -204,8 +234,7 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
       });
       return;
     }
-    onSave?.(selectors);
-    onClose();
+    saveConfigMutation.mutate();
   };
 
   const injectHighlightScript = () => {
@@ -508,8 +537,12 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
             <Button variant="outline" onClick={onClose}>
               Annuleren
             </Button>
-            <Button onClick={handleSave} disabled={!canSave()}>
-              <Save className="h-4 w-4 mr-2" />
+            <Button onClick={handleSave} disabled={!canSave() || saveConfigMutation.isPending}>
+              {saveConfigMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
               Configuratie Opslaan
             </Button>
           </div>

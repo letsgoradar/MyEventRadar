@@ -90,6 +90,10 @@ const FIELD_CONFIG: { id: keyof Omit<SelectorConfig, 'eventCard'>; name: string;
   { id: 'link', name: 'Link', required: false, description: 'Externe URL naar event', icon: <LinkIcon className="h-4 w-4" /> },
 ];
 
+const generateNonce = () => {
+  return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
 export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '', onSave }: VisualFeedConfiguratorProps) {
   const { toast } = useToast();
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -102,6 +106,7 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
   const [detectedElements, setDetectedElements] = useState<DetectedElement[]>([]);
   const [previewMode, setPreviewMode] = useState<'select' | 'preview'>('select');
   const [highlightedSelector, setHighlightedSelector] = useState<string>('');
+  const [messageNonce] = useState(() => generateNonce());
 
   const fetchPageMutation = useMutation({
     mutationFn: async (pageUrl: string) => {
@@ -240,6 +245,7 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
   const injectHighlightScript = () => {
     return `
       <script>
+        const VFC_NONCE = '${messageNonce}';
         let activeSelector = '';
         
         function highlightElements(selector) {
@@ -279,7 +285,8 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
           const sampleText = target.textContent?.substring(0, 100) || '';
           
           window.parent.postMessage({
-            type: 'elementClicked',
+            type: 'vfc_elementClicked',
+            nonce: VFC_NONCE,
             selector: selector,
             sampleText: sampleText,
             tagName: target.tagName,
@@ -299,7 +306,7 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
         }, true);
 
         window.addEventListener('message', function(e) {
-          if (e.data.type === 'highlight') {
+          if (e.data.type === 'vfc_highlight' && e.data.nonce === VFC_NONCE) {
             highlightElements(e.data.selector);
           }
         });
@@ -315,7 +322,10 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === 'elementClicked') {
+      if (event.data.nonce !== messageNonce) {
+        return;
+      }
+      if (event.data.type === 'vfc_elementClicked') {
         handleElementClick(event.data.selector, event.data.sampleText);
       }
     };
@@ -327,7 +337,8 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
   useEffect(() => {
     if (iframeRef.current && highlightedSelector) {
       iframeRef.current.contentWindow?.postMessage({
-        type: 'highlight',
+        type: 'vfc_highlight',
+        nonce: messageNonce,
         selector: highlightedSelector,
       }, '*');
     }
@@ -514,7 +525,7 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
                   ref={iframeRef}
                   srcDoc={pageHtml + injectHighlightScript()}
                   className="w-full h-full"
-                  sandbox="allow-scripts allow-same-origin"
+                  sandbox="allow-scripts"
                   title="Page Preview"
                 />
               ) : (

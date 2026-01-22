@@ -13,6 +13,7 @@ import {
   rssFeedItems,
   rssItemCorrections,
   leads,
+  aiExtractionProfiles,
   type User,
   type InsertUser,
   type Event,
@@ -35,6 +36,8 @@ import {
   type InsertRssItemCorrection,
   type Lead,
   type InsertLead,
+  type AiExtractionProfile,
+  type InsertAiExtractionProfile,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
@@ -131,6 +134,13 @@ export interface IStorage {
   getLeadsByCitySlug(citySlug: string): Promise<Lead[]>;
   getAllLeads(): Promise<Lead[]>;
   getLeadCount(): Promise<number>;
+
+  // AI Extraction Profile operations
+  createAiExtractionProfile(profile: InsertAiExtractionProfile): Promise<AiExtractionProfile>;
+  getAiExtractionProfileByDomain(domain: string): Promise<AiExtractionProfile | undefined>;
+  getAiExtractionProfileByDomainAndPath(domain: string, pathPattern: string): Promise<AiExtractionProfile | undefined>;
+  updateAiExtractionProfile(id: number, profile: Partial<AiExtractionProfile>): Promise<AiExtractionProfile>;
+  getAllAiExtractionProfiles(): Promise<AiExtractionProfile[]>;
 
   // Public data operations
   getEventsByCitySlug(citySlug: string, limit?: number): Promise<Event[]>;
@@ -888,6 +898,48 @@ export class PgStorage implements IStorage {
     return this.withRetry(async () => {
       const result = await db.select({ count: count() }).from(leads);
       return result[0]?.count || 0;
+    });
+  }
+
+  async createAiExtractionProfile(profile: InsertAiExtractionProfile): Promise<AiExtractionProfile> {
+    return this.withRetry(async () => {
+      const [created] = await db.insert(aiExtractionProfiles).values(profile).returning();
+      return created;
+    });
+  }
+
+  async getAiExtractionProfileByDomain(domain: string): Promise<AiExtractionProfile | undefined> {
+    return this.withRetry(async () => {
+      const [profile] = await db.select().from(aiExtractionProfiles).where(eq(aiExtractionProfiles.domain, domain)).limit(1);
+      return profile;
+    });
+  }
+
+  async getAiExtractionProfileByDomainAndPath(domain: string, pathPattern: string): Promise<AiExtractionProfile | undefined> {
+    return this.withRetry(async () => {
+      const [profile] = await db.select().from(aiExtractionProfiles)
+        .where(and(
+          eq(aiExtractionProfiles.domain, domain),
+          eq(aiExtractionProfiles.pathPattern, pathPattern)
+        ))
+        .limit(1);
+      return profile;
+    });
+  }
+
+  async updateAiExtractionProfile(id: number, profile: Partial<AiExtractionProfile>): Promise<AiExtractionProfile> {
+    return this.withRetry(async () => {
+      const [updated] = await db.update(aiExtractionProfiles)
+        .set({ ...profile, updatedAt: new Date() })
+        .where(eq(aiExtractionProfiles.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async getAllAiExtractionProfiles(): Promise<AiExtractionProfile[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(aiExtractionProfiles).orderBy(desc(aiExtractionProfiles.updatedAt));
     });
   }
 

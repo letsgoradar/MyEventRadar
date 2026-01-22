@@ -2297,16 +2297,29 @@ Respond with ONLY the search term, nothing else.`,
     try {
       const { url, domain, selectors } = req.body;
       
-      if (!url || !selectors || !selectors.eventCard) {
-        return res.status(400).json({ 
-          message: "URL en event card selector zijn verplicht" 
-        });
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: "URL is verplicht" });
+      }
+      if (!domain || typeof domain !== 'string') {
+        return res.status(400).json({ message: "Domein is verplicht" });
+      }
+      if (!selectors || typeof selectors !== 'object') {
+        return res.status(400).json({ message: "Selectors zijn verplicht" });
+      }
+      if (!selectors.eventCard || typeof selectors.eventCard !== 'string') {
+        return res.status(400).json({ message: "Event card selector is verplicht" });
       }
 
       const validationErrors: string[] = [];
-      if (!selectors.title) validationErrors.push('Titel selector is verplicht');
-      if (!selectors.date) validationErrors.push('Datum selector is verplicht');
-      if (!selectors.location) validationErrors.push('Locatie selector is verplicht (geen fallback locaties)');
+      if (!selectors.title || typeof selectors.title !== 'string') {
+        validationErrors.push('Titel selector is verplicht');
+      }
+      if (!selectors.date || typeof selectors.date !== 'string') {
+        validationErrors.push('Datum selector is verplicht (event moet datum hebben)');
+      }
+      if (!selectors.location || typeof selectors.location !== 'string') {
+        validationErrors.push('Locatie selector is verplicht (geen fallback locaties)');
+      }
 
       if (validationErrors.length > 0) {
         return res.status(400).json({ 
@@ -2315,20 +2328,44 @@ Respond with ONLY the search term, nothing else.`,
         });
       }
 
-      const config = {
-        url,
-        domain,
-        selectors,
-        createdAt: new Date().toISOString(),
-        createdBy: (req.user as any)?.id,
+      const pathPattern = new URL(url).pathname;
+      const existingProfile = await storage.getAiExtractionProfileByDomainAndPath(domain, pathPattern);
+      
+      const validatedSelectors = {
+        eventCard: selectors.eventCard,
+        title: selectors.title,
+        date: selectors.date,
+        location: selectors.location,
+        description: typeof selectors.description === 'string' ? selectors.description : undefined,
+        time: typeof selectors.time === 'string' ? selectors.time : undefined,
+        category: typeof selectors.category === 'string' ? selectors.category : undefined,
+        image: typeof selectors.image === 'string' ? selectors.image : undefined,
+        link: typeof selectors.link === 'string' ? selectors.link : undefined,
+        venue: typeof selectors.venue === 'string' ? selectors.venue : undefined,
+        address: typeof selectors.address === 'string' ? selectors.address : undefined,
       };
 
-      console.log('[Visual Configurator] Saved config:', JSON.stringify(config, null, 2));
+      const profileData = {
+        domain,
+        pathPattern,
+        selectors: validatedSelectors,
+        confidence: 80,
+        requiresJsRendering: false,
+      };
+
+      let savedProfile;
+      if (existingProfile) {
+        savedProfile = await storage.updateAiExtractionProfile(existingProfile.id, profileData);
+        console.log('[Visual Configurator] Updated existing profile:', savedProfile.id, 'for', domain, pathPattern);
+      } else {
+        savedProfile = await storage.createAiExtractionProfile(profileData);
+        console.log('[Visual Configurator] Created new profile:', savedProfile.id, 'for', domain, pathPattern);
+      }
 
       res.json({ 
         success: true,
-        message: 'Configuratie succesvol opgeslagen',
-        config,
+        message: existingProfile ? 'Bestaande configuratie bijgewerkt' : 'Nieuwe configuratie opgeslagen',
+        profile: savedProfile,
       });
     } catch (error: any) {
       console.error('Error in POST /api/admin/visual-configurator/save-config:', error);

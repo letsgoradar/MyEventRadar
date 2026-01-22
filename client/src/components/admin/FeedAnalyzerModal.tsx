@@ -336,6 +336,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
   const [totalEventsFound, setTotalEventsFound] = useState<number>(0);
   
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
+  const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
 
   const analyzeMutation = useMutation({
     mutationFn: async (urlToAnalyze: string): Promise<ProgressiveAnalysisResult> => {
@@ -345,7 +346,20 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
       });
     },
     onSuccess: (data) => {
+      console.log('[FeedAnalyzer] Analysis result:', {
+        isComplete: data.isComplete,
+        chosenMethod: data.chosenMethod,
+        stepsCount: data.steps?.length,
+      });
       setResult(data);
+      if (data.chosenMethod) {
+        setSelectedMethodId(data.chosenMethod.id);
+      } else {
+        const firstSuccess = data.steps?.find(s => s.status === 'success' && s.id !== 'scraper');
+        if (firstSuccess) {
+          setSelectedMethodId(firstSuccess.id);
+        }
+      }
       if (data.suggestedFeedName) {
         setFeedName(data.suggestedFeedName);
       }
@@ -362,9 +376,29 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     },
   });
 
+  const getSelectedMethod = () => {
+    if (!result || !selectedMethodId) return null;
+    if (result.chosenMethod && result.chosenMethod.id === selectedMethodId) {
+      return result.chosenMethod;
+    }
+    const step = result.steps?.find(s => s.id === selectedMethodId && s.status === 'success');
+    if (step && step.result) {
+      return {
+        id: step.id,
+        name: step.name,
+        url: step.result.feedUrl || overviewUrl,
+        eventCount: step.result.eventCount || 0,
+        reason: step.result.reason || '',
+        pros: '',
+      };
+    }
+    return null;
+  };
+
   const createFeedMutation = useMutation({
     mutationFn: async () => {
-      if (!result?.chosenMethod) return;
+      const method = getSelectedMethod();
+      if (!method) throw new Error('Geen methode geselecteerd');
       
       const getFeedType = (methodId: string): string => {
         switch (methodId) {
@@ -383,10 +417,10 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
       return apiRequest('/api/admin/rss-feeds', {
         method: 'POST',
         data: {
-          name: feedName || result.suggestedFeedName || 'Nieuwe Feed',
-          url: result.chosenMethod.url,
-          feedType: getFeedType(result.chosenMethod.id),
-          municipality: selectedMunicipality || result.suggestedMunicipality || '',
+          name: feedName || result?.suggestedFeedName || 'Nieuwe Feed',
+          url: method.url,
+          feedType: getFeedType(method.id),
+          municipality: selectedMunicipality || result?.suggestedMunicipality || '',
           defaultCategory: 'Gezellig en Sociaal',
           autoCreateEvents: true,
           updateFrequencyMinutes: 60,
@@ -518,7 +552,8 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
   const previewFeedMutation = useMutation({
     mutationFn: async (): Promise<PreviewResult> => {
-      if (!result?.chosenMethod) throw new Error('Geen methode geselecteerd');
+      const method = getSelectedMethod();
+      if (!method) throw new Error('Geen methode geselecteerd');
       
       const getFeedType = (methodId: string): string => {
         switch (methodId) {
@@ -533,15 +568,14 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
             return 'rss';
         }
       };
-
             
       const response = await apiRequest('/api/admin/rss-feeds/preview', {
         method: 'POST',
         data: { 
-          url: result.chosenMethod.url,
-          feedType: getFeedType(result.chosenMethod.id),
-          municipality: selectedMunicipality || result.suggestedMunicipality || '',
-          scraperConfig: result.chosenMethod.id === 'scraper' ? selectors : undefined,
+          url: method.url,
+          feedType: getFeedType(method.id),
+          municipality: selectedMunicipality || result?.suggestedMunicipality || '',
+          scraperConfig: method.id === 'scraper' ? selectors : undefined,
         },
       });
       return response;
@@ -593,6 +627,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     setTotalEventsFound(0);
     setPageContext('overview');
     setPreviewResult(null);
+    setSelectedMethodId(null);
     onOpenChange(false);
   };
 
@@ -851,38 +886,62 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
               { id: 'ical', name: 'iCal/ICS', description: 'Kalender export formaat', status: 'checking' as const, result: null },
               { id: 'json-ld', name: 'JSON-LD Schema', description: 'Gestructureerde data in de HTML pagina', status: 'checking' as const, result: null },
               { id: 'scraper', name: 'HTML Scraper', description: 'Direct scrapen van de HTML', status: 'checking' as const, result: null },
-            ]).map((step) => (
-              <div key={step.id} className={`flex items-center gap-3 p-3 ${step.status === 'success' ? 'bg-green-50' : ''}`}>
-                <div className="flex-shrink-0">{getStepIcon(step.status)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{step.name}</span>
-                    {step.status === 'success' && step.result && (
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        {step.result.eventCount} events
-                      </Badge>
+            ]).map((step) => {
+              const isSelectable = step.status === 'success' && step.id !== 'scraper';
+              const isSelected = selectedMethodId === step.id;
+              return (
+                <div 
+                  key={step.id} 
+                  className={`flex items-center gap-3 p-3 transition-colors ${
+                    isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : 
+                    step.status === 'success' ? 'bg-green-50' : ''
+                  } ${isSelectable ? 'cursor-pointer hover:bg-blue-50/50' : ''}`}
+                  onClick={() => isSelectable && setSelectedMethodId(step.id)}
+                >
+                  <div className="flex-shrink-0">
+                    {isSelectable ? (
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-400'
+                      }`}>
+                        {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
+                      </div>
+                    ) : (
+                      getStepIcon(step.status)
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">{step.description}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{step.name}</span>
+                      {step.status === 'success' && step.result && (
+                        <Badge variant="secondary" className={isSelected ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
+                          {step.result.eventCount} events
+                        </Badge>
+                      )}
+                      {isSelected && <Badge className="bg-blue-500">Geselecteerd</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{step.description}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
-      {result?.isComplete && result.chosenMethod && result.chosenMethod.id !== 'scraper' && (
+      {result?.isComplete && selectedMethodId && selectedMethodId !== 'scraper' && (
         <div className="space-y-4">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h4 className="font-semibold text-green-800 flex items-center gap-2">
-              <Check className="w-5 h-5" />
-              Aanbevolen: {result.chosenMethod.name}
-              <Badge className="bg-green-200 text-green-900">
-                {result.chosenMethod.eventCount} events
-              </Badge>
-            </h4>
-            <p className="text-sm text-green-700 mt-1">{result.chosenMethod.pros}</p>
-          </div>
+          {getSelectedMethod() && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-800 flex items-center gap-2">
+                <Check className="w-5 h-5" />
+                Geselecteerd: {getSelectedMethod()?.name}
+                <Badge className="bg-blue-200 text-blue-900">
+                  {getSelectedMethod()?.eventCount} events
+                </Badge>
+              </h4>
+              <p className="text-sm text-blue-700 mt-1">Klik op een andere optie hierboven om te wisselen</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -1421,7 +1480,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
             Annuleren
           </Button>
 
-          {currentStep === 'analyze' && result?.isComplete && result.chosenMethod && result.chosenMethod.id !== 'scraper' && (
+          {currentStep === 'analyze' && result?.isComplete && selectedMethodId && selectedMethodId !== 'scraper' && (
             <Button 
               onClick={() => previewFeedMutation.mutate()}
               disabled={previewFeedMutation.isPending}

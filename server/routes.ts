@@ -2233,6 +2233,66 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  app.post("/api/admin/visual-configurator/fetch-page", isAdmin, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: "URL is required" });
+      }
+
+      const parsedUrl = new URL(url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'nl-NL,nl;q=0.9,en;q=0.8',
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ 
+          message: `Failed to fetch page: ${response.statusText}` 
+        });
+      }
+
+      let html = await response.text();
+      
+      html = html.replace(/<base[^>]*>/gi, '');
+      
+      const baseTag = `<base href="${parsedUrl.origin}/">`;
+      if (html.includes('<head>')) {
+        html = html.replace('<head>', `<head>${baseTag}`);
+      } else if (html.includes('<HEAD>')) {
+        html = html.replace('<HEAD>', `<HEAD>${baseTag}`);
+      }
+
+      const suggestedElements: Array<{ selector: string; sampleText: string; tagName: string; count: number }> = [];
+      
+      const eventPatterns = [
+        { selector: '.event-card', name: 'event-card' },
+        { selector: '.event-item', name: 'event-item' },
+        { selector: '.event', name: 'event' },
+        { selector: '[class*="event"]', name: 'event class' },
+        { selector: 'article', name: 'article' },
+        { selector: '.card', name: 'card' },
+        { selector: '.item', name: 'item' },
+      ];
+
+      res.json({ 
+        html,
+        url: parsedUrl.href,
+        domain: parsedUrl.hostname,
+        suggestedElements,
+      });
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/visual-configurator/fetch-page:', error);
+      res.status(500).json({ 
+        message: error.message || "Failed to fetch page" 
+      });
+    }
+  });
+
   app.patch("/api/admin/incomplete-items/:id", isAdmin, async (req, res) => {
     try {
       const itemId = parseInt(req.params.id);

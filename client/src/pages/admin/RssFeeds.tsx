@@ -45,7 +45,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles, Crosshair } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
@@ -55,6 +55,7 @@ import { lazy, Suspense } from 'react';
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
 const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
 const FeedAnalyzerModal = lazy(() => import('@/components/admin/FeedAnalyzerModal'));
+const VisualFeedConfigurator = lazy(() => import('@/components/admin/VisualFeedConfigurator'));
 
 interface RssFeed {
   id: number;
@@ -89,6 +90,7 @@ export default function RssFeedsPage() {
   const [, navigate] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isAnalyzerModalOpen, setIsAnalyzerModalOpen] = useState(false);
+  const [isVisualConfiguratorOpen, setIsVisualConfiguratorOpen] = useState(false);
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
   const [activeTab, setActiveTab] = useState('list');
   
@@ -514,6 +516,14 @@ export default function RssFeedsPage() {
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Nieuwe Feed
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => setIsVisualConfiguratorOpen(true)}
+                data-testid="button-visual-configurator"
+              >
+                <Crosshair className="w-4 h-4 mr-2" />
+                Visuele Configurator
               </Button>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
@@ -1044,6 +1054,20 @@ export default function RssFeedsPage() {
               onFeedCreated={() => {
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+              }}
+            />
+          </Suspense>
+
+          <Suspense fallback={null}>
+            <VisualFeedConfigurator 
+              isOpen={isVisualConfiguratorOpen} 
+              onClose={() => setIsVisualConfiguratorOpen(false)}
+              onSave={(config) => {
+                toast({
+                  title: 'Configuratie opgeslagen',
+                  description: 'De visuele feed configuratie is succesvol opgeslagen.',
+                });
+                console.log('Visual configurator config:', config);
               }}
             />
           </Suspense>

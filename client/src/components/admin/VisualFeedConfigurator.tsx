@@ -47,6 +47,7 @@ import {
   Crosshair,
   Building2,
   Map,
+  List,
 } from 'lucide-react';
 import { DUTCH_MUNICIPALITIES, type Municipality } from '@shared/dutch-municipalities';
 
@@ -91,16 +92,16 @@ interface VisualFeedConfiguratorProps {
   onSave?: (config: SelectorConfig) => void;
 }
 
-const FIELD_CONFIG: { id: keyof Omit<SelectorConfig, 'eventCard'>; name: string; required: boolean; description: string; icon: React.ReactNode }[] = [
-  { id: 'title', name: 'Titel', required: true, description: 'Naam van het evenement', icon: <Type className="h-4 w-4" /> },
-  { id: 'date', name: 'Datum', required: true, description: 'Startdatum (en eventueel einddatum)', icon: <Calendar className="h-4 w-4" /> },
-  { id: 'time', name: 'Tijd', required: false, description: 'Start- en eindtijd (alleen als 100% zeker)', icon: <Clock className="h-4 w-4" /> },
-  { id: 'location', name: 'Locatie', required: true, description: 'GPS of geocodeerbaar adres', icon: <MapPin className="h-4 w-4" /> },
-  { id: 'venue', name: 'Venue', required: false, description: 'Naam van de locatie/zaal (bijv. "Paradiso", "De Oosterpoort")', icon: <Building2 className="h-4 w-4" /> },
-  { id: 'venueDescription', name: 'Venue Omschrijving', required: false, description: 'Beschrijving of info over de venue', icon: <Building2 className="h-4 w-4" /> },
-  { id: 'description', name: 'Beschrijving', required: false, description: 'Omschrijving van het event', icon: <FileText className="h-4 w-4" /> },
-  { id: 'image', name: 'Afbeelding', required: false, description: 'Afbeelding URL (voorkeur bron)', icon: <ImageIcon className="h-4 w-4" /> },
-  { id: 'link', name: 'Link', required: false, description: 'Externe URL naar event', icon: <LinkIcon className="h-4 w-4" /> },
+const FIELD_CONFIG: { id: keyof Omit<SelectorConfig, 'eventCard'>; name: string; required: boolean; description: string; icon: React.ReactNode; group: 'overview' | 'detail' }[] = [
+  { id: 'title', name: 'Titel', required: true, description: 'Naam van het evenement', icon: <Type className="h-4 w-4" />, group: 'overview' },
+  { id: 'date', name: 'Datum', required: true, description: 'Startdatum (en eventueel einddatum)', icon: <Calendar className="h-4 w-4" />, group: 'overview' },
+  { id: 'image', name: 'Afbeelding', required: false, description: 'Thumbnail/afbeelding op de overzichtspagina', icon: <ImageIcon className="h-4 w-4" />, group: 'overview' },
+  { id: 'link', name: 'Detail Link', required: true, description: 'Link naar de detail pagina van het event (BELANGRIJK: hiermee worden extra velden opgehaald)', icon: <LinkIcon className="h-4 w-4" />, group: 'overview' },
+  { id: 'location', name: 'Locatie', required: true, description: 'Adres of GPS coördinaten (VERPLICHT - geen fallback locaties)', icon: <MapPin className="h-4 w-4" />, group: 'detail' },
+  { id: 'venue', name: 'Venue', required: false, description: 'Naam van de locatie/zaal', icon: <Building2 className="h-4 w-4" />, group: 'detail' },
+  { id: 'time', name: 'Tijd', required: false, description: 'Start- en eindtijd', icon: <Clock className="h-4 w-4" />, group: 'detail' },
+  { id: 'description', name: 'Beschrijving', required: false, description: 'Omschrijving van het event', icon: <FileText className="h-4 w-4" />, group: 'detail' },
+  { id: 'venueDescription', name: 'Venue Info', required: false, description: 'Extra info over de venue', icon: <Building2 className="h-4 w-4" />, group: 'detail' },
 ];
 
 const generateNonce = () => {
@@ -321,8 +322,11 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
     if (!selectors.date) {
       issues.push({ type: 'error', message: 'Datum selector is verplicht (event moet datum hebben)' });
     }
+    if (!selectors.link) {
+      issues.push({ type: 'error', message: 'Detail link selector is verplicht (om extra velden van detail pagina op te halen)' });
+    }
     if (!selectors.location) {
-      issues.push({ type: 'error', message: 'Locatie selector is verplicht (geen fallback locaties)' });
+      issues.push({ type: 'error', message: 'Locatie is verplicht - geen fallback locaties toegestaan. Selecteer dit veld op de overzichts- of detail pagina.' });
     }
     if (selectors.time && !selectors.date) {
       issues.push({ type: 'warning', message: 'Tijd zonder datum gedefinieerd' });
@@ -646,50 +650,110 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
                       )}
                     </div>
 
-                    {FIELD_CONFIG.map((field) => {
-                      const status = getPrincipleStatus(field.id);
-                      const isActive = activeField === field.id;
-                      const hasValue = !!selectors[field.id];
+                    {/* Overview fields - from list page */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">
+                        <List className="h-3 w-3" />
+                        STAP 1: Overzichtspagina (huidige pagina)
+                      </div>
+                      {FIELD_CONFIG.filter(f => f.group === 'overview').map((field) => {
+                        const isActive = activeField === field.id;
+                        const hasValue = !!selectors[field.id];
 
-                      return (
-                        <div
-                          key={field.id}
-                          className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                            isActive 
-                              ? 'border-blue-500 bg-blue-50' 
-                              : hasValue 
-                                ? 'border-green-300 bg-green-50' 
-                                : field.required 
-                                  ? 'border-red-300 bg-red-50' 
-                                  : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                          onClick={() => setActiveField(field.id)}
-                          onMouseEnter={() => selectors[field.id] && setHighlightedSelector(selectors[field.id]!)}
-                          onMouseLeave={() => setHighlightedSelector('')}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {field.icon}
-                              <span className="font-medium text-sm">{field.name}</span>
-                              {field.required && <Badge variant="destructive" className="text-xs">Verplicht</Badge>}
+                        return (
+                          <div
+                            key={field.id}
+                            className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              isActive 
+                                ? 'border-blue-500 bg-blue-50' 
+                                : hasValue 
+                                  ? 'border-green-300 bg-green-50' 
+                                  : field.required 
+                                    ? 'border-red-300 bg-red-50' 
+                                    : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => setActiveField(field.id)}
+                            onMouseEnter={() => selectors[field.id] && setHighlightedSelector(selectors[field.id]!)}
+                            onMouseLeave={() => setHighlightedSelector('')}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {field.icon}
+                                <span className="font-medium text-sm">{field.name}</span>
+                                {field.required && <Badge variant="destructive" className="text-xs">Verplicht</Badge>}
+                              </div>
+                              {hasValue ? (
+                                <Check className="h-4 w-4 text-green-600" />
+                              ) : field.required ? (
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                              ) : (
+                                <div className="h-4 w-4" />
+                              )}
                             </div>
-                            {hasValue ? (
-                              <Check className="h-4 w-4 text-green-600" />
-                            ) : field.required ? (
-                              <AlertCircle className="h-4 w-4 text-red-500" />
-                            ) : (
-                              <div className="h-4 w-4" />
+                            <p className="text-xs text-muted-foreground mt-1">{field.description}</p>
+                            {selectors[field.id] && (
+                              <code className="text-xs text-muted-foreground mt-1 block truncate">
+                                {selectors[field.id]}
+                              </code>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">{field.description}</p>
-                          {selectors[field.id] && (
-                            <code className="text-xs text-muted-foreground mt-1 block truncate">
-                              {selectors[field.id]}
-                            </code>
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+
+                    {/* Detail fields - from detail page */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-1 rounded">
+                        <FileText className="h-3 w-3" />
+                        STAP 2: Detail pagina (via link)
+                      </div>
+                      <p className="text-xs text-muted-foreground px-1">
+                        Deze velden worden opgehaald van de detail pagina. Configureer deze op de detail pagina van een event.
+                      </p>
+                      {FIELD_CONFIG.filter(f => f.group === 'detail').map((field) => {
+                        const isActive = activeField === field.id;
+                        const hasValue = !!selectors[field.id];
+
+                        return (
+                          <div
+                            key={field.id}
+                            className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              isActive 
+                                ? 'border-purple-500 bg-purple-50' 
+                                : hasValue 
+                                  ? 'border-green-300 bg-green-50' 
+                                  : field.required 
+                                    ? 'border-red-300 bg-red-50' 
+                                    : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => setActiveField(field.id)}
+                            onMouseEnter={() => selectors[field.id] && setHighlightedSelector(selectors[field.id]!)}
+                            onMouseLeave={() => setHighlightedSelector('')}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {field.icon}
+                                <span className="font-medium text-sm">{field.name}</span>
+                                {field.required && <Badge variant="destructive" className="text-xs">Verplicht</Badge>}
+                              </div>
+                              {hasValue ? (
+                                <Check className="h-4 w-4 text-green-600" />
+                              ) : field.required ? (
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                              ) : (
+                                <div className="h-4 w-4" />
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{field.description}</p>
+                            {selectors[field.id] && (
+                              <code className="text-xs text-muted-foreground mt-1 block truncate">
+                                {selectors[field.id]}
+                              </code>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </ScrollArea>
               </CardContent>

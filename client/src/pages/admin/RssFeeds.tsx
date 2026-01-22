@@ -91,6 +91,7 @@ export default function RssFeedsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isAnalyzerModalOpen, setIsAnalyzerModalOpen] = useState(false);
   const [isVisualConfiguratorOpen, setIsVisualConfiguratorOpen] = useState(false);
+  const [visualConfiguratorUrl, setVisualConfiguratorUrl] = useState('');
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
   const [activeTab, setActiveTab] = useState('list');
   
@@ -820,10 +821,6 @@ export default function RssFeedsPage() {
                 <List className="w-4 h-4" />
                 Feeds ({feeds.length})
               </TabsTrigger>
-              <TabsTrigger value="parsers" className="flex items-center gap-2" data-testid="tab-parsers">
-                <FileCode className="w-4 h-4" />
-                Parsers ({parserConfigs.length})
-              </TabsTrigger>
               <TabsTrigger value="map" className="flex items-center gap-2">
                 <Map className="w-4 h-4" />
                 Kaart
@@ -1027,6 +1024,19 @@ export default function RssFeedsPage() {
                             >
                               <RefreshCw className={`w-4 h-4 ${syncingFeedId === feed.id ? 'animate-spin' : ''}`} />
                             </Button>
+                            {feed.feedType === 'scraper' && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => {
+                                  setVisualConfiguratorUrl(feed.url);
+                                  setIsVisualConfiguratorOpen(true);
+                                }}
+                                title="Parser configuratie bewerken"
+                              >
+                                <Crosshair className="w-4 h-4 text-purple-600" />
+                              </Button>
+                            )}
                             <Button 
                               variant="ghost" 
                               size="icon"
@@ -1077,112 +1087,7 @@ export default function RssFeedsPage() {
           )}
             </TabsContent>
 
-            <TabsContent value="parsers">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileCode className="w-5 h-5" />
-                    Visuele Parser Configuraties
-                  </CardTitle>
-                  <CardDescription>
-                    Opgeslagen configuraties voor het scrapen van event websites. Deze parsers worden gebruikt om automatisch events te extraheren.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingParsers ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    </div>
-                  ) : parserConfigs.length === 0 ? (
-                    <div className="text-center py-8">
-                      <FileCode className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-medium mb-2">Nog geen parsers</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Gebruik de Visuele Configurator om een parser aan te maken.
-                      </p>
-                      <Button onClick={() => setIsVisualConfiguratorOpen(true)}>
-                        <Crosshair className="w-4 h-4 mr-2" />
-                        Nieuwe Parser
-                      </Button>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Domein</TableHead>
-                          <TableHead>Gemeente</TableHead>
-                          <TableHead>Velden</TableHead>
-                          <TableHead>Laatst bijgewerkt</TableHead>
-                          <TableHead className="w-[100px]">Acties</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {parserConfigs.map((config) => (
-                          <TableRow key={config.id}>
-                            <TableCell>
-                              <div className="font-medium">{config.domain}</div>
-                              <div className="text-xs text-muted-foreground">{config.pathPattern}</div>
-                            </TableCell>
-                            <TableCell>
-                              {config.municipality ? (
-                                <Badge variant="outline">{config.municipality}</Badge>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {Object.keys(config.selectors || {}).filter(k => config.selectors[k]).map(field => (
-                                  <Badge key={field} variant="secondary" className="text-xs">
-                                    {field}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {config.updatedAt ? format(new Date(config.updatedAt), 'dd MMM yyyy HH:mm', { locale: nl }) : '-'}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => window.open(`https://${config.domain}${config.pathPattern}`, '_blank')}
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                      <Trash2 className="w-4 h-4 text-destructive" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Parser verwijderen?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Weet je zeker dat je de parser voor {config.domain} wilt verwijderen?
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => deleteParserMutation.mutate(config.id)}>
-                                        Verwijderen
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
+            
             <TabsContent value="incomplete">
               <Suspense fallback={
                 <div className="flex items-center justify-center h-[300px] bg-muted rounded-lg">
@@ -1202,13 +1107,21 @@ export default function RssFeedsPage() {
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
               }}
+              onOpenVisualConfigurator={(url) => {
+                setVisualConfiguratorUrl(url);
+                setIsVisualConfiguratorOpen(true);
+              }}
             />
           </Suspense>
 
           <Suspense fallback={null}>
             <VisualFeedConfigurator 
               isOpen={isVisualConfiguratorOpen} 
-              onClose={() => setIsVisualConfiguratorOpen(false)}
+              onClose={() => {
+                setIsVisualConfiguratorOpen(false);
+                setVisualConfiguratorUrl('');
+              }}
+              initialUrl={visualConfiguratorUrl}
               onSave={(config) => {
                 toast({
                   title: 'Configuratie opgeslagen',

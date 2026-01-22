@@ -31,6 +31,7 @@ import {
   MapPin,
   Image as ImageIcon,
   ExternalLink,
+  Crosshair,
 } from 'lucide-react';
 
 interface ProgressiveStep {
@@ -108,6 +109,7 @@ interface FeedAnalyzerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFeedCreated?: () => void;
+  onOpenVisualConfigurator?: (url: string) => void;
 }
 
 const IMPORT_RULES_SUMMARY = [
@@ -133,7 +135,7 @@ const IMPORT_RULES_SUMMARY = [
   },
 ];
 
-export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }: FeedAnalyzerModalProps) {
+export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, onOpenVisualConfigurator }: FeedAnalyzerModalProps) {
   const { toast } = useToast();
   const [url, setUrl] = useState('');
   const [result, setResult] = useState<ProgressiveAnalysisResult | null>(null);
@@ -581,17 +583,55 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
             </div>
           )}
 
-          {/* No viable method found */}
+          {/* No viable method found - offer visual configurator */}
           {result && !result.chosenMethod && result.isComplete && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <h4 className="font-semibold text-amber-800 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5" />
-                Geen geschikte import methode gevonden
+                Geen automatische import methode gevonden
               </h4>
               <p className="text-sm text-amber-700 mt-1">
                 We konden geen automatische import methode vinden voor deze website.
-                Probeer een andere pagina of neem contact op voor handmatige configuratie.
+                Gebruik de visuele configurator om handmatig de event velden te selecteren.
               </p>
+              {onOpenVisualConfigurator && (
+                <Button 
+                  variant="default" 
+                  className="mt-3"
+                  onClick={() => {
+                    onOpenVisualConfigurator(url);
+                    handleClose();
+                  }}
+                >
+                  <Crosshair className="w-4 h-4 mr-2" />
+                  Open Visuele Configurator
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Scraper method found - offer visual configurator for better results */}
+          {result?.isComplete && result.chosenMethod?.id === 'scraper' && onOpenVisualConfigurator && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-800 flex items-center gap-2">
+                <Info className="w-5 h-5" />
+                Betere resultaten met visuele configuratie
+              </h4>
+              <p className="text-sm text-blue-700 mt-1">
+                De automatische HTML scraper mist vaak belangrijke informatie. 
+                Gebruik de visuele configurator om handmatig de juiste velden te selecteren voor nauwkeurigere imports.
+              </p>
+              <Button 
+                variant="default" 
+                className="mt-3"
+                onClick={() => {
+                  onOpenVisualConfigurator(url);
+                  handleClose();
+                }}
+              >
+                <Crosshair className="w-4 h-4 mr-2" />
+                Open Visuele Configurator
+              </Button>
             </div>
           )}
         </div>

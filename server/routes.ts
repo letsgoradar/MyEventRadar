@@ -2355,6 +2355,9 @@ Respond with ONLY the search term, nothing else.`,
       if (!selectors.date || typeof selectors.date !== 'string') {
         validationErrors.push('Datum selector is verplicht (event moet datum hebben)');
       }
+      if (!selectors.link || typeof selectors.link !== 'string') {
+        validationErrors.push('Detail link selector is verplicht (om extra velden van detail pagina op te halen)');
+      }
       if (!selectors.location || typeof selectors.location !== 'string') {
         validationErrors.push('Locatie selector is verplicht (geen fallback locaties)');
       }

@@ -186,7 +186,8 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
   const iframeRef = useRef<HTMLIFrameElement>(null);
   
   const [currentStep, setCurrentStep] = useState<WizardStep>('analyze');
-  const [url, setUrl] = useState(initialUrl);
+  const [overviewUrl, setOverviewUrl] = useState(initialUrl);
+  const [detailExampleUrl, setDetailExampleUrl] = useState('');
   const [analysisResult, setAnalysisResult] = useState<ProgressiveAnalysisResult | null>(null);
   const [feedName, setFeedName] = useState('');
   const [municipality, setMunicipality] = useState('');
@@ -199,10 +200,11 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
   const [validationResult, setValidationResult] = useState<{ totalFound: number; previewEvents: any[] } | null>(null);
   const [messageNonce] = useState<string>(() => crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const [highlightedSelector, setHighlightedSelector] = useState<string | null>(null);
+  const [activePageContext, setActivePageContext] = useState<'overview' | 'detail'>('overview');
 
   useEffect(() => {
     if (initialUrl) {
-      setUrl(initialUrl);
+      setOverviewUrl(initialUrl);
     }
   }, [initialUrl]);
 
@@ -221,10 +223,6 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
       if (data.suggestedMunicipality) {
         setMunicipality(data.suggestedMunicipality);
       }
-      
-      if (data.chosenMethod?.id === 'scraper' || !data.chosenMethod) {
-        loadIframeForUrl(data.url);
-      }
     },
     onError: (error: Error) => {
       toast({
@@ -238,11 +236,11 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
   const createFeedMutation = useMutation({
     mutationFn: async () => {
       if (currentStep === 'configure' || !analysisResult?.chosenMethod) {
-        const parsedUrl = new URL(url);
+        const parsedUrl = new URL(overviewUrl);
         return apiRequest('/api/admin/visual-configurator/save-config', {
           method: 'POST',
           data: {
-            url: url,
+            url: overviewUrl,
             domain: parsedUrl.hostname,
             feedName: feedName || 'Nieuwe Feed',
             municipality: municipality,
@@ -300,7 +298,7 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
       return apiRequest('/api/admin/visual-configurator/test', {
         method: 'POST',
         data: {
-          url: url,
+          url: overviewUrl,
           selectors: selectors,
         },
       });
@@ -440,14 +438,15 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
   };
 
   const handleAnalyze = () => {
-    if (!url.trim()) return;
+    if (!overviewUrl.trim()) return;
     setAnalysisResult(null);
     setCurrentStep('analyze');
-    analyzeMutation.mutate(url.trim());
+    analyzeMutation.mutate(overviewUrl.trim());
   };
 
   const handleClose = () => {
-    setUrl('');
+    setOverviewUrl('');
+    setDetailExampleUrl('');
     setAnalysisResult(null);
     setFeedName('');
     setMunicipality('');
@@ -456,14 +455,17 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
     setSampleValues({});
     setPageHtml(null);
     setValidationResult(null);
+    setActivePageContext('overview');
     onOpenChange(false);
   };
 
   const goToConfigureStep = () => {
-    if (!pageHtml) {
-      loadIframeForUrl(url);
-    }
+    setPageHtml(null);
+    setActivePageContext('overview');
     setCurrentStep('configure');
+    if (overviewUrl) {
+      loadIframeForUrl(overviewUrl);
+    }
   };
 
   useEffect(() => {
@@ -590,19 +592,19 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
   const renderAnalyzeStep = () => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="url">Website URL</Label>
+        <Label htmlFor="url">Overzichtspagina URL (waar alle events staan)</Label>
         <div className="flex gap-2">
           <Input
             id="url"
             placeholder="bijv. visittiel.nl of https://agenda.tilburg.nl"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            value={overviewUrl}
+            onChange={(e) => setOverviewUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
             disabled={analyzeMutation.isPending}
           />
           <Button 
             onClick={handleAnalyze} 
-            disabled={!url.trim() || analyzeMutation.isPending}
+            disabled={!overviewUrl.trim() || analyzeMutation.isPending}
           >
             {analyzeMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -686,19 +688,80 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
   );
 
   const renderConfigureStep = () => (
-    <div className="flex gap-4 h-[500px]">
-      <div className="flex-1 border rounded-lg overflow-hidden relative">
-        {iframeLoading && (
-          <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+    <div className="space-y-3">
+      <div className="flex gap-2 p-2 bg-gray-100 rounded-lg">
+        <Button
+          variant={activePageContext === 'overview' ? 'default' : 'ghost'}
+          size="sm"
+          className="flex-1"
+          onClick={() => {
+            setActivePageContext('overview');
+            if (overviewUrl) loadIframeForUrl(overviewUrl);
+          }}
+        >
+          <List className="w-4 h-4 mr-2" />
+          Overzichtspagina
+          {selectors.eventCard && <Check className="w-3 h-3 ml-2 text-green-400" />}
+        </Button>
+        <Button
+          variant={activePageContext === 'detail' ? 'default' : 'ghost'}
+          size="sm"
+          className="flex-1"
+          onClick={() => {
+            setActivePageContext('detail');
+            if (detailExampleUrl) loadIframeForUrl(detailExampleUrl);
+          }}
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          Detail pagina
+        </Button>
+      </div>
+
+      {activePageContext === 'overview' && (
+        <div className="text-xs bg-blue-50 p-2 rounded flex items-center gap-2">
+          <Globe className="w-4 h-4 text-blue-600" />
+          <span><strong>Overzichtspagina:</strong> {overviewUrl}</span>
+          <Button variant="ghost" size="sm" className="ml-auto h-6" onClick={() => loadIframeForUrl(overviewUrl)}>
+            <RefreshCw className="w-3 h-3" />
+          </Button>
+        </div>
+      )}
+
+      {activePageContext === 'detail' && (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input
+              placeholder="bijv. https://site.nl/agenda/voorbeeld-event"
+              value={detailExampleUrl}
+              onChange={(e) => setDetailExampleUrl(e.target.value)}
+              className="text-xs"
+            />
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => loadIframeForUrl(detailExampleUrl)}
+              disabled={!detailExampleUrl.trim() || iframeLoading}
+            >
+              {iframeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+            </Button>
           </div>
-        )}
+          <p className="text-xs text-muted-foreground">Voer de URL van een voorbeeld event in om detail velden te configureren</p>
+        </div>
+      )}
+      
+      <div className="flex gap-4 h-[450px]">
+        <div className="flex-1 border rounded-lg overflow-hidden relative">
+          {iframeLoading && (
+            <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          )}
         {iframeError && (
           <div className="absolute inset-0 bg-red-50 flex items-center justify-center">
             <div className="text-center p-4">
               <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
               <p className="text-red-700">{iframeError}</p>
-              <Button variant="outline" size="sm" className="mt-2" onClick={() => loadIframeForUrl(url)}>
+              <Button variant="outline" size="sm" className="mt-2" onClick={() => loadIframeForUrl(activePageContext === 'overview' ? overviewUrl : detailExampleUrl)}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Opnieuw
               </Button>
@@ -728,10 +791,11 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
       <div className="w-80 overflow-y-auto space-y-4">
         <Card>
           <CardContent className="p-3 space-y-3">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold flex items-center gap-2">
+            <div className={`space-y-2 p-2 rounded ${activePageContext === 'overview' ? 'bg-blue-50 border border-blue-200' : 'opacity-50'}`}>
+              <Label className="text-xs font-semibold flex items-center gap-2 text-blue-700">
                 <List className="w-4 h-4" />
-                Event Container (verplicht)
+                Overzichtspagina velden
+                {activePageContext !== 'overview' && <span className="text-xs font-normal text-gray-500 ml-auto">Wissel naar Overzichtspagina</span>}
               </Label>
               <Button
                 variant={selectors.eventCard ? "secondary" : "outline"}
@@ -740,18 +804,15 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
                 onClick={() => setSelectionMode('eventCard')}
                 onMouseEnter={() => handleFieldHover('eventCard')}
                 onMouseLeave={() => handleFieldHover(null)}
+                disabled={activePageContext !== 'overview'}
               >
                 {selectors.eventCard ? (
-                  <><Check className="w-3 h-3 mr-2 text-green-600" />{selectors.eventCard.slice(0, 30)}...</>
+                  <><Check className="w-3 h-3 mr-2 text-green-600" />{selectors.eventCard.slice(0, 25)}...</>
                 ) : (
-                  <><Crosshair className="w-3 h-3 mr-2" />Selecteer container</>
+                  <><Crosshair className="w-3 h-3 mr-2" />Event Container *</>
                 )}
               </Button>
-            </div>
-
-            <div className="border-t pt-3">
-              <Label className="text-xs font-semibold text-blue-700">STAP 1: Overzichtspagina</Label>
-              <div className="space-y-2 mt-2">
+              <div className="space-y-1">
                 {FIELD_CONFIG.filter(f => f.group === 'overview').map((field) => (
                   <div key={field.id} className="flex items-center gap-2">
                     <Button
@@ -761,6 +822,7 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
                       onClick={() => setSelectionMode(field.id)}
                       onMouseEnter={() => handleFieldHover(field.id)}
                       onMouseLeave={() => handleFieldHover(null)}
+                      disabled={activePageContext !== 'overview'}
                     >
                       {field.icon}
                       <span className="ml-1">{field.name}</span>
@@ -772,10 +834,13 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
               </div>
             </div>
 
-            <div className="border-t pt-3">
-              <Label className="text-xs font-semibold text-purple-700">STAP 2: Detail pagina</Label>
-              <p className="text-xs text-muted-foreground mb-2">Via de detail link opgehaald</p>
-              <div className="space-y-2">
+            <div className={`space-y-2 p-2 rounded ${activePageContext === 'detail' ? 'bg-purple-50 border border-purple-200' : 'opacity-50'}`}>
+              <Label className="text-xs font-semibold text-purple-700 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Detail pagina velden
+                {activePageContext !== 'detail' && <span className="text-xs font-normal text-gray-500 ml-auto">Wissel naar Detail</span>}
+              </Label>
+              <div className="space-y-1">
                 {FIELD_CONFIG.filter(f => f.group === 'detail').map((field) => (
                   <div key={field.id} className="flex items-center gap-2">
                     <Button
@@ -785,6 +850,7 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
                       onClick={() => setSelectionMode(field.id)}
                       onMouseEnter={() => handleFieldHover(field.id)}
                       onMouseLeave={() => handleFieldHover(null)}
+                      disabled={activePageContext !== 'detail'}
                     >
                       {field.icon}
                       <span className="ml-1">{field.name}</span>
@@ -812,6 +878,7 @@ export default function FeedImportWizard({ open, onOpenChange, onFeedCreated, in
         </Card>
       </div>
     </div>
+  </div>
   );
 
   const renderPreviewStep = () => (

@@ -7,6 +7,7 @@ import fs from "fs";
 import { z } from "zod";
 import fetch from "node-fetch";
 import rateLimit from "express-rate-limit";
+import * as cheerio from "cheerio";
 
 import { setupAuth } from "./auth";
 import { AiProvider } from "./services/ai-provider";
@@ -2285,17 +2286,15 @@ Respond with ONLY the search term, nothing else.`,
         });
       }
 
-      let html = await response.text();
+      const html = await response.text();
       
-      // Remove existing base tags
-      html = html.replace(/<base[^>]*>/gi, '');
-      
-      // Create base tag with full origin
-      const baseTag = `<base href="${parsedUrl.origin}/" target="_blank">`;
+      // Use cheerio to parse and modify HTML safely
+      const $ = cheerio.load(html, { decodeEntities: false });
       
       // Helper to resolve URLs
-      const resolveUrl = (urlValue: string): string => {
-        if (!urlValue || urlValue.startsWith('data:') || urlValue.startsWith('javascript:') || urlValue.startsWith('#')) {
+      const resolveUrl = (urlValue: string | undefined): string => {
+        if (!urlValue) return '';
+        if (urlValue.startsWith('data:') || urlValue.startsWith('javascript:') || urlValue.startsWith('#') || urlValue.startsWith('mailto:') || urlValue.startsWith('tel:')) {
           return urlValue;
         }
         if (urlValue.startsWith('http://') || urlValue.startsWith('https://')) {
@@ -2307,7 +2306,6 @@ Respond with ONLY the search term, nothing else.`,
         if (urlValue.startsWith('/')) {
           return `${parsedUrl.origin}${urlValue}`;
         }
-        // Relative path (images/foo.jpg, ../css/style.css)
         try {
           return new URL(urlValue, url).href;
         } catch {
@@ -2315,102 +2313,140 @@ Respond with ONLY the search term, nothing else.`,
         }
       };
       
-      // CSS fixes - minimal and non-intrusive to preserve original layout
-      const preserveLayoutCSS = `
+      // Remove existing base tags and add our own
+      $('base').remove();
+      $('head').prepend(`<base href="${parsedUrl.origin}/">`);
+      
+      // Fix all link stylesheets - this is critical for layout
+      $('link[rel="stylesheet"]').each((_, el) => {
+        const href = $(el).attr('href');
+        if (href) {
+          $(el).attr('href', resolveUrl(href));
+        }
+      });
+      
+      // Fix all script sources
+      $('script[src]').each((_, el) => {
+        const src = $(el).attr('src');
+        if (src) {
+          $(el).attr('src', resolveUrl(src));
+        }
+      });
+      
+      // Fix all image sources and lazy loading
+      $('img').each((_, el) => {
+        const $el = $(el);
+        
+        // Handle lazy loading attributes
+        const lazySrc = $el.attr('data-src') || $el.attr('data-lazy-src') || $el.attr('data-original');
+        if (lazySrc) {
+          $el.attr('src', resolveUrl(lazySrc));
+        }
+        
+        // Fix regular src
+        const src = $el.attr('src');
+        if (src && !src.startsWith('data:')) {
+          $el.attr('src', resolveUrl(src));
+        }
+        
+        // Handle srcset
+        const dataSrcset = $el.attr('data-srcset');
+        if (dataSrcset) {
+          const resolved = dataSrcset.split(',').map(part => {
+            const [srcUrl, ...rest] = part.trim().split(/\s+/);
+            return `${resolveUrl(srcUrl)} ${rest.join(' ')}`.trim();
+          }).join(', ');
+          $el.attr('srcset', resolved);
+          $el.removeAttr('data-srcset');
+        }
+        
+        const srcset = $el.attr('srcset');
+        if (srcset && !srcset.startsWith('data:')) {
+          const resolved = srcset.split(',').map(part => {
+            const [srcUrl, ...rest] = part.trim().split(/\s+/);
+            if (srcUrl.startsWith('http') || srcUrl.startsWith('data:')) return part.trim();
+            return `${resolveUrl(srcUrl)} ${rest.join(' ')}`.trim();
+          }).join(', ');
+          $el.attr('srcset', resolved);
+        }
+        
+        // Remove lazy loading
+        $el.removeAttr('loading');
+        $el.removeClass('lazy lazyload lazyloading lazy-hidden');
+      });
+      
+      // Fix picture source elements
+      $('picture source').each((_, el) => {
+        const $el = $(el);
+        const srcset = $el.attr('srcset') || $el.attr('data-srcset');
+        if (srcset) {
+          const resolved = srcset.split(',').map(part => {
+            const [srcUrl, ...rest] = part.trim().split(/\s+/);
+            if (srcUrl.startsWith('http') || srcUrl.startsWith('data:')) return part.trim();
+            return `${resolveUrl(srcUrl)} ${rest.join(' ')}`.trim();
+          }).join(', ');
+          $el.attr('srcset', resolved);
+        }
+      });
+      
+      // Fix video posters and sources
+      $('video').each((_, el) => {
+        const $el = $(el);
+        const poster = $el.attr('poster');
+        if (poster) {
+          $el.attr('poster', resolveUrl(poster));
+        }
+        const src = $el.attr('src');
+        if (src) {
+          $el.attr('src', resolveUrl(src));
+        }
+      });
+      
+      $('video source, audio source').each((_, el) => {
+        const src = $(el).attr('src');
+        if (src) {
+          $(el).attr('src', resolveUrl(src));
+        }
+      });
+      
+      // Fix iframe sources
+      $('iframe[src]').each((_, el) => {
+        const src = $(el).attr('src');
+        if (src && !src.startsWith('data:') && !src.startsWith('about:')) {
+          $(el).attr('src', resolveUrl(src));
+        }
+      });
+      
+      // Fix background images in inline styles
+      $('[style*="background"]').each((_, el) => {
+        const style = $(el).attr('style');
+        if (style) {
+          const fixed = style.replace(/url\(['"]?([^'")]+)['"]?\)/gi, (match, urlValue) => {
+            if (urlValue.startsWith('http') || urlValue.startsWith('data:')) return match;
+            return `url('${resolveUrl(urlValue)}')`;
+          });
+          $(el).attr('style', fixed);
+        }
+      });
+      
+      // Fix data-bg attributes (common lazy loading pattern)
+      $('[data-bg]').each((_, el) => {
+        const bg = $(el).attr('data-bg');
+        if (bg) {
+          const currentStyle = $(el).attr('style') || '';
+          $(el).attr('style', `${currentStyle}; background-image: url('${resolveUrl(bg)}')`);
+        }
+      });
+      
+      // Add minimal CSS for VFC functionality only - no layout overrides
+      $('head').append(`
         <style data-vfc-styles>
-          /* Only visibility fixes - no layout changes */
-          img, picture, video, source { 
-            visibility: visible !important; 
-            opacity: 1 !important;
-          }
-          
-          /* Lazy loading visibility fixes only */
-          .lazy, .lazyload, .lazyloading, .lazy-hidden { 
-            opacity: 1 !important; 
-            visibility: visible !important; 
-          }
-          
-          /* Limit only problematic giant SVG icons */
-          svg.icon, svg[class*="icon"] { 
-            max-width: 48px !important; 
-            max-height: 48px !important; 
-          }
-          
-          /* VFC selection highlight */
-          .vfc-highlight {
-            outline: 3px solid #3b82f6 !important;
-            outline-offset: 2px !important;
-          }
-          .vfc-hover {
-            outline: 2px dashed #10b981 !important;
-            outline-offset: 1px !important;
-            cursor: pointer !important;
-          }
+          .vfc-highlight { outline: 3px solid #3b82f6 !important; outline-offset: 2px !important; }
+          .vfc-hover { outline: 2px dashed #10b981 !important; cursor: pointer !important; }
         </style>
-      `;
-      
-      // Insert base tag and CSS at the beginning of head
-      if (html.match(/<head[^>]*>/i)) {
-        html = html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}${preserveLayoutCSS}`);
-      } else if (html.match(/<html[^>]*>/i)) {
-        html = html.replace(/<html([^>]*)>/i, `<html$1><head>${baseTag}${preserveLayoutCSS}</head>`);
-      } else {
-        html = `<!DOCTYPE html><html><head>${baseTag}${preserveLayoutCSS}</head><body>${html}</body></html>`;
-      }
-      
-      // Convert lazy-loaded images to regular images with absolute URLs
-      html = html.replace(/data-src="([^"]+)"/gi, (_, src) => `src="${resolveUrl(src)}"`);
-      html = html.replace(/data-lazy-src="([^"]+)"/gi, (_, src) => `src="${resolveUrl(src)}"`);
-      html = html.replace(/data-original="([^"]+)"/gi, (_, src) => `src="${resolveUrl(src)}"`);
-      html = html.replace(/data-bg="([^"]+)"/gi, (_, src) => `style="background-image: url('${resolveUrl(src)}')"`);
-      
-      // Fix loading attribute
-      html = html.replace(/loading="lazy"/gi, 'loading="eager"');
-      
-      // Convert srcset lazy loading
-      html = html.replace(/data-srcset="([^"]+)"/gi, (_, srcset) => {
-        const resolved = srcset.split(',').map((part: string) => {
-          const [srcUrl, ...rest] = part.trim().split(/\s+/);
-          return `${resolveUrl(srcUrl)} ${rest.join(' ')}`;
-        }).join(', ');
-        return `srcset="${resolved}"`;
-      });
-      
-      // Fix all src attributes (images, scripts, iframes, etc.)
-      html = html.replace(/\ssrc="([^"]+)"/gi, (match, src) => {
-        if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('#')) return match;
-        return ` src="${resolveUrl(src)}"`;
-      });
-      
-      // Fix all href attributes (stylesheets, links)
-      html = html.replace(/\shref="([^"]+)"/gi, (match, href) => {
-        if (href.startsWith('http') || href.startsWith('data:') || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return match;
-        return ` href="${resolveUrl(href)}"`;
-      });
-      
-      // Fix srcset with relative URLs
-      html = html.replace(/\ssrcset="([^"]+)"/gi, (match, srcset) => {
-        if (srcset.startsWith('data:')) return match;
-        const resolved = srcset.split(',').map((part: string) => {
-          const [srcUrl, ...rest] = part.trim().split(/\s+/);
-          if (srcUrl.startsWith('http') || srcUrl.startsWith('data:')) return part.trim();
-          return `${resolveUrl(srcUrl)} ${rest.join(' ')}`;
-        }).join(', ');
-        return ` srcset="${resolved}"`;
-      });
-      
-      // Fix poster attribute for videos
-      html = html.replace(/\sposter="([^"]+)"/gi, (match, poster) => {
-        if (poster.startsWith('http') || poster.startsWith('data:')) return match;
-        return ` poster="${resolveUrl(poster)}"`;
-      });
-      
-      // Fix CSS url() with relative paths
-      html = html.replace(/url\((['"]?)([^)'"]+)\1\)/gi, (match, quote, urlValue) => {
-        if (urlValue.startsWith('http') || urlValue.startsWith('data:') || urlValue.startsWith('#')) return match;
-        return `url(${quote}${resolveUrl(urlValue)}${quote})`;
-      });
+      `);
 
+      const finalHtml = $.html();
       const suggestedElements: Array<{ selector: string; sampleText: string; tagName: string; count: number }> = [];
       
       const eventPatterns = [
@@ -2424,7 +2460,7 @@ Respond with ONLY the search term, nothing else.`,
       ];
 
       res.json({ 
-        html,
+        html: finalHtml,
         url: parsedUrl.href,
         domain: parsedUrl.hostname,
         suggestedElements,

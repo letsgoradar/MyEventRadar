@@ -194,16 +194,16 @@ const IMPORT_RULES_SUMMARY = [
   },
 ];
 
-const FIELD_CONFIG: { id: keyof Omit<SelectorConfig, 'eventCard'>; name: string; required: boolean; description: string; icon: React.ReactNode; group: 'overview' | 'detail' }[] = [
-  { id: 'title', name: 'Titel', required: true, description: 'Naam van het evenement', icon: <Type className="h-4 w-4" />, group: 'overview' },
-  { id: 'date', name: 'Datum', required: true, description: 'Startdatum (en eventueel einddatum)', icon: <Calendar className="h-4 w-4" />, group: 'overview' },
-  { id: 'image', name: 'Afbeelding', required: false, description: 'Thumbnail/afbeelding op de overzichtspagina', icon: <ImageIcon className="h-4 w-4" />, group: 'overview' },
-  { id: 'link', name: 'Detail Link', required: true, description: 'Link naar de detail pagina van het event', icon: <LinkIcon className="h-4 w-4" />, group: 'overview' },
-  { id: 'location', name: 'Locatie', required: true, description: 'Adres of GPS coördinaten (VERPLICHT)', icon: <MapPin className="h-4 w-4" />, group: 'detail' },
-  { id: 'venue', name: 'Venue', required: false, description: 'Naam van de locatie/zaal', icon: <Building2 className="h-4 w-4" />, group: 'detail' },
-  { id: 'time', name: 'Tijd', required: false, description: 'Start- en eindtijd', icon: <Clock className="h-4 w-4" />, group: 'detail' },
-  { id: 'description', name: 'Beschrijving', required: false, description: 'Omschrijving van het event', icon: <FileText className="h-4 w-4" />, group: 'detail' },
-  { id: 'venueDescription', name: 'Venue Info', required: false, description: 'Extra info over de venue', icon: <Building2 className="h-4 w-4" />, group: 'detail' },
+const FIELD_CONFIG: { id: keyof Omit<SelectorConfig, 'eventCard'>; name: string; required: boolean; description: string; icon: React.ReactNode }[] = [
+  { id: 'title', name: 'Titel', required: true, description: 'Naam van het evenement', icon: <Type className="h-4 w-4" /> },
+  { id: 'date', name: 'Datum', required: true, description: 'Startdatum (en eventueel einddatum)', icon: <Calendar className="h-4 w-4" /> },
+  { id: 'image', name: 'Afbeelding', required: false, description: 'Thumbnail/afbeelding', icon: <ImageIcon className="h-4 w-4" /> },
+  { id: 'link', name: 'Detail Link', required: true, description: 'Link naar de detail pagina van het event', icon: <LinkIcon className="h-4 w-4" /> },
+  { id: 'location', name: 'Locatie', required: true, description: 'Adres of GPS coördinaten (VERPLICHT)', icon: <MapPin className="h-4 w-4" /> },
+  { id: 'venue', name: 'Venue', required: false, description: 'Naam van de locatie/zaal', icon: <Building2 className="h-4 w-4" /> },
+  { id: 'time', name: 'Tijd', required: false, description: 'Start- en eindtijd', icon: <Clock className="h-4 w-4" /> },
+  { id: 'description', name: 'Beschrijving', required: false, description: 'Omschrijving van het event', icon: <FileText className="h-4 w-4" /> },
+  { id: 'venueDescription', name: 'Venue Info', required: false, description: 'Extra info over de venue', icon: <Building2 className="h-4 w-4" /> },
 ];
 
 const generateNonce = () => {
@@ -307,6 +307,7 @@ function MunicipalitySearch({ value, onChange }: { value: string; onChange: (val
 export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }: FeedAnalyzerModalProps) {
   const { toast } = useToast();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const [currentStep, setCurrentStep] = useState<WizardStep>('analyze');
   const [overviewUrl, setOverviewUrl] = useState('');
@@ -337,6 +338,21 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
   
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
+  const [previewProgress, setPreviewProgress] = useState<{
+    phase: 'fetching' | 'parsing' | 'validating' | 'geocoding' | 'complete';
+    current: number;
+    total: number;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   const analyzeMutation = useMutation({
     mutationFn: async (urlToAnalyze: string): Promise<ProgressiveAnalysisResult> => {
@@ -568,20 +584,63 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
             return 'rss';
         }
       };
+      
+      setPreviewProgress({ phase: 'fetching', current: 0, total: 100, message: 'Feed ophalen...' });
+      
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+      
+      progressIntervalRef.current = setInterval(() => {
+        setPreviewProgress(prev => {
+          if (!prev) return prev;
+          const newCurrent = Math.min(prev.current + 5, 90);
+          let phase = prev.phase;
+          let message = prev.message;
+          
+          if (newCurrent > 20 && phase === 'fetching') {
+            phase = 'parsing';
+            message = 'Events parsen...';
+          } else if (newCurrent > 50 && phase === 'parsing') {
+            phase = 'validating';
+            message = 'Data valideren...';
+          } else if (newCurrent > 70 && phase === 'validating') {
+            phase = 'geocoding';
+            message = 'Locaties verifiëren...';
+          }
+          
+          return { ...prev, current: newCurrent, phase, message };
+        });
+      }, 300);
             
-      const response = await apiRequest('/api/admin/rss-feeds/preview', {
-        method: 'POST',
-        data: { 
-          url: method.url,
-          feedType: getFeedType(method.id),
-          municipality: selectedMunicipality || result?.suggestedMunicipality || '',
-          scraperConfig: method.id === 'scraper' ? selectors : undefined,
-        },
-      });
-      return response;
+      try {
+        const response = await apiRequest('/api/admin/rss-feeds/preview', {
+          method: 'POST',
+          data: { 
+            url: method.url,
+            feedType: getFeedType(method.id),
+            municipality: selectedMunicipality || result?.suggestedMunicipality || '',
+            scraperConfig: method.id === 'scraper' ? selectors : undefined,
+          },
+        });
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+        setPreviewProgress({ phase: 'complete', current: 100, total: 100, message: 'Klaar!' });
+        return response;
+      } catch (error) {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+        setPreviewProgress(null);
+        throw error;
+      }
     },
     onSuccess: (data) => {
       setPreviewResult(data);
+      setPreviewProgress(null);
       setCurrentStep('preview');
       
       if (data.success) {
@@ -595,11 +654,18 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
       }
     },
     onError: (error: Error) => {
+      setPreviewProgress(null);
       toast({
         title: 'Preview mislukt',
         description: error.message || 'Kon preview niet laden.',
         variant: 'destructive',
       });
+    },
+    onSettled: () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
     },
   });
 
@@ -612,6 +678,11 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
   };
 
   const handleClose = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    setPreviewProgress(null);
     setOverviewUrl('');
     setDetailUrl('');
     setResult(null);
@@ -1030,28 +1101,26 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
                 Detail
               </Button>
             </div>
-            {pageContext === 'detail' && (
-              <div className="space-y-1">
-                <Label className="text-xs">Detail pagina URL</Label>
-                <div className="flex gap-1">
-                  <Input
-                    value={detailUrl}
-                    onChange={(e) => setDetailUrl(e.target.value)}
-                    placeholder="URL van een voorbeeld event"
-                    className="h-7 text-xs"
-                  />
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="h-7 px-2"
-                    onClick={handleLoadDetailPage}
-                    disabled={!detailUrl || fetchPageMutation.isPending}
-                  >
-                    <RefreshCw className={`h-3 w-3 ${fetchPageMutation.isPending ? 'animate-spin' : ''}`} />
-                  </Button>
-                </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Detail pagina URL (optioneel)</Label>
+              <div className="flex gap-1">
+                <Input
+                  value={detailUrl}
+                  onChange={(e) => setDetailUrl(e.target.value)}
+                  placeholder="URL van een voorbeeld event"
+                  className="h-7 text-xs"
+                />
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="h-7 px-2"
+                  onClick={handleLoadDetailPage}
+                  disabled={!detailUrl || fetchPageMutation.isPending}
+                >
+                  <RefreshCw className={`h-3 w-3 ${fetchPageMutation.isPending ? 'animate-spin' : ''}`} />
+                </Button>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 
@@ -1101,9 +1170,9 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
                 <div className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded flex items-center gap-1">
                   <List className="h-3 w-3" />
-                  Overzichtspagina velden
+                  Alle velden (configureerbaar op {pageContext === 'overview' ? 'overzicht' : 'detail'} pagina)
                 </div>
-                {FIELD_CONFIG.filter(f => f.group === 'overview').map((field) => {
+                {FIELD_CONFIG.map((field) => {
                   const isActive = activeField === field.id;
                   const hasValue = !!selectors[field.id];
 
@@ -1120,59 +1189,6 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
                               : 'border-gray-200 hover:border-gray-300'
                       }`}
                       onClick={() => setActiveField(field.id)}
-                      onMouseEnter={() => selectors[field.id] && setHighlightedSelector(selectors[field.id]!)}
-                      onMouseLeave={() => setHighlightedSelector('')}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          {field.icon}
-                          <span className="font-medium text-xs">{field.name}</span>
-                          {field.required && <Badge variant="destructive" className="text-[10px] h-4">!</Badge>}
-                        </div>
-                        {hasValue ? (
-                          <Check className="h-3 w-3 text-green-600" />
-                        ) : field.required ? (
-                          <AlertCircle className="h-3 w-3 text-red-500" />
-                        ) : null}
-                      </div>
-                      {selectors[field.id] && (
-                        <code className="text-[10px] text-muted-foreground mt-1 block truncate">
-                          {selectors[field.id]}
-                        </code>
-                      )}
-                    </div>
-                  );
-                })}
-
-                <div className="text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-1 rounded flex items-center gap-1">
-                  <FileText className="h-3 w-3" />
-                  Detailpagina velden
-                </div>
-                {FIELD_CONFIG.filter(f => f.group === 'detail').map((field) => {
-                  const isActive = activeField === field.id;
-                  const hasValue = !!selectors[field.id];
-
-                  return (
-                    <div
-                      key={field.id}
-                      className={`p-2 rounded-lg border-2 cursor-pointer transition-all ${
-                        isActive 
-                          ? 'border-purple-500 bg-purple-50' 
-                          : hasValue 
-                            ? 'border-green-300 bg-green-50' 
-                            : field.required 
-                              ? 'border-red-300 bg-red-50' 
-                              : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => {
-                        setActiveField(field.id);
-                        if (pageContext !== 'detail') {
-                          toast({
-                            title: 'Schakel naar detailpagina',
-                            description: 'Voer een detail URL in en laad de pagina om dit veld te configureren.',
-                          });
-                        }
-                      }}
                       onMouseEnter={() => selectors[field.id] && setHighlightedSelector(selectors[field.id]!)}
                       onMouseLeave={() => setHighlightedSelector('')}
                     >
@@ -1280,14 +1296,46 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
   const renderPreviewStep = () => {
     if (previewFeedMutation.isPending || testEventsMutation.isPending) {
+      const progress = previewProgress;
       return (
-        <div className="space-y-4 py-8">
+        <div className="space-y-6 py-8">
           <div className="flex flex-col items-center justify-center">
-            <Loader2 className="w-12 h-12 animate-spin text-blue-500 mb-4" />
-            <p className="text-lg font-medium">Events ophalen en analyseren...</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Dit kan enkele seconden duren afhankelijk van het aantal events
+            <Loader2 className="w-10 h-10 animate-spin text-blue-500 mb-4" />
+            <p className="text-lg font-medium mb-2">
+              {progress?.message || 'Events ophalen en analyseren...'}
             </p>
+            
+            <div className="w-full max-w-md">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>Voortgang</span>
+                <span>{progress?.current || 0}%</span>
+              </div>
+              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${progress?.current || 0}%` }}
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-6 mt-4 text-xs text-muted-foreground">
+              <span className={progress?.phase === 'fetching' ? 'text-blue-600 font-medium' : ''}>
+                {progress?.phase === 'fetching' && <Loader2 className="w-3 h-3 inline mr-1 animate-spin" />}
+                Feed ophalen
+              </span>
+              <span className={progress?.phase === 'parsing' ? 'text-blue-600 font-medium' : ''}>
+                {progress?.phase === 'parsing' && <Loader2 className="w-3 h-3 inline mr-1 animate-spin" />}
+                Events parsen
+              </span>
+              <span className={progress?.phase === 'validating' ? 'text-blue-600 font-medium' : ''}>
+                {progress?.phase === 'validating' && <Loader2 className="w-3 h-3 inline mr-1 animate-spin" />}
+                Valideren
+              </span>
+              <span className={progress?.phase === 'geocoding' ? 'text-blue-600 font-medium' : ''}>
+                {progress?.phase === 'geocoding' && <Loader2 className="w-3 h-3 inline mr-1 animate-spin" />}
+                Locaties
+              </span>
+            </div>
           </div>
         </div>
       );
@@ -1421,14 +1469,25 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
         </div>
 
         {hasIncomplete && (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertTitle>Tip</AlertTitle>
-            <AlertDescription>
-              Je kunt de visuele configurator gebruiken om ontbrekende velden te markeren. 
-              Ga terug naar de vorige stap en selecteer de juiste velden.
-            </AlertDescription>
-          </Alert>
+          <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900">Ontbrekende velden aanvullen?</p>
+              <p className="text-xs text-blue-700">Gebruik de visuele configurator om selectors te markeren voor de ontbrekende velden.</p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                setCurrentStep('configure');
+                setPageContext('overview');
+                setIframeLoading(true);
+                fetchPageMutation.mutate(overviewUrl);
+              }}
+            >
+              <MousePointer2 className="w-4 h-4 mr-2" />
+              Configureren
+            </Button>
+          </div>
         )}
       </div>
     );

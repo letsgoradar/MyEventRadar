@@ -51,7 +51,7 @@ export default function VenueDashboard() {
 
   const updateVenueMutation = useMutation({
     mutationFn: async (data: Partial<Venue>) => {
-      return apiRequest(`/api/admin/venues/${venueId}`, {
+      return apiRequest(`/api/venues/${venueId}`, {
         method: 'PATCH',
         data,
       });
@@ -68,13 +68,8 @@ export default function VenueDashboard() {
 
   const claimVenueMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/admin/venues/${venueId}`, {
-        method: 'PATCH',
-        data: { 
-          claimedByUserId: user?.id,
-          claimedAt: new Date().toISOString(),
-          status: 'pending'
-        },
+      return apiRequest(`/api/venues/${venueId}/claim`, {
+        method: 'POST',
       });
     },
     onSuccess: () => {

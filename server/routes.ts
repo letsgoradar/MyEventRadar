@@ -2743,6 +2743,80 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  // Claim venue (authenticated users)
+  app.post("/api/venues/:id/claim", isAuthenticated, async (req, res) => {
+    try {
+      const venueId = parseInt(req.params.id);
+      if (isNaN(venueId)) {
+        return res.status(400).json({ message: "Invalid venue ID" });
+      }
+
+      const venue = await storage.getVenueById(venueId);
+      if (!venue) {
+        return res.status(404).json({ message: "Venue niet gevonden" });
+      }
+
+      // Check if already claimed
+      if (venue.claimedByUserId) {
+        return res.status(400).json({ message: "Dit venue is al geclaimd" });
+      }
+
+      const userId = (req.user as any).id;
+      const updatedVenue = await storage.updateVenue(venueId, {
+        claimedByUserId: userId,
+        claimedAt: new Date(),
+        status: 'pending'
+      });
+
+      res.json({ 
+        success: true, 
+        venue: updatedVenue, 
+        message: "Claim aanvraag ingediend" 
+      });
+    } catch (error: any) {
+      console.error('Error claiming venue:', error);
+      res.status(500).json({ message: error.message || "Failed to claim venue" });
+    }
+  });
+
+  // Update venue (owner or admin)
+  app.patch("/api/venues/:id", isAuthenticated, async (req, res) => {
+    try {
+      const venueId = parseInt(req.params.id);
+      if (isNaN(venueId)) {
+        return res.status(400).json({ message: "Invalid venue ID" });
+      }
+
+      const venue = await storage.getVenueById(venueId);
+      if (!venue) {
+        return res.status(404).json({ message: "Venue niet gevonden" });
+      }
+
+      const userId = (req.user as any).id;
+      const userRole = (req.user as any).role;
+
+      // Check ownership or admin
+      if (venue.claimedByUserId !== userId && userRole !== 'admin') {
+        return res.status(403).json({ message: "Je hebt geen rechten om dit venue te bewerken" });
+      }
+
+      // Only allow safe fields to be updated by owners
+      const allowedFields = ['name', 'description', 'address', 'city', 'contactEmail', 'contactPhone', 'websiteUrl', 'logoUrl'];
+      const safeUpdates: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          safeUpdates[field] = req.body[field];
+        }
+      }
+
+      const updatedVenue = await storage.updateVenue(venueId, safeUpdates);
+      res.json(updatedVenue);
+    } catch (error: any) {
+      console.error('Error updating venue:', error);
+      res.status(500).json({ message: error.message || "Failed to update venue" });
+    }
+  });
+
   // Create venue (admin only)
   app.post("/api/admin/venues", isAdmin, async (req, res) => {
     try {

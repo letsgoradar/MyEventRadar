@@ -54,7 +54,7 @@ import { lazy, Suspense } from 'react';
 
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
 const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
-const FeedImportWizard = lazy(() => import('@/components/admin/FeedImportWizard'));
+const FeedAnalyzerModal = lazy(() => import('@/components/admin/FeedAnalyzerModal'));
 
 interface RssFeed {
   id: number;
@@ -88,7 +88,7 @@ export default function RssFeedsPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
+  const [isFeedAnalyzerOpen, setIsFeedAnalyzerOpen] = useState(false);
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
   const [activeTab, setActiveTab] = useState('list');
   
@@ -546,7 +546,7 @@ export default function RssFeedsPage() {
                 Sync Alle Feeds
               </Button>
               <Button 
-                onClick={() => setIsImportWizardOpen(true)}
+                onClick={() => setIsFeedAnalyzerOpen(true)}
                 data-testid="button-add-feed"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
@@ -1076,9 +1076,9 @@ export default function RssFeedsPage() {
           </Tabs>
 
           <Suspense fallback={null}>
-            <FeedImportWizard 
-              open={isImportWizardOpen} 
-              onOpenChange={setIsImportWizardOpen}
+            <FeedAnalyzerModal 
+              open={isFeedAnalyzerOpen} 
+              onOpenChange={setIsFeedAnalyzerOpen}
               onFeedCreated={() => {
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });

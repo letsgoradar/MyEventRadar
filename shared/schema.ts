@@ -513,6 +513,7 @@ export const aiExtractionProfiles = pgTable("ai_extraction_profiles", {
   lastValidatedAt: timestamp("last_validated_at"),
   aiModel: text("ai_model"), // e.g., "gpt-4o-mini"
   aiPromptVersion: text("ai_prompt_version"), // For tracking prompt changes
+  municipality: text("municipality"), // e.g., "Roosendaal" - for linking to correct city
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

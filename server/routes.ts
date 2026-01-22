@@ -2308,7 +2308,7 @@ Respond with ONLY the search term, nothing else.`,
 
   app.post("/api/admin/visual-configurator/save-config", isAdmin, async (req, res) => {
     try {
-      const { url, domain, selectors } = req.body;
+      const { url, domain, selectors, municipality } = req.body;
       
       if (!url || typeof url !== 'string') {
         return res.status(400).json({ message: "URL is verplicht" });
@@ -2365,6 +2365,7 @@ Respond with ONLY the search term, nothing else.`,
         selectors: validatedSelectors,
         confidence: 80,
         requiresJsRendering: false,
+        municipality: typeof municipality === 'string' ? municipality : undefined,
       };
 
       let savedProfile;

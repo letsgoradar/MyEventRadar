@@ -199,7 +199,7 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
   };
 
   const getValidationSummary = () => {
-    const issues: { type: 'error' | 'warning'; message: string }[] = [];
+    const issues: { type: 'error' | 'warning' | 'info'; message: string }[] = [];
     
     if (!selectors.eventCard) {
       issues.push({ type: 'error', message: 'Event card selector is verplicht' });
@@ -215,6 +215,9 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
     }
     if (selectors.time && !selectors.date) {
       issues.push({ type: 'warning', message: 'Tijd zonder datum gedefinieerd' });
+    }
+    if (selectors.date && selectors.time && selectors.date === selectors.time) {
+      issues.push({ type: 'info', message: 'Datum en tijd in hetzelfde veld - AI zal automatisch datum en tijd scheiden bij import' });
     }
     if (!selectors.image) {
       issues.push({ type: 'warning', message: 'Geen afbeelding selector - stock images worden gebruikt' });
@@ -555,12 +558,14 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
                   ) : (
                     validationIssues.map((issue, idx) => (
                       <div key={idx} className={`flex items-start gap-2 text-xs ${
-                        issue.type === 'error' ? 'text-red-600' : 'text-yellow-600'
+                        issue.type === 'error' ? 'text-red-600' : issue.type === 'warning' ? 'text-yellow-600' : 'text-blue-600'
                       }`}>
                         {issue.type === 'error' ? (
                           <X className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                        ) : (
+                        ) : issue.type === 'warning' ? (
                           <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                        ) : (
+                          <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
                         )}
                         <span>{issue.message}</span>
                       </div>

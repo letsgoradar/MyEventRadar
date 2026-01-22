@@ -2342,7 +2342,8 @@ Respond with ONLY the search term, nothing else.`,
       }
 
       const pathPattern = new URL(url).pathname;
-      const existingProfile = await storage.getAiExtractionProfileByDomainAndPath(domain, pathPattern);
+      // Check for existing profile by domain only (domain is unique in DB)
+      const existingProfile = await storage.getAiExtractionProfileByDomain(domain);
       
       const validatedSelectors = {
         eventCard: selectors.eventCard,

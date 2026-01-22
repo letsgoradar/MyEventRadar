@@ -20,6 +20,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Check,
   Loader2,
   X,
@@ -39,7 +46,9 @@ import {
   Eye,
   Crosshair,
   Building2,
+  Map,
 } from 'lucide-react';
+import { CITIES, PROVINCES } from '@shared/cities';
 
 interface EventPrinciple {
   id: string;
@@ -109,6 +118,8 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
   const [previewMode, setPreviewMode] = useState<'select' | 'preview'>('select');
   const [highlightedSelector, setHighlightedSelector] = useState<string>('');
   const [messageNonce] = useState(() => generateNonce());
+  const [selectedMunicipality, setSelectedMunicipality] = useState<string>('');
+  const [suggestedMunicipality, setSuggestedMunicipality] = useState<string>('');
 
   const fetchPageMutation = useMutation({
     mutationFn: async (pageUrl: string) => {
@@ -121,10 +132,25 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
     onSuccess: (data: any) => {
       setPageHtml(data.html);
       setDetectedElements(data.suggestedElements || []);
-      toast({
-        title: 'Pagina geladen',
-        description: 'Klik op elementen om ze te labelen.',
-      });
+      
+      // Try to suggest municipality based on URL domain
+      const domain = data.domain?.toLowerCase() || '';
+      const matchedCity = CITIES.find(city => 
+        domain.includes(city.slug.replace(/-/g, '')) || 
+        domain.includes(city.name.toLowerCase().replace(/[^a-z]/g, ''))
+      );
+      if (matchedCity) {
+        setSuggestedMunicipality(matchedCity.name);
+        toast({
+          title: 'Pagina geladen',
+          description: `Gemeente "${matchedCity.name}" gedetecteerd. Pas aan indien nodig.`,
+        });
+      } else {
+        toast({
+          title: 'Pagina geladen',
+          description: 'Klik op elementen om ze te labelen. Selecteer ook een gemeente.',
+        });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -211,6 +237,7 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
           url, 
           domain: parsedUrl.hostname,
           selectors,
+          municipality: selectedMunicipality || suggestedMunicipality || undefined,
         },
       });
       return response;
@@ -470,6 +497,41 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
                     })}
                   </div>
                 </ScrollArea>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="py-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Map className="h-4 w-4" />
+                  Gemeente
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Selecteer de gemeente waartoe deze feed behoort
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                {suggestedMunicipality && !selectedMunicipality && (
+                  <div className="mb-2 p-2 bg-blue-50 rounded text-xs text-blue-700 flex items-center gap-2">
+                    <Info className="h-3 w-3" />
+                    Suggestie: {suggestedMunicipality}
+                  </div>
+                )}
+                <Select 
+                  value={selectedMunicipality || suggestedMunicipality} 
+                  onValueChange={setSelectedMunicipality}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Selecteer gemeente..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {CITIES.sort((a, b) => a.name.localeCompare(b.name)).map((city) => (
+                      <SelectItem key={city.slug} value={city.name} className="text-xs">
+                        {city.name} ({city.province})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </CardContent>
             </Card>
 

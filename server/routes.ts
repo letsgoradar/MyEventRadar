@@ -2403,10 +2403,47 @@ Respond with ONLY the search term, nothing else.`,
         console.log('[Visual Configurator] Created new profile:', savedProfile.id, 'for', domain, pathPattern);
       }
 
+      // Check if RSS feed already exists for this URL
+      const existingFeeds = await storage.getAllRssFeeds();
+      const existingFeed = existingFeeds.find(f => f.url === url);
+      
+      let rssFeed;
+      const feedName = municipality 
+        ? `${domain.replace('www.', '')} - ${municipality}` 
+        : domain.replace('www.', '');
+      
+      if (existingFeed) {
+        // Update existing feed with new profile ID
+        rssFeed = await storage.updateRssFeed(existingFeed.id, {
+          feedType: 'scraper',
+          aiExtractionProfileId: savedProfile.id,
+          municipality: municipality || existingFeed.municipality,
+          status: 'active',
+        });
+        console.log('[Visual Configurator] Updated existing RSS feed:', rssFeed.id);
+      } else {
+        // Create new RSS feed linked to the profile
+        rssFeed = await storage.createRssFeed({
+          name: feedName,
+          url: url,
+          feedType: 'scraper',
+          status: 'active',
+          defaultCategory: 'community',
+          municipality: municipality || undefined,
+          updateFrequencyMinutes: 360, // 6 hours
+          autoCreateEvents: true,
+          aiExtractionProfileId: savedProfile.id,
+        });
+        console.log('[Visual Configurator] Created new RSS feed:', rssFeed.id, 'linked to profile:', savedProfile.id);
+      }
+
       res.json({ 
         success: true,
-        message: existingProfile ? 'Bestaande configuratie bijgewerkt' : 'Nieuwe configuratie opgeslagen',
+        message: existingProfile 
+          ? `Bestaande configuratie bijgewerkt en feed "${feedName}" gekoppeld` 
+          : `Nieuwe configuratie en feed "${feedName}" aangemaakt`,
         profile: savedProfile,
+        feed: rssFeed,
       });
     } catch (error: any) {
       console.error('Error in POST /api/admin/visual-configurator/save-config:', error);

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -358,9 +358,12 @@ export default function VisualFeedConfigurator({ isOpen, onClose, initialUrl = '
     },
     onSuccess: (data: any) => {
       toast({
-        title: 'Configuratie opgeslagen',
-        description: 'De visuele feed configuratie is succesvol opgeslagen.',
+        title: 'Configuratie en feed aangemaakt',
+        description: data.message || 'De visuele feed configuratie is succesvol opgeslagen en een nieuwe feed is aangemaakt in het overzicht.',
       });
+      // Invalidate feeds list so it shows the new feed
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/visual-configurator/configs'] });
       onSave?.(selectors);
       onClose();
     },

@@ -143,6 +143,7 @@ export const rssFeeds = pgTable("rss_feeds", {
   lastErrorMessage: text("last_error_message"),
   itemsImported: integer("items_imported").default(0),
   autoCreateEvents: boolean("auto_create_events").default(true),
+  aiExtractionProfileId: integer("ai_extraction_profile_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

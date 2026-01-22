@@ -42,6 +42,7 @@ const CreateEvent = React.lazy(() => import("@/pages/Web/create-event"));
 const EventDetail = React.lazy(() => import("@/pages/Web/event-detail"));
 const WebMyEventsPage = React.lazy(() => import("@/pages/Web/my-events"));
 const VenuePage = React.lazy(() => import("@/pages/Web/VenuePage"));
+const VenueDashboard = React.lazy(() => import("@/pages/Web/VenueDashboard"));
 
 // App componenten (lazy loaded)
 const AppHomePage = React.lazy(() => import("@/pages/App/index"));
@@ -195,6 +196,9 @@ export default function App() {
             </Route>
             <Route path="/venue/:id">
               <VenuePage />
+            </Route>
+            <Route path="/venue/:id/dashboard">
+              <VenueDashboard />
             </Route>
             
             {/* Default routes voor desktop */}

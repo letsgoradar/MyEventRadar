@@ -72,6 +72,8 @@ export const events = pgTable("events", {
   externalPageOpens: integer("external_page_opens").default(0), // Track how often external page is opened
   savesCount: integer("saves_count").default(0), // Track how often event is saved/favorited
   detailViews: integer("detail_views").default(0), // Track how often event detail page is viewed
+  // Venue reference
+  venueId: integer("venue_id"), // References venues.id
 });
 
 export const favorites = pgTable("favorites", {
@@ -350,6 +352,7 @@ export interface EventInterface {
   externalPageOpens?: number;
   savesCount?: number;
   detailViews?: number;
+  venueId?: number | null;
 }
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Favorite = typeof favorites.$inferSelect;

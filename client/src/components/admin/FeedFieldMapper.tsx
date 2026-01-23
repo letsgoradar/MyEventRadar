@@ -74,6 +74,7 @@ interface FieldMapping {
 interface FeedFieldMapperProps {
   feedUrl: string;
   onMappingComplete: (mapping: FieldMapping, discoveryResult: FeedDiscoveryResult) => void;
+  onValidationChange?: (isValid: boolean, missingFields: string[]) => void;
   initialMapping?: FieldMapping;
 }
 
@@ -110,7 +111,7 @@ function formatSampleValue(value: any, maxLength: number = 80): string {
   return str.length > maxLength ? str.substring(0, maxLength) + '...' : str;
 }
 
-export function FeedFieldMapper({ feedUrl, onMappingComplete, initialMapping }: FeedFieldMapperProps) {
+export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange, initialMapping }: FeedFieldMapperProps) {
   const [discoveryResult, setDiscoveryResult] = useState<FeedDiscoveryResult | null>(null);
   const [mapping, setMapping] = useState<FieldMapping>(initialMapping || {});
   const [expandedFields, setExpandedFields] = useState<Set<string>>(new Set());
@@ -142,6 +143,18 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, initialMapping }: 
       discoverMutation.mutate();
     }
   }, [feedUrl]);
+
+  // Report validation status when mapping changes
+  useEffect(() => {
+    if (onValidationChange) {
+      const requiredFields = MAPPING_OPTIONS.filter(opt => opt.required);
+      const missingFields = requiredFields
+        .filter(opt => !mapping[opt.value as keyof FieldMapping])
+        .map(opt => opt.label);
+      const isValid = missingFields.length === 0;
+      onValidationChange(isValid, missingFields);
+    }
+  }, [mapping, onValidationChange]);
 
   const handleMappingChange = (fieldPath: string, mappingType: string) => {
     if (mappingType === 'none') {

@@ -351,6 +351,8 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
   const [isTestMode, setIsTestMode] = useState<boolean>(true); // Start in test mode (5 events)
   const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
   const [showFieldMapper, setShowFieldMapper] = useState<boolean>(false);
+  const [fieldMappingValid, setFieldMappingValid] = useState<boolean>(false);
+  const [missingRequiredFields, setMissingRequiredFields] = useState<string[]>([]);
   const [previewProgress, setPreviewProgress] = useState<{
     phase: 'fetching' | 'parsing' | 'validating' | 'geocoding' | 'complete';
     current: number;
@@ -1826,6 +1828,10 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                     });
                     setShowFieldMapper(false);
                   }}
+                  onValidationChange={(isValid, missing) => {
+                    setFieldMappingValid(isValid);
+                    setMissingRequiredFields(missing);
+                  }}
                 />
               </div>
             )}
@@ -2544,22 +2550,30 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           </Button>
 
           {currentStep === 'analyze' && result?.isComplete && selectedMethodId && selectedMethodId !== 'scraper' && (
-            <Button 
-              onClick={() => previewFeedMutation.mutate()}
-              disabled={previewFeedMutation.isPending}
-            >
-              {previewFeedMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Preview laden...
-                </>
-              ) : (
-                <>
-                  <Eye className="w-4 h-4 mr-2" />
-                  Naar Preview
-                </>
+            <div className="flex items-center gap-2">
+              {Object.keys(fieldMapping).length > 0 && !fieldMappingValid && missingRequiredFields.length > 0 && (
+                <span className="text-sm text-amber-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  Vul in: {missingRequiredFields.join(', ')}
+                </span>
               )}
-            </Button>
+              <Button 
+                onClick={() => previewFeedMutation.mutate()}
+                disabled={previewFeedMutation.isPending || (Object.keys(fieldMapping).length > 0 && !fieldMappingValid)}
+              >
+                {previewFeedMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Preview laden...
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Naar Preview
+                  </>
+                )}
+              </Button>
+            </div>
           )}
 
           {currentStep === 'configure' && (

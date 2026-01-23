@@ -5832,6 +5832,7 @@ export class RssFeedService {
       feedType: string;
       municipality?: string;
       scraperConfig?: any;
+      fieldMappings?: Record<string, string>; // Manual field mappings from UI
       limit?: number; // Max events to fetch (for test mode)
     },
     onProgress?: (progress: { status: string; message: string; current?: number; total?: number }) => void
@@ -5874,6 +5875,7 @@ export class RssFeedService {
         feedType: feedConfig.feedType,
         municipality: feedConfig.municipality || '',
         scraperConfig: feedConfig.scraperConfig,
+        fieldMappings: feedConfig.fieldMappings || null,
         autoCreateEvents: false,
         defaultCategory: 'Gezellig en Sociaal',
         status: 'active',
@@ -5910,6 +5912,11 @@ export class RssFeedService {
           summary: { total: 0, complete: 0, incomplete: 0, missingFieldsCounts: {} },
           error: result.error
         };
+      }
+
+      // Apply field mappings if provided
+      if (feedConfig.fieldMappings && Object.keys(feedConfig.fieldMappings).length > 0) {
+        result.items = this.applyFieldMappings(result.items, feedConfig.fieldMappings);
       }
 
       onProgress?.({ status: 'analyzing', message: 'Events analyseren...', total: result.items.length });
@@ -6118,6 +6125,12 @@ export class RssFeedService {
         return { success: false, itemsProcessed: 0, eventsCreated: 0, error: result.error };
       }
 
+      // Apply field mappings if configured
+      if (feed.fieldMappings && Object.keys(feed.fieldMappings).length > 0) {
+        result.items = this.applyFieldMappings(result.items, feed.fieldMappings);
+        console.log(`[RSS] ${feed.name}: Applied field mappings to ${result.items.length} items`);
+      }
+
       // UNIVERSAL MULTI-DAY CONSOLIDATION - apply to ALL feeds
       const consolidatedItems = this.consolidateMultiDayEvents(result.items);
       console.log(`[RSS] ${feed.name}: Consolidated ${result.items.length} items into ${consolidatedItems.length} events`);
@@ -6255,6 +6268,12 @@ export class RssFeedService {
             .where(eq(rssFeeds.id, feed.id));
           errors++;
           continue;
+        }
+
+        // Apply field mappings if configured
+        if (feed.fieldMappings && Object.keys(feed.fieldMappings).length > 0) {
+          result.items = this.applyFieldMappings(result.items, feed.fieldMappings);
+          console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: Applied field mappings`);
         }
 
         // UNIVERSAL MULTI-DAY CONSOLIDATION - apply to ALL feeds
@@ -6570,6 +6589,83 @@ export class RssFeedService {
     const diffMinutes = (now.getTime() - lastFetched.getTime()) / (1000 * 60);
     
     return diffMinutes >= feed.updateFrequencyMinutes;
+  }
+
+  private static applyFieldMappings(items: ParsedFeedItem[], fieldMappings: Record<string, string>): ParsedFeedItem[] {
+    const getNestedValue = (obj: any, path: string): any => {
+      if (!obj || !path) return undefined;
+      const keys = path.split('.');
+      let value = obj;
+      for (const key of keys) {
+        if (value === null || value === undefined) return undefined;
+        value = value[key];
+      }
+      return value;
+    };
+
+    return items.map(item => {
+      const rawData = item.rawData || {};
+      const mappedItem = { ...item };
+
+      for (const [eventProperty, sourcePath] of Object.entries(fieldMappings)) {
+        const value = getNestedValue(rawData, sourcePath);
+        if (value === undefined || value === null) continue;
+
+        switch (eventProperty) {
+          case 'title':
+            mappedItem.title = this.cleanText(String(value));
+            break;
+          case 'description':
+            mappedItem.description = this.cleanText(String(value));
+            break;
+          case 'startDate':
+          case 'startTime':
+            try {
+              const dateVal = new Date(value);
+              if (!isNaN(dateVal.getTime())) {
+                mappedItem.startTime = dateVal;
+              }
+            } catch (e) {}
+            break;
+          case 'endDate':
+          case 'endTime':
+            try {
+              const dateVal = new Date(value);
+              if (!isNaN(dateVal.getTime())) {
+                mappedItem.endTime = dateVal;
+              }
+            } catch (e) {}
+            break;
+          case 'location':
+            mappedItem.location = this.cleanText(String(value));
+            break;
+          case 'address':
+            mappedItem.address = this.cleanText(String(value));
+            break;
+          case 'latitude':
+            const lat = parseFloat(String(value));
+            if (!isNaN(lat)) mappedItem.latitude = lat;
+            break;
+          case 'longitude':
+            const lng = parseFloat(String(value));
+            if (!isNaN(lng)) mappedItem.longitude = lng;
+            break;
+          case 'image':
+          case 'imageUrl':
+            mappedItem.imageUrl = String(value);
+            break;
+          case 'link':
+          case 'url':
+            mappedItem.link = String(value);
+            break;
+          case 'category':
+            mappedItem.detectedCategory = this.cleanText(String(value));
+            break;
+        }
+      }
+
+      return mappedItem;
+    });
   }
 
   private static cleanText(text: string): string {

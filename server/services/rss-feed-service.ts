@@ -4956,8 +4956,23 @@ export class RssFeedService {
     try {
       const items: ParsedFeedItem[] = [];
       
+      // Extract the path from the overview URL to filter links
+      const baseUrlObj = new URL(baseUrl);
+      const overviewPath = baseUrlObj.pathname.replace(/\/$/, ''); // e.g., "/evenementen"
+      const overviewPathParts = overviewPath.split('/').filter(Boolean); // e.g., ["evenementen"]
+      
+      // Get the primary section from the URL (first meaningful path segment)
+      const primarySection = overviewPathParts[0] || '';
+      
+      // Sections that should NOT be included when scraping events
+      const excludedSections = ['nieuws', 'news', 'blog', 'artikel', 'article', 'posts', 'bericht', 'berichten'];
+      
+      // If visual configurator has cardSelector, prioritize it
+      const scraperConfig = feed.scraperConfig as any;
+      const configuredCardSelector = scraperConfig?.cardSelector;
+      
       // Common event selectors used across different CMSs
-      const eventSelectors = [
+      let eventSelectors = [
         // GoWaalwijk/Leef platform patterns (sport/cultuur portals)
         '.element-item',
         '.panel.panel-primary',
@@ -5020,8 +5035,29 @@ export class RssFeedService {
         '[class*="teaser"] a[href*="/agenda/"]',
       ];
       
+      // If visual configurator has a cardSelector, prepend it to use first
+      if (configuredCardSelector) {
+        console.log(`[RSS] Using visual configurator cardSelector: ${configuredCardSelector}`);
+        eventSelectors = [configuredCardSelector, ...eventSelectors];
+      }
+      
+      // Helper function to check if a link belongs to an excluded section
+      const isExcludedSection = (linkPath: string): boolean => {
+        const linkParts = linkPath.split('/').filter(Boolean);
+        if (linkParts.length === 0) return false;
+        
+        const linkSection = linkParts[0].toLowerCase();
+        
+        // If link is in an excluded section (like /nieuws/) and the overview is NOT in that section
+        if (excludedSections.includes(linkSection) && primarySection.toLowerCase() !== linkSection) {
+          return true;
+        }
+        
+        return false;
+      };
+      
       // Helper function to extract event links from a page
-      const extractEventLinks = ($page: cheerio.CheerioAPI, baseUrlObj: URL, collectedLinks: string[]): string[] => {
+      const extractEventLinks = ($page: cheerio.CheerioAPI, urlObj: URL, collectedLinks: string[]): string[] => {
         const newLinks: string[] = [];
         
         // First try specific selectors
@@ -5034,10 +5070,24 @@ export class RssFeedService {
               if (!link) return;
               
               if (!link.startsWith('http')) {
-                link = `${baseUrlObj.origin}${link.startsWith('/') ? '' : '/'}${link}`;
+                link = `${urlObj.origin}${link.startsWith('/') ? '' : '/'}${link}`;
               }
               
+              // Skip category, tag, pagination and anchor links
               if (link.includes('/category/') || link.includes('/tag/') || link.includes('#') || link.includes('/page/')) return;
+              
+              // Filter out links from excluded sections (like /nieuws/ when scraping /evenementen/)
+              try {
+                const linkUrl = new URL(link);
+                if (isExcludedSection(linkUrl.pathname)) {
+                  console.log(`[RSS] Filtered out excluded section link: ${link}`);
+                  return;
+                }
+              } catch (e) {
+                // Invalid URL, skip
+                return;
+              }
+              
               if (!collectedLinks.includes(link) && !newLinks.includes(link)) {
                 newLinks.push(link);
               }
@@ -5059,10 +5109,21 @@ export class RssFeedService {
             if (!link) return;
             
             if (!link.startsWith('http')) {
-              link = `${baseUrlObj.origin}${link.startsWith('/') ? '' : '/'}${link}`;
+              link = `${urlObj.origin}${link.startsWith('/') ? '' : '/'}${link}`;
             }
             
             if (link.includes('/category/') || link.includes('/tag/') || link.includes('#')) return;
+            
+            // Filter out links from excluded sections
+            try {
+              const linkUrl = new URL(link);
+              if (isExcludedSection(linkUrl.pathname)) {
+                return;
+              }
+            } catch (e) {
+              return;
+            }
+            
             if (!collectedLinks.includes(link) && !newLinks.includes(link)) {
               newLinks.push(link);
             }
@@ -5071,8 +5132,6 @@ export class RssFeedService {
         
         return newLinks;
       };
-      
-      const baseUrlObj = new URL(baseUrl);
       const allEventLinks: string[] = [];
       
       // Extract from first page

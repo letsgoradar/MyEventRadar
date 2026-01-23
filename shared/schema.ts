@@ -144,6 +144,7 @@ export const rssFeeds = pgTable("rss_feeds", {
   itemsImported: integer("items_imported").default(0),
   autoCreateEvents: boolean("auto_create_events").default(true),
   aiExtractionProfileId: integer("ai_extraction_profile_id"),
+  scraperConfig: jsonb("scraper_config"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

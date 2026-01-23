@@ -1709,7 +1709,7 @@ Respond with ONLY the search term, nothing else.`,
 
   app.post("/api/admin/rss-feeds", isAdmin, async (req, res) => {
     try {
-      const { name, url, feedType, defaultCategory, defaultLatitude, defaultLongitude, defaultAddress, updateFrequencyMinutes, autoCreateEvents, municipality } = req.body;
+      const { name, url, feedType, defaultCategory, defaultLatitude, defaultLongitude, defaultAddress, updateFrequencyMinutes, autoCreateEvents, municipality, fieldMappings } = req.body;
       
       if (!name || !url || !defaultCategory) {
         return res.status(400).json({ message: "Name, URL, and default category are required" });
@@ -1726,7 +1726,8 @@ Respond with ONLY the search term, nothing else.`,
         defaultAddress: defaultAddress || null,
         updateFrequencyMinutes: updateFrequencyMinutes || 60,
         autoCreateEvents: autoCreateEvents !== false,
-        municipality: municipality || null
+        municipality: municipality || null,
+        fieldMappings: fieldMappings || null
       });
 
       res.status(201).json(feed);
@@ -1831,6 +1832,44 @@ Respond with ONLY the search term, nothing else.`,
         warnings: ["Er is een onverwachte fout opgetreden bij het analyseren van de feed. Probeer het later opnieuw."],
         missingRequiredFields: [],
         suggestions: ["Controleer of de URL correct en bereikbaar is"]
+      });
+    }
+  });
+
+  // Feed field discovery - returns ALL available fields with sample values for manual mapping
+  app.post("/api/admin/rss-feeds/discover-fields", isAdmin, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: "URL is verplicht" });
+      }
+
+      let normalizedUrl = url.trim();
+      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = `https://${normalizedUrl}`;
+      }
+
+      try {
+        new URL(normalizedUrl);
+      } catch {
+        return res.status(400).json({ message: "Ongeldige URL formaat" });
+      }
+
+      console.log(`[API] Discovering fields for: ${normalizedUrl}`);
+      const { FeedAnalyzerService } = await import('./services/feed-analyzer-service');
+      const result = await FeedAnalyzerService.discoverFields(normalizedUrl);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/rss-feeds/discover-fields:', error);
+      res.status(500).json({ 
+        url: req.body.url || '',
+        feedType: 'unknown',
+        totalItems: 0,
+        discoveredFields: [],
+        sampleItems: [],
+        previewEvent: null,
+        errors: [`Fout bij analyseren: ${error.message}`]
       });
     }
   });

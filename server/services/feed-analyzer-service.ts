@@ -2217,6 +2217,326 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
     
     return { title: 'Onbekend formaat', rawData: item };
   }
+
+  /**
+   * Discover all available fields in a feed with sample values
+   * This allows users to manually map fields to event properties
+   */
+  static async discoverFields(url: string): Promise<FeedDiscoveryResult> {
+    console.log(`[FeedAnalyzer] Discovering fields for: ${url}`);
+    
+    const result: FeedDiscoveryResult = {
+      url,
+      feedType: 'unknown',
+      totalItems: 0,
+      discoveredFields: [],
+      sampleItems: [],
+      previewEvent: null,
+      errors: [],
+    };
+
+    try {
+      const response = await axios.get(url, {
+        headers: { 
+          "User-Agent": this.USER_AGENT,
+          "Accept": "application/rss+xml, application/atom+xml, application/xml, application/json, */*"
+        },
+        timeout: 30000,
+        maxContentLength: 5 * 1024 * 1024,
+      });
+
+      const contentType = response.headers['content-type'] || '';
+      const content = response.data;
+
+      // Determine feed type and extract items
+      let items: any[] = [];
+      
+      if (contentType.includes('json') || (typeof content === 'object' && !contentType.includes('xml'))) {
+        result.feedType = 'json';
+        items = this.extractJsonItems(content);
+      } else if (typeof content === 'string') {
+        const parsed = await parseXmlWithFallback(content);
+        
+        if (parsed.rss?.channel?.item) {
+          result.feedType = 'rss';
+          items = Array.isArray(parsed.rss.channel.item) 
+            ? parsed.rss.channel.item 
+            : [parsed.rss.channel.item];
+        } else if (parsed.feed?.entry) {
+          result.feedType = 'atom';
+          items = Array.isArray(parsed.feed.entry) 
+            ? parsed.feed.entry 
+            : [parsed.feed.entry];
+        }
+      }
+
+      if (items.length === 0) {
+        result.errors.push('Geen items gevonden in de feed');
+        return result;
+      }
+
+      result.totalItems = items.length;
+      result.sampleItems = items.slice(0, 3);
+
+      // Discover all fields recursively from first few items
+      const fieldMap = new Map<string, DiscoveredField>();
+      
+      for (let i = 0; i < Math.min(items.length, 5); i++) {
+        this.discoverFieldsRecursive(items[i], '', fieldMap, i, Math.min(items.length, 5));
+      }
+
+      // Convert to array and sort by path
+      result.discoveredFields = Array.from(fieldMap.values())
+        .filter(f => f.type !== 'object' || f.path.split('.').length <= 2) // Only show shallow objects
+        .sort((a, b) => a.path.localeCompare(b.path));
+
+      // Add suggested mappings based on field names
+      for (const field of result.discoveredFields) {
+        field.suggestedMapping = this.guessMappingForField(field.path, field.sampleValue);
+      }
+
+      // Generate preview event using auto-detected mappings
+      result.previewEvent = this.generatePreviewFromFields(result.discoveredFields, items[0]);
+
+      console.log(`[FeedAnalyzer] Discovered ${result.discoveredFields.length} fields from ${result.totalItems} items`);
+
+    } catch (error: any) {
+      console.error(`[FeedAnalyzer] Discovery error:`, error.message);
+      result.errors.push(`Fout bij ophalen feed: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  private static extractJsonItems(data: any): any[] {
+    if (Array.isArray(data)) return data;
+    if (data.items && Array.isArray(data.items)) return data.items;
+    if (data.events && Array.isArray(data.events)) return data.events;
+    if (data.data && Array.isArray(data.data)) return data.data;
+    if (data.results && Array.isArray(data.results)) return data.results;
+    if (data.entries && Array.isArray(data.entries)) return data.entries;
+    if (data.posts && Array.isArray(data.posts)) return data.posts;
+    return [];
+  }
+
+  private static discoverFieldsRecursive(
+    obj: any,
+    prefix: string,
+    fieldMap: Map<string, DiscoveredField>,
+    itemIndex: number,
+    totalItems: number
+  ): void {
+    if (obj === null || obj === undefined) return;
+    
+    if (typeof obj !== 'object') {
+      // Leaf value - update field info
+      const path = prefix || 'value';
+      const existing = fieldMap.get(path);
+      
+      if (existing) {
+        existing.occurrenceCount++;
+        if (existing.allSamples.length < 3) {
+          existing.allSamples.push(obj);
+        }
+      } else {
+        fieldMap.set(path, {
+          path,
+          type: this.detectFieldType(obj),
+          sampleValue: obj,
+          allSamples: [obj],
+          occurrenceCount: 1,
+        });
+      }
+      return;
+    }
+
+    // Handle arrays
+    if (Array.isArray(obj)) {
+      const path = prefix || 'items';
+      fieldMap.set(path, {
+        path,
+        type: 'array',
+        sampleValue: `Array[${obj.length}]`,
+        allSamples: [obj.slice(0, 2)],
+        occurrenceCount: 1,
+      });
+      
+      // Only recurse into first array item if it's an object
+      if (obj.length > 0 && typeof obj[0] === 'object') {
+        this.discoverFieldsRecursive(obj[0], `${prefix}[0]`, fieldMap, itemIndex, totalItems);
+      }
+      return;
+    }
+
+    // Handle objects
+    const keys = Object.keys(obj);
+    for (const key of keys) {
+      // Skip XML internal keys
+      if (key === '$' || key === '_') continue;
+      
+      const newPath = prefix ? `${prefix}.${key}` : key;
+      const value = obj[key];
+      
+      // For XML with attributes, extract the text value
+      if (typeof value === 'object' && value !== null && value._ !== undefined) {
+        // This is an XML element with attributes - use the text value
+        this.discoverFieldsRecursive(value._, newPath, fieldMap, itemIndex, totalItems);
+      } else {
+        this.discoverFieldsRecursive(value, newPath, fieldMap, itemIndex, totalItems);
+      }
+    }
+  }
+
+  private static detectFieldType(value: any): DiscoveredField['type'] {
+    if (typeof value === 'string') {
+      // Check if it's a date
+      if (this.looksLikeDate(value)) return 'date';
+      return 'string';
+    }
+    if (typeof value === 'number') return 'number';
+    if (typeof value === 'boolean') return 'boolean';
+    if (Array.isArray(value)) return 'array';
+    if (typeof value === 'object') return 'object';
+    return 'unknown';
+  }
+
+  private static looksLikeDate(value: string): boolean {
+    // Common date patterns
+    const datePatterns = [
+      /^\d{4}-\d{2}-\d{2}/,           // ISO date
+      /^\d{2}[\/\-]\d{2}[\/\-]\d{4}/, // DD/MM/YYYY or MM/DD/YYYY
+      /^[A-Za-z]{3},?\s+\d{1,2}/,     // Mon, 15 or Mon 15
+      /^\d{1,2}\s+[A-Za-z]+\s+\d{4}/, // 15 January 2025
+    ];
+    return datePatterns.some(p => p.test(value.trim()));
+  }
+
+  private static guessMappingForField(path: string, sampleValue: any): string | undefined {
+    const lowerPath = path.toLowerCase();
+    const sampleStr = String(sampleValue || '').toLowerCase();
+    
+    // Title detection
+    if (lowerPath.includes('title') || lowerPath.includes('name') || lowerPath.includes('titel')) {
+      return 'title';
+    }
+    
+    // Description detection
+    if (lowerPath.includes('description') || lowerPath.includes('content') || 
+        lowerPath.includes('summary') || lowerPath.includes('body') ||
+        lowerPath.includes('excerpt') || lowerPath.includes('text')) {
+      return 'description';
+    }
+    
+    // Date detection
+    if (lowerPath.includes('date') || lowerPath.includes('time') || 
+        lowerPath.includes('start') || lowerPath.includes('datum') ||
+        lowerPath.includes('pubdate') || lowerPath.includes('published') ||
+        lowerPath.includes('created') || lowerPath.includes('updated')) {
+      if (lowerPath.includes('end') || lowerPath.includes('eind')) {
+        return 'endTime';
+      }
+      return 'startTime';
+    }
+    
+    // Location detection
+    if (lowerPath.includes('location') || lowerPath.includes('venue') || 
+        lowerPath.includes('address') || lowerPath.includes('locatie') ||
+        lowerPath.includes('plaats') || lowerPath.includes('adres')) {
+      return 'location';
+    }
+    
+    // Image detection
+    if (lowerPath.includes('image') || lowerPath.includes('img') || 
+        lowerPath.includes('photo') || lowerPath.includes('thumbnail') ||
+        lowerPath.includes('media') || lowerPath.includes('picture') ||
+        lowerPath.includes('afbeelding')) {
+      return 'image';
+    }
+    
+    // Link detection
+    if (lowerPath.includes('link') || lowerPath.includes('url') || 
+        lowerPath.includes('href') || lowerPath.includes('permalink')) {
+      return 'link';
+    }
+    
+    // Category detection
+    if (lowerPath.includes('category') || lowerPath.includes('categorie') ||
+        lowerPath.includes('type') || lowerPath.includes('genre')) {
+      return 'category';
+    }
+    
+    return undefined;
+  }
+
+  private static generatePreviewFromFields(
+    fields: DiscoveredField[],
+    sampleItem: any
+  ): FeedDiscoveryResult['previewEvent'] {
+    const preview: FeedDiscoveryResult['previewEvent'] = {};
+    
+    for (const field of fields) {
+      if (!field.suggestedMapping) continue;
+      
+      const value = this.getValueByPath(sampleItem, field.path);
+      if (value === undefined || value === null) continue;
+      
+      switch (field.suggestedMapping) {
+        case 'title':
+          preview.title = String(value).substring(0, 100);
+          break;
+        case 'description':
+          preview.description = String(value).replace(/<[^>]*>/g, '').substring(0, 300);
+          break;
+        case 'startTime':
+          preview.startTime = String(value);
+          break;
+        case 'endTime':
+          preview.endTime = String(value);
+          break;
+        case 'location':
+          preview.location = String(value);
+          break;
+        case 'image':
+          if (typeof value === 'string' && value.startsWith('http')) {
+            preview.image = value;
+          } else if (value?.url) {
+            preview.image = value.url;
+          }
+          break;
+        case 'link':
+          if (typeof value === 'string' && value.startsWith('http')) {
+            preview.link = value;
+          } else if (value?.href) {
+            preview.link = value.href;
+          }
+          break;
+      }
+    }
+    
+    return Object.keys(preview).length > 0 ? preview : null;
+  }
+
+  private static getValueByPath(obj: any, path: string): any {
+    const parts = path.split('.').flatMap(p => {
+      // Handle array notation like items[0]
+      const match = p.match(/^(.+)\[(\d+)\]$/);
+      if (match) return [match[1], parseInt(match[2])];
+      return [p];
+    });
+    
+    let current = obj;
+    for (const part of parts) {
+      if (current === null || current === undefined) return undefined;
+      current = current[part];
+    }
+    
+    // Handle XML text nodes
+    if (current && typeof current === 'object' && current._ !== undefined) {
+      return current._;
+    }
+    
+    return current;
+  }
 }
 
 // Types for progressive analysis
@@ -2291,4 +2611,32 @@ export interface ProgressiveAnalysisResult {
   importRules: string;
   isComplete: boolean;
   contentQuality?: ContentQualityInfo;
+}
+
+// Feed Field Discovery - toont alle beschikbare velden met sample waarden
+export interface DiscoveredField {
+  path: string;           // Volledige pad naar het veld (bijv. "item.title" of "events[0].location.address")
+  type: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object' | 'unknown';
+  sampleValue: any;       // Voorbeeld waarde uit eerste item
+  allSamples: any[];      // Waarden uit eerste 3 items
+  occurrenceCount: number; // In hoeveel items dit veld voorkomt
+  suggestedMapping?: string; // Wat we denken dat dit veld is (title, date, location, etc.)
+}
+
+export interface FeedDiscoveryResult {
+  url: string;
+  feedType: 'rss' | 'atom' | 'json' | 'unknown';
+  totalItems: number;
+  discoveredFields: DiscoveredField[];
+  sampleItems: any[];     // Eerste 3 complete items
+  previewEvent: {
+    title?: string;
+    description?: string;
+    startTime?: string;
+    endTime?: string;
+    location?: string;
+    image?: string;
+    link?: string;
+  } | null;
+  errors: string[];
 }

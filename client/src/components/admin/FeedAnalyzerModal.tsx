@@ -48,8 +48,9 @@ import {
   Globe,
 } from 'lucide-react';
 import { DUTCH_MUNICIPALITIES, type Municipality } from '@shared/dutch-municipalities';
+import { FeedFieldMapper } from './FeedFieldMapper';
 
-type WizardStep = 'analyze' | 'configure' | 'preview' | 'direct-detail' | 'direct-overview';
+type WizardStep = 'analyze' | 'configure' | 'preview' | 'direct-detail' | 'direct-overview' | 'field-mapping';
 
 interface ProgressiveStep {
   id: string;
@@ -348,6 +349,8 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
   const [isTestMode, setIsTestMode] = useState<boolean>(true); // Start in test mode (5 events)
+  const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
+  const [showFieldMapper, setShowFieldMapper] = useState<boolean>(false);
   const [previewProgress, setPreviewProgress] = useState<{
     phase: 'fetching' | 'parsing' | 'validating' | 'geocoding' | 'complete';
     current: number;
@@ -512,6 +515,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           defaultCategory: 'Gezellig en Sociaal',
           autoCreateEvents: true,
           updateFrequencyMinutes: 60,
+          fieldMappings: Object.keys(fieldMapping).length > 0 ? fieldMapping : undefined,
         },
       });
     },
@@ -698,6 +702,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
             feedType: getFeedType(method.id),
             municipality: selectedMunicipality || result?.suggestedMunicipality || '',
             scraperConfig: method.id === 'scraper' ? selectors : undefined,
+            fieldMappings: Object.keys(fieldMapping).length > 0 ? fieldMapping : undefined,
             limit: isTestMode ? 5 : undefined, // Test mode: only 5 events
           },
         });
@@ -1778,6 +1783,52 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                 onChange={setSelectedMunicipality}
               />
             </div>
+          </div>
+
+          {/* Feed Field Mapper toggle */}
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-sm">Veld Mapping</h4>
+                <p className="text-xs text-muted-foreground">
+                  Bekijk en pas aan hoe velden uit de bron worden gekoppeld aan events
+                </p>
+              </div>
+              <Button
+                variant={showFieldMapper ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setShowFieldMapper(!showFieldMapper)}
+              >
+                {showFieldMapper ? (
+                  <>
+                    <X className="w-4 h-4 mr-2" />
+                    Sluiten
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Velden bekijken
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            {showFieldMapper && getSelectedMethod()?.url && (
+              <div className="mt-4">
+                <FeedFieldMapper
+                  feedUrl={getSelectedMethod()!.url}
+                  initialMapping={fieldMapping}
+                  onMappingComplete={(mapping, discovery) => {
+                    setFieldMapping(mapping as Record<string, string>);
+                    toast({
+                      title: "Mapping opgeslagen",
+                      description: `${Object.keys(mapping).length} velden gekoppeld`,
+                    });
+                    setShowFieldMapper(false);
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

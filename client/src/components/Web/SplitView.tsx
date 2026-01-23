@@ -128,15 +128,24 @@ export function SplitView({
     
     // Sorteer op basis van geselecteerde optie
     if (sortOption === "time") {
-      // Sorteer op tijd tot aanvang (soonest first)
+      // Sorteer op dag eerst, binnen dezelfde dag op afstand
       eventsWithDistance.sort((a, b) => {
-        const now = new Date().getTime();
-        const timeToA = new Date(a.startTime).getTime() - now;
-        const timeToB = new Date(b.startTime).getTime() - now;
-        return timeToA - timeToB;
+        const dayA = startOfDay(new Date(a.startTime)).getTime();
+        const dayB = startOfDay(new Date(b.startTime)).getTime();
+        
+        // Als verschillende dagen: sorteer op dag
+        if (dayA !== dayB) {
+          return dayA - dayB;
+        }
+        
+        // Zelfde dag: sorteer op afstand (dichtst bij eerst)
+        if (a.distance === undefined && b.distance === undefined) return 0;
+        if (a.distance === undefined) return 1;
+        if (b.distance === undefined) return -1;
+        return a.distance - b.distance;
       });
     } else {
-      // Sorteer op afstand (dichtst bij eerst)
+      // Sorteer puur op afstand (dichtst bij eerst)
       eventsWithDistance.sort((a, b) => {
         if (a.distance === undefined && b.distance === undefined) return 0;
         if (a.distance === undefined) return 1;

@@ -9,6 +9,7 @@ import { CountdownTimer } from './CountdownTimer';
 import { Link } from 'wouter';
 import { useLocation } from '@/hooks/useLocation';
 import placeholderImage from '@/assets/placeholder-event.svg';
+import { formatEventTimeRange } from '@/utils/date-utils';
 
 // Functie om afstand tussen twee coördinaten te berekenen (Haversine formule)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -235,10 +236,10 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                   {new Date(event.startTime).toLocaleDateString('nl-NL', {
                     day: 'numeric',
                     month: 'short'
-                  })} om {new Date(event.startTime).toLocaleTimeString('nl-NL', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+                  })}{(() => {
+                    const timeRange = formatEventTimeRange(event.startTime, event.endTime);
+                    return timeRange ? ` ${timeRange}` : '';
+                  })()}
                   {/* Time-to-event indicator achter de datum */}
                   {!isOngoing && !isExpired && (() => {
                     const daysUntil = Math.ceil((startTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -288,15 +289,13 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
     const isStartingSoon = !isOngoing && !isExpired && 
                           (startTime.getTime() - now.getTime()) < 24 * 60 * 60 * 1000;
     
-    // Formateer de datum als "vrijdag 18 april om 16:23"
+    // Formateer de datum als "vrijdag 18 april vanaf 16:23" of "vrijdag 18 april 16:23 - 18:00"
+    const timeRange = formatEventTimeRange(event.startTime, event.endTime);
     const formattedDate = new Date(event.startTime).toLocaleDateString('nl-NL', {
       weekday: 'long',
       day: 'numeric',
       month: 'long'
-    }) + " om " + new Date(event.startTime).toLocaleTimeString('nl-NL', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    }) + (timeRange ? ` ${timeRange}` : '');
     
     // Bereken een ruwe schatting van de resterende tijd (voor countdowntekst)
     const timeUntilStart = startTime.getTime() - now.getTime();
@@ -500,10 +499,10 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                     {new Date(event.startTime).toLocaleDateString('nl-NL', {
                       day: 'numeric',
                       month: 'short'
-                    })} om {new Date(event.startTime).toLocaleTimeString('nl-NL', {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                    })}{(() => {
+                      const timeRange = formatEventTimeRange(event.startTime, event.endTime);
+                      return timeRange ? ` ${timeRange}` : '';
+                    })()}
                     {/* Time-to-event indicator achter de datum */}
                     {!isOngoing && !isExpired && (() => {
                       const daysUntil = Math.ceil((startTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));

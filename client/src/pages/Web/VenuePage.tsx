@@ -16,6 +16,7 @@ import {
   Users
 } from 'lucide-react';
 import type { Venue, EventInterface } from '@shared/schema';
+import { formatEventTimeRange } from '@/utils/date-utils';
 
 function formatDate(date: string | Date): string {
   const d = new Date(date);
@@ -27,13 +28,6 @@ function formatDate(date: string | Date): string {
   });
 }
 
-function formatTime(date: string | Date): string {
-  const d = new Date(date);
-  return d.toLocaleTimeString('nl-NL', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
-}
 
 export default function VenuePage() {
   const params = useParams();
@@ -198,8 +192,15 @@ export default function VenuePage() {
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                             <Calendar className="h-3 w-3" />
                             {formatDate(event.startTime)}
-                            <Clock className="h-3 w-3 ml-2" />
-                            {formatTime(event.startTime)}
+                            {(() => {
+                              const timeRange = formatEventTimeRange(event.startTime, event.endTime);
+                              return timeRange ? (
+                                <>
+                                  <Clock className="h-3 w-3 ml-2" />
+                                  {timeRange}
+                                </>
+                              ) : null;
+                            })()}
                           </div>
                           {event.category && (
                             <Badge variant="outline" className="mt-2 text-xs">

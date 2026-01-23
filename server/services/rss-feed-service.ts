@@ -4304,7 +4304,7 @@ export class RssFeedService {
     }
   }
 
-  static parseDateFromBody(dateStr: string): { startTime: Date; endTime: Date } | null {
+  static parseDateFromBody(dateStr: string): { startTime: Date; endTime?: Date } | null {
     try {
       const normalizeMonth = (monthStr: string): number | undefined => {
         const normalized = monthStr.toLowerCase().substring(0, 3);
@@ -4314,9 +4314,10 @@ export class RssFeedService {
         return this.MONTHS[normalized];
       };
       
-      const withTimeMatch = dateStr.match(/(\d{1,2})\s+(\w+)\s+(\d{4}),?\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/i);
-      if (withTimeMatch) {
-        const [, day, monthStr, year, startHour, startMin, endHour, endMin] = withTimeMatch;
+      // Pattern 1: Full date with start AND end time (e.g., "25 januari 2026, 14:00 - 17:00")
+      const withBothTimesMatch = dateStr.match(/(\d{1,2})\s+(\w+)\s+(\d{4}),?\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/i);
+      if (withBothTimesMatch) {
+        const [, day, monthStr, year, startHour, startMin, endHour, endMin] = withBothTimesMatch;
         const monthNum = normalizeMonth(monthStr);
         if (monthNum === undefined) return null;
         
@@ -4330,16 +4331,29 @@ export class RssFeedService {
         return { startTime, endTime };
       }
       
+      // Pattern 2: Date with only ONE time (e.g., "25 januari 2026, 14:00" or "25 januari 2026 om 20:00")
+      const withSingleTimeMatch = dateStr.match(/(\d{1,2})\s+(\w+)\s+(\d{4}),?\s*(?:om\s*)?(\d{1,2}):(\d{2})(?!\s*-)/i);
+      if (withSingleTimeMatch) {
+        const [, day, monthStr, year, hour, min] = withSingleTimeMatch;
+        const monthNum = normalizeMonth(monthStr);
+        if (monthNum === undefined) return null;
+        
+        // Only set startTime, NO endTime (we only know when it starts)
+        const startTime = new Date(parseInt(year), monthNum, parseInt(day), parseInt(hour), parseInt(min));
+        return { startTime }; // No endTime - we don't know when it ends
+      }
+      
+      // Pattern 3: Date ONLY without any time (e.g., "25 januari 2026")
+      // In this case, return startTime at midnight - time is unknown
       const dateOnlyMatch = dateStr.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/i);
       if (dateOnlyMatch) {
         const [, day, monthStr, year] = dateOnlyMatch;
         const monthNum = normalizeMonth(monthStr);
         if (monthNum === undefined) return null;
         
-        const startTime = new Date(parseInt(year), monthNum, parseInt(day), 10, 0);
-        const endTime = new Date(parseInt(year), monthNum, parseInt(day), 18, 0);
-        
-        return { startTime, endTime };
+        // Set startTime at 00:00 - time is unknown, don't invent times
+        const startTime = new Date(parseInt(year), monthNum, parseInt(day), 0, 0);
+        return { startTime }; // No endTime - we don't know the times
       }
       
       return null;
@@ -4405,7 +4419,7 @@ export class RssFeedService {
             if (parsed) {
               startTime = parsed.startTime;
               endTime = parsed.endTime;
-              console.log(`[RSS] Parsed body date: ${startTime.toISOString()} - ${endTime.toISOString()}`);
+              console.log(`[RSS] Parsed body date: ${startTime.toISOString()}${endTime ? ` - ${endTime.toISOString()}` : ' (no end time)'}`);
               break;
             }
           }

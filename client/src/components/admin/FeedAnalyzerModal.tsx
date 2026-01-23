@@ -1285,7 +1285,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           )}
           <iframe
             ref={iframeRef}
-            srcDoc={pageHtml}
+            srcDoc={pageHtml + injectHighlightScript()}
             className="flex-1 w-full border-0"
             sandbox="allow-same-origin allow-scripts"
             onLoad={() => setIframeLoading(false)}
@@ -1546,7 +1546,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           )}
           <iframe
             ref={iframeRef}
-            srcDoc={pageHtml}
+            srcDoc={pageHtml + injectHighlightScript()}
             className="flex-1 w-full border-0"
             sandbox="allow-same-origin allow-scripts"
             onLoad={() => setIframeLoading(false)}

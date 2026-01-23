@@ -4958,14 +4958,18 @@ export class RssFeedService {
       
       // Extract the path from the overview URL to filter links
       const baseUrlObj = new URL(baseUrl);
-      const overviewPath = baseUrlObj.pathname.replace(/\/$/, ''); // e.g., "/evenementen"
-      const overviewPathParts = overviewPath.split('/').filter(Boolean); // e.g., ["evenementen"]
+      const overviewPath = baseUrlObj.pathname.replace(/\/$/, ''); // e.g., "/evenementen" or "/nl/evenementen"
+      const overviewPathParts = overviewPath.split('/').filter(Boolean); // e.g., ["evenementen"] or ["nl", "evenementen"]
       
-      // Get the primary section from the URL (first meaningful path segment)
-      const primarySection = overviewPathParts[0] || '';
+      // Known locale prefixes to ignore when determining the primary section
+      const localePrefixes = ['nl', 'en', 'de', 'fr', 'es', 'be', 'uk'];
       
-      // Sections that should NOT be included when scraping events
-      const excludedSections = ['nieuws', 'news', 'blog', 'artikel', 'article', 'posts', 'bericht', 'berichten'];
+      // Find the primary section (first non-locale segment)
+      const primarySectionIndex = overviewPathParts.findIndex(part => !localePrefixes.includes(part.toLowerCase()));
+      const primarySection = primarySectionIndex >= 0 ? overviewPathParts[primarySectionIndex].toLowerCase() : '';
+      const localePrefix = primarySectionIndex > 0 ? overviewPathParts.slice(0, primarySectionIndex).join('/').toLowerCase() : '';
+      
+      console.log(`[RSS] Overview path: ${overviewPath}, primary section: ${primarySection}, locale: ${localePrefix || 'none'}`);
       
       // If visual configurator has cardSelector, prioritize it
       const scraperConfig = feed.scraperConfig as any;
@@ -5041,19 +5045,44 @@ export class RssFeedService {
         eventSelectors = [configuredCardSelector, ...eventSelectors];
       }
       
-      // Helper function to check if a link belongs to an excluded section
-      const isExcludedSection = (linkPath: string): boolean => {
-        const linkParts = linkPath.split('/').filter(Boolean);
-        if (linkParts.length === 0) return false;
+      // Normalize path by removing locale prefix for comparison
+      const normalizePath = (path: string): string => {
+        const parts = path.split('/').filter(Boolean);
+        // Remove locale prefix if present
+        if (parts.length > 0 && localePrefixes.includes(parts[0].toLowerCase())) {
+          return '/' + parts.slice(1).join('/');
+        }
+        return '/' + parts.join('/');
+      };
+      
+      // Get the normalized overview path for prefix matching
+      const normalizedOverviewPath = normalizePath(overviewPath).toLowerCase();
+      console.log(`[RSS] Normalized overview path for matching: ${normalizedOverviewPath}`);
+      
+      // Helper function to check if a link is a valid event link
+      // Uses strict path-prefix matching - link must start with the overview path
+      const isValidEventLink = (linkPath: string): boolean => {
+        const normalizedLinkPath = normalizePath(linkPath).toLowerCase();
         
-        const linkSection = linkParts[0].toLowerCase();
-        
-        // If link is in an excluded section (like /nieuws/) and the overview is NOT in that section
-        if (excludedSections.includes(linkSection) && primarySection.toLowerCase() !== linkSection) {
-          return true;
+        // If overview is root, only accept non-empty paths (to avoid homepage)
+        if (normalizedOverviewPath === '/' || normalizedOverviewPath === '') {
+          return normalizedLinkPath !== '/' && normalizedLinkPath !== '';
         }
         
-        return false;
+        // Root/empty links are NOT allowed (could be homepage or unrelated)
+        if (normalizedLinkPath === '/' || normalizedLinkPath === '') {
+          return false;
+        }
+        
+        // Link must start with the overview path prefix
+        // e.g., if overview is /evenementen, link must be /evenementen/something
+        // This ensures /nieuws/article is rejected when scraping /evenementen
+        if (!normalizedLinkPath.startsWith(normalizedOverviewPath + '/') && 
+            normalizedLinkPath !== normalizedOverviewPath) {
+          return false;
+        }
+        
+        return true;
       };
       
       // Helper function to extract event links from a page
@@ -5076,11 +5105,11 @@ export class RssFeedService {
               // Skip category, tag, pagination and anchor links
               if (link.includes('/category/') || link.includes('/tag/') || link.includes('#') || link.includes('/page/')) return;
               
-              // Filter out links from excluded sections (like /nieuws/ when scraping /evenementen/)
+              // Filter links that are not in the same section as the overview page
               try {
                 const linkUrl = new URL(link);
-                if (isExcludedSection(linkUrl.pathname)) {
-                  console.log(`[RSS] Filtered out excluded section link: ${link}`);
+                if (!isValidEventLink(linkUrl.pathname)) {
+                  console.log(`[RSS] Filtered out link from different section: ${link}`);
                   return;
                 }
               } catch (e) {
@@ -5114,10 +5143,10 @@ export class RssFeedService {
             
             if (link.includes('/category/') || link.includes('/tag/') || link.includes('#')) return;
             
-            // Filter out links from excluded sections
+            // Filter links that are not in the same section as the overview page
             try {
               const linkUrl = new URL(link);
-              if (isExcludedSection(linkUrl.pathname)) {
+              if (!isValidEventLink(linkUrl.pathname)) {
                 return;
               }
             } catch (e) {

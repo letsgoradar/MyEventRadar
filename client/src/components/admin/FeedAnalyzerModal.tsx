@@ -811,33 +811,78 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
           }
         }
 
+        // Track hidden elements for reset functionality
+        const hiddenElements = [];
+        
+        function generateSmartSelector(element) {
+          // Try ID first
+          if (element.id) {
+            return '#' + element.id;
+          }
+          
+          // Try data attributes
+          const dataAttrs = Array.from(element.attributes).filter(a => a.name.startsWith('data-'));
+          if (dataAttrs.length > 0) {
+            const attr = dataAttrs[0];
+            return '[' + attr.name + '="' + attr.value + '"]';
+          }
+          
+          // Try classes (filter out vfc- and common utility classes)
+          if (element.className && typeof element.className === 'string') {
+            const classes = element.className.split(' ').filter(c => 
+              c && !c.startsWith('vfc-') && c.length > 2 && !/^(p|m|w|h)-/.test(c)
+            );
+            if (classes.length > 0) {
+              return '.' + classes.slice(0, 2).join('.');
+            }
+          }
+          
+          // Build contextual selector with parent
+          const tag = element.tagName.toLowerCase();
+          let parent = element.parentElement;
+          let parentSelector = '';
+          
+          // Find a parent with a good selector
+          while (parent && parent.tagName !== 'BODY') {
+            if (parent.id) {
+              parentSelector = '#' + parent.id;
+              break;
+            }
+            if (parent.className && typeof parent.className === 'string') {
+              const pClasses = parent.className.split(' ').filter(c => 
+                c && !c.startsWith('vfc-') && c.length > 2
+              );
+              if (pClasses.length > 0) {
+                parentSelector = '.' + pClasses[0];
+                break;
+              }
+            }
+            parent = parent.parentElement;
+          }
+          
+          // Return with parent context if found
+          if (parentSelector) {
+            return parentSelector + ' ' + tag;
+          }
+          
+          return tag;
+        }
+        
         document.addEventListener('click', function(e) {
           e.preventDefault();
           e.stopPropagation();
           
           const target = e.target;
           
-          // Ctrl+click: hide element
+          // Ctrl+click: hide element and track it
           if (e.ctrlKey || e.metaKey) {
             target.style.display = 'none';
+            target.setAttribute('data-vfc-hidden', 'true');
+            hiddenElements.push(target);
             return;
           }
           
-          let selector = '';
-          
-          if (target.id) {
-            selector = '#' + target.id;
-          } else if (target.className && typeof target.className === 'string') {
-            const classes = target.className.split(' ').filter(c => c && !c.startsWith('vfc-'));
-            if (classes.length > 0) {
-              selector = '.' + classes.join('.');
-            }
-          }
-          
-          if (!selector) {
-            selector = target.tagName.toLowerCase();
-          }
-          
+          const selector = generateSmartSelector(target);
           const sampleText = target.textContent?.substring(0, 100) || '';
           
           window.parent.postMessage({
@@ -867,6 +912,19 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
           }
           if (e.data.type === 'vfc_showImagesOnly' && e.data.nonce === VFC_NONCE) {
             toggleImagesOnlyMode(e.data.enabled);
+          }
+          if (e.data.type === 'vfc_resetHidden' && e.data.nonce === VFC_NONCE) {
+            // Reset all hidden elements
+            hiddenElements.forEach(el => {
+              el.style.display = '';
+              el.removeAttribute('data-vfc-hidden');
+            });
+            hiddenElements.length = 0;
+            // Also find any elements marked as hidden
+            document.querySelectorAll('[data-vfc-hidden]').forEach(el => {
+              el.style.display = '';
+              el.removeAttribute('data-vfc-hidden');
+            });
           }
         });
         
@@ -920,6 +978,21 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
         }
       </script>
       <style>
+        html, body {
+          overflow: auto !important;
+          position: relative !important;
+          min-width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        body {
+          transform: none !important;
+        }
+        body > * {
+          position: relative !important;
+          left: auto !important;
+          margin-left: 0 !important;
+        }
         .vfc-highlight {
           outline: 3px solid #3b82f6 !important;
           outline-offset: 2px !important;
@@ -1367,15 +1440,31 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
               ? 'Afbeeldingen modus - klik op een afbeelding om te selecteren' 
               : 'Klik = selecteren | Ctrl+klik = verbergen'}
           </span>
-          <Button
-            size="sm"
-            variant={showImagesOnly ? 'default' : 'outline'}
-            className="h-7 text-xs"
-            onClick={() => setShowImagesOnly(!showImagesOnly)}
-          >
-            <ImageIcon className="h-3 w-3 mr-1" />
-            {showImagesOnly ? 'Normale weergave' : 'Alleen afbeeldingen'}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={() => {
+                iframeRef.current?.contentWindow?.postMessage({
+                  type: 'vfc_resetHidden',
+                  nonce: messageNonce,
+                }, '*');
+              }}
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Reset verborgen
+            </Button>
+            <Button
+              size="sm"
+              variant={showImagesOnly ? 'default' : 'outline'}
+              className="h-7 text-xs"
+              onClick={() => setShowImagesOnly(!showImagesOnly)}
+            >
+              <ImageIcon className="h-3 w-3 mr-1" />
+              {showImagesOnly ? 'Normale weergave' : 'Alleen afbeeldingen'}
+            </Button>
+          </div>
         </div>
         {iframeLoading && (
           <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">

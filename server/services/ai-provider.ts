@@ -26,15 +26,47 @@ export interface AiCompletionResult {
 export class AiProvider {
   private static readonly GEMINI_MODEL = "gemini-2.5-flash";
   private static retryCount = 0;
-  private static readonly MAX_RETRIES = 2;
+  private static readonly MAX_RETRIES = 1; // Reduced from 2 for faster failure
+  
+  // AI call tracking for cost control
+  private static callCount = 0;
+  private static sessionStartTime = Date.now();
+  private static readonly MAX_CALLS_PER_SESSION = 50;
+  
+  static getCallCount(): number {
+    return this.callCount;
+  }
+  
+  static getMaxCalls(): number {
+    return this.MAX_CALLS_PER_SESSION;
+  }
+  
+  static resetCallCount(): void {
+    this.callCount = 0;
+    this.sessionStartTime = Date.now();
+  }
+  
+  static isAtLimit(): boolean {
+    return this.callCount >= this.MAX_CALLS_PER_SESSION;
+  }
 
   static async complete(options: AiCompletionOptions): Promise<AiCompletionResult> {
     const { systemPrompt, userPrompt, maxTokens = 500, temperature = 0.1, jsonMode = false } = options;
+
+    // Check AI call limit
+    if (this.callCount >= this.MAX_CALLS_PER_SESSION) {
+      return {
+        success: false,
+        provider: 'gemini',
+        error: `AI limiet bereikt (${this.MAX_CALLS_PER_SESSION} calls). Stop import om kosten te beheersen.`,
+      };
+    }
 
     let lastError = '';
     
     for (let attempt = 0; attempt <= this.MAX_RETRIES; attempt++) {
       try {
+        this.callCount++; // Count each API call attempt
         const result = await this.tryGemini(systemPrompt, userPrompt, maxTokens, temperature, jsonMode);
         if (result.success) {
           return result;
@@ -42,14 +74,14 @@ export class AiProvider {
         lastError = result.error || 'Unknown error';
         
         if (attempt < this.MAX_RETRIES) {
-          const delay = Math.pow(2, attempt) * 500;
+          const delay = 250 * (attempt + 1); // Faster: 250ms, 500ms
           console.log(`[AI Provider] Gemini attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       } catch (error: any) {
         lastError = error.message;
         if (attempt < this.MAX_RETRIES) {
-          const delay = Math.pow(2, attempt) * 500;
+          const delay = 250 * (attempt + 1); // Faster: 250ms, 500ms
           console.log(`[AI Provider] Gemini error: ${error.message}, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }

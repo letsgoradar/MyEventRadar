@@ -4527,11 +4527,12 @@ export class RssFeedService {
    * 4. Generic HTML parsing with multiple selectors
    * 5. Puppeteer for JS-rendered pages
    */
-  static async scrapeUniversal(feed: RssFeed): Promise<FeedParseResult> {
+  static async scrapeUniversal(feed: RssFeed, options?: { linkLimit?: number }): Promise<FeedParseResult> {
     const url = feed.url;
     const municipality = feed.municipality || 'Unknown';
+    const linkLimit = options?.linkLimit;
     
-    console.log(`[RSS] Universal scraper starting for ${municipality}: ${url}`);
+    console.log(`[RSS] Universal scraper starting for ${municipality}: ${url}${linkLimit ? ` (limit: ${linkLimit} links)` : ''}`);
     
     try {
       // First, fetch the page to analyze its structure
@@ -4585,7 +4586,7 @@ export class RssFeedService {
       }
       
       // STRATEGY 4: Generic HTML parsing with multiple selectors
-      const htmlResult = await this.tryGenericHtml($, url, municipality, feed);
+      const htmlResult = await this.tryGenericHtml($, url, municipality, feed, linkLimit);
       if (htmlResult.success && htmlResult.items.length > 0) {
         console.log(`[RSS] Generic HTML succeeded: ${htmlResult.items.length} items`);
         return htmlResult;
@@ -4952,7 +4953,7 @@ export class RssFeedService {
   /**
    * Try generic HTML parsing with multiple selectors and intelligent pagination detection
    */
-  private static async tryGenericHtml($: cheerio.CheerioAPI, baseUrl: string, municipality: string, feed: RssFeed): Promise<FeedParseResult> {
+  private static async tryGenericHtml($: cheerio.CheerioAPI, baseUrl: string, municipality: string, feed: RssFeed, linkLimit?: number): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
       
@@ -5220,38 +5221,51 @@ export class RssFeedService {
       allEventLinks.push(...page1Links);
       console.log(`[RSS] Page 1: found ${page1Links.length} event links`);
       
-      // Detect and handle pagination
-      const pagination = this.detectPagination($, baseUrl);
-      if (pagination && pagination.nextUrls.length > 0) {
-        console.log(`[RSS] Detected ${pagination.type} pagination with ${pagination.nextUrls.length} potential pages`);
-        
-        for (const pageUrl of pagination.nextUrls.slice(0, 30)) {
-          try {
-            await new Promise(resolve => setTimeout(resolve, 300)); // Rate limiting
-            
-            const pageResponse = await axios.get(pageUrl, {
-              headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
-              timeout: 30000
-            });
-            
-            const $page = cheerio.load(pageResponse.data);
-            const pageLinks = extractEventLinks($page, baseUrlObj, allEventLinks);
-            
-            if (pageLinks.length === 0) {
-              console.log(`[RSS] ${pageUrl}: no new events, stopping pagination`);
+      // Check if we already have enough links for limit
+      if (linkLimit && allEventLinks.length >= linkLimit) {
+        console.log(`[RSS] Already have ${allEventLinks.length} links, skipping pagination (limit: ${linkLimit})`);
+      } else {
+        // Detect and handle pagination
+        const pagination = this.detectPagination($, baseUrl);
+        if (pagination && pagination.nextUrls.length > 0) {
+          // In test mode with limit, only fetch 1-2 extra pages max
+          const maxPagesToFetch = linkLimit ? Math.min(2, pagination.nextUrls.length) : 30;
+          console.log(`[RSS] Detected ${pagination.type} pagination with ${pagination.nextUrls.length} potential pages${linkLimit ? ` (limiting to ${maxPagesToFetch} for test mode)` : ''}`);
+          
+          for (const pageUrl of pagination.nextUrls.slice(0, maxPagesToFetch)) {
+            // Early exit if we have enough links
+            if (linkLimit && allEventLinks.length >= linkLimit) {
+              console.log(`[RSS] Reached link limit (${linkLimit}), stopping pagination early`);
               break;
             }
             
-            allEventLinks.push(...pageLinks);
-            console.log(`[RSS] ${pageUrl}: found ${pageLinks.length} new links (total: ${allEventLinks.length})`);
-            
-          } catch (error: any) {
-            if (error.response?.status === 404) {
-              console.log(`[RSS] ${pageUrl}: 404, end of pagination`);
+            try {
+              await new Promise(resolve => setTimeout(resolve, 300)); // Rate limiting
+              
+              const pageResponse = await axios.get(pageUrl, {
+                headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
+                timeout: 30000
+              });
+              
+              const $page = cheerio.load(pageResponse.data);
+              const pageLinks = extractEventLinks($page, baseUrlObj, allEventLinks);
+              
+              if (pageLinks.length === 0) {
+                console.log(`[RSS] ${pageUrl}: no new events, stopping pagination`);
+                break;
+              }
+              
+              allEventLinks.push(...pageLinks);
+              console.log(`[RSS] ${pageUrl}: found ${pageLinks.length} new links (total: ${allEventLinks.length})`);
+              
+            } catch (error: any) {
+              if (error.response?.status === 404) {
+                console.log(`[RSS] ${pageUrl}: 404, end of pagination`);
+                break;
+              }
+              console.log(`[RSS] ${pageUrl}: error ${error.message}`);
               break;
             }
-            console.log(`[RSS] ${pageUrl}: error ${error.message}`);
-            break;
           }
         }
       }
@@ -5272,8 +5286,20 @@ export class RssFeedService {
             allEventLinks.push(...aiLinks);
             console.log(`[RSS] AI extraction found ${aiLinks.length} event links`);
             
-            if (aiResult.pagination && aiResult.pagination.type !== 'none' && aiResult.pagination.maxPages) {
-              for (let page = 2; page <= Math.min(aiResult.pagination.maxPages, 30); page++) {
+            // Skip AI pagination if we already have enough links for test mode
+            if (linkLimit && allEventLinks.length >= linkLimit) {
+              console.log(`[RSS] Already have ${allEventLinks.length} links, skipping AI pagination (limit: ${linkLimit})`);
+            } else if (aiResult.pagination && aiResult.pagination.type !== 'none' && aiResult.pagination.maxPages) {
+              // Limit AI pagination in test mode
+              const maxAiPages = linkLimit ? Math.min(2, aiResult.pagination.maxPages) : Math.min(aiResult.pagination.maxPages, 30);
+              
+              for (let page = 2; page <= maxAiPages; page++) {
+                // Early exit if we have enough links
+                if (linkLimit && allEventLinks.length >= linkLimit) {
+                  console.log(`[RSS] Reached link limit (${linkLimit}), stopping AI pagination`);
+                  break;
+                }
+                
                 try {
                   await new Promise(resolve => setTimeout(resolve, 300));
                   
@@ -5324,8 +5350,10 @@ export class RssFeedService {
       
       console.log(`[RSS] Total: found ${allEventLinks.length} event links across all pages`);
       
-      // Limit to first 100 to avoid overwhelming (increased from 30 due to pagination)
-      const linksToProcess = Array.from(new Set(allEventLinks)).slice(0, 100);
+      // Limit links - use linkLimit for test mode, otherwise max 100
+      const maxLinks = linkLimit || 100;
+      const linksToProcess = Array.from(new Set(allEventLinks)).slice(0, maxLinks);
+      console.log(`[RSS] Processing ${linksToProcess.length} links${linkLimit ? ` (test mode limit: ${linkLimit})` : ''}`);
       
       for (const link of linksToProcess) {
         try {
@@ -5742,6 +5770,8 @@ export class RssFeedService {
       incomplete: number;
       missingFieldsCounts: Record<string, number>;
       totalAvailable?: number; // Total events available (before limit)
+      aiCallsUsed?: number; // AI calls used in this session
+      aiCallsLimit?: number; // Maximum AI calls allowed
     };
     error?: string;
   }> {
@@ -5772,8 +5802,13 @@ export class RssFeedService {
         aiExtractionProfileId: null
       } as RssFeed;
 
+      // Reset AI call counter at start of preview
+      const { AiProvider } = await import('./ai-provider');
+      AiProvider.resetCallCount();
+      
       if (feedConfig.feedType === 'scraper') {
-        result = await this.scrapeUniversal(mockFeed);
+        // Pass linkLimit to limit pagination in test mode
+        result = await this.scrapeUniversal(mockFeed, { linkLimit: feedConfig.limit });
       } else if (feedConfig.feedType === 'json') {
         result = await this.fetchAndParseJsonFeed(feedConfig.url, feedConfig.municipality);
       } else {
@@ -5907,7 +5942,9 @@ export class RssFeedService {
           complete,
           incomplete,
           missingFieldsCounts,
-          totalAvailable: totalEventCount // Total events available (before limit)
+          totalAvailable: totalEventCount, // Total events available (before limit)
+          aiCallsUsed: AiProvider.getCallCount(),
+          aiCallsLimit: AiProvider.getMaxCalls()
         }
       };
     } catch (error: any) {

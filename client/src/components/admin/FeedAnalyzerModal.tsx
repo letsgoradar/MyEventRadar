@@ -162,6 +162,8 @@ interface PreviewResult {
     incomplete: number;
     missingFieldsCounts: Record<string, number>;
     totalAvailable?: number; // Total events available (before limit)
+    aiCallsUsed?: number; // AI calls used in this session
+    aiCallsLimit?: number; // Maximum AI calls allowed
   };
   error?: string;
   isTestMode?: boolean; // Whether this was a test with limited events
@@ -2079,6 +2081,19 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
               Controleer of de gegevens correct zijn geëxtraheerd voordat je alle events ophaalt.
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* AI cost indicator */}
+        {summary && (summary.aiCallsUsed !== undefined) && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-gray-50 p-2 rounded border">
+            <span className="font-medium">AI gebruik:</span>
+            <span className={summary.aiCallsUsed >= (summary.aiCallsLimit || 50) ? 'text-red-600 font-medium' : ''}>
+              {summary.aiCallsUsed} / {summary.aiCallsLimit || 50} calls
+            </span>
+            {summary.aiCallsUsed >= (summary.aiCallsLimit || 50) && (
+              <span className="text-red-600 text-xs">(limiet bereikt)</span>
+            )}
+          </div>
         )}
 
         {summary && (

@@ -89,6 +89,7 @@ export default function RssFeedsPage() {
   const [, navigate] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isFeedAnalyzerOpen, setIsFeedAnalyzerOpen] = useState(false);
+  const [isDirectVisualMode, setIsDirectVisualMode] = useState(false);
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
   const [activeTab, setActiveTab] = useState('list');
   
@@ -546,11 +547,25 @@ export default function RssFeedsPage() {
                 Sync Alle Feeds
               </Button>
               <Button 
-                onClick={() => setIsFeedAnalyzerOpen(true)}
+                onClick={() => {
+                  setIsDirectVisualMode(false);
+                  setIsFeedAnalyzerOpen(true);
+                }}
                 data-testid="button-add-feed"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Nieuwe Feed
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setIsDirectVisualMode(true);
+                  setIsFeedAnalyzerOpen(true);
+                }}
+                data-testid="button-visual-scraper"
+              >
+                <Crosshair className="w-4 h-4 mr-2" />
+                Visuele Scraper
               </Button>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
@@ -1078,11 +1093,15 @@ export default function RssFeedsPage() {
           <Suspense fallback={null}>
             <FeedAnalyzerModal 
               open={isFeedAnalyzerOpen} 
-              onOpenChange={setIsFeedAnalyzerOpen}
+              onOpenChange={(open) => {
+                setIsFeedAnalyzerOpen(open);
+                if (!open) setIsDirectVisualMode(false);
+              }}
               onFeedCreated={() => {
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
               }}
+              directVisualMode={isDirectVisualMode}
             />
           </Suspense>
 

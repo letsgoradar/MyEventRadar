@@ -49,7 +49,7 @@ import {
 } from 'lucide-react';
 import { DUTCH_MUNICIPALITIES, type Municipality } from '@shared/dutch-municipalities';
 
-type WizardStep = 'analyze' | 'configure' | 'preview';
+type WizardStep = 'analyze' | 'configure' | 'preview' | 'direct-detail' | 'direct-overview';
 
 interface ProgressiveStep {
   id: string;
@@ -169,6 +169,7 @@ interface FeedAnalyzerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFeedCreated?: () => void;
+  directVisualMode?: boolean;
 }
 
 const IMPORT_RULES_SUMMARY = [
@@ -304,12 +305,12 @@ function MunicipalitySearch({ value, onChange }: { value: string; onChange: (val
   );
 }
 
-export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }: FeedAnalyzerModalProps) {
+export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, directVisualMode = false }: FeedAnalyzerModalProps) {
   const { toast } = useToast();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  const [currentStep, setCurrentStep] = useState<WizardStep>('analyze');
+  const [currentStep, setCurrentStep] = useState<WizardStep>(directVisualMode ? 'direct-detail' : 'analyze');
   const [overviewUrl, setOverviewUrl] = useState('');
   const [detailUrl, setDetailUrl] = useState('');
   const [result, setResult] = useState<ProgressiveAnalysisResult | null>(null);
@@ -690,7 +691,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     setShowSampleEvent(false);
     setFeedback('');
     setFeedName('');
-    setCurrentStep('analyze');
+    setCurrentStep(directVisualMode ? 'direct-detail' : 'analyze');
     setPageHtml('');
     setSelectors({ eventCard: '' });
     setActiveField(null);
@@ -701,8 +702,16 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     setPageContext('overview');
     setPreviewResult(null);
     setSelectedMethodId(null);
+    setDetailUrl('');
+    setOverviewUrl('');
     onOpenChange(false);
   };
+  
+  useEffect(() => {
+    if (open) {
+      setCurrentStep(directVisualMode ? 'direct-detail' : 'analyze');
+    }
+  }, [open, directVisualMode]);
 
   const handleGoToConfigureStep = () => {
     setCurrentStep('configure');
@@ -979,19 +988,34 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
       </script>
       <style>
         html, body {
-          overflow: auto !important;
-          position: relative !important;
-          min-width: 100% !important;
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
+          position: static !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
           margin: 0 !important;
           padding: 0 !important;
+          box-sizing: border-box !important;
         }
         body {
           transform: none !important;
         }
-        body > * {
+        * {
+          max-width: 100vw !important;
+          box-sizing: border-box !important;
+        }
+        body > *, body > * > * {
           position: relative !important;
-          left: auto !important;
+          left: 0 !important;
+          right: auto !important;
           margin-left: 0 !important;
+          transform: none !important;
+        }
+        [style*="margin-left: -"], [style*="left: -"], [style*="translateX(-"] {
+          margin-left: 0 !important;
+          left: 0 !important;
+          transform: none !important;
         }
         .vfc-highlight {
           outline: 3px solid #3b82f6 !important;
@@ -1062,6 +1086,475 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
   const validationIssues = getValidationSummary();
   const hasErrors = validationIssues.some(i => i.type === 'error');
+
+  const renderDirectDetailStep = () => {
+    if (!pageHtml) {
+      return (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="detail-url">Voorbeeld Detailpagina URL</Label>
+            <p className="text-xs text-muted-foreground">
+              Voer de URL van een voorbeeld evenement detailpagina in. Dit wordt gebruikt om de selectors te configureren.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                id="detail-url"
+                value={detailUrl}
+                onChange={(e) => setDetailUrl(e.target.value)}
+                placeholder="https://example.com/event/123"
+                className="flex-1"
+              />
+              <Button
+                onClick={() => {
+                  if (detailUrl) {
+                    setIframeLoading(true);
+                    setPageContext('detail');
+                    fetchPageMutation.mutate(detailUrl);
+                  }
+                }}
+                disabled={!detailUrl || fetchPageMutation.isPending}
+              >
+                {fetchPageMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  'Laden'
+                )}
+              </Button>
+            </div>
+          </div>
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Tip</AlertTitle>
+            <AlertDescription>
+              Kies een representatieve evenement pagina met alle velden die je wilt importeren (titel, datum, locatie, beschrijving, afbeelding).
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex gap-4 h-[calc(95vh-200px)]">
+        <div className="w-80 flex flex-col gap-3">
+          <Card className="flex-shrink-0">
+            <CardHeader className="py-2 px-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Detailpagina
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+              <div className="flex gap-1">
+                <Input
+                  value={detailUrl}
+                  onChange={(e) => setDetailUrl(e.target.value)}
+                  placeholder="URL van event detail"
+                  className="h-7 text-xs"
+                />
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="h-7 px-2"
+                  onClick={() => {
+                    if (detailUrl) {
+                      setIframeLoading(true);
+                      setPageContext('detail');
+                      fetchPageMutation.mutate(detailUrl);
+                    }
+                  }}
+                  disabled={!detailUrl || fetchPageMutation.isPending}
+                >
+                  <RefreshCw className={`h-3 w-3 ${fetchPageMutation.isPending ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="flex-1 overflow-hidden">
+            <CardHeader className="py-2 px-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <MousePointer2 className="h-4 w-4" />
+                Event Velden
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Klik op een veld en selecteer het element in de pagina
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[400px]">
+                <div className="p-2 space-y-2">
+                  {([
+                    { key: 'title', label: 'Titel', icon: Type, required: true },
+                    { key: 'date', label: 'Datum', icon: Calendar, required: true },
+                    { key: 'location', label: 'Locatie', icon: MapPin, required: true },
+                    { key: 'description', label: 'Beschrijving', icon: FileText, required: false },
+                    { key: 'image', label: 'Afbeelding', icon: ImageIcon, required: false },
+                    { key: 'venue', label: 'Venue', icon: Building2, required: false },
+                    { key: 'address', label: 'Adres', icon: Map, required: false },
+                    { key: 'time', label: 'Tijd', icon: Clock, required: false },
+                  ] as Array<{ key: keyof SelectorConfig; label: string; icon: typeof Type; required: boolean }>).map(({ key, label, icon: Icon, required }) => (
+                    <div
+                      key={key}
+                      className={`p-2 rounded-lg border-2 cursor-pointer transition-all ${
+                        activeField === key 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : selectors[key] 
+                            ? 'border-green-300 bg-green-50' 
+                            : required 
+                              ? 'border-red-300 bg-red-50'
+                              : 'border-gray-200'
+                      }`}
+                      onClick={() => setActiveField(key)}
+                      onMouseEnter={() => selectors[key] && setHighlightedSelector(selectors[key]!)}
+                      onMouseLeave={() => setHighlightedSelector('')}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          <span className="font-medium text-xs">{label}</span>
+                          {required && <Badge variant="destructive" className="text-[10px] h-4">Verplicht</Badge>}
+                        </div>
+                        {selectors[key] ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : required ? (
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                        ) : null}
+                      </div>
+                      {activeField === key && (
+                        <Input
+                          className="mt-2 text-xs h-7"
+                          placeholder="CSS selector invoeren..."
+                          value={selectors[key] || ''}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            setSelectors(s => ({ ...s, [key]: e.target.value }));
+                            setHighlightedSelector(e.target.value);
+                          }}
+                        />
+                      )}
+                      {selectors[key] && activeField !== key && (
+                        <p className="text-[10px] text-muted-foreground mt-1 truncate font-mono">
+                          {selectors[key]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex-1 flex flex-col border rounded-lg overflow-hidden relative">
+          <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 border-b gap-2">
+            <span className="text-xs text-muted-foreground flex-1">
+              {showImagesOnly 
+                ? 'Afbeeldingen modus - klik op een afbeelding om te selecteren' 
+                : 'Klik = selecteren | Ctrl+klik = verbergen'}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => {
+                  iframeRef.current?.contentWindow?.postMessage({
+                    type: 'vfc_resetHidden',
+                    nonce: messageNonce,
+                  }, '*');
+                }}
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Reset verborgen
+              </Button>
+              <Button
+                size="sm"
+                variant={showImagesOnly ? 'default' : 'outline'}
+                className="h-7 text-xs"
+                onClick={() => setShowImagesOnly(!showImagesOnly)}
+              >
+                <ImageIcon className="h-3 w-3 mr-1" />
+                {showImagesOnly ? 'Normale weergave' : 'Alleen afbeeldingen'}
+              </Button>
+            </div>
+          </div>
+          {iframeLoading && (
+            <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          )}
+          <iframe
+            ref={iframeRef}
+            srcDoc={pageHtml}
+            className="flex-1 w-full border-0"
+            sandbox="allow-same-origin allow-scripts"
+            onLoad={() => setIframeLoading(false)}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const renderDirectOverviewStep = () => {
+    if (!pageHtml || pageContext !== 'overview') {
+      return (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="overview-url">Overzichtspagina URL</Label>
+            <p className="text-xs text-muted-foreground">
+              Voer de URL in van de pagina met de lijst van evenementen. Dit is de pagina waar links naar de detailpagina's staan.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                id="overview-url"
+                value={overviewUrl}
+                onChange={(e) => setOverviewUrl(e.target.value)}
+                placeholder="https://example.com/events"
+                className="flex-1"
+              />
+              <Button
+                onClick={() => {
+                  if (overviewUrl) {
+                    setIframeLoading(true);
+                    setPageContext('overview');
+                    fetchPageMutation.mutate(overviewUrl);
+                  }
+                }}
+                disabled={!overviewUrl || fetchPageMutation.isPending}
+              >
+                {fetchPageMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  'Laden'
+                )}
+              </Button>
+            </div>
+          </div>
+          <Card>
+            <CardHeader className="py-2">
+              <CardTitle className="text-sm">Geconfigureerde detail velden</CardTitle>
+            </CardHeader>
+            <CardContent className="py-2">
+              <div className="flex flex-wrap gap-2">
+                {selectors.title && <Badge variant="secondary">Titel</Badge>}
+                {selectors.date && <Badge variant="secondary">Datum</Badge>}
+                {selectors.location && <Badge variant="secondary">Locatie</Badge>}
+                {selectors.description && <Badge variant="secondary">Beschrijving</Badge>}
+                {selectors.image && <Badge variant="secondary">Afbeelding</Badge>}
+                {selectors.venue && <Badge variant="secondary">Venue</Badge>}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex gap-4 h-[calc(95vh-200px)]">
+        <div className="w-80 flex flex-col gap-3">
+          <Card className="flex-shrink-0">
+            <CardHeader className="py-2 px-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <List className="h-4 w-4" />
+                Overzichtspagina
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+              <div className="flex gap-1">
+                <Input
+                  value={overviewUrl}
+                  onChange={(e) => setOverviewUrl(e.target.value)}
+                  placeholder="URL van overzicht"
+                  className="h-7 text-xs"
+                />
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="h-7 px-2"
+                  onClick={() => {
+                    if (overviewUrl) {
+                      setIframeLoading(true);
+                      fetchPageMutation.mutate(overviewUrl);
+                    }
+                  }}
+                  disabled={!overviewUrl || fetchPageMutation.isPending}
+                >
+                  <RefreshCw className={`h-3 w-3 ${fetchPageMutation.isPending ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="flex-1 overflow-hidden">
+            <CardHeader className="py-2 px-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <MousePointer2 className="h-4 w-4" />
+                Event Links
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Selecteer het element dat de event links bevat
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[300px]">
+                <div className="p-2 space-y-2">
+                  <div
+                    className={`p-2 rounded-lg border-2 cursor-pointer transition-all ${
+                      activeField === 'eventCard' 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : selectors.eventCard 
+                          ? 'border-green-300 bg-green-50' 
+                          : 'border-red-300 bg-red-50'
+                    }`}
+                    onClick={() => setActiveField('eventCard')}
+                    onMouseEnter={() => selectors.eventCard && setHighlightedSelector(selectors.eventCard)}
+                    onMouseLeave={() => setHighlightedSelector('')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" />
+                        <span className="font-medium text-xs">Event Card/Link</span>
+                        <Badge variant="destructive" className="text-[10px] h-4">Verplicht</Badge>
+                      </div>
+                      {selectors.eventCard ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                      )}
+                    </div>
+                    {activeField === 'eventCard' && (
+                      <Input
+                        className="mt-2 text-xs h-7"
+                        placeholder="CSS selector invoeren..."
+                        value={selectors.eventCard || ''}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          setSelectors(s => ({ ...s, eventCard: e.target.value }));
+                          setHighlightedSelector(e.target.value);
+                        }}
+                      />
+                    )}
+                    {selectors.eventCard && activeField !== 'eventCard' && (
+                      <p className="text-[10px] text-muted-foreground mt-1 truncate font-mono">
+                        {selectors.eventCard}
+                      </p>
+                    )}
+                  </div>
+
+                  <div
+                    className={`p-2 rounded-lg border-2 cursor-pointer transition-all ${
+                      activeField === 'link' 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : selectors.link 
+                          ? 'border-green-300 bg-green-50' 
+                          : 'border-orange-300 bg-orange-50'
+                    }`}
+                    onClick={() => setActiveField('link')}
+                    onMouseEnter={() => selectors.link && setHighlightedSelector(selectors.link)}
+                    onMouseLeave={() => setHighlightedSelector('')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ExternalLink className="h-4 w-4" />
+                        <span className="font-medium text-xs">Detail Link</span>
+                        <Badge variant="outline" className="text-[10px] h-4">Aanbevolen</Badge>
+                      </div>
+                      {selectors.link ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      )}
+                    </div>
+                    {activeField === 'link' && (
+                      <Input
+                        className="mt-2 text-xs h-7"
+                        placeholder="CSS selector voor link..."
+                        value={selectors.link || ''}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          setSelectors(s => ({ ...s, link: e.target.value }));
+                          setHighlightedSelector(e.target.value);
+                        }}
+                      />
+                    )}
+                    {selectors.link && activeField !== 'link' && (
+                      <p className="text-[10px] text-muted-foreground mt-1 truncate font-mono">
+                        {selectors.link}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-2 px-3">
+              <CardTitle className="text-sm">Feed Naam & Gemeente</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0 space-y-2">
+              <div>
+                <Label className="text-xs">Feed naam</Label>
+                <Input
+                  value={feedName}
+                  onChange={(e) => setFeedName(e.target.value)}
+                  placeholder="Naam voor deze feed"
+                  className="h-7 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Gemeente</Label>
+                <select
+                  className="w-full h-7 text-xs border rounded px-2"
+                  value={selectedMunicipality}
+                  onChange={(e) => setSelectedMunicipality(e.target.value)}
+                >
+                  <option value="">Selecteer gemeente...</option>
+                  {DUTCH_MUNICIPALITIES.map(m => (
+                    <option key={m.name} value={m.name}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex-1 flex flex-col border rounded-lg overflow-hidden relative">
+          <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 border-b gap-2">
+            <span className="text-xs text-muted-foreground flex-1">
+              Klik = selecteren | Ctrl+klik = verbergen
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={() => {
+                iframeRef.current?.contentWindow?.postMessage({
+                  type: 'vfc_resetHidden',
+                  nonce: messageNonce,
+                }, '*');
+              }}
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Reset verborgen
+            </Button>
+          </div>
+          {iframeLoading && (
+            <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          )}
+          <iframe
+            ref={iframeRef}
+            srcDoc={pageHtml}
+            className="flex-1 w-full border-0"
+            sandbox="allow-same-origin allow-scripts"
+            onLoad={() => setIframeLoading(false)}
+          />
+        </div>
+      </div>
+    );
+  };
 
   const renderAnalyzeStep = () => (
     <div className="space-y-4">
@@ -1728,47 +2221,87 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${currentStep === 'configure' ? 'max-w-[95vw] w-[95vw]' : 'max-w-2xl'} max-h-[95vh] overflow-hidden flex flex-col`}>
+      <DialogContent className={`${currentStep === 'configure' || currentStep === 'direct-detail' || currentStep === 'direct-overview' ? 'max-w-[95vw] w-[95vw]' : 'max-w-2xl'} max-h-[95vh] overflow-hidden flex flex-col`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LinkIcon className="w-5 h-5" />
-            Feed Configureren
+            {directVisualMode ? 'Visuele Scraper Configureren' : 'Feed Configureren'}
           </DialogTitle>
           <DialogDescription>
             {currentStep === 'analyze' && 'Voer de URL van de overzichtspagina in om de beste import methode te vinden'}
             {currentStep === 'configure' && 'Selecteer de event velden op de overzicht- en detailpagina'}
             {currentStep === 'preview' && 'Bekijk de gevonden events en sla de configuratie op'}
+            {currentStep === 'direct-detail' && 'Voer een voorbeeld detailpagina URL in en configureer de event velden'}
+            {currentStep === 'direct-overview' && 'Voer de overzichtspagina URL in waar event-links staan'}
           </DialogDescription>
 
-          <div className="flex items-center gap-2 pt-2">
-            <Badge variant={currentStep === 'analyze' ? 'default' : 'secondary'} className="text-xs">
-              1. Analyseren
-            </Badge>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            <Badge variant={currentStep === 'configure' ? 'default' : 'secondary'} className="text-xs">
-              2. Configureren
-            </Badge>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            <Badge variant={currentStep === 'preview' ? 'default' : 'secondary'} className="text-xs">
-              3. Opslaan
-            </Badge>
-          </div>
+          {directVisualMode ? (
+            <div className="flex items-center gap-2 pt-2">
+              <Badge variant={currentStep === 'direct-detail' ? 'default' : 'secondary'} className="text-xs">
+                1. Detailpagina
+              </Badge>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              <Badge variant={currentStep === 'direct-overview' ? 'default' : 'secondary'} className="text-xs">
+                2. Overzichtspagina
+              </Badge>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              <Badge variant={currentStep === 'preview' ? 'default' : 'secondary'} className="text-xs">
+                3. Opslaan
+              </Badge>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 pt-2">
+              <Badge variant={currentStep === 'analyze' ? 'default' : 'secondary'} className="text-xs">
+                1. Analyseren
+              </Badge>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              <Badge variant={currentStep === 'configure' ? 'default' : 'secondary'} className="text-xs">
+                2. Configureren
+              </Badge>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              <Badge variant={currentStep === 'preview' ? 'default' : 'secondary'} className="text-xs">
+                3. Opslaan
+              </Badge>
+            </div>
+          )}
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto">
           {currentStep === 'analyze' && renderAnalyzeStep()}
           {currentStep === 'configure' && renderConfigureStep()}
           {currentStep === 'preview' && renderPreviewStep()}
+          {currentStep === 'direct-detail' && renderDirectDetailStep()}
+          {currentStep === 'direct-overview' && renderDirectOverviewStep()}
         </div>
 
         <DialogFooter className="mt-4">
-          {currentStep !== 'analyze' && (
+          {currentStep !== 'analyze' && currentStep !== 'direct-detail' && (
             <Button variant="outline" onClick={() => {
               if (currentStep === 'preview') {
-                setCurrentStep('configure');
-                setPageContext('overview');
-                setIframeLoading(true);
-                fetchPageMutation.mutate(overviewUrl);
+                if (directVisualMode) {
+                  setCurrentStep('direct-overview');
+                  setPageContext('overview');
+                  if (overviewUrl) {
+                    setIframeLoading(true);
+                    fetchPageMutation.mutate(overviewUrl);
+                  } else {
+                    setPageHtml('');
+                  }
+                } else {
+                  setCurrentStep('configure');
+                  setPageContext('overview');
+                  setIframeLoading(true);
+                  fetchPageMutation.mutate(overviewUrl);
+                }
+              } else if (currentStep === 'direct-overview') {
+                setCurrentStep('direct-detail');
+                setPageContext('detail');
+                if (detailUrl) {
+                  setIframeLoading(true);
+                  fetchPageMutation.mutate(detailUrl);
+                } else {
+                  setPageHtml('');
+                }
               } else {
                 setCurrentStep('analyze');
               }
@@ -1820,10 +2353,52 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
             </Button>
           )}
 
+          {currentStep === 'direct-detail' && pageHtml && (
+            <Button 
+              onClick={() => {
+                const requiredFields = ['title', 'date', 'location'] as const;
+                const missing = requiredFields.filter(f => !selectors[f]);
+                if (missing.length > 0) {
+                  toast({
+                    title: 'Verplichte velden ontbreken',
+                    description: `Configureer eerst: ${missing.join(', ')}`,
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                setCurrentStep('direct-overview');
+                setPageContext('overview');
+                setPageHtml('');
+              }}
+            >
+              <ChevronRight className="w-4 h-4 mr-2" />
+              Naar Overzicht
+            </Button>
+          )}
+
+          {currentStep === 'direct-overview' && pageHtml && selectors.eventCard && (
+            <Button 
+              onClick={() => testEventsMutation.mutate()}
+              disabled={testEventsMutation.isPending}
+            >
+              {testEventsMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Testen...
+                </>
+              ) : (
+                <>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Test & Valideer
+                </>
+              )}
+            </Button>
+          )}
+
           {currentStep === 'preview' && (
             <Button 
               onClick={() => {
-                if (result?.chosenMethod?.id === 'scraper') {
+                if (directVisualMode || result?.chosenMethod?.id === 'scraper') {
                   saveConfigMutation.mutate();
                 } else {
                   createFeedMutation.mutate();

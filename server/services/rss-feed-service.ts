@@ -5437,10 +5437,10 @@ export class RssFeedService {
       
       console.log(`[RSS] Total: found ${allEventLinks.length} event links across all pages`);
       
-      // Limit links - use linkLimit for test mode, otherwise max 100
-      const maxLinks = linkLimit || 100;
-      const linksToProcess = Array.from(new Set(allEventLinks)).slice(0, maxLinks);
-      console.log(`[RSS] Processing ${linksToProcess.length} links${linkLimit ? ` (test mode limit: ${linkLimit})` : ''}`);
+      // Remove duplicates, apply limit only in test mode
+      const uniqueLinks = Array.from(new Set(allEventLinks));
+      const linksToProcess = linkLimit ? uniqueLinks.slice(0, linkLimit) : uniqueLinks;
+      console.log(`[RSS] Processing ${linksToProcess.length} unique links${linkLimit ? ` (test mode limit: ${linkLimit})` : ''}`);
       
       // Fetch detail pages in parallel batches (5 at a time)
       const fetchedItems = await parallelBatch(

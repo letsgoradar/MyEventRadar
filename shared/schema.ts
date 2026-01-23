@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, serial, integer, boolean, timestamp, jsonb, decimal, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, boolean, timestamp, jsonb, decimal, unique, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -531,3 +531,25 @@ export const insertAiExtractionProfileSchema = createInsertSchema(aiExtractionPr
 
 export type AiExtractionProfile = typeof aiExtractionProfiles.$inferSelect;
 export type InsertAiExtractionProfile = z.infer<typeof insertAiExtractionProfileSchema>;
+
+// Geocoding cache table for persistent address->coordinates caching
+export const geocodeCache = pgTable("geocode_cache", {
+  id: serial("id").primaryKey(),
+  addressQuery: text("address_query").notNull().unique(), // The address string used for lookup
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
+  displayName: text("display_name"), // Full address from Nominatim
+  municipality: text("municipality"), // Detected municipality if available
+  hitCount: integer("hit_count").notNull().default(1), // How many times this cache entry was used
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at").notNull().defaultNow(),
+});
+
+export type GeocodeCache = typeof geocodeCache.$inferSelect;
+export type InsertGeocodeCache = {
+  addressQuery: string;
+  latitude: number;
+  longitude: number;
+  displayName?: string;
+  municipality?: string;
+};

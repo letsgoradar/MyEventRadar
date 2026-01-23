@@ -15,6 +15,7 @@ import {
   leads,
   aiExtractionProfiles,
   venues,
+  geocodeCache,
   type User,
   type InsertUser,
   type Event,
@@ -159,6 +160,11 @@ export interface IStorage {
   searchVenues(query: string): Promise<Venue[]>;
   updateVenue(id: number, venue: Partial<Venue>): Promise<Venue>;
   getEventsByVenue(venueId: number): Promise<Event[]>;
+
+  // Geocode cache operations
+  getGeocodeFromCache(addressQuery: string): Promise<{ latitude: number; longitude: number; displayName?: string } | null>;
+  saveGeocodeToCache(data: { addressQuery: string; latitude: number; longitude: number; displayName?: string; municipality?: string }): Promise<void>;
+  getGeocodeCacheStats(): Promise<{ totalEntries: number; totalHits: number }>;
 }
 
 export class PgStorage implements IStorage {
@@ -1071,6 +1077,74 @@ export class PgStorage implements IStorage {
       return db.select().from(events)
         .where(eq(events.venueId, venueId))
         .orderBy(desc(events.startTime));
+    });
+  }
+
+  // Geocode cache operations
+  async getGeocodeFromCache(addressQuery: string): Promise<{ latitude: number; longitude: number; displayName?: string } | null> {
+    return this.withRetry(async () => {
+      const normalizedQuery = addressQuery.toLowerCase().trim();
+      const result = await db.select().from(geocodeCache)
+        .where(eq(geocodeCache.addressQuery, normalizedQuery))
+        .limit(1);
+      
+      if (result.length > 0) {
+        // Update hit count and last used timestamp
+        await db.update(geocodeCache)
+          .set({ 
+            hitCount: sql`${geocodeCache.hitCount} + 1`,
+            lastUsedAt: new Date()
+          })
+          .where(eq(geocodeCache.id, result[0].id));
+        
+        return {
+          latitude: result[0].latitude,
+          longitude: result[0].longitude,
+          displayName: result[0].displayName || undefined
+        };
+      }
+      return null;
+    });
+  }
+
+  async saveGeocodeToCache(data: { addressQuery: string; latitude: number; longitude: number; displayName?: string; municipality?: string }): Promise<void> {
+    return this.withRetry(async () => {
+      const normalizedQuery = data.addressQuery.toLowerCase().trim();
+      try {
+        await db.insert(geocodeCache).values({
+          addressQuery: normalizedQuery,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          displayName: data.displayName,
+          municipality: data.municipality,
+        }).onConflictDoUpdate({
+          target: geocodeCache.addressQuery,
+          set: {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            displayName: data.displayName,
+            municipality: data.municipality,
+            lastUsedAt: new Date(),
+          }
+        });
+      } catch (error) {
+        // Ignore duplicate key errors
+        console.log('[GeocodeCache] Cache entry already exists for:', normalizedQuery);
+      }
+    });
+  }
+
+  async getGeocodeCacheStats(): Promise<{ totalEntries: number; totalHits: number }> {
+    return this.withRetry(async () => {
+      const stats = await db.select({
+        totalEntries: count(),
+        totalHits: sql<number>`COALESCE(SUM(${geocodeCache.hitCount}), 0)`
+      }).from(geocodeCache);
+      
+      return {
+        totalEntries: stats[0]?.totalEntries || 0,
+        totalHits: Number(stats[0]?.totalHits) || 0
+      };
     });
   }
 }

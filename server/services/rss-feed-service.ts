@@ -6,6 +6,7 @@ import { rssFeeds, rssFeedItems, events, CATEGORIES, aiExtractionProfiles } from
 import { eq, and, sql, ilike } from "drizzle-orm";
 import type { RssFeed, RssFeedItem, InsertRssFeedItem } from "@shared/schema";
 import { AIHelper } from "./ai-helper";
+import { storage } from "../storage";
 import { DEFAULT_FEED_RULES, FEED_IMPORT_PRINCIPLES, createDuplicateKey, validateEventForImport } from "../config/rss-feed-rules";
 import { validateCoordinatesInMunicipality, findActualMunicipality, getMunicipalityCentroid, getKnownVenue } from "./municipality-validator";
 import { ContentExtractor } from "./content-extractor";
@@ -144,6 +145,44 @@ interface FeedParseResult {
   success: boolean;
   items: ParsedFeedItem[];
   error?: string;
+}
+
+/**
+ * Process items in parallel batches with concurrency limit
+ */
+async function parallelBatch<T, R>(
+  items: T[],
+  processor: (item: T) => Promise<R | null>,
+  options: { concurrency?: number; delayMs?: number } = {}
+): Promise<R[]> {
+  const { concurrency = 5, delayMs = 100 } = options;
+  const results: R[] = [];
+  
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    const batchResults = await Promise.all(
+      batch.map(async (item) => {
+        try {
+          return await processor(item);
+        } catch {
+          return null;
+        }
+      })
+    );
+    
+    for (const result of batchResults) {
+      if (result !== null) {
+        results.push(result);
+      }
+    }
+    
+    // Small delay between batches to be polite to servers
+    if (i + concurrency < items.length && delayMs > 0) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+  
+  return results;
 }
 
 export class RssFeedService {
@@ -376,8 +415,30 @@ export class RssFeedService {
   }
 
   static async geocodeAddress(address: string): Promise<GeocodingResult | null> {
-    if (this.geocodeCache.has(address)) {
-      return this.geocodeCache.get(address)!;
+    // Normalize address for consistent cache lookups
+    const normalizedAddress = address.toLowerCase().trim();
+    
+    // Check in-memory cache first (fast path)
+    if (this.geocodeCache.has(normalizedAddress)) {
+      return this.geocodeCache.get(normalizedAddress)!;
+    }
+
+    // Check database cache (persistent)
+    try {
+      const cached = await storage.getGeocodeFromCache(normalizedAddress);
+      if (cached) {
+        const result = {
+          lat: cached.latitude,
+          lon: cached.longitude,
+          displayName: cached.displayName || ''
+        };
+        // Store in memory cache for even faster subsequent lookups
+        this.geocodeCache.set(normalizedAddress, result);
+        console.log(`[RSS] Geocode CACHE HIT for "${address.substring(0, 40)}..."`);
+        return result;
+      }
+    } catch (error) {
+      // Database error, continue to API call
     }
 
     try {
@@ -395,8 +456,20 @@ export class RssFeedService {
           lon: parseFloat(response.data[0].lon),
           displayName: response.data[0].display_name
         };
-        this.geocodeCache.set(address, result);
-        console.log(`[RSS] Geocoded "${address}" to ${result.lat}, ${result.lon}`);
+        // Store in both caches (using normalized key)
+        this.geocodeCache.set(normalizedAddress, result);
+        
+        // Save to database cache asynchronously (don't wait)
+        storage.saveGeocodeToCache({
+          addressQuery: normalizedAddress,
+          latitude: result.lat,
+          longitude: result.lon,
+          displayName: result.displayName
+        }).catch((err) => {
+          console.log(`[RSS] Geocode cache save failed: ${err.message}`);
+        });
+        
+        console.log(`[RSS] Geocoded "${address.substring(0, 40)}..." to ${result.lat}, ${result.lon}`);
         return result;
       }
     } catch (error: any) {
@@ -5369,19 +5442,20 @@ export class RssFeedService {
       const linksToProcess = Array.from(new Set(allEventLinks)).slice(0, maxLinks);
       console.log(`[RSS] Processing ${linksToProcess.length} links${linkLimit ? ` (test mode limit: ${linkLimit})` : ''}`);
       
-      for (const link of linksToProcess) {
-        try {
-          const detail = await this.scrapeGenericEventPage(link, municipality);
-          if (detail) {
-            items.push(detail);
+      // Fetch detail pages in parallel batches (5 at a time)
+      const fetchedItems = await parallelBatch(
+        linksToProcess,
+        async (link) => {
+          try {
+            return await this.scrapeGenericEventPage(link, municipality);
+          } catch (e: any) {
+            console.log(`[RSS] Failed to scrape ${link}: ${e.message}`);
+            return null;
           }
-        } catch (e: any) {
-          console.log(`[RSS] Failed to scrape ${link}: ${e.message}`);
-        }
-        
-        // Small delay to be polite
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
+        },
+        { concurrency: 5, delayMs: 200 }
+      );
+      items.push(...fetchedItems);
       
       if (items.length === 0) {
         return { success: false, items: [], error: "No events could be extracted from detail pages" };

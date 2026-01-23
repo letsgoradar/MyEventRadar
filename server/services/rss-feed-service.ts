@@ -1632,7 +1632,7 @@ export class RssFeedService {
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
-              endTime: endDate || (startDate ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : undefined),
+              endTime: endDate, // REQUIREMENT: Never invent fake times - only use explicit endDate
               location: venueName || city,
               address: fullAddress || `${city}, Netherlands`,
               latitude,
@@ -1741,7 +1741,7 @@ export class RssFeedService {
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
-              endTime: endDate || (startDate ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : undefined),
+              endTime: endDate, // REQUIREMENT: Never invent fake times - only use explicit endDate
               location: venueName || city,
               address: fullAddress || `${city}, Netherlands`,
               latitude,
@@ -2908,7 +2908,7 @@ export class RssFeedService {
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
-              endTime: endDate || (startDate ? new Date(startDate.getTime() + 3 * 60 * 60 * 1000) : undefined),
+              endTime: endDate, // REQUIREMENT: Never invent fake times - only use explicit endDate
               location: venueName || city,
               address: fullAddress,
               latitude,
@@ -4416,12 +4416,19 @@ export class RssFeedService {
               endDate = new Date(event.endDate);
             }
             
-            // Skip past events
-            if (startDate && startDate < new Date()) continue;
+            // REQUIREMENT: Must have a valid startDate - never import incomplete events
+            if (!startDate || isNaN(startDate.getTime())) {
+              console.log(`[RSS] JSON-LD event without valid startDate: "${name}" - skipping`);
+              continue;
+            }
             
-            // Only require GPS for quality - skip if missing
+            // Skip past events
+            if (startDate < new Date()) continue;
+            
+            // REQUIREMENT: Only import events with verified GPS coordinates (no fallback geocoding)
             if (!latitude || !longitude) {
-              console.log(`[RSS] JSON-LD event without GPS: "${name}" - skipping geocoding for now`);
+              console.log(`[RSS] JSON-LD event without GPS: "${name}" - skipping (no fallback geocoding)`);
+              continue;
             }
             
             const urlSlug = url.split('/').slice(-2).join('-').replace(/[^a-z0-9-]/gi, '-');
@@ -4440,7 +4447,7 @@ export class RssFeedService {
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
-              endTime: endDate || (startDate ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : undefined),
+              endTime: endDate, // REQUIREMENT: Never invent fake times - only use explicit endDate
               location: venueName || city || fullAddress,
               address: fullAddress || city || undefined,
               latitude,

@@ -516,6 +516,7 @@ export const aiExtractionProfiles = pgTable("ai_extraction_profiles", {
   aiModel: text("ai_model"), // e.g., "gpt-4o-mini"
   aiPromptVersion: text("ai_prompt_version"), // For tracking prompt changes
   municipality: text("municipality"), // e.g., "Roosendaal" - for linking to correct city
+  sampleDetailUrl: text("sample_detail_url"), // e.g., URL to a sample detail page for editing/testing
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -385,7 +385,26 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           setFeedName(response.feed.name);
           setSelectedMunicipality(response.feed.municipality || response.profile.municipality || '');
           setSelectors(response.profile.selectors || { eventCard: '' });
+          
+          // Load detail URL if available
+          const savedDetailUrl = response.profile.sampleDetailUrl;
+          if (savedDetailUrl) {
+            setDetailUrl(savedDetailUrl);
+          }
+          
+          // Set step to show configured selectors
           setCurrentStep('direct-detail');
+          
+          // Auto-fetch the detail page if available, otherwise overview
+          setTimeout(() => {
+            if (savedDetailUrl) {
+              setPageContext('detail');
+              fetchPageMutation.mutate(savedDetailUrl);
+            } else if (response.feed.url) {
+              setPageContext('overview');
+              fetchPageMutation.mutate(response.feed.url);
+            }
+          }, 100);
           
           toast({
             title: 'Configuratie geladen',
@@ -552,6 +571,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           feedName: feedName || 'Nieuwe Feed',
           selectors,
           municipality: selectedMunicipality || undefined,
+          sampleDetailUrl: detailUrl || undefined,
         },
       });
       return response;
@@ -1196,34 +1216,66 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           <Card className="flex-shrink-0">
             <CardHeader className="py-2 px-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Detailpagina
+                <Globe className="h-4 w-4" />
+                Pagina's
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <div className="flex gap-1">
-                <Input
-                  value={detailUrl}
-                  onChange={(e) => setDetailUrl(e.target.value)}
-                  placeholder="URL van event detail"
-                  className="h-7 text-xs"
-                />
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  className="h-7 px-2"
-                  onClick={() => {
-                    if (detailUrl) {
-                      setIframeLoading(true);
-                      setPageContext('detail');
-                      fetchPageMutation.mutate(detailUrl);
-                    }
-                  }}
-                  disabled={!detailUrl || fetchPageMutation.isPending}
-                >
-                  <RefreshCw className={`h-3 w-3 ${fetchPageMutation.isPending ? 'animate-spin' : ''}`} />
-                </Button>
+            <CardContent className="p-3 pt-0 space-y-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Overzichtspagina (feed URL)</Label>
+                <div className="flex gap-1">
+                  <Input
+                    value={overviewUrl}
+                    onChange={(e) => setOverviewUrl(e.target.value)}
+                    placeholder="URL van overzichtspagina"
+                    className="h-7 text-xs"
+                  />
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="h-7 px-2"
+                    onClick={() => {
+                      if (overviewUrl) {
+                        setIframeLoading(true);
+                        setPageContext('overview');
+                        fetchPageMutation.mutate(overviewUrl);
+                      }
+                    }}
+                    disabled={!overviewUrl || fetchPageMutation.isPending}
+                  >
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Detailpagina (voorbeeld event)</Label>
+                <div className="flex gap-1">
+                  <Input
+                    value={detailUrl}
+                    onChange={(e) => setDetailUrl(e.target.value)}
+                    placeholder="URL van event detail"
+                    className="h-7 text-xs"
+                  />
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="h-7 px-2"
+                    onClick={() => {
+                      if (detailUrl) {
+                        setIframeLoading(true);
+                        setPageContext('detail');
+                        fetchPageMutation.mutate(detailUrl);
+                      }
+                    }}
+                    disabled={!detailUrl || fetchPageMutation.isPending}
+                  >
+                    <RefreshCw className={`h-3 w-3 ${fetchPageMutation.isPending ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Bekijkt: <span className="font-medium">{pageContext === 'overview' ? 'Overzicht' : 'Detail'}</span>
+              </p>
             </CardContent>
           </Card>
 

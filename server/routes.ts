@@ -2476,7 +2476,7 @@ Respond with ONLY the search term, nothing else.`,
 
   app.post("/api/admin/visual-configurator/save-config", isAdmin, async (req, res) => {
     try {
-      const { url, domain, selectors, municipality } = req.body;
+      const { url, domain, selectors, municipality, sampleDetailUrl } = req.body;
       
       if (!url || typeof url !== 'string') {
         return res.status(400).json({ message: "URL is verplicht" });
@@ -2538,6 +2538,7 @@ Respond with ONLY the search term, nothing else.`,
         confidence: 80,
         requiresJsRendering: false,
         municipality: typeof municipality === 'string' ? municipality : undefined,
+        sampleDetailUrl: typeof sampleDetailUrl === 'string' ? sampleDetailUrl : undefined,
       };
 
       let savedProfile;
@@ -2651,6 +2652,7 @@ Respond with ONLY the search term, nothing else.`,
           pathPattern: profile.pathPattern,
           selectors: profile.selectors,
           municipality: profile.municipality,
+          sampleDetailUrl: profile.sampleDetailUrl,
         }
       });
     } catch (error: any) {

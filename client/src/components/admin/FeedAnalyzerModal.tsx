@@ -816,6 +816,13 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
           e.stopPropagation();
           
           const target = e.target;
+          
+          // Ctrl+click: hide element
+          if (e.ctrlKey || e.metaKey) {
+            target.style.display = 'none';
+            return;
+          }
+          
           let selector = '';
           
           if (target.id) {
@@ -1225,7 +1232,18 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
                       <AlertCircle className="h-4 w-4 text-red-500" />
                     )}
                   </div>
-                  {selectors.eventCard && (
+                  {activeField === 'eventCard' ? (
+                    <Input
+                      className="mt-2 text-xs h-7"
+                      placeholder="CSS selector invoeren..."
+                      value={selectors.eventCard || ''}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        setSelectors(prev => ({ ...prev, eventCard: e.target.value }));
+                        setHighlightedSelector(e.target.value);
+                      }}
+                    />
+                  ) : selectors.eventCard && (
                     <code className="text-[10px] text-muted-foreground mt-1 block truncate">
                       {selectors.eventCard}
                     </code>
@@ -1268,7 +1286,19 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
                           <AlertCircle className="h-3 w-3 text-red-500" />
                         ) : null}
                       </div>
-                      {selectors[field.id] && (
+                      {isActive && (
+                        <Input
+                          className="mt-2 text-xs h-7"
+                          placeholder="CSS selector invoeren..."
+                          value={selectors[field.id] || ''}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            setSelectors(prev => ({ ...prev, [field.id]: e.target.value }));
+                            setHighlightedSelector(e.target.value);
+                          }}
+                        />
+                      )}
+                      {!isActive && selectors[field.id] && (
                         <code className="text-[10px] text-muted-foreground mt-1 block truncate">
                           {selectors[field.id]}
                         </code>
@@ -1331,9 +1361,11 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
       </div>
 
       <div className="flex-1 flex flex-col border rounded-lg overflow-hidden relative">
-        <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 border-b">
-          <span className="text-xs text-muted-foreground">
-            {showImagesOnly ? 'Afbeeldingen modus - klik op een afbeelding om te selecteren' : 'Klik op een element om te selecteren'}
+        <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 border-b gap-2">
+          <span className="text-xs text-muted-foreground flex-1">
+            {showImagesOnly 
+              ? 'Afbeeldingen modus - klik op een afbeelding om te selecteren' 
+              : 'Klik = selecteren | Ctrl+klik = verbergen'}
           </span>
           <Button
             size="sm"
@@ -1556,24 +1588,49 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
         </div>
 
         {hasIncomplete && (
-          <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">Ontbrekende velden aanvullen?</p>
-              <p className="text-xs text-blue-700">Gebruik de visuele configurator om selectors te markeren voor de ontbrekende velden.</p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900">Ontbrekende velden aanvullen?</p>
+                <p className="text-xs text-blue-700">Gebruik de visuele configurator om selectors te markeren voor de ontbrekende velden.</p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setCurrentStep('configure');
+                  setPageContext('overview');
+                  setIframeLoading(true);
+                  fetchPageMutation.mutate(overviewUrl);
+                }}
+              >
+                <MousePointer2 className="w-4 h-4 mr-2" />
+                Configureren
+              </Button>
             </div>
-            <Button
-              size="sm"
-              onClick={() => {
-                setCurrentStep('configure');
-                setPageContext('overview');
-                setIframeLoading(true);
-                fetchPageMutation.mutate(overviewUrl);
-              }}
-            >
-              <MousePointer2 className="w-4 h-4 mr-2" />
-              Configureren
-            </Button>
+            
+            <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <Globe className="h-5 w-5 text-amber-600 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-900">Overstappen naar visuele scraping?</p>
+                <p className="text-xs text-amber-700">Negeer de huidige feed en configureer alle velden visueel op de pagina.</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setSelectedMethodId('scraper');
+                  setSelectors({ eventCard: '' });
+                  setCurrentStep('configure');
+                  setPageContext('overview');
+                  setIframeLoading(true);
+                  fetchPageMutation.mutate(overviewUrl);
+                }}
+              >
+                <Crosshair className="w-4 h-4 mr-2" />
+                Visuele scraping
+              </Button>
+            </div>
           </div>
         )}
       </div>

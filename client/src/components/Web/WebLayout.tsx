@@ -4,6 +4,7 @@ import Sidebar from "./Sidebar";
 import Header from "./Header";
 import SplitView from "./SplitView";
 import { EventDetailPanel } from "./EventDetailPanel";
+import { addDays, startOfDay, eachDayOfInterval } from "date-fns";
 
 interface WebLayoutProps {
   children?: React.ReactNode;
@@ -31,8 +32,12 @@ export function WebLayout({
   const [radius, setRadius] = React.useState(propRadius || 10);
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>(propFilteredEvents || []);
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
-  // Gesynchroniseerde datum selectie state
-  const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
+  // Gesynchroniseerde datum selectie state - default komende 7 dagen
+  const [selectedDays, setSelectedDays] = React.useState<Date[]>(() => {
+    const today = startOfDay(new Date());
+    const endDate = addDays(today, 6);
+    return eachDayOfInterval({ start: today, end: endDate });
+  });
 
   // Update state when props change
   React.useEffect(() => {

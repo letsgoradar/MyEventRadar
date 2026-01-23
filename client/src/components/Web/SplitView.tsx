@@ -12,7 +12,16 @@ import {
 import { startOfDay } from "date-fns";
 import L from "leaflet";
 import { useLocation } from "@/hooks/useLocation";
-import { MapPin } from "lucide-react";
+import { MapPin, Clock, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+type SortOption = "time" | "distance";
 
 // Functie om afstand te berekenen (Haversine formule)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -48,10 +57,11 @@ export function SplitView({
   const [activeEventId, setActiveEventId] = React.useState<number | null>(null);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
-  const [mapZoom, setMapZoom] = React.useState<number>(13);
+  const [mapZoom, setMapZoom] = React.useState<number>(10);
   const [visibleEvents, setVisibleEvents] = React.useState<EventWithDistance[]>([]);
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [hoveredEventId, setHoveredEventId] = React.useState<number | null>(null);
+  const [sortOption, setSortOption] = React.useState<SortOption>("time");
   
   // Haal gebruikerslocatie op
   const { location } = useLocation();
@@ -108,7 +118,7 @@ export function SplitView({
       });
     }
     
-    // Bereken afstand en sorteer op afstand (dichtst bij eerst)
+    // Bereken afstand voor elk event
     const eventsWithDistance: EventWithDistance[] = eventsToProcess.map(event => {
       const distance = location 
         ? calculateDistance(location.lat, location.lng, Number(event.latitude), Number(event.longitude))
@@ -116,16 +126,27 @@ export function SplitView({
       return { ...event, distance };
     });
     
-    // Sorteer op afstand (dichtst bij eerst)
-    eventsWithDistance.sort((a, b) => {
-      if (a.distance === undefined && b.distance === undefined) return 0;
-      if (a.distance === undefined) return 1;
-      if (b.distance === undefined) return -1;
-      return a.distance - b.distance;
-    });
+    // Sorteer op basis van geselecteerde optie
+    if (sortOption === "time") {
+      // Sorteer op tijd tot aanvang (soonest first)
+      eventsWithDistance.sort((a, b) => {
+        const now = new Date().getTime();
+        const timeToA = new Date(a.startTime).getTime() - now;
+        const timeToB = new Date(b.startTime).getTime() - now;
+        return timeToA - timeToB;
+      });
+    } else {
+      // Sorteer op afstand (dichtst bij eerst)
+      eventsWithDistance.sort((a, b) => {
+        if (a.distance === undefined && b.distance === undefined) return 0;
+        if (a.distance === undefined) return 1;
+        if (b.distance === undefined) return -1;
+        return a.distance - b.distance;
+      });
+    }
     
     setVisibleEvents(eventsWithDistance);
-  }, [filteredEvents, mapBounds, showExpiredEvents, selectedDays, location]);
+  }, [filteredEvents, mapBounds, showExpiredEvents, selectedDays, location, sortOption]);
 
   // Nieuwe states voor kaart preview mode vs detail mode
   const [isPreviewMode, setIsPreviewMode] = React.useState<boolean>(false);
@@ -232,16 +253,46 @@ export function SplitView({
             ) : (
               /* Event List/Grid View with optional preview */
               <div className="h-full overflow-y-auto pb-20 px-4 relative">
-                {/* Toon het aantal resultaten binnen het zichtbare gebied */}
+                {/* Toon het aantal resultaten en sorteeroptie */}
                 <div className="sticky top-0 pt-4 pb-3 bg-background z-10 mb-2">
                   <div className="flex justify-between items-center">
                     <div className="text-lg font-medium">
                       {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'}
                     </div>
-                    <div className="flex items-center gap-1 text-sm text-primary font-medium">
-                      <MapPin className="h-4 w-4" />
-                      <span>Gesorteerd op afstand</span>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="flex items-center gap-1 text-sm text-primary font-medium">
+                          {sortOption === "time" ? (
+                            <>
+                              <Clock className="h-4 w-4" />
+                              <span>Tijd tot aanvang</span>
+                            </>
+                          ) : (
+                            <>
+                              <MapPin className="h-4 w-4" />
+                              <span>Afstand</span>
+                            </>
+                          )}
+                          <ChevronDown className="h-3 w-3 ml-1" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          onClick={() => setSortOption("time")}
+                          className={sortOption === "time" ? "bg-accent" : ""}
+                        >
+                          <Clock className="h-4 w-4 mr-2" />
+                          Tijd tot aanvang
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => setSortOption("distance")}
+                          className={sortOption === "distance" ? "bg-accent" : ""}
+                        >
+                          <MapPin className="h-4 w-4 mr-2" />
+                          Afstand
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
                 

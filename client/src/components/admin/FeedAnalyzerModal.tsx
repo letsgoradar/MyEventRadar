@@ -325,6 +325,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
   const [selectedMunicipality, setSelectedMunicipality] = useState<string>('');
   const [iframeLoading, setIframeLoading] = useState(false);
   const [pageContext, setPageContext] = useState<'overview' | 'detail'>('overview');
+  const [showImagesOnly, setShowImagesOnly] = useState(false);
   
   const [previewEvents, setPreviewEvents] = useState<Array<{
     title: string;
@@ -693,6 +694,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
     setPageHtml('');
     setSelectors({ eventCard: '' });
     setActiveField(null);
+    setShowImagesOnly(false);
     setSelectedMunicipality('');
     setPreviewEvents([]);
     setTotalEventsFound(0);
@@ -856,7 +858,59 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
           if (e.data.type === 'vfc_highlight' && e.data.nonce === VFC_NONCE) {
             highlightElements(e.data.selector);
           }
+          if (e.data.type === 'vfc_showImagesOnly' && e.data.nonce === VFC_NONCE) {
+            toggleImagesOnlyMode(e.data.enabled);
+          }
         });
+        
+        function toggleImagesOnlyMode(enabled) {
+          // Always remove existing style first to prevent duplicates
+          const existingStyle = document.getElementById('vfc-images-only-style');
+          if (existingStyle) {
+            existingStyle.remove();
+          }
+          
+          if (enabled) {
+            // Hide all non-image elements and show images prominently
+            const style = document.createElement('style');
+            style.id = 'vfc-images-only-style';
+            style.textContent = \`
+              body * {
+                visibility: hidden !important;
+                pointer-events: none !important;
+              }
+              img {
+                visibility: visible !important;
+                display: block !important;
+                position: relative !important;
+                border: 4px solid #10b981 !important;
+                margin: 10px !important;
+                max-width: 300px !important;
+                max-height: 200px !important;
+                object-fit: contain !important;
+                background: white !important;
+                z-index: 9999 !important;
+                pointer-events: auto !important;
+              }
+              img:hover {
+                border-color: #3b82f6 !important;
+                transform: scale(1.05);
+                cursor: pointer !important;
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+              }
+              body {
+                visibility: visible !important;
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 10px !important;
+                padding: 20px !important;
+                background: #f3f4f6 !important;
+                pointer-events: auto !important;
+              }
+            \`;
+            document.head.appendChild(style);
+          }
+        }
       </script>
       <style>
         .vfc-highlight {
@@ -888,6 +942,16 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
       }, '*');
     }
   }, [highlightedSelector]);
+
+  useEffect(() => {
+    if (iframeRef.current) {
+      iframeRef.current.contentWindow?.postMessage({
+        type: 'vfc_showImagesOnly',
+        nonce: messageNonce,
+        enabled: showImagesOnly,
+      }, '*');
+    }
+  }, [showImagesOnly]);
 
   useEffect(() => {
     if (result?.isComplete && currentStep === 'analyze') {
@@ -1266,7 +1330,21 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
         </Card>
       </div>
 
-      <div className="flex-1 border rounded-lg overflow-hidden relative">
+      <div className="flex-1 flex flex-col border rounded-lg overflow-hidden relative">
+        <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 border-b">
+          <span className="text-xs text-muted-foreground">
+            {showImagesOnly ? 'Afbeeldingen modus - klik op een afbeelding om te selecteren' : 'Klik op een element om te selecteren'}
+          </span>
+          <Button
+            size="sm"
+            variant={showImagesOnly ? 'default' : 'outline'}
+            className="h-7 text-xs"
+            onClick={() => setShowImagesOnly(!showImagesOnly)}
+          >
+            <ImageIcon className="h-3 w-3 mr-1" />
+            {showImagesOnly ? 'Normale weergave' : 'Alleen afbeeldingen'}
+          </Button>
+        </div>
         {iframeLoading && (
           <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -1276,11 +1354,20 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated }:
           <iframe
             ref={iframeRef}
             srcDoc={pageHtml + injectHighlightScript()}
-            className="w-full h-full"
+            className="w-full flex-1 overflow-auto"
             sandbox="allow-scripts allow-same-origin"
             title="Page Preview"
             referrerPolicy="no-referrer"
-            onLoad={() => setIframeLoading(false)}
+            onLoad={() => {
+              setIframeLoading(false);
+              if (showImagesOnly) {
+                iframeRef.current?.contentWindow?.postMessage({
+                  type: 'vfc_showImagesOnly',
+                  nonce: messageNonce,
+                  enabled: true,
+                }, '*');
+              }
+            }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">

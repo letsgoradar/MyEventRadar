@@ -140,6 +140,7 @@ export interface IStorage {
 
   // AI Extraction Profile operations
   createAiExtractionProfile(profile: InsertAiExtractionProfile): Promise<AiExtractionProfile>;
+  getAiExtractionProfile(id: number): Promise<AiExtractionProfile | undefined>;
   getAiExtractionProfileByDomain(domain: string): Promise<AiExtractionProfile | undefined>;
   getAiExtractionProfileByDomainAndPath(domain: string, pathPattern: string): Promise<AiExtractionProfile | undefined>;
   updateAiExtractionProfile(id: number, profile: Partial<AiExtractionProfile>): Promise<AiExtractionProfile>;
@@ -918,6 +919,13 @@ export class PgStorage implements IStorage {
     return this.withRetry(async () => {
       const [created] = await db.insert(aiExtractionProfiles).values(profile).returning();
       return created;
+    });
+  }
+
+  async getAiExtractionProfile(id: number): Promise<AiExtractionProfile | undefined> {
+    return this.withRetry(async () => {
+      const [profile] = await db.select().from(aiExtractionProfiles).where(eq(aiExtractionProfiles.id, id)).limit(1);
+      return profile;
     });
   }
 

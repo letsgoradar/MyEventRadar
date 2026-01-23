@@ -174,6 +174,7 @@ interface FeedAnalyzerModalProps {
   onOpenChange: (open: boolean) => void;
   onFeedCreated?: () => void;
   directVisualMode?: boolean;
+  editingFeedId?: number | null;
 }
 
 const IMPORT_RULES_SUMMARY = [
@@ -309,7 +310,7 @@ function MunicipalitySearch({ value, onChange }: { value: string; onChange: (val
   );
 }
 
-export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, directVisualMode = false }: FeedAnalyzerModalProps) {
+export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, directVisualMode = false, editingFeedId = null }: FeedAnalyzerModalProps) {
   const { toast } = useToast();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -321,6 +322,8 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
   const [showSampleEvent, setShowSampleEvent] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedName, setFeedName] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(false);
   
   const [pageHtml, setPageHtml] = useState<string>('');
   const [activeField, setActiveField] = useState<keyof Omit<SelectorConfig, 'eventCard'> | 'eventCard' | null>(null);
@@ -360,6 +363,49 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
       }
     };
   }, []);
+
+  // Load existing configuration when editing
+  useEffect(() => {
+    const loadConfig = async () => {
+      if (!open || !editingFeedId) {
+        setIsEditMode(false);
+        return;
+      }
+      
+      setLoadingConfig(true);
+      setIsEditMode(true);
+      
+      try {
+        const response = await apiRequest(`/api/admin/visual-configurator/feed/${editingFeedId}`, {
+          method: 'GET',
+        });
+        
+        if (response.feed && response.profile) {
+          setOverviewUrl(response.feed.url);
+          setFeedName(response.feed.name);
+          setSelectedMunicipality(response.feed.municipality || response.profile.municipality || '');
+          setSelectors(response.profile.selectors || { eventCard: '' });
+          setCurrentStep('direct-detail');
+          
+          toast({
+            title: 'Configuratie geladen',
+            description: `Bewerk de visuele configuratie voor "${response.feed.name}"`,
+          });
+        }
+      } catch (error: any) {
+        toast({
+          title: 'Fout bij laden',
+          description: error.message || 'Kon de configuratie niet laden',
+          variant: 'destructive',
+        });
+        onOpenChange(false);
+      } finally {
+        setLoadingConfig(false);
+      }
+    };
+    
+    loadConfig();
+  }, [open, editingFeedId]);
 
   const analyzeMutation = useMutation({
     mutationFn: async (urlToAnalyze: string): Promise<ProgressiveAnalysisResult> => {

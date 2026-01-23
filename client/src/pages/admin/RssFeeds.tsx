@@ -74,6 +74,7 @@ interface RssFeed {
   itemsImported: number;
   autoCreateEvents: boolean;
   createdAt: string;
+  aiExtractionProfileId: number | null;
 }
 
 interface RssFeedStats {
@@ -91,6 +92,7 @@ export default function RssFeedsPage() {
   const [isFeedAnalyzerOpen, setIsFeedAnalyzerOpen] = useState(false);
   const [isDirectVisualMode, setIsDirectVisualMode] = useState(false);
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
+  const [editingVisualFeedId, setEditingVisualFeedId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('list');
   
   const [newFeed, setNewFeed] = useState({
@@ -1028,7 +1030,20 @@ export default function RssFeedsPage() {
                             >
                               <RefreshCw className={`w-4 h-4 ${syncingFeedId === feed.id ? 'animate-spin' : ''}`} />
                             </Button>
-                                                        <Button 
+                            {feed.aiExtractionProfileId && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => {
+                                  setEditingVisualFeedId(feed.id);
+                                  setIsFeedAnalyzerOpen(true);
+                                }}
+                                title="Visuele configuratie bewerken"
+                              >
+                                <FileCode className="w-4 h-4 text-blue-600" />
+                              </Button>
+                            )}
+                            <Button 
                               variant="ghost" 
                               size="icon"
                               onClick={() => updateFeedMutation.mutate({ 
@@ -1095,13 +1110,17 @@ export default function RssFeedsPage() {
               open={isFeedAnalyzerOpen} 
               onOpenChange={(open) => {
                 setIsFeedAnalyzerOpen(open);
-                if (!open) setIsDirectVisualMode(false);
+                if (!open) {
+                  setIsDirectVisualMode(false);
+                  setEditingVisualFeedId(null);
+                }
               }}
               onFeedCreated={() => {
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
               }}
               directVisualMode={isDirectVisualMode}
+              editingFeedId={editingVisualFeedId}
             />
           </Suspense>
 

@@ -2549,24 +2549,30 @@ Respond with ONLY the search term, nothing else.`,
         console.log('[Visual Configurator] Created new profile:', savedProfile.id, 'for', domain, pathPattern);
       }
 
-      // Check if RSS feed already exists for this URL
+      // Check if RSS feed already exists for this URL or linked to this profile
       const existingFeeds = await storage.getAllRssFeeds();
-      const existingFeed = existingFeeds.find(f => f.url === url);
+      // First try to find by exact URL, then by profile ID
+      let existingFeed = existingFeeds.find(f => f.url === url);
+      if (!existingFeed) {
+        existingFeed = existingFeeds.find(f => f.aiExtractionProfileId === savedProfile.id);
+      }
       
       let rssFeed;
-      const feedName = municipality 
+      const feedName = req.body.feedName || (municipality 
         ? `${domain.replace('www.', '')} - ${municipality}` 
-        : domain.replace('www.', '');
+        : domain.replace('www.', ''));
       
       if (existingFeed) {
-        // Update existing feed with new profile ID
+        // Update existing feed with new profile ID and URL
         rssFeed = await storage.updateRssFeed(existingFeed.id, {
+          name: feedName,
+          url: url,
           feedType: 'scraper',
           aiExtractionProfileId: savedProfile.id,
           municipality: municipality || existingFeed.municipality,
           status: 'active',
         });
-        console.log('[Visual Configurator] Updated existing RSS feed:', rssFeed.id);
+        console.log('[Visual Configurator] Updated existing RSS feed:', rssFeed.id, 'with profile:', savedProfile.id);
       } else {
         // Create new RSS feed linked to the profile
         rssFeed = await storage.createRssFeed({
@@ -2607,6 +2613,49 @@ Respond with ONLY the search term, nothing else.`,
     } catch (error: any) {
       console.error('Error in GET /api/admin/visual-configurator/configs:', error);
       res.status(500).json({ message: error.message || "Failed to fetch configurations" });
+    }
+  });
+
+  // Get visual configuration for a specific feed
+  app.get("/api/admin/visual-configurator/feed/:feedId", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.feedId);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+      
+      const feed = await storage.getRssFeed(feedId);
+      if (!feed) {
+        return res.status(404).json({ message: "Feed niet gevonden" });
+      }
+      
+      if (!feed.aiExtractionProfileId) {
+        return res.status(404).json({ message: "Deze feed heeft geen visuele configuratie" });
+      }
+      
+      const profile = await storage.getAiExtractionProfile(feed.aiExtractionProfileId);
+      if (!profile) {
+        return res.status(404).json({ message: "Visuele configuratie niet gevonden" });
+      }
+      
+      res.json({
+        feed: {
+          id: feed.id,
+          name: feed.name,
+          url: feed.url,
+          municipality: feed.municipality,
+        },
+        profile: {
+          id: profile.id,
+          domain: profile.domain,
+          pathPattern: profile.pathPattern,
+          selectors: profile.selectors,
+          municipality: profile.municipality,
+        }
+      });
+    } catch (error: any) {
+      console.error('Error in GET /api/admin/visual-configurator/feed/:feedId:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch configuration" });
     }
   });
 

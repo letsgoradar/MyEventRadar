@@ -1877,7 +1877,7 @@ Respond with ONLY the search term, nothing else.`,
 
   app.post("/api/admin/rss-feeds/preview", isAdmin, async (req, res) => {
     try {
-      const { url, feedType, municipality, scraperConfig } = req.body;
+      const { url, feedType, municipality, scraperConfig, limit } = req.body;
       
       if (!url) {
         return res.status(400).json({ message: "URL is verplicht" });
@@ -1889,7 +1889,8 @@ Respond with ONLY the search term, nothing else.`,
         url,
         feedType: feedType || 'rss',
         municipality,
-        scraperConfig
+        scraperConfig,
+        limit: limit ? parseInt(limit, 10) : undefined
       });
 
       res.json(result);

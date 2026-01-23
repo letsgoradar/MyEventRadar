@@ -5623,12 +5623,100 @@ export class RssFeedService {
     }
   }
 
+  // Parse address from combined venue+address string
+  // Returns: { venue?: string, street?: string, number?: string, postalCode?: string, city?: string }
+  static parseAddressFromLocation(locationString: string): {
+    venue?: string;
+    street?: string;
+    number?: string;
+    postalCode?: string;
+    city?: string;
+    cleanAddress?: string;
+  } {
+    if (!locationString) return {};
+    
+    // Dutch postal code pattern: 4 digits + space + 2 letters (e.g., 4001 AB)
+    const postalCodePattern = /\b(\d{4})\s*([A-Za-z]{2})\b/;
+    // Street with number pattern (e.g., "Stationsplein 1" or "Markt 12a")
+    const streetNumberPattern = /([A-Za-z][a-zA-Z\s\-']+)\s+(\d+[a-zA-Z]?)/;
+    // Common Dutch city names or any word after postal code
+    const cityAfterPostalPattern = /\d{4}\s*[A-Za-z]{2}\s+([A-Za-z][a-zA-Z\s\-']+)/;
+    
+    const result: {
+      venue?: string;
+      street?: string;
+      number?: string;
+      postalCode?: string;
+      city?: string;
+      cleanAddress?: string;
+    } = {};
+    
+    // Split by comma to separate parts
+    const parts = locationString.split(',').map(p => p.trim());
+    
+    // Try to find postal code
+    const postalMatch = locationString.match(postalCodePattern);
+    if (postalMatch) {
+      result.postalCode = `${postalMatch[1]} ${postalMatch[2].toUpperCase()}`;
+    }
+    
+    // Try to find city (after postal code or last meaningful part)
+    const cityMatch = locationString.match(cityAfterPostalPattern);
+    if (cityMatch) {
+      result.city = cityMatch[1].trim();
+    } else if (parts.length > 1) {
+      // Last part is often the city
+      const lastPart = parts[parts.length - 1].replace(postalCodePattern, '').trim();
+      if (lastPart && lastPart.length > 2 && !/^\d/.test(lastPart)) {
+        result.city = lastPart;
+      }
+    }
+    
+    // Try to find street + number
+    for (const part of parts) {
+      const streetMatch = part.match(streetNumberPattern);
+      if (streetMatch) {
+        result.street = streetMatch[1].trim();
+        result.number = streetMatch[2];
+        break;
+      }
+    }
+    
+    // First part without address info is likely the venue
+    if (parts.length > 0) {
+      const firstPart = parts[0];
+      // If first part doesn't contain postal code or street number, it's likely venue
+      if (!postalCodePattern.test(firstPart) && !streetNumberPattern.test(firstPart)) {
+        result.venue = firstPart;
+      }
+    }
+    
+    // Build clean address for geocoding (without venue name)
+    const addressParts: string[] = [];
+    if (result.street && result.number) {
+      addressParts.push(`${result.street} ${result.number}`);
+    }
+    if (result.postalCode) {
+      addressParts.push(result.postalCode);
+    }
+    if (result.city) {
+      addressParts.push(result.city);
+    }
+    
+    if (addressParts.length > 0) {
+      result.cleanAddress = addressParts.join(', ');
+    }
+    
+    return result;
+  }
+
   static async previewFeed(
     feedConfig: {
       url: string;
       feedType: string;
       municipality?: string;
       scraperConfig?: any;
+      limit?: number; // Max events to fetch (for test mode)
     },
     onProgress?: (progress: { status: string; message: string; current?: number; total?: number }) => void
   ): Promise<{
@@ -5653,6 +5741,7 @@ export class RssFeedService {
       complete: number;
       incomplete: number;
       missingFieldsCounts: Record<string, number>;
+      totalAvailable?: number; // Total events available (before limit)
     };
     error?: string;
   }> {
@@ -5703,16 +5792,22 @@ export class RssFeedService {
       onProgress?.({ status: 'analyzing', message: 'Events analyseren...', total: result.items.length });
 
       const consolidatedItems = this.consolidateMultiDayEvents(result.items);
-      const expectedMunicipality = feedConfig.municipality || '';
       const missingFieldsCounts: Record<string, number> = {};
       
-      const analyzedItems = await Promise.all(consolidatedItems.map(async (item, index) => {
+      // Apply limit if specified (for test mode)
+      const itemsToAnalyze = feedConfig.limit 
+        ? consolidatedItems.slice(0, feedConfig.limit) 
+        : consolidatedItems;
+      
+      const totalEventCount = consolidatedItems.length;
+      
+      const analyzedItems = await Promise.all(itemsToAnalyze.map(async (item, index) => {
         if (index % 5 === 0) {
           onProgress?.({ 
             status: 'analyzing', 
-            message: `Event ${index + 1} van ${consolidatedItems.length} analyseren...`,
+            message: `Event ${index + 1} van ${itemsToAnalyze.length} analyseren...`,
             current: index + 1,
-            total: consolidatedItems.length
+            total: itemsToAnalyze.length
           });
         }
 
@@ -5733,40 +5828,44 @@ export class RssFeedService {
           missingFields.push('imageUrl');
         }
 
+        // If we already have valid coordinates, accept them
         if (item.latitude && item.longitude) {
-          const isValid = this.validateExistingCoordinates(
-            item.latitude,
-            item.longitude,
-            expectedMunicipality
-          );
-          if (isValid) {
-            hasValidLocation = true;
-          } else {
-            validationIssues.push(`GPS coördinaten vallen buiten ${expectedMunicipality}`);
-          }
+          hasValidLocation = true;
         }
 
+        // Try to geocode if no coordinates yet
         if (!hasValidLocation && (item.address || item.location)) {
-          const locationQuery = item.address || item.location || '';
+          const locationString = item.address || item.location || '';
+          
+          // Use smart address parsing to extract clean address
+          const parsedAddress = this.parseAddressFromLocation(locationString);
+          const queryAddress = parsedAddress.cleanAddress || locationString;
+          
           try {
-            const geoResult = await this.geocodeWithMunicipalityValidation(locationQuery, expectedMunicipality);
+            // Simple geocoding without municipality restriction
+            const geoResult = await this.geocodeAddress(queryAddress);
             if (geoResult) {
               hasValidLocation = true;
               item.latitude = geoResult.lat;
               item.longitude = geoResult.lon;
-              item.address = geoResult.displayName.split(',').slice(0, 3).join(',').trim();
+              // Keep original address but add city if found
+              if (parsedAddress.city && !item.address?.includes(parsedAddress.city)) {
+                item.address = locationString;
+              }
             }
           } catch {
+            // Geocoding failed, but we still have location text
           }
         }
 
-        if (!hasValidLocation) {
+        // Location is only "missing" if there's NO location info at all
+        // Having a venue/address without coordinates is acceptable
+        if (!item.address && !item.location) {
           missingFields.push('location');
-          if (!item.address && !item.location) {
-            validationIssues.push('Geen locatie gevonden in de bron');
-          } else {
-            validationIssues.push(`Locatie "${item.address || item.location}" kon niet worden geverifieerd in ${expectedMunicipality}`);
-          }
+          validationIssues.push('Geen locatie gevonden in de bron');
+        } else if (!hasValidLocation) {
+          // We have location text but no coordinates - add info but don't mark as missing
+          validationIssues.push(`Coördinaten konden niet worden bepaald voor "${item.address || item.location}"`);
         }
 
         missingFields.forEach(field => {
@@ -5807,7 +5906,8 @@ export class RssFeedService {
           total: analyzedItems.length,
           complete,
           incomplete,
-          missingFieldsCounts
+          missingFieldsCounts,
+          totalAvailable: totalEventCount // Total events available (before limit)
         }
       };
     } catch (error: any) {

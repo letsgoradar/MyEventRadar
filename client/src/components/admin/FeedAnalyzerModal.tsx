@@ -161,8 +161,10 @@ interface PreviewResult {
     complete: number;
     incomplete: number;
     missingFieldsCounts: Record<string, number>;
+    totalAvailable?: number; // Total events available (before limit)
   };
   error?: string;
+  isTestMode?: boolean; // Whether this was a test with limited events
 }
 
 interface FeedAnalyzerModalProps {
@@ -340,6 +342,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
   
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
+  const [isTestMode, setIsTestMode] = useState<boolean>(true); // Start in test mode (5 events)
   const [previewProgress, setPreviewProgress] = useState<{
     phase: 'fetching' | 'parsing' | 'validating' | 'geocoding' | 'complete';
     current: number;
@@ -540,21 +543,25 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           feedType: 'scraper',
           municipality: selectedMunicipality || result?.suggestedMunicipality || '',
           scraperConfig: selectors,
+          limit: isTestMode ? 5 : undefined, // Test mode: only 5 events
         },
       });
       
-      return previewResponse;
+      return { ...previewResponse, isTestMode };
     },
     onSuccess: (data: PreviewResult) => {
       setPreviewResult(data);
       setCurrentStep('preview');
       
       if (data.success) {
+        const testModeInfo = data.isTestMode && data.summary.totalAvailable 
+          ? ` (van ${data.summary.totalAvailable} totaal)` 
+          : '';
         const description = data.summary.incomplete > 0 
-          ? `${data.summary.complete} compleet, ${data.summary.incomplete} incompleet`
-          : `Alle ${data.summary.total} events zijn compleet`;
+          ? `${data.summary.complete} compleet, ${data.summary.incomplete} incompleet${testModeInfo}`
+          : `Alle ${data.summary.total} events zijn compleet${testModeInfo}`;
         toast({
-          title: 'Events geanalyseerd',
+          title: data.isTestMode ? 'Test: eerste 5 events' : 'Events geanalyseerd',
           description,
         });
       }
@@ -623,6 +630,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
             feedType: getFeedType(method.id),
             municipality: selectedMunicipality || result?.suggestedMunicipality || '',
             scraperConfig: method.id === 'scraper' ? selectors : undefined,
+            limit: isTestMode ? 5 : undefined, // Test mode: only 5 events
           },
         });
         if (progressIntervalRef.current) {
@@ -630,7 +638,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           progressIntervalRef.current = null;
         }
         setPreviewProgress({ phase: 'complete', current: 100, total: 100, message: 'Klaar!' });
-        return response;
+        return { ...response, isTestMode };
       } catch (error) {
         if (progressIntervalRef.current) {
           clearInterval(progressIntervalRef.current);
@@ -702,6 +710,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
     setPageContext('overview');
     setPreviewResult(null);
     setSelectedMethodId(null);
+    setIsTestMode(true); // Reset to test mode for next use
     setDetailUrl('');
     setOverviewUrl('');
     onOpenChange(false);
@@ -2055,9 +2064,23 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
     const summary = previewResult?.summary;
     const items = previewResult?.items || [];
     const hasIncomplete = summary && summary.incomplete > 0;
+    const isInTestMode = previewResult?.isTestMode;
+    const totalAvailable = summary?.totalAvailable || summary?.total || 0;
 
     return (
       <div className="space-y-4">
+        {/* Test mode banner */}
+        {isInTestMode && summary && (
+          <Alert className="bg-blue-50 border-blue-200">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800">Test modus: eerste {summary.total} events</AlertTitle>
+            <AlertDescription className="text-blue-700">
+              Dit is een test met de eerste {summary.total} events van {totalAvailable} totaal beschikbaar.
+              Controleer of de gegevens correct zijn geëxtraheerd voordat je alle events ophaalt.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {summary && (
           <div className={`p-4 rounded-lg border ${hasIncomplete ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
             <div className="flex items-center gap-3 mb-3">
@@ -2071,7 +2094,10 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                   {hasIncomplete ? 'Sommige events zijn incompleet' : 'Alle events zijn compleet'}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {summary.total} events gevonden: {summary.complete} compleet, {summary.incomplete} incompleet
+                  {isInTestMode 
+                    ? `${summary.total} test events: ${summary.complete} compleet, ${summary.incomplete} incompleet`
+                    : `${summary.total} events gevonden: ${summary.complete} compleet, ${summary.incomplete} incompleet`
+                  }
                 </p>
               </div>
             </div>
@@ -2092,6 +2118,44 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Test mode action buttons */}
+        {isInTestMode && (
+          <div className="flex gap-3 p-4 bg-slate-50 rounded-lg border">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPreviewResult(null);
+                setCurrentStep(directVisualMode ? 'direct-overview' : 'configure');
+              }}
+              className="flex-1"
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Terug naar configurator
+            </Button>
+            <Button
+              onClick={() => {
+                setIsTestMode(false);
+                setPreviewResult(null);
+                // Re-run with full fetch
+                if (directVisualMode) {
+                  testEventsMutation.mutate();
+                } else {
+                  previewFeedMutation.mutate();
+                }
+              }}
+              disabled={testEventsMutation.isPending || previewFeedMutation.isPending}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+            >
+              {(testEventsMutation.isPending || previewFeedMutation.isPending) ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Alle {totalAvailable} events ophalen
+            </Button>
           </div>
         )}
 

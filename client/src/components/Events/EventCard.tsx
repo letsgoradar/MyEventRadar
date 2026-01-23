@@ -9,7 +9,7 @@ import { CountdownTimer } from './CountdownTimer';
 import { Link } from 'wouter';
 import { useLocation } from '@/hooks/useLocation';
 import placeholderImage from '@/assets/placeholder-event.svg';
-import { formatEventTimeRange } from '@/utils/date-utils';
+import { formatEventTimeRange, formatSmartEventDate, formatSmartEventDateLong } from '@/utils/date-utils';
 
 // Functie om afstand tussen twee coördinaten te berekenen (Haversine formule)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -233,10 +233,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
               <div className="flex items-center flex-wrap gap-1">
                 <Calendar className="h-4 w-4 mr-1" />
                 <span>
-                  {new Date(event.startTime).toLocaleDateString('nl-NL', {
-                    day: 'numeric',
-                    month: 'short'
-                  })}{(() => {
+                  {formatSmartEventDate(event.startTime, event.endTime)}{(() => {
                     const timeRange = formatEventTimeRange(event.startTime, event.endTime);
                     return timeRange ? ` ${timeRange}` : '';
                   })()}
@@ -291,11 +288,9 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
     
     // Formateer de datum als "vrijdag 18 april vanaf 16:23" of "vrijdag 18 april 16:23 - 18:00"
     const timeRange = formatEventTimeRange(event.startTime, event.endTime);
-    const formattedDate = new Date(event.startTime).toLocaleDateString('nl-NL', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long'
-    }) + (timeRange ? ` ${timeRange}` : '');
+    // Slimme datumweergave voor app - gebruikt gecentraliseerde functie
+    const smartDate = formatSmartEventDateLong(event.startTime, event.endTime);
+    const formattedDate = smartDate.startsWith('Nu t/m') ? smartDate : smartDate + (timeRange ? ` ${timeRange}` : '');
     
     // Bereken een ruwe schatting van de resterende tijd (voor countdowntekst)
     const timeUntilStart = startTime.getTime() - now.getTime();
@@ -496,10 +491,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 <div className="flex items-center flex-wrap gap-1">
                   <Calendar className="h-4 w-4 mr-1" />
                   <span>
-                    {new Date(event.startTime).toLocaleDateString('nl-NL', {
-                      day: 'numeric',
-                      month: 'short'
-                    })}{(() => {
+                    {formatSmartEventDate(event.startTime, event.endTime)}{(() => {
                       const timeRange = formatEventTimeRange(event.startTime, event.endTime);
                       return timeRange ? ` ${timeRange}` : '';
                     })()}

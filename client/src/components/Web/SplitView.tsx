@@ -126,19 +126,50 @@ export function SplitView({
       return { ...event, distance };
     });
     
+    // Helper: bereken effectieve duratie in dagen
+    // Voor ongoing events: resterende duratie (end - now)
+    // Voor toekomstige events: totale duratie
+    const getEffectiveDurationDays = (event: Event): number => {
+      const now = new Date();
+      const start = new Date(event.startTime);
+      const end = event.endTime ? new Date(event.endTime) : start;
+      
+      // Als event al begonnen is, gebruik resterende tijd
+      if (start < now && end > now) {
+        const remainingMs = end.getTime() - now.getTime();
+        return Math.max(1, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
+      }
+      
+      // Toekomstig event: totale duratie
+      const diffMs = end.getTime() - start.getTime();
+      return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    };
+    
     // Sorteer op basis van geselecteerde optie
     if (sortOption === "time") {
-      // Sorteer op dag eerst, binnen dezelfde dag op afstand
+      // Sorteer op dag eerst, dan op duratie (kort > lang), dan op afstand
       eventsWithDistance.sort((a, b) => {
-        const dayA = startOfDay(new Date(a.startTime)).getTime();
-        const dayB = startOfDay(new Date(b.startTime)).getTime();
+        const now = startOfDay(new Date());
+        const startA = startOfDay(new Date(a.startTime));
+        const startB = startOfDay(new Date(b.startTime));
         
-        // Als verschillende dagen: sorteer op dag
-        if (dayA !== dayB) {
-          return dayA - dayB;
+        // Gebruik effectieve dag: als event al begonnen is, gebruik vandaag
+        const effectiveDayA = startA < now ? now : startA;
+        const effectiveDayB = startB < now ? now : startB;
+        
+        // Als verschillende effectieve dagen: sorteer op dag
+        if (effectiveDayA.getTime() !== effectiveDayB.getTime()) {
+          return effectiveDayA.getTime() - effectiveDayB.getTime();
         }
         
-        // Zelfde dag: sorteer op afstand (dichtst bij eerst)
+        // Zelfde dag: korte events boven lange events (urgenter)
+        const durationA = getEffectiveDurationDays(a);
+        const durationB = getEffectiveDurationDays(b);
+        if (durationA !== durationB) {
+          return durationA - durationB; // Kortere duratie eerst
+        }
+        
+        // Zelfde duratie: sorteer op afstand (dichtst bij eerst)
         if (a.distance === undefined && b.distance === undefined) return 0;
         if (a.distance === undefined) return 1;
         if (b.distance === undefined) return -1;

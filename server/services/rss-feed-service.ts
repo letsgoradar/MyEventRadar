@@ -5055,34 +5055,86 @@ export class RssFeedService {
         return '/' + parts.join('/');
       };
       
-      // Get the normalized overview path for prefix matching
+      // Mapping of singular/plural variations for event-related sections
+      // Key = section, Value = array of equivalent sections (including itself)
+      const sectionEquivalents: Record<string, string[]> = {
+        'evenement': ['evenement', 'evenementen'],
+        'evenementen': ['evenement', 'evenementen'],
+        'event': ['event', 'events'],
+        'events': ['event', 'events'],
+        'agenda': ['agenda', 'agendas', 'activiteit', 'activiteiten'],
+        'agendas': ['agenda', 'agendas', 'activiteit', 'activiteiten'],
+        'activiteit': ['activiteit', 'activiteiten', 'agenda', 'agendas'],
+        'activiteiten': ['activiteit', 'activiteiten', 'agenda', 'agendas'],
+        'activity': ['activity', 'activities'],
+        'activities': ['activity', 'activities'],
+        'uitagenda': ['uitagenda', 'uitje', 'uitjes'],
+        'uitje': ['uitje', 'uitjes', 'uitagenda'],
+        'uitjes': ['uitje', 'uitjes', 'uitagenda'],
+        'festival': ['festival', 'festivals'],
+        'festivals': ['festival', 'festivals'],
+        'concert': ['concert', 'concerten', 'concerts'],
+        'concerten': ['concert', 'concerten', 'concerts'],
+        'concerts': ['concert', 'concerten', 'concerts'],
+        'voorstelling': ['voorstelling', 'voorstellingen'],
+        'voorstellingen': ['voorstelling', 'voorstellingen'],
+        'show': ['show', 'shows'],
+        'shows': ['show', 'shows'],
+        'workshop': ['workshop', 'workshops'],
+        'workshops': ['workshop', 'workshops'],
+        'cursus': ['cursus', 'cursussen'],
+        'cursussen': ['cursus', 'cursussen'],
+        'course': ['course', 'courses'],
+        'courses': ['course', 'courses'],
+        'programma': ['programma', 'programs'],
+        'programs': ['programma', 'programs'],
+        'calendar': ['calendar', 'kalender'],
+        'kalender': ['calendar', 'kalender'],
+      };
+      
+      // Sections that are clearly NOT event-related (always blocked)
+      const nonEventSections = ['nieuws', 'news', 'blog', 'artikel', 'article', 'posts', 
+        'bericht', 'berichten', 'contact', 'over-ons', 'about', 'privacy', 'disclaimer',
+        'voorwaarden', 'terms', 'cookies', 'sitemap', 'zoeken', 'search', 'login', 'account',
+        'winkelwagen', 'cart', 'checkout', 'shop', 'producten', 'products'];
+      
+      // Get the normalized overview path and section
       const normalizedOverviewPath = normalizePath(overviewPath).toLowerCase();
-      console.log(`[RSS] Normalized overview path for matching: ${normalizedOverviewPath}`);
+      const overviewParts = normalizedOverviewPath.split('/').filter(Boolean);
+      const overviewSection = overviewParts[0] || '';
+      
+      // Get acceptable sections based on overview section (including equivalents)
+      const acceptableSections = sectionEquivalents[overviewSection] || [overviewSection];
+      
+      console.log(`[RSS] Overview section: ${overviewSection}, acceptable sections: ${acceptableSections.join(', ')}`);
       
       // Helper function to check if a link is a valid event link
-      // Uses strict path-prefix matching - link must start with the overview path
+      // Strategy: Link must be in the same section as overview (or equivalent singular/plural)
       const isValidEventLink = (linkPath: string): boolean => {
         const normalizedLinkPath = normalizePath(linkPath).toLowerCase();
+        const linkParts = normalizedLinkPath.split('/').filter(Boolean);
         
-        // If overview is root, only accept non-empty paths (to avoid homepage)
-        if (normalizedOverviewPath === '/' || normalizedOverviewPath === '') {
-          return normalizedLinkPath !== '/' && normalizedLinkPath !== '';
-        }
-        
-        // Root/empty links are NOT allowed (could be homepage or unrelated)
-        if (normalizedLinkPath === '/' || normalizedLinkPath === '') {
+        // Root/empty links are NOT allowed (could be homepage)
+        if (normalizedLinkPath === '/' || normalizedLinkPath === '' || linkParts.length === 0) {
           return false;
         }
         
-        // Link must start with the overview path prefix
-        // e.g., if overview is /evenementen, link must be /evenementen/something
-        // This ensures /nieuws/article is rejected when scraping /evenementen
-        if (!normalizedLinkPath.startsWith(normalizedOverviewPath + '/') && 
-            normalizedLinkPath !== normalizedOverviewPath) {
+        // Get the first path segment (the section)
+        const linkSection = linkParts[0];
+        
+        // BLOCK: If link is in a clearly non-event section, reject it
+        if (nonEventSections.includes(linkSection)) {
           return false;
         }
         
-        return true;
+        // ALLOW: If link section matches overview section or its equivalents
+        // e.g., overview=/evenementen → accept links to /evenement/x or /evenementen/x
+        if (acceptableSections.includes(linkSection)) {
+          return true;
+        }
+        
+        // BLOCK: Link is in a different section than the overview
+        return false;
       };
       
       // Helper function to extract event links from a page

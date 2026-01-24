@@ -1632,7 +1632,7 @@ export class RssFeedService {
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
-              endTime: endDate, // REQUIREMENT: Never invent fake times - only use explicit endDate
+              endTime: endDate || (startDate ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : undefined),
               location: venueName || city,
               address: fullAddress || `${city}, Netherlands`,
               latitude,
@@ -1701,25 +1701,8 @@ export class RssFeedService {
               continue;
             }
             
-            // Handle both direct startDate/endDate AND eventSchedule format
-            let startDate: Date | undefined;
-            let endDate: Date | undefined;
-            
-            if (event.startDate) {
-              startDate = new Date(event.startDate);
-            } else if (event.eventSchedule && Array.isArray(event.eventSchedule) && event.eventSchedule.length > 0) {
-              const schedule = event.eventSchedule[0];
-              if (schedule.startDate) {
-                startDate = new Date(schedule.startDate);
-              }
-              if (schedule.endDate) {
-                endDate = new Date(schedule.endDate);
-              }
-            }
-            
-            if (event.endDate && !endDate) {
-              endDate = new Date(event.endDate);
-            }
+            const startDate = event.startDate ? new Date(event.startDate) : undefined;
+            const endDate = event.endDate ? new Date(event.endDate) : undefined;
             
             if (startDate && startDate < new Date()) continue;
             
@@ -1741,7 +1724,7 @@ export class RssFeedService {
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
-              endTime: endDate, // REQUIREMENT: Never invent fake times - only use explicit endDate
+              endTime: endDate || (startDate ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : undefined),
               location: venueName || city,
               address: fullAddress || `${city}, Netherlands`,
               latitude,
@@ -2908,7 +2891,7 @@ export class RssFeedService {
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
-              endTime: endDate, // REQUIREMENT: Never invent fake times - only use explicit endDate
+              endTime: endDate || (startDate ? new Date(startDate.getTime() + 3 * 60 * 60 * 1000) : undefined),
               location: venueName || city,
               address: fullAddress,
               latitude,
@@ -4361,112 +4344,6 @@ export class RssFeedService {
     dec: 11, december: 11
   };
 
-  /**
-   * Parse JSON-LD Event structured data from a page
-   * Supports both direct startDate/endDate and eventSchedule format
-   */
-  static parseJsonLdEvent($: cheerio.CheerioAPI, url: string): ParsedFeedItem | null {
-    try {
-      const jsonLdScripts = $('script[type="application/ld+json"]');
-      
-      for (let i = 0; i < jsonLdScripts.length; i++) {
-        const scriptContent = $(jsonLdScripts[i]).html();
-        if (!scriptContent) continue;
-        
-        try {
-          const jsonData = JSON.parse(scriptContent);
-          const events = Array.isArray(jsonData) ? jsonData : [jsonData];
-          
-          for (const event of events) {
-            if (event["@type"] !== "Event") continue;
-            
-            const name = event.name || "";
-            if (!name) continue;
-            
-            const imageUrl = Array.isArray(event.image) ? event.image[0] : (event.image || "");
-            const location = event.location;
-            const venueName = location?.name || "";
-            const address = location?.address;
-            const streetAddress = address?.streetAddress || "";
-            const postalCode = address?.postalCode || "";
-            const city = address?.addressLocality || "";
-            const fullAddress = [streetAddress, postalCode, city].filter(Boolean).join(", ");
-            
-            const geo = location?.geo;
-            const latitude = geo?.latitude;
-            const longitude = geo?.longitude;
-            
-            // Handle both direct startDate/endDate AND eventSchedule format
-            let startDate: Date | undefined;
-            let endDate: Date | undefined;
-            
-            if (event.startDate) {
-              startDate = new Date(event.startDate);
-            } else if (event.eventSchedule && Array.isArray(event.eventSchedule) && event.eventSchedule.length > 0) {
-              const schedule = event.eventSchedule[0];
-              if (schedule.startDate) {
-                startDate = new Date(schedule.startDate);
-              }
-              if (schedule.endDate) {
-                endDate = new Date(schedule.endDate);
-              }
-            }
-            
-            if (event.endDate && !endDate) {
-              endDate = new Date(event.endDate);
-            }
-            
-            // REQUIREMENT: Must have a valid startDate - never import incomplete events
-            if (!startDate || isNaN(startDate.getTime())) {
-              console.log(`[RSS] JSON-LD event without valid startDate: "${name}" - skipping`);
-              continue;
-            }
-            
-            // Skip past events
-            if (startDate < new Date()) continue;
-            
-            // REQUIREMENT: Only import events with verified GPS coordinates (no fallback geocoding)
-            if (!latitude || !longitude) {
-              console.log(`[RSS] JSON-LD event without GPS: "${name}" - skipping (no fallback geocoding)`);
-              continue;
-            }
-            
-            const urlSlug = url.split('/').slice(-2).join('-').replace(/[^a-z0-9-]/gi, '-');
-            const externalId = `jsonld-${urlSlug}`;
-            
-            let description = event.description || "";
-            if (!description || description.length < 20) {
-              description = `${name} ${venueName ? `bij ${venueName}` : ''}. ${fullAddress ? `Locatie: ${fullAddress}.` : ""}`;
-            }
-            
-            return {
-              externalId,
-              title: this.formatTitle(name),
-              description: this.cleanText(description),
-              link: url,
-              imageUrl: imageUrl || undefined,
-              publishedAt: new Date(),
-              startTime: startDate,
-              endTime: endDate, // REQUIREMENT: Never invent fake times - only use explicit endDate
-              location: venueName || city || fullAddress,
-              address: fullAddress || city || undefined,
-              latitude,
-              longitude,
-              rawData: event
-            };
-          }
-        } catch (parseError) {
-          continue;
-        }
-      }
-      
-      return null;
-    } catch (error: any) {
-      console.error(`[RSS] Error parsing JSON-LD from ${url}:`, error.message);
-      return null;
-    }
-  }
-
   static parseEventDate(dateStr: string): { startTime: Date; endTime: Date } | null {
     try {
       const currentYear = new Date().getFullYear();
@@ -4571,14 +4448,6 @@ export class RssFeedService {
 
       const $ = cheerio.load(response.data);
       
-      // STRATEGY 1: Try JSON-LD structured data first (most reliable)
-      const jsonLdResult = this.parseJsonLdEvent($, url);
-      if (jsonLdResult) {
-        console.log(`[RSS] JSON-LD parsed: "${jsonLdResult.title}" at "${jsonLdResult.location}"`);
-        return jsonLdResult;
-      }
-      
-      // STRATEGY 2: Fall back to HTML parsing
       let title = "";
       let description = "";
       let imageUrl = "";

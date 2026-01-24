@@ -2719,7 +2719,7 @@ Respond with ONLY the search term, nothing else.`,
   // Test/preview a visual parser configuration - fetch events using the selectors
   app.post("/api/admin/visual-configurator/test", isAdmin, async (req, res) => {
     try {
-      const { url, selectors, fetchEventDetails } = req.body;
+      const { url, selectors } = req.body;
       if (!url || !selectors) {
         return res.status(400).json({ message: "URL en selectors zijn verplicht" });
       }
@@ -2738,10 +2738,12 @@ Respond with ONLY the search term, nothing else.`,
 
       const html = await response.text();
       
+      // Parse HTML with JSDOM or similar
       const { JSDOM } = await import('jsdom');
       const dom = new JSDOM(html);
       const document = dom.window.document;
 
+      // Find all event cards
       const eventCards = document.querySelectorAll(selectors.eventCard);
       const events: Array<{
         title: string;
@@ -2751,173 +2753,54 @@ Respond with ONLY the search term, nothing else.`,
         image?: string;
         link?: string;
         venue?: string;
-        dataSource?: string;
       }> = [];
 
-      const getText = (el: Element, selector: string | undefined) => {
-        if (!selector) return undefined;
-        const found = el.querySelector(selector);
-        return found?.textContent?.trim() || undefined;
-      };
-
-      const getAttr = (el: Element, selector: string | undefined, attr: string) => {
-        if (!selector) return undefined;
-        const found = el.querySelector(selector);
-        return found?.getAttribute(attr) || undefined;
-      };
-
-      const eventLinksToFetch: Array<{ title: string; link: string; image?: string }> = [];
-
       eventCards.forEach((card: Element, index: number) => {
-        if (index >= 5) return;
+        if (index >= 10) return; // Limit to 10 for preview
         
-        const title = getText(card, selectors.title);
-        let linkHref = getAttr(card, selectors.link, 'href');
+        const getText = (selector: string | undefined) => {
+          if (!selector) return undefined;
+          const el = card.querySelector(selector);
+          return el?.textContent?.trim() || undefined;
+        };
+
+        const getAttr = (selector: string | undefined, attr: string) => {
+          if (!selector) return undefined;
+          const el = card.querySelector(selector);
+          return el?.getAttribute(attr) || undefined;
+        };
+
+        const title = getText(selectors.title);
+        const date = getText(selectors.date);
+        const location = getText(selectors.location);
         
-        if (linkHref && !linkHref.startsWith('http')) {
-          linkHref = new URL(linkHref, parsedUrl.origin).href;
-        }
-
-        let imageUrl = getAttr(card, selectors.image, 'src') || 
-                       getAttr(card, selectors.image, 'data-src') ||
-                       getAttr(card, selectors.image, 'data-lazy-src');
-        if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = new URL(imageUrl, parsedUrl.origin).href;
-        }
-
-        if (fetchEventDetails && title && linkHref) {
-          eventLinksToFetch.push({ title, link: linkHref, image: imageUrl });
-        } else {
-          const date = getText(card, selectors.date);
-          const location = getText(card, selectors.location);
+        if (title && date) {
+          let imageUrl = getAttr(selectors.image, 'src') || 
+                         getAttr(selectors.image, 'data-src') ||
+                         getAttr(selectors.image, 'data-lazy-src');
           
-          if (title) {
-            events.push({
-              title,
-              date: date || '',
-              location: location || 'Locatie onbekend',
-              description: getText(card, selectors.description),
-              image: imageUrl,
-              link: linkHref,
-              venue: getText(card, selectors.venue),
-              dataSource: 'listing',
-            });
+          // Convert relative URLs to absolute
+          if (imageUrl && !imageUrl.startsWith('http')) {
+            imageUrl = new URL(imageUrl, parsedUrl.origin).href;
           }
+
+          events.push({
+            title,
+            date,
+            location: location || 'Locatie onbekend',
+            description: getText(selectors.description),
+            image: imageUrl,
+            link: getAttr(selectors.link, 'href'),
+            venue: getText(selectors.venue),
+          });
         }
       });
-
-      if (fetchEventDetails && eventLinksToFetch.length > 0) {
-        console.log(`[Visual Config] Fetching details for ${eventLinksToFetch.length} events...`);
-        
-        for (const eventLink of eventLinksToFetch) {
-          try {
-            const detailResponse = await fetch(eventLink.link, {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'text/html,application/xhtml+xml',
-              },
-            });
-
-            if (!detailResponse.ok) {
-              events.push({
-                title: eventLink.title,
-                date: '',
-                location: 'Locatie onbekend',
-                link: eventLink.link,
-                image: eventLink.image,
-                dataSource: 'listing-only (detail fetch failed)',
-              });
-              continue;
-            }
-
-            const detailHtml = await detailResponse.text();
-            const detailDom = new JSDOM(detailHtml);
-            const detailDoc = detailDom.window.document;
-
-            let eventData: any = null;
-            let dataSource = 'html';
-
-            const jsonLdScripts = Array.from(detailDoc.querySelectorAll('script[type="application/ld+json"]'));
-            for (const script of jsonLdScripts) {
-              try {
-                const jsonData = JSON.parse(script.textContent || '');
-                const eventItems = Array.isArray(jsonData) ? jsonData : [jsonData];
-                
-                for (const item of eventItems) {
-                  if (item['@type'] === 'Event') {
-                    let startDate = item.startDate;
-                    if (!startDate && item.eventSchedule?.[0]?.startDate) {
-                      startDate = item.eventSchedule[0].startDate;
-                    }
-                    
-                    const location = item.location;
-                    const venueName = location?.name || '';
-                    const address = location?.address;
-                    const city = address?.addressLocality || '';
-                    const streetAddress = address?.streetAddress || '';
-                    const geo = location?.geo;
-
-                    eventData = {
-                      title: item.name || eventLink.title,
-                      date: startDate ? new Date(startDate).toLocaleDateString('nl-NL') : '',
-                      location: venueName || city || streetAddress || 'Locatie onbekend',
-                      description: item.description?.substring(0, 200) || '',
-                      image: Array.isArray(item.image) ? item.image[0] : (item.image || eventLink.image),
-                      link: eventLink.link,
-                      venue: venueName,
-                      latitude: geo?.latitude,
-                      longitude: geo?.longitude,
-                    };
-                    dataSource = 'json-ld';
-                    break;
-                  }
-                }
-                if (eventData) break;
-              } catch (e) {
-                continue;
-              }
-            }
-
-            if (!eventData) {
-              const h1 = detailDoc.querySelector('h1')?.textContent?.trim();
-              eventData = {
-                title: h1 || eventLink.title,
-                date: '',
-                location: 'Locatie onbekend',
-                description: '',
-                image: eventLink.image,
-                link: eventLink.link,
-              };
-              dataSource = 'html-fallback';
-            }
-
-            events.push({ ...eventData, dataSource });
-            
-            await new Promise(resolve => setTimeout(resolve, 200));
-          } catch (error) {
-            console.error(`[Visual Config] Error fetching ${eventLink.link}:`, error);
-            events.push({
-              title: eventLink.title,
-              date: '',
-              location: 'Locatie onbekend',
-              link: eventLink.link,
-              image: eventLink.image,
-              dataSource: 'error',
-            });
-          }
-        }
-      }
-
-      const completeCount = events.filter(e => e.title && e.date && e.location !== 'Locatie onbekend').length;
 
       res.json({
         success: true,
         totalFound: eventCards.length,
         previewEvents: events,
-        completeCount,
-        incompleteCount: events.length - completeCount,
-        message: `${eventCards.length} events gevonden, ${completeCount} compleet, ${events.length - completeCount} incompleet`,
-        fetchedDetails: fetchEventDetails || false,
+        message: `${eventCards.length} events gevonden, ${events.length} met volledige data`,
       });
     } catch (error: any) {
       console.error('Error in POST /api/admin/visual-configurator/test:', error);

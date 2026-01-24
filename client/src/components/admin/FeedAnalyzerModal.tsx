@@ -335,7 +335,6 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
   const [iframeLoading, setIframeLoading] = useState(false);
   const [pageContext, setPageContext] = useState<'overview' | 'detail'>('overview');
   const [showImagesOnly, setShowImagesOnly] = useState(false);
-  const [fetchEventDetails, setFetchEventDetails] = useState(true);
   
   const [previewEvents, setPreviewEvents] = useState<Array<{
     title: string;
@@ -605,7 +604,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
     mutationFn: async () => {
       const testResponse = await apiRequest('/api/admin/visual-configurator/test', {
         method: 'POST',
-        data: { url: overviewUrl, selectors, fetchEventDetails },
+        data: { url: overviewUrl, selectors },
       });
       
       setPreviewEvents(testResponse.previewEvents || []);
@@ -1924,21 +1923,6 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                   <RefreshCw className={`h-3 w-3 ${fetchPageMutation.isPending ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
-            </div>
-            <div className="pt-2 border-t">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={fetchEventDetails}
-                  onChange={(e) => setFetchEventDetails(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300"
-                />
-                <span className="text-xs">
-                  <strong>Haal details van event pagina's</strong>
-                  <br />
-                  <span className="text-muted-foreground">Bezoekt elke event link voor volledige data (datum, locatie)</span>
-                </span>
-              </label>
             </div>
           </CardContent>
         </Card>

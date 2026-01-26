@@ -17,6 +17,57 @@ import { AiLocationExtractor } from "./ai-location-extractor";
 import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
 
 /**
+ * Parse an ISO date string as LOCAL time (Dutch timezone), not UTC.
+ * This fixes the +1 hour timezone shift when sources provide times without timezone indicator.
+ * 
+ * Example: "2026-01-31T16:00:00" should be 16:00 Dutch time, not 17:00 (UTC+1)
+ * 
+ * If the string already has a timezone (Z or +/-offset), it's parsed normally.
+ */
+function parseLocalDateTime(dateString: string): Date | undefined {
+  if (!dateString) return undefined;
+  
+  try {
+    // Normalize the string - trim whitespace
+    const normalized = String(dateString).trim();
+    
+    // Check if the string already has a timezone indicator (Z, +HH:MM, -HH:MM, +HHMM, -HHMM)
+    const hasTimezone = /[Z]$|[+-]\d{2}:?\d{2}$/.test(normalized);
+    
+    if (hasTimezone) {
+      // Parse normally - it has explicit timezone
+      const date = new Date(normalized);
+      return isNaN(date.getTime()) ? undefined : date;
+    }
+    
+    // No timezone indicator - parse as local time by extracting components
+    // Supports: "2026-01-31T16:00:00", "2026-01-31T16:00:00.000", "2026-01-31"
+    const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?)?/);
+    if (!match) {
+      // Try other common formats (e.g., "31-01-2026" or "01/31/2026")
+      // If we can't parse it, return undefined instead of falling back to UTC parsing
+      return undefined;
+    }
+    
+    const [, year, month, day, hours, minutes, seconds] = match;
+    
+    // Create date using local time constructor (not UTC)
+    const date = new Date(
+      parseInt(year),
+      parseInt(month) - 1, // JavaScript months are 0-indexed
+      parseInt(day),
+      hours ? parseInt(hours) : 0,
+      minutes ? parseInt(minutes) : 0,
+      seconds ? parseInt(seconds) : 0
+    );
+    
+    return isNaN(date.getTime()) ? undefined : date;
+  } catch (e) {
+    return undefined;
+  }
+}
+
+/**
  * Sanitize XML content to fix common parsing issues.
  */
 function sanitizeXmlContent(xml: string): string {
@@ -237,16 +288,14 @@ export class RssFeedService {
           break;
         case 'start_date':
         case 'start_time':
-          try {
-            const date = new Date(value);
-            if (!isNaN(date.getTime())) result.startDate = date;
-          } catch {}
+          // Use parseLocalDateTime to handle timezone-less ISO strings as local time
+          const startDate = parseLocalDateTime(String(value));
+          if (startDate) result.startDate = startDate;
           break;
         case 'end_date':
-          try {
-            const date = new Date(value);
-            if (!isNaN(date.getTime())) result.endDate = date;
-          } catch {}
+          // Use parseLocalDateTime to handle timezone-less ISO strings as local time
+          const endDate = parseLocalDateTime(String(value));
+          if (endDate) result.endDate = endDate;
           break;
         case 'calendar':
           result.calendar = String(value);
@@ -851,9 +900,10 @@ export class RssFeedService {
               const match = mappedFields.calendar.match(/(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})(?:\s*-\s*(\d{1,2}:\d{2}))?/);
               if (match) {
                 const [_, dateStr, startTimeStr, endTimeStr] = match;
-                startTime = new Date(`${dateStr}T${startTimeStr}:00`);
+                // Use parseLocalDateTime to avoid UTC interpretation
+                startTime = parseLocalDateTime(`${dateStr}T${startTimeStr}:00`);
                 if (endTimeStr) {
-                  endTime = new Date(`${dateStr}T${endTimeStr}:00`);
+                  endTime = parseLocalDateTime(`${dateStr}T${endTimeStr}:00`);
                 }
               }
             }
@@ -873,31 +923,26 @@ export class RssFeedService {
           // Parse standard date fields
           if (hasStandardDate) {
             const dateStr = item['events:start'] || item['ev:startdate'] || item['dc:date'];
-            try {
-              startTime = new Date(dateStr);
-              if (isNaN(startTime.getTime())) startTime = undefined;
-            } catch (e) {}
+            // Use parseLocalDateTime to avoid UTC interpretation
+            startTime = parseLocalDateTime(dateStr);
           }
           
           // Parse data:calendar (VisitZwolle format: "2026-01-21 20:30" or "2026-01-21 20:30 - 21:45")
           if (hasDataDate && item['data:calendar']) {
-            try {
-              const calendarStr = item['data:calendar'];
-              // Parse "2026-01-21 20:30 - 21:45" or "2026-01-21 20:30"
-              const match = calendarStr.match(/(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})(?:\s*-\s*(\d{1,2}:\d{2}))?/);
-              if (match) {
-                const [_, dateStr, startTimeStr, endTimeStr] = match;
-                startTime = new Date(`${dateStr}T${startTimeStr}:00`);
-                if (endTimeStr) {
-                  endTime = new Date(`${dateStr}T${endTimeStr}:00`);
-                }
-              } else {
-                // Try simple date parse
-                startTime = new Date(calendarStr);
+            const calendarStr = item['data:calendar'];
+            // Parse "2026-01-21 20:30 - 21:45" or "2026-01-21 20:30"
+            const match = calendarStr.match(/(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})(?:\s*-\s*(\d{1,2}:\d{2}))?/);
+            if (match) {
+              const [_, dateStr, startTimeStr, endTimeStr] = match;
+              // Use parseLocalDateTime to avoid UTC interpretation
+              startTime = parseLocalDateTime(`${dateStr}T${startTimeStr}:00`);
+              if (endTimeStr) {
+                endTime = parseLocalDateTime(`${dateStr}T${endTimeStr}:00`);
               }
-              if (startTime && isNaN(startTime.getTime())) startTime = undefined;
-              if (endTime && isNaN(endTime.getTime())) endTime = undefined;
-            } catch (e) {}
+            } else {
+              // Try simple date parse with parseLocalDateTime
+              startTime = parseLocalDateTime(calendarStr);
+            }
           }
           
           // Parse standard location fields
@@ -1192,22 +1237,15 @@ export class RssFeedService {
           
           if (post.acf?.startdatum || post.meta?.start_date || post.start_date) {
             const startStr = post.acf?.startdatum || post.meta?.start_date || post.start_date;
-            try {
-              startTime = new Date(startStr);
-              if (isNaN(startTime.getTime())) {
-                startTime = undefined;
-              } else {
-                hasStructuredDate = true;
-              }
-            } catch (e) {}
+            // Use parseLocalDateTime to avoid UTC interpretation
+            startTime = parseLocalDateTime(startStr);
+            if (startTime) hasStructuredDate = true;
           }
           
           if (post.acf?.einddatum || post.meta?.end_date || post.end_date) {
             const endStr = post.acf?.einddatum || post.meta?.end_date || post.end_date;
-            try {
-              endTime = new Date(endStr);
-              if (isNaN(endTime.getTime())) endTime = undefined;
-            } catch (e) {}
+            // Use parseLocalDateTime to avoid UTC interpretation
+            endTime = parseLocalDateTime(endStr);
           }
 
           let location: string | undefined;
@@ -1609,8 +1647,8 @@ export class RssFeedService {
               continue;
             }
             
-            const startDate = event.startDate ? new Date(event.startDate) : undefined;
-            const endDate = event.endDate ? new Date(event.endDate) : undefined;
+            const startDate = event.startDate ? parseLocalDateTime(event.startDate) : undefined;
+            const endDate = event.endDate ? parseLocalDateTime(event.endDate) : undefined;
             
             if (startDate && startDate < new Date()) continue;
             
@@ -1705,20 +1743,20 @@ export class RssFeedService {
             let endDate: Date | undefined;
             
             if (event.startDate) {
-              startDate = new Date(event.startDate);
+              startDate = parseLocalDateTime(event.startDate);
             } else if (event.eventSchedule && Array.isArray(event.eventSchedule) && event.eventSchedule.length > 0) {
               // eventSchedule contains Schedule objects with startDate/endDate
               const schedule = event.eventSchedule[0];
               if (schedule.startDate) {
-                startDate = new Date(schedule.startDate);
+                startDate = parseLocalDateTime(schedule.startDate);
               }
               if (schedule.endDate) {
-                endDate = new Date(schedule.endDate);
+                endDate = parseLocalDateTime(schedule.endDate);
               }
             }
             
             if (event.endDate && !endDate) {
-              endDate = new Date(event.endDate);
+              endDate = parseLocalDateTime(event.endDate);
             }
             
             // Extract image - can be string or array
@@ -2260,13 +2298,13 @@ export class RssFeedService {
           const jsonLd = JSON.parse(jsonLdMatch[1]);
           const eventData = jsonLd['@type'] === 'Event' ? jsonLd : (jsonLd['@graph']?.find((item: any) => item['@type'] === 'Event'));
           if (eventData?.startDate) {
-            const parsed = new Date(eventData.startDate);
-            if (!isNaN(parsed.getTime())) {
+            const parsed = parseLocalDateTime(eventData.startDate);
+            if (parsed) {
               startTime = parsed;
               // Only use endDate if explicitly provided in JSON-LD
               if (eventData.endDate) {
-                const endParsed = new Date(eventData.endDate);
-                if (!isNaN(endParsed.getTime()) && endParsed > startTime) {
+                const endParsed = parseLocalDateTime(eventData.endDate);
+                if (endParsed && endParsed > startTime) {
                   endTime = endParsed;
                 }
               }
@@ -2940,8 +2978,8 @@ export class RssFeedService {
               continue;
             }
             
-            const startDate = event.startDate ? new Date(event.startDate) : undefined;
-            const endDate = event.endDate ? new Date(event.endDate) : undefined;
+            const startDate = event.startDate ? parseLocalDateTime(event.startDate) : undefined;
+            const endDate = event.endDate ? parseLocalDateTime(event.endDate) : undefined;
             
             if (startDate && startDate < new Date()) continue;
             
@@ -3200,12 +3238,12 @@ export class RssFeedService {
           if (dates.length > 0) {
             // Find future dates using 'from' and 'until' fields (Prepr CMS format)
             const futureDates = dates
-              .filter((d: any) => d.from)
+              .filter((d: any) => d.from && parseLocalDateTime(d.from))
               .map((d: any) => ({
-                start: new Date(d.from),
-                end: d.until ? new Date(d.until) : new Date(d.from)
+                start: parseLocalDateTime(d.from)!,
+                end: d.until ? parseLocalDateTime(d.until) : parseLocalDateTime(d.from)
               }))
-              .filter((d: any) => d.end >= now)
+              .filter((d: any) => d.start && d.end && d.end >= now)
               .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
             
             if (futureDates.length > 0) {
@@ -3216,7 +3254,7 @@ export class RssFeedService {
           
           // Skip events without valid dates - NO fake dates allowed
           if (!startTime) {
-            console.log(`[RSS] SKIPPED Son en Breugel event (no valid date): ${title}`);
+            console.log(`[RSS] SKIPPED Breda event (no valid date): ${page.title}`);
             continue;
           }
           
@@ -3253,8 +3291,9 @@ export class RssFeedService {
           // For multi-day events, create one item per date (using 'from' and 'until')
           if (dates.length > 1) {
             for (const dateEntry of dates) {
-              const dateStart = new Date(dateEntry.from);
-              const dateEnd = dateEntry.until ? new Date(dateEntry.until) : dateStart;
+              const dateStart = parseLocalDateTime(dateEntry.from);
+              const dateEnd = dateEntry.until ? parseLocalDateTime(dateEntry.until) : dateStart;
+              if (!dateStart || !dateEnd) continue;
               
               if (dateEnd < now) continue;
               
@@ -3869,10 +3908,10 @@ export class RssFeedService {
             }
             
             if (eventData.startDate) {
-              startTime = new Date(eventData.startDate);
+              startTime = parseLocalDateTime(eventData.startDate);
             }
             if (eventData.endDate) {
-              endTime = new Date(eventData.endDate);
+              endTime = parseLocalDateTime(eventData.endDate);
             }
           } else {
             // Fallback to HTML scraping
@@ -4011,8 +4050,8 @@ export class RssFeedService {
               description: this.cleanText((post.excerpt?.rendered || '').replace(/<[^>]+>/g, '')),
               link: post.link,
               imageUrl: post._embedded?.['wp:featuredmedia']?.[0]?.source_url,
-              publishedAt: new Date(post.date),
-              startTime: post.acf?.event_date ? new Date(post.acf.event_date) : new Date(post.date),
+              publishedAt: parseLocalDateTime(post.date) || new Date(),
+              startTime: post.acf?.event_date ? parseLocalDateTime(post.acf.event_date) : parseLocalDateTime(post.date),
               latitude,
               longitude,
               location: post.acf?.location || 'Gilze en Rijen',
@@ -4130,13 +4169,14 @@ export class RssFeedService {
             // Get the earliest and latest dates for multi-day event consolidation
             const now = new Date();
             const futureDates = eventDates
-              .filter((d: any) => d.startDate)
+              .filter((d: any) => d.startDate && parseLocalDateTime(d.startDate))
               .map((d: any) => ({
-                start: new Date(d.startDate),
-                end: d.endDate ? new Date(d.endDate) : new Date(d.startDate),
-                startTime: d.startTime ? new Date(d.startTime) : null,
-                endTime: d.endTime ? new Date(d.endTime) : null
+                start: parseLocalDateTime(d.startDate)!,
+                end: d.endDate ? parseLocalDateTime(d.endDate) : parseLocalDateTime(d.startDate),
+                startTime: d.startTime ? parseLocalDateTime(d.startTime) : null,
+                endTime: d.endTime ? parseLocalDateTime(d.endTime) : null
               }))
+              .filter((d: any) => d.start && d.end)
               .filter((d: any) => d.end >= now)
               .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
             
@@ -4887,10 +4927,12 @@ export class RssFeedService {
         let endTime: Date | undefined;
         
         if (event.startDate || event.start_date || event.date || event.from) {
-          startTime = new Date(event.startDate || event.start_date || event.date || event.from);
+          const dateStr = event.startDate || event.start_date || event.date || event.from;
+          startTime = parseLocalDateTime(dateStr);
         }
         if (event.endDate || event.end_date || event.until || event.to) {
-          endTime = new Date(event.endDate || event.end_date || event.until || event.to);
+          const dateStr = event.endDate || event.end_date || event.until || event.to;
+          endTime = parseLocalDateTime(dateStr);
         }
         
         // Try to extract location
@@ -4965,8 +5007,8 @@ export class RssFeedService {
             let startTime: Date | undefined;
             let endTime: Date | undefined;
             
-            if (item.startDate) startTime = new Date(item.startDate);
-            if (item.endDate) endTime = new Date(item.endDate);
+            if (item.startDate) startTime = parseLocalDateTime(item.startDate);
+            if (item.endDate) endTime = parseLocalDateTime(item.endDate);
             
             let latitude: number | undefined;
             let longitude: number | undefined;
@@ -5624,8 +5666,8 @@ export class RssFeedService {
         try {
           const data = JSON.parse($(el).html() || '');
           if (data['@type'] === 'Event' || data['@type']?.includes?.('Event')) {
-            if (data.startDate) startTime = new Date(data.startDate);
-            if (data.endDate) endTime = new Date(data.endDate);
+            if (data.startDate) startTime = parseLocalDateTime(data.startDate);
+            if (data.endDate) endTime = parseLocalDateTime(data.endDate);
             
             if (data.location) {
               const loc = data.location;

@@ -68,6 +68,13 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
    - NOOIT willekeurige tijden invullen
    - Bij alleen datum bekend: 00:00 als start, 23:59 als eind
 
+7. **Sync Strategie (upsert)** (kritiek)
+   - Bij sync: **updaten** van bestaande events, NIET verwijderen/opnieuw aanmaken
+   - Bestaande events herkennen via externalId in rss_feed_items
+   - Behoud user interacties (favorites, participants, views, saves) bij updates
+   - Alleen titel, beschrijving, locatie, datum/tijd, categorie, en externe URL worden geüpdatet
+   - Afbeelding, tags, hostId, recurrence blijven ongewijzigd om handmatige edits te behouden
+
 ## External Dependencies
 
 ### Core

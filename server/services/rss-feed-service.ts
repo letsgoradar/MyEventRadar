@@ -6370,7 +6370,30 @@ export class RssFeedService {
       ));
 
     if (existingItems.length > 0) {
-      return false;
+      const existingItem = existingItems[0];
+      
+      // Update the feed item with latest data from source
+      await db.update(rssFeedItems)
+        .set({
+          title: parsedItem.title,
+          description: parsedItem.description,
+          link: parsedItem.link,
+          imageUrl: parsedItem.imageUrl,
+          publishedAt: parsedItem.publishedAt,
+          rawData: parsedItem.rawData,
+          lastAttemptedAt: new Date()
+        })
+        .where(eq(rssFeedItems.id, existingItem.id));
+      
+      // If there's a linked event, update it with the new data
+      if (existingItem.eventId) {
+        await this.updateEventFromFeedItem(feed, existingItem.eventId, parsedItem);
+      } else if (feed.autoCreateEvents && existingItem.processingStatus !== 'skipped') {
+        // No event yet, try to create one (e.g., if location was previously missing)
+        await this.createEventFromFeedItem(feed, existingItem, parsedItem);
+      }
+      
+      return false; // Not a new item, but was updated
     }
 
     const [feedItem] = await db.insert(rssFeedItems)
@@ -6392,6 +6415,83 @@ export class RssFeedService {
     }
 
     return true;
+  }
+
+  // Update an existing event with new data from the feed (preserves favorites, participants, etc.)
+  private static async updateEventFromFeedItem(
+    feed: RssFeed,
+    eventId: number,
+    parsedItem: ParsedFeedItem
+  ): Promise<void> {
+    try {
+      const formattedTitle = this.formatTitle(parsedItem.title);
+      
+      const validCategories = CATEGORIES as readonly string[];
+      const detectedCategory = parsedItem.detectedCategory || this.detectCategory(parsedItem.title, parsedItem.description);
+      const category = validCategories.includes(detectedCategory) 
+        ? detectedCategory 
+        : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Gezellig en Sociaal");
+
+      // Build update object - only include fields we have valid data for
+      const updateData: Record<string, any> = {
+        title: formattedTitle,
+        category: category,
+        externalUrl: parsedItem.link || null
+      };
+      
+      // Only update description if we have content
+      if (parsedItem.description) {
+        updateData.description = `${parsedItem.description}${parsedItem.link ? `\n\nMeer info: ${parsedItem.link}` : ""}`;
+      }
+      
+      // CRITICAL: Only update times if parsedItem provides EXPLICIT times (never fabricate)
+      if (parsedItem.startTime) {
+        updateData.startTime = parsedItem.startTime;
+      }
+      if (parsedItem.endTime) {
+        updateData.endTime = parsedItem.endTime;
+      }
+
+      // Try to validate/geocode location - if successful, update location fields
+      let geocodeSuccess = false;
+      const expectedMunicipality = feed.municipality || "";
+
+      if (parsedItem.latitude && parsedItem.longitude) {
+        const isValid = this.validateExistingCoordinates(
+          parsedItem.latitude, 
+          parsedItem.longitude, 
+          expectedMunicipality
+        );
+        if (isValid) {
+          updateData.latitude = parsedItem.latitude.toString();
+          updateData.longitude = parsedItem.longitude.toString();
+          updateData.address = parsedItem.address || parsedItem.location || expectedMunicipality;
+          geocodeSuccess = true;
+        }
+      }
+
+      if (!geocodeSuccess && (parsedItem.address || parsedItem.location)) {
+        const locationQuery = parsedItem.address || parsedItem.location || "";
+        const geoResult = await this.geocodeWithMunicipalityValidation(locationQuery, expectedMunicipality);
+        if (geoResult) {
+          updateData.latitude = geoResult.lat.toString();
+          updateData.longitude = geoResult.lon.toString();
+          updateData.address = geoResult.displayName.split(",").slice(0, 3).join(",").trim();
+          geocodeSuccess = true;
+        }
+      }
+
+      // Update the event - preserve user interactions (favorites, participants, views, etc.)
+      // Note: NOT updating imageUrl, hostId, tags, recurrence, isPaid to preserve manual edits
+      await db.update(events)
+        .set(updateData)
+        .where(eq(events.id, eventId));
+
+      const locationNote = geocodeSuccess ? "" : " (location unchanged)";
+      console.log(`[RSS] UPDATED event "${formattedTitle}" (ID: ${eventId})${locationNote}`);
+    } catch (error: any) {
+      console.error(`[RSS] Error updating event ${eventId}:`, error.message);
+    }
   }
 
   private static async createEventFromFeedItem(

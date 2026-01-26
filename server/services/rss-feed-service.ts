@@ -5671,26 +5671,41 @@ export class RssFeedService {
       // Look for JSON-LD first
       $('script[type="application/ld+json"]').each((_, el) => {
         try {
-          const data = JSON.parse($(el).html() || '');
-          if (data['@type'] === 'Event' || data['@type']?.includes?.('Event')) {
-            if (data.startDate) startTime = parseLocalDateTime(data.startDate);
-            if (data.endDate) endTime = parseLocalDateTime(data.endDate);
-            
-            if (data.location) {
-              const loc = data.location;
-              if (loc.name) venueName = loc.name;
-              if (loc.address) {
-                if (typeof loc.address === 'string') {
-                  address = loc.address;
-                } else if (loc.address.streetAddress) {
-                  address = loc.address.streetAddress;
-                  if (loc.address.addressLocality) location = loc.address.addressLocality;
+          const rawData = JSON.parse($(el).html() || '');
+          
+          // Handle both single objects and arrays of objects
+          const dataItems = Array.isArray(rawData) ? rawData : [rawData];
+          
+          for (const data of dataItems) {
+            if (data['@type'] === 'Event' || data['@type']?.includes?.('Event')) {
+              if (data.startDate) startTime = parseLocalDateTime(data.startDate);
+              if (data.endDate) endTime = parseLocalDateTime(data.endDate);
+              
+              if (data.location) {
+                const loc = data.location;
+                if (loc.name) venueName = loc.name;
+                if (loc.address) {
+                  if (typeof loc.address === 'string') {
+                    address = loc.address;
+                  } else if (loc.address.streetAddress) {
+                    // Build complete address from structured data
+                    const parts = [loc.address.streetAddress];
+                    if (loc.address.postalCode) parts.push(loc.address.postalCode);
+                    if (loc.address.addressLocality) {
+                      parts.push(loc.address.addressLocality);
+                      location = loc.address.addressLocality;
+                    }
+                    address = parts.join(', ');
+                  }
+                }
+                if (loc.geo) {
+                  if (loc.geo.latitude) latitude = parseFloat(loc.geo.latitude);
+                  if (loc.geo.longitude) longitude = parseFloat(loc.geo.longitude);
                 }
               }
-              if (loc.geo) {
-                if (loc.geo.latitude) latitude = parseFloat(loc.geo.latitude);
-                if (loc.geo.longitude) longitude = parseFloat(loc.geo.longitude);
-              }
+              
+              // Found Event data, stop processing more JSON-LD blocks
+              if (startTime || latitude) break;
             }
           }
         } catch (e) {}

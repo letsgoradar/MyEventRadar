@@ -6088,6 +6088,17 @@ export class RssFeedService {
     try {
       console.log(`[RSS] Single feed sync: ${feed.name}...`);
       
+      // Reset incomplete items to pending so they get reprocessed with improved code
+      const resetResult = await db.execute(sql`
+        UPDATE rss_feed_items 
+        SET processing_status = 'pending', is_processed = false
+        WHERE feed_id = ${feed.id} AND processing_status = 'incomplete'
+      `);
+      const resetCount = (resetResult as any).rowCount || 0;
+      if (resetCount > 0) {
+        console.log(`[RSS] Reset ${resetCount} incomplete items to pending for reprocessing`);
+      }
+      
       // Report fetching status
       onProgress?.({ status: 'fetching', message: 'Feed ophalen...' });
 

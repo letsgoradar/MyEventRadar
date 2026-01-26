@@ -6088,15 +6088,16 @@ export class RssFeedService {
     try {
       console.log(`[RSS] Single feed sync: ${feed.name}...`);
       
-      // Reset incomplete items to pending so they get reprocessed with improved code
-      const resetResult = await db.execute(sql`
-        UPDATE rss_feed_items 
-        SET processing_status = 'pending', is_processed = false
-        WHERE feed_id = ${feed.id} AND processing_status = 'incomplete'
+      // Delete stale incomplete items (older than 1 hour) so they get re-fetched with improved code
+      const deleteResult = await db.execute(sql`
+        DELETE FROM rss_feed_items 
+        WHERE feed_id = ${feed.id} 
+          AND processing_status = 'incomplete'
+          AND (last_attempted_at IS NULL OR last_attempted_at < NOW() - INTERVAL '1 hour')
       `);
-      const resetCount = (resetResult as any).rowCount || 0;
-      if (resetCount > 0) {
-        console.log(`[RSS] Reset ${resetCount} incomplete items to pending for reprocessing`);
+      const deleteCount = (deleteResult as any).rowCount || 0;
+      if (deleteCount > 0) {
+        console.log(`[RSS] Deleted ${deleteCount} stale incomplete items - will be re-fetched`);
       }
       
       // Report fetching status
@@ -6416,7 +6417,7 @@ export class RssFeedService {
       if (isDuplicate) {
         console.log(`[RSS] DUPLICATE SKIPPED: "${formattedTitle}" already exists in database`);
         await db.update(rssFeedItems)
-          .set({ isProcessed: true })
+          .set({ isProcessed: true, processingStatus: 'skipped' })
           .where(eq(rssFeedItems.id, feedItem.id));
         return;
       }

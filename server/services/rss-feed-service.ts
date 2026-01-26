@@ -1954,30 +1954,21 @@ export class RssFeedService {
       let startTime: Date | undefined;
       let endTime: Date | undefined;
       
+      // Date parsing - NO default times, only set time if explicitly found in source
       const dateRangeMatch = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})\s+t\/m\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
       if (dateRangeMatch) {
         const [, startDay, startMonth, startYear, endDay, endMonth, endYear] = dateRangeMatch;
         const startMonthNum = this.MONTHS[startMonth.toLowerCase()];
         const endMonthNum = this.MONTHS[endMonth.toLowerCase()];
         if (startMonthNum !== undefined && endMonthNum !== undefined) {
-          startTime = new Date(parseInt(startYear), startMonthNum, parseInt(startDay), 10, 0);
-          endTime = new Date(parseInt(endYear), endMonthNum, parseInt(endDay), 22, 0);
+          // Only set DATE, not time - no default 10:00/22:00
+          startTime = new Date(parseInt(startYear), startMonthNum, parseInt(startDay));
+          endTime = new Date(parseInt(endYear), endMonthNum, parseInt(endDay));
         }
       }
       
-      if (!startTime) {
-        const tmMatch = dateText.match(/t\/m\s+(\d{1,2})\s+(\w+)\s+(\d{4})?/i);
-        if (tmMatch) {
-          const [, day, month, year] = tmMatch;
-          const monthNum = this.MONTHS[month.toLowerCase()];
-          if (monthNum !== undefined) {
-            const eventYear = year ? parseInt(year) : new Date().getFullYear();
-            endTime = new Date(eventYear, monthNum, parseInt(day), 22, 0);
-            startTime = new Date();
-            startTime.setHours(10, 0, 0, 0);
-          }
-        }
-      }
+      // NOTE: "t/m X maand" without a start date is skipped - we don't fabricate start dates
+      // The event listing page should provide the full date range
       
       if (!startTime) {
         const simpleDateMatch = dateText.match(/(\w+dag)\s+(\d{1,2})\s+(\w+)/i);
@@ -1990,8 +1981,8 @@ export class RssFeedService {
             const testDate = new Date(year, monthNum, parseInt(day));
             testDate.setHours(23, 59, 59, 999);
             if (testDate < now) year++;
-            startTime = new Date(year, monthNum, parseInt(day), 10, 0);
-            endTime = new Date(year, monthNum, parseInt(day), 22, 0);
+            // Only set DATE, not time - no default 10:00/22:00
+            startTime = new Date(year, monthNum, parseInt(day));
           }
         }
       }
@@ -2002,7 +1993,8 @@ export class RssFeedService {
           const [, day, month, year] = dailyMatch;
           const monthNum = this.MONTHS[month.toLowerCase()];
           if (monthNum !== undefined) {
-            startTime = new Date(parseInt(year), monthNum, parseInt(day), 10, 0);
+            // Only set DATE, not time
+            startTime = new Date(parseInt(year), monthNum, parseInt(day));
           }
         }
       }
@@ -2454,40 +2446,41 @@ export class RssFeedService {
             let startTime: Date | undefined;
             let endTime: Date | undefined;
             
-            // Pattern: "Zaterdag 6 december t/m woensdag 24 december 2025"
+            // Pattern: "Zaterdag 6 december t/m woensdag 24 december 2025" - NO default times!
             const dateRangeMatch = contentText.match(/(\w+dag)\s+(\d{1,2})\s+(\w+)\s+t\/m\s+\w+dag\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
             if (dateRangeMatch) {
               const [, , startDay, startMonth, endDay, endMonth, year] = dateRangeMatch;
               const startMonthNum = this.MONTHS[startMonth.toLowerCase()];
               const endMonthNum = this.MONTHS[endMonth.toLowerCase()];
               if (startMonthNum !== undefined && endMonthNum !== undefined) {
-                startTime = new Date(parseInt(year), startMonthNum, parseInt(startDay), 10, 0);
-                endTime = new Date(parseInt(year), endMonthNum, parseInt(endDay), 22, 0);
+                // Only set DATE, not time - no default 10:00/22:00
+                startTime = new Date(parseInt(year), startMonthNum, parseInt(startDay));
+                endTime = new Date(parseInt(year), endMonthNum, parseInt(endDay));
               }
             }
             
-            // Pattern: "Woensdag 3 december 2025"
+            // Pattern: "Woensdag 3 december 2025" - NO default times!
             if (!startTime) {
               const simpleDateMatch = contentText.match(/(\w+dag)\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
               if (simpleDateMatch) {
                 const [, , day, month, year] = simpleDateMatch;
                 const monthNum = this.MONTHS[month.toLowerCase()];
                 if (monthNum !== undefined) {
-                  startTime = new Date(parseInt(year), monthNum, parseInt(day), 10, 0);
-                  endTime = new Date(parseInt(year), monthNum, parseInt(day), 22, 0);
+                  // Only set DATE, not time
+                  startTime = new Date(parseInt(year), monthNum, parseInt(day));
                 }
               }
             }
             
-            // Pattern: "Zondag 7 december 2025"  (from title itself)
+            // Pattern: "Zondag 7 december 2025"  (from title itself) - NO default times!
             if (!startTime) {
               const titleDateMatch = title.match(/(\w+dag)\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
               if (titleDateMatch) {
                 const [, , day, month, year] = titleDateMatch;
                 const monthNum = this.MONTHS[month.toLowerCase()];
                 if (monthNum !== undefined) {
-                  startTime = new Date(parseInt(year), monthNum, parseInt(day), 10, 0);
-                  endTime = new Date(parseInt(year), monthNum, parseInt(day), 22, 0);
+                  // Only set DATE, not time
+                  startTime = new Date(parseInt(year), monthNum, parseInt(day));
                 }
               }
             }
@@ -3221,11 +3214,10 @@ export class RssFeedService {
             }
           }
           
-          // Skip past events (but allow events without dates if they have future content)
+          // Skip events without valid dates - NO fake dates allowed
           if (!startTime) {
-            // If no dates but event exists, use current date as fallback
-            startTime = new Date();
-            endTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 1 week from now
+            console.log(`[RSS] SKIPPED Son en Breugel event (no valid date): ${title}`);
+            continue;
           }
           
           // Extract image
@@ -4394,7 +4386,8 @@ export class RssFeedService {
         const day = parseInt(match[1]);
         const monthName = match[2].toLowerCase();
         const year = match[3] ? parseInt(match[3]) : (new Date().getMonth() < this.MONTHS[monthName] ? currentYear : nextYear);
-        return new Date(year, this.MONTHS[monthName], day, 10, 0);
+        // Only set DATE, not time - no default 10:00
+        return new Date(year, this.MONTHS[monthName], day);
       };
       
       const startTime = parseDateMatch(matches[0]);

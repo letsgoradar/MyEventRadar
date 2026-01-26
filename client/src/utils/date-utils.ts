@@ -13,7 +13,8 @@ export function formatEventTime(date: string | Date | null | undefined): string 
   
   return d.toLocaleTimeString('nl-NL', { 
     hour: '2-digit', 
-    minute: '2-digit' 
+    minute: '2-digit',
+    timeZone: 'Europe/Amsterdam'
   });
 }
 

@@ -2744,9 +2744,16 @@ export class RssFeedService {
       const title = $('h1').first().text().trim();
       if (!title || title.length < 3) return items;
       
-      // Extract description
-      const description = $('article p, .content p, main p').first().text().trim() ||
+      // Extract description and clean up URL/date artifacts
+      let description = $('article p, .content p, main p').first().text().trim() ||
                          $('meta[name="description"]').attr('content') || '';
+      
+      // Remove date patterns like "vrijdag 30 januari 2026 1:00" from description
+      description = description
+        .replace(/^(maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag)\s+\d{1,2}\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+\d{4}(\s+\d{1,2}[:.]\d{2})?\s*/gi, '')
+        .replace(/\s*Meer info:\s*https?:\/\/[^\s]+/gi, '')
+        .replace(/\s*https?:\/\/www\.mooibernheze\.nl[^\s]*/gi, '')
+        .trim();
       
       // Extract image
       const imageUrl = $('article img, .content img, main img').first().attr('src') ||

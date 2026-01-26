@@ -2078,7 +2078,7 @@ export class RssFeedService {
         imageUrl: imageUrl || undefined,
         publishedAt: new Date(),
         startTime,
-        endTime: endTime || (startTime ? new Date(startTime.getTime() + 4 * 60 * 60 * 1000) : undefined),
+        endTime: endTime, // NO default fallback - only use if explicitly found in source
         location: location || 'Meierijstad',
         address,
         latitude,
@@ -2256,35 +2256,69 @@ export class RssFeedService {
         }
       });
       
+      const html = response.data;
       const dateText = $('body').text();
       let startTime: Date | undefined;
       let endTime: Date | undefined;
       
-      const dateRangeMatch = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})\s+t\/m\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
-      if (dateRangeMatch) {
-        const [, startDay, startMonth, startYear, endDay, endMonth, endYear] = dateRangeMatch;
-        const startMonthNum = this.MONTHS[startMonth.toLowerCase()];
-        const endMonthNum = this.MONTHS[endMonth.toLowerCase()];
-        if (startMonthNum !== undefined && endMonthNum !== undefined) {
-          startTime = new Date(parseInt(startYear), startMonthNum, parseInt(startDay), 10, 0);
-          endTime = new Date(parseInt(endYear), endMonthNum, parseInt(endDay), 22, 0);
+      // PRIORITY 1: Parse JSON-LD for accurate start/end times (e.g., "startDate": "2026-01-31T20:15:00")
+      const jsonLdMatch = html.match(/<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
+      if (jsonLdMatch) {
+        try {
+          const jsonLd = JSON.parse(jsonLdMatch[1]);
+          const eventData = jsonLd['@type'] === 'Event' ? jsonLd : (jsonLd['@graph']?.find((item: any) => item['@type'] === 'Event'));
+          if (eventData?.startDate) {
+            const parsed = new Date(eventData.startDate);
+            if (!isNaN(parsed.getTime())) {
+              startTime = parsed;
+              // Only use endDate if explicitly provided in JSON-LD
+              if (eventData.endDate) {
+                const endParsed = new Date(eventData.endDate);
+                if (!isNaN(endParsed.getTime()) && endParsed > startTime) {
+                  endTime = endParsed;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // JSON-LD parse error, continue with other methods
         }
       }
       
+      // PRIORITY 2: Look for "om XX.XX uur" pattern in HTML text (Dutch time format)
       if (!startTime) {
-        const tmMatch = dateText.match(/t\/m\s+(\d{1,2})\s+(\w+)\s+(\d{4})?/i);
-        if (tmMatch) {
-          const [, day, month, year] = tmMatch;
-          const monthNum = this.MONTHS[month.toLowerCase()];
-          if (monthNum !== undefined) {
-            const eventYear = year ? parseInt(year) : new Date().getFullYear();
-            endTime = new Date(eventYear, monthNum, parseInt(day), 22, 0);
-            startTime = new Date();
-            startTime.setHours(10, 0, 0, 0);
+        const omUurMatch = dateText.match(/om\s+(\d{1,2})[.:](\d{2})\s*uur/i);
+        if (omUurMatch) {
+          const hours = parseInt(omUurMatch[1]);
+          const minutes = parseInt(omUurMatch[2]);
+          // Need to find the date separately
+          const dateMatch = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+          if (dateMatch) {
+            const [, day, month, year] = dateMatch;
+            const monthNum = this.MONTHS[month.toLowerCase()];
+            if (monthNum !== undefined) {
+              startTime = new Date(parseInt(year), monthNum, parseInt(day), hours, minutes);
+            }
           }
         }
       }
       
+      // PRIORITY 3: Parse date range "X maand YYYY t/m Y maand YYYY" - but NO default times!
+      if (!startTime) {
+        const dateRangeMatch = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})\s+t\/m\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
+        if (dateRangeMatch) {
+          const [, startDay, startMonth, startYear, endDay, endMonth, endYear] = dateRangeMatch;
+          const startMonthNum = this.MONTHS[startMonth.toLowerCase()];
+          const endMonthNum = this.MONTHS[endMonth.toLowerCase()];
+          if (startMonthNum !== undefined && endMonthNum !== undefined) {
+            // Only set DATE, not time - time stays undefined
+            startTime = new Date(parseInt(startYear), startMonthNum, parseInt(startDay));
+            endTime = new Date(parseInt(endYear), endMonthNum, parseInt(endDay));
+          }
+        }
+      }
+      
+      // PRIORITY 4: Parse simple date "Dag X maand" - but NO default times!
       if (!startTime) {
         const simpleDateMatch = dateText.match(/(\w+dag)\s+(\d{1,2})\s+(\w+)/i);
         if (simpleDateMatch) {
@@ -2296,20 +2330,19 @@ export class RssFeedService {
             const testDate = new Date(year, monthNum, parseInt(day));
             testDate.setHours(23, 59, 59, 999);
             if (testDate < now) year++;
-            startTime = new Date(year, monthNum, parseInt(day), 10, 0);
-            endTime = new Date(year, monthNum, parseInt(day), 22, 0);
+            // Only set DATE, no default time
+            startTime = new Date(year, monthNum, parseInt(day));
           }
         }
       }
       
-      if (!startTime) {
-        const timeMatch = dateText.match(/(\d{1,2})[:.:](\d{2})\s*[-–]\s*(\d{1,2})[:.:](\d{2})\s*uur/);
-        if (timeMatch) {
-          const [, startHour, startMin, endHour, endMin] = timeMatch;
-          const today = new Date();
-          startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(startHour), parseInt(startMin));
-          endTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(endHour), parseInt(endMin));
-        }
+      // PRIORITY 5: Parse explicit time range "XX:XX - XX:XX uur" 
+      const timeRangeMatch = dateText.match(/(\d{1,2})[:.:](\d{2})\s*[-–]\s*(\d{1,2})[:.:](\d{2})\s*uur/);
+      if (timeRangeMatch && startTime) {
+        const [, startHour, startMin, endHour, endMin] = timeRangeMatch;
+        startTime.setHours(parseInt(startHour), parseInt(startMin), 0, 0);
+        endTime = new Date(startTime);
+        endTime.setHours(parseInt(endHour), parseInt(endMin), 0, 0);
       }
       
       if (startTime && startTime < new Date() && !endTime) return items;
@@ -2338,7 +2371,7 @@ export class RssFeedService {
         imageUrl: imageUrl || undefined,
         publishedAt: new Date(),
         startTime,
-        endTime: endTime || (startTime ? new Date(startTime.getTime() + 4 * 60 * 60 * 1000) : undefined),
+        endTime: endTime, // NO default fallback - only use if explicitly found in source
         location: location || 'Maashorst',
         address,
         latitude,
@@ -2698,17 +2731,36 @@ export class RssFeedService {
         const month = parseInt(dateMatch[2]) - 1;
         const day = parseInt(dateMatch[3]);
         
-        // Try to extract time from page content
-        const timeText = $('time, .date, .time').text() || html;
-        const timeMatch = timeText.match(/(\d{1,2}):(\d{2})\s*(?:-|tot|–)\s*(\d{1,2}):(\d{2})/);
+        // PRIORITY 1: Try to extract time from page content - look for explicit time patterns
+        const timeText = $('time, .date, .time, body').text();
         
-        if (timeMatch) {
-          startTime = new Date(year, month, day, parseInt(timeMatch[1]), parseInt(timeMatch[2]));
-          endTime = new Date(year, month, day, parseInt(timeMatch[3]), parseInt(timeMatch[4]));
-        } else {
-          // Default times
-          startTime = new Date(year, month, day, 10, 0);
-          endTime = new Date(year, month, day, 22, 0);
+        // Pattern 1: "XX:XX - XX:XX" or "XX:XX tot XX:XX"
+        const timeRangeMatch = timeText.match(/(\d{1,2})[:.:](\d{2})\s*(?:-|tot|–)\s*(\d{1,2})[:.:](\d{2})/);
+        if (timeRangeMatch) {
+          startTime = new Date(year, month, day, parseInt(timeRangeMatch[1]), parseInt(timeRangeMatch[2]));
+          endTime = new Date(year, month, day, parseInt(timeRangeMatch[3]), parseInt(timeRangeMatch[4]));
+        }
+        
+        // Pattern 2: "om XX.XX uur" or "om XX:XX uur" (Dutch format)
+        if (!startTime) {
+          const omUurMatch = timeText.match(/om\s+(\d{1,2})[.:](\d{2})\s*uur/i);
+          if (omUurMatch) {
+            startTime = new Date(year, month, day, parseInt(omUurMatch[1]), parseInt(omUurMatch[2]));
+          }
+        }
+        
+        // Pattern 3: "Aanvang: XX:XX" or "Start: XX.XX"
+        if (!startTime) {
+          const aanvangMatch = timeText.match(/(?:aanvang|start|begint?)\s*:?\s*(\d{1,2})[.:](\d{2})/i);
+          if (aanvangMatch) {
+            startTime = new Date(year, month, day, parseInt(aanvangMatch[1]), parseInt(aanvangMatch[2]));
+          }
+        }
+        
+        // If no time found, set date only WITHOUT time (no default times!)
+        if (!startTime) {
+          startTime = new Date(year, month, day);
+          // endTime stays undefined - NO fake 22:00 or 23:00
         }
       }
       

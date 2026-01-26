@@ -62,11 +62,12 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
    - Detectie op: externalId, titel + locatie + startdatum
 
 6. **Tijd Hantering** (kritiek)
-   - Importeer starttijd/eindtijd ALLEEN als 100% zeker is welke tijd wat is
+   - Importeer starttijd/eindtijd ALLEEN als deze in de bron staat (JSON-LD, HTML, tekst)
+   - Zoek altijd naar tijden: JSON-LD startDate (bijv. T20:15:00), "om XX.XX uur", "XX:XX - XX:XX"
    - Bij 2 verschillende tijden: automatisch bepalen welke begin- en eindtijd is
-   - Bij onzekerheid: importeer event op juiste datum ZONDER tijden
-   - NOOIT willekeurige tijden invullen
-   - Bij alleen datum bekend: 00:00 als start, 23:59 als eind
+   - **NOOIT default/fake tijden invullen** (geen 10:00, 11:00, 22:00, 23:00 als fallback!)
+   - Als geen tijd gevonden: startTime en endTime op `undefined` laten (niet invullen)
+   - Liever geen tijd dan een foutieve tijd - gebruiker kan doorlinken naar bron
 
 7. **Sync Strategie (upsert)** (kritiek)
    - Bij sync: **updaten** van bestaande events, NIET verwijderen/opnieuw aanmaken

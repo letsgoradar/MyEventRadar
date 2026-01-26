@@ -6600,7 +6600,7 @@ export class RssFeedService {
       const formattedTitle = this.formatTitle(parsedItem.title);
       
       // DUPLICATE DETECTION: Check if this event already exists in the database
-      const isDuplicate = await this.checkForDuplicateEvent(
+      const existingEventId = await this.findExistingEventId(
         formattedTitle,
         parsedItem.latitude,
         parsedItem.longitude,
@@ -6608,11 +6608,17 @@ export class RssFeedService {
         parsedItem.link
       );
       
-      if (isDuplicate) {
-        console.log(`[RSS] DUPLICATE SKIPPED: "${formattedTitle}" already exists in database`);
+      // If event exists, UPDATE it instead of skipping (allows new feeds to replace old data)
+      if (existingEventId) {
+        console.log(`[RSS] Found existing event ID ${existingEventId}, updating with new data from feed...`);
+        await this.updateExistingEventFromFeed(existingEventId, parsedItem, feed.municipality || '');
+        
+        // Link the feed item to the existing event
         await db.update(rssFeedItems)
-          .set({ isProcessed: true, processingStatus: 'skipped' })
+          .set({ eventId: existingEventId, isProcessed: true, processingStatus: 'updated' })
           .where(eq(rssFeedItems.id, feedItem.id));
+        
+        console.log(`[RSS] UPDATED existing event "${formattedTitle}" (ID: ${existingEventId}) from new feed`);
         return;
       }
       
@@ -6949,19 +6955,119 @@ export class RssFeedService {
   }
 
   /**
+   * Update an existing event with new data from a feed.
+   * Used when a new feed replaces/updates data from a deleted feed.
+   * Preserves user interactions (favorites, participants, views, saves).
+   */
+  private static async updateExistingEventFromFeed(
+    eventId: number,
+    parsedItem: ParsedFeedItem,
+    expectedMunicipality: string
+  ): Promise<void> {
+    try {
+      const formattedTitle = this.formatTitle(parsedItem.title);
+      
+      // Build update data CONDITIONALLY - only update fields with verified new values
+      // CRITICAL: Do NOT use fallbacks/defaults - preserve existing data when feed is incomplete
+      const updateData: any = {};
+      
+      // Always update title if we have one
+      if (formattedTitle && formattedTitle.length > 2) {
+        updateData.title = formattedTitle;
+      }
+      
+      // Only update description if we have actual content
+      if (parsedItem.description && parsedItem.description.trim().length > 10) {
+        updateData.description = parsedItem.description.substring(0, 500);
+      }
+      
+      // Only update times if the feed explicitly provides them (NO fallbacks!)
+      if (parsedItem.startTime) {
+        updateData.startTime = parsedItem.startTime;
+      }
+      if (parsedItem.endTime) {
+        updateData.endTime = parsedItem.endTime;
+      }
+      
+      // Only update external URL if we have one
+      if (parsedItem.link) {
+        updateData.externalUrl = parsedItem.link;
+      }
+      
+      // Update category only if detected with confidence
+      if (parsedItem.detectedCategory) {
+        const validCategories = CATEGORIES as readonly string[];
+        if (validCategories.includes(parsedItem.detectedCategory)) {
+          updateData.category = parsedItem.detectedCategory;
+        }
+      }
+      
+      // Update location if we have valid coordinates
+      let geocodeSuccess = false;
+      
+      if (parsedItem.latitude && parsedItem.longitude) {
+        const isValid = this.validateExistingCoordinates(
+          parsedItem.latitude,
+          parsedItem.longitude,
+          expectedMunicipality
+        );
+        
+        if (isValid) {
+          updateData.latitude = parsedItem.latitude.toString();
+          updateData.longitude = parsedItem.longitude.toString();
+          updateData.address = parsedItem.address || parsedItem.location || expectedMunicipality;
+          geocodeSuccess = true;
+        }
+      }
+      
+      // Try geocoding if no valid coords
+      if (!geocodeSuccess && (parsedItem.address || parsedItem.location)) {
+        const locationQuery = parsedItem.address || parsedItem.location || "";
+        const geoResult = await this.geocodeWithMunicipalityValidation(locationQuery, expectedMunicipality);
+        if (geoResult) {
+          updateData.latitude = geoResult.lat.toString();
+          updateData.longitude = geoResult.lon.toString();
+          updateData.address = geoResult.displayName.split(",").slice(0, 3).join(",").trim();
+          geocodeSuccess = true;
+        }
+      }
+      
+      // Update image if we have one from the new feed
+      if (parsedItem.imageUrl) {
+        updateData.imageUrl = parsedItem.imageUrl;
+      }
+      
+      // Only perform update if we have data to update
+      if (Object.keys(updateData).length === 0) {
+        console.log(`[RSS] No new data to update for event ${eventId}, skipping update`);
+        return;
+      }
+      
+      // Perform the update - preserve user interactions
+      await db.update(events)
+        .set(updateData)
+        .where(eq(events.id, eventId));
+      
+    } catch (error: any) {
+      console.error(`[RSS] Error updating existing event ${eventId}:`, error.message);
+    }
+  }
+
+  /**
    * Check if an event already exists in the database to prevent duplicates.
    * Uses multiple detection methods:
    * 1. Exact title match + same date
    * 2. Similar location coordinates + same date
    * 3. Same source link (externalId in description)
+   * Returns the existing event ID if found, or null if no duplicate
    */
-  private static async checkForDuplicateEvent(
+  private static async findExistingEventId(
     title: string,
     latitude: number | undefined,
     longitude: number | undefined,
     startTime: Date,
     sourceLink: string | undefined
-  ): Promise<boolean> {
+  ): Promise<number | null> {
     try {
       const normalizedTitle = title.toLowerCase().trim();
       const startDate = startTime.toISOString().split('T')[0];
@@ -6982,7 +7088,7 @@ export class RssFeedService {
         .limit(1);
       
       if (titleMatches.length > 0) {
-        return true;
+        return titleMatches[0].id;
       }
       
       // Method 2: Check for same location (within ~100m) on same date with similar title
@@ -6998,7 +7104,7 @@ export class RssFeedService {
           .limit(1);
         
         if (coordMatches.length > 0) {
-          return true;
+          return coordMatches[0].id;
         }
       }
       
@@ -7010,30 +7116,31 @@ export class RssFeedService {
           .limit(1);
         
         if (linkMatches.length > 0) {
-          return true;
+          return linkMatches[0].id;
         }
       }
       
-      return false;
+      return null;
     } catch (error: any) {
       // If similarity extension not available, fall back to basic check
       if (error.message?.includes('similarity')) {
         console.log(`[RSS] Note: pg_trgm extension not available, using basic duplicate check`);
-        return this.checkForDuplicateEventBasic(title, startTime, sourceLink);
+        return this.findExistingEventIdBasic(title, startTime, sourceLink);
       }
       console.error(`[RSS] Error checking for duplicate:`, error.message);
-      return false;
+      return null;
     }
   }
   
   /**
    * Basic duplicate check without pg_trgm extension
+   * Returns existing event ID if found, or null if no duplicate
    */
-  private static async checkForDuplicateEventBasic(
+  private static async findExistingEventIdBasic(
     title: string,
     startTime: Date,
     sourceLink: string | undefined
-  ): Promise<boolean> {
+  ): Promise<number | null> {
     try {
       const normalizedTitle = title.toLowerCase().trim();
       const startDate = startTime.toISOString().split('T')[0];
@@ -7048,7 +7155,7 @@ export class RssFeedService {
         .limit(1);
       
       if (titleMatches.length > 0) {
-        return true;
+        return titleMatches[0].id;
       }
       
       // Check if source link already in description
@@ -7059,14 +7166,14 @@ export class RssFeedService {
           .limit(1);
         
         if (linkMatches.length > 0) {
-          return true;
+          return linkMatches[0].id;
         }
       }
       
-      return false;
+      return null;
     } catch (error: any) {
       console.error(`[RSS] Error in basic duplicate check:`, error.message);
-      return false;
+      return null;
     }
   }
 

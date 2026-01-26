@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { eq, and, desc, count, sql } from 'drizzle-orm';
+import { eq, and, desc, count, sql, isNotNull, inArray } from 'drizzle-orm';
 import {
   users,
   events,
@@ -114,6 +114,8 @@ export interface IStorage {
   getAllRssFeeds(): Promise<RssFeed[]>;
   updateRssFeed(id: number, feed: Partial<RssFeed>): Promise<RssFeed>;
   deleteRssFeed(id: number): Promise<void>;
+  deleteEventsByFeedId(feedId: number): Promise<void>;
+  unlinkEventsFromFeed(feedId: number): Promise<void>;
   getRssFeedItems(feedId: number): Promise<RssFeedItem[]>;
   getRssFeedItemsCount(): Promise<number>;
   
@@ -744,6 +746,37 @@ export class PgStorage implements IStorage {
   async deleteRssFeed(id: number): Promise<void> {
     return this.withRetry(async () => {
       await db.delete(rssFeeds).where(eq(rssFeeds.id, id));
+    });
+  }
+
+  async deleteEventsByFeedId(feedId: number): Promise<void> {
+    return this.withRetry(async () => {
+      // Find all events linked to this feed via rssFeedItems
+      const linkedItems = await db.select({ eventId: rssFeedItems.eventId })
+        .from(rssFeedItems)
+        .where(and(
+          eq(rssFeedItems.feedId, feedId),
+          isNotNull(rssFeedItems.eventId)
+        ));
+      
+      const eventIds = linkedItems
+        .map(item => item.eventId)
+        .filter((id): id is number => id !== null);
+      
+      if (eventIds.length > 0) {
+        await db.delete(events).where(inArray(events.id, eventIds));
+        console.log(`[Storage] Deleted ${eventIds.length} events linked to feed ${feedId}`);
+      }
+    });
+  }
+
+  async unlinkEventsFromFeed(feedId: number): Promise<void> {
+    return this.withRetry(async () => {
+      // Set eventId to null for all items linked to this feed (keeps events but removes feed connection)
+      await db.update(rssFeedItems)
+        .set({ eventId: null })
+        .where(eq(rssFeedItems.feedId, feedId));
+      console.log(`[Storage] Unlinked events from feed ${feedId}`);
     });
   }
 

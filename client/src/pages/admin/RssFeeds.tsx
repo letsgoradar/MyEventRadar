@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Table,
   TableBody,
@@ -94,6 +95,7 @@ export default function RssFeedsPage() {
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
   const [editingVisualFeedId, setEditingVisualFeedId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('list');
+  const [deleteOptions, setDeleteOptions] = useState<{feedId: number | null, action: 'keep' | 'delete' | 'unlink'}>({feedId: null, action: 'keep'});
   
   const [newFeed, setNewFeed] = useState({
     name: '',
@@ -212,17 +214,21 @@ export default function RssFeedsPage() {
   });
 
   const deleteFeedMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest(`/api/admin/rss-feeds/${id}`, {
+    mutationFn: async ({id, eventAction}: {id: number, eventAction: 'keep' | 'delete' | 'unlink'}) => {
+      return apiRequest(`/api/admin/rss-feeds/${id}?eventAction=${eventAction}`, {
         method: 'DELETE',
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events'] });
+      setDeleteOptions({feedId: null, action: 'keep'});
+      const actionText = variables.eventAction === 'delete' ? 'en gekoppelde events verwijderd' :
+                        variables.eventAction === 'unlink' ? 'en events losgekoppeld' : '';
       toast({
         title: 'Feed verwijderd',
-        description: 'De RSS feed is succesvol verwijderd.',
+        description: `De RSS feed is succesvol verwijderd${actionText ? ' ' + actionText : ''}.`,
       });
     },
   });
@@ -1054,24 +1060,52 @@ export default function RssFeedsPage() {
                             >
                               {feed.status === 'active' ? '⏸' : '▶'}
                             </Button>
-                            <AlertDialog>
+                            <AlertDialog open={deleteOptions.feedId === feed.id} onOpenChange={(open) => !open && setDeleteOptions({feedId: null, action: 'keep'})}>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" data-testid={`button-delete-feed-${feed.id}`}>
+                                <Button variant="ghost" size="icon" data-testid={`button-delete-feed-${feed.id}`} onClick={() => setDeleteOptions({feedId: feed.id, action: 'keep'})}>
                                   <Trash2 className="w-4 h-4 text-destructive" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Feed verwijderen?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Weet je zeker dat je "{feed.name}" wilt verwijderen? 
-                                    Geïmporteerde evenementen blijven behouden.
+                                  <AlertDialogDescription asChild>
+                                    <div className="space-y-4">
+                                      <p>Weet je zeker dat je "{feed.name}" wilt verwijderen?</p>
+                                      <div className="space-y-2">
+                                        <Label className="text-sm font-medium">Wat moet er met de geïmporteerde events gebeuren?</Label>
+                                        <RadioGroup 
+                                          value={deleteOptions.action} 
+                                          onValueChange={(value: 'keep' | 'delete' | 'unlink') => setDeleteOptions({...deleteOptions, action: value})}
+                                          className="space-y-2"
+                                        >
+                                          <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="keep" id={`keep-${feed.id}`} />
+                                            <Label htmlFor={`keep-${feed.id}`} className="font-normal cursor-pointer">
+                                              Events behouden (aanbevolen)
+                                            </Label>
+                                          </div>
+                                          <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="delete" id={`delete-${feed.id}`} />
+                                            <Label htmlFor={`delete-${feed.id}`} className="font-normal cursor-pointer text-destructive">
+                                              Events verwijderen
+                                            </Label>
+                                          </div>
+                                          <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="unlink" id={`unlink-${feed.id}`} />
+                                            <Label htmlFor={`unlink-${feed.id}`} className="font-normal cursor-pointer">
+                                              Events loskoppelen (voor herverbinden met andere feed)
+                                            </Label>
+                                          </div>
+                                        </RadioGroup>
+                                      </div>
+                                    </div>
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Annuleren</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => deleteFeedMutation.mutate(feed.id)}
+                                    onClick={() => deleteFeedMutation.mutate({id: feed.id, eventAction: deleteOptions.action})}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                   >
                                     Verwijderen

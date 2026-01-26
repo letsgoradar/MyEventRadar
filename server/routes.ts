@@ -1764,8 +1764,26 @@ Respond with ONLY the search term, nothing else.`,
         return res.status(400).json({ message: "Invalid feed ID" });
       }
 
+      const eventAction = req.query.eventAction as string || 'keep';
+      const validActions = ['keep', 'delete', 'unlink'];
+      if (!validActions.includes(eventAction)) {
+        return res.status(400).json({ message: "Invalid eventAction. Must be: keep, delete, or unlink" });
+      }
+      
+      // Handle linked events based on user choice
+      if (eventAction === 'delete') {
+        // Delete all events linked to this feed
+        await storage.deleteEventsByFeedId(feedId);
+        console.log(`[RSS] Deleted events linked to feed ${feedId}`);
+      } else if (eventAction === 'unlink') {
+        // Unlink events from this feed (set feed reference to null in rssFeedItems)
+        await storage.unlinkEventsFromFeed(feedId);
+        console.log(`[RSS] Unlinked events from feed ${feedId}`);
+      }
+      // 'keep' is default - events remain as-is
+
       await storage.deleteRssFeed(feedId);
-      res.json({ message: "Feed deleted" });
+      res.json({ message: "Feed deleted", eventAction });
     } catch (error) {
       console.error('Error in DELETE /api/admin/rss-feeds/:id:', error);
       res.status(500).json({ message: "Internal server error" });

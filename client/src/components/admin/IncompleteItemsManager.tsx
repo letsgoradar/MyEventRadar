@@ -158,7 +158,7 @@ export default function IncompleteItemsManager({ feedId }: IncompleteItemsManage
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
       return apiRequest(`/api/admin/incomplete-items/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify(data),
+        data: data,
       });
     },
     onSuccess: () => {
@@ -352,7 +352,7 @@ export default function IncompleteItemsManager({ feedId }: IncompleteItemsManage
                           variant="default"
                           className="bg-green-600 hover:bg-green-700"
                           onClick={() => importItemMutation.mutate(item.id)}
-                          disabled={importItemMutation.isPending || (item.missingFields && item.missingFields.length > 0)}
+                          disabled={importItemMutation.isPending || Boolean(item.missingFields && item.missingFields.length > 0)}
                           title={item.missingFields && item.missingFields.length > 0 ? "Vul eerst ontbrekende velden aan" : "Importeren als event"}
                           data-testid={`import-item-${item.id}`}
                         >

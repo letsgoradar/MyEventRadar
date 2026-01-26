@@ -1682,7 +1682,6 @@ export class RssFeedService {
             const name = event.name || "";
             if (!name) continue;
             
-            const imageUrl = event.image || "";
             const location = event.location;
             const venueName = location?.name || "";
             const address = location?.address;
@@ -1701,8 +1700,34 @@ export class RssFeedService {
               continue;
             }
             
-            const startDate = event.startDate ? new Date(event.startDate) : undefined;
-            const endDate = event.endDate ? new Date(event.endDate) : undefined;
+            // Extract dates - check both direct properties AND eventSchedule array
+            let startDate: Date | undefined;
+            let endDate: Date | undefined;
+            
+            if (event.startDate) {
+              startDate = new Date(event.startDate);
+            } else if (event.eventSchedule && Array.isArray(event.eventSchedule) && event.eventSchedule.length > 0) {
+              // eventSchedule contains Schedule objects with startDate/endDate
+              const schedule = event.eventSchedule[0];
+              if (schedule.startDate) {
+                startDate = new Date(schedule.startDate);
+              }
+              if (schedule.endDate) {
+                endDate = new Date(schedule.endDate);
+              }
+            }
+            
+            if (event.endDate && !endDate) {
+              endDate = new Date(event.endDate);
+            }
+            
+            // Extract image - can be string or array
+            let eventImageUrl = "";
+            if (typeof event.image === "string") {
+              eventImageUrl = event.image;
+            } else if (Array.isArray(event.image) && event.image.length > 0) {
+              eventImageUrl = event.image[0];
+            }
             
             if (startDate && startDate < new Date()) continue;
             
@@ -1721,7 +1746,7 @@ export class RssFeedService {
               title: formattedTitle,
               description: description,
               link: url,
-              imageUrl: imageUrl || undefined,
+              imageUrl: eventImageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
               endTime: endDate || (startDate ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : undefined),
@@ -5954,8 +5979,9 @@ export class RssFeedService {
         if (!item.startTime) {
           missingFields.push('startTime');
         }
+        // imageUrl is NOT required - fallback to stock photo during import
         if (!item.imageUrl) {
-          missingFields.push('imageUrl');
+          validationIssues.push('Geen afbeelding gevonden - stockfoto wordt automatisch toegevoegd bij import');
         }
 
         // If we already have valid coordinates, accept them
@@ -6447,6 +6473,21 @@ export class RssFeedService {
       // QUALITY FILTER: Only create events with verified AND validated locations
       if (!geocodeSuccess) {
         console.log(`[RSS] SKIPPED event (no valid location in ${expectedMunicipality}): ${parsedItem.title}`);
+        // Update feed item with missing fields info
+        const missingFields: string[] = ['location'];
+        if (!parsedItem.startTime) missingFields.push('startTime');
+        if (!parsedItem.description || parsedItem.description.trim().length < 10) missingFields.push('description');
+        
+        await db.update(rssFeedItems)
+          .set({ 
+            processingStatus: 'incomplete',
+            missingFields: missingFields,
+            derivedData: {
+              validationErrors: [`Geen geldige locatie gevonden in ${expectedMunicipality}`],
+              geocodedAddress: parsedItem.address || parsedItem.location
+            }
+          })
+          .where(eq(rssFeedItems.id, feedItem.id));
         return;
       }
 

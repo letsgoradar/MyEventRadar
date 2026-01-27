@@ -536,9 +536,9 @@ export function EventDetailPanel({
                 {showFullDescription ? (
                   <p className="whitespace-pre-wrap">{event.description}</p>
                 ) : (
-                  <p className="line-clamp-3">{event.description}</p>
+                  <p className="line-clamp-5">{event.description}</p>
                 )}
-                {event.description.length > 150 && (
+                {event.description.length > 200 && (
                   <Button
                     variant="ghost"
                     size="sm"

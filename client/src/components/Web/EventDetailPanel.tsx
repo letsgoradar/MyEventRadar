@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Bookmark, BookmarkCheck, UserPlus, UserCheck, Navigation, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +51,7 @@ export function EventDetailPanel({
 
   const isFavorited = favorites.some((fav: any) => fav.id === event.id);
   const isParticipating = participatingEvents.some((e: any) => e.id === event.id);
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
   // Track detail view when panel opens
   React.useEffect(() => {
@@ -380,9 +381,23 @@ export function EventDetailPanel({
               <h3 className="text-lg font-semibold text-gray-900">
                 Beschrijving
               </h3>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {event.description}
-              </p>
+              <div className="text-gray-700 leading-relaxed">
+                {showFullDescription ? (
+                  <p className="whitespace-pre-wrap">{event.description}</p>
+                ) : (
+                  <p className="line-clamp-5">{event.description}</p>
+                )}
+                {event.description.length > 200 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowFullDescription(!showFullDescription)}
+                    className="h-auto p-0 text-blue-600 hover:text-blue-800 mt-2"
+                  >
+                    {showFullDescription ? 'Minder tonen' : 'Meer lezen'}
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 

@@ -34,6 +34,7 @@ interface SyncProgress {
   totalItems: number;
   processedItems: number;
   eventsCreated: number;
+  eventsUpdated: number;
   eventsSkipped: number;
   eventsRejected: number;
   rejectionReasons: Record<string, number>;
@@ -2011,6 +2012,7 @@ Respond with ONLY the search term, nothing else.`,
         totalItems: 0,
         processedItems: 0,
         eventsCreated: 0,
+        eventsUpdated: 0,
         eventsSkipped: 0,
         eventsRejected: 0,
         rejectionReasons: {},
@@ -2041,6 +2043,7 @@ Respond with ONLY the search term, nothing else.`,
         totalItems: result.itemsProcessed || 0,
         processedItems: result.itemsProcessed || 0,
         eventsCreated: result.eventsCreated || 0,
+        eventsUpdated: result.eventsUpdated || 0,
         eventsSkipped: resultAny.eventsSkipped || 0,
         eventsRejected: resultAny.eventsRejected || 0,
         rejectionReasons: resultAny.rejectionReasons || {},
@@ -2056,6 +2059,7 @@ Respond with ONLY the search term, nothing else.`,
         feedName: feed.name,
         itemsProcessed: result.itemsProcessed || 0,
         eventsCreated: result.eventsCreated || 0,
+        eventsUpdated: result.eventsUpdated || 0,
         success: result.success
       });
     } catch (error: any) {

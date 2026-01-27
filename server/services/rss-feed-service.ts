@@ -1352,7 +1352,7 @@ export class RssFeedService {
     try {
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
-      const maxPages = 15;
+      const maxPages = 50;
       
       for (let page = 1; page <= maxPages; page++) {
         const url = page === 1 
@@ -1433,7 +1433,7 @@ export class RssFeedService {
     try {
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
-      const maxPages = 20;
+      const maxPages = 50;
       
       for (let page = 1; page <= maxPages; page++) {
         const url = page === 1 
@@ -1518,7 +1518,7 @@ export class RssFeedService {
     try {
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
-      const maxPages = 20;
+      const maxPages = 50;
       
       for (let page = 1; page <= maxPages; page++) {
         const url = page === 1 
@@ -1812,7 +1812,7 @@ export class RssFeedService {
     try {
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
-      const maxPages = 10;
+      const maxPages = 50;
       
       for (let page = 1; page <= maxPages; page++) {
         const url = page === 1 
@@ -2175,7 +2175,7 @@ export class RssFeedService {
     try {
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
-      const maxPages = 10;
+      const maxPages = 50;
       
       for (let page = 1; page <= maxPages; page++) {
         const url = page === 1 
@@ -2672,7 +2672,7 @@ export class RssFeedService {
     try {
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
-      const maxPages = 15;
+      const maxPages = 50;
       
       // Collect event links from overview pages
       for (let page = 1; page <= maxPages; page++) {
@@ -3183,7 +3183,7 @@ export class RssFeedService {
     try {
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
-      const maxPages = 10;
+      const maxPages = 50;
       
       // Step 1: Collect event URLs from /nl/evenementen pages
       for (let page = 1; page <= maxPages; page++) {
@@ -6273,8 +6273,8 @@ export class RssFeedService {
   static async processFeed(
     feed: RssFeed, 
     storage?: any,
-    onProgress?: (progress: { status?: string; totalItems?: number; processedItems?: number; eventsCreated?: number; message?: string }) => void
-  ): Promise<{ success: boolean; itemsProcessed: number; eventsCreated: number; error?: string }> {
+    onProgress?: (progress: { status?: string; totalItems?: number; processedItems?: number; eventsCreated?: number; eventsUpdated?: number; message?: string }) => void
+  ): Promise<{ success: boolean; itemsProcessed: number; eventsCreated: number; eventsUpdated: number; error?: string }> {
     const feedStartTime = Date.now();
     
     try {
@@ -6352,7 +6352,7 @@ export class RssFeedService {
             lastFetchedAt: new Date()
           })
           .where(eq(rssFeeds.id, feed.id));
-        return { success: false, itemsProcessed: 0, eventsCreated: 0, error: result.error };
+        return { success: false, itemsProcessed: 0, eventsCreated: 0, eventsUpdated: 0, error: result.error };
       }
 
       // Apply field mappings if configured
@@ -6374,18 +6374,23 @@ export class RssFeedService {
       });
 
       let newItemsCount = 0;
+      let updatedItemsCount = 0;
       for (let i = 0; i < consolidatedItems.length; i++) {
         const item = consolidatedItems[i];
-        const created = await this.createOrUpdateFeedItem(feed, item);
-        if (created) newItemsCount++;
+        const result = await this.createOrUpdateFeedItem(feed, item);
+        if (result.isNew) newItemsCount++;
+        if (result.isUpdated) updatedItemsCount++;
         
         // Report progress every 5 items or at the end
         if (i % 5 === 0 || i === consolidatedItems.length - 1) {
+          const statusMessage = newItemsCount > 0 
+            ? `${newItemsCount} nieuw, ${updatedItemsCount} bijgewerkt`
+            : `${updatedItemsCount} bijgewerkt`;
           onProgress?.({
             status: 'processing',
             processedItems: i + 1,
             eventsCreated: newItemsCount,
-            message: `${i + 1}/${consolidatedItems.length} items verwerkt, ${newItemsCount} nieuwe events`
+            message: `${i + 1}/${consolidatedItems.length} items verwerkt (${statusMessage})`
           });
         }
       }
@@ -6399,8 +6404,8 @@ export class RssFeedService {
         })
         .where(eq(rssFeeds.id, feed.id));
 
-      console.log(`[RSS] ${feed.name}: SUCCESS - ${newItemsCount} new items in ${feedDuration} min (total: ${consolidatedItems.length} consolidated from ${result.items.length})`);
-      return { success: true, itemsProcessed: result.items.length, eventsCreated: newItemsCount };
+      console.log(`[RSS] ${feed.name}: SUCCESS - ${newItemsCount} new, ${updatedItemsCount} updated in ${feedDuration} min (total: ${consolidatedItems.length} consolidated from ${result.items.length})`);
+      return { success: true, itemsProcessed: result.items.length, eventsCreated: newItemsCount, eventsUpdated: updatedItemsCount };
     } catch (error: any) {
       const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
       console.error(`[RSS] ${feed.name}: ERROR after ${feedDuration} min - ${error.message}`);
@@ -6411,7 +6416,7 @@ export class RssFeedService {
           lastFetchedAt: new Date()
         })
         .where(eq(rssFeeds.id, feed.id));
-      return { success: false, itemsProcessed: 0, eventsCreated: 0, error: error.message };
+      return { success: false, itemsProcessed: 0, eventsCreated: 0, eventsUpdated: 0, error: error.message };
     }
   }
 
@@ -6510,9 +6515,11 @@ export class RssFeedService {
         const consolidatedItems = this.consolidateMultiDayEvents(result.items);
         
         let newItemsCount = 0;
+        let updatedItemsCount = 0;
         for (const item of consolidatedItems) {
-          const created = await this.createOrUpdateFeedItem(feed, item);
-          if (created) newItemsCount++;
+          const itemResult = await this.createOrUpdateFeedItem(feed, item);
+          if (itemResult.isNew) newItemsCount++;
+          if (itemResult.isUpdated) updatedItemsCount++;
         }
 
         await db.update(rssFeeds)
@@ -6524,7 +6531,7 @@ export class RssFeedService {
           })
           .where(eq(rssFeeds.id, feed.id));
 
-        console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: SUCCESS - ${newItemsCount} new items in ${feedDuration} min (consolidated: ${consolidatedItems.length} from ${result.items.length})`);
+        console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: SUCCESS - ${newItemsCount} new, ${updatedItemsCount} updated in ${feedDuration} min (consolidated: ${consolidatedItems.length} from ${result.items.length})`);
         processed++;
       } catch (error: any) {
         const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
@@ -6553,7 +6560,7 @@ export class RssFeedService {
   private static async createOrUpdateFeedItem(
     feed: RssFeed, 
     parsedItem: ParsedFeedItem
-  ): Promise<boolean> {
+  ): Promise<{ isNew: boolean; isUpdated: boolean }> {
     const existingItems = await db.select()
       .from(rssFeedItems)
       .where(and(
@@ -6585,7 +6592,7 @@ export class RssFeedService {
         await this.createEventFromFeedItem(feed, existingItem, parsedItem);
       }
       
-      return false; // Not a new item, but was updated
+      return { isNew: false, isUpdated: true }; // Updated existing item
     }
 
     const [feedItem] = await db.insert(rssFeedItems)
@@ -6606,7 +6613,7 @@ export class RssFeedService {
       await this.createEventFromFeedItem(feed, feedItem, parsedItem);
     }
 
-    return true;
+    return { isNew: true, isUpdated: false }; // New item created
   }
 
   // Update an existing event with new data from the feed (preserves favorites, participants, etc.)

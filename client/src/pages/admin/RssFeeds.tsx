@@ -239,6 +239,7 @@ export default function RssFeedsPage() {
     totalItems: number;
     processedItems: number;
     eventsCreated: number;
+    eventsUpdated?: number;
     eventsSkipped?: number;
     eventsRejected?: number;
     rejectionReasons?: Record<string, number>;
@@ -312,9 +313,13 @@ export default function RssFeedsPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
       setSyncingFeedId(null);
       setSyncProgress(null);
+      const parts = [];
+      if (data.eventsCreated > 0) parts.push(`${data.eventsCreated} nieuw`);
+      if (data.eventsUpdated > 0) parts.push(`${data.eventsUpdated} bijgewerkt`);
+      const summary = parts.length > 0 ? parts.join(', ') : 'Geen wijzigingen';
       toast({
         title: 'Feed gesynchroniseerd',
-        description: `${data.feedName}: ${data.eventsCreated} nieuwe events aangemaakt.`,
+        description: `${data.feedName}: ${summary}.`,
       });
     },
     onError: (error: any) => {
@@ -363,12 +368,14 @@ export default function RssFeedsPage() {
       feedName: string;
       status: 'success' | 'error' | 'skipped';
       eventsCreated: number;
+      eventsUpdated?: number;
       eventsSkipped?: number;
       eventsRejected?: number;
       message?: string;
     }>;
     nextFeedIn?: number;
     totalEventsCreated?: number;
+    totalEventsUpdated?: number;
     totalEventsSkipped?: number;
     totalEventsRejected?: number;
   } | null>(null);
@@ -801,7 +808,12 @@ export default function RssFeedsPage() {
                             <span className="flex items-center gap-2">
                               {result.status === 'success' ? (
                                 <>
-                                  <span className="text-green-600">+{result.eventsCreated}</span>
+                                  <span className="text-green-600" title="Nieuwe events">+{result.eventsCreated}</span>
+                                  {(result.eventsUpdated || 0) > 0 && (
+                                    <span className="text-blue-600" title="Bijgewerkte events">
+                                      ↻{result.eventsUpdated}
+                                    </span>
+                                  )}
                                   {(result.eventsSkipped || 0) > 0 && (
                                     <span className="text-amber-600" title="Overgeslagen (duplicaten)">
                                       ~{result.eventsSkipped}
@@ -1022,6 +1034,7 @@ export default function RssFeedsPage() {
                               <span className="text-[10px] text-muted-foreground">
                                 {syncProgress.processedItems}/{syncProgress.totalItems} items
                                 {syncProgress.eventsCreated > 0 && ` • ${syncProgress.eventsCreated} nieuw`}
+                                {(syncProgress.eventsUpdated || 0) > 0 && ` • ${syncProgress.eventsUpdated} bijgewerkt`}
                               </span>
                             </div>
                           ) : (

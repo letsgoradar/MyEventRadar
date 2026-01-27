@@ -1670,7 +1670,7 @@ export class RssFeedService {
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
-              endTime: endDate || (startDate ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : undefined),
+              endTime: endDate,
               location: venueName || city,
               address: fullAddress || `${city}, Netherlands`,
               latitude,
@@ -1787,7 +1787,7 @@ export class RssFeedService {
               imageUrl: eventImageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
-              endTime: endDate || (startDate ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : undefined),
+              endTime: endDate,
               location: venueName || city,
               address: fullAddress || `${city}, Netherlands`,
               latitude,
@@ -1992,16 +1992,64 @@ export class RssFeedService {
       let startTime: Date | undefined;
       let endTime: Date | undefined;
       
-      // Date parsing - NO default times, only set time if explicitly found in source
-      const dateRangeMatch = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})\s+t\/m\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
-      if (dateRangeMatch) {
-        const [, startDay, startMonth, startYear, endDay, endMonth, endYear] = dateRangeMatch;
-        const startMonthNum = this.MONTHS[startMonth.toLowerCase()];
-        const endMonthNum = this.MONTHS[endMonth.toLowerCase()];
-        if (startMonthNum !== undefined && endMonthNum !== undefined) {
-          // Only set DATE, not time - no default 10:00/22:00
-          startTime = new Date(parseInt(startYear), startMonthNum, parseInt(startDay));
-          endTime = new Date(parseInt(endYear), endMonthNum, parseInt(endDay));
+      // FIRST: Try JSON-LD data for accurate times (Plaece CMS has this)
+      $('script[type="application/ld+json"]').each((_, el) => {
+        try {
+          const rawData = JSON.parse($(el).html() || '');
+          const dataItems = Array.isArray(rawData) ? rawData : [rawData];
+          
+          for (const data of dataItems) {
+            if (data['@type'] === 'Event' || data['@type']?.includes?.('Event')) {
+              if (data.startDate) {
+                startTime = parseLocalDateTime(data.startDate);
+              }
+              if (data.endDate) {
+                // endDate may be just a date without time, only use if it has time component
+                const endDateStr = data.endDate as string;
+                if (endDateStr.includes('T')) {
+                  endTime = parseLocalDateTime(endDateStr);
+                }
+              }
+              
+              // Also extract location data if not already found
+              if (data.location?.geo && (!latitude || !longitude)) {
+                if (data.location.geo.latitude) latitude = parseFloat(data.location.geo.latitude);
+                if (data.location.geo.longitude) longitude = parseFloat(data.location.geo.longitude);
+              }
+              if (data.location?.name && !location) {
+                location = data.location.name;
+              }
+              if (data.location?.address && !address) {
+                const addr = data.location.address;
+                if (typeof addr === 'string') {
+                  address = addr;
+                } else if (addr.streetAddress) {
+                  const parts = [addr.streetAddress];
+                  if (addr.postalCode) parts.push(addr.postalCode);
+                  if (addr.addressLocality) parts.push(addr.addressLocality);
+                  address = parts.join(', ');
+                }
+              }
+              
+              if (startTime) break;
+            }
+          }
+        } catch (e) {}
+      });
+      
+      // FALLBACK: Date parsing from HTML text - only if JSON-LD didn't provide dates
+      // NO default times, only set time if explicitly found in source
+      if (!startTime) {
+        const dateRangeMatch = dateText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})\s+t\/m\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
+        if (dateRangeMatch) {
+          const [, startDay, startMonth, startYear, endDay, endMonth, endYear] = dateRangeMatch;
+          const startMonthNum = this.MONTHS[startMonth.toLowerCase()];
+          const endMonthNum = this.MONTHS[endMonth.toLowerCase()];
+          if (startMonthNum !== undefined && endMonthNum !== undefined) {
+            // Only set DATE, not time - no default 10:00/22:00
+            startTime = new Date(parseInt(startYear), startMonthNum, parseInt(startDay));
+            endTime = new Date(parseInt(endYear), endMonthNum, parseInt(endDay));
+          }
         }
       }
       
@@ -2596,7 +2644,7 @@ export class RssFeedService {
               imageUrl: undefined,
               publishedAt: new Date(),
               startTime,
-              endTime: endTime || new Date(startTime.getTime() + 2 * 60 * 60 * 1000),
+              endTime,
               location,
               address,
               latitude,
@@ -2828,7 +2876,7 @@ export class RssFeedService {
         imageUrl: imageUrl || undefined,
         publishedAt: new Date(),
         startTime,
-        endTime: endTime || new Date(startTime.getTime() + 2 * 60 * 60 * 1000),
+        endTime,
         location,
         address,
         latitude,
@@ -6610,7 +6658,7 @@ export class RssFeedService {
   ): Promise<void> {
     try {
       const startTime = parsedItem.startTime || parsedItem.publishedAt || new Date();
-      const endTime = parsedItem.endTime || new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
+      const endTime = parsedItem.endTime;
 
       const formattedTitle = this.formatTitle(parsedItem.title);
       

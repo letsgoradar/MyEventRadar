@@ -4629,15 +4629,47 @@ export class RssFeedService {
       if (streetEl.length) streetAddress = streetEl.text().trim();
       if (cityEl.length) city = cityEl.text().trim() || "Eindhoven";
       
-      const dateListItem = $(".list-dates li .date a, .list-dates li .date").first();
-      if (dateListItem.length) {
-        const dateText = dateListItem.text().trim();
-        console.log(`[RSS] Found date text in list: "${dateText}"`);
-        const parsed = this.parseEventDate(dateText);
-        if (parsed) {
-          startTime = parsed.startTime;
-          endTime = parsed.endTime;
-          console.log(`[RSS] Parsed date: ${startTime.toISOString()} - ${endTime.toISOString()}`);
+      // FIRST: Try JSON-LD data for accurate times (fixes 1-hour timezone issue)
+      $('script[type="application/ld+json"]').each((_, el) => {
+        try {
+          const rawData = JSON.parse($(el).html() || '');
+          const dataItems = Array.isArray(rawData) ? rawData : [rawData];
+          
+          for (const data of dataItems) {
+            if (data['@type'] === 'Event' || data['@type']?.includes?.('Event')) {
+              if (data.startDate && !startTime) {
+                startTime = parseLocalDateTime(data.startDate);
+              }
+              if (data.endDate && !endTime) {
+                const endDateStr = data.endDate as string;
+                if (endDateStr.includes('T')) {
+                  endTime = parseLocalDateTime(endDateStr);
+                }
+              }
+              if (data.description && !description) {
+                description = (data.description as string).substring(0, 500);
+              }
+              if (data.name && !title) {
+                title = data.name;
+              }
+              if (startTime) break;
+            }
+          }
+        } catch (e) {}
+      });
+      
+      // FALLBACK: HTML date parsing if JSON-LD didn't provide times
+      if (!startTime) {
+        const dateListItem = $(".list-dates li .date a, .list-dates li .date").first();
+        if (dateListItem.length) {
+          const dateText = dateListItem.text().trim();
+          console.log(`[RSS] Found date text in list: "${dateText}"`);
+          const parsed = this.parseEventDate(dateText);
+          if (parsed) {
+            startTime = parsed.startTime;
+            endTime = parsed.endTime;
+            console.log(`[RSS] Parsed date: ${startTime.toISOString()} - ${endTime.toISOString()}`);
+          }
         }
       }
       
@@ -4706,8 +4738,11 @@ export class RssFeedService {
       
       description = description
         .replace(/\s+/g, " ")
+        .replace(/https?:\/\/[^\s]+/gi, "") // Remove URLs
+        .replace(/www\.[^\s]+/gi, "") // Remove www URLs
         .replace(/Lees meer.*$/i, "")
         .replace(/Read more.*$/i, "")
+        .replace(/\s{2,}/g, " ") // Clean up extra spaces
         .trim();
       
       if (!title || title.length < 3) {
@@ -6785,9 +6820,16 @@ export class RssFeedService {
         imageUrl = await this.getUnsplashImage(category, titleKeywords) || undefined;
       }
 
-      const fullDescription = parsedItem.description 
-        ? `${parsedItem.description}${parsedItem.link ? `\n\nMeer info: ${parsedItem.link}` : ""}`
-        : (parsedItem.link ? `Meer informatie: ${parsedItem.link}` : "Geen beschrijving beschikbaar.");
+      // Clean description: remove URLs from text (they're distracting), link is stored separately in externalUrl
+      let cleanDescription = parsedItem.description || "";
+      // Remove full URLs from description text
+      cleanDescription = cleanDescription
+        .replace(/https?:\/\/[^\s\n]+/gi, "")
+        .replace(/www\.[^\s\n]+/gi, "")
+        .replace(/\n{3,}/g, "\n\n") // Clean up excessive newlines from removed URLs
+        .trim();
+      
+      const fullDescription = cleanDescription || "Geen beschrijving beschikbaar.";
 
       const recurrence = this.detectRecurrence(formattedTitle, fullDescription);
 
@@ -7040,8 +7082,16 @@ export class RssFeedService {
       }
       
       // Only update description if we have actual content
+      // Clean URLs from description - they're stored in externalUrl separately
       if (parsedItem.description && parsedItem.description.trim().length > 10) {
-        updateData.description = parsedItem.description.substring(0, 500);
+        let cleanDesc = parsedItem.description
+          .replace(/https?:\/\/[^\s\n]+/gi, "")
+          .replace(/www\.[^\s\n]+/gi, "")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+        if (cleanDesc.length > 10) {
+          updateData.description = cleanDesc.substring(0, 500);
+        }
       }
       
       // Only update times if the feed explicitly provides them (NO fallbacks!)

@@ -187,6 +187,25 @@ export const rssItemCorrections = pgTable("rss_item_corrections", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const feedSyncHistory = pgTable("feed_sync_history", {
+  id: serial("id").primaryKey(),
+  feedId: integer("feed_id").references(() => rssFeeds.id, { onDelete: "cascade" }).notNull(),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  durationMs: integer("duration_ms"),
+  totalFound: integer("total_found").default(0),
+  afterMerge: integer("after_merge").default(0),
+  newEvents: integer("new_events").default(0),
+  updatedEvents: integer("updated_events").default(0),
+  incompleteEvents: integer("incomplete_events").default(0),
+  skippedEvents: integer("skipped_events").default(0),
+  incompleteReasons: jsonb("incomplete_reasons").$type<Record<string, number>>(),
+  errorMessage: text("error_message"),
+  success: boolean("success").default(true),
+});
+
+export type FeedSyncHistory = typeof feedSyncHistory.$inferSelect;
+export type InsertFeedSyncHistory = typeof feedSyncHistory.$inferInsert;
+
 export const venues = pgTable("venues", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),

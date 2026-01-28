@@ -2408,6 +2408,30 @@ Respond with ONLY the search term, nothing else.`,
       res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  app.get("/api/admin/rss-feeds/:id/sync-history", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+      
+      const [latestSync, history, avgDuration] = await Promise.all([
+        storage.getLatestSyncForFeed(feedId),
+        storage.getSyncHistoryForFeed(feedId, 10),
+        storage.getAverageSyncDurationForFeed(feedId)
+      ]);
+      
+      res.json({
+        latestSync,
+        history,
+        avgDurationMs: avgDuration
+      });
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/:id/sync-history:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   app.post("/api/admin/visual-configurator/fetch-page", isAdmin, async (req, res) => {
     try {

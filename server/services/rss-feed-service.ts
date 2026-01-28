@@ -6404,10 +6404,48 @@ export class RssFeedService {
         })
         .where(eq(rssFeeds.id, feed.id));
 
+      const durationMs = Date.now() - feedStartTime;
+      
+      const incompleteItemsResult = await db.select({
+        count: sql<number>`COUNT(*)`,
+        missingFields: rssFeedItems.missingFields
+      })
+        .from(rssFeedItems)
+        .where(and(
+          eq(rssFeedItems.feedId, feed.id),
+          eq(rssFeedItems.processingStatus, 'incomplete')
+        ))
+        .groupBy(rssFeedItems.missingFields);
+      
+      const incompleteCount = incompleteItemsResult.reduce((sum, row) => sum + Number(row.count), 0);
+      const incompleteReasons: Record<string, number> = {};
+      incompleteItemsResult.forEach(row => {
+        const fields = row.missingFields as string[] | null;
+        if (fields && Array.isArray(fields)) {
+          fields.forEach(field => {
+            incompleteReasons[field] = (incompleteReasons[field] || 0) + Number(row.count);
+          });
+        }
+      });
+
+      await storage.createSyncHistory({
+        feedId: feed.id,
+        durationMs,
+        totalFound: result.items.length,
+        afterMerge: consolidatedItems.length,
+        newEvents: newItemsCount,
+        updatedEvents: updatedItemsCount,
+        incompleteEvents: incompleteCount,
+        skippedEvents: 0,
+        incompleteReasons: Object.keys(incompleteReasons).length > 0 ? incompleteReasons : null,
+        success: true
+      });
+
       console.log(`[RSS] ${feed.name}: SUCCESS - ${newItemsCount} new, ${updatedItemsCount} updated in ${feedDuration} min (total: ${consolidatedItems.length} consolidated from ${result.items.length})`);
       return { success: true, itemsProcessed: result.items.length, eventsCreated: newItemsCount, eventsUpdated: updatedItemsCount };
     } catch (error: any) {
-      const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
+      const durationMs = Date.now() - feedStartTime;
+      const feedDuration = ((durationMs) / 1000 / 60).toFixed(1);
       console.error(`[RSS] ${feed.name}: ERROR after ${feedDuration} min - ${error.message}`);
       await db.update(rssFeeds)
         .set({ 
@@ -6416,6 +6454,20 @@ export class RssFeedService {
           lastFetchedAt: new Date()
         })
         .where(eq(rssFeeds.id, feed.id));
+      
+      await storage.createSyncHistory({
+        feedId: feed.id,
+        durationMs,
+        totalFound: 0,
+        afterMerge: 0,
+        newEvents: 0,
+        updatedEvents: 0,
+        incompleteEvents: 0,
+        skippedEvents: 0,
+        errorMessage: error.message,
+        success: false
+      });
+      
       return { success: false, itemsProcessed: 0, eventsCreated: 0, eventsUpdated: 0, error: error.message };
     }
   }

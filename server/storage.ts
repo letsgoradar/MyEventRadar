@@ -12,6 +12,7 @@ import {
   rssFeeds,
   rssFeedItems,
   rssItemCorrections,
+  feedSyncHistory,
   leads,
   aiExtractionProfiles,
   venues,
@@ -38,6 +39,8 @@ import {
   type InsertRssFeedItem,
   type RssItemCorrection,
   type InsertRssItemCorrection,
+  type FeedSyncHistory,
+  type InsertFeedSyncHistory,
   type Lead,
   type InsertLead,
   type AiExtractionProfile,
@@ -139,6 +142,12 @@ export interface IStorage {
   findMatchingCorrections(fieldKey: string, originalValue: string): Promise<RssItemCorrection[]>;
   incrementCorrectionCount(id: number): Promise<void>;
   deleteCorrection(id: number): Promise<void>;
+  
+  // Feed Sync History operations
+  createSyncHistory(history: InsertFeedSyncHistory): Promise<FeedSyncHistory>;
+  getSyncHistoryForFeed(feedId: number, limit?: number): Promise<FeedSyncHistory[]>;
+  getLatestSyncForFeed(feedId: number): Promise<FeedSyncHistory | undefined>;
+  getAverageSyncDurationForFeed(feedId: number): Promise<number | null>;
 
   // Lead operations
   createLead(lead: InsertLead): Promise<Lead>;
@@ -937,6 +946,48 @@ export class PgStorage implements IStorage {
   async deleteCorrection(id: number): Promise<void> {
     return this.withRetry(async () => {
       await db.delete(rssItemCorrections).where(eq(rssItemCorrections.id, id));
+    });
+  }
+
+  async createSyncHistory(history: InsertFeedSyncHistory): Promise<FeedSyncHistory> {
+    return this.withRetry(async () => {
+      const [created] = await db.insert(feedSyncHistory).values(history).returning();
+      return created;
+    });
+  }
+
+  async getSyncHistoryForFeed(feedId: number, limit: number = 10): Promise<FeedSyncHistory[]> {
+    return this.withRetry(async () => {
+      return db.select()
+        .from(feedSyncHistory)
+        .where(eq(feedSyncHistory.feedId, feedId))
+        .orderBy(desc(feedSyncHistory.syncedAt))
+        .limit(limit);
+    });
+  }
+
+  async getLatestSyncForFeed(feedId: number): Promise<FeedSyncHistory | undefined> {
+    return this.withRetry(async () => {
+      const [latest] = await db.select()
+        .from(feedSyncHistory)
+        .where(eq(feedSyncHistory.feedId, feedId))
+        .orderBy(desc(feedSyncHistory.syncedAt))
+        .limit(1);
+      return latest;
+    });
+  }
+
+  async getAverageSyncDurationForFeed(feedId: number): Promise<number | null> {
+    return this.withRetry(async () => {
+      const result = await db.select({
+        avgDuration: sql<number>`ROUND(AVG(${feedSyncHistory.durationMs}))`.as('avg_duration')
+      })
+        .from(feedSyncHistory)
+        .where(and(
+          eq(feedSyncHistory.feedId, feedId),
+          isNotNull(feedSyncHistory.durationMs)
+        ));
+      return result[0]?.avgDuration || null;
     });
   }
 

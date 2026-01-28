@@ -53,6 +53,8 @@ import { nl } from 'date-fns/locale';
 import { CATEGORIES } from '@shared/schema';
 import { lazy, Suspense } from 'react';
 
+import { SyncHistoryTooltip } from '@/components/admin/SyncHistoryTooltip';
+
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
 const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
 const FeedAnalyzerModal = lazy(() => import('@/components/admin/FeedAnalyzerModal'));
@@ -1004,9 +1006,7 @@ export default function RssFeedsPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {feed.lastFetchedAt 
-                            ? format(new Date(feed.lastFetchedAt), 'dd MMM HH:mm', { locale: nl })
-                            : 'Nog niet opgehaald'}
+                          <SyncHistoryTooltip feedId={feed.id} lastFetchedAt={feed.lastFetchedAt} />
                         </TableCell>
                         <TableCell>
                           {(feedOverview[feed.id]?.addedLastSync || 0) > 0 ? (

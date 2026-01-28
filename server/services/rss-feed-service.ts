@@ -592,18 +592,99 @@ export class RssFeedService {
 
   /**
    * Validate existing coordinates against expected municipality
+   * Returns validation result with actual municipality and distance
    */
   static validateExistingCoordinates(
     latitude: number,
     longitude: number,
     expectedMunicipality: string
-  ): boolean {
+  ): { isValid: boolean; actualMunicipality?: string; distance?: number } {
     const validation = validateCoordinatesInMunicipality(latitude, longitude, expectedMunicipality);
+    const actualMunicipality = findActualMunicipality(latitude, longitude);
+    
     if (!validation.isValid) {
-      const actualMunicipality = findActualMunicipality(latitude, longitude);
       console.log(`[RSS] Coordinate validation FAILED: (${latitude}, ${longitude}) in ${actualMunicipality || 'unknown'}, expected ${expectedMunicipality}`);
     }
-    return validation.isValid;
+    return {
+      isValid: validation.isValid,
+      actualMunicipality: actualMunicipality || undefined,
+      distance: validation.distance
+    };
+  }
+  
+  /**
+   * Validate coordinates with 20km distance limit for regional events
+   * Returns the actual municipality if within range, or null if too far
+   */
+  static validateCoordinatesWithDistanceLimit(
+    latitude: number,
+    longitude: number,
+    expectedMunicipality: string,
+    maxDistanceKm: number = 20
+  ): { isAccepted: boolean; municipality: string; distance: number } | null {
+    const validation = validateCoordinatesInMunicipality(latitude, longitude, expectedMunicipality);
+    const actualMunicipality = findActualMunicipality(latitude, longitude);
+    
+    // If within the expected municipality, accept with that municipality
+    if (validation.isValid) {
+      return {
+        isAccepted: true,
+        municipality: expectedMunicipality,
+        distance: 0
+      };
+    }
+    
+    // If outside but within distance limit, accept with actual municipality
+    if (validation.distance !== undefined && validation.distance <= maxDistanceKm && actualMunicipality) {
+      console.log(`[RSS] Regional event ACCEPTED: ${validation.distance.toFixed(1)}km from ${expectedMunicipality}, in ${actualMunicipality}`);
+      return {
+        isAccepted: true,
+        municipality: actualMunicipality,
+        distance: validation.distance
+      };
+    }
+    
+    // Too far away
+    console.log(`[RSS] Event REJECTED: ${validation.distance?.toFixed(1) || '?'}km from ${expectedMunicipality} (max ${maxDistanceKm}km)`);
+    return null;
+  }
+  
+  /**
+   * Geocode with regional distance limit (accepts events within 20km)
+   * Returns coordinates and actual municipality
+   */
+  static async geocodeWithRegionalLimit(
+    address: string,
+    expectedMunicipality: string,
+    maxDistanceKm: number = 20
+  ): Promise<{ lat: number; lon: number; displayName: string; actualMunicipality: string } | null> {
+    // First check known venues in expected municipality
+    const knownVenue = getKnownVenue(expectedMunicipality, address);
+    if (knownVenue) {
+      console.log(`[RSS] Known venue MATCH (regional): "${address}" -> ${expectedMunicipality}`);
+      return {
+        lat: knownVenue.lat,
+        lon: knownVenue.lng,
+        displayName: knownVenue.address,
+        actualMunicipality: expectedMunicipality
+      };
+    }
+    
+    // Try geocoding with Netherlands
+    const result = await this.geocodeAddress(`${address}, Netherlands`);
+    if (result) {
+      const regionCheck = this.validateCoordinatesWithDistanceLimit(result.lat, result.lon, expectedMunicipality, maxDistanceKm);
+      if (regionCheck) {
+        return {
+          lat: result.lat,
+          lon: result.lon,
+          displayName: result.displayName,
+          actualMunicipality: regionCheck.municipality
+        };
+      }
+    }
+    
+    return null;
   }
 
   /**
@@ -6765,10 +6846,25 @@ export class RssFeedService {
         parsedItem.link
       );
       
-      // If event exists, UPDATE it instead of skipping (allows new feeds to replace old data)
+      // If event exists, UPDATE it and add new source
       if (existingEventId) {
         console.log(`[RSS] Found existing event ID ${existingEventId}, updating with new data from feed...`);
         await this.updateExistingEventFromFeed(existingEventId, parsedItem, feed.municipality || '');
+        
+        // Add this feed as a source for the event (if not already added)
+        if (parsedItem.link) {
+          const existingSource = await storage.findEventSourceByUrl(existingEventId, parsedItem.link);
+          if (!existingSource) {
+            await storage.addEventSource({
+              eventId: existingEventId,
+              feedId: feed.id,
+              sourceUrl: parsedItem.link,
+              sourceName: feed.name,
+              isPrimary: false
+            });
+            console.log(`[RSS] Added new source "${feed.name}" to existing event ID ${existingEventId}`);
+          }
+        }
         
         // Link the feed item to the existing event
         await db.update(rssFeedItems)
@@ -6794,55 +6890,63 @@ export class RssFeedService {
       let longitude = parsedItem.longitude?.toString() || "";
       let address = parsedItem.address || parsedItem.location || "";
       let geocodeSuccess = false;
+      let actualMunicipality = feed.municipality || "";
       const expectedMunicipality = feed.municipality || "";
+      const MAX_DISTANCE_KM = 20; // Accept events within 20km of feed municipality
 
-      // STEP 1: If we have GPS coordinates from the source, validate them first
+      // STEP 1: If we have GPS coordinates from the source, validate with regional limit
       if (parsedItem.latitude && parsedItem.longitude) {
-        const isValid = this.validateExistingCoordinates(
+        const regionCheck = this.validateCoordinatesWithDistanceLimit(
           parsedItem.latitude, 
           parsedItem.longitude, 
-          expectedMunicipality
+          expectedMunicipality,
+          MAX_DISTANCE_KM
         );
         
-        if (isValid) {
+        if (regionCheck) {
           latitude = parsedItem.latitude.toString();
           longitude = parsedItem.longitude.toString();
-          address = parsedItem.address || parsedItem.location || expectedMunicipality;
+          address = parsedItem.address || parsedItem.location || regionCheck.municipality;
+          actualMunicipality = regionCheck.municipality;
           geocodeSuccess = true;
-          console.log(`[RSS] Source GPS validated for "${formattedTitle}" in ${expectedMunicipality}`);
+          if (regionCheck.distance > 0) {
+            console.log(`[RSS] Source GPS accepted (regional): "${formattedTitle}" in ${actualMunicipality} (${regionCheck.distance.toFixed(1)}km from ${expectedMunicipality})`);
+          } else {
+            console.log(`[RSS] Source GPS validated for "${formattedTitle}" in ${expectedMunicipality}`);
+          }
         } else {
-          console.log(`[RSS] Source GPS REJECTED for "${formattedTitle}" - outside ${expectedMunicipality}`);
-          // Don't use invalid source coordinates, try geocoding instead
+          console.log(`[RSS] Source GPS REJECTED for "${formattedTitle}" - too far from ${expectedMunicipality}`);
         }
       }
 
-      // STEP 2: Try geocoding with municipality validation if no valid GPS
+      // STEP 2: Try geocoding with regional distance limit
       if (!geocodeSuccess && (parsedItem.address || parsedItem.location)) {
         const locationQuery = parsedItem.address || parsedItem.location || "";
-        const geoResult = await this.geocodeWithMunicipalityValidation(locationQuery, expectedMunicipality);
+        const geoResult = await this.geocodeWithRegionalLimit(locationQuery, expectedMunicipality, MAX_DISTANCE_KM);
         if (geoResult) {
           latitude = geoResult.lat.toString();
           longitude = geoResult.lon.toString();
           address = geoResult.displayName.split(",").slice(0, 3).join(",").trim();
+          actualMunicipality = geoResult.actualMunicipality;
           geocodeSuccess = true;
         }
       }
       
-      // STEP 3: Try venue-only geocoding with municipality
+      // STEP 3: Try venue-only geocoding with regional limit
       if (!geocodeSuccess && parsedItem.location) {
-        const venueResult = await this.geocodeWithMunicipalityValidation(parsedItem.location, expectedMunicipality);
+        const venueResult = await this.geocodeWithRegionalLimit(parsedItem.location, expectedMunicipality, MAX_DISTANCE_KM);
         if (venueResult) {
           latitude = venueResult.lat.toString();
           longitude = venueResult.lon.toString();
-          address = parsedItem.address || `${parsedItem.location}, ${expectedMunicipality}`;
+          address = parsedItem.address || `${parsedItem.location}, ${venueResult.actualMunicipality}`;
+          actualMunicipality = venueResult.actualMunicipality;
           geocodeSuccess = true;
         }
       }
       
-      // QUALITY FILTER: Only create events with verified AND validated locations
+      // QUALITY FILTER: Only create events with verified locations within distance limit
       if (!geocodeSuccess) {
-        console.log(`[RSS] SKIPPED event (no valid location in ${expectedMunicipality}): ${parsedItem.title}`);
-        // Update feed item with missing fields info
+        console.log(`[RSS] SKIPPED event (no valid location within ${MAX_DISTANCE_KM}km of ${expectedMunicipality}): ${parsedItem.title}`);
         const missingFields: string[] = ['location'];
         if (!parsedItem.startTime) missingFields.push('startTime');
         if (!parsedItem.description || parsedItem.description.trim().length < 10) missingFields.push('description');
@@ -6852,7 +6956,7 @@ export class RssFeedService {
             processingStatus: 'incomplete',
             missingFields: missingFields,
             derivedData: {
-              validationErrors: [`Geen geldige locatie gevonden in ${expectedMunicipality}`],
+              validationErrors: [`Geen geldige locatie binnen ${MAX_DISTANCE_KM}km van ${expectedMunicipality}`],
               geocodedAddress: parsedItem.address || parsedItem.location
             }
           })
@@ -6916,6 +7020,17 @@ export class RssFeedService {
         await db.update(rssFeedItems)
           .set({ eventId: event.id, isProcessed: true, processingStatus: 'imported' })
           .where(eq(rssFeedItems.id, feedItem.id));
+        
+        // Add primary source for this event
+        if (parsedItem.link) {
+          await storage.addEventSource({
+            eventId: event.id,
+            feedId: feed.id,
+            sourceUrl: parsedItem.link,
+            sourceName: feed.name,
+            isPrimary: true
+          });
+        }
         
         console.log(`[RSS] Created event "${event.title}" at ${address} (ID: ${event.id})`);
       }

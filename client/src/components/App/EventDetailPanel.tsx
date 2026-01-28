@@ -1,13 +1,23 @@
-import React from "react";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Heart, UserPlus, Navigation, Bookmark, BookmarkCheck, ExternalLink, Eye } from "lucide-react";
+import React, { useState } from "react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Heart, UserPlus, Navigation, Bookmark, BookmarkCheck, ExternalLink, Eye, ChevronDown, Globe, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import CategoryIcon from "@/components/Events/CategoryIcon";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+
+interface EventSource {
+  id: number;
+  eventId: number;
+  feedId: number | null;
+  sourceUrl: string;
+  sourceName: string;
+  isPrimary: boolean;
+}
 
 // Define Event type - compatible with both EventInterface and display needs
 interface Event {
@@ -106,6 +116,20 @@ export function EventDetailPanel({
     };
     trackView();
   }, [event.id]);
+
+  // Fetch event sources (multiple sources from different feeds)
+  const { data: eventSources = [] } = useQuery<EventSource[]>({
+    queryKey: ['/api/events', event.id, 'sources'],
+    queryFn: async () => {
+      const response = await fetch(`/api/events/${event.id}/sources`, {
+        credentials: 'include',
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!event.externalUrl,
+    staleTime: 60000,
+  });
 
   // Toggle favorite mutation
   const toggleFavoriteMutation = useMutation({
@@ -558,15 +582,47 @@ export function EventDetailPanel({
       <div className="fixed left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg" style={{ bottom: 0, zIndex: 10000 }}>
         <div className="flex gap-3">
           {event.externalUrl ? (
-            <Button 
-              className="flex-1 h-12"
-              onClick={handleOpenExternalPage}
-              disabled={openExternalPageMutation.isPending}
-              data-testid="button-open-external-page"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Bekijk op originele site
-            </Button>
+            eventSources.length > 1 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    className="flex-1 h-12"
+                    data-testid="button-open-external-page"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Bekijk bron ({eventSources.length})
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64">
+                  {eventSources.map((source) => (
+                    <DropdownMenuItem 
+                      key={source.id}
+                      onClick={() => window.open(source.sourceUrl, '_blank', 'noopener,noreferrer')}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <Globe className="h-4 w-4 text-gray-500" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">{source.sourceName}</span>
+                        {source.isPrimary && (
+                          <span className="text-xs text-green-600">Primaire bron</span>
+                        )}
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                className="flex-1 h-12"
+                onClick={handleOpenExternalPage}
+                disabled={openExternalPageMutation.isPending}
+                data-testid="button-open-external-page"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Bekijk op originele site
+              </Button>
+            )
           ) : (
             <Button 
               className="flex-1 h-12"

@@ -76,6 +76,19 @@ export const events = pgTable("events", {
   venueId: integer("venue_id"), // References venues.id
 });
 
+export const eventSources = pgTable("event_sources", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "cascade" }).notNull(),
+  feedId: integer("feed_id").references(() => rssFeeds.id, { onDelete: "cascade" }),
+  sourceUrl: text("source_url").notNull(),
+  sourceName: text("source_name").notNull(),
+  isPrimary: boolean("is_primary").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type EventSource = typeof eventSources.$inferSelect;
+export type InsertEventSource = typeof eventSources.$inferInsert;
+
 export const favorites = pgTable("favorites", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),

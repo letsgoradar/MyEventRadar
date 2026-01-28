@@ -1084,6 +1084,22 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
   
+  // Get event sources - public endpoint
+  app.get("/api/events/:id/sources", async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+      
+      const sources = await storage.getEventSources(eventId);
+      res.json(sources);
+    } catch (error) {
+      console.error('Error in GET /api/events/:id/sources:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
   // Activiteitenlog ophalen - alleen admin
   app.get("/api/admin/activity-logs", isAdmin, async (req, res) => {
     try {

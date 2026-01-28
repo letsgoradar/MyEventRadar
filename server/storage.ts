@@ -4,6 +4,7 @@ import { eq, and, desc, count, sql, isNotNull, inArray } from 'drizzle-orm';
 import {
   users,
   events,
+  eventSources,
   favorites,
   participants,
   savedSearches,
@@ -23,6 +24,8 @@ import {
   type InsertUser,
   type Event,
   type InsertEvent,
+  type EventSource,
+  type InsertEventSource,
   type Favorite,
   type InsertFavorite,
   type Participant,
@@ -82,6 +85,11 @@ export interface IStorage {
   deleteEvent(id: number): Promise<void>;
   getEventCount(): Promise<number>;
   importEvents(events: InsertEvent[]): Promise<Event[]>;
+  
+  // Event Sources operations
+  addEventSource(source: InsertEventSource): Promise<EventSource>;
+  getEventSources(eventId: number): Promise<EventSource[]>;
+  findEventSourceByUrl(eventId: number, sourceUrl: string): Promise<EventSource | undefined>;
   incrementExternalPageOpens(id: number): Promise<void>;
   incrementDetailViews(id: number): Promise<void>;
   incrementSavesCount(id: number): Promise<void>;
@@ -651,6 +659,35 @@ export class PgStorage implements IStorage {
       }
       
       return results;
+    });
+  }
+
+  async addEventSource(source: InsertEventSource): Promise<EventSource> {
+    return this.withRetry(async () => {
+      const [created] = await db.insert(eventSources).values(source).returning();
+      return created;
+    });
+  }
+
+  async getEventSources(eventId: number): Promise<EventSource[]> {
+    return this.withRetry(async () => {
+      return db.select()
+        .from(eventSources)
+        .where(eq(eventSources.eventId, eventId))
+        .orderBy(desc(eventSources.isPrimary));
+    });
+  }
+
+  async findEventSourceByUrl(eventId: number, sourceUrl: string): Promise<EventSource | undefined> {
+    return this.withRetry(async () => {
+      const [source] = await db.select()
+        .from(eventSources)
+        .where(and(
+          eq(eventSources.eventId, eventId),
+          eq(eventSources.sourceUrl, sourceUrl)
+        ))
+        .limit(1);
+      return source;
     });
   }
   

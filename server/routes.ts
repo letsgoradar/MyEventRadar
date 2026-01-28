@@ -2326,6 +2326,89 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  // Quality Check endpoints
+  app.post("/api/admin/rss-feeds/:id/quality-check", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+      
+      const feed = await storage.getRssFeed(feedId);
+      if (!feed) {
+        return res.status(404).json({ message: "Feed niet gevonden" });
+      }
+      
+      const { qualityCheckService } = await import("./services/quality-check-service");
+      const { useGemini = false } = req.body;
+      
+      let result;
+      if (useGemini) {
+        result = await qualityCheckService.runGeminiCheck(feedId, 3);
+      } else {
+        result = await qualityCheckService.runBasicChecks(feedId);
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in POST /api/admin/rss-feeds/:id/quality-check:', error);
+      res.status(500).json({ message: "Kwaliteitscontrole mislukt" });
+    }
+  });
+  
+  app.get("/api/admin/rss-feeds/:id/quality-check", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+      
+      const { qualityCheckService } = await import("./services/quality-check-service");
+      const result = await qualityCheckService.getLatestCheckResult(feedId);
+      
+      if (!result) {
+        return res.json({ hasCheck: false });
+      }
+      
+      res.json({ hasCheck: true, ...result });
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/:id/quality-check:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  app.get("/api/admin/rss-feeds/:id/quality-check/history", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+      
+      const { qualityCheckService } = await import("./services/quality-check-service");
+      const history = await qualityCheckService.getCheckHistory(feedId);
+      
+      res.json(history);
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/:id/quality-check/history:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  app.post("/api/admin/quality-issues/:id/resolve", isAdmin, async (req, res) => {
+    try {
+      const issueId = parseInt(req.params.id);
+      if (isNaN(issueId)) {
+        return res.status(400).json({ message: "Invalid issue ID" });
+      }
+      
+      await storage.resolveQualityIssue(issueId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error in POST /api/admin/quality-issues/:id/resolve:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.post("/api/admin/visual-configurator/fetch-page", isAdmin, async (req, res) => {
     try {
       const { url } = req.body;

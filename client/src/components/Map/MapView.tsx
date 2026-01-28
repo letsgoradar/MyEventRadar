@@ -34,81 +34,24 @@ const RADAR_CONFIG = {
   }
 };
 
-// Globale radar start tijd voor synchronisatie - PAGE LOAD TIME
-// Dit is de vaste referentie voor alle animaties
-const PAGE_LOAD_TIME = performance.now();
-let globalRadarAngle = 0;
-let radarAnimationFrame: number | null = null;
-let isRadarPaused = false;
-let lastRadarUpdateTime = 0;
-const RADAR_THROTTLE_MS = 16; // ~60fps, maar kan hoger voor minder CPU
-const radarListeners: Set<(angle: number) => void> = new Set();
+// Radar animatie is nu volledig CSS-based
+// Dit elimineert React re-renders en maakt de animatie hardware-accelerated
+// Event markers hebben ook onafhankelijke CSS animaties
 
-// Pauzeer/hervat radar animatie (tijdens pan/zoom)
+// Pauzeer/hervat radar animatie via CSS class toggle
+// Dit gebruikt animation-play-state voor browser-native pauzering
 export function pauseRadarAnimation() {
-  isRadarPaused = true;
+  const sweepElement = document.querySelector('.radar-sweep-xl') as HTMLElement;
+  if (sweepElement) {
+    sweepElement.style.animationPlayState = 'paused';
+  }
 }
 
 export function resumeRadarAnimation() {
-  isRadarPaused = false;
-}
-
-// Start de globale radar animatie met throttling
-function startRadarAnimation() {
-  if (radarAnimationFrame !== null) return;
-  
-  const animate = (currentTime: number) => {
-    // Bereken hoek gebaseerd op tijd sinds page load (vaste referentie)
-    const elapsed = currentTime - PAGE_LOAD_TIME;
-    globalRadarAngle = ((elapsed / RADAR_CONFIG.SWEEP_DURATION) * 360) % 360;
-    
-    // Throttle updates naar listeners (niet elke frame)
-    if (!isRadarPaused && (currentTime - lastRadarUpdateTime >= RADAR_THROTTLE_MS)) {
-      lastRadarUpdateTime = currentTime;
-      radarListeners.forEach(listener => listener(globalRadarAngle));
-    }
-    
-    radarAnimationFrame = requestAnimationFrame(animate);
-  };
-  
-  radarAnimationFrame = requestAnimationFrame(animate);
-}
-
-// Bereken de CSS animation delay voor een event gebaseerd op zijn hoek
-// Dit zorgt ervoor dat de CSS animatie synchroon loopt met de JS radar sweep
-function calculateSyncedAnimationDelay(eventAngle: number): number {
-  const sweepDurationSec = RADAR_CONFIG.SWEEP_DURATION / 1000;
-  const currentTime = performance.now();
-  const elapsed = currentTime - PAGE_LOAD_TIME;
-  
-  // Huidige radar hoek (0-360)
-  const currentRadarAngle = ((elapsed / RADAR_CONFIG.SWEEP_DURATION) * 360) % 360;
-  
-  // Bereken hoeveel graden de radar nog moet draaien om dit event te bereiken
-  let degreesToEvent = eventAngle - currentRadarAngle;
-  if (degreesToEvent < 0) degreesToEvent += 360;
-  
-  // Converteer naar seconden
-  const timeToEvent = (degreesToEvent / 360) * sweepDurationSec;
-  
-  // Return als positieve delay (CSS zal wachten tot het juiste moment)
-  return timeToEvent;
-}
-
-// Hook om de radar hoek te volgen
-function useRadarAngle() {
-  const [angle, setAngle] = React.useState(globalRadarAngle);
-  
-  React.useEffect(() => {
-    startRadarAnimation();
-    radarListeners.add(setAngle);
-    
-    return () => {
-      radarListeners.delete(setAngle);
-    };
-  }, []);
-  
-  return angle;
+  const sweepElement = document.querySelector('.radar-sweep-xl') as HTMLElement;
+  if (sweepElement) {
+    sweepElement.style.animationPlayState = 'running';
+  }
 }
 
 // Bereken adaptieve radar grootte op basis van zoomlevel
@@ -134,7 +77,7 @@ function UserLocationMarker({
   const [isLoadingAddress, setIsLoadingAddress] = React.useState(true);
   const markerRef = React.useRef<L.Marker>(null);
   const map = useMap();
-  const radarAngle = useRadarAngle();
+  // Radar animatie is nu pure CSS - geen JavaScript hoek tracking meer nodig
 
   // Haal het adres op via reverse geocoding
   React.useEffect(() => {
@@ -183,13 +126,17 @@ function UserLocationMarker({
   const halfClickable = clickableSize / 2;
   const { primary, glow } = RADAR_CONFIG.COLOR;
   
+  // Pure CSS radar animatie - geen JavaScript rotation nodig
+  // Dit voorkomt React re-renders en maakt de animatie hardware-accelerated
+  const sweepDuration = RADAR_CONFIG.SWEEP_DURATION;
+  
   const userLocationIcon = L.divIcon({
     className: 'user-location-marker',
     html: `
       <div class="radar-wrapper-xl">
         <div class="radar-container-xl">
-          <!-- Grote radar sweep effect met groene kleur -->
-          <div class="radar-sweep-xl" style="transform: rotate(${radarAngle}deg);"></div>
+          <!-- Grote radar sweep effect met groene kleur - pure CSS animatie -->
+          <div class="radar-sweep-xl"></div>
           <!-- Radar bereik cirkel -->
           <div class="radar-range-xl"></div>
         </div>
@@ -238,7 +185,7 @@ function UserLocationMarker({
           pointer-events: none;
         }
         
-        /* Roterende radar sweep - grote groene straal */
+        /* Roterende radar sweep - pure CSS @keyframes animatie */
         .radar-sweep-xl {
           position: absolute;
           width: ${size - 20}px;
@@ -254,8 +201,18 @@ function UserLocationMarker({
             rgba(${primary}, 0.25) 357deg,
             rgba(${primary}, 0.12) 360deg
           );
-          transition: none;
           pointer-events: none;
+          animation: radarSweepRotate ${sweepDuration}ms linear infinite;
+          will-change: transform;
+        }
+        
+        @keyframes radarSweepRotate {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
         
         /* Centraal punt - groen thema - dit is klikbaar */
@@ -513,8 +470,8 @@ function calculateAngleFromUser(userLat: number, userLng: number, eventLat: numb
   return angle;
 }
 
-// Functie om event markers te maken met radar-gesynchroniseerde animatie
-// De animatie delay is gebaseerd op de hoek van het event t.o.v. de gebruiker
+// Functie om event markers te maken met onafhankelijke CSS animatie
+// Event markers pulseren nu onafhankelijk van de radar sweep voor betere performance
 function createEventIcon(
   category: string, 
   isExpired: boolean = false, 
@@ -530,17 +487,17 @@ function createEventIcon(
   const { primary } = RADAR_CONFIG.COLOR;
   const scanColor = `rgb(${primary})`;
   
-  const sweepDurationSec = RADAR_CONFIG.SWEEP_DURATION / 1000;
-  
-  // Bereken gesynchroniseerde delay - wanneer de radar dit event zal bereiken
-  const syncedDelay = calculateSyncedAnimationDelay(eventAngle);
+  // Gebruik een langere pulse cyclus (3 seconden) voor subtielere animatie
+  // De delay is gebaseerd op de eventAngle voor visuele spreiding
+  const pulseDuration = 3;
+  const staggerDelay = (eventAngle / 360) * pulseDuration;
   
   return L.divIcon({
     className: 'custom-div-icon event-marker-radar',
     html: `
       <div class="evt-radar-pin">
-        <div class="evt-scan-ring" style="animation-delay: ${syncedDelay}s;"></div>
-        <div class="evt-scan-glow" style="animation-delay: ${syncedDelay}s;"></div>
+        <div class="evt-scan-ring" style="animation-delay: ${staggerDelay}s;"></div>
+        <div class="evt-scan-glow" style="animation-delay: ${staggerDelay}s;"></div>
         <div class="evt-dot ${isSelected ? 'selected' : ''}">
           <div class="evt-inner" style="background-color: ${color};"></div>
         </div>
@@ -562,7 +519,8 @@ function createEventIcon(
           border-radius: 50%;
           border: 2px solid ${scanColor};
           opacity: 0;
-          animation: evtScanRing ${sweepDurationSec}s ease-out infinite;
+          animation: evtScanRing ${pulseDuration}s ease-out infinite;
+          will-change: transform, opacity;
         }
         
         .evt-scan-glow {
@@ -572,7 +530,8 @@ function createEventIcon(
           border-radius: 50%;
           background: ${scanColor};
           opacity: 0;
-          animation: evtScanGlow ${sweepDurationSec}s ease-out infinite;
+          animation: evtScanGlow ${pulseDuration}s ease-out infinite;
+          will-change: transform, opacity;
         }
         
         .evt-dot {
@@ -599,22 +558,22 @@ function createEventIcon(
           border-radius: 50%;
         }
         
-        /* Scan ring animatie - kort maar zichtbaar */
+        /* Scan ring animatie - subtiele pulse */
         @keyframes evtScanRing {
           0% {
             transform: scale(1);
             opacity: 0;
           }
-          2% {
+          5% {
             transform: scale(1);
-            opacity: 0.8;
+            opacity: 0.6;
           }
-          15% {
-            transform: scale(1.6);
+          25% {
+            transform: scale(1.5);
             opacity: 0;
           }
           100% {
-            transform: scale(1.6);
+            transform: scale(1.5);
             opacity: 0;
           }
         }
@@ -625,17 +584,17 @@ function createEventIcon(
             opacity: 0;
             filter: blur(0px);
           }
-          2% {
-            opacity: 0.5;
-            filter: blur(6px);
+          5% {
+            opacity: 0.4;
+            filter: blur(4px);
           }
-          12% {
+          20% {
             opacity: 0;
-            filter: blur(10px);
+            filter: blur(8px);
           }
           100% {
             opacity: 0;
-            filter: blur(10px);
+            filter: blur(8px);
           }
         }
       </style>

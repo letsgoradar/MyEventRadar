@@ -296,6 +296,195 @@ export class QualityCheckService {
   async getCheckHistory(feedId: number): Promise<FeedQualityCheck[]> {
     return storage.getQualityChecksByFeed(feedId);
   }
+  
+  async runGeminiCheck(feedId: number, sampleSize: number = 3): Promise<QualityCheckResult> {
+    console.log(`[QualityCheck] Starting Gemini check for feed ${feedId} with sample size ${sampleSize}`);
+    
+    const basicResult = await this.runBasicChecks(feedId);
+    
+    const qualityCheck = await storage.getQualityCheck(basicResult.checkId);
+    if (!qualityCheck) {
+      throw new Error('Quality check not found');
+    }
+    
+    await storage.updateQualityCheck(qualityCheck.id, {
+      status: 'running',
+      usedGemini: true,
+      geminiSampleSize: sampleSize,
+    });
+    
+    try {
+      const feedItems = await db.select({
+        item: rssFeedItems,
+        event: events
+      })
+      .from(rssFeedItems)
+      .leftJoin(events, eq(rssFeedItems.eventId, events.id))
+      .where(and(
+        eq(rssFeedItems.feedId, feedId),
+        isNotNull(rssFeedItems.eventId),
+        isNotNull(rssFeedItems.link)
+      ))
+      .limit(sampleSize);
+      
+      const geminiIssues: InsertQualityCheckIssue[] = [];
+      
+      for (const { item, event } of feedItems) {
+        if (!event || !item.link) continue;
+        
+        try {
+          const sourceContent = await this.fetchSourceContent(item.link);
+          if (!sourceContent) continue;
+          
+          const comparison = await this.compareWithGemini(event, item, sourceContent);
+          if (comparison.issues.length > 0) {
+            geminiIssues.push(...comparison.issues.map(issue => ({
+              ...issue,
+              qualityCheckId: qualityCheck.id,
+              eventId: event.id,
+              feedItemId: item.id,
+            })));
+          }
+        } catch (error) {
+          console.error(`[QualityCheck] Error checking event ${event.id}:`, error);
+        }
+      }
+      
+      for (const issue of geminiIssues) {
+        await storage.createQualityIssue(issue);
+      }
+      
+      const allIssues = await storage.getQualityIssuesByCheck(qualityCheck.id);
+      const eventsWithIssues = new Set(allIssues.map(i => i.eventId)).size;
+      const score = basicResult.totalEventsChecked > 0 
+        ? Math.round(((basicResult.totalEventsChecked - eventsWithIssues) / basicResult.totalEventsChecked) * 100)
+        : 100;
+      
+      await storage.updateQualityCheck(qualityCheck.id, {
+        status: 'completed',
+        completedAt: new Date(),
+        eventsWithIssues,
+        overallScore: score,
+      });
+      
+      console.log(`[QualityCheck] Gemini check completed: ${geminiIssues.length} additional issues found`);
+      
+      return {
+        checkId: qualityCheck.id,
+        feedId,
+        status: 'completed',
+        totalEventsChecked: basicResult.totalEventsChecked,
+        eventsWithIssues,
+        overallScore: score,
+        issues: allIssues,
+        usedGemini: true,
+        geminiSampleSize: sampleSize,
+      };
+      
+    } catch (error) {
+      console.error(`[QualityCheck] Gemini check error:`, error);
+      
+      await storage.updateQualityCheck(qualityCheck.id, {
+        status: 'failed',
+        completedAt: new Date(),
+      });
+      
+      throw error;
+    }
+  }
+  
+  private async fetchSourceContent(url: string): Promise<string | null> {
+    try {
+      const response = await axios.get(url, {
+        timeout: 10000,
+        maxRedirects: 3,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; QualityCheck/1.0)',
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`[QualityCheck] Failed to fetch source: ${url}`);
+      return null;
+    }
+  }
+  
+  private async compareWithGemini(
+    event: typeof events.$inferSelect,
+    feedItem: typeof rssFeedItems.$inferSelect,
+    sourceHtml: string
+  ): Promise<{ issues: Omit<InsertQualityCheckIssue, 'qualityCheckId' | 'eventId' | 'feedItemId'>[] }> {
+    const { AiProvider } = await import('./ai-provider');
+    
+    const strippedHtml = sourceHtml
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .substring(0, 3000);
+    
+    const systemPrompt = `Je bent een kwaliteitscontrole assistent voor evenementen data. 
+Vergelijk de geïmporteerde event data met de bron pagina content en identificeer discrepanties.
+Geef je antwoord als JSON array met objecten die de volgende velden hebben:
+- issueType: string (bijv. 'title_mismatch', 'date_mismatch', 'description_mismatch', 'missing_info')
+- severity: 'error' | 'warning' | 'info'
+- field: string (welk veld het betreft)
+- message: string (korte Nederlandse beschrijving van het probleem)
+- sourceValue: string (waarde gevonden in bron, indien van toepassing)
+- importedValue: string (waarde die we geïmporteerd hebben)
+
+Alleen echte discrepanties rapporteren, geen kleine formatting verschillen.
+Als alles correct is, geef dan een lege array [].`;
+
+    const userPrompt = `Vergelijk deze event data met de bronpagina:
+
+GEÏMPORTEERDE EVENT DATA:
+- Titel: ${event.title}
+- Beschrijving: ${event.description?.substring(0, 500) || 'geen'}
+- Startdatum: ${event.startTime}
+- Einddatum: ${event.endTime || 'niet ingesteld'}
+- Adres: ${event.address || 'niet ingesteld'}
+
+BRONPAGINA CONTENT:
+${strippedHtml}
+
+Geef je analyse als JSON array.`;
+
+    const result = await AiProvider.complete({
+      systemPrompt,
+      userPrompt,
+      maxTokens: 1000,
+      temperature: 0.1,
+      jsonMode: true,
+    });
+    
+    if (!result.success || !result.content) {
+      console.error(`[QualityCheck] Gemini comparison failed:`, result.error);
+      return { issues: [] };
+    }
+    
+    try {
+      let parsed = JSON.parse(result.content);
+      if (!Array.isArray(parsed)) {
+        parsed = [];
+      }
+      
+      return {
+        issues: parsed.map((issue: any) => ({
+          issueType: issue.issueType || 'source_mismatch',
+          severity: issue.severity || 'warning',
+          field: issue.field,
+          message: issue.message || 'Discrepantie gevonden',
+          sourceValue: issue.sourceValue,
+          importedValue: issue.importedValue,
+        }))
+      };
+    } catch (error) {
+      console.error(`[QualityCheck] Failed to parse Gemini response:`, result.content);
+      return { issues: [] };
+    }
+  }
 }
 
 export const qualityCheckService = new QualityCheckService();

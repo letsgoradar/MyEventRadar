@@ -6354,7 +6354,7 @@ export class RssFeedService {
   static async processFeed(
     feed: RssFeed, 
     storage?: any,
-    onProgress?: (progress: { status?: string; totalItems?: number; processedItems?: number; eventsCreated?: number; eventsUpdated?: number; message?: string }) => void
+    onProgress?: (progress: { status?: string; totalItems?: number; processedItems?: number; eventsCreated?: number; eventsUpdated?: number; message?: string; logMessage?: string }) => void
   ): Promise<{ success: boolean; itemsProcessed: number; eventsCreated: number; eventsUpdated: number; error?: string }> {
     const feedStartTime = Date.now();
     
@@ -6374,7 +6374,7 @@ export class RssFeedService {
       }
       
       // Report fetching status
-      onProgress?.({ status: 'fetching', message: 'Feed ophalen...' });
+      onProgress?.({ status: 'fetching', message: 'Feed ophalen...', logMessage: `Ophalen ${feed.url}` });
 
       let result: FeedParseResult;
 
@@ -6451,7 +6451,8 @@ export class RssFeedService {
         status: 'processing', 
         totalItems: consolidatedItems.length,
         processedItems: 0,
-        message: `${consolidatedItems.length} items verwerken...`
+        message: `${consolidatedItems.length} items verwerken...`,
+        logMessage: `Feed geladen: ${result.items.length} items → ${consolidatedItems.length} na consolidatie`
       });
 
       let newItemsCount = 0;
@@ -6462,18 +6463,17 @@ export class RssFeedService {
         if (result.isNew) newItemsCount++;
         if (result.isUpdated) updatedItemsCount++;
         
-        // Report progress every 5 items or at the end
-        if (i % 5 === 0 || i === consolidatedItems.length - 1) {
-          const statusMessage = newItemsCount > 0 
-            ? `${newItemsCount} nieuw, ${updatedItemsCount} bijgewerkt`
-            : `${updatedItemsCount} bijgewerkt`;
-          onProgress?.({
-            status: 'processing',
-            processedItems: i + 1,
-            eventsCreated: newItemsCount,
-            message: `${i + 1}/${consolidatedItems.length} items verwerkt (${statusMessage})`
-          });
-        }
+        // Log message for each item
+        const itemTitle = item.title?.substring(0, 40) || 'Onbekend';
+        const itemStatus = result.isNew ? 'NIEUW' : (result.isUpdated ? 'UPDATE' : 'SKIP');
+        onProgress?.({
+          status: 'processing',
+          processedItems: i + 1,
+          eventsCreated: newItemsCount,
+          eventsUpdated: updatedItemsCount,
+          message: `${i + 1}/${consolidatedItems.length} items verwerkt`,
+          logMessage: `[${itemStatus}] ${itemTitle}${itemTitle.length >= 40 ? '...' : ''}`
+        });
       }
 
       await db.update(rssFeeds)

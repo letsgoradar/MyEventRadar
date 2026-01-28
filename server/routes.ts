@@ -41,6 +41,7 @@ interface SyncProgress {
   startTime: number;
   message?: string;
   error?: string;
+  logs?: string[];
 }
 const SYNC_PROGRESS = new Map<number, SyncProgress>();
 
@@ -2033,25 +2034,36 @@ Respond with ONLY the search term, nothing else.`,
         eventsRejected: 0,
         rejectionReasons: {},
         startTime: Date.now(),
-        message: 'Feed ophalen...'
+        message: 'Feed ophalen...',
+        logs: [`[${new Date().toLocaleTimeString('nl-NL')}] Start synchronisatie ${feed.name}`]
       });
 
       const { RssFeedService } = await import('./services/rss-feed-service');
       
-      // Use progress callback
+      // Use progress callback with log collection
       const result = await RssFeedService.processFeed(feed, storage, (progress) => {
         const current = SYNC_PROGRESS.get(feedId);
         if (current) {
+          const newLogs = current.logs || [];
+          if (progress.logMessage) {
+            newLogs.push(`[${new Date().toLocaleTimeString('nl-NL')}] ${progress.logMessage}`);
+            if (newLogs.length > 100) newLogs.shift();
+          }
           SYNC_PROGRESS.set(feedId, {
             ...current,
             ...progress,
             status: progress.status || current.status,
+            logs: newLogs
           });
         }
       });
       
       // Mark as completed
       const resultAny = result as any;
+      const currentProgress = SYNC_PROGRESS.get(feedId);
+      const completedLogs = currentProgress?.logs || [];
+      completedLogs.push(`[${new Date().toLocaleTimeString('nl-NL')}] ✓ Synchronisatie voltooid: ${result.eventsCreated} nieuw, ${result.eventsUpdated} bijgewerkt`);
+      
       SYNC_PROGRESS.set(feedId, {
         feedId,
         feedName: feed.name,
@@ -2063,8 +2075,9 @@ Respond with ONLY the search term, nothing else.`,
         eventsSkipped: resultAny.eventsSkipped || 0,
         eventsRejected: resultAny.eventsRejected || 0,
         rejectionReasons: resultAny.rejectionReasons || {},
-        startTime: SYNC_PROGRESS.get(feedId)?.startTime || Date.now(),
-        message: 'Synchronisatie voltooid'
+        startTime: currentProgress?.startTime || Date.now(),
+        message: 'Synchronisatie voltooid',
+        logs: completedLogs
       });
       
       // Clean up after 30 seconds

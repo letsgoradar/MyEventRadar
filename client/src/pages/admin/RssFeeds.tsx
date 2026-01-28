@@ -248,6 +248,7 @@ export default function RssFeedsPage() {
     rejectionReasons?: Record<string, number>;
     percentComplete: number;
     message?: string;
+    logs?: string[];
   } | null>(null);
   
   const pollIntervalRef = { current: null as NodeJS.Timeout | null };
@@ -1019,24 +1020,54 @@ export default function RssFeedsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           {syncingFeedId === feed.id && syncProgress ? (
-                            <div className="flex flex-col items-end gap-1 min-w-[150px]">
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                <span>{syncProgress.message || 'Bezig...'}</span>
+                            <div className="flex flex-col gap-2 min-w-[350px] max-w-[450px] bg-slate-50 p-3 rounded-lg border border-slate-200">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-sm font-medium">
+                                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                  <span>{syncProgress.status === 'fetching' ? 'Feed ophalen...' : 'Verwerken...'}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {syncProgress.processedItems}/{syncProgress.totalItems || '?'}
+                                </span>
                               </div>
+                              
                               {syncProgress.totalItems > 0 && (
-                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                <div className="w-full bg-gray-200 rounded-full h-2">
                                   <div 
-                                    className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                                    className="bg-primary h-2 rounded-full transition-all duration-300"
                                     style={{ width: `${syncProgress.percentComplete || 0}%` }}
                                   />
                                 </div>
                               )}
-                              <span className="text-[10px] text-muted-foreground">
-                                {syncProgress.processedItems}/{syncProgress.totalItems} items
-                                {syncProgress.eventsCreated > 0 && ` • ${syncProgress.eventsCreated} nieuw`}
-                                {(syncProgress.eventsUpdated || 0) > 0 && ` • ${syncProgress.eventsUpdated} bijgewerkt`}
-                              </span>
+                              
+                              <div className="flex gap-3 text-xs text-muted-foreground">
+                                {syncProgress.eventsCreated > 0 && (
+                                  <span className="text-green-600 font-medium">{syncProgress.eventsCreated} nieuw</span>
+                                )}
+                                {(syncProgress.eventsUpdated || 0) > 0 && (
+                                  <span className="text-blue-600 font-medium">{syncProgress.eventsUpdated} bijgewerkt</span>
+                                )}
+                              </div>
+                              
+                              {/* Realtime log venster */}
+                              {syncProgress.logs && syncProgress.logs.length > 0 && (
+                                <div className="bg-slate-900 text-slate-100 rounded text-[11px] font-mono p-2 max-h-[180px] overflow-y-auto">
+                                  {syncProgress.logs.slice(-20).map((log, idx) => (
+                                    <div 
+                                      key={idx} 
+                                      className={`py-0.5 ${
+                                        log.includes('[NIEUW]') ? 'text-green-400' : 
+                                        log.includes('[UPDATE]') ? 'text-blue-400' : 
+                                        log.includes('[SKIP]') ? 'text-slate-500' :
+                                        log.includes('✓') ? 'text-green-300 font-semibold' :
+                                        'text-slate-300'
+                                      }`}
+                                    >
+                                      {log}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ) : (
                           <div className="flex justify-end gap-2">

@@ -56,6 +56,7 @@ import { lazy, Suspense } from 'react';
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
 const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
 const FeedAnalyzerModal = lazy(() => import('@/components/admin/FeedAnalyzerModal'));
+const QualityCheckPanel = lazy(() => import('@/components/admin/QualityCheckPanel'));
 
 interface RssFeed {
   id: number;
@@ -1039,6 +1040,9 @@ export default function RssFeedsPage() {
                             </div>
                           ) : (
                           <div className="flex justify-end gap-2">
+                            <Suspense fallback={null}>
+                              <QualityCheckPanel feedId={feed.id} feedName={feed.name} />
+                            </Suspense>
                             <Button 
                               variant="ghost" 
                               size="icon"

@@ -16,6 +16,8 @@ import {
   aiExtractionProfiles,
   venues,
   geocodeCache,
+  feedQualityChecks,
+  qualityCheckIssues,
   type User,
   type InsertUser,
   type Event,
@@ -42,6 +44,10 @@ import {
   type InsertAiExtractionProfile,
   type Venue,
   type InsertVenue,
+  type FeedQualityCheck,
+  type InsertFeedQualityCheck,
+  type QualityCheckIssue,
+  type InsertQualityCheckIssue,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
@@ -167,6 +173,21 @@ export interface IStorage {
   getGeocodeFromCache(addressQuery: string): Promise<{ latitude: number; longitude: number; displayName?: string } | null>;
   saveGeocodeToCache(data: { addressQuery: string; latitude: number; longitude: number; displayName?: string; municipality?: string }): Promise<void>;
   getGeocodeCacheStats(): Promise<{ totalEntries: number; totalHits: number }>;
+
+  // Quality Check operations
+  createQualityCheck(check: InsertFeedQualityCheck): Promise<FeedQualityCheck>;
+  getQualityCheck(id: number): Promise<FeedQualityCheck | undefined>;
+  getQualityChecksByFeed(feedId: number): Promise<FeedQualityCheck[]>;
+  getLatestQualityCheck(feedId: number): Promise<FeedQualityCheck | undefined>;
+  updateQualityCheck(id: number, check: Partial<FeedQualityCheck>): Promise<FeedQualityCheck>;
+  deleteQualityCheck(id: number): Promise<void>;
+  
+  // Quality Check Issues operations
+  createQualityIssue(issue: InsertQualityCheckIssue): Promise<QualityCheckIssue>;
+  getQualityIssuesByCheck(checkId: number): Promise<QualityCheckIssue[]>;
+  getUnresolvedIssuesByFeed(feedId: number): Promise<QualityCheckIssue[]>;
+  resolveQualityIssue(id: number): Promise<void>;
+  deleteQualityIssuesByCheck(checkId: number): Promise<void>;
 }
 
 export class PgStorage implements IStorage {
@@ -1178,6 +1199,99 @@ export class PgStorage implements IStorage {
         totalEntries: stats[0]?.totalEntries || 0,
         totalHits: Number(stats[0]?.totalHits) || 0
       };
+    });
+  }
+
+  // Quality Check operations
+  async createQualityCheck(check: InsertFeedQualityCheck): Promise<FeedQualityCheck> {
+    return this.withRetry(async () => {
+      const result = await db.insert(feedQualityChecks).values(check).returning();
+      return result[0];
+    });
+  }
+
+  async getQualityCheck(id: number): Promise<FeedQualityCheck | undefined> {
+    return this.withRetry(async () => {
+      const result = await db.select().from(feedQualityChecks).where(eq(feedQualityChecks.id, id));
+      return result[0];
+    });
+  }
+
+  async getQualityChecksByFeed(feedId: number): Promise<FeedQualityCheck[]> {
+    return this.withRetry(async () => {
+      return db.select().from(feedQualityChecks)
+        .where(eq(feedQualityChecks.feedId, feedId))
+        .orderBy(desc(feedQualityChecks.createdAt));
+    });
+  }
+
+  async getLatestQualityCheck(feedId: number): Promise<FeedQualityCheck | undefined> {
+    return this.withRetry(async () => {
+      const result = await db.select().from(feedQualityChecks)
+        .where(eq(feedQualityChecks.feedId, feedId))
+        .orderBy(desc(feedQualityChecks.createdAt))
+        .limit(1);
+      return result[0];
+    });
+  }
+
+  async updateQualityCheck(id: number, check: Partial<FeedQualityCheck>): Promise<FeedQualityCheck> {
+    return this.withRetry(async () => {
+      const result = await db.update(feedQualityChecks)
+        .set(check)
+        .where(eq(feedQualityChecks.id, id))
+        .returning();
+      return result[0];
+    });
+  }
+
+  async deleteQualityCheck(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(feedQualityChecks).where(eq(feedQualityChecks.id, id));
+    });
+  }
+
+  // Quality Check Issues operations
+  async createQualityIssue(issue: InsertQualityCheckIssue): Promise<QualityCheckIssue> {
+    return this.withRetry(async () => {
+      const result = await db.insert(qualityCheckIssues).values(issue).returning();
+      return result[0];
+    });
+  }
+
+  async getQualityIssuesByCheck(checkId: number): Promise<QualityCheckIssue[]> {
+    return this.withRetry(async () => {
+      return db.select().from(qualityCheckIssues)
+        .where(eq(qualityCheckIssues.qualityCheckId, checkId))
+        .orderBy(desc(qualityCheckIssues.createdAt));
+    });
+  }
+
+  async getUnresolvedIssuesByFeed(feedId: number): Promise<QualityCheckIssue[]> {
+    return this.withRetry(async () => {
+      const latestCheck = await this.getLatestQualityCheck(feedId);
+      if (!latestCheck) return [];
+      
+      return db.select().from(qualityCheckIssues)
+        .where(and(
+          eq(qualityCheckIssues.qualityCheckId, latestCheck.id),
+          eq(qualityCheckIssues.isResolved, false)
+        ))
+        .orderBy(desc(qualityCheckIssues.createdAt));
+    });
+  }
+
+  async resolveQualityIssue(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.update(qualityCheckIssues)
+        .set({ isResolved: true, resolvedAt: new Date() })
+        .where(eq(qualityCheckIssues.id, id));
+    });
+  }
+
+  async deleteQualityIssuesByCheck(checkId: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(qualityCheckIssues).where(eq(qualityCheckIssues.qualityCheckId, checkId));
     });
   }
 }

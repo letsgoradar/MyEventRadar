@@ -243,6 +243,44 @@ export const feedFieldMappings = pgTable("feed_field_mappings", {
 export type FeedFieldMapping = typeof feedFieldMappings.$inferSelect;
 export type InsertFeedFieldMapping = typeof feedFieldMappings.$inferInsert;
 
+export const QUALITY_CHECK_STATUS = ['pending', 'running', 'completed', 'failed'] as const;
+export const QUALITY_ISSUE_SEVERITY = ['error', 'warning', 'info'] as const;
+
+export const feedQualityChecks = pgTable("feed_quality_checks", {
+  id: serial("id").primaryKey(),
+  feedId: integer("feed_id").references(() => rssFeeds.id, { onDelete: "cascade" }).notNull(),
+  status: text("status").notNull().default('pending').$type<typeof QUALITY_CHECK_STATUS[number]>(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  totalEventsChecked: integer("total_events_checked").default(0),
+  eventsWithIssues: integer("events_with_issues").default(0),
+  overallScore: integer("overall_score"), // 0-100
+  usedGemini: boolean("used_gemini").default(false),
+  geminiSampleSize: integer("gemini_sample_size").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const qualityCheckIssues = pgTable("quality_check_issues", {
+  id: serial("id").primaryKey(),
+  qualityCheckId: integer("quality_check_id").references(() => feedQualityChecks.id, { onDelete: "cascade" }).notNull(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "cascade" }),
+  feedItemId: integer("feed_item_id").references(() => rssFeedItems.id, { onDelete: "cascade" }),
+  issueType: text("issue_type").notNull(), // 'missing_image', 'broken_image', 'short_description', 'invalid_date', 'location_outside_nl', 'source_mismatch'
+  severity: text("severity").notNull().default('warning').$type<typeof QUALITY_ISSUE_SEVERITY[number]>(),
+  field: text("field"), // Which field has the issue
+  message: text("message").notNull(),
+  sourceValue: text("source_value"), // Value from source (for comparison checks)
+  importedValue: text("imported_value"), // Value we imported
+  isResolved: boolean("is_resolved").default(false),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type FeedQualityCheck = typeof feedQualityChecks.$inferSelect;
+export type InsertFeedQualityCheck = typeof feedQualityChecks.$inferInsert;
+export type QualityCheckIssue = typeof qualityCheckIssues.$inferSelect;
+export type InsertQualityCheckIssue = typeof qualityCheckIssues.$inferInsert;
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,

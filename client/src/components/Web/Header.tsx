@@ -383,7 +383,7 @@ export function Header({
                 </span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="p-4 w-[300px]" align="center">
+            <PopoverContent className="p-4 w-[300px] z-[100]" align="center">
               <DateRangeFilter
                 startDate={startDate}
                 endDate={endDate}

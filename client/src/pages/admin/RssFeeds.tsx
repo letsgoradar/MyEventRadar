@@ -278,6 +278,12 @@ export default function RssFeedsPage() {
 
   const syncSingleFeedMutation = useMutation({
     mutationFn: async (id: number) => {
+      // Get the feed name for immediate display
+      const feed = feeds.find(f => f.id === id);
+      const feedName = feed?.name || 'Feed';
+      const timeStr = new Date().toLocaleTimeString('nl-NL');
+      
+      // Set UI state immediately for instant feedback (shows "starting" state)
       setSyncingFeedId(id);
       setSyncProgress({ 
         status: 'pending', 
@@ -285,25 +291,86 @@ export default function RssFeedsPage() {
         processedItems: 0, 
         eventsCreated: 0, 
         percentComplete: 0,
-        message: 'Verbinden met feed...' 
+        message: 'Aanvraag versturen...',
+        logs: [
+          `[${timeStr}] ▶ Sync aangevraagd voor "${feedName}"`,
+          `[${timeStr}] ⏳ Wachten op bevestiging...`
+        ]
       });
       
-      // Start polling for progress
-      pollIntervalRef.current = setInterval(async () => {
-        const progress = await pollProgress(id);
-        if (progress?.status === 'completed' || progress?.status === 'error') {
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
+      // Helper to start polling for progress updates
+      const startPolling = () => {
+        let pollCount = 0;
+        pollIntervalRef.current = setInterval(async () => {
+          pollCount++;
+          const progress = await pollProgress(id);
+          if (progress?.status === 'completed' || progress?.status === 'error') {
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
           }
-        }
-      }, 500);
+          // Slow down polling after initial rapid checks
+          if (pollCount === 5 && pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = setInterval(async () => {
+              const p = await pollProgress(id);
+              if (p?.status === 'completed' || p?.status === 'error') {
+                if (pollIntervalRef.current) {
+                  clearInterval(pollIntervalRef.current);
+                  pollIntervalRef.current = null;
+                }
+              }
+            }, 500);
+          }
+        }, 200);
+      };
+
+      // Make request using a streaming approach - fetch starts, then we poll
+      // We use a controller to be able to start polling right away
+      const controller = new AbortController();
+      
+      // Start the request (non-blocking via fetch)
+      const requestPromise = fetch(`/api/admin/rss-feeds/${id}/sync`, {
+        method: 'POST',
+        credentials: 'include',
+        signal: controller.signal
+      });
+      
+      // Start polling immediately - server sets progress before responding
+      startPolling();
       
       try {
-        const result = await apiRequest(`/api/admin/rss-feeds/${id}/sync`, {
-          method: 'POST',
-        });
-        return result;
+        const response = await requestPromise;
+        
+        if (!response.ok) {
+          // Parse error response
+          const text = await response.text();
+          let errorData: any = null;
+          try {
+            errorData = JSON.parse(text);
+          } catch {
+            // Not JSON
+          }
+          
+          // Clear UI state on rejection
+          setSyncingFeedId(null);
+          setSyncProgress(null);
+          
+          // Create error with structured data
+          const error = new Error(errorData?.message || text) as any;
+          if (errorData) {
+            Object.assign(error, errorData);
+          }
+          throw error;
+        }
+        
+        return await response.json();
+      } catch (error) {
+        // Clear UI state on any error
+        setSyncingFeedId(null);
+        setSyncProgress(null);
+        throw error;
       } finally {
         // Always clean up polling
         if (pollIntervalRef.current) {
@@ -329,11 +396,31 @@ export default function RssFeedsPage() {
     onError: (error: any) => {
       setSyncingFeedId(null);
       setSyncProgress(null);
-      toast({
-        title: 'Sync mislukt',
-        description: error.message || 'Er is een fout opgetreden.',
-        variant: 'destructive',
-      });
+      
+      // Check if it's a "sync already running" error (409 conflict)
+      if (error.runningFeed) {
+        const running = error.runningFeed;
+        toast({
+          title: `Feed "${running.name}" is al bezig`,
+          description: `Wacht tot de huidige sync is voltooid (${running.percentComplete || 0}% klaar).`,
+          variant: 'default',
+          duration: 5000,
+        });
+      } else if (error.syncAllProgress) {
+        const progress = error.syncAllProgress;
+        toast({
+          title: 'Sync Alle Feeds is actief',
+          description: `Bezig met "${progress.currentFeedName || 'opstarten'}" (${progress.completedFeeds}/${progress.totalFeeds} feeds). Wacht of stop eerst de batch sync.`,
+          variant: 'default', 
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: 'Sync mislukt',
+          description: error.message || 'Er is een fout opgetreden.',
+          variant: 'destructive',
+        });
+      }
     },
   });
 

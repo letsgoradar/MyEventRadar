@@ -2016,12 +2016,54 @@ Respond with ONLY the search term, nothing else.`,
         return res.status(400).json({ message: "Invalid feed ID" });
       }
 
+      // Validate feed exists first (before concurrency checks)
       const feed = await storage.getRssFeed(feedId);
       if (!feed) {
         return res.status(404).json({ message: "Feed not found" });
       }
 
-      // Initialize progress tracking
+      // Check if any sync is already running
+      const runningSync = Array.from(SYNC_PROGRESS.entries()).find(
+        ([, progress]) => progress.status !== 'completed' && progress.status !== 'error'
+      );
+      
+      if (runningSync) {
+        const [runningFeedId, runningProgress] = runningSync;
+        return res.status(409).json({ 
+          message: `Er loopt al een synchronisatie voor "${runningProgress.feedName}". Wacht tot deze is voltooid.`,
+          runningFeed: {
+            id: runningFeedId,
+            name: runningProgress.feedName,
+            status: runningProgress.status,
+            processedItems: runningProgress.processedItems,
+            totalItems: runningProgress.totalItems,
+            percentComplete: runningProgress.totalItems > 0 
+              ? Math.round((runningProgress.processedItems / runningProgress.totalItems) * 100)
+              : 0
+          }
+        });
+      }
+
+      // Also check if sync-all is running
+      if (SYNC_ALL_PROGRESS?.isRunning) {
+        return res.status(409).json({
+          message: `Er loopt een "Sync Alle Feeds" operatie (bezig met "${SYNC_ALL_PROGRESS.currentFeedName || 'opstarten'}"). Wacht tot deze is voltooid of stop deze eerst.`,
+          syncAllProgress: {
+            completedFeeds: SYNC_ALL_PROGRESS.completedFeeds,
+            totalFeeds: SYNC_ALL_PROGRESS.totalFeeds,
+            currentFeedName: SYNC_ALL_PROGRESS.currentFeedName
+          }
+        });
+      }
+
+      // Initialize progress tracking with immediate feedback
+      const startTime = new Date().toLocaleTimeString('nl-NL');
+      const initialLogs = [
+        `[${startTime}] ▶ Start synchronisatie "${feed.name}"`,
+        `[${startTime}] ⌛ Verbinden met ${feed.feedType === 'scraper' ? 'website' : 'RSS feed'}...`,
+        `[${startTime}] 📍 Gemeente: ${feed.municipality || 'Onbekend'}`
+      ];
+      
       SYNC_PROGRESS.set(feedId, {
         feedId,
         feedName: feed.name,
@@ -2034,8 +2076,8 @@ Respond with ONLY the search term, nothing else.`,
         eventsRejected: 0,
         rejectionReasons: {},
         startTime: Date.now(),
-        message: 'Feed ophalen...',
-        logs: [`[${new Date().toLocaleTimeString('nl-NL')}] Start synchronisatie ${feed.name}`]
+        message: 'Verbinden met feed...',
+        logs: initialLogs
       });
 
       const { RssFeedService } = await import('./services/rss-feed-service');
@@ -2052,7 +2094,7 @@ Respond with ONLY the search term, nothing else.`,
           SYNC_PROGRESS.set(feedId, {
             ...current,
             ...progress,
-            status: progress.status || current.status,
+            status: (progress.status as SyncProgress['status']) || current.status,
             logs: newLogs
           });
         }
@@ -2103,6 +2145,7 @@ Respond with ONLY the search term, nothing else.`,
           totalItems: 0,
           processedItems: 0,
           eventsCreated: 0,
+          eventsUpdated: 0,
           eventsSkipped: 0,
           eventsRejected: 0,
           rejectionReasons: {},

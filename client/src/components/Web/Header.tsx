@@ -34,8 +34,8 @@ import {
 } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { MonthCalendar } from "@/components/Filters/MonthCalendar";
-import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays } from "date-fns";
+import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
+import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
 
@@ -46,11 +46,13 @@ interface HeaderProps {
   radius?: number;
   onRadiusChange?: (value: number) => void;
   onCategoriesChange?: (categories: string[]) => void;
-  onDateRangeChange?: (dateRange: { start: Date; end?: Date }) => void;
+  onDateRangeChange?: (dateRange: { start: Date; end?: Date } | null) => void;
   hideViewToggle?: boolean;
   onEventClick?: (event: any) => void;
-  selectedDays?: Date[];
-  onSelectedDaysChange?: (days: Date[]) => void;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  onStartDateChange?: (date: Date | null) => void;
+  onEndDateChange?: (date: Date | null) => void;
 }
 
 export function Header({
@@ -63,29 +65,55 @@ export function Header({
   onDateRangeChange,
   hideViewToggle = false,
   onEventClick,
-  selectedDays: propSelectedDays,
-  onSelectedDaysChange,
+  startDate: propStartDate,
+  endDate: propEndDate,
+  onStartDateChange,
+  onEndDateChange,
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = React.useState(false);
   
-  // Gebruik props als beschikbaar, anders lokale state
-  const [localSelectedDays, setLocalSelectedDays] = React.useState<Date[]>([]);
-  const selectedDays = propSelectedDays ?? localSelectedDays;
-  const setSelectedDays = onSelectedDaysChange ?? setLocalSelectedDays;
+  // Date range state - default vandaag + 14 dagen
+  const today = startOfDay(new Date());
+  const defaultEndDate = addDays(today, 14);
   
-  // Bij wijziging van geselecteerde dagen, datum bereik doorgeven aan parent
+  const [localStartDate, setLocalStartDate] = React.useState<Date | null>(today);
+  const [localEndDate, setLocalEndDate] = React.useState<Date | null>(defaultEndDate);
+  
+  const startDate = propStartDate !== undefined ? propStartDate : localStartDate;
+  const endDate = propEndDate !== undefined ? propEndDate : localEndDate;
+  
+  const handleRangeChange = (start: Date | null, end: Date | null) => {
+    if (onStartDateChange) onStartDateChange(start);
+    else setLocalStartDate(start);
+    
+    if (onEndDateChange) onEndDateChange(end);
+    else setLocalEndDate(end);
+    
+    // Datum bereik doorgeven aan parent
+    if (onDateRangeChange) {
+      if (start) {
+        onDateRangeChange({
+          start: startOfDay(start),
+          end: end ? endOfDay(end) : undefined
+        });
+      } else {
+        onDateRangeChange(null);
+      }
+    }
+  };
+  
+  // Bij initialisatie of wijziging, datum bereik doorgeven aan parent
   React.useEffect(() => {
-    if (selectedDays.length > 0 && onDateRangeChange) {
-      const sortedDays = [...selectedDays].sort((a, b) => a.getTime() - b.getTime());
+    if (onDateRangeChange && startDate) {
       onDateRangeChange({
-        start: startOfDay(sortedDays[0]),
-        end: endOfDay(sortedDays[sortedDays.length - 1])
+        start: startOfDay(startDate),
+        end: endDate ? endOfDay(endDate) : undefined
       });
     }
-  }, [selectedDays, onDateRangeChange]);
+  }, []);
 
   // Gebruikerslocatie voor afstandsberekening
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]); // Standaard positie
@@ -116,11 +144,12 @@ export function Header({
       try {
         let url = `/api/events/search?query=${encodeURIComponent(searchQuery)}`;
         
-        // Voeg datumbereik parameters toe op basis van geselecteerde dagen
-        if (selectedDays.length > 0) {
-          const sortedDays = [...selectedDays].sort((a, b) => a.getTime() - b.getTime());
-          url += `&startDate=${startOfDay(sortedDays[0]).toISOString()}`;
-          url += `&endDate=${endOfDay(sortedDays[sortedDays.length - 1]).toISOString()}`;
+        // Voeg datumbereik parameters toe op basis van start/end date
+        if (startDate) {
+          url += `&startDate=${startOfDay(startDate).toISOString()}`;
+          if (endDate) {
+            url += `&endDate=${endOfDay(endDate).toISOString()}`;
+          }
         }
         
         console.log("Searching with URL:", url);
@@ -176,7 +205,7 @@ export function Header({
     }, 300);
     
     return () => clearTimeout(debounceTimer);
-  }, [searchQuery, selectedDays, userLocation]);
+  }, [searchQuery, startDate, endDate, userLocation]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -337,25 +366,29 @@ export function Header({
           </div>
         </div>
         
-        {/* Datum filterknoppen - MonthCalendar */}
+        {/* Datum filterknoppen - DateRangeFilter */}
         <div className="flex items-center ml-2">
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="h-10 rounded-full flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
                 <span>
-                  {selectedDays.length === 0 
+                  {!startDate && !endDate 
                     ? "Datum" 
-                    : `${selectedDays.length} ${selectedDays.length === 1 ? 'dag' : 'dagen'}`}
+                    : startDate && endDate
+                      ? `${differenceInDays(endDate, startDate) + 1} dagen`
+                      : startDate
+                        ? format(startDate, 'd MMM', { locale: nl })
+                        : "Datum"}
                 </span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="p-4 w-auto" align="center">
-              <MonthCalendar
-                selectedDays={selectedDays}
-                onDaysChange={setSelectedDays}
-                showExpiredEvents={false}
-                onShowExpiredEventsChange={() => {}}
+            <PopoverContent className="p-4 w-[300px]" align="center">
+              <DateRangeFilter
+                startDate={startDate}
+                endDate={endDate}
+                onRangeChange={handleRangeChange}
+                onReset={() => handleRangeChange(null, null)}
               />
             </PopoverContent>
           </Popover>

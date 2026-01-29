@@ -204,22 +204,49 @@
   }
 }
 
-/* Event marker highlight animatie - synct met radar sweep */
+/* Event marker highlight animatie - eigen onafhankelijke pulse */
 .event-marker-highlight {
-  animation: eventPulse 5000ms ease-in-out infinite;
+  animation: eventGlow 2.5s ease-in-out infinite;
+  will-change: transform, box-shadow;
 }
 
-@keyframes eventPulse {
-  0%, 85%, 100% {
+@keyframes eventGlow {
+  0%, 100% {
     transform: scale(1);
-    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
   }
-  90% {
-    transform: scale(1.15);
-    filter: brightness(1.2);
-  }
-  95% {
+  50% {
     transform: scale(1.08);
-    filter: brightness(1.1);
+    box-shadow: 0 0 12px 4px rgba(34, 197, 94, 0.4);
+  }
+}
+
+/* Variatie voor gestaffelde animaties - voorkomt dat alle markers tegelijk pulsen */
+.event-marker-highlight:nth-child(odd) {
+  animation-delay: 0s;
+}
+
+.event-marker-highlight:nth-child(even) {
+  animation-delay: 1.25s;
+}
+
+/* Extra subtiele glow ring rond event markers */
+.event-marker-glow {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, transparent 70%);
+  animation: glowPulse 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.15);
   }
 }

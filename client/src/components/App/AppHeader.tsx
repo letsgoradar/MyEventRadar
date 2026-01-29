@@ -15,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { DayFilter } from "@/components/Filters/DayFilter";
+import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@shared/schema";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { nl } from "date-fns/locale";
-import { format, addDays, startOfDay } from "date-fns";
+import { format, addDays, startOfDay, differenceInDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useOutsideClick } from "@/hooks/use-outside-click";
@@ -36,6 +36,7 @@ interface AppHeaderProps {
   radius?: number;
   onRadiusChange?: (value: number) => void;
   onCategoriesChange?: (categories: string[]) => void;
+  onDateRangeChange?: (startDate: Date | null, endDate: Date | null) => void;
 }
 
 const DEFAULT_RADIUS = 10; // Standaard radius in km
@@ -47,6 +48,7 @@ export function AppHeader({
   radius = DEFAULT_RADIUS,
   onRadiusChange,
   onCategoriesChange,
+  onDateRangeChange,
 }: AppHeaderProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -59,13 +61,16 @@ export function AppHeader({
   const [showOnlyFree, setShowOnlyFree] = React.useState(false);
   const [sortBy, setSortBy] = React.useState<'distance' | 'startTime'>('distance');
   
-  // Standaard: komende 7 dagen geselecteerd
-  const [selectedDays, setSelectedDays] = React.useState<Date[]>(() => {
-    const today = startOfDay(new Date());
-    return Array.from({ length: 7 }, (_, i) => addDays(today, i));
-  });
+  // Default: vandaag + 14 dagen
+  const [startDate, setStartDate] = React.useState<Date | null>(() => startOfDay(new Date()));
+  const [endDate, setEndDate] = React.useState<Date | null>(() => addDays(startOfDay(new Date()), 14));
   
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
+  
+  // Synchroniseer date range met parent bij mount
+  React.useEffect(() => {
+    onDateRangeChange?.(startDate, endDate);
+  }, []);
   const [, setLocation] = useLocation();
   const { location: userLocation } = useGeoLocation();
 
@@ -162,11 +167,23 @@ export function AppHeader({
                   </div>
                   
                   
-                  {/* Dag selectie */}
+                  {/* Datum range selectie */}
                   <div>
-                    <DayFilter
-                      selectedDays={selectedDays}
-                      onDaysChange={setSelectedDays}
+                    <DateRangeFilter
+                      startDate={startDate}
+                      endDate={endDate}
+                      onRangeChange={(start, end) => {
+                        setStartDate(start);
+                        setEndDate(end);
+                        onDateRangeChange?.(start, end);
+                      }}
+                      onReset={() => {
+                        const today = startOfDay(new Date());
+                        const defaultEnd = addDays(today, 14);
+                        setStartDate(today);
+                        setEndDate(defaultEnd);
+                        onDateRangeChange?.(today, defaultEnd);
+                      }}
                     />
                   </div>
                   

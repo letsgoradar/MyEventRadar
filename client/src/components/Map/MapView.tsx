@@ -4,7 +4,7 @@ import type { EventInterface } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import L from "leaflet";
-import { formatDistance } from "date-fns";
+import { formatDistance, differenceInDays, startOfDay } from "date-fns";
 import { nl } from "date-fns/locale";
 import { CategoryIcon, getCategoryColor } from "../CategoryIcon";
 import { Button } from "@/components/ui/button";
@@ -565,6 +565,8 @@ interface MapViewProps {
   onShowExpiredEventsChange?: (showExpired: boolean) => void;
   selectedEventId?: number | null;
   hoveredEventId?: number | null;
+  startDate?: Date | null;
+  endDate?: Date | null;
 }
 
 export default function MapView({ 
@@ -579,7 +581,9 @@ export default function MapView({
   showExpiredEvents: propShowExpiredEvents,
   onShowExpiredEventsChange,
   selectedEventId: propSelectedEventId,
-  hoveredEventId: propHoveredEventId
+  hoveredEventId: propHoveredEventId,
+  startDate: propStartDate,
+  endDate: propEndDate
 }: MapViewProps) {
   // State voor locatie van gebruiker
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
@@ -645,9 +649,24 @@ export default function MapView({
     }
   }, [propShowExpiredEvents]);
   
+  // Bereken windowDays op basis van de geselecteerde datumrange
+  const windowDays = React.useMemo(() => {
+    if (!propEndDate) return 14; // Default 14 dagen
+    const today = startOfDay(new Date());
+    const days = differenceInDays(propEndDate, today);
+    return Math.max(1, days + 1); // Minimaal 1 dag, +1 om de einddag mee te nemen
+  }, [propEndDate]);
+
   // Als er filteredEvents zijn, gebruik die; anders fetch events op basis van locatie en radius
   const { data: fetchedEvents, isLoading, refetch } = useQuery<EventInterface[]>({
-    queryKey: ['/api/events/nearby', userLocation[0], userLocation[1], radius, searchQuery],
+    queryKey: ['/api/events/nearby', userLocation[0], userLocation[1], radius, searchQuery, windowDays],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/events/nearby?lat=${userLocation[0]}&lng=${userLocation[1]}&radius=${radius}&windowDays=${windowDays}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch events');
+      return response.json();
+    },
     enabled: !filteredEvents && userLocation[0] !== 0 && userLocation[1] !== 0,
   });
   

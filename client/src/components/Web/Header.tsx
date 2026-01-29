@@ -74,6 +74,7 @@ export function Header({
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = React.useState(false);
+  const [datePopoverOpen, setDatePopoverOpen] = React.useState(false);
   
   // Date range state - default vandaag + 14 dagen
   const today = startOfDay(new Date());
@@ -368,7 +369,7 @@ export function Header({
         
         {/* Datum filterknoppen - DateRangeFilter */}
         <div className="flex items-center ml-2">
-          <Popover>
+          <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="h-10 rounded-full flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
@@ -389,6 +390,7 @@ export function Header({
                 endDate={endDate}
                 onRangeChange={handleRangeChange}
                 onReset={() => handleRangeChange(null, null)}
+                onClose={() => setDatePopoverOpen(false)}
               />
             </PopoverContent>
           </Popover>

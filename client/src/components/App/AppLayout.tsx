@@ -11,8 +11,10 @@ import MapView from "@/components/Map/MapView";
 import AppBottomNav from "./AppBottomNav";
 import { SortMenu, SortDirection } from "./SortMenuComponent";
 import { EventInterface as BaseEvent, CATEGORIES } from "@shared/schema";
-import { MonthCalendar } from "@/components/Filters/MonthCalendar";
+import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
 import { Calendar } from "lucide-react";
+import { format, addDays, startOfDay, differenceInDays } from "date-fns";
+import { nl } from "date-fns/locale";
 
 // Uitgebreide Event interface met distance property
 interface Event extends BaseEvent {
@@ -147,8 +149,10 @@ interface AppLayoutProps {
   hideSearchAndFilters?: boolean;
   onEventClick?: (event: Event) => void;
   hideViewToggle?: boolean;
-  selectedDays?: Date[];
-  onSelectedDaysChange?: React.Dispatch<React.SetStateAction<Date[]>>;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  onStartDateChange?: (date: Date | null) => void;
+  onEndDateChange?: (date: Date | null) => void;
   selectedEventId?: number | null;
 }
 
@@ -172,10 +176,32 @@ export function AppLayout({
   hideSearchAndFilters = false,
   onEventClick,
   hideViewToggle = false,
-  selectedDays,
-  onSelectedDaysChange,
+  startDate: propStartDate,
+  endDate: propEndDate,
+  onStartDateChange,
+  onEndDateChange,
   selectedEventId,
 }: AppLayoutProps) {
+  // Date range state - default vandaag + 14 dagen
+  const today = startOfDay(new Date());
+  const defaultEndDate = addDays(today, 14);
+  
+  const [localStartDate, setLocalStartDate] = React.useState<Date | null>(today);
+  const [localEndDate, setLocalEndDate] = React.useState<Date | null>(defaultEndDate);
+  
+  const startDate = propStartDate !== undefined ? propStartDate : localStartDate;
+  const endDate = propEndDate !== undefined ? propEndDate : localEndDate;
+  
+  const handleRangeChange = (start: Date | null, end: Date | null) => {
+    if (onStartDateChange) onStartDateChange(start);
+    else setLocalStartDate(start);
+    
+    if (onEndDateChange) onEndDateChange(end);
+    else setLocalEndDate(end);
+  };
+  // Popover state voor datum filter
+  const [datePopoverOpen, setDatePopoverOpen] = React.useState(false);
+  
   // Gebruik defaultView als initiële view
   const [view, setView] = React.useState<"list" | "map">(defaultView);
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
@@ -559,37 +585,42 @@ export function AppLayout({
             </div>
             
             {/* Datum filter - naast zoekveld */}
-            {selectedDays && onSelectedDaysChange && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant={selectedDays.length > 0 ? "default" : "outline"} 
-                    size="sm" 
-                    className="h-10 flex items-center gap-1"
-                  >
-                    <CalendarDays className="h-4 w-4" />
-                    <span className="font-medium hidden sm:inline">
-                      {selectedDays.length === 0 
-                        ? "Datum" 
-                        : `${selectedDays.length} ${selectedDays.length === 1 ? 'dag' : 'dagen'}`}
-                    </span>
-                    {selectedDays.length > 0 && (
-                      <Badge className="ml-1 text-xs h-5 min-w-5 flex items-center justify-center bg-background text-foreground sm:hidden">
-                        {selectedDays.length}
-                      </Badge>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-4 w-auto" align="end">
-                  <MonthCalendar
-                    selectedDays={selectedDays}
-                    onDaysChange={onSelectedDaysChange}
-                    showExpiredEvents={showExpiredEvents}
-                    onShowExpiredEventsChange={setShowExpiredEvents}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
+            <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant={startDate ? "default" : "outline"} 
+                  size="sm" 
+                  className="h-10 flex items-center gap-1"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  <span className="font-medium hidden sm:inline">
+                    {!startDate && !endDate 
+                      ? "Datum" 
+                      : startDate && endDate
+                        ? `${differenceInDays(endDate, startDate) + 1} dagen`
+                        : startDate
+                          ? format(startDate, 'd MMM', { locale: nl })
+                          : "Datum"}
+                  </span>
+                  {startDate && (
+                    <Badge className="ml-1 text-xs h-5 min-w-5 flex items-center justify-center bg-background text-foreground sm:hidden">
+                      {startDate && endDate ? differenceInDays(endDate, startDate) + 1 : 1}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-4 w-[300px] z-[100]" align="end">
+                <DateRangeFilter
+                  startDate={startDate}
+                  endDate={endDate}
+                  onRangeChange={handleRangeChange}
+                  onReset={() => handleRangeChange(null, null)}
+                  onClose={() => setDatePopoverOpen(false)}
+                  showExpiredEvents={showExpiredEvents}
+                  onShowExpiredEventsChange={setShowExpiredEvents}
+                />
+              </PopoverContent>
+            </Popover>
             
             {!hideViewToggle && (
               <div className="flex gap-1">

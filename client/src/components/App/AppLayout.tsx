@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import MapView from "@/components/Map/MapView";
 import AppBottomNav from "./AppBottomNav";
+import { BottomSheet } from "./BottomSheet";
 import { SortMenu, SortDirection } from "./SortMenuComponent";
 import { EventInterface as BaseEvent, CATEGORIES } from "@shared/schema";
 import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
@@ -682,7 +683,7 @@ export function AppLayout({
       {/* Kaart weergave - exact tussen de navigatiebalken */}
       {view === "map" && !isProfilePage && (
         <div className="flex-1 app-layout" id="map-container">
-          <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[56px] z-0 border-t border-b-0 border-border">
+          <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[150px] z-0 border-t border-b-0 border-border">
             <MapView 
               filteredEvents={displayedEvents} 
               radius={50} 
@@ -732,6 +733,14 @@ export function AppLayout({
       
       {/* PWA installatie prompt */}
       <InstallPrompt />
+      
+      {/* Bottom Sheet voor evenementen - alleen in map view */}
+      {view === "map" && !isProfilePage && !hideBottomNav && (
+        <BottomSheet 
+          events={displayedEvents}
+          onEventClick={onEventClick}
+        />
+      )}
       
       {/* Bottom navigation - alleen tonen als niet verborgen */}
       {!hideBottomNav && <AppBottomNav />}

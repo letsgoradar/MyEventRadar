@@ -120,3 +120,106 @@
     margin: 10px !important;
   }
 }
+
+/* ==========================================
+   RADAR ANIMATIE - STATISCHE CSS
+   Deze CSS blijft stabiel ongeacht React re-renders
+   ========================================== */
+
+/* Radar bereik indicator - subtiele groene rand */
+.radar-range-xl {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(34, 197, 94, 0.1);
+  background: radial-gradient(
+    circle, 
+    transparent 0%, 
+    transparent 80%, 
+    rgba(34, 197, 94, 0.02) 90%,
+    rgba(34, 197, 94, 0.04) 100%
+  );
+  pointer-events: none;
+}
+
+/* Roterende radar sweep - pure CSS @keyframes animatie */
+.radar-sweep-xl {
+  position: absolute;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 300deg,
+    rgba(34, 197, 94, 0.03) 320deg,
+    rgba(34, 197, 94, 0.08) 340deg,
+    rgba(34, 197, 94, 0.15) 350deg,
+    rgba(34, 197, 94, 0.25) 357deg,
+    rgba(34, 197, 94, 0.12) 360deg
+  );
+  pointer-events: none;
+  animation: radarSweepRotate 5000ms linear infinite;
+  will-change: transform;
+}
+
+@keyframes radarSweepRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Centraal punt - groen thema - dit is klikbaar */
+.radar-center-xl {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 12px rgba(34, 197, 94, 0.5);
+  z-index: 10;
+  border: 2px solid rgba(34, 197, 94, 0.4);
+  cursor: pointer;
+}
+
+.radar-center-dot-xl {
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(22, 163, 74) 100%);
+  border-radius: 50%;
+  animation: centerPulseXL 2s ease-in-out infinite;
+}
+
+@keyframes centerPulseXL {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  }
+  50% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.15);
+  }
+}
+
+/* Event marker highlight animatie - synct met radar sweep */
+.event-marker-highlight {
+  animation: eventPulse 5000ms ease-in-out infinite;
+}
+
+@keyframes eventPulse {
+  0%, 85%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  90% {
+    transform: scale(1.15);
+    filter: brightness(1.2);
+  }
+  95% {
+    transform: scale(1.08);
+    filter: brightness(1.1);
+  }
+}

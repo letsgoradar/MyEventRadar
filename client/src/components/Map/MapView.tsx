@@ -63,15 +63,39 @@ function getAdaptiveRadarSize(zoomLevel: number): number {
   return Math.max(300, Math.min(1500, baseSize * zoomFactor));
 }
 
+// Stabiele radar icon - wordt eenmalig gecreëerd en niet bij elke render
+// Dit voorkomt dat de CSS animatie reset bij React re-renders
+const STABLE_RADAR_SIZE = 800; // Vaste grootte - adaptive sizing via CSS transform
+const STABLE_CLICKABLE_SIZE = 50;
+const STABLE_HALF_CLICKABLE = 25;
+
+const stableUserLocationIcon = L.divIcon({
+  className: 'user-location-marker',
+  html: `
+    <div class="radar-wrapper-xl" style="position: relative; width: ${STABLE_CLICKABLE_SIZE}px; height: ${STABLE_CLICKABLE_SIZE}px; display: flex; align-items: center; justify-content: center;">
+      <div class="radar-container-xl" style="position: absolute; width: ${STABLE_RADAR_SIZE}px; height: ${STABLE_RADAR_SIZE}px; display: flex; align-items: center; justify-content: center; pointer-events: none; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+        <!-- Grote radar sweep effect met groene kleur - pure CSS animatie uit map-styles.css -->
+        <div class="radar-sweep-xl" style="width: ${STABLE_RADAR_SIZE - 20}px; height: ${STABLE_RADAR_SIZE - 20}px;"></div>
+        <!-- Radar bereik cirkel -->
+        <div class="radar-range-xl" style="width: ${STABLE_RADAR_SIZE - 20}px; height: ${STABLE_RADAR_SIZE - 20}px;"></div>
+      </div>
+      <!-- Centrale punt - dit is het enige klikbare element -->
+      <div class="radar-center-xl">
+        <div class="radar-center-dot-xl"></div>
+      </div>
+    </div>
+  `,
+  iconSize: [STABLE_CLICKABLE_SIZE, STABLE_CLICKABLE_SIZE],
+  iconAnchor: [STABLE_HALF_CLICKABLE, STABLE_HALF_CLICKABLE],
+});
+
 // Component voor de gebruikerslocatie marker met animaties en adres
-function UserLocationMarker({ 
+const UserLocationMarker = React.memo(function UserLocationMarker({ 
   position, 
-  onCenterMap,
-  zoomLevel = 12
+  onCenterMap
 }: { 
   position: [number, number]; 
   onCenterMap: () => void;
-  zoomLevel?: number;
 }) {
   const [address, setAddress] = React.useState<string>("Adres laden...");
   const [isLoadingAddress, setIsLoadingAddress] = React.useState(true);
@@ -117,144 +141,6 @@ function UserLocationMarker({
     fetchAddress();
   }, [position[0], position[1]]);
 
-  // Aangepast icoon voor gebruikerslocatie met grote groene radar sweep
-  // BELANGRIJK: iconSize klein houden (50x50) zodat alleen het centrum klikbaar is
-  // De radar sweep wordt visueel groter gerenderd via CSS overflow
-  // Adaptieve grootte op basis van zoomlevel
-  const size = getAdaptiveRadarSize(zoomLevel);
-  const clickableSize = 50; // Alleen het centrum is klikbaar
-  const halfClickable = clickableSize / 2;
-  const { primary, glow } = RADAR_CONFIG.COLOR;
-  
-  // Pure CSS radar animatie - geen JavaScript rotation nodig
-  // Dit voorkomt React re-renders en maakt de animatie hardware-accelerated
-  const sweepDuration = RADAR_CONFIG.SWEEP_DURATION;
-  
-  const userLocationIcon = L.divIcon({
-    className: 'user-location-marker',
-    html: `
-      <div class="radar-wrapper-xl">
-        <div class="radar-container-xl">
-          <!-- Grote radar sweep effect met groene kleur - pure CSS animatie -->
-          <div class="radar-sweep-xl"></div>
-          <!-- Radar bereik cirkel -->
-          <div class="radar-range-xl"></div>
-        </div>
-        <!-- Centrale punt - dit is het enige klikbare element -->
-        <div class="radar-center-xl">
-          <div class="radar-center-dot-xl"></div>
-        </div>
-      </div>
-      <style>
-        .radar-wrapper-xl {
-          position: relative;
-          width: ${clickableSize}px;
-          height: ${clickableSize}px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        
-        .radar-container-xl {
-          position: absolute;
-          width: ${size}px;
-          height: ${size}px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          pointer-events: none;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-        }
-        
-        /* Radar bereik indicator - subtiele groene rand */
-        .radar-range-xl {
-          position: absolute;
-          width: ${size - 20}px;
-          height: ${size - 20}px;
-          border-radius: 50%;
-          border: 1px solid rgba(${primary}, 0.1);
-          background: radial-gradient(
-            circle, 
-            transparent 0%, 
-            transparent 80%, 
-            rgba(${primary}, 0.02) 90%,
-            rgba(${primary}, 0.04) 100%
-          );
-          pointer-events: none;
-        }
-        
-        /* Roterende radar sweep - pure CSS @keyframes animatie */
-        .radar-sweep-xl {
-          position: absolute;
-          width: ${size - 20}px;
-          height: ${size - 20}px;
-          border-radius: 50%;
-          background: conic-gradient(
-            from 0deg,
-            transparent 0deg,
-            transparent 300deg,
-            rgba(${primary}, 0.03) 320deg,
-            rgba(${primary}, 0.08) 340deg,
-            rgba(${primary}, 0.15) 350deg,
-            rgba(${primary}, 0.25) 357deg,
-            rgba(${primary}, 0.12) 360deg
-          );
-          pointer-events: none;
-          animation: radarSweepRotate ${sweepDuration}ms linear infinite;
-          will-change: transform;
-        }
-        
-        @keyframes radarSweepRotate {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        
-        /* Centraal punt - groen thema - dit is klikbaar */
-        .radar-center-xl {
-          position: relative;
-          width: 36px;
-          height: 36px;
-          background: white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 2px 12px rgba(${primary}, 0.5);
-          z-index: 10;
-          border: 2px solid rgba(${primary}, 0.4);
-          cursor: pointer;
-        }
-        
-        .radar-center-dot-xl {
-          width: 20px;
-          height: 20px;
-          background: linear-gradient(135deg, rgb(${primary}) 0%, rgb(${glow}) 100%);
-          border-radius: 50%;
-          animation: centerPulseXL 2s ease-in-out infinite;
-        }
-        
-        @keyframes centerPulseXL {
-          0%, 100% {
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(${primary}, 0.5);
-          }
-          50% {
-            transform: scale(0.9);
-            box-shadow: 0 0 0 8px rgba(${primary}, 0.15);
-          }
-        }
-      </style>
-    `,
-    iconSize: [clickableSize, clickableSize],
-    iconAnchor: [halfClickable, halfClickable],
-  });
-
   const handleClick = () => {
     // Centreer de kaart op de gebruikerslocatie
     map.flyTo(position, 15, {
@@ -274,7 +160,7 @@ function UserLocationMarker({
     <Marker 
       ref={markerRef}
       position={position}
-      icon={userLocationIcon}
+      icon={stableUserLocationIcon}
       eventHandlers={{
         click: handleClick
       }}
@@ -296,7 +182,7 @@ function UserLocationMarker({
       </Popup>
     </Marker>
   );
-}
+});
 
 // Component om de kaart automatisch te centreren op gebruiker
 function MapCenter({ lat, lng, shouldFlyTo = false }: { lat: number; lng: number; shouldFlyTo?: boolean }) {
@@ -1021,10 +907,9 @@ export default function MapView({
           />
         )}
         
-        {/* Marker voor gebruiker locatie met animaties en adres - adaptieve radar grootte */}
+        {/* Marker voor gebruiker locatie met stabiele animatie - geen re-renders bij zoom */}
         <UserLocationMarker 
           position={userLocation}
-          zoomLevel={currentZoom}
           onCenterMap={() => {
             console.log('Kaart gecentreerd op gebruikerslocatie');
           }}

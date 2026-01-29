@@ -1,5 +1,5 @@
 import * as React from "react";
-import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
+import { motion, PanInfo } from "framer-motion";
 import { EventInterface as Event } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -16,7 +16,7 @@ interface BottomSheetProps {
 
 const COLLAPSED_HEIGHT = 50;
 const EXPANDED_HEIGHT_RATIO = 0.55;
-const BOTTOM_NAV_HEIGHT = 56;
+const BOTTOM_NAV_HEIGHT = 60;
 
 export function BottomSheet({ 
   events, 
@@ -30,30 +30,16 @@ export function BottomSheet({
   const expandedHeight = typeof window !== 'undefined' 
     ? window.innerHeight * EXPANDED_HEIGHT_RATIO 
     : 400;
-  
-  const y = useMotionValue(isExpanded ? 0 : expandedHeight - COLLAPSED_HEIGHT);
-  
-  const sheetHeight = useTransform(
-    y,
-    [0, expandedHeight - COLLAPSED_HEIGHT],
-    [expandedHeight, COLLAPSED_HEIGHT]
-  );
 
   React.useEffect(() => {
     setIsExpanded(isOpen);
-    y.set(isOpen ? 0 : expandedHeight - COLLAPSED_HEIGHT);
-  }, [isOpen, expandedHeight, y]);
+  }, [isOpen]);
 
   const handleDragEnd = (_: any, info: PanInfo) => {
-    const threshold = expandedHeight * 0.3;
-    const currentY = y.get();
-    
-    if (info.velocity.y < -500 || currentY < threshold) {
-      y.set(0);
+    if (info.velocity.y < -300 || info.offset.y < -50) {
       setIsExpanded(true);
       onOpenChange?.(true);
-    } else if (info.velocity.y > 500 || currentY > threshold) {
-      y.set(expandedHeight - COLLAPSED_HEIGHT);
+    } else if (info.velocity.y > 300 || info.offset.y > 50) {
       setIsExpanded(false);
       onOpenChange?.(false);
     }
@@ -62,7 +48,6 @@ export function BottomSheet({
   const toggleSheet = () => {
     const newState = !isExpanded;
     setIsExpanded(newState);
-    y.set(newState ? 0 : expandedHeight - COLLAPSED_HEIGHT);
     onOpenChange?.(newState);
   };
 
@@ -76,14 +61,17 @@ export function BottomSheet({
       ref={containerRef}
       className="fixed left-0 right-0 bg-background rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] z-40 overflow-hidden"
       style={{ 
-        height: sheetHeight,
+        height: expandedHeight,
         bottom: BOTTOM_NAV_HEIGHT,
       }}
+      animate={{
+        y: isExpanded ? 0 : expandedHeight - COLLAPSED_HEIGHT
+      }}
+      transition={{ type: "spring", damping: 30, stiffness: 300 }}
       drag="y"
       dragConstraints={{ top: 0, bottom: expandedHeight - COLLAPSED_HEIGHT }}
       dragElastic={0.1}
       onDragEnd={handleDragEnd}
-      initial={false}
     >
       <div 
         className="flex flex-col h-full"

@@ -17,12 +17,77 @@ import { AiLocationExtractor } from "./ai-location-extractor";
 import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
 
 /**
- * Parse an ISO date string as LOCAL time (Dutch timezone), not UTC.
- * This fixes the +1 hour timezone shift when sources provide times without timezone indicator.
+ * Determine if a given date/time is in Dutch Summer Time (CEST = UTC+2) or Winter Time (CET = UTC+1).
+ * Netherlands uses EU rules: DST starts last Sunday of March at 02:00 CET (becomes 03:00 CEST)
+ *                            DST ends last Sunday of October at 03:00 CEST (becomes 02:00 CET)
  * 
- * Example: "2026-01-31T16:00:00" should be 16:00 Dutch time, not 17:00 (UTC+1)
+ * @param year - Full year (e.g., 2026)
+ * @param month - Month 1-12
+ * @param day - Day of month 1-31
+ * @param hours - Hour in local Amsterdam time 0-23
+ * @returns true if the given date/time falls within Dutch summer time
+ */
+function isDutchSummerTime(year: number, month: number, day: number, hours: number): boolean {
+  // Quick checks for months clearly in or out of DST
+  if (month < 3 || month > 10) return false; // Jan, Feb, Nov, Dec = winter
+  if (month > 3 && month < 10) return true;  // Apr-Sep = summer
+  
+  // Find last Sunday of March (DST starts at 02:00 CET)
+  let marchLastSunday = 31;
+  const marchCheck = new Date(year, 2, 31); // March 31
+  while (marchCheck.getDay() !== 0) {
+    marchCheck.setDate(marchCheck.getDate() - 1);
+    marchLastSunday = marchCheck.getDate();
+  }
+  
+  // Find last Sunday of October (DST ends at 03:00 CEST = 02:00 CET)
+  let octoberLastSunday = 31;
+  const octoberCheck = new Date(year, 9, 31); // October 31
+  while (octoberCheck.getDay() !== 0) {
+    octoberCheck.setDate(octoberCheck.getDate() - 1);
+    octoberLastSunday = octoberCheck.getDate();
+  }
+  
+  if (month === 3) {
+    // March: DST starts on last Sunday at 02:00
+    if (day < marchLastSunday) return false;
+    if (day > marchLastSunday) return true;
+    // On transition day: 02:00+ is summer time
+    return hours >= 2;
+  }
+  
+  if (month === 10) {
+    // October: DST ends on last Sunday at 03:00 CEST (which becomes 02:00 CET)
+    if (day < octoberLastSunday) return true;
+    if (day > octoberLastSunday) return false;
+    // On transition day: The hour 02:00-03:00 is ambiguous (occurs twice)
+    // We use CET (winter time) for 02:00+ as it's the "later" occurrence and safer default
+    // This means: 00:00-01:59 = CEST (summer), 02:00-23:59 = CET (winter)
+    return hours < 2;
+  }
+  
+  return false; // Should not reach here
+}
+
+/**
+ * Get the UTC offset in hours for Europe/Amsterdam timezone at a given date/time.
+ * Returns 1 for CET (winter, UTC+1) or 2 for CEST (summer, UTC+2).
+ */
+function getAmsterdamOffsetHours(year: number, month: number, day: number, hours: number): number {
+  return isDutchSummerTime(year, month, day, hours) ? 2 : 1;
+}
+
+/**
+ * Parse an ISO date string as Dutch time (Europe/Amsterdam), not UTC or server timezone.
+ * This fixes the timezone shift when sources provide times without timezone indicator.
+ * 
+ * Example: "2026-01-31T16:00:00" should be 16:00 Dutch time, stored as 15:00 UTC (winter)
+ * Example: "2026-07-15T16:00:00" should be 16:00 Dutch time, stored as 14:00 UTC (summer)
  * 
  * If the string already has a timezone (Z or +/-offset), it's parsed normally.
+ * 
+ * IMPORTANT: This function is critical for all feed imports. Dutch events should display
+ * at the correct local time regardless of the server's timezone setting.
  */
 function parseLocalDateTime(dateString: string): Date | undefined {
   if (!dateString) return undefined;
@@ -40,27 +105,31 @@ function parseLocalDateTime(dateString: string): Date | undefined {
       return isNaN(date.getTime()) ? undefined : date;
     }
     
-    // No timezone indicator - parse as local time by extracting components
-    // Supports: "2026-01-31T16:00:00", "2026-01-31T16:00:00.000", "2026-01-31"
+    // No timezone indicator - parse as Dutch time by extracting components
+    // Supports: "2026-01-31T16:00:00", "2026-01-31T16:00:00.000", "2026-01-31", "2026-01-31 16:00"
     const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?)?/);
     if (!match) {
-      // Try other common formats (e.g., "31-01-2026" or "01/31/2026")
       // If we can't parse it, return undefined instead of falling back to UTC parsing
       return undefined;
     }
     
-    const [, year, month, day, hours, minutes, seconds] = match;
+    const [, yearStr, monthStr, dayStr, hoursStr, minutesStr, secondsStr] = match;
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr);
+    const day = parseInt(dayStr);
+    const hours = hoursStr ? parseInt(hoursStr) : 0;
+    const minutes = minutesStr ? parseInt(minutesStr) : 0;
+    const seconds = secondsStr ? parseInt(secondsStr) : 0;
     
-    // Create date using local time constructor (not UTC)
-    const date = new Date(
-      parseInt(year),
-      parseInt(month) - 1, // JavaScript months are 0-indexed
-      parseInt(day),
-      hours ? parseInt(hours) : 0,
-      minutes ? parseInt(minutes) : 0,
-      seconds ? parseInt(seconds) : 0
-    );
+    // Get the Amsterdam offset for this specific date/time
+    const offsetHours = getAmsterdamOffsetHours(year, month, day, hours);
     
+    // Build an ISO string with explicit timezone offset for correct parsing
+    // Amsterdam time with offset e.g., "2026-01-31T16:00:00+01:00"
+    const offsetStr = `+${offsetHours.toString().padStart(2, '0')}:00`;
+    const isoWithTz = `${yearStr}-${monthStr}-${dayStr}T${(hoursStr || '00').padStart(2, '0')}:${(minutesStr || '00').padStart(2, '0')}:${(secondsStr || '00').padStart(2, '0')}${offsetStr}`;
+    
+    const date = new Date(isoWithTz);
     return isNaN(date.getTime()) ? undefined : date;
   } catch (e) {
     return undefined;

@@ -69,6 +69,10 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
    - Als geen tijd gevonden: startTime en endTime op `undefined` laten (niet invullen)
    - Liever geen tijd dan een foutieve tijd - gebruiker kan doorlinken naar bron
    - **Timezone**: ISO strings ZONDER timezone indicator (bijv. `2026-01-31T16:00:00`) als lokale Nederlandse tijd parsen, NIET als UTC. Gebruik `parseLocalDateTime()` helper.
+   - **DST Handling**: `parseLocalDateTime()` detecteert automatisch zomer/wintertijd:
+     - Zomertijd (CEST, UTC+2): april t/m september, en na 02:00 op laatste zondag maart
+     - Wintertijd (CET, UTC+1): november t/m februari, en vanaf 02:00 op laatste zondag oktober
+     - Dubbelzinnige 02:00-03:00 uur in oktober → standaardtijd (CET) wordt gebruikt
 
 7. **Sync Strategie (upsert)** (kritiek)
    - Bij sync: **updaten** van bestaande events, NIET verwijderen/opnieuw aanmaken

@@ -7,6 +7,20 @@ import { nl } from "date-fns/locale";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { MapPin, Clock } from "lucide-react";
 
+function extractCity(address: string | null | undefined): string | null {
+  if (!address) return null;
+  const parts = address.split(',').map(p => p.trim());
+  if (parts.length >= 2) {
+    const lastPart = parts[parts.length - 1];
+    const secondLast = parts[parts.length - 2];
+    if (/^\d{4}\s?[A-Z]{2}/.test(secondLast)) {
+      return secondLast.replace(/^\d{4}\s?[A-Z]{2}\s*/, '').trim() || lastPart;
+    }
+    return secondLast;
+  }
+  return parts[0];
+}
+
 interface BottomSheetProps {
   events: Event[];
   onEventClick?: (event: Event) => void;
@@ -128,7 +142,7 @@ export function BottomSheet({
                   {event.address && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{event.address}</span>
+                      <span className="truncate">{extractCity(event.address)}</span>
                     </div>
                   )}
                 </div>

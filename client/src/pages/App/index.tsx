@@ -108,6 +108,9 @@ export function AppHomePage() {
   
   // State voor event detail overlay
   const [selectedEvent, setSelectedEvent] = React.useState<EventWithDistance | null>(null);
+  
+  // State voor bounds-filtered events (voor navigatie)
+  const [visibleEvents, setVisibleEvents] = React.useState<EventWithDistance[]>([]);
 
   const handleEventClick = React.useCallback((event: EventWithDistance) => {
     setSelectedEvent(event);
@@ -120,13 +123,15 @@ export function AppHomePage() {
   const handleNavigateEvent = React.useCallback((direction: 'previous' | 'next') => {
     if (!selectedEvent) return;
     
-    const currentIndex = filteredEvents.findIndex(e => e.id === selectedEvent.id);
+    // Gebruik visibleEvents (bounds-filtered) voor navigatie
+    const eventsToNavigate = visibleEvents.length > 0 ? visibleEvents : filteredEvents;
+    const currentIndex = eventsToNavigate.findIndex(e => e.id === selectedEvent.id);
     if (direction === 'previous' && currentIndex > 0) {
-      setSelectedEvent(filteredEvents[currentIndex - 1]);
-    } else if (direction === 'next' && currentIndex < filteredEvents.length - 1) {
-      setSelectedEvent(filteredEvents[currentIndex + 1]);
+      setSelectedEvent(eventsToNavigate[currentIndex - 1]);
+    } else if (direction === 'next' && currentIndex < eventsToNavigate.length - 1) {
+      setSelectedEvent(eventsToNavigate[currentIndex + 1]);
     }
-  }, [selectedEvent, filteredEvents]);
+  }, [selectedEvent, visibleEvents, filteredEvents]);
 
   return (
     <>
@@ -139,8 +144,7 @@ export function AppHomePage() {
         hideViewToggle={true}
         defaultView="map"
         onEventClick={handleEventClick}
-        selectedDays={selectedDays}
-        onSelectedDaysChange={setSelectedDays}
+        onBoundsFilteredEventsChange={setVisibleEvents}
         selectedEventId={selectedEvent?.id ?? null}
       >
         {/* Toon EventList component - altijd in tegelweergave */}
@@ -157,7 +161,7 @@ export function AppHomePage() {
       {selectedEvent && (
         <EventDetailPanel
           event={selectedEvent}
-          events={filteredEvents}
+          events={visibleEvents.length > 0 ? visibleEvents : filteredEvents}
           onClose={handleCloseEventDetail}
           onPrevious={() => handleNavigateEvent('previous')}
           onNext={() => handleNavigateEvent('next')}

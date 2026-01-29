@@ -144,6 +144,7 @@ interface AppLayoutProps {
   onSearch?: React.Dispatch<React.SetStateAction<string>>;
   onRadiusChange?: React.Dispatch<React.SetStateAction<number>>;
   onFilteredEventsChange?: React.Dispatch<React.SetStateAction<Event[]>>;
+  onBoundsFilteredEventsChange?: (events: Event[]) => void;
   hideBottomNav?: boolean;
   hideBackButton?: boolean;
   showBackButton?: boolean;
@@ -171,6 +172,7 @@ export function AppLayout({
   onSearch,
   onRadiusChange,
   onFilteredEventsChange,
+  onBoundsFilteredEventsChange,
   hideBottomNav = false,
   hideBackButton = false,
   showBackButton = false,
@@ -286,6 +288,13 @@ export function AppLayout({
       return mapBounds.contains([Number(event.latitude), Number(event.longitude)]);
     });
   }, [displayedEvents, mapBounds]);
+  
+  // Callback naar parent met bounds-filtered events voor navigatie
+  React.useEffect(() => {
+    if (onBoundsFilteredEventsChange) {
+      onBoundsFilteredEventsChange(boundsFilteredEvents);
+    }
+  }, [boundsFilteredEvents, onBoundsFilteredEventsChange]);
   
   // Update gefilterde events alleen wanneer de gebruiker op Toepassen klikt
   const displayedEventsRef = React.useRef(displayedEvents);

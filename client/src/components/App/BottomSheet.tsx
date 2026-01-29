@@ -14,9 +14,9 @@ interface BottomSheetProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-const COLLAPSED_HEIGHT = 80;
+const COLLAPSED_HEIGHT = 50;
 const EXPANDED_HEIGHT_RATIO = 0.55;
-const BOTTOM_NAV_HEIGHT = 70;
+const BOTTOM_NAV_HEIGHT = 56;
 
 export function BottomSheet({ 
   events, 

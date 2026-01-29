@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import MapView from "@/components/Map/MapView";
+import type L from "leaflet";
 import AppBottomNav from "./AppBottomNav";
 import { BottomSheet } from "./BottomSheet";
 import { SortMenu, SortDirection } from "./SortMenuComponent";
@@ -217,6 +218,9 @@ export function AppLayout({
   // Bewaar de oorspronkelijke evenementen
   const [originalEvents, setOriginalEvents] = React.useState<Event[]>([]);
   
+  // Kaart bounds state voor zoom-based filtering
+  const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
+  
   // Close search dropdown when clicking outside
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -272,6 +276,16 @@ export function AppLayout({
     
     return filtered;
   }, [selectedCategories, originalEvents, showExpiredEvents, sortDirection]);
+  
+  // Events gefilterd op kaart bounds (voor bottom sheet)
+  const boundsFilteredEvents = React.useMemo(() => {
+    if (!mapBounds || !displayedEvents.length) return displayedEvents;
+    
+    return displayedEvents.filter(event => {
+      if (!event.latitude || !event.longitude) return false;
+      return mapBounds.contains([Number(event.latitude), Number(event.longitude)]);
+    });
+  }, [displayedEvents, mapBounds]);
   
   // Update gefilterde events alleen wanneer de gebruiker op Toepassen klikt
   const displayedEventsRef = React.useRef(displayedEvents);
@@ -683,7 +697,7 @@ export function AppLayout({
       {/* Kaart weergave - exact tussen de navigatiebalken */}
       {view === "map" && !isProfilePage && (
         <div className="flex-1 app-layout" id="map-container">
-          <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[150px] z-0 border-t border-b-0 border-border">
+          <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[106px] z-0 border-t border-b-0 border-border">
             <MapView 
               filteredEvents={displayedEvents} 
               radius={50} 
@@ -691,6 +705,7 @@ export function AppLayout({
               hideZoomControls={true}
               onEventClick={onEventClick}
               selectedEventId={selectedEventId}
+              onBoundsChange={setMapBounds}
             />
             
             {/* Floating Filter knop - linksboven */}
@@ -737,7 +752,7 @@ export function AppLayout({
       {/* Bottom Sheet voor evenementen - alleen in map view */}
       {view === "map" && !isProfilePage && !hideBottomNav && (
         <BottomSheet 
-          events={displayedEvents}
+          events={boundsFilteredEvents}
           onEventClick={onEventClick}
         />
       )}

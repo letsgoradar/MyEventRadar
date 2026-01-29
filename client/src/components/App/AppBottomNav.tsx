@@ -65,8 +65,8 @@ export function AppBottomNav() {
   ], [location]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-background border-t z-50 pb-safe">
-      <div className="flex items-center justify-between p-2 relative">
+    <div className="fixed bottom-0 left-0 right-0 bg-background border-t z-50">
+      <div className="flex items-center justify-between px-2 py-1 relative">
         {navItems.map((item, index) => (
           <Link key={index} href={item.href} className="w-full">
               <div 

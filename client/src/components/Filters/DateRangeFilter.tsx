@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { X, Save, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { 
   format, 
   addDays, 
@@ -24,7 +24,6 @@ interface DateRangeFilterProps {
   startDate: Date | null;
   endDate: Date | null;
   onRangeChange: (start: Date | null, end: Date | null) => void;
-  onSave?: () => void;
   onReset?: () => void;
   onClose?: () => void;
   showExpiredEvents?: boolean;
@@ -35,7 +34,6 @@ export function DateRangeFilter({
   startDate,
   endDate,
   onRangeChange,
-  onSave,
   onReset,
   onClose,
   showExpiredEvents = false,
@@ -159,17 +157,6 @@ export function DateRangeFilter({
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-sm">Periode selecteren</h3>
         <div className="flex items-center gap-1">
-          {onSave && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onSave}
-              className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-              title="Opslaan"
-            >
-              <Save className="h-4 w-4" />
-            </Button>
-          )}
           <Button
             variant="ghost"
             size="sm"

@@ -13,7 +13,7 @@ import { setupAuth } from "./auth";
 import { AiProvider } from "./services/ai-provider";
 import { setupVite, serveStatic } from "./vite";
 import { storage } from "./storage";
-import { insertEventSchema, insertUserSchema, insertActivityLogSchema, insertSavedSearchSchema } from "@shared/schema";
+import { insertEventSchema, insertUserSchema, insertActivityLogSchema, insertSavedSearchSchema, insertEventTagSchema, insertTargetAudienceSchema, insertSeasonalThemeSchema } from "@shared/schema";
 import { isAdmin, isAuthenticated, attachUser } from "./middleware/auth";
 
 // Routes voor profielfoto uploads
@@ -3494,6 +3494,188 @@ Respond with ONLY the search term, nothing else.`,
     } catch (error: any) {
       console.error('Error updating venue:', error);
       res.status(500).json({ message: error.message || "Failed to update venue" });
+    }
+  });
+
+  // ===== EVENT TAGS, TARGET AUDIENCES & SEASONAL THEMES MANAGEMENT =====
+  
+  // Get all event tags
+  app.get("/api/event-tags", async (req, res) => {
+    try {
+      const tags = await storage.getEventTags();
+      res.json(tags);
+    } catch (error: any) {
+      console.error('Error fetching event tags:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch event tags" });
+    }
+  });
+
+  // Get all target audiences
+  app.get("/api/target-audiences", async (req, res) => {
+    try {
+      const audiences = await storage.getTargetAudiences();
+      res.json(audiences);
+    } catch (error: any) {
+      console.error('Error fetching target audiences:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch target audiences" });
+    }
+  });
+
+  // Get all seasonal themes
+  app.get("/api/seasonal-themes", async (req, res) => {
+    try {
+      const themes = await storage.getSeasonalThemes();
+      res.json(themes);
+    } catch (error: any) {
+      console.error('Error fetching seasonal themes:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch seasonal themes" });
+    }
+  });
+
+  // Admin: Create event tag
+  app.post("/api/admin/event-tags", isAdmin, async (req, res) => {
+    try {
+      const parseResult = insertEventTagSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "Invalid tag data", errors: parseResult.error.errors });
+      }
+      const tag = await storage.createEventTag(parseResult.data);
+      res.status(201).json(tag);
+    } catch (error: any) {
+      console.error('Error creating event tag:', error);
+      res.status(500).json({ message: error.message || "Failed to create event tag" });
+    }
+  });
+
+  // Admin: Update event tag
+  app.patch("/api/admin/event-tags/:id", isAdmin, async (req, res) => {
+    try {
+      const tagId = parseInt(req.params.id);
+      if (isNaN(tagId)) {
+        return res.status(400).json({ message: "Invalid tag ID" });
+      }
+      const parseResult = insertEventTagSchema.partial().safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "Invalid tag data", errors: parseResult.error.errors });
+      }
+      const tag = await storage.updateEventTag(tagId, parseResult.data);
+      res.json(tag);
+    } catch (error: any) {
+      console.error('Error updating event tag:', error);
+      res.status(500).json({ message: error.message || "Failed to update event tag" });
+    }
+  });
+
+  // Admin: Delete event tag
+  app.delete("/api/admin/event-tags/:id", isAdmin, async (req, res) => {
+    try {
+      const tagId = parseInt(req.params.id);
+      if (isNaN(tagId)) {
+        return res.status(400).json({ message: "Invalid tag ID" });
+      }
+      await storage.deleteEventTag(tagId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error deleting event tag:', error);
+      res.status(500).json({ message: error.message || "Failed to delete event tag" });
+    }
+  });
+
+  // Admin: Create target audience
+  app.post("/api/admin/target-audiences", isAdmin, async (req, res) => {
+    try {
+      const parseResult = insertTargetAudienceSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "Invalid audience data", errors: parseResult.error.errors });
+      }
+      const audience = await storage.createTargetAudience(parseResult.data);
+      res.status(201).json(audience);
+    } catch (error: any) {
+      console.error('Error creating target audience:', error);
+      res.status(500).json({ message: error.message || "Failed to create target audience" });
+    }
+  });
+
+  // Admin: Update target audience
+  app.patch("/api/admin/target-audiences/:id", isAdmin, async (req, res) => {
+    try {
+      const audienceId = parseInt(req.params.id);
+      if (isNaN(audienceId)) {
+        return res.status(400).json({ message: "Invalid audience ID" });
+      }
+      const parseResult = insertTargetAudienceSchema.partial().safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "Invalid audience data", errors: parseResult.error.errors });
+      }
+      const audience = await storage.updateTargetAudience(audienceId, parseResult.data);
+      res.json(audience);
+    } catch (error: any) {
+      console.error('Error updating target audience:', error);
+      res.status(500).json({ message: error.message || "Failed to update target audience" });
+    }
+  });
+
+  // Admin: Delete target audience
+  app.delete("/api/admin/target-audiences/:id", isAdmin, async (req, res) => {
+    try {
+      const audienceId = parseInt(req.params.id);
+      if (isNaN(audienceId)) {
+        return res.status(400).json({ message: "Invalid audience ID" });
+      }
+      await storage.deleteTargetAudience(audienceId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error deleting target audience:', error);
+      res.status(500).json({ message: error.message || "Failed to delete target audience" });
+    }
+  });
+
+  // Admin: Create seasonal theme
+  app.post("/api/admin/seasonal-themes", isAdmin, async (req, res) => {
+    try {
+      const parseResult = insertSeasonalThemeSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "Invalid theme data", errors: parseResult.error.errors });
+      }
+      const theme = await storage.createSeasonalTheme(parseResult.data);
+      res.status(201).json(theme);
+    } catch (error: any) {
+      console.error('Error creating seasonal theme:', error);
+      res.status(500).json({ message: error.message || "Failed to create seasonal theme" });
+    }
+  });
+
+  // Admin: Update seasonal theme
+  app.patch("/api/admin/seasonal-themes/:id", isAdmin, async (req, res) => {
+    try {
+      const themeId = parseInt(req.params.id);
+      if (isNaN(themeId)) {
+        return res.status(400).json({ message: "Invalid theme ID" });
+      }
+      const parseResult = insertSeasonalThemeSchema.partial().safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "Invalid theme data", errors: parseResult.error.errors });
+      }
+      const theme = await storage.updateSeasonalTheme(themeId, parseResult.data);
+      res.json(theme);
+    } catch (error: any) {
+      console.error('Error updating seasonal theme:', error);
+      res.status(500).json({ message: error.message || "Failed to update seasonal theme" });
+    }
+  });
+
+  // Admin: Delete seasonal theme
+  app.delete("/api/admin/seasonal-themes/:id", isAdmin, async (req, res) => {
+    try {
+      const themeId = parseInt(req.params.id);
+      if (isNaN(themeId)) {
+        return res.status(400).json({ message: "Invalid theme ID" });
+      }
+      await storage.deleteSeasonalTheme(themeId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error deleting seasonal theme:', error);
+      res.status(500).json({ message: error.message || "Failed to delete seasonal theme" });
     }
   });
 

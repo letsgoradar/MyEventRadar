@@ -20,6 +20,9 @@ import {
   geocodeCache,
   feedQualityChecks,
   qualityCheckIssues,
+  eventTags,
+  targetAudiences,
+  seasonalThemes,
   type User,
   type InsertUser,
   type Event,
@@ -54,6 +57,12 @@ import {
   type InsertFeedQualityCheck,
   type QualityCheckIssue,
   type InsertQualityCheckIssue,
+  type EventTag,
+  type InsertEventTag,
+  type TargetAudience,
+  type InsertTargetAudience,
+  type SeasonalTheme,
+  type InsertSeasonalTheme,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
@@ -205,6 +214,24 @@ export interface IStorage {
   getUnresolvedIssuesByFeed(feedId: number): Promise<QualityCheckIssue[]>;
   resolveQualityIssue(id: number): Promise<void>;
   deleteQualityIssuesByCheck(checkId: number): Promise<void>;
+  
+  // Event Tags operations
+  getEventTags(): Promise<EventTag[]>;
+  createEventTag(tag: InsertEventTag): Promise<EventTag>;
+  updateEventTag(id: number, tag: Partial<EventTag>): Promise<EventTag>;
+  deleteEventTag(id: number): Promise<void>;
+  
+  // Target Audiences operations
+  getTargetAudiences(): Promise<TargetAudience[]>;
+  createTargetAudience(audience: InsertTargetAudience): Promise<TargetAudience>;
+  updateTargetAudience(id: number, audience: Partial<TargetAudience>): Promise<TargetAudience>;
+  deleteTargetAudience(id: number): Promise<void>;
+  
+  // Seasonal Themes operations
+  getSeasonalThemes(): Promise<SeasonalTheme[]>;
+  createSeasonalTheme(theme: InsertSeasonalTheme): Promise<SeasonalTheme>;
+  updateSeasonalTheme(id: number, theme: Partial<SeasonalTheme>): Promise<SeasonalTheme>;
+  deleteSeasonalTheme(id: number): Promise<void>;
 }
 
 export class PgStorage implements IStorage {
@@ -1380,6 +1407,96 @@ export class PgStorage implements IStorage {
   async deleteQualityIssuesByCheck(checkId: number): Promise<void> {
     return this.withRetry(async () => {
       await db.delete(qualityCheckIssues).where(eq(qualityCheckIssues.qualityCheckId, checkId));
+    });
+  }
+
+  // ===== Event Tags operations =====
+  async getEventTags(): Promise<EventTag[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(eventTags).orderBy(eventTags.group, eventTags.sortOrder);
+    });
+  }
+
+  async createEventTag(tag: InsertEventTag): Promise<EventTag> {
+    return this.withRetry(async () => {
+      const [newTag] = await db.insert(eventTags).values(tag).returning();
+      return newTag;
+    });
+  }
+
+  async updateEventTag(id: number, tag: Partial<EventTag>): Promise<EventTag> {
+    return this.withRetry(async () => {
+      const [updated] = await db.update(eventTags)
+        .set({ ...tag, updatedAt: new Date() })
+        .where(eq(eventTags.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async deleteEventTag(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(eventTags).where(eq(eventTags.id, id));
+    });
+  }
+
+  // ===== Target Audiences operations =====
+  async getTargetAudiences(): Promise<TargetAudience[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(targetAudiences).orderBy(targetAudiences.sortOrder);
+    });
+  }
+
+  async createTargetAudience(audience: InsertTargetAudience): Promise<TargetAudience> {
+    return this.withRetry(async () => {
+      const [newAudience] = await db.insert(targetAudiences).values(audience).returning();
+      return newAudience;
+    });
+  }
+
+  async updateTargetAudience(id: number, audience: Partial<TargetAudience>): Promise<TargetAudience> {
+    return this.withRetry(async () => {
+      const [updated] = await db.update(targetAudiences)
+        .set(audience)
+        .where(eq(targetAudiences.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async deleteTargetAudience(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(targetAudiences).where(eq(targetAudiences.id, id));
+    });
+  }
+
+  // ===== Seasonal Themes operations =====
+  async getSeasonalThemes(): Promise<SeasonalTheme[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(seasonalThemes).orderBy(seasonalThemes.sortOrder);
+    });
+  }
+
+  async createSeasonalTheme(theme: InsertSeasonalTheme): Promise<SeasonalTheme> {
+    return this.withRetry(async () => {
+      const [newTheme] = await db.insert(seasonalThemes).values(theme).returning();
+      return newTheme;
+    });
+  }
+
+  async updateSeasonalTheme(id: number, theme: Partial<SeasonalTheme>): Promise<SeasonalTheme> {
+    return this.withRetry(async () => {
+      const [updated] = await db.update(seasonalThemes)
+        .set(theme)
+        .where(eq(seasonalThemes.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async deleteSeasonalTheme(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(seasonalThemes).where(eq(seasonalThemes.id, id));
     });
   }
 }

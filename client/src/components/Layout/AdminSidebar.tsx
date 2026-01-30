@@ -15,7 +15,8 @@ import {
   UserCog,
   Bell,
   Database,
-  Rss
+  Rss,
+  Tags
 } from 'lucide-react';
 import { LogoIcon } from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,11 @@ const AdminSidebar: React.FC = () => {
       href: '/admin/rss-feeds',
       label: 'RSS Feeds',
       icon: <Rss className="w-5 h-5" />,
+    },
+    {
+      href: '/admin/tags',
+      label: 'Tag Manager',
+      icon: <Tags className="w-5 h-5" />,
     },
     {
       href: '/admin/activity-logs',

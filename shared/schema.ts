@@ -10,6 +10,114 @@ export const CATEGORIES = [
   'Vrijwilligerswerk en hulp'
 ] as const;
 
+// Event Tags - specifieke beschrijvingen van wat voor evenement het is
+export const eventTags = pgTable("event_tags", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  icon: text("icon").notNull(), // Lucide icon name (e.g., "Music", "Theater")
+  group: text("group").notNull(), // Grouping for UI (e.g., "Muziek", "Podiumkunsten")
+  keywords: text("keywords").array().notNull(), // Keywords for auto-matching
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Target Audiences - doelgroepen
+export const targetAudiences = pgTable("target_audiences", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  icon: text("icon").notNull(), // Lucide icon name
+  keywords: text("keywords").array().notNull(), // Keywords for auto-matching
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Seasonal Themes - periode-gebonden thema's
+export const seasonalThemes = pgTable("seasonal_themes", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  icon: text("icon").notNull(), // Lucide icon name
+  keywords: text("keywords").array().notNull(), // Keywords for auto-matching
+  // Date range can be fixed dates or calculated
+  startMonth: integer("start_month"), // 1-12
+  startDay: integer("start_day"), // 1-31
+  endMonth: integer("end_month"), // 1-12
+  endDay: integer("end_day"), // 1-31
+  // For floating holidays like Easter, Carnival
+  isFloating: boolean("is_floating").default(false),
+  floatingRule: text("floating_rule"), // e.g., "easter-2-weeks", "carnival-period"
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Event-Tag mappings (many-to-many)
+export const eventTagMappings = pgTable("event_tag_mappings", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "cascade" }).notNull(),
+  tagId: integer("tag_id").references(() => eventTags.id, { onDelete: "cascade" }).notNull(),
+  isAutoDetected: boolean("is_auto_detected").default(false), // Was this auto-matched or manually set?
+  confidence: decimal("confidence"), // Confidence score for auto-detected (0-1)
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueEventTag: unique().on(table.eventId, table.tagId),
+}));
+
+// Event-Audience mappings (many-to-many)
+export const eventAudienceMappings = pgTable("event_audience_mappings", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "cascade" }).notNull(),
+  audienceId: integer("audience_id").references(() => targetAudiences.id, { onDelete: "cascade" }).notNull(),
+  isAutoDetected: boolean("is_auto_detected").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueEventAudience: unique().on(table.eventId, table.audienceId),
+}));
+
+// Event-Theme mappings (many-to-many)
+export const eventThemeMappings = pgTable("event_theme_mappings", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "cascade" }).notNull(),
+  themeId: integer("theme_id").references(() => seasonalThemes.id, { onDelete: "cascade" }).notNull(),
+  isAutoDetected: boolean("is_auto_detected").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueEventTheme: unique().on(table.eventId, table.themeId),
+}));
+
+// Types
+export type EventTag = typeof eventTags.$inferSelect;
+export type InsertEventTag = typeof eventTags.$inferInsert;
+export type TargetAudience = typeof targetAudiences.$inferSelect;
+export type InsertTargetAudience = typeof targetAudiences.$inferInsert;
+export type SeasonalTheme = typeof seasonalThemes.$inferSelect;
+export type InsertSeasonalTheme = typeof seasonalThemes.$inferInsert;
+export type EventTagMapping = typeof eventTagMappings.$inferSelect;
+export type EventAudienceMapping = typeof eventAudienceMappings.$inferSelect;
+export type EventThemeMapping = typeof eventThemeMappings.$inferSelect;
+
+// Insert schemas
+export const insertEventTagSchema = createInsertSchema(eventTags).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTargetAudienceSchema = createInsertSchema(targetAudiences).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSeasonalThemeSchema = createInsertSchema(seasonalThemes).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const ACTIVITY_TYPES = [
   'login',
   'logout',

@@ -14,13 +14,17 @@ import { BottomSheet } from "./BottomSheet";
 import { SortMenu, SortDirection } from "./SortMenuComponent";
 import { EventInterface as BaseEvent, CATEGORIES } from "@shared/schema";
 import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
+import { EventFilters, type EventFilterState } from "@/components/Filters/EventFilters";
 import { Calendar } from "lucide-react";
 import { format, addDays, startOfDay, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 
-// Uitgebreide Event interface met distance property
+// Uitgebreide Event interface met distance property en tag arrays
 interface Event extends BaseEvent {
   distance?: number;
+  eventTagIds?: number[];
+  targetAudienceIds?: number[];
+  seasonalThemeIds?: number[];
 }
 import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -50,86 +54,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
-// Filters component om de Popover te isoleren en re-rendering problemen te voorkomen
-interface FiltersPopoverProps {
-  selectedCategories: typeof CATEGORIES[number][];
-  applyFilters: () => void;
-  toggleCategory: (category: typeof CATEGORIES[number]) => void;
-}
-
-// Memoized component om de "Maximum update depth exceeded" waarschuwing te voorkomen
-const FiltersPopover = React.memo(({
-  selectedCategories,
-  toggleCategory,
-  applyFilters
-}: FiltersPopoverProps) => {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1">
-          <Sliders className="h-4 w-4" />
-          Filters
-          {selectedCategories.length > 0 && (
-            <Badge className="ml-1 text-xs h-5 min-w-5 flex items-center justify-center bg-primary text-primary-foreground">
-              {selectedCategories.length}
-            </Badge>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[280px] p-4" sideOffset={5}>
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-sm font-medium mb-2">Categorieën</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {CATEGORIES.map((category) => {
-                const isSelected = selectedCategories.includes(category);
-                return (
-                  <Button
-                    key={category}
-                    size="sm"
-                    variant="outline"
-                    className={cn(
-                      "h-auto py-1 px-2 text-xs justify-start gap-1",
-                      isSelected && "bg-primary text-primary-foreground"
-                    )}
-                    onClick={() => toggleCategory(category)}
-                  >
-                    <CategoryIcon category={category} size={14} />
-                    <span className="truncate">{category}</span>
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-          
-          <div className="pt-2 flex justify-between items-center">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => {
-                // Reset categorieën
-                if (selectedCategories.length > 0) {
-                  // Kopieer de array zodat we niet de originele state aanpassen tijdens iteratie
-                  [...selectedCategories].forEach(category => toggleCategory(category));
-                }
-              }}
-            >
-              Reset
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={applyFilters}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-});
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -209,6 +133,14 @@ export function AppLayout({
   // Gebruik defaultView als initiële view
   const [view, setView] = React.useState<"list" | "map">(defaultView);
   const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
+  // Event filters state (tags, doelgroepen, thema's)
+  const [eventFilters, setEventFilters] = React.useState<EventFilterState>({
+    tagIds: [],
+    audienceIds: [],
+    themeIds: [],
+    startDate: null,
+    endDate: null
+  });
   // Standaard geen verlopen evenementen tonen
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   // Sortering van evenementen (alleen tijd-based)
@@ -267,6 +199,51 @@ export function AppLayout({
       });
     }
     
+    // Filter events based on tag filters
+    if (eventFilters.tagIds.length > 0) {
+      filtered = filtered.filter(event => 
+        event.eventTagIds && event.eventTagIds.some((tagId: number) => 
+          eventFilters.tagIds.includes(tagId)
+        )
+      );
+    }
+    
+    // Filter events based on audience filters
+    if (eventFilters.audienceIds.length > 0) {
+      filtered = filtered.filter(event => 
+        event.targetAudienceIds && event.targetAudienceIds.some((audienceId: number) => 
+          eventFilters.audienceIds.includes(audienceId)
+        )
+      );
+    }
+    
+    // Filter events based on theme filters
+    if (eventFilters.themeIds.length > 0) {
+      filtered = filtered.filter(event => 
+        event.seasonalThemeIds && event.seasonalThemeIds.some((themeId: number) => 
+          eventFilters.themeIds.includes(themeId)
+        )
+      );
+    }
+    
+    // Filter events based on date range from EventFilters
+    if (eventFilters.startDate || eventFilters.endDate) {
+      filtered = filtered.filter(event => {
+        const eventStart = new Date(event.startTime);
+        if (eventFilters.startDate && eventStart < startOfDay(eventFilters.startDate)) {
+          return false;
+        }
+        if (eventFilters.endDate) {
+          const endOfFilterDay = new Date(eventFilters.endDate);
+          endOfFilterDay.setHours(23, 59, 59, 999);
+          if (eventStart > endOfFilterDay) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+    
     // Sorteer evenementen op basis van de geselecteerde sorteermethode en -richting
     filtered = [...filtered].sort((a, b) => {
       // Sorteer op tijd
@@ -277,7 +254,7 @@ export function AppLayout({
     });
     
     return filtered;
-  }, [selectedCategories, originalEvents, showExpiredEvents, sortDirection]);
+  }, [selectedCategories, originalEvents, showExpiredEvents, sortDirection, eventFilters]);
   
   // Events gefilterd op kaart bounds (voor bottom sheet)
   const boundsFilteredEvents = React.useMemo(() => {
@@ -717,12 +694,12 @@ export function AppLayout({
               onBoundsChange={setMapBounds}
             />
             
-            {/* Floating Filter knop - linksboven */}
+            {/* Floating Filter knop - linksboven - Airbnb style EventFilters */}
             <div className="absolute top-4 left-4 z-[1000]">
-              <FiltersPopover 
-                selectedCategories={selectedCategories}
-                applyFilters={applyFilters}
-                toggleCategory={toggleCategory}
+              <EventFilters
+                filters={eventFilters}
+                onFiltersChange={setEventFilters}
+                resultCount={displayedEvents.length}
               />
             </div>
           </div>

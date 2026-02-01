@@ -182,6 +182,10 @@ export const events = pgTable("events", {
   detailViews: integer("detail_views").default(0), // Track how often event detail page is viewed
   // Venue reference
   venueId: integer("venue_id"), // References venues.id
+  // New tag system (replaces old category system)
+  eventTagIds: integer("event_tag_ids").array(), // References eventTags.id
+  targetAudienceIds: integer("target_audience_ids").array(), // References targetAudiences.id
+  seasonalThemeIds: integer("seasonal_theme_ids").array(), // References seasonalThemes.id
 });
 
 export const eventSources = pgTable("event_sources", {

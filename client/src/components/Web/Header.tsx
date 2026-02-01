@@ -35,6 +35,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
+import { EventFilters, ActiveFilterBadges, type EventFilterState } from "@/components/Filters/EventFilters";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
@@ -53,6 +54,9 @@ interface HeaderProps {
   endDate?: Date | null;
   onStartDateChange?: (date: Date | null) => void;
   onEndDateChange?: (date: Date | null) => void;
+  eventFilters?: EventFilterState;
+  onEventFiltersChange?: (filters: EventFilterState) => void;
+  resultCount?: number;
 }
 
 export function Header({
@@ -69,6 +73,9 @@ export function Header({
   endDate: propEndDate,
   onStartDateChange,
   onEndDateChange,
+  eventFilters,
+  onEventFiltersChange,
+  resultCount,
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
@@ -399,55 +406,14 @@ export function Header({
       
       {/* Right side with filters and user profile */}
       <div className="flex items-center gap-2">
-        {/* Filters button */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button size="sm" variant="outline" className="rounded-full">
-              <span>Filters</span>
-              {selectedCategories.length > 0 && (
-                <span className="ml-1 bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center text-xs">
-                  {selectedCategories.length}
-                </span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[400px]" align="end">
-            <div className="space-y-6 p-2">
-              {/* De afstandsfilter is verwijderd - dit wordt nu bepaald door in/uitzoomen op de kaart */}
-              
-              <div className="space-y-3">
-                <h4 className="font-medium text-lg">Categorieën</h4>
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map(category => (
-                    <Button 
-                      key={category}
-                      variant={selectedCategories.includes(category) ? "default" : "outline"}
-                      className="flex items-center gap-2"
-                      size="sm"
-                      onClick={() => toggleCategory(category)}
-                    >
-                      <CategoryIcon category={category as any} size={18} />
-                      <span className="text-sm">{category}</span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="flex justify-end">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setSelectedCategories([]);
-                    onCategoriesChange?.([]);
-                  }}
-                >
-                  Filters wissen
-                </Button>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+        {/* New EventFilters component */}
+        {eventFilters && onEventFiltersChange && (
+          <EventFilters
+            filters={eventFilters}
+            onFiltersChange={onEventFiltersChange}
+            resultCount={resultCount}
+          />
+        )}
 
         {/* Toon de kaart/lijst schakelaar alleen indien niet verborgen */}
         {!hideViewToggle && (

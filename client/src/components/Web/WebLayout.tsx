@@ -5,6 +5,7 @@ import Header from "./Header";
 import SplitView from "./SplitView";
 import { EventDetailPanel } from "./EventDetailPanel";
 import { addDays, startOfDay, eachDayOfInterval } from "date-fns";
+import { type EventFilterState } from "@/components/Filters/EventFilters";
 
 interface WebLayoutProps {
   children?: React.ReactNode;
@@ -38,6 +39,15 @@ export function WebLayout({
     const endDate = addDays(today, 6);
     return eachDayOfInterval({ start: today, end: endDate });
   });
+  
+  // Event filters state (tags, doelgroepen, thema's)
+  const [eventFilters, setEventFilters] = React.useState<EventFilterState>({
+    tagIds: [],
+    audienceIds: [],
+    themeIds: [],
+    startDate: null,
+    endDate: null
+  });
 
   // Update state when props change
   React.useEffect(() => {
@@ -50,17 +60,45 @@ export function WebLayout({
 
   React.useEffect(() => {
     if (propFilteredEvents) {
+      let filtered = propFilteredEvents;
+      
       // Filter events based on selected categories
       if (selectedCategories.length > 0) {
-        const filtered = propFilteredEvents.filter(event => 
+        filtered = filtered.filter(event => 
           selectedCategories.includes(event.category)
         );
-        setFilteredEvents(filtered);
-      } else {
-        setFilteredEvents(propFilteredEvents);
       }
+      
+      // Filter events based on tag filters
+      if (eventFilters.tagIds.length > 0) {
+        filtered = filtered.filter(event => 
+          event.eventTagIds && event.eventTagIds.some(tagId => 
+            eventFilters.tagIds.includes(tagId)
+          )
+        );
+      }
+      
+      // Filter events based on audience filters
+      if (eventFilters.audienceIds.length > 0) {
+        filtered = filtered.filter(event => 
+          event.targetAudienceIds && event.targetAudienceIds.some(audienceId => 
+            eventFilters.audienceIds.includes(audienceId)
+          )
+        );
+      }
+      
+      // Filter events based on theme filters
+      if (eventFilters.themeIds.length > 0) {
+        filtered = filtered.filter(event => 
+          event.seasonalThemeIds && event.seasonalThemeIds.some(themeId => 
+            eventFilters.themeIds.includes(themeId)
+          )
+        );
+      }
+      
+      setFilteredEvents(filtered);
     }
-  }, [propFilteredEvents, selectedCategories]);
+  }, [propFilteredEvents, selectedCategories, eventFilters]);
 
   const handleSearch = React.useCallback((query: string) => {
     setSearchQuery(query);
@@ -103,6 +141,9 @@ export function WebLayout({
             onEventClick={handleEventClick}
             selectedDays={selectedDays}
             onSelectedDaysChange={setSelectedDays}
+            eventFilters={eventFilters}
+            onEventFiltersChange={setEventFilters}
+            resultCount={filteredEvents.length}
           />
         </div>
         

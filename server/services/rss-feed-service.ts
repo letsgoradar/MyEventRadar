@@ -15,6 +15,7 @@ import { FeedFieldDetector } from "./feed-field-detector";
 import { AiHtmlAnalyzer, type AiExtractionSelectors, type AiPaginationInfo } from "./ai-html-analyzer";
 import { AiLocationExtractor } from "./ai-location-extractor";
 import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
+import { matchTags } from "./tag-matcher";
 
 /**
  * Determine if a given date/time is in Dutch Summer Time (CEST = UTC+2) or Winter Time (CET = UTC+1).
@@ -7065,6 +7066,9 @@ export class RssFeedService {
 
       const recurrence = this.detectRecurrence(formattedTitle, fullDescription);
 
+      // Match tags, audiences and themes based on keywords
+      const tagMatchResult = await matchTags(formattedTitle, fullDescription, startTime);
+      
       const [event] = await db.insert(events)
         .values({
           title: formattedTitle,
@@ -7081,7 +7085,10 @@ export class RssFeedService {
           recurrence: recurrence,
           tags: ["rss-import", feed.name.toLowerCase().replace(/\s+/g, "-")],
           imageUrl: imageUrl || null,
-          externalUrl: parsedItem.link || null
+          externalUrl: parsedItem.link || null,
+          eventTagIds: tagMatchResult.eventTagIds.length > 0 ? tagMatchResult.eventTagIds : null,
+          targetAudienceIds: tagMatchResult.targetAudienceIds.length > 0 ? tagMatchResult.targetAudienceIds : null,
+          seasonalThemeIds: tagMatchResult.seasonalThemeIds.length > 0 ? tagMatchResult.seasonalThemeIds : null,
         })
         .returning();
 

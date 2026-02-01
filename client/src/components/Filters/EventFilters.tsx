@@ -132,10 +132,13 @@ function FilterContent({
   };
 
   const toggleAudience = (id: number) => {
-    const newAudienceIds = filters.audienceIds.includes(id)
-      ? filters.audienceIds.filter((a) => a !== id)
-      : [...filters.audienceIds, id];
-    onFiltersChange({ ...filters, audienceIds: newAudienceIds });
+    if (filters.audienceIds.includes(id)) {
+      const newAudienceIds = filters.audienceIds.filter((a) => a !== id);
+      onFiltersChange({ ...filters, audienceIds: newAudienceIds });
+    } else if (filters.audienceIds.length < 3) {
+      const newAudienceIds = [...filters.audienceIds, id];
+      onFiltersChange({ ...filters, audienceIds: newAudienceIds });
+    }
   };
 
   const toggleTheme = (id: number) => {
@@ -158,7 +161,7 @@ function FilterContent({
     (filters.startDate ? 1 : 0);
 
   return (
-    <ScrollArea className="flex-1 px-4">
+    <ScrollArea className="flex-1 px-4 max-h-[60vh] overflow-y-auto">
       {/* Quick Date Buttons */}
       <FilterSection title="Datum" icon={Calendar}>
         <div className="flex flex-wrap gap-2 mb-3">
@@ -339,7 +342,7 @@ export function EventFilters({ filters, onFiltersChange, resultCount }: EventFil
     return (
       <Drawer>
         <DrawerTrigger asChild>{FilterButton}</DrawerTrigger>
-        <DrawerContent className="max-h-[85vh]">
+        <DrawerContent className="max-h-[85vh] flex flex-col">
           <DrawerHeader className="border-b pb-4">
             <DrawerTitle className="text-xl">Filters</DrawerTitle>
           </DrawerHeader>

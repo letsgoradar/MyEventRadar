@@ -68,6 +68,7 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
    - **NOOIT default/fake tijden invullen** (geen 10:00, 11:00, 22:00, 23:00 als fallback!)
    - Als geen tijd gevonden: startTime en endTime op `undefined` laten (niet invullen)
    - Liever geen tijd dan een foutieve tijd - gebruiker kan doorlinken naar bron
+   - **EndTime Validatie**: Als endTime VOOR startTime ligt, wordt endTime uitgesloten (waarschijnlijk parsing error)
    - **Timezone**: ISO strings ZONDER timezone indicator (bijv. `2026-01-31T16:00:00`) als lokale Nederlandse tijd parsen, NIET als UTC. Gebruik `parseLocalDateTime()` helper.
    - **DST Handling**: `parseLocalDateTime()` detecteert automatisch zomer/wintertijd:
      - Zomertijd (CEST, UTC+2): april t/m september, en na 02:00 op laatste zondag maart

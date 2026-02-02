@@ -3138,7 +3138,53 @@ Respond with ONLY the search term, nothing else.`,
         const getText = (selector: string | undefined) => {
           if (!selector) return undefined;
           const el = card.querySelector(selector);
-          return el?.textContent?.trim() || undefined;
+          if (!el) return undefined;
+          
+          // For container elements with multiple paragraphs/children,
+          // extract text from all child nodes preserving paragraph structure
+          const paragraphs: string[] = [];
+          let currentParagraph = '';
+          
+          const collectText = (node: ChildNode) => {
+            if (node.nodeType === 3) { // Text node
+              const text = node.textContent?.trim();
+              if (text) {
+                currentParagraph += (currentParagraph ? ' ' : '') + text;
+              }
+            } else if (node.nodeType === 1) { // Element node
+              const tagName = (node as Element).tagName?.toLowerCase();
+              const isBlock = ['p', 'div', 'br', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'article', 'section'].includes(tagName);
+              
+              if (isBlock && currentParagraph) {
+                // Save current paragraph before entering block element
+                paragraphs.push(currentParagraph.trim());
+                currentParagraph = '';
+              }
+              
+              node.childNodes.forEach(child => collectText(child));
+              
+              if (isBlock && currentParagraph) {
+                // Save paragraph after exiting block element
+                paragraphs.push(currentParagraph.trim());
+                currentParagraph = '';
+              }
+            }
+          };
+          
+          el.childNodes.forEach(child => collectText(child));
+          
+          // Don't forget any remaining text
+          if (currentParagraph.trim()) {
+            paragraphs.push(currentParagraph.trim());
+          }
+          
+          // Join paragraphs with double newline for proper separation
+          const result = paragraphs
+            .filter(p => p.length > 0)
+            .join('\n\n')
+            .trim();
+          
+          return result || el.textContent?.trim() || undefined;
         };
 
         const getAttr = (selector: string | undefined, attr: string) => {

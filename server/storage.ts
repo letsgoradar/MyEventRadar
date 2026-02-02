@@ -295,14 +295,26 @@ export class PgStorage implements IStorage {
           notificationReach = insertEvent.notificationReach.toString();
         }
         
+        // Validate endTime: if endTime is before startTime, exclude it (likely parsing error)
+        const startTime = new Date(insertEvent.startTime);
+        let endTime: Date | null = null;
+        if (insertEvent.endTime) {
+          const parsedEndTime = new Date(insertEvent.endTime);
+          if (parsedEndTime >= startTime) {
+            endTime = parsedEndTime;
+          } else {
+            console.log(`[Storage] EndTime validation: endTime ${parsedEndTime.toISOString()} is before startTime ${startTime.toISOString()} - excluding endTime`);
+          }
+        }
+        
         const eventData = {
           title: insertEvent.title,
           description: insertEvent.description,
           latitude: latitude,
           longitude: longitude,
           notificationReach: notificationReach,
-          startTime: new Date(insertEvent.startTime),
-          endTime: insertEvent.endTime ? new Date(insertEvent.endTime) : null,
+          startTime: startTime,
+          endTime: endTime,
           category: insertEvent.category,
           secondaryCategory: insertEvent.secondaryCategory || null,
           isPaid: insertEvent.isPaid || false,
@@ -557,9 +569,41 @@ export class PgStorage implements IStorage {
   
   async updateEvent(id: number, eventData: Partial<Event>): Promise<Event> {
     return this.withRetry(async () => {
+      let validatedData = { ...eventData };
+      
+      // Validate endTime: if endTime is being set, validate it against startTime
+      if (validatedData.endTime !== undefined && validatedData.endTime !== null) {
+        // Get startTime from update data or fetch from existing event
+        let startTime: Date | null = null;
+        if (validatedData.startTime !== undefined) {
+          startTime = validatedData.startTime instanceof Date 
+            ? validatedData.startTime 
+            : new Date(validatedData.startTime);
+        } else {
+          // Fetch existing event to get startTime
+          const [existingEvent] = await db.select({ startTime: events.startTime })
+            .from(events)
+            .where(eq(events.id, id));
+          if (existingEvent?.startTime) {
+            startTime = existingEvent.startTime;
+          }
+        }
+        
+        if (startTime) {
+          const endTime = validatedData.endTime instanceof Date 
+            ? validatedData.endTime 
+            : new Date(validatedData.endTime);
+          
+          if (endTime < startTime) {
+            console.log(`[Storage] EndTime validation: endTime ${endTime.toISOString()} is before startTime ${startTime.toISOString()} - excluding endTime`);
+            validatedData.endTime = null;
+          }
+        }
+      }
+      
       const [result] = await db
         .update(events)
-        .set(eventData)
+        .set(validatedData)
         .where(eq(events.id, id))
         .returning();
       return result;

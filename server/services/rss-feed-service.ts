@@ -90,6 +90,26 @@ function getAmsterdamOffsetHours(year: number, month: number, day: number, hours
  * IMPORTANT: This function is critical for all feed imports. Dutch events should display
  * at the correct local time regardless of the server's timezone setting.
  */
+/**
+ * Validate endTime against startTime. If endTime is before startTime,
+ * the endTime is considered unreliable (likely a parsing error) and should be excluded.
+ * 
+ * @param startTime - The event start time
+ * @param endTime - The event end time to validate
+ * @returns The validated endTime or undefined if invalid
+ */
+function validateEndTime(startTime: Date | undefined, endTime: Date | undefined): Date | undefined {
+  if (!startTime || !endTime) return endTime;
+  
+  // If endTime is before startTime, it's likely a parsing error - exclude it
+  if (endTime < startTime) {
+    console.log(`[RSS] EndTime validation failed: endTime ${endTime.toISOString()} is before startTime ${startTime.toISOString()} - excluding endTime`);
+    return undefined;
+  }
+  
+  return endTime;
+}
+
 function parseLocalDateTime(dateString: string): Date | undefined {
   if (!dateString) return undefined;
   

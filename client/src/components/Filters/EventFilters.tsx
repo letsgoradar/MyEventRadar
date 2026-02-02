@@ -6,10 +6,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { SlidersHorizontal, X, Check, Calendar, Users, Snowflake, Tag, RotateCcw } from "lucide-react";
+import { SlidersHorizontal, X, Check, Users, Snowflake, Tag, RotateCcw } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { DateRangeFilter } from "./DateRangeFilter";
 
 interface EventTag {
   id: number;
@@ -124,8 +123,6 @@ function FilterContent({
   themes: SeasonalTheme[];
   onReset: () => void;
 }) {
-  const [showDateFilter, setShowDateFilter] = useState(false);
-
   const toggleTag = (id: number) => {
     const newTagIds = filters.tagIds.includes(id)
       ? filters.tagIds.filter((t) => t !== id)
@@ -159,66 +156,10 @@ function FilterContent({
   const activeFilterCount = 
     filters.tagIds.length + 
     filters.audienceIds.length + 
-    filters.themeIds.length + 
-    (filters.startDate ? 1 : 0);
+    filters.themeIds.length;
 
   return (
     <ScrollArea className="flex-1 px-4 max-h-[60vh] overflow-y-auto">
-      {/* Quick Date Buttons */}
-      <FilterSection title="Datum" icon={Calendar}>
-        <div className="flex flex-wrap gap-2 mb-3">
-          <Button
-            variant={!filters.startDate && !filters.endDate ? "default" : "outline"}
-            size="sm"
-            onClick={() => onFiltersChange({ ...filters, startDate: null, endDate: null })}
-          >
-            Alle data
-          </Button>
-          <Button
-            variant={filters.startDate && !filters.endDate ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              onFiltersChange({ ...filters, startDate: today, endDate: today });
-            }}
-          >
-            Vandaag
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const today = new Date();
-              const nextWeek = new Date(today);
-              nextWeek.setDate(today.getDate() + 7);
-              onFiltersChange({ ...filters, startDate: today, endDate: nextWeek });
-            }}
-          >
-            Deze week
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowDateFilter(!showDateFilter)}
-          >
-            Kies data...
-          </Button>
-        </div>
-        {showDateFilter && (
-          <div className="mt-2 border rounded-lg p-2 bg-background">
-            <DateRangeFilter
-              startDate={filters.startDate}
-              endDate={filters.endDate}
-              onRangeChange={(start, end) => onFiltersChange({ ...filters, startDate: start, endDate: end })}
-              onReset={() => onFiltersChange({ ...filters, startDate: null, endDate: null })}
-              onClose={() => setShowDateFilter(false)}
-            />
-          </div>
-        )}
-      </FilterSection>
-
-      <Separator />
 
       {/* Target Audiences */}
       <FilterSection title="Voor wie" icon={Users}>
@@ -305,16 +246,14 @@ export function EventFilters({ filters, onFiltersChange, resultCount, isOpen, on
   const activeFilterCount = 
     filters.tagIds.length + 
     filters.audienceIds.length + 
-    filters.themeIds.length + 
-    (filters.startDate ? 1 : 0);
+    filters.themeIds.length;
 
   const resetFilters = () => {
     onFiltersChange({
+      ...filters,
       tagIds: [],
       audienceIds: [],
       themeIds: [],
-      startDate: null,
-      endDate: null,
     });
   };
 
@@ -409,11 +348,10 @@ export function FilterSidebar({
 
   const resetFilters = () => {
     onFiltersChange({
+      ...filters,
       tagIds: [],
       audienceIds: [],
       themeIds: [],
-      startDate: null,
-      endDate: null,
     });
   };
 
@@ -482,26 +420,12 @@ export function ActiveFilterBadges({
   const selectedAudiences = audiences.filter((a) => filters.audienceIds.includes(a.id));
   const selectedThemes = themes.filter((t) => filters.themeIds.includes(t.id));
 
-  const hasFilters = selectedTags.length > 0 || selectedAudiences.length > 0 || selectedThemes.length > 0 || filters.startDate;
+  const hasFilters = selectedTags.length > 0 || selectedAudiences.length > 0 || selectedThemes.length > 0;
 
   if (!hasFilters) return null;
 
   return (
     <div className="flex flex-wrap gap-1.5 py-2">
-      {filters.startDate && (
-        <Badge variant="secondary" className="gap-1 pr-1">
-          {filters.endDate 
-            ? `${filters.startDate.toLocaleDateString("nl-NL")} - ${filters.endDate.toLocaleDateString("nl-NL")}`
-            : filters.startDate.toLocaleDateString("nl-NL")
-          }
-          <button 
-            onClick={() => onFiltersChange({ ...filters, startDate: null, endDate: null })}
-            className="ml-1 hover:bg-muted rounded-full p-0.5"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </Badge>
-      )}
       {selectedAudiences.map((audience) => (
         <Badge key={audience.id} variant="secondary" className="gap-1 pr-1">
           <IconComponent iconName={audience.icon} className="h-3 w-3" />

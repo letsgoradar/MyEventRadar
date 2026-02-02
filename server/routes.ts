@@ -481,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lat: z.coerce.number(),
         lng: z.coerce.number(),
         radius: z.coerce.number().default(10),
-        windowDays: z.union([z.coerce.number(), z.literal('all')]).optional().default(14),
+        windowDays: z.union([z.coerce.number(), z.literal('all')]).optional(),
       });
 
       const parsed = schema.parse({
@@ -492,8 +492,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const { lat, lng, radius } = parsed;
-      // windowDays: standaard 14 dagen, 'all' betekent geen filter
-      const windowDays = parsed.windowDays === 'all' ? null : parsed.windowDays;
+      // windowDays: geen default (null = alle events), 'all' betekent ook geen filter
+      const windowDays = parsed.windowDays === 'all' || parsed.windowDays === undefined ? null : parsed.windowDays;
 
       console.log('GET /api/events/nearby params:', { lat, lng, radius, windowDays });
       

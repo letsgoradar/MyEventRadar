@@ -364,14 +364,14 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async getEventsByRadius(lat: number, lng: number, radius: number, windowDays: number | null = 14): Promise<Event[]> {
+  async getEventsByRadius(lat: number, lng: number, radius: number, windowDays: number | null = null): Promise<Event[]> {
     try {
       console.log('Fetching events with params:', { lat, lng, radius, windowDays });
       const result = await db.select().from(events);
 
       const now = new Date();
       
-      // Filter events op tijdsvenster (standaard 14 dagen vooruit)
+      // Filter events op tijdsvenster (null = alle toekomstige events)
       const filteredByTime = windowDays !== null 
         ? result.filter(event => {
             const eventStart = new Date(event.startTime);

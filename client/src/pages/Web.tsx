@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchEventsByRadius } from "@/lib/api"; 
 import { useLocation as useGeoLocation } from "@/hooks/useLocation";
 import L from "leaflet";
-import { AssistantButton } from "@/components/Assistant/AssistantButton";
 
 export default function Web() {
   const [location, setLocation] = useLocation();
@@ -73,16 +72,13 @@ export default function Web() {
   }, []);
 
   return (
-    <>
-      <WebLayout 
-        searchQuery={searchQuery}
-        radius={radius}
-        filteredEvents={filteredEvents}
-        onSearch={handleSearch}
-        onRadiusChange={handleRadiusChange}
-        onWindowDaysChange={handleWindowDaysChange}
-      />
-      <AssistantButton />
-    </>
+    <WebLayout 
+      searchQuery={searchQuery}
+      radius={radius}
+      filteredEvents={filteredEvents}
+      onSearch={handleSearch}
+      onRadiusChange={handleRadiusChange}
+      onWindowDaysChange={handleWindowDaysChange}
+    />
   );
 }

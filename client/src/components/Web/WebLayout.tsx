@@ -41,23 +41,16 @@ export function WebLayout({
   const [radius, setRadius] = React.useState(propRadius || 10);
   const [filteredEvents, setFilteredEvents] = React.useState<ExtendedEvent[]>(propFilteredEvents || []);
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
-  // Gesynchroniseerde datum selectie state - default komende 14 dagen (consistent met Header en eventFilters)
-  const [selectedDays, setSelectedDays] = React.useState<Date[]>(() => {
-    const today = startOfDay(new Date());
-    const endDate = addDays(today, 14);
-    return eachDayOfInterval({ start: today, end: endDate });
-  });
+  // Gesynchroniseerde datum selectie state - geen default, toont alle events
+  const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
   
-  // Event filters state (tags, doelgroepen, thema's) - default komende 14 dagen (consistent met Header)
-  const [eventFilters, setEventFilters] = React.useState<EventFilterState>(() => {
-    const today = startOfDay(new Date());
-    return {
-      tagIds: [],
-      audienceIds: [],
-      themeIds: [],
-      startDate: today,
-      endDate: addDays(today, 14)
-    };
+  // Event filters state (tags, doelgroepen, thema's) - geen default datum filter
+  const [eventFilters, setEventFilters] = React.useState<EventFilterState>({
+    tagIds: [],
+    audienceIds: [],
+    themeIds: [],
+    startDate: null,
+    endDate: null
   });
   
   // Filter sidebar open/close state

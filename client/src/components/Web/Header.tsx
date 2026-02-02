@@ -37,6 +37,7 @@ import { Separator } from "@/components/ui/separator";
 import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
 import { EventFilters, ActiveFilterBadges, type EventFilterState } from "@/components/Filters/EventFilters";
 import { RadarLogoWithText } from "@/components/RadarLogo";
+import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
@@ -88,15 +89,15 @@ export function Header({
   const [showSearchResults, setShowSearchResults] = React.useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = React.useState(false);
   
-  // Date range state - default vandaag + 14 dagen
+  // Date range state - geen default, toont alle events
   const today = startOfDay(new Date());
-  const defaultEndDate = addDays(today, 14);
   
-  const [localStartDate, setLocalStartDate] = React.useState<Date | null>(today);
-  const [localEndDate, setLocalEndDate] = React.useState<Date | null>(defaultEndDate);
+  const [localStartDate, setLocalStartDate] = React.useState<Date | null>(null);
+  const [localEndDate, setLocalEndDate] = React.useState<Date | null>(null);
   
-  const startDate = propStartDate !== undefined ? propStartDate : localStartDate;
-  const endDate = propEndDate !== undefined ? propEndDate : localEndDate;
+  // Prioriteit: eventFilters > props > local state
+  const startDate = eventFilters?.startDate ?? (propStartDate !== undefined ? propStartDate : localStartDate);
+  const endDate = eventFilters?.endDate ?? (propEndDate !== undefined ? propEndDate : localEndDate);
   
   const handleRangeChange = (start: Date | null, end: Date | null) => {
     if (onStartDateChange) onStartDateChange(start);
@@ -115,6 +116,15 @@ export function Header({
       } else {
         onDateRangeChange(null);
       }
+    }
+    
+    // Ook eventFilters bijwerken voor API call
+    if (eventFilters && onEventFiltersChange) {
+      onEventFiltersChange({
+        ...eventFilters,
+        startDate: start,
+        endDate: end
+      });
     }
   };
   
@@ -272,8 +282,11 @@ export function Header({
         <RadarLogoWithText height={32} textColor="hsl(var(--foreground))" />
       </Link>
       
-      {/* Center area with search and date filters */}
+      {/* Center area with AI assistant, search and date filters */}
       <div className="flex items-center justify-center gap-2 max-w-xl flex-1">
+        {/* AI Assistent knop - links van zoekbalk */}
+        <AssistantButton variant="header" />
+        
         {/* Zoekveld */}
         <div className="relative flex-1">
           <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />

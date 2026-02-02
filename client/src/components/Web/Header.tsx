@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
 import { EventFilters, ActiveFilterBadges, type EventFilterState } from "@/components/Filters/EventFilters";
+import { RadarLogo } from "@/components/RadarLogo";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
@@ -262,8 +263,11 @@ export function Header({
 
   return (
     <div className="h-20 border-b border-border bg-background flex items-center px-4 justify-between pointer-events-auto shadow-sm">
-      {/* Left side area - empty (was logo) */}
-      <div className="w-32 md:w-48"></div>
+      {/* Left side area - logo */}
+      <Link href="/" className="flex items-center gap-2 w-32 md:w-48">
+        <RadarLogo size={36} />
+        <span className="text-lg font-semibold text-foreground hidden md:inline">letsgo radar</span>
+      </Link>
       
       {/* Center area with search and date filters */}
       <div className="flex items-center justify-center gap-2 max-w-xl flex-1">

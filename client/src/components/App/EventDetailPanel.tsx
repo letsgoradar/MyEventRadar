@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Heart, UserPlus, Navigation, Bookmark, BookmarkCheck, ExternalLink, Eye, ChevronDown, Globe, Link } from "lucide-react";
+import { ExternalLinkInterstitial } from "@/components/Ads/ExternalLinkInterstitial";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -228,6 +229,9 @@ export function EventDetailPanel({
     toggleParticipantMutation.mutate();
   };
 
+  // State voor interstitial
+  const [showInterstitial, setShowInterstitial] = useState(false);
+
   // Track and open external page mutation
   const openExternalPageMutation = useMutation({
     mutationFn: async () => {
@@ -239,22 +243,17 @@ export function EventDetailPanel({
       if (!response.ok) throw new Error('Failed to track external page open');
       return response.json();
     },
-    onSuccess: (data) => {
-      if (data.externalUrl) {
-        window.open(data.externalUrl, '_blank', 'noopener,noreferrer');
-      }
-    },
-    onError: () => {
-      if (event.externalUrl) {
-        window.open(event.externalUrl, '_blank', 'noopener,noreferrer');
-      }
-    },
   });
 
   const handleOpenExternalPage = () => {
     if (event.externalUrl) {
       openExternalPageMutation.mutate();
+      setShowInterstitial(true);
     }
+  };
+
+  const handleCloseInterstitial = () => {
+    setShowInterstitial(false);
   };
 
   // Find current event index for navigation
@@ -348,6 +347,14 @@ export function EventDetailPanel({
   };
 
   return (
+    <>
+    {showInterstitial && event.externalUrl && (
+      <ExternalLinkInterstitial
+        externalUrl={event.externalUrl}
+        eventTitle={event.title}
+        onClose={handleCloseInterstitial}
+      />
+    )}
     <AnimatePresence>
       <motion.div 
         initial={{ y: "100%" }}
@@ -769,5 +776,6 @@ export function EventDetailPanel({
       )}
     </motion.div>
     </AnimatePresence>
+    </>
   );
 }

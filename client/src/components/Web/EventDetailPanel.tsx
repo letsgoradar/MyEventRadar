@@ -7,6 +7,7 @@ import { EventInterface as Event } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { ExternalLinkInterstitial } from "@/components/Ads/ExternalLinkInterstitial";
 
 const formatDateTime = (dateInput: string | Date) => {
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
@@ -140,6 +141,9 @@ export function EventDetailPanel({
     },
   });
 
+  // State voor interstitial
+  const [showInterstitial, setShowInterstitial] = useState(false);
+
   const openExternalPageMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/events/${event.id}/track-external-open`, {
@@ -150,22 +154,17 @@ export function EventDetailPanel({
       if (!response.ok) throw new Error('Failed to track external page open');
       return response.json();
     },
-    onSuccess: (data) => {
-      if (data.externalUrl) {
-        window.open(data.externalUrl, '_blank', 'noopener,noreferrer');
-      }
-    },
-    onError: () => {
-      if (event.externalUrl) {
-        window.open(event.externalUrl, '_blank', 'noopener,noreferrer');
-      }
-    },
   });
 
   const handleOpenExternalPage = () => {
     if (event.externalUrl) {
       openExternalPageMutation.mutate();
+      setShowInterstitial(true);
     }
+  };
+
+  const handleCloseInterstitial = () => {
+    setShowInterstitial(false);
   };
 
   const handleToggleFavorite = () => {
@@ -252,6 +251,14 @@ export function EventDetailPanel({
   };
 
   return (
+    <>
+    {showInterstitial && event.externalUrl && (
+      <ExternalLinkInterstitial
+        externalUrl={event.externalUrl}
+        eventTitle={event.title}
+        onClose={handleCloseInterstitial}
+      />
+    )}
     <div className="w-full h-full bg-white flex flex-col">
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
@@ -455,6 +462,7 @@ export function EventDetailPanel({
         </div>
       </div>
     </div>
+    </>
   );
 }
 

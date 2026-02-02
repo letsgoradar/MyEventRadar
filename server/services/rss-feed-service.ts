@@ -7400,6 +7400,35 @@ export class RssFeedService {
         updateData.imageUrl = parsedItem.imageUrl;
       }
       
+      // Match tags, audiences and themes based on keywords (auto-assignment)
+      // Only update if the event has no tags yet (preserve manual edits)
+      const existingEvent = await db.select({
+        eventTagIds: events.eventTagIds,
+        targetAudienceIds: events.targetAudienceIds,
+        seasonalThemeIds: events.seasonalThemeIds
+      }).from(events).where(eq(events.id, eventId)).limit(1);
+      
+      if (existingEvent.length > 0) {
+        const hasNoTags = !existingEvent[0].eventTagIds || existingEvent[0].eventTagIds.length === 0;
+        const hasNoAudiences = !existingEvent[0].targetAudienceIds || existingEvent[0].targetAudienceIds.length === 0;
+        const hasNoThemes = !existingEvent[0].seasonalThemeIds || existingEvent[0].seasonalThemeIds.length === 0;
+        
+        if (hasNoTags || hasNoAudiences || hasNoThemes) {
+          const description = parsedItem.description || "";
+          const tagMatchResult = await matchTags(formattedTitle, description, parsedItem.startTime);
+          
+          if (hasNoTags && tagMatchResult.eventTagIds.length > 0) {
+            updateData.eventTagIds = tagMatchResult.eventTagIds;
+          }
+          if (hasNoAudiences && tagMatchResult.targetAudienceIds.length > 0) {
+            updateData.targetAudienceIds = tagMatchResult.targetAudienceIds;
+          }
+          if (hasNoThemes && tagMatchResult.seasonalThemeIds.length > 0) {
+            updateData.seasonalThemeIds = tagMatchResult.seasonalThemeIds;
+          }
+        }
+      }
+      
       // Only perform update if we have data to update
       if (Object.keys(updateData).length === 0) {
         console.log(`[RSS] No new data to update for event ${eventId}, skipping update`);

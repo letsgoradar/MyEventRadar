@@ -9,18 +9,26 @@ interface ExternalLinkInterstitialProps {
   eventTitle?: string;
   onClose: () => void;
   onAdClick?: () => void;
+  isPremium?: boolean;
 }
 
 export function ExternalLinkInterstitial({ 
   externalUrl, 
   eventTitle,
   onClose,
-  onAdClick
+  onAdClick,
+  isPremium = false
 }: ExternalLinkInterstitialProps) {
-  const [countdown, setCountdown] = useState(5);
-  const [canProceed, setCanProceed] = useState(false);
+  const [countdown, setCountdown] = useState(isPremium ? 0 : 5);
+  const [canProceed, setCanProceed] = useState(isPremium);
 
   useEffect(() => {
+    if (isPremium) {
+      window.open(externalUrl, '_blank', 'noopener,noreferrer');
+      onClose();
+      return;
+    }
+    
     if (countdown > 0) {
       const timer = setTimeout(() => {
         setCountdown(prev => prev - 1);
@@ -29,7 +37,7 @@ export function ExternalLinkInterstitial({
     } else {
       setCanProceed(true);
     }
-  }, [countdown]);
+  }, [countdown, isPremium, externalUrl, onClose]);
 
   const handleProceed = useCallback(() => {
     window.open(externalUrl, '_blank', 'noopener,noreferrer');

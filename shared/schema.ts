@@ -736,3 +736,35 @@ export type InsertGeocodeCache = {
   displayName?: string;
   municipality?: string;
 };
+
+// AI Assistant usage tracking - voor limiet per week
+export const aiAssistantUsage = pgTable("ai_assistant_usage", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  questionCount: integer("question_count").notNull().default(0),
+  weekStart: timestamp("week_start").notNull(), // Maandag van de week
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueUserWeek: unique().on(table.userId, table.weekStart),
+}));
+
+export type AiAssistantUsage = typeof aiAssistantUsage.$inferSelect;
+export type InsertAiAssistantUsage = typeof aiAssistantUsage.$inferInsert;
+
+// Premium features configuratie
+export const premiumFeatures = pgTable("premium_features", {
+  id: serial("id").primaryKey(),
+  featureKey: text("feature_key").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type PremiumFeature = typeof premiumFeatures.$inferSelect;
+export type InsertPremiumFeature = typeof premiumFeatures.$inferInsert;
+
+// Re-export chat models
+export * from "./models/chat";

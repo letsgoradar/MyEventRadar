@@ -63,6 +63,9 @@ import {
   type InsertTargetAudience,
   type SeasonalTheme,
   type InsertSeasonalTheme,
+  type PremiumFeature,
+  type InsertPremiumFeature,
+  premiumFeatures,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
@@ -232,6 +235,10 @@ export interface IStorage {
   createSeasonalTheme(theme: InsertSeasonalTheme): Promise<SeasonalTheme>;
   updateSeasonalTheme(id: number, theme: Partial<SeasonalTheme>): Promise<SeasonalTheme>;
   deleteSeasonalTheme(id: number): Promise<void>;
+  
+  // Premium Features operations
+  getPremiumFeatures(): Promise<PremiumFeature[]>;
+  createPremiumFeature(feature: InsertPremiumFeature): Promise<PremiumFeature>;
 }
 
 export class PgStorage implements IStorage {
@@ -1497,6 +1504,20 @@ export class PgStorage implements IStorage {
   async deleteSeasonalTheme(id: number): Promise<void> {
     return this.withRetry(async () => {
       await db.delete(seasonalThemes).where(eq(seasonalThemes.id, id));
+    });
+  }
+
+  // ===== Premium Features operations =====
+  async getPremiumFeatures(): Promise<PremiumFeature[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(premiumFeatures).orderBy(premiumFeatures.sortOrder);
+    });
+  }
+
+  async createPremiumFeature(feature: InsertPremiumFeature): Promise<PremiumFeature> {
+    return this.withRetry(async () => {
+      const [newFeature] = await db.insert(premiumFeatures).values(feature).returning();
+      return newFeature;
     });
   }
 }

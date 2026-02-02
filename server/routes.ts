@@ -3697,6 +3697,84 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  // ============================================
+  // AI ASSISTANT ENDPOINTS
+  // ============================================
+  
+  // Get assistant usage stats
+  app.get("/api/assistant/usage", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Niet ingelogd" });
+      }
+      
+      const { getWeeklyUsage } = await import("./services/assistant-service");
+      const usage = await getWeeklyUsage(userId);
+      
+      res.json({
+        questionsUsed: usage.questionsUsed,
+        questionsRemaining: usage.questionsRemaining === Infinity ? -1 : usage.questionsRemaining,
+        isPremium: usage.isPremium,
+        freeLimit: 5,
+      });
+    } catch (error: any) {
+      console.error('Error getting assistant usage:', error);
+      res.status(500).json({ error: "Kon gebruik niet ophalen" });
+    }
+  });
+  
+  // Ask the assistant a question
+  app.post("/api/assistant/ask", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Niet ingelogd" });
+      }
+      
+      const { question, lat, lng, radius } = req.body;
+      
+      if (!question || typeof question !== 'string' || question.trim().length === 0) {
+        return res.status(400).json({ error: "Vraag is verplicht" });
+      }
+      
+      const { generateAssistantResponse } = await import("./services/assistant-service");
+      const result = await generateAssistantResponse(
+        userId, 
+        question.trim(),
+        lat,
+        lng,
+        radius
+      );
+      
+      if (!result.success) {
+        return res.status(429).json({ 
+          error: result.error,
+          limitReached: true 
+        });
+      }
+      
+      res.json({
+        response: result.response,
+        questionsRemaining: result.questionsRemaining,
+      });
+    } catch (error: any) {
+      console.error('Error in assistant:', error);
+      res.status(500).json({ error: "Er is een fout opgetreden" });
+    }
+  });
+  
+  // Get premium features list
+  app.get("/api/premium-features", async (req, res) => {
+    try {
+      const features = await storage.getPremiumFeatures();
+      res.json(features);
+    } catch (error: any) {
+      console.error('Error getting premium features:', error);
+      res.status(500).json({ error: "Kon features niet ophalen" });
+    }
+  });
+
   // Setup VITE server
   await setupVite(app, httpServer);
   

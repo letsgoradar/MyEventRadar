@@ -9,6 +9,7 @@ import { EventDetailPanel } from "@/components/App/EventDetailPanel";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, List } from "lucide-react";
 import { addDays, startOfDay } from "date-fns";
+import { AssistantButton } from "@/components/Assistant/AssistantButton";
 
 // Uitgebreide Event interface met distance property
 interface EventWithDistance extends EventInterface {
@@ -168,6 +169,9 @@ export function AppHomePage() {
           userLocation={location || undefined}
         />
       )}
+      
+      {/* AI Assistant floating button */}
+      <AssistantButton />
     </>
   );
 }

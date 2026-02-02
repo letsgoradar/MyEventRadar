@@ -107,6 +107,27 @@ function validateEndTime(startTime: Date | undefined, endTime: Date | undefined)
     return undefined;
   }
   
+  // Check for suspicious 00:00 endTime (midnight) - often a parsing artifact
+  // If endTime is exactly at midnight AND startTime has a real time component, 
+  // the endTime is likely fabricated from date-only parsing
+  const endHour = endTime.getHours();
+  const endMinute = endTime.getMinutes();
+  const startHour = startTime.getHours();
+  
+  if (endHour === 0 && endMinute === 0 && startHour !== 0) {
+    // EndTime is midnight but startTime has a real time - suspicious
+    console.log(`[RSS] EndTime validation failed: suspicious 00:00 endTime with ${startHour}:xx startTime - excluding endTime`);
+    return undefined;
+  }
+  
+  // If endTime is on same day but before a reasonable hour (e.g. 00:00-05:00 when start is afternoon)
+  // this is likely a parsing error rather than a late-night event
+  const sameDay = startTime.toDateString() === endTime.toDateString();
+  if (sameDay && endHour >= 0 && endHour <= 5 && startHour >= 10) {
+    console.log(`[RSS] EndTime validation failed: unlikely same-day endTime ${endHour}:00 with startTime ${startHour}:00 - excluding endTime`);
+    return undefined;
+  }
+  
   return endTime;
 }
 
@@ -3237,7 +3258,7 @@ export class RssFeedService {
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
               startTime: startDate,
-              endTime: endDate || (startDate ? new Date(startDate.getTime() + 3 * 60 * 60 * 1000) : undefined),
+              endTime: endDate, // NEVER fabricate end times - undefined is fine
               location: venueName || city,
               address: fullAddress,
               latitude,
@@ -3298,8 +3319,8 @@ export class RssFeedService {
               link: url,
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
-              startTime: new Date(),
-              endTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+              startTime: undefined, // NEVER fabricate times - let user click through to source
+              endTime: undefined,
               location: municipality,
               address: `${municipality}, Nederland`,
               latitude,
@@ -4638,7 +4659,7 @@ export class RssFeedService {
         imageUrl: imageUrl || undefined,
         publishedAt: new Date(),
         startTime,
-        endTime: endTime || new Date(startTime.getTime() + 4 * 60 * 60 * 1000),
+        endTime, // NEVER fabricate end times - undefined is fine
         location: location || '\'s-Hertogenbosch',
         address,
         latitude,

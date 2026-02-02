@@ -48,6 +48,8 @@ interface EventFiltersProps {
   filters: EventFilterState;
   onFiltersChange: (filters: EventFilterState) => void;
   resultCount?: number;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function IconComponent({ iconName, className }: { iconName: string; className?: string }) {
@@ -281,8 +283,12 @@ function FilterContent({
   );
 }
 
-export function EventFilters({ filters, onFiltersChange, resultCount }: EventFiltersProps) {
+export function EventFilters({ filters, onFiltersChange, resultCount, isOpen, onOpenChange }: EventFiltersProps) {
   const isMobile = useIsMobile();
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  const open = isOpen !== undefined ? isOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
 
   const { data: tags = [] } = useQuery<EventTag[]>({
     queryKey: ["/api/event-tags"],
@@ -313,7 +319,11 @@ export function EventFilters({ filters, onFiltersChange, resultCount }: EventFil
   };
 
   const FilterButton = (
-    <Button variant="outline" className="gap-2 relative">
+    <Button 
+      variant="outline" 
+      className="gap-2 relative"
+      onClick={() => setOpen(!open)}
+    >
       <SlidersHorizontal className="h-4 w-4" />
       <span className="hidden sm:inline">Filters</span>
       {activeFilterCount > 0 && (
@@ -340,7 +350,7 @@ export function EventFilters({ filters, onFiltersChange, resultCount }: EventFil
 
   if (isMobile) {
     return (
-      <Drawer>
+      <Drawer open={open} onOpenChange={setOpen}>
         <DrawerTrigger asChild>{FilterButton}</DrawerTrigger>
         <DrawerContent className="max-h-[85vh] flex flex-col">
           <DrawerHeader className="border-b pb-4">
@@ -366,28 +376,86 @@ export function EventFilters({ filters, onFiltersChange, resultCount }: EventFil
   }
 
   return (
-    <Sheet>
-      <SheetTrigger asChild>{FilterButton}</SheetTrigger>
-      <SheetContent side="right" className="w-[400px] sm:w-[540px] flex flex-col">
-        <SheetHeader className="border-b pb-4">
-          <SheetTitle className="text-xl">Filters</SheetTitle>
-        </SheetHeader>
-        <FilterContent
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-          tags={tags}
-          audiences={audiences}
-          themes={themes}
-          onReset={resetFilters}
-        />
-        <SheetFooter className="mt-auto">
-          {FooterContent}
-          <SheetClose asChild>
-            <Button className="w-full">Toon resultaten</Button>
-          </SheetClose>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+    <>
+      {FilterButton}
+    </>
+  );
+}
+
+export function FilterSidebar({ 
+  filters, 
+  onFiltersChange, 
+  resultCount,
+  isOpen,
+  onClose
+}: { 
+  filters: EventFilterState; 
+  onFiltersChange: (filters: EventFilterState) => void;
+  resultCount?: number;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const { data: tags = [] } = useQuery<EventTag[]>({
+    queryKey: ["/api/event-tags"],
+  });
+
+  const { data: audiences = [] } = useQuery<TargetAudience[]>({
+    queryKey: ["/api/target-audiences"],
+  });
+
+  const { data: themes = [] } = useQuery<SeasonalTheme[]>({
+    queryKey: ["/api/seasonal-themes"],
+  });
+
+  const resetFilters = () => {
+    onFiltersChange({
+      tagIds: [],
+      audienceIds: [],
+      themeIds: [],
+      startDate: null,
+      endDate: null,
+    });
+  };
+
+  return (
+    <div 
+      className={`absolute top-0 right-0 h-full w-[380px] bg-background border-l shadow-lg z-[90] transition-transform duration-300 ease-in-out flex flex-col ${
+        isOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}
+    >
+      <div className="flex items-center justify-between p-4 border-b">
+        <h2 className="text-xl font-semibold">Filters</h2>
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <X className="h-5 w-5" />
+        </Button>
+      </div>
+      
+      <FilterContent
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+        tags={tags}
+        audiences={audiences}
+        themes={themes}
+        onReset={resetFilters}
+      />
+      
+      <div className="p-4 border-t mt-auto">
+        <div className="flex items-center justify-between w-full gap-4 mb-3">
+          <Button variant="ghost" onClick={resetFilters} className="gap-2">
+            <RotateCcw className="h-4 w-4" />
+            Alles wissen
+          </Button>
+          {resultCount !== undefined && (
+            <span className="text-sm text-muted-foreground">
+              {resultCount} {resultCount === 1 ? "resultaat" : "resultaten"}
+            </span>
+          )}
+        </div>
+        <Button className="w-full" onClick={onClose}>
+          Toon resultaten
+        </Button>
+      </div>
+    </div>
   );
 }
 

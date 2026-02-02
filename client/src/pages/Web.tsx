@@ -1,7 +1,7 @@
 import * as React from "react";
 import WebLayout from "@/components/Web/WebLayout";
 import { useLocation } from "wouter";
-import { Event } from "@shared/schema";
+import type { EventInterface as Event } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { fetchEventsByRadius } from "@/lib/api"; 
 import { useLocation as useGeoLocation } from "@/hooks/useLocation";

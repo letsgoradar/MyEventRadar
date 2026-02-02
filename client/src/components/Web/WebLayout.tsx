@@ -1,21 +1,27 @@
 import * as React from "react";
-import { Event } from "@shared/schema";
+import type { EventInterface } from "@shared/schema";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import SplitView from "./SplitView";
 import { EventDetailPanel } from "./EventDetailPanel";
 import { addDays, startOfDay, eachDayOfInterval } from "date-fns";
-import { type EventFilterState } from "@/components/Filters/EventFilters";
+import { type EventFilterState, FilterSidebar } from "@/components/Filters/EventFilters";
+
+type ExtendedEvent = EventInterface & {
+  eventTagIds?: number[];
+  targetAudienceIds?: number[];
+  seasonalThemeIds?: number[];
+};
 
 interface WebLayoutProps {
   children?: React.ReactNode;
   searchQuery?: string;
   radius?: number;
-  filteredEvents?: Event[];
+  filteredEvents?: ExtendedEvent[];
   onSearch?: (query: string) => void;
   onRadiusChange?: (radius: number) => void;
-  onFilteredEventsChange?: (events: Event[]) => void;
-  onEventClick?: (event: Event) => void;
+  onFilteredEventsChange?: (events: ExtendedEvent[]) => void;
+  onEventClick?: (event: ExtendedEvent) => void;
 }
 
 export function WebLayout({ 
@@ -31,7 +37,7 @@ export function WebLayout({
   // In de web-omgeving gebruiken we altijd de split view (geen toggle)
   const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
   const [radius, setRadius] = React.useState(propRadius || 10);
-  const [filteredEvents, setFilteredEvents] = React.useState<Event[]>(propFilteredEvents || []);
+  const [filteredEvents, setFilteredEvents] = React.useState<ExtendedEvent[]>(propFilteredEvents || []);
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
   // Gesynchroniseerde datum selectie state - default komende 7 dagen
   const [selectedDays, setSelectedDays] = React.useState<Date[]>(() => {
@@ -48,6 +54,9 @@ export function WebLayout({
     startDate: null,
     endDate: null
   });
+  
+  // Filter sidebar open/close state
+  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = React.useState(false);
 
   // Update state when props change
   React.useEffect(() => {
@@ -110,7 +119,7 @@ export function WebLayout({
     propOnRadiusChange?.(value);
   }, [propOnRadiusChange]);
 
-  const handleFilteredEventsChange = React.useCallback((events: Event[]) => {
+  const handleFilteredEventsChange = React.useCallback((events: ExtendedEvent[]) => {
     setFilteredEvents(events);
     propOnFilteredEventsChange?.(events);
   }, [propOnFilteredEventsChange]);
@@ -119,7 +128,7 @@ export function WebLayout({
     setSelectedCategories(categories);
   }, []);
   
-  const handleEventClick = React.useCallback((event: Event) => {
+  const handleEventClick = React.useCallback((event: ExtendedEvent) => {
     propOnEventClick?.(event);
   }, [propOnEventClick]);
 
@@ -139,11 +148,11 @@ export function WebLayout({
             onCategoriesChange={handleCategoriesChange}
             hideViewToggle={true} // Hide the toggle button in web view
             onEventClick={handleEventClick}
-            selectedDays={selectedDays}
-            onSelectedDaysChange={setSelectedDays}
             eventFilters={eventFilters}
             onEventFiltersChange={setEventFilters}
             resultCount={filteredEvents.length}
+            isFilterSidebarOpen={isFilterSidebarOpen}
+            onFilterSidebarOpenChange={setIsFilterSidebarOpen}
           />
         </div>
         
@@ -162,6 +171,15 @@ export function WebLayout({
               selectedDays={selectedDays}
             />
           )}
+          
+          {/* Non-blocking filter sidebar */}
+          <FilterSidebar
+            filters={eventFilters}
+            onFiltersChange={setEventFilters}
+            resultCount={filteredEvents.length}
+            isOpen={isFilterSidebarOpen}
+            onClose={() => setIsFilterSidebarOpen(false)}
+          />
         </div>
       </div>
     </div>

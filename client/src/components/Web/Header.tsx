@@ -58,6 +58,8 @@ interface HeaderProps {
   eventFilters?: EventFilterState;
   onEventFiltersChange?: (filters: EventFilterState) => void;
   resultCount?: number;
+  isFilterSidebarOpen?: boolean;
+  onFilterSidebarOpenChange?: (open: boolean) => void;
 }
 
 export function Header({
@@ -77,6 +79,8 @@ export function Header({
   eventFilters,
   onEventFiltersChange,
   resultCount,
+  isFilterSidebarOpen,
+  onFilterSidebarOpenChange,
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
@@ -415,6 +419,8 @@ export function Header({
             filters={eventFilters}
             onFiltersChange={onEventFiltersChange}
             resultCount={resultCount}
+            isOpen={isFilterSidebarOpen}
+            onOpenChange={onFilterSidebarOpenChange}
           />
         )}
 

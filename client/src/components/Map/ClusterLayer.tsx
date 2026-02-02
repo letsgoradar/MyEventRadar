@@ -26,33 +26,104 @@ interface ClusterLayerProps {
 }
 
 const CLUSTER_THRESHOLD = 200;
-const CLUSTER_COLOR = "96, 208, 184";
+const CLUSTER_COLOR = "107, 114, 128";
 
-function createSimpleMarkerIcon(category: string, isExpired: boolean = false, isSelected: boolean = false) {
-  const color = isExpired ? "#9CA3AF" : getCategoryColor(category as any);
-  const size = isSelected ? 28 : 20;
-  const innerSize = size - 4;
+const CATEGORY_SVG_PATHS: Record<string, string> = {
+  'Sport en spel': 'M6.5 6.5h11M6.5 17.5h11M4.5 12h15M12 4.5v15M8 8l8 8M16 8l-8 8',
+  'Kunst en Cultuur': 'M12 4v16m-8-8h16',
+  'Gezellig en Sociaal': 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+  'Leren en Ontdekken': 'M22 10v6M2 10l10-5 10 5-10 5z M6 12v5c3 3 9 3 12 0v-5',
+  'Vrijwilligerswerk en hulp': 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'
+};
+
+function createImageMarkerIcon(
+  imageUrl: string | null | undefined, 
+  category: string, 
+  isExpired: boolean = false, 
+  isSelected: boolean = false
+) {
+  const size = isSelected ? 52 : 44;
+  const borderWidth = 3;
+  const innerSize = size - (borderWidth * 2);
+  const primaryColor = isExpired ? "#9CA3AF" : "#14B8A6";
+  const iconPath = CATEGORY_SVG_PATHS[category] || CATEGORY_SVG_PATHS['Gezellig en Sociaal'];
+  
+  if (imageUrl) {
+    return L.divIcon({
+      className: "image-marker",
+      html: `
+        <div class="img-marker-wrapper" style="
+          width: ${size}px;
+          height: ${size}px;
+          position: relative;
+        ">
+          <div style="
+            width: ${size}px;
+            height: ${size}px;
+            background: white;
+            border-radius: 50%;
+            padding: ${borderWidth}px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            ${isSelected ? 'box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);' : ''}
+          ">
+            <img 
+              src="${imageUrl}" 
+              alt="" 
+              style="
+                width: ${innerSize}px;
+                height: ${innerSize}px;
+                border-radius: 50%;
+                object-fit: cover;
+                display: block;
+              "
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <div style="
+              display: none;
+              width: ${innerSize}px;
+              height: ${innerSize}px;
+              border-radius: 50%;
+              background-color: ${primaryColor};
+              align-items: center;
+              justify-content: center;
+            ">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="${iconPath}"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      `,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+    });
+  }
   
   return L.divIcon({
-    className: "custom-cluster-marker",
+    className: "fallback-marker",
     html: `
       <div style="
         width: ${size}px;
         height: ${size}px;
         background: white;
         border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-        ${isSelected ? 'transform: scale(1.2);' : ''}
+        padding: ${borderWidth}px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        ${isSelected ? 'box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);' : ''}
       ">
         <div style="
           width: ${innerSize}px;
           height: ${innerSize}px;
-          background-color: ${color};
           border-radius: 50%;
-        "></div>
+          background-color: ${primaryColor};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="${iconPath}"/>
+          </svg>
+        </div>
       </div>
     `,
     iconSize: [size, size],
@@ -62,15 +133,15 @@ function createSimpleMarkerIcon(category: string, isExpired: boolean = false, is
 
 function createClusterIcon(cluster: L.MarkerCluster) {
   const count = cluster.getChildCount();
-  let size = 40;
-  let fontSize = 12;
+  let size = 42;
+  let fontSize = 13;
   
   if (count > 50) {
-    size = 50;
-    fontSize = 14;
+    size = 52;
+    fontSize = 15;
   } else if (count > 20) {
-    size = 45;
-    fontSize = 13;
+    size = 47;
+    fontSize = 14;
   }
   
   return L.divIcon({
@@ -78,15 +149,15 @@ function createClusterIcon(cluster: L.MarkerCluster) {
       <div style="
         width: ${size}px;
         height: ${size}px;
-        background: linear-gradient(135deg, rgb(${CLUSTER_COLOR}) 0%, rgb(64, 180, 156) 100%);
+        background: rgb(${CLUSTER_COLOR});
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-        font-weight: bold;
+        font-weight: 600;
         font-size: ${fontSize}px;
-        box-shadow: 0 3px 10px rgba(${CLUSTER_COLOR}, 0.5);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         border: 3px solid white;
       ">
         ${count}
@@ -156,13 +227,14 @@ export function ClusterLayer({
     
     events.forEach((event) => {
       const isSelected = selectedEventId === event.id;
+      const imageUrl = event.event.imageUrl;
       
       if (currentMarkers.has(event.id)) {
         const existingMarker = currentMarkers.get(event.id)!;
-        existingMarker.setIcon(createSimpleMarkerIcon(event.category, event.expired, isSelected));
+        existingMarker.setIcon(createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected));
       } else {
         const marker = L.marker(event.coords, {
-          icon: createSimpleMarkerIcon(event.category, event.expired, isSelected),
+          icon: createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected),
         });
         
         marker.on("click", () => {
@@ -210,8 +282,5 @@ export function ClusterLayer({
 }
 
 export function shouldUseCluster(eventCount: number, zoom: number): boolean {
-  // Alleen clusteren bij veel events EN uitgezoomd
-  if (eventCount > CLUSTER_THRESHOLD && zoom < 10) return true;
-  if (eventCount > 100 && zoom < 8) return true;
-  return false;
+  return true;
 }

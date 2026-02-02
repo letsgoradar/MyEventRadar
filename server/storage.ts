@@ -10,6 +10,7 @@ import {
   savedSearches,
   activityLogs,
   notifications,
+  promotedNotifications,
   rssFeeds,
   rssFeedItems,
   rssItemCorrections,
@@ -39,6 +40,8 @@ import {
   type InsertActivityLog,
   type Notification,
   type InsertNotification,
+  type PromotedNotification,
+  type InsertPromotedNotification,
   type RssFeed,
   type InsertRssFeed,
   type RssFeedItem,
@@ -136,6 +139,16 @@ export interface IStorage {
   getNotificationsByUser(userId: number): Promise<Notification[]>;
   markNotificationAsRead(id: number): Promise<void>;
   getUnreadNotificationCount(userId: number): Promise<number>;
+
+  // Promoted Notification operations
+  createPromotedNotification(promo: InsertPromotedNotification): Promise<PromotedNotification>;
+  getPromotedNotification(id: number): Promise<PromotedNotification | undefined>;
+  getAllPromotedNotifications(): Promise<PromotedNotification[]>;
+  getActivePromotedNotifications(): Promise<PromotedNotification[]>;
+  updatePromotedNotification(id: number, promo: Partial<PromotedNotification>): Promise<PromotedNotification>;
+  deletePromotedNotification(id: number): Promise<void>;
+  incrementPromotionImpression(id: number): Promise<void>;
+  incrementPromotionClick(id: number): Promise<void>;
 
   // RSS Feed operations
   createRssFeed(feed: InsertRssFeed): Promise<RssFeed>;
@@ -810,6 +823,72 @@ export class PgStorage implements IStorage {
       const result = await db.select({ count: count() }).from(notifications)
         .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
       return result[0]?.count || 0;
+    });
+  }
+
+  // Promoted Notification operations implementation
+  async createPromotedNotification(promo: InsertPromotedNotification): Promise<PromotedNotification> {
+    return this.withRetry(async () => {
+      const [result] = await db.insert(promotedNotifications).values(promo).returning();
+      return result;
+    });
+  }
+
+  async getPromotedNotification(id: number): Promise<PromotedNotification | undefined> {
+    return this.withRetry(async () => {
+      const [promo] = await db.select().from(promotedNotifications).where(eq(promotedNotifications.id, id));
+      return promo;
+    });
+  }
+
+  async getAllPromotedNotifications(): Promise<PromotedNotification[]> {
+    return this.withRetry(async () => {
+      return await db.select().from(promotedNotifications).orderBy(desc(promotedNotifications.createdAt));
+    });
+  }
+
+  async getActivePromotedNotifications(): Promise<PromotedNotification[]> {
+    return this.withRetry(async () => {
+      const now = new Date();
+      return await db.select().from(promotedNotifications)
+        .where(and(
+          eq(promotedNotifications.isActive, true),
+          sql`${promotedNotifications.startDate} <= ${now}`,
+          sql`(${promotedNotifications.endDate} IS NULL OR ${promotedNotifications.endDate} >= ${now})`
+        ))
+        .orderBy(desc(promotedNotifications.createdAt));
+    });
+  }
+
+  async updatePromotedNotification(id: number, promo: Partial<PromotedNotification>): Promise<PromotedNotification> {
+    return this.withRetry(async () => {
+      const [result] = await db.update(promotedNotifications)
+        .set({ ...promo, updatedAt: new Date() })
+        .where(eq(promotedNotifications.id, id))
+        .returning();
+      return result;
+    });
+  }
+
+  async deletePromotedNotification(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(promotedNotifications).where(eq(promotedNotifications.id, id));
+    });
+  }
+
+  async incrementPromotionImpression(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.update(promotedNotifications)
+        .set({ impressions: sql`${promotedNotifications.impressions} + 1` })
+        .where(eq(promotedNotifications.id, id));
+    });
+  }
+
+  async incrementPromotionClick(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.update(promotedNotifications)
+        .set({ clicks: sql`${promotedNotifications.clicks} + 1` })
+        .where(eq(promotedNotifications.id, id));
     });
   }
 

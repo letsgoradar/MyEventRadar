@@ -12,7 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Bell, X, Calendar, AlertCircle, Info } from "lucide-react";
+import { Bell, X, Calendar, AlertCircle, Info, Megaphone, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -41,7 +41,7 @@ export function NotificationCenter() {
   });
 
   const { data: unreadCountData } = useQuery<{ count: number }>({
-    queryKey: [`/api/notifications/${user?.id}/unread-count`],
+    queryKey: ['/api/notifications/unread-count'],
     enabled: !!user?.id,
     refetchInterval: 30000, // Poll every 30 seconds
   });
@@ -59,7 +59,7 @@ export function NotificationCenter() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
-      queryClient.invalidateQueries({ queryKey: [`/api/notifications/${user?.id}/unread-count`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications/unread-count'] });
     },
   });
 
@@ -68,13 +68,21 @@ export function NotificationCenter() {
       case 'event_change':
         return <AlertCircle className="h-4 w-4 text-orange-500" />;
       case 'event_reminder':
+      case 'event_reminder_48h':
+      case 'event_reminder_24h':
         return <Calendar className="h-4 w-4 text-blue-500" />;
+      case 'event_reminder_1h':
+        return <Clock className="h-4 w-4 text-red-500" />;
       case 'event_cancelled':
         return <X className="h-4 w-4 text-red-500" />;
+      case 'promotion':
+        return <Megaphone className="h-4 w-4 text-teal-500" />;
       default:
         return <Info className="h-4 w-4 text-gray-500" />;
     }
   };
+
+  const isPromotion = (type: string) => type === 'promotion';
 
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.isRead) {
@@ -137,9 +145,17 @@ export function NotificationCenter() {
                   onClick={() => handleNotificationClick(notification)}
                   className={cn(
                     "p-4 rounded-lg border cursor-pointer transition-colors hover:bg-accent",
-                    !notification.isRead && "bg-blue-50 border-blue-200 dark:bg-blue-950"
+                    !notification.isRead && "bg-blue-50 border-blue-200 dark:bg-blue-950",
+                    isPromotion(notification.type) && "border-teal-200 bg-teal-50/50 dark:bg-teal-950/30"
                   )}
                 >
+                  {isPromotion(notification.type) && (
+                    <div className="flex items-center gap-1 mb-2">
+                      <Badge variant="secondary" className="text-xs bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300">
+                        Gesponsord
+                      </Badge>
+                    </div>
+                  )}
                   <div className="flex items-start space-x-3">
                     <div className="flex-shrink-0 mt-1">
                       {getNotificationIcon(notification.type)}

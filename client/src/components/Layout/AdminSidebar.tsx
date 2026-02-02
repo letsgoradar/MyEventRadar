@@ -16,7 +16,8 @@ import {
   Bell,
   Database,
   Rss,
-  Tags
+  Tags,
+  Megaphone
 } from 'lucide-react';
 import { LogoIcon } from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
@@ -74,6 +75,11 @@ const AdminSidebar: React.FC = () => {
       href: '/admin/tags',
       label: 'Tag Manager',
       icon: <Tags className="w-5 h-5" />,
+    },
+    {
+      href: '/admin/promotions',
+      label: 'Promoties',
+      icon: <Megaphone className="w-5 h-5" />,
     },
     {
       href: '/admin/activity-logs',

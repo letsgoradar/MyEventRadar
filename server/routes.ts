@@ -926,6 +926,23 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  // Unread count via sessie (geen userId in URL nodig)
+  app.get("/api/notifications/unread-count", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const count = await storage.getUnreadNotificationCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error('Error in GET /api/notifications/unread-count:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Favorieten van ingelogde gebruiker ophalen
   app.get("/api/events/favorites", isAuthenticated, async (req, res) => {
     try {
@@ -1163,6 +1180,161 @@ Respond with ONLY the search term, nothing else.`,
       } else {
         res.status(500).json({ message: "Internal server error" });
       }
+    }
+  });
+
+  // ============ Promoted Notifications Admin Routes ============
+  
+  // Alle promotie-notificaties ophalen (admin)
+  app.get("/api/admin/promotions", isAdmin, async (req, res) => {
+    try {
+      const promotions = await storage.getAllPromotedNotifications();
+      res.json(promotions);
+    } catch (error) {
+      console.error('Error in GET /api/admin/promotions:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Nieuwe promotie-notificatie aanmaken (admin)
+  app.post("/api/admin/promotions", isAdmin, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const promotionData = {
+        ...req.body,
+        createdBy: userId,
+      };
+      
+      const promotion = await storage.createPromotedNotification(promotionData);
+      res.status(201).json(promotion);
+    } catch (error) {
+      console.error('Error in POST /api/admin/promotions:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Promotie-notificatie ophalen (admin)
+  app.get("/api/admin/promotions/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid promotion ID" });
+      }
+      
+      const promotion = await storage.getPromotedNotification(id);
+      if (!promotion) {
+        return res.status(404).json({ message: "Promotion not found" });
+      }
+      
+      res.json(promotion);
+    } catch (error) {
+      console.error('Error in GET /api/admin/promotions/:id:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Promotie-notificatie bijwerken (admin)
+  app.patch("/api/admin/promotions/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid promotion ID" });
+      }
+      
+      const promotion = await storage.updatePromotedNotification(id, req.body);
+      res.json(promotion);
+    } catch (error) {
+      console.error('Error in PATCH /api/admin/promotions/:id:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Promotie-notificatie verwijderen (admin)
+  app.delete("/api/admin/promotions/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid promotion ID" });
+      }
+      
+      await storage.deletePromotedNotification(id);
+      res.json({ message: "Promotion deleted" });
+    } catch (error) {
+      console.error('Error in DELETE /api/admin/promotions/:id:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Promotie naar gebruikers pushen (admin) - maakt notificaties aan voor doelgroep
+  app.post("/api/admin/promotions/:id/push", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid promotion ID" });
+      }
+      
+      const promotion = await storage.getPromotedNotification(id);
+      if (!promotion) {
+        return res.status(404).json({ message: "Promotion not found" });
+      }
+      
+      // Bepaal doelgroep gebruikers
+      let targetUsers: { id: number }[] = [];
+      
+      if (promotion.targetAllUsers) {
+        // Alle gebruikers
+        const allUsers = await storage.getAllUsers();
+        targetUsers = allUsers.map(u => ({ id: u.id }));
+      } else {
+        // TODO: Implementeer targeting op basis van locatie/stad
+        // Voor nu: alle gebruikers
+        const allUsers = await storage.getAllUsers();
+        targetUsers = allUsers.map(u => ({ id: u.id }));
+      }
+      
+      // Maak notificaties aan voor elke gebruiker
+      let notificationsCreated = 0;
+      for (const user of targetUsers) {
+        await storage.createNotification({
+          userId: user.id,
+          eventId: promotion.eventId || undefined,
+          type: 'promotion',
+          title: `📢 ${promotion.title}`,
+          message: promotion.message,
+          isRead: false,
+          promotionId: promotion.id,
+        });
+        notificationsCreated++;
+      }
+      
+      // Update impressions
+      await storage.updatePromotedNotification(id, {
+        impressions: (promotion.impressions || 0) + notificationsCreated
+      });
+      
+      res.json({ 
+        message: "Promotion pushed successfully",
+        notificationsCreated 
+      });
+    } catch (error) {
+      console.error('Error in POST /api/admin/promotions/:id/push:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Track promotion click (publiek endpoint)
+  app.post("/api/promotions/:id/click", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid promotion ID" });
+      }
+      
+      await storage.incrementPromotionClick(id);
+      res.json({ message: "Click tracked" });
+    } catch (error) {
+      console.error('Error in POST /api/promotions/:id/click:', error);
+      res.status(500).json({ message: "Internal server error" });
     }
   });
   
@@ -1554,21 +1726,7 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
-  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
-    try {
-      const notificationId = parseInt(req.params.id);
-      
-      if (isNaN(notificationId)) {
-        return res.status(400).json({ message: "Invalid notification ID" });
-      }
-      
-      await storage.markNotificationAsRead(notificationId);
-      res.json({ message: "Notification marked as read" });
-    } catch (error) {
-      console.error('Error in PATCH /api/notifications/:id/read:', error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
+  // Dubbele route verwijderd - gebruik /api/notifications/:id/read hierboven
 
   // RSS Feed API endpoints
   

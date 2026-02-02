@@ -236,14 +236,47 @@ export const activityLogs = pgTable("activity_logs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Betaalde promotie-notificaties die naar gebruikers worden gepusht
+export const promotedNotifications = pgTable("promoted_notifications", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  imageUrl: text("image_url"),
+  linkUrl: text("link_url"),
+  // Targeting opties
+  targetRadius: integer("target_radius"), // Radius in km rond event locatie
+  targetCity: text("target_city"), // Specifieke stad
+  targetAllUsers: boolean("target_all_users").default(false),
+  // Campagne details
+  campaignName: text("campaign_name"),
+  advertiserName: text("advertiser_name"),
+  advertiserEmail: text("advertiser_email"),
+  // Status en timing
+  isActive: boolean("is_active").default(true).notNull(),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  endDate: timestamp("end_date"),
+  // Statistieken
+  impressions: integer("impressions").default(0).notNull(),
+  clicks: integer("clicks").default(0).notNull(),
+  // Kosten
+  budgetCents: integer("budget_cents").default(0), // Budget in centen
+  cpmCents: integer("cpm_cents").default(0), // Cost per 1000 impressions in centen
+  // Metadata
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   eventId: integer("event_id").references(() => events.id, { onDelete: "cascade" }),
-  type: text("type").notNull(), // 'event_change', 'event_reminder', 'event_cancelled'
+  type: text("type").notNull(), // 'event_change', 'event_reminder_48h', 'event_reminder_24h', 'event_reminder_1h', 'event_cancelled', 'promotion'
   title: text("title").notNull(),
   message: text("message").notNull(),
   isRead: boolean("is_read").default(false).notNull(),
+  promotionId: integer("promotion_id").references(() => promotedNotifications.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -550,6 +583,16 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+export const insertPromotedNotificationSchema = createInsertSchema(promotedNotifications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  impressions: true,
+  clicks: true,
+});
+export type PromotedNotification = typeof promotedNotifications.$inferSelect;
+export type InsertPromotedNotification = z.infer<typeof insertPromotedNotificationSchema>;
 
 export const insertRssFeedSchema = createInsertSchema(rssFeeds).omit({
   id: true,

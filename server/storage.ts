@@ -276,6 +276,22 @@ export class PgStorage implements IStorage {
     }
   }
 
+  /**
+   * Check for suspicious exact midnight endTime that's likely a parsing artifact.
+   * Returns true if endTime is exactly 00:00:00.000 on the same day as startTime,
+   * and startTime has a non-midnight time component.
+   */
+  private isSuspiciousMidnightEndTime(startTime: Date, endTime: Date): boolean {
+    const isExactMidnight = endTime.getHours() === 0 && 
+                            endTime.getMinutes() === 0 && 
+                            endTime.getSeconds() === 0 && 
+                            endTime.getMilliseconds() === 0;
+    const sameDay = startTime.toDateString() === endTime.toDateString();
+    const startHasRealTime = startTime.getHours() !== 0;
+    
+    return isExactMidnight && sameDay && startHasRealTime;
+  }
+
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
     return this.withRetry(async () => {
       try {
@@ -295,15 +311,22 @@ export class PgStorage implements IStorage {
           notificationReach = insertEvent.notificationReach.toString();
         }
         
-        // Validate endTime: if endTime is before startTime, exclude it (likely parsing error)
+        // Validate endTime: exclude if before startTime or suspicious midnight parsing artifact
         const startTime = new Date(insertEvent.startTime);
         let endTime: Date | null = null;
         if (insertEvent.endTime) {
           const parsedEndTime = new Date(insertEvent.endTime);
-          if (parsedEndTime >= startTime) {
-            endTime = parsedEndTime;
-          } else {
+          
+          // Check 1: endTime must be >= startTime
+          if (parsedEndTime < startTime) {
             console.log(`[Storage] EndTime validation: endTime ${parsedEndTime.toISOString()} is before startTime ${startTime.toISOString()} - excluding endTime`);
+          }
+          // Check 2: Suspicious exact midnight on same day with real start time (parsing artifact)
+          else if (this.isSuspiciousMidnightEndTime(startTime, parsedEndTime)) {
+            console.log(`[Storage] EndTime validation: suspicious exact 00:00 endTime on same day - excluding endTime`);
+          }
+          else {
+            endTime = parsedEndTime;
           }
         }
         
@@ -596,6 +619,11 @@ export class PgStorage implements IStorage {
           
           if (endTime < startTime) {
             console.log(`[Storage] EndTime validation: endTime ${endTime.toISOString()} is before startTime ${startTime.toISOString()} - excluding endTime`);
+            validatedData.endTime = null;
+          }
+          // Check 2: Suspicious exact midnight on same day with real start time
+          else if (this.isSuspiciousMidnightEndTime(startTime, endTime)) {
+            console.log(`[Storage] EndTime validation: suspicious exact 00:00 endTime on same day - excluding endTime`);
             validatedData.endTime = null;
           }
         }

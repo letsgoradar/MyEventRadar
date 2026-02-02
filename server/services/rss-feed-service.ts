@@ -107,24 +107,23 @@ function validateEndTime(startTime: Date | undefined, endTime: Date | undefined)
     return undefined;
   }
   
-  // Check for suspicious 00:00 endTime (midnight) - often a parsing artifact
-  // If endTime is exactly at midnight AND startTime has a real time component, 
-  // the endTime is likely fabricated from date-only parsing
+  // Check for suspicious EXACT 00:00:00.000 endTime (midnight) - often a parsing artifact
+  // from date-only fields like "2026-02-06" being parsed without time component
+  // ONLY reject if: exact midnight AND on same day as start AND startTime has non-midnight time
   const endHour = endTime.getHours();
   const endMinute = endTime.getMinutes();
+  const endSecond = endTime.getSeconds();
+  const endMs = endTime.getMilliseconds();
   const startHour = startTime.getHours();
   
-  if (endHour === 0 && endMinute === 0 && startHour !== 0) {
-    // EndTime is midnight but startTime has a real time - suspicious
-    console.log(`[RSS] EndTime validation failed: suspicious 00:00 endTime with ${startHour}:xx startTime - excluding endTime`);
-    return undefined;
-  }
-  
-  // If endTime is on same day but before a reasonable hour (e.g. 00:00-05:00 when start is afternoon)
-  // this is likely a parsing error rather than a late-night event
+  const isExactMidnight = endHour === 0 && endMinute === 0 && endSecond === 0 && endMs === 0;
   const sameDay = startTime.toDateString() === endTime.toDateString();
-  if (sameDay && endHour >= 0 && endHour <= 5 && startHour >= 10) {
-    console.log(`[RSS] EndTime validation failed: unlikely same-day endTime ${endHour}:00 with startTime ${startHour}:00 - excluding endTime`);
+  const startHasRealTime = startHour !== 0;
+  
+  // Only reject if it's EXACT midnight on SAME day with a real start time
+  // This catches "2026-02-06" being used as endTime when startTime is "2026-02-06T12:00"
+  if (isExactMidnight && sameDay && startHasRealTime) {
+    console.log(`[RSS] EndTime validation failed: suspicious exact 00:00:00.000 endTime on same day with ${startHour}:xx startTime - excluding endTime`);
     return undefined;
   }
   

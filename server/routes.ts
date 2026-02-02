@@ -499,10 +499,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const events = await storage.getEventsByRadius(lat, lng, radius, windowDays);
       
-      // Sorteer events: highlights eerst (op priority), dan dichtstbij
+      // Sorteer events: highlights eerst, dan korte events, langlopende events (> 1 week) onderaan
       const sortedEvents = events.sort((a, b) => {
-        // Check if events are highlighted and within highlight period
         const now = new Date();
+        
+        // Check if events are highlighted and within highlight period
         const aHighlighted = a.isHighlighted && 
           (!a.highlightStartDate || new Date(a.highlightStartDate) <= now) &&
           (!a.highlightEndDate || new Date(a.highlightEndDate) >= now);
@@ -518,6 +519,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (aHighlighted && bHighlighted) {
           return (b.highlightPriority || 0) - (a.highlightPriority || 0);
         }
+        
+        // Check multi-day events > 1 week - deze lager sorteren
+        const aStart = new Date(a.startTime);
+        const aEnd = a.endTime ? new Date(a.endTime) : aStart;
+        const bStart = new Date(b.startTime);
+        const bEnd = b.endTime ? new Date(b.endTime) : bStart;
+        
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        const aDuration = aEnd.getTime() - aStart.getTime();
+        const bDuration = bEnd.getTime() - bStart.getTime();
+        
+        const aIsLongEvent = aDuration > oneWeek;
+        const bIsLongEvent = bDuration > oneWeek;
+        
+        // Long events (> 1 week) naar beneden
+        if (aIsLongEvent && !bIsLongEvent) return 1;
+        if (!aIsLongEvent && bIsLongEvent) return -1;
         
         // For non-highlighted events, maintain original order (by distance)
         return 0;

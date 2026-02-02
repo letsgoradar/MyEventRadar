@@ -66,7 +66,24 @@ export function BottomSheet({
   };
 
   const formatEventTime = (event: Event) => {
+    const now = new Date();
     const start = new Date(event.startTime);
+    const end = event.endTime ? new Date(event.endTime) : start;
+    
+    // Reset naar middernacht voor dag-vergelijking
+    const eventStartDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const eventEndDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    
+    // Check of event multi-dag is en al begonnen
+    const isMultiDay = eventEndDay.getTime() > eventStartDay.getTime();
+    const isAlreadyStarted = start < now;
+    const isStillOngoing = end > now;
+    
+    // Multi-dag event dat al begonnen is: toon "vandaag" of huidige datum
+    if (isMultiDay && isAlreadyStarted && isStillOngoing) {
+      return format(now, "d MMM", { locale: nl });
+    }
+    
     return format(start, "d MMM", { locale: nl });
   };
 

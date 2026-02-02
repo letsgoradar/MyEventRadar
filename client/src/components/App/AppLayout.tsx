@@ -53,7 +53,7 @@ import { InstallPrompt } from "@/components/PWA/InstallPrompt";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { RadarLogo } from "@/components/RadarLogo";
+import { RadarLogoWithText } from "@/components/RadarLogo";
 
 
 interface AppLayoutProps {
@@ -422,10 +422,12 @@ export function AppLayout({
                 </Button>
               </Link>
             ) : (
-              <RadarLogo size={32} className="mr-2" />
+              title === "Evenementen" ? (
+                <RadarLogoWithText height={28} textColor="hsl(var(--foreground))" />
+              ) : null
             )}
             <h1 className="text-xl font-semibold">
-              {title === "Evenementen" ? "letsgo radar" : title}
+              {title !== "Evenementen" ? title : null}
             </h1>
           </div>
           <div className="flex items-center gap-2">

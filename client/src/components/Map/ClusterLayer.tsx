@@ -45,7 +45,8 @@ function createImageMarkerIcon(
   const size = isSelected ? 52 : 44;
   const borderWidth = 3;
   const innerSize = size - (borderWidth * 2);
-  const primaryColor = isExpired ? "#9CA3AF" : "#14B8A6";
+  const fallbackColor = `rgb(${CLUSTER_COLOR})`;
+  const primaryColor = isExpired ? "#9CA3AF" : fallbackColor;
   const iconPath = CATEGORY_SVG_PATHS[category] || CATEGORY_SVG_PATHS['Gezellig en Sociaal'];
   
   if (imageUrl) {

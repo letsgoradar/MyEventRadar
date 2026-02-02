@@ -75,23 +75,18 @@ export function AdBanner({ type = "house", onClick }: AdBannerProps) {
           ))}
         </svg>
 
-        <div className="relative z-10 p-6 h-full flex flex-col justify-center">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-            <span className="text-white/80 text-xs font-medium uppercase tracking-wider">Advertentie</span>
-          </div>
-          
-          <h3 className="text-white text-2xl font-bold mb-2 leading-tight">
+        <div className="relative z-10 p-4 h-full flex flex-col justify-center">
+          <h3 className="text-white text-xl font-bold mb-1 leading-tight">
             Bereik lokale<br />bezoekers
           </h3>
           
-          <p className="text-white/90 text-sm mb-4 max-w-[200px]">
+          <p className="text-white/90 text-xs mb-3 max-w-[180px]">
             Promoot jouw bedrijf bij duizenden evenementbezoekers in de regio
           </p>
           
-          <div className="inline-flex items-center gap-2 bg-white text-teal-600 px-4 py-2 rounded-full font-semibold text-sm group-hover:bg-teal-50 transition-colors w-fit">
-            <span>Adverteer op letsgo radar</span>
-            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="inline-flex items-center gap-1.5 bg-white text-teal-600 px-3 py-1.5 rounded-full font-semibold text-xs group-hover:bg-teal-50 transition-colors w-fit">
+            <span>Adverteer hier</span>
+            <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>

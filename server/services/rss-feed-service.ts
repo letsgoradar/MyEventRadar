@@ -3213,6 +3213,18 @@ export class RssFeedService {
             const externalId = `${municipality.toLowerCase().replace(/\s+/g, '-')}-${urlSlug}`;
             
             let description = event.description || "";
+            
+            // If JSON-LD has no description or it's too short, try to extract from HTML content
+            if (!description || description.length < 50) {
+              // Plaece/VVV sites often have the description in paragraphs after the main heading
+              // Look for content in various common selectors used by these sites
+              const htmlDescription = this.extractPlaeceSiteDescription($);
+              if (htmlDescription && htmlDescription.length > description.length) {
+                description = htmlDescription;
+              }
+            }
+            
+            // Final fallback: generate a minimal description
             if (!description || description.length < 20) {
               description = `${name} bij ${venueName || city}. ${fullAddress ? `Locatie: ${fullAddress}.` : ""}`;
             }
@@ -3273,10 +3285,16 @@ export class RssFeedService {
               }
             });
             
+            // Try to extract description from HTML content
+            let description = this.extractPlaeceSiteDescription($);
+            if (!description || description.length < 20) {
+              description = `${title} - Evenement in ${municipality}`;
+            }
+            
             items.push({
               externalId: `${municipality.toLowerCase().replace(/\s+/g, '-')}-${url.split('/').pop() || Date.now()}`,
               title: this.formatTitle(title),
-              description: `${title} - Evenement in ${municipality}`,
+              description: this.cleanText(description.substring(0, 500)),
               link: url,
               imageUrl: imageUrl || undefined,
               publishedAt: new Date(),
@@ -7294,6 +7312,76 @@ export class RssFeedService {
 
       return mappedItem;
     });
+  }
+
+  /**
+   * Extract description from Plaece/VVV site HTML content when JSON-LD lacks it.
+   * These sites typically have the event description in paragraphs after the main heading,
+   * sometimes inside expandable "Lees verder" sections.
+   */
+  private static extractPlaeceSiteDescription($: cheerio.CheerioAPI): string {
+    const paragraphs: string[] = [];
+    
+    // Try various selectors commonly used by Plaece/VVV sites
+    // Priority 1: Content paragraphs in the main content area
+    $('main p, article p, .content p, .wysiwyg p').each((_, el) => {
+      const text = $(el).text().trim();
+      // Skip short paragraphs, navigation text, and common boilerplate
+      if (text.length > 30 && 
+          !text.toLowerCase().includes('lees verder') &&
+          !text.toLowerCase().includes('lees minder') &&
+          !text.toLowerCase().includes('bekijk alle') &&
+          !text.toLowerCase().includes('deel deze') &&
+          !text.toLowerCase().includes('schrijf je in') &&
+          !text.toLowerCase().includes('ontvang iedere') &&
+          !text.toLowerCase().includes('cookie') &&
+          !text.startsWith('€') &&
+          !text.match(/^(Ma|Di|Wo|Do|Vr|Za|Zo)/)) {
+        paragraphs.push(text);
+      }
+    });
+    
+    // Priority 2: Direct text after h1 (some sites don't wrap in <p>)
+    if (paragraphs.length === 0) {
+      const h1 = $('h1').first();
+      if (h1.length) {
+        // Get text from sibling elements after h1
+        h1.nextAll().each((_, el) => {
+          const tagName = $(el).prop('tagName')?.toLowerCase();
+          if (tagName === 'p' || tagName === 'div') {
+            const text = $(el).text().trim();
+            if (text.length > 30 && 
+                !text.toLowerCase().includes('contact') &&
+                !text.toLowerCase().includes('locatie') &&
+                !text.toLowerCase().includes('wanneer')) {
+              paragraphs.push(text);
+            }
+          }
+        });
+      }
+    }
+    
+    // Priority 3: Look for intro/description specific classes
+    if (paragraphs.length === 0) {
+      $('.intro, .description, .event-description, [class*="intro"], [class*="description"]').each((_, el) => {
+        const text = $(el).text().trim();
+        if (text.length > 30) {
+          paragraphs.push(text);
+        }
+      });
+    }
+    
+    // Combine first few meaningful paragraphs (max ~500 chars)
+    let result = '';
+    for (const p of paragraphs.slice(0, 3)) {
+      if (result.length + p.length < 600) {
+        result += (result ? '\n\n' : '') + p;
+      } else {
+        break;
+      }
+    }
+    
+    return result.trim();
   }
 
   private static cleanText(text: string): string {

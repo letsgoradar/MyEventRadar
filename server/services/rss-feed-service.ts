@@ -3524,10 +3524,7 @@ export class RssFeedService {
               : descText.replace(/<[^>]+>/g, '').trim();
           }
           
-          // Add source link
-          description = description 
-            ? `${description}\n\nMeer info: ${link}`
-            : `Meer info: ${link}`;
+          // Note: Link is stored separately in externalUrl field, no need to add to description
           
           // Create event item
           const slug = page.slug || link.split('/').pop() || '';
@@ -6879,9 +6876,9 @@ export class RssFeedService {
         externalUrl: parsedItem.link || null
       };
       
-      // Only update description if we have content
+      // Only update description if we have content (link is stored separately in externalUrl)
       if (parsedItem.description) {
-        updateData.description = `${parsedItem.description}${parsedItem.link ? `\n\nMeer info: ${parsedItem.link}` : ""}`;
+        updateData.description = parsedItem.description;
       }
       
       // CRITICAL: Only update times if parsedItem provides EXPLICIT times (never fabricate)

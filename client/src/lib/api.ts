@@ -52,9 +52,17 @@ export async function apiRequest<T>(
     }
 }
 
-export async function fetchEventsByRadius(lat: number, lng: number, radius: number) {
-  console.log('Fetching events with params:', { lat, lng, radius });
-  return apiRequest(`/api/events/nearby?lat=${lat}&lng=${lng}&radius=${radius}`);
+export async function fetchEventsByRadius(lat: number, lng: number, radius: number, windowDays?: number | null) {
+  console.log('Fetching events with params:', { lat, lng, radius, windowDays });
+  const params = new URLSearchParams({
+    lat: lat.toString(),
+    lng: lng.toString(),
+    radius: radius.toString(),
+  });
+  if (windowDays !== undefined && windowDays !== null) {
+    params.append('windowDays', windowDays.toString());
+  }
+  return apiRequest(`/api/events/nearby?${params.toString()}`);
 }
 
 // Create a new queryClient instance

@@ -12,7 +12,8 @@ export default function Web() {
   const [location, setLocation] = useLocation();
   const { location: geoLocation } = useGeoLocation();
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [radius, setRadius] = React.useState(10); // Nog steeds nodig voor API calls, maar niet getoond in UI
+  const [radius, setRadius] = React.useState(10);
+  const [windowDays, setWindowDays] = React.useState<number | null>(null); // null = alle events
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
   const [visibleMapArea, setVisibleMapArea] = React.useState<L.LatLngBounds | null>(null);
 
@@ -26,12 +27,12 @@ export default function Web() {
     }
   }, [location, setLocation]);
   
-  // Fetch events based on location - radius wordt nu bepaald door kaartweergave
+  // Fetch events based on location - windowDays bepaalt hoeveel dagen vooruit we ophalen
   const { data } = useQuery({
-    queryKey: ["events", geoLocation?.lat, geoLocation?.lng, radius],
+    queryKey: ["events", geoLocation?.lat, geoLocation?.lng, radius, windowDays],
     queryFn: async () => {
       if (geoLocation) {
-        const result = await fetchEventsByRadius(geoLocation.lat, geoLocation.lng, radius);
+        const result = await fetchEventsByRadius(geoLocation.lat, geoLocation.lng, radius, windowDays);
         return result as Event[];
       }
       return [] as Event[];
@@ -63,8 +64,12 @@ export default function Web() {
   }, []);
   
   const handleRadiusChange = React.useCallback((value: number) => {
-    // We gebruiken nog steeds radius voor API calls op de achtergrond
     setRadius(value);
+  }, []);
+  
+  const handleWindowDaysChange = React.useCallback((days: number | null) => {
+    console.log('Window days changed to:', days);
+    setWindowDays(days);
   }, []);
 
   return (
@@ -75,6 +80,7 @@ export default function Web() {
         filteredEvents={filteredEvents}
         onSearch={handleSearch}
         onRadiusChange={handleRadiusChange}
+        onWindowDaysChange={handleWindowDaysChange}
       />
       <AssistantButton />
     </>

@@ -4,7 +4,7 @@ import Sidebar from "./Sidebar";
 import Header from "./Header";
 import SplitView from "./SplitView";
 import { EventDetailPanel } from "./EventDetailPanel";
-import { addDays, startOfDay, eachDayOfInterval } from "date-fns";
+import { addDays, startOfDay, eachDayOfInterval, differenceInDays } from "date-fns";
 import { type EventFilterState, FilterSidebar } from "@/components/Filters/EventFilters";
 
 type ExtendedEvent = EventInterface & {
@@ -22,6 +22,7 @@ interface WebLayoutProps {
   onRadiusChange?: (radius: number) => void;
   onFilteredEventsChange?: (events: ExtendedEvent[]) => void;
   onEventClick?: (event: ExtendedEvent) => void;
+  onWindowDaysChange?: (days: number | null) => void;
 }
 
 export function WebLayout({ 
@@ -32,7 +33,8 @@ export function WebLayout({
   onSearch: propOnSearch,
   onRadiusChange: propOnRadiusChange,
   onFilteredEventsChange: propOnFilteredEventsChange,
-  onEventClick: propOnEventClick
+  onEventClick: propOnEventClick,
+  onWindowDaysChange: propOnWindowDaysChange
 }: WebLayoutProps) {
   // In de web-omgeving gebruiken we altijd de split view (geen toggle)
   const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
@@ -60,6 +62,28 @@ export function WebLayout({
   
   // Filter sidebar open/close state
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = React.useState(false);
+
+  // Bereken windowDays uit eventFilters en stuur naar parent voor API call
+  React.useEffect(() => {
+    if (!propOnWindowDaysChange) return;
+    
+    const today = startOfDay(new Date());
+    
+    // Als er geen einddatum is, haal alle events op (null = geen limiet)
+    if (!eventFilters.endDate) {
+      propOnWindowDaysChange(null);
+      return;
+    }
+    
+    // WindowDays is het aantal dagen vanaf vandaag tot de einddatum
+    // De API haalt events op vanaf vandaag tot vandaag+windowDays
+    const daysUntilEnd = differenceInDays(eventFilters.endDate, today);
+    const windowDays = Math.max(1, daysUntilEnd + 1); // +1 om de einddatum zelf mee te nemen
+    
+    console.log('Event filters changed, new windowDays:', windowDays, 
+      'startDate:', eventFilters.startDate, 'endDate:', eventFilters.endDate);
+    propOnWindowDaysChange(windowDays);
+  }, [eventFilters.startDate, eventFilters.endDate, propOnWindowDaysChange]);
 
   // Update state when props change
   React.useEffect(() => {

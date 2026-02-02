@@ -30,7 +30,7 @@ interface BottomSheetProps {
 
 const COLLAPSED_HEIGHT = 50;
 const EXPANDED_HEIGHT_RATIO = 0.55;
-const BOTTOM_NAV_HEIGHT = 60;
+const BOTTOM_NAV_HEIGHT = 70;
 
 export function BottomSheet({ 
   events, 
@@ -123,10 +123,10 @@ export function BottomSheet({
         </div>
         
         <div className={cn(
-          "flex-1 overflow-y-auto px-3 pb-4",
+          "flex-1 overflow-y-auto px-3 pb-6",
           !isExpanded && "overflow-hidden"
         )}>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 pb-4">
             {events.slice(0, isExpanded ? undefined : 4).map((event) => (
               <div
                 key={event.id}

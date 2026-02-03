@@ -7517,18 +7517,19 @@ export class RssFeedService {
       if (parsedItem.startTime && existingEventData) {
         const existingStart = existingEventData.startTime;
         const existingEnd = existingEventData.endTime || existingEventData.startTime;
-        const newDate = parsedItem.startTime;
+        const newStartDate = parsedItem.startTime;
+        const newEndDate = parsedItem.endTime || parsedItem.startTime;
         
-        // If new date is BEFORE existing start, update startTime
-        if (newDate < existingStart) {
-          updateData.startTime = newDate;
-          console.log(`[RSS] Expanding event ${eventId} start date: ${existingStart.toDateString()} → ${newDate.toDateString()}`);
+        // If new start date is BEFORE existing start, update startTime
+        if (newStartDate < existingStart) {
+          updateData.startTime = newStartDate;
+          console.log(`[RSS] Expanding event ${eventId} start date: ${existingStart.toDateString()} → ${newStartDate.toDateString()}`);
         }
         
-        // If new date is AFTER existing end, update endTime
-        if (newDate > existingEnd) {
-          updateData.endTime = newDate;
-          console.log(`[RSS] Expanding event ${eventId} end date: ${existingEnd.toDateString()} → ${newDate.toDateString()}`);
+        // If new end date (or start if no end) is AFTER existing end, update endTime
+        if (newEndDate > existingEnd) {
+          updateData.endTime = newEndDate;
+          console.log(`[RSS] Expanding event ${eventId} end date: ${existingEnd.toDateString()} → ${newEndDate.toDateString()}`);
         }
       } else {
         // Fallback: standard update if no existing data or no new time

@@ -74,7 +74,7 @@ interface SyncAllProgress {
     eventsRejected?: number;
     rejectionReasons?: Record<string, number>;
     message?: string;
-    lastSyncAt?: Date | null;
+    lastFetchedAt?: Date | null;
     skipReason?: string;
   }>;
   startTime: number;
@@ -2415,7 +2415,7 @@ Respond with ONLY the search term, nothing else.`,
   });
 
   // Sync all feeds sequentially with delays and exponential backoff
-  // Sorted by lastSyncAt (oldest first, null first), skips feeds synced in last 24h
+  // Sorted by lastFetchedAt (oldest first, null first), skips feeds synced in last 24h
   app.post("/api/admin/rss-feeds/sync-all", isAdmin, async (req, res) => {
     try {
       // Check if already running
@@ -2435,12 +2435,12 @@ Respond with ONLY the search term, nothing else.`,
         return res.json({ message: "Geen actieve feeds gevonden", totalFeeds: 0, results: [] });
       }
 
-      // Sort feeds by lastSyncAt: null first (never synced), then oldest first
+      // Sort feeds by lastFetchedAt: null first (never synced), then oldest first
       const sortedFeeds = [...activeFeeds].sort((a, b) => {
-        if (!a.lastSyncAt && !b.lastSyncAt) return 0;
-        if (!a.lastSyncAt) return -1; // a (null) comes first
-        if (!b.lastSyncAt) return 1;  // b (null) comes first
-        return new Date(a.lastSyncAt).getTime() - new Date(b.lastSyncAt).getTime();
+        if (!a.lastFetchedAt && !b.lastFetchedAt) return 0;
+        if (!a.lastFetchedAt) return -1; // a (null) comes first
+        if (!b.lastFetchedAt) return 1;  // b (null) comes first
+        return new Date(a.lastFetchedAt).getTime() - new Date(b.lastFetchedAt).getTime();
       });
 
       // Determine which feeds to skip (synced within last N hours)
@@ -2450,8 +2450,8 @@ Respond with ONLY the search term, nothing else.`,
       const feedsToSkip: typeof sortedFeeds = [];
 
       for (const feed of sortedFeeds) {
-        if (feed.lastSyncAt) {
-          const timeSinceSync = now - new Date(feed.lastSyncAt).getTime();
+        if (feed.lastFetchedAt) {
+          const timeSinceSync = now - new Date(feed.lastFetchedAt).getTime();
           if (timeSinceSync < skipThresholdMs) {
             feedsToSkip.push(feed);
             continue;
@@ -2478,15 +2478,15 @@ Respond with ONLY the search term, nothing else.`,
 
       // Add skipped feeds to results immediately
       for (const feed of feedsToSkip) {
-        const hoursAgo = feed.lastSyncAt 
-          ? Math.round((now - new Date(feed.lastSyncAt).getTime()) / (60 * 60 * 1000))
+        const hoursAgo = feed.lastFetchedAt 
+          ? Math.round((now - new Date(feed.lastFetchedAt).getTime()) / (60 * 60 * 1000))
           : 0;
         SYNC_ALL_PROGRESS.feedResults.push({
           feedId: feed.id,
           feedName: feed.name,
           status: 'skipped',
           eventsCreated: 0,
-          lastSyncAt: feed.lastSyncAt,
+          lastFetchedAt: feed.lastFetchedAt,
           skipReason: `Gesynchroniseerd ${hoursAgo} uur geleden (< ${skipRecentHours}u)`
         });
       }
@@ -2515,8 +2515,8 @@ Respond with ONLY the search term, nothing else.`,
             startedAt: Date.now()
           };
           
-          const lastSyncInfo = feed.lastSyncAt 
-            ? ` (laatst: ${Math.round((now - new Date(feed.lastSyncAt).getTime()) / (60 * 60 * 1000))}u geleden)`
+          const lastSyncInfo = feed.lastFetchedAt 
+            ? ` (laatst: ${Math.round((now - new Date(feed.lastFetchedAt).getTime()) / (60 * 60 * 1000))}u geleden)`
             : ' (nog nooit gesynchroniseerd)';
           console.log(`[Sync-All] Processing feed ${i + 1}/${feedsToProcess.length}: ${feed.name}${lastSyncInfo}`);
           
@@ -2572,7 +2572,7 @@ Respond with ONLY the search term, nothing else.`,
               eventsCreated: result.eventsCreated || 0,
               eventsSkipped: result.eventsSkipped || 0,
               eventsRejected: result.eventsRejected || 0,
-              lastSyncAt: feed.lastSyncAt,
+              lastFetchedAt: feed.lastFetchedAt,
               message: `${result.itemsProcessed || 0} items verwerkt, ${result.eventsCreated || 0} events`
             });
             
@@ -2595,7 +2595,7 @@ Respond with ONLY the search term, nothing else.`,
               feedName: feed.name,
               status: 'error',
               eventsCreated: 0,
-              lastSyncAt: feed.lastSyncAt,
+              lastFetchedAt: feed.lastFetchedAt,
               message: error.message || 'Onbekende fout'
             });
             

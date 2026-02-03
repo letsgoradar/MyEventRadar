@@ -475,7 +475,7 @@ export default function RssFeedsPage() {
       eventsRejected?: number;
       message?: string;
       skipReason?: string;
-      lastSyncAt?: string | null;
+      lastFetchedAt?: string | null;
     }>;
     nextFeedIn?: number;
     totalEventsCreated?: number;

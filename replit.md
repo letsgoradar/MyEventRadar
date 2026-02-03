@@ -82,6 +82,31 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
    - Alleen titel, beschrijving, locatie, datum/tijd, categorie, en externe URL worden geüpdatet
    - Afbeelding, tags, hostId, recurrence blijven ongewijzigd om handmatige edits te behouden
 
+### Scraper Configuratie Best Practices
+
+**BELANGRIJK: Bij het toevoegen of aanpassen van scrapers:**
+
+1. **Altijd de bron-website controleren** voordat je een scraper configureert:
+   - Bezoek de agenda pagina handmatig
+   - Inspecteer de HTML om te zien hoe event links eruitzien
+   - Let op: de overzichtspagina URL kan anders zijn dan de event detail URLs!
+
+2. **Plaece CMS scrapers** (goedgestel.nl, visitvught.nl, etc.):
+   - `agendaPath`: de URL van de overzichtspagina (bijv. `/agenda`)
+   - `eventLinkPath`: de URL prefix van event detail links (bijv. `/activiteiten`)
+   - `linkPattern`: regex die matcht op de event links
+   - Deze kunnen VERSCHILLEN! Bijv. agenda op `/agenda` maar links naar `/activiteiten/123/event-naam`
+
+3. **Veelvoorkomende fouten te vermijden:**
+   - NIET aannemen dat event links dezelfde prefix hebben als de agenda pagina
+   - ALTIJD het linkPattern baseren op de ECHTE links van de website
+   - Bij 404 errors: check of de agendaPath nog klopt (websites veranderen soms hun URL structuur)
+   - Bij 0 events gevonden: check of eventLinkPath en linkPattern matchen met de echte links
+
+4. **Debugging scraper problemen:**
+   - Logs tonen `[RSS] Page X: found Y new event links` - als Y=0, matcht de eventLinkPath niet
+   - Test de website met curl: `curl -s "URL" | grep -oE 'href="[^"]*"' | head -50`
+
 ## External Dependencies
 
 ### Core

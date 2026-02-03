@@ -3089,6 +3089,7 @@ export class RssFeedService {
   static async scrapePlaeceSite(config: {
     baseUrl: string;
     agendaPath: string;
+    eventLinkPath?: string;
     linkPattern: RegExp;
     municipality: string;
     maxPages?: number;
@@ -3097,6 +3098,7 @@ export class RssFeedService {
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
       const maxPages = config.maxPages || 10;
+      const eventLinkPath = config.eventLinkPath || config.agendaPath;
       
       for (let page = 1; page <= maxPages; page++) {
         const url = page === 1 
@@ -3117,7 +3119,7 @@ export class RssFeedService {
           const $ = cheerio.load(response.data);
           const linksBeforeThisPage = eventLinks.length;
           
-          $(`a[href*="${config.agendaPath}/"]`).each((_, element) => {
+          $(`a[href*="${eventLinkPath}/"]`).each((_, element) => {
             const href = $(element).attr("href");
             if (!href) return;
             if (href === config.agendaPath || href.includes("?page=") || href.includes("?calendar")) return;
@@ -3348,10 +3350,12 @@ export class RssFeedService {
   }
 
   // Sint-Michielsgestel scraper using Plaece CMS
+  // Note: agendaPath is the overview page, eventLinkPath is where event links point to
   static async scrapeSintMichielsgestel(): Promise<FeedParseResult> {
     return this.scrapePlaeceSite({
       baseUrl: 'https://www.goedgestel.nl',
       agendaPath: '/agenda',
+      eventLinkPath: '/activiteiten',
       linkPattern: /\/activiteiten\/\d+\/[a-z0-9-]+/,
       municipality: 'Sint-Michielsgestel'
     });

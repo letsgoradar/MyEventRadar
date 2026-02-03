@@ -3351,8 +3351,8 @@ export class RssFeedService {
   static async scrapeSintMichielsgestel(): Promise<FeedParseResult> {
     return this.scrapePlaeceSite({
       baseUrl: 'https://www.goedgestel.nl',
-      agendaPath: '/uitagenda',
-      linkPattern: /\/uitagenda\/\d+\/[a-z0-9-]+/,
+      agendaPath: '/agenda',
+      linkPattern: /\/activiteiten\/\d+\/[a-z0-9-]+/,
       municipality: 'Sint-Michielsgestel'
     });
   }

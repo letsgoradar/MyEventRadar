@@ -1788,17 +1788,17 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           </div>
 
           {/* Feed Field Mapper toggle */}
-          <div className="border rounded-lg p-4 bg-gray-50">
+          <div className={`border rounded-lg ${showFieldMapper ? 'p-6 bg-white' : 'p-4 bg-gray-50'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium text-sm">Veld Mapping</h4>
-                <p className="text-xs text-muted-foreground">
-                  Bekijk en pas aan hoe velden uit de bron worden gekoppeld aan events
+                <h4 className="font-medium text-base">Veld Toewijzing</h4>
+                <p className="text-sm text-muted-foreground">
+                  Bekijk welke velden zijn gedetecteerd en wijs ze toe aan event eigenschappen
                 </p>
               </div>
               <Button
                 variant={showFieldMapper ? "secondary" : "outline"}
-                size="sm"
+                size="default"
                 onClick={() => setShowFieldMapper(!showFieldMapper)}
               >
                 {showFieldMapper ? (
@@ -1816,23 +1816,25 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
             </div>
             
             {showFieldMapper && getSelectedMethod()?.url && (
-              <div className="mt-4">
-                <FeedFieldMapper
-                  feedUrl={getSelectedMethod()!.url}
-                  initialMapping={fieldMapping}
-                  onMappingComplete={(mapping, discovery) => {
-                    setFieldMapping(mapping as Record<string, string>);
-                    toast({
-                      title: "Mapping opgeslagen",
-                      description: `${Object.keys(mapping).length} velden gekoppeld`,
-                    });
-                    setShowFieldMapper(false);
-                  }}
-                  onValidationChange={(isValid, missing) => {
-                    setFieldMappingValid(isValid);
-                    setMissingRequiredFields(missing);
-                  }}
-                />
+              <div className="mt-6">
+                <ScrollArea className="max-h-[60vh]">
+                  <FeedFieldMapper
+                    feedUrl={getSelectedMethod()!.url}
+                    initialMapping={fieldMapping}
+                    onMappingComplete={(mapping, discovery) => {
+                      setFieldMapping(mapping as Record<string, string>);
+                      toast({
+                        title: "Mapping opgeslagen",
+                        description: `${Object.keys(mapping).length} velden gekoppeld`,
+                      });
+                      setShowFieldMapper(false);
+                    }}
+                    onValidationChange={(isValid, missing) => {
+                      setFieldMappingValid(isValid);
+                      setMissingRequiredFields(missing);
+                    }}
+                  />
+                </ScrollArea>
               </div>
             )}
           </div>
@@ -2455,7 +2457,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${currentStep === 'configure' || currentStep === 'direct-detail' || currentStep === 'direct-overview' ? 'max-w-[95vw] w-[95vw]' : 'max-w-2xl'} max-h-[95vh] overflow-hidden flex flex-col`}>
+      <DialogContent className={`${currentStep === 'configure' || currentStep === 'direct-detail' || currentStep === 'direct-overview' || showFieldMapper ? 'max-w-[95vw] w-[95vw]' : 'max-w-2xl'} max-h-[95vh] overflow-hidden flex flex-col`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LinkIcon className="w-5 h-5" />

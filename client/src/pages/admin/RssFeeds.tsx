@@ -99,6 +99,8 @@ export default function RssFeedsPage() {
   const [editingVisualFeedId, setEditingVisualFeedId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('list');
   const [deleteOptions, setDeleteOptions] = useState<{feedId: number | null, action: 'keep' | 'delete' | 'unlink'}>({feedId: null, action: 'keep'});
+  const [editingUrlFeedId, setEditingUrlFeedId] = useState<number | null>(null);
+  const [editingUrlValue, setEditingUrlValue] = useState<string>('');
   
   const [newFeed, setNewFeed] = useState({
     name: '',
@@ -1110,17 +1112,71 @@ export default function RssFeedsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {getFeedTypeIcon(feed.feedType)}
-                            <div>
+                            <div className="flex-1 min-w-0">
                               <div className="font-medium">{feed.name}</div>
-                              <a 
-                                href={feed.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-xs text-muted-foreground hover:underline flex items-center gap-1"
-                              >
-                                {feed.url.substring(0, 40)}...
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
+                              {editingUrlFeedId === feed.id ? (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <input
+                                    type="text"
+                                    value={editingUrlValue}
+                                    onChange={(e) => setEditingUrlValue(e.target.value)}
+                                    className="text-xs border rounded px-2 py-1 flex-1 min-w-0"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        updateFeedMutation.mutate({ id: feed.id, url: editingUrlValue });
+                                        setEditingUrlFeedId(null);
+                                      } else if (e.key === 'Escape') {
+                                        setEditingUrlFeedId(null);
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => {
+                                      updateFeedMutation.mutate({ id: feed.id, url: editingUrlValue });
+                                      setEditingUrlFeedId(null);
+                                    }}
+                                    disabled={updateFeedMutation.isPending}
+                                  >
+                                    <CheckCircle className="w-3 h-3 text-green-600" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => setEditingUrlFeedId(null)}
+                                  >
+                                    <AlertCircle className="w-3 h-3 text-red-600" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1 group">
+                                  <a 
+                                    href={feed.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-muted-foreground hover:underline flex items-center gap-1 truncate max-w-[200px]"
+                                  >
+                                    {feed.url.length > 40 ? feed.url.substring(0, 40) + '...' : feed.url}
+                                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                  </a>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => {
+                                      setEditingUrlFeedId(feed.id);
+                                      setEditingUrlValue(feed.url);
+                                    }}
+                                    title="URL bewerken"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </TableCell>

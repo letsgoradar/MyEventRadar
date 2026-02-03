@@ -339,6 +339,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API Usage statistieken voor monitoring en spike detectie
+  app.get("/api/admin/api-usage", isAdmin, async (req, res) => {
+    try {
+      const summary = await storage.getApiUsageSummary();
+      const recentStats = await storage.getApiUsageStats(24);
+      
+      // Groepeer per uur voor chart data
+      const hourlyData: { hour: string; requests: number; blocked: number }[] = [];
+      const hourMap = new Map<string, { requests: number; blocked: number }>();
+      
+      recentStats.forEach(stat => {
+        const hourKey = stat.hour.toISOString().slice(0, 13) + ':00';
+        const current = hourMap.get(hourKey) || { requests: 0, blocked: 0 };
+        current.requests += stat.requestCount;
+        current.blocked += stat.blockedRequests;
+        hourMap.set(hourKey, current);
+      });
+      
+      // Sorteer en formatteer voor chart
+      Array.from(hourMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([hour, data]) => {
+          hourlyData.push({
+            hour: new Date(hour).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }),
+            requests: data.requests,
+            blocked: data.blocked,
+          });
+        });
+      
+      // Top endpoints
+      const endpointMap = new Map<string, number>();
+      recentStats.forEach(stat => {
+        endpointMap.set(stat.endpoint, (endpointMap.get(stat.endpoint) || 0) + stat.requestCount);
+      });
+      const topEndpoints = Array.from(endpointMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([endpoint, count]) => ({ endpoint, count }));
+
+      res.json({
+        summary,
+        hourlyData,
+        topEndpoints,
+      });
+    } catch (error) {
+      console.error('Error in /api/admin/api-usage:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Alle gebruikers ophalen - alleen admin
   app.get("/api/admin/users", isAdmin, async (req, res) => {
     try {

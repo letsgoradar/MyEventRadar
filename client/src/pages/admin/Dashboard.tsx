@@ -20,6 +20,9 @@ import {
   Users,
   UserPlus,
   ArrowUpRight,
+  AlertTriangle,
+  Shield,
+  Server,
 } from "lucide-react";
 import {
   BarChart,
@@ -63,6 +66,18 @@ interface DashboardStats {
   }>;
 }
 
+interface ApiUsageData {
+  summary: {
+    last24h: { requests: number; blocked: number };
+    lastHour: { requests: number; blocked: number };
+    averageHourly: number;
+    peakHour: { hour: string; requests: number } | null;
+    isSpike: boolean;
+  };
+  hourlyData: Array<{ hour: string; requests: number; blocked: number }>;
+  topEndpoints: Array<{ endpoint: string; count: number }>;
+}
+
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#ff7300'];
 
 const AdminDashboard: React.FC = () => {
@@ -70,6 +85,11 @@ const AdminDashboard: React.FC = () => {
   
   const { data, isLoading, error } = useQuery<DashboardStats>({
     queryKey: ['/api/admin/statistics'],
+  });
+  
+  const { data: apiUsage } = useQuery<ApiUsageData>({
+    queryKey: ['/api/admin/api-usage'],
+    refetchInterval: 60000, // Refresh every minute
   });
 
   const StatCard = ({ 
@@ -177,6 +197,93 @@ const AdminDashboard: React.FC = () => {
                   onClick={() => setLocation('/admin/activity-logs')}
                 />
               </div>
+
+              {/* API Usage Monitoring - Spike Warning */}
+              {apiUsage?.summary?.isSpike && (
+                <div className="mb-6 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+                  <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-red-800 dark:text-red-200">Ongewone activiteit gedetecteerd!</h3>
+                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                      Het huidige aantal requests ({apiUsage.summary.lastHour.requests}/uur) is meer dan 200% van het gemiddelde 
+                      ({Math.round(apiUsage.summary.averageHourly)}/uur). Dit kan wijzen op een aanval of onverwacht hoog gebruik.
+                    </p>
+                    {apiUsage.summary.lastHour.blocked > 0 && (
+                      <p className="text-sm text-red-600 dark:text-red-400 mt-1 font-medium">
+                        {apiUsage.summary.lastHour.blocked} requests zijn geblokkeerd door rate limiting.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* API Usage Stats Card */}
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Server className="h-5 w-5" />
+                    API Gebruik Monitor
+                    {apiUsage?.summary?.isSpike && (
+                      <span className="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 rounded-full">
+                        SPIKE
+                      </span>
+                    )}
+                  </CardTitle>
+                  <CardDescription>
+                    Realtime monitoring van server requests en geblokkeerde aanvragen
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div className="p-3 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold">{apiUsage?.summary?.lastHour?.requests || 0}</div>
+                      <div className="text-xs text-muted-foreground">Requests dit uur</div>
+                    </div>
+                    <div className="p-3 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold">{apiUsage?.summary?.last24h?.requests || 0}</div>
+                      <div className="text-xs text-muted-foreground">Requests 24u</div>
+                    </div>
+                    <div className="p-3 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold text-red-600">{apiUsage?.summary?.last24h?.blocked || 0}</div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Shield className="h-3 w-3" /> Geblokkeerd 24u
+                      </div>
+                    </div>
+                    <div className="p-3 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold">{Math.round(apiUsage?.summary?.averageHourly || 0)}</div>
+                      <div className="text-xs text-muted-foreground">Gem. per uur</div>
+                    </div>
+                  </div>
+                  
+                  <div className="h-[200px]">
+                    {apiUsage?.hourlyData && apiUsage.hourlyData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={apiUsage.hourlyData}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="hour" className="text-xs" />
+                          <YAxis className="text-xs" />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Bar dataKey="requests" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} name="Requests" />
+                          <Bar dataKey="blocked" fill="#ef4444" radius={[2, 2, 0, 0]} name="Geblokkeerd" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        <div className="text-center">
+                          <Server className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                          <p>Nog geen usage data - dit wordt automatisch verzameld</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <Card>

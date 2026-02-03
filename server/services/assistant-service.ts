@@ -89,8 +89,11 @@ export async function recordQuestion(userId: number): Promise<boolean> {
   return true;
 }
 
-// Haal event context op voor de assistent
-async function getEventContext(lat?: number, lng?: number, radius?: number): Promise<string> {
+// Haal event context op voor de assistent (met event data voor ID lookup)
+async function getEventContextWithData(lat?: number, lng?: number, radius?: number): Promise<{
+  eventList: typeof events.$inferSelect[];
+  eventContext: string;
+}> {
   // Haal recente/nabije events op
   let eventList: typeof events.$inferSelect[] = [];
   
@@ -102,7 +105,7 @@ async function getEventContext(lat?: number, lng?: number, radius?: number): Pro
         gte(events.startTime, new Date())
       )
       .orderBy(events.startTime)
-      .limit(20);
+      .limit(25);
   } else {
     // Haal algemene upcoming events op
     eventList = await db.select()
@@ -111,23 +114,40 @@ async function getEventContext(lat?: number, lng?: number, radius?: number): Pro
         gte(events.startTime, new Date())
       )
       .orderBy(events.startTime)
-      .limit(15);
+      .limit(20);
   }
   
   if (eventList.length === 0) {
-    return "Er zijn momenteel geen aankomende evenementen in de database.";
+    return {
+      eventList: [],
+      eventContext: "Geen evenementen beschikbaar."
+    };
   }
   
+  // Maak compacte context met IDs voor de AI
   const eventSummaries = eventList.map(e => {
     const date = new Date(e.startTime).toLocaleDateString('nl-NL', {
-      weekday: 'long',
+      weekday: 'short',
       day: 'numeric',
-      month: 'long'
+      month: 'short'
     });
-    return `- "${e.title}" op ${date} in ${e.address || 'onbekende locatie'} (categorie: ${e.category})`;
+    return `ID:${e.id} - "${e.title}" (${e.category}) op ${date}`;
   }).join('\n');
   
-  return `Hier zijn de aankomende evenementen:\n${eventSummaries}`;
+  return {
+    eventList,
+    eventContext: eventSummaries
+  };
+}
+
+// Event data type for recommendations
+interface RecommendedEvent {
+  id: number;
+  title: string;
+  date: string;
+  location: string;
+  category: string;
+  imageUrl: string | null;
 }
 
 // Genereer assistent response
@@ -140,6 +160,7 @@ export async function generateAssistantResponse(
 ): Promise<{
   success: boolean;
   response?: string;
+  recommendedEvents?: RecommendedEvent[];
   error?: string;
   questionsRemaining?: number;
 }> {
@@ -157,41 +178,77 @@ export async function generateAssistantResponse(
   }
   
   try {
-    // Haal event context op
-    const eventContext = await getEventContext(lat, lng, radius);
+    // Haal events op en bereid context voor
+    const { eventList, eventContext } = await getEventContextWithData(lat, lng, radius);
     
-    // Bouw de prompt
-    const systemPrompt = `Je bent de letsgo radar assistent, een behulpzame AI die mensen helpt bij het vinden van leuke activiteiten en evenementen in hun buurt.
+    // Bouw de prompt - KORT en met event IDs
+    const systemPrompt = `Je bent de letsgo radar assistent. Help mensen leuke activiteiten te vinden.
 
-Je hebt toegang tot de volgende informatie over evenementen:
+BESCHIKBARE EVENEMENTEN (gebruik deze IDs om aan te bevelen):
 ${eventContext}
 
-Regels:
-1. Beantwoord vragen over wat te doen, waar naartoe te gaan, of welke evenementen interessant zijn
-2. Wees vriendelijk, enthousiast en behulpzaam
-3. Als je een evenement aanbeveelt, noem dan de titel, datum en locatie
-4. Als de vraag niet over evenementen gaat, probeer toch een relevant evenement te suggereren
-5. Stel eventueel een vervolgvraag als je meer informatie nodig hebt
-6. Houd je antwoorden beknopt maar informatief (max 150 woorden)
-7. Antwoord altijd in het Nederlands`;
+BELANGRIJKE REGELS:
+1. Geef een KORT antwoord (max 2-3 zinnen)
+2. Noem 1-3 relevante evenement IDs die passen bij de vraag
+3. Antwoord ALLEEN in dit JSON formaat:
+{
+  "message": "Je korte antwoord hier",
+  "eventIds": [123, 456, 789]
+}
+
+Kies de meest relevante events voor de vraag. Als niets past, kies dan populaire/recente events.
+Antwoord altijd in het Nederlands.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [
         { role: "user", parts: [{ text: systemPrompt }] },
-        { role: "model", parts: [{ text: "Begrepen! Ik help je graag met het vinden van leuke activiteiten en evenementen." }] },
+        { role: "model", parts: [{ text: '{"message": "Begrepen!", "eventIds": []}' }] },
         { role: "user", parts: [{ text: question }] },
       ],
     });
     
-    const assistantResponse = response.text || "Sorry, ik kon geen antwoord genereren.";
+    const rawResponse = response.text || '{"message": "Sorry, ik kon geen antwoord genereren.", "eventIds": []}';
+    
+    // Parse de JSON response
+    let message = "Hier zijn enkele suggesties voor je!";
+    let eventIds: number[] = [];
+    
+    try {
+      // Probeer JSON te parsen (strip markdown code blocks indien aanwezig)
+      const cleanJson = rawResponse.replace(/```json\n?|\n?```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+      message = parsed.message || message;
+      eventIds = Array.isArray(parsed.eventIds) ? parsed.eventIds.slice(0, 3) : [];
+    } catch {
+      // Als JSON parsing faalt, gebruik de raw text
+      message = rawResponse;
+    }
+    
+    // Haal de aanbevolen events op met alle benodigde data
+    const recommendedEvents: RecommendedEvent[] = eventIds
+      .map(id => eventList.find(e => e.id === id))
+      .filter((e): e is typeof events.$inferSelect => e !== undefined)
+      .map(e => ({
+        id: e.id,
+        title: e.title,
+        date: new Date(e.startTime).toLocaleDateString('nl-NL', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short'
+        }),
+        location: e.address || 'Locatie onbekend',
+        category: e.category,
+        imageUrl: e.imageUrl,
+      }));
     
     // Haal resterende vragen op
     const { questionsRemaining } = await getWeeklyUsage(userId);
     
     return {
       success: true,
-      response: assistantResponse,
+      response: message,
+      recommendedEvents,
       questionsRemaining: questionsRemaining === Infinity ? -1 : questionsRemaining,
     };
   } catch (error) {

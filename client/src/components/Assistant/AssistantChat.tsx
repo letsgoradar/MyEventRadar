@@ -5,13 +5,24 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { X, Send, Loader2, Sparkles, Crown, MessageCircle } from "lucide-react";
+import { X, Send, Loader2, Sparkles, Crown, MessageCircle, Eye, Bookmark, ExternalLink, MapPin, Calendar } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation as useGeoLocation } from "@/hooks/useLocation";
+import { useLocation } from "wouter";
+
+interface RecommendedEvent {
+  id: number;
+  title: string;
+  date: string;
+  location: string;
+  category: string;
+  imageUrl: string | null;
+}
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  events?: RecommendedEvent[];
 }
 
 interface AssistantUsage {
@@ -32,7 +43,8 @@ export function AssistantChat({ isOpen, onClose }: AssistantChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const { location } = useGeoLocation();
+  const { location: geoLocation } = useGeoLocation();
+  const [, navigate] = useLocation();
 
   const { data: usage } = useQuery<AssistantUsage>({
     queryKey: ["/api/assistant/usage"],
@@ -48,8 +60,8 @@ export function AssistantChat({ isOpen, onClose }: AssistantChatProps) {
         credentials: "include",
         body: JSON.stringify({
           question,
-          lat: location?.lat,
-          lng: location?.lng,
+          lat: geoLocation?.lat,
+          lng: geoLocation?.lng,
           radius: 20,
         }),
       });
@@ -62,7 +74,11 @@ export function AssistantChat({ isOpen, onClose }: AssistantChatProps) {
     onSuccess: (data) => {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.response },
+        { 
+          role: "assistant", 
+          content: data.response,
+          events: data.recommendedEvents || []
+        },
       ]);
       queryClient.invalidateQueries({ queryKey: ["/api/assistant/usage"] });
     },
@@ -74,6 +90,20 @@ export function AssistantChat({ isOpen, onClose }: AssistantChatProps) {
       ]);
     },
   });
+
+  const handleSaveEvent = async (eventId: number) => {
+    try {
+      await apiRequest(`/api/events/${eventId}/favorite`, { method: "POST" });
+      queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
+    } catch (error) {
+      console.error("Error saving event:", error);
+    }
+  };
+
+  const handleViewEvent = (eventId: number) => {
+    onClose();
+    navigate(`/events/${eventId}`);
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -92,7 +122,9 @@ export function AssistantChat({ isOpen, onClose }: AssistantChatProps) {
     if (!input.trim() || askMutation.isPending) return;
 
     const question = input.trim();
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
+    // Bij een nieuwe vraag: vervang alle berichten met alleen deze vraag
+    // Dit voorkomt dat eerdere events meegenomen worden
+    setMessages([{ role: "user", content: question }]);
     setInput("");
     askMutation.mutate(question);
   };
@@ -172,21 +204,92 @@ export function AssistantChat({ isOpen, onClose }: AssistantChatProps) {
           ) : (
             <div className="space-y-4">
               {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-2 ${
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  </div>
+                <div key={index} className="space-y-3">
+                  {/* User message */}
+                  {message.role === "user" && (
+                    <div className="flex justify-end">
+                      <div className="max-w-[85%] rounded-2xl px-4 py-2 bg-primary text-primary-foreground">
+                        <p className="text-sm">{message.content}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Assistant message with event cards */}
+                  {message.role === "assistant" && (
+                    <div className="space-y-3">
+                      {/* Short text response */}
+                      <div className="flex justify-start">
+                        <div className="max-w-[85%] rounded-2xl px-4 py-2 bg-muted">
+                          <p className="text-sm">{message.content}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Event cards */}
+                      {message.events && message.events.length > 0 && (
+                        <div className="space-y-2 pl-2">
+                          {message.events.map((event) => (
+                            <div 
+                              key={event.id}
+                              className="bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                            >
+                              <div className="flex">
+                                {/* Event image */}
+                                <div className="w-20 h-20 flex-shrink-0">
+                                  {event.imageUrl ? (
+                                    <img 
+                                      src={event.imageUrl} 
+                                      alt={event.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+                                      <Calendar className="h-6 w-6 text-primary/60" />
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* Event info */}
+                                <div className="flex-1 p-2 min-w-0">
+                                  <h4 className="font-medium text-sm truncate">{event.title}</h4>
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                                    <Calendar className="h-3 w-3" />
+                                    <span>{event.date}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+                                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                                    <span className="truncate">{event.location}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Action buttons */}
+                              <div className="flex border-t">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="flex-1 rounded-none h-8 text-xs"
+                                  onClick={() => handleViewEvent(event.id)}
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Bekijk
+                                </Button>
+                                <div className="w-px bg-border" />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="flex-1 rounded-none h-8 text-xs"
+                                  onClick={() => handleSaveEvent(event.id)}
+                                >
+                                  <Bookmark className="h-3 w-3 mr-1" />
+                                  Opslaan
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               {askMutation.isPending && (

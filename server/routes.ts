@@ -4165,6 +4165,7 @@ Respond with ONLY the search term, nothing else.`,
       
       res.json({
         response: result.response,
+        recommendedEvents: result.recommendedEvents || [],
         questionsRemaining: result.questionsRemaining,
       });
     } catch (error: any) {

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 import { 
   Select,
   SelectContent,
@@ -18,6 +19,8 @@ import {
   Loader2, 
   AlertCircle, 
   Check,
+  CheckCircle2,
+  XCircle,
   RefreshCw,
   Calendar,
   MapPin,
@@ -26,11 +29,13 @@ import {
   ExternalLink,
   Type,
   FileText,
-  Building2,
   Tag,
   ChevronRight,
   ChevronDown,
   Info,
+  HelpCircle,
+  Sparkles,
+  CircleDot,
 } from 'lucide-react';
 
 interface DiscoveredField {
@@ -79,42 +84,85 @@ interface FeedFieldMapperProps {
 }
 
 const MAPPING_OPTIONS = [
-  { value: 'title', label: 'Titel', icon: Type, required: true },
-  { value: 'description', label: 'Beschrijving', icon: FileText, required: false },
-  { value: 'startTime', label: 'Startdatum/tijd', icon: Calendar, required: true },
-  { value: 'endTime', label: 'Einddatum/tijd', icon: Clock, required: false },
-  { value: 'location', label: 'Locatie', icon: MapPin, required: true },
-  { value: 'image', label: 'Afbeelding', icon: ImageIcon, required: false },
-  { value: 'link', label: 'Link', icon: ExternalLink, required: false },
-  { value: 'category', label: 'Categorie', icon: Tag, required: false },
+  { value: 'title', label: 'Titel', description: 'De naam van het event', icon: Type, required: true },
+  { value: 'description', label: 'Beschrijving', description: 'Uitleg over het event', icon: FileText, required: false },
+  { value: 'startTime', label: 'Startdatum', description: 'Wanneer het event begint', icon: Calendar, required: true },
+  { value: 'endTime', label: 'Einddatum', description: 'Wanneer het event eindigt', icon: Clock, required: false },
+  { value: 'location', label: 'Locatie', description: 'Waar het event plaatsvindt', icon: MapPin, required: true },
+  { value: 'image', label: 'Afbeelding', description: 'Foto of banner van het event', icon: ImageIcon, required: false },
+  { value: 'link', label: 'Link', description: 'URL naar meer informatie', icon: ExternalLink, required: false },
+  { value: 'category', label: 'Categorie', description: 'Type event (muziek, sport, etc.)', icon: Tag, required: false },
 ];
 
-function getTypeColor(type: DiscoveredField['type']): string {
-  switch (type) {
-    case 'string': return 'bg-blue-100 text-blue-800';
-    case 'number': return 'bg-green-100 text-green-800';
-    case 'boolean': return 'bg-yellow-100 text-yellow-800';
-    case 'date': return 'bg-purple-100 text-purple-800';
-    case 'array': return 'bg-orange-100 text-orange-800';
-    case 'object': return 'bg-gray-100 text-gray-800';
-    default: return 'bg-gray-100 text-gray-600';
-  }
+const TYPE_LEGEND = [
+  { type: 'string', label: 'Tekst', description: 'Gewone tekst zoals titels en beschrijvingen', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  { type: 'date', label: 'Datum', description: 'Datum en/of tijd (bijv. 2025-01-15)', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { type: 'number', label: 'Getal', description: 'Numerieke waarde', color: 'bg-green-100 text-green-800 border-green-200' },
+  { type: 'array', label: 'Lijst', description: 'Meerdere items (bijv. tags)', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+  { type: 'object', label: 'Genest', description: 'Bevat meerdere sub-velden', color: 'bg-gray-100 text-gray-700 border-gray-200' },
+];
+
+function getTypeInfo(type: DiscoveredField['type']) {
+  return TYPE_LEGEND.find(t => t.type === type) || { 
+    type: 'unknown', 
+    label: 'Onbekend', 
+    description: 'Type niet herkend',
+    color: 'bg-gray-100 text-gray-600 border-gray-200' 
+  };
 }
 
-function formatSampleValue(value: any, maxLength: number = 80): string {
+function formatSampleValue(value: any, maxLength: number = 100): string {
   if (value === null || value === undefined) return '(leeg)';
   if (typeof value === 'object') {
-    const str = JSON.stringify(value);
+    const str = JSON.stringify(value, null, 0);
     return str.length > maxLength ? str.substring(0, maxLength) + '...' : str;
   }
   const str = String(value);
   return str.length > maxLength ? str.substring(0, maxLength) + '...' : str;
 }
 
+function getReadableFieldName(path: string): string {
+  const parts = path.split('.');
+  const lastPart = parts[parts.length - 1];
+  
+  const translations: Record<string, string> = {
+    'title': 'Titel',
+    'name': 'Naam',
+    'description': 'Beschrijving',
+    'content': 'Inhoud',
+    'excerpt': 'Samenvatting',
+    'start_date': 'Startdatum',
+    'end_date': 'Einddatum',
+    'startdatum': 'Startdatum',
+    'einddatum': 'Einddatum',
+    'date': 'Datum',
+    'location': 'Locatie',
+    'venue': 'Locatie',
+    'address': 'Adres',
+    'city': 'Stad',
+    'image': 'Afbeelding',
+    'featured_image': 'Afbeelding',
+    'thumbnail': 'Thumbnail',
+    'link': 'Link',
+    'url': 'URL',
+    'permalink': 'Link',
+    'category': 'Categorie',
+    'categories': 'Categorieën',
+    'tags': 'Tags',
+    'geo_lat': 'Breedtegraad',
+    'geo_lng': 'Lengtegraad',
+    'price': 'Prijs',
+    'cost': 'Kosten',
+  };
+  
+  return translations[lastPart.toLowerCase()] || lastPart;
+}
+
 export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange, initialMapping }: FeedFieldMapperProps) {
   const [discoveryResult, setDiscoveryResult] = useState<FeedDiscoveryResult | null>(null);
   const [mapping, setMapping] = useState<FieldMapping>(initialMapping || {});
   const [expandedFields, setExpandedFields] = useState<Set<string>>(new Set());
+  const [showLegend, setShowLegend] = useState(false);
 
   const discoverMutation = useMutation({
     mutationFn: async () => {
@@ -127,7 +175,6 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange
     onSuccess: (data) => {
       setDiscoveryResult(data);
       
-      // Auto-set mappings from suggestions
       const autoMapping: FieldMapping = {};
       for (const field of data.discoveredFields) {
         if (field.suggestedMapping && !mapping[field.suggestedMapping as keyof FieldMapping]) {
@@ -144,7 +191,6 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange
     }
   }, [feedUrl]);
 
-  // Report validation status when mapping changes
   useEffect(() => {
     if (onValidationChange) {
       const requiredFields = MAPPING_OPTIONS.filter(opt => opt.required);
@@ -158,7 +204,6 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange
 
   const handleMappingChange = (fieldPath: string, mappingType: string) => {
     if (mappingType === 'none') {
-      // Remove any existing mapping for this field
       const newMapping = { ...mapping };
       for (const [key, value] of Object.entries(newMapping)) {
         if (value === fieldPath) {
@@ -167,9 +212,8 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange
       }
       setMapping(newMapping);
     } else {
-      // Remove this mapping type from any other field first
       const newMapping = { ...mapping };
-      for (const [key, value] of Object.entries(newMapping)) {
+      for (const [key] of Object.entries(newMapping)) {
         if (key === mappingType) {
           delete newMapping[key as keyof FieldMapping];
         }
@@ -186,14 +230,17 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange
     return 'none';
   };
 
-  const getMissingRequiredFields = (): string[] => {
-    const missing: string[] = [];
+  const getMappingStatus = () => {
+    const status: { field: typeof MAPPING_OPTIONS[0], mapped: boolean, path?: string }[] = [];
     for (const opt of MAPPING_OPTIONS) {
-      if (opt.required && !mapping[opt.value as keyof FieldMapping]) {
-        missing.push(opt.label);
-      }
+      const path = mapping[opt.value as keyof FieldMapping];
+      status.push({
+        field: opt,
+        mapped: Boolean(path),
+        path,
+      });
     }
-    return missing;
+    return status;
   };
 
   const toggleFieldExpanded = (path: string) => {
@@ -206,7 +253,6 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange
     setExpandedFields(newExpanded);
   };
 
-  // Generate preview from current mappings
   const generatePreview = () => {
     if (!discoveryResult || discoveryResult.sampleItems.length === 0) return null;
     
@@ -238,7 +284,6 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange
       current = current[part];
     }
     
-    // Handle XML text nodes
     if (current && typeof current === 'object' && current._ !== undefined) {
       return current._;
     }
@@ -246,21 +291,41 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange
     return current;
   };
 
+  const groupFields = () => {
+    if (!discoveryResult) return { suggested: [], other: [] };
+    
+    const suggested: DiscoveredField[] = [];
+    const other: DiscoveredField[] = [];
+    
+    for (const field of discoveryResult.discoveredFields) {
+      if (field.suggestedMapping || getCurrentMapping(field.path) !== 'none') {
+        suggested.push(field);
+      } else {
+        other.push(field);
+      }
+    }
+    
+    return { suggested, other };
+  };
+
   if (discoverMutation.isPending) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 space-y-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Velden ontdekken in de feed...</p>
+      <div className="flex flex-col items-center justify-center py-16 space-y-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <div className="text-center">
+          <p className="text-base font-medium">Feed wordt geanalyseerd...</p>
+          <p className="text-sm text-muted-foreground mt-1">Dit kan even duren bij grote feeds</p>
+        </div>
       </div>
     );
   }
 
   if (discoverMutation.isError) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          Fout bij analyseren van de feed. Probeer opnieuw.
+      <Alert variant="destructive" className="my-4">
+        <AlertCircle className="h-5 w-5" />
+        <AlertDescription className="ml-2">
+          <span className="font-medium">Fout bij analyseren van de feed.</span>
           <Button
             variant="outline"
             size="sm"
@@ -281,9 +346,9 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange
 
   if (discoveryResult.errors.length > 0) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
+      <Alert variant="destructive" className="my-4">
+        <AlertCircle className="h-5 w-5" />
+        <AlertDescription className="ml-2">
           {discoveryResult.errors.join(', ')}
         </AlertDescription>
       </Alert>
@@ -291,244 +356,462 @@ export function FeedFieldMapper({ feedUrl, onMappingComplete, onValidationChange
   }
 
   const preview = generatePreview();
-  const missingFields = getMissingRequiredFields();
+  const mappingStatus = getMappingStatus();
+  const { suggested, other } = groupFields();
+  const requiredMapped = mappingStatus.filter(s => s.field.required && s.mapped).length;
+  const requiredTotal = mappingStatus.filter(s => s.field.required).length;
+  const optionalMapped = mappingStatus.filter(s => !s.field.required && s.mapped).length;
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-medium">Veld Verkenner</h3>
-          <p className="text-xs text-muted-foreground">
-            {discoveryResult.totalItems} items gevonden in {discoveryResult.feedType.toUpperCase()} feed
-          </p>
+    <div className="space-y-6">
+      {/* Header with summary */}
+      <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-5">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Veld Toewijzing
+            </h2>
+            <p className="text-muted-foreground mt-1">
+              Er zijn <strong>{discoveryResult.discoveredFields.length} velden</strong> gevonden in {discoveryResult.totalItems} {discoveryResult.feedType.toUpperCase()} items.
+              Wijs hieronder de juiste velden toe aan event eigenschappen.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => discoverMutation.mutate()}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Opnieuw analyseren
+          </Button>
         </div>
-        <Button
-          variant="ghost"
+      </div>
+
+      {/* Mapping Status Overview */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CircleDot className="h-4 w-4" />
+            Toewijzing Status
+          </CardTitle>
+          <CardDescription>
+            {requiredMapped === requiredTotal ? (
+              <span className="text-green-600 font-medium">Alle verplichte velden zijn toegewezen!</span>
+            ) : (
+              <span className="text-amber-600 font-medium">{requiredTotal - requiredMapped} verplichte veld(en) moeten nog worden toegewezen</span>
+            )}
+            {optionalMapped > 0 && <span className="text-muted-foreground"> • {optionalMapped} optionele velden toegewezen</span>}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {mappingStatus.map(({ field, mapped, path }) => {
+              const Icon = field.icon;
+              return (
+                <div 
+                  key={field.value}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-colors ${
+                    mapped 
+                      ? 'bg-green-50 border-green-200' 
+                      : field.required 
+                        ? 'bg-amber-50 border-amber-200' 
+                        : 'bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <div className={`p-2 rounded-full ${
+                    mapped 
+                      ? 'bg-green-100 text-green-700' 
+                      : field.required 
+                        ? 'bg-amber-100 text-amber-700' 
+                        : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium text-sm">{field.label}</span>
+                      {field.required && <span className="text-red-500 text-xs">*</span>}
+                    </div>
+                    {mapped ? (
+                      <div className="flex items-center gap-1 text-xs text-green-700">
+                        <CheckCircle2 className="h-3 w-3" />
+                        <span className="truncate">{getReadableFieldName(path!)}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <XCircle className="h-3 w-3" />
+                        <span>Niet toegewezen</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Legend Toggle */}
+      <div className="flex items-center justify-between">
+        <Button 
+          variant="ghost" 
           size="sm"
-          onClick={() => discoverMutation.mutate()}
+          onClick={() => setShowLegend(!showLegend)}
+          className="text-muted-foreground"
         >
-          <RefreshCw className="h-4 w-4 mr-1" />
-          Verversen
+          <HelpCircle className="h-4 w-4 mr-2" />
+          {showLegend ? 'Verberg' : 'Toon'} veldtype uitleg
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {/* Left: Field list */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Beschikbare Velden</CardTitle>
-            <CardDescription className="text-xs">
-              Koppel velden aan event eigenschappen
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[350px]">
-              <div className="space-y-1 p-2">
-                {discoveryResult.discoveredFields.map((field) => {
-                  const currentMapping = getCurrentMapping(field.path);
-                  const isExpanded = expandedFields.has(field.path);
-                  const mappingOption = MAPPING_OPTIONS.find(o => o.value === currentMapping);
-                  
-                  return (
-                    <div 
-                      key={field.path}
-                      className={`border rounded-md p-2 transition-colors ${
-                        currentMapping !== 'none' ? 'border-primary bg-primary/5' : 'border-border'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleFieldExpanded(field.path)}
-                              className="text-muted-foreground hover:text-foreground"
-                            >
-                              {isExpanded ? (
-                                <ChevronDown className="h-3 w-3" />
-                              ) : (
-                                <ChevronRight className="h-3 w-3" />
-                              )}
-                            </button>
-                            <code className="text-xs font-mono truncate">{field.path}</code>
-                            <Badge variant="secondary" className={`text-[10px] px-1 py-0 ${getTypeColor(field.type)}`}>
-                              {field.type}
-                            </Badge>
-                            {field.suggestedMapping && currentMapping === 'none' && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0 text-muted-foreground">
-                                suggestie: {field.suggestedMapping}
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          <div className="mt-1 text-xs text-muted-foreground truncate pl-5">
-                            {formatSampleValue(field.sampleValue, 60)}
-                          </div>
-                          
-                          {isExpanded && field.allSamples.length > 1 && (
-                            <div className="mt-2 pl-5 space-y-1 border-l-2 border-muted ml-1">
-                              <p className="text-[10px] font-medium text-muted-foreground">Meer voorbeelden:</p>
-                              {field.allSamples.slice(1).map((sample, i) => (
-                                <p key={i} className="text-xs text-muted-foreground pl-2">
-                                  {formatSampleValue(sample, 80)}
-                                </p>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        
-                        <Select
-                          value={currentMapping}
-                          onValueChange={(value) => handleMappingChange(field.path, value)}
-                        >
-                          <SelectTrigger className="h-7 w-32 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">
-                              <span className="text-muted-foreground">Niet koppelen</span>
-                            </SelectItem>
-                            {MAPPING_OPTIONS.map((opt) => {
-                              const Icon = opt.icon;
-                              const isUsed = Boolean(mapping[opt.value as keyof FieldMapping] && 
-                                             mapping[opt.value as keyof FieldMapping] !== field.path);
-                              return (
-                                <SelectItem 
-                                  key={opt.value} 
-                                  value={opt.value}
-                                  disabled={isUsed}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <Icon className="h-3 w-3" />
-                                    {opt.label}
-                                    {opt.required && <span className="text-red-500">*</span>}
-                                    {isUsed && <span className="text-xs text-muted-foreground">(in gebruik)</span>}
-                                  </div>
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
+      {/* Legend */}
+      {showLegend && (
+        <Card className="bg-muted/30">
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium mb-3">Veldtypes uitleg:</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {TYPE_LEGEND.map((item) => (
+                <div key={item.type} className="flex items-start gap-2">
+                  <Badge className={`${item.color} border shrink-0`}>
+                    {item.label}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
+      )}
 
-        {/* Right: Preview */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Voorbeeld Event</CardTitle>
-            <CardDescription className="text-xs">
-              Zo ziet een geïmporteerd event eruit
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {preview && Object.keys(preview).length > 0 ? (
-              <div className="space-y-3">
-                {preview.image && (
-                  <div className="aspect-video bg-muted rounded-md overflow-hidden">
-                    <img 
-                      src={typeof preview.image === 'string' ? preview.image : preview.image?.url || ''} 
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Left: Field list (3 columns) */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Suggested / Auto-detected fields */}
+          {suggested.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-green-700">
+                  <Sparkles className="h-4 w-4" />
+                  Automatisch Herkende Velden ({suggested.length})
+                </CardTitle>
+                <CardDescription>
+                  Deze velden zijn automatisch herkend op basis van hun naam. Controleer of de toewijzing klopt.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ScrollArea className="max-h-[400px]">
+                  <div className="space-y-2 p-4">
+                    {suggested.map((field) => (
+                      <FieldRow 
+                        key={field.path} 
+                        field={field} 
+                        mapping={mapping}
+                        expandedFields={expandedFields}
+                        getCurrentMapping={getCurrentMapping}
+                        handleMappingChange={handleMappingChange}
+                        toggleFieldExpanded={toggleFieldExpanded}
+                      />
+                    ))}
                   </div>
-                )}
-                
-                {preview.title && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Titel</Label>
-                    <p className="text-sm font-medium">{formatSampleValue(preview.title, 100)}</p>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Other fields */}
+          {other.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Overige Velden ({other.length})
+                </CardTitle>
+                <CardDescription>
+                  Deze velden zijn niet automatisch herkend. Je kunt ze handmatig toewijzen indien nodig.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ScrollArea className="max-h-[350px]">
+                  <div className="space-y-2 p-4">
+                    {other.map((field) => (
+                      <FieldRow 
+                        key={field.path} 
+                        field={field} 
+                        mapping={mapping}
+                        expandedFields={expandedFields}
+                        getCurrentMapping={getCurrentMapping}
+                        handleMappingChange={handleMappingChange}
+                        toggleFieldExpanded={toggleFieldExpanded}
+                      />
+                    ))}
                   </div>
-                )}
-                
-                {preview.description && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Beschrijving</Label>
-                    <p className="text-xs text-muted-foreground line-clamp-3">
-                      {String(preview.description).replace(/<[^>]*>/g, '').substring(0, 200)}
-                    </p>
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-2 gap-2">
-                  {preview.startTime && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Calendar className="h-3 w-3" /> Start
-                      </Label>
-                      <p className="text-xs">{formatSampleValue(preview.startTime, 40)}</p>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Right: Preview (2 columns) */}
+        <div className="lg:col-span-2">
+          <Card className="sticky top-4">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Voorbeeld Event</CardTitle>
+              <CardDescription>
+                Zo ziet een geïmporteerd event eruit met de huidige toewijzingen
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {preview && Object.keys(preview).length > 0 ? (
+                <div className="space-y-4">
+                  {preview.image && (
+                    <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                      <img 
+                        src={typeof preview.image === 'string' ? preview.image : preview.image?.url || ''} 
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
                     </div>
                   )}
                   
-                  {preview.endTime && (
+                  {preview.title && (
                     <div>
-                      <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> Eind
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">Titel</Label>
+                      <p className="text-lg font-semibold mt-1">{formatSampleValue(preview.title, 120)}</p>
+                    </div>
+                  )}
+                  
+                  {preview.description && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">Beschrijving</Label>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-4">
+                        {String(preview.description).replace(/<[^>]*>/g, '').substring(0, 300)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  <Separator />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    {preview.startTime && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                          <Calendar className="h-3 w-3" /> Startdatum
+                        </Label>
+                        <p className="text-sm font-medium mt-1">{formatSampleValue(preview.startTime, 50)}</p>
+                      </div>
+                    )}
+                    
+                    {preview.endTime && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Einddatum
+                        </Label>
+                        <p className="text-sm font-medium mt-1">{formatSampleValue(preview.endTime, 50)}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {preview.location && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> Locatie
                       </Label>
-                      <p className="text-xs">{formatSampleValue(preview.endTime, 40)}</p>
+                      <p className="text-sm font-medium mt-1">{formatSampleValue(preview.location, 80)}</p>
+                    </div>
+                  )}
+                  
+                  {preview.link && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                        <ExternalLink className="h-3 w-3" /> Link
+                      </Label>
+                      <p className="text-sm text-blue-600 truncate mt-1">{formatSampleValue(preview.link, 60)}</p>
+                    </div>
+                  )}
+                  
+                  {preview.category && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                        <Tag className="h-3 w-3" /> Categorie
+                      </Label>
+                      <Badge variant="secondary" className="mt-1">{formatSampleValue(preview.category, 30)}</Badge>
                     </div>
                   )}
                 </div>
-                
-                {preview.location && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                      <MapPin className="h-3 w-3" /> Locatie
-                    </Label>
-                    <p className="text-xs">{formatSampleValue(preview.location, 60)}</p>
-                  </div>
-                )}
-                
-                {preview.link && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" /> Link
-                    </Label>
-                    <p className="text-xs truncate">{formatSampleValue(preview.link, 50)}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-40 text-center">
-                <Info className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Koppel velden om een preview te zien
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-48 text-center bg-muted/30 rounded-lg">
+                  <Info className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-sm font-medium">Geen preview beschikbaar</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Wijs velden toe om een voorbeeld te zien
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Validation */}
-      {missingFields.length > 0 && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <span className="font-medium">Verplichte velden nog niet gekoppeld:</span>{' '}
-            {missingFields.join(', ')}
+      {/* Validation Warning */}
+      {requiredMapped < requiredTotal && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-5 w-5" />
+          <AlertDescription className="ml-2">
+            <span className="font-medium">Verplichte velden ontbreken:</span>{' '}
+            {mappingStatus.filter(s => s.field.required && !s.mapped).map(s => s.field.label).join(', ')}
           </AlertDescription>
         </Alert>
       )}
 
       {/* Actions */}
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-3 pt-2">
         <Button
+          size="lg"
           onClick={() => onMappingComplete(mapping, discoveryResult)}
-          disabled={missingFields.length > 0}
+          disabled={requiredMapped < requiredTotal}
         >
-          <Check className="h-4 w-4 mr-2" />
-          Mapping opslaan
+          <Check className="h-5 w-5 mr-2" />
+          Toewijzing Opslaan
         </Button>
+      </div>
+    </div>
+  );
+}
+
+// Separate component for field rows
+function FieldRow({ 
+  field, 
+  mapping, 
+  expandedFields, 
+  getCurrentMapping, 
+  handleMappingChange, 
+  toggleFieldExpanded 
+}: {
+  field: DiscoveredField;
+  mapping: FieldMapping;
+  expandedFields: Set<string>;
+  getCurrentMapping: (path: string) => string;
+  handleMappingChange: (path: string, type: string) => void;
+  toggleFieldExpanded: (path: string) => void;
+}) {
+  const currentMapping = getCurrentMapping(field.path);
+  const isExpanded = expandedFields.has(field.path);
+  const typeInfo = getTypeInfo(field.type);
+  const readableName = getReadableFieldName(field.path);
+  
+  return (
+    <div 
+      className={`border-2 rounded-lg p-4 transition-all ${
+        currentMapping !== 'none' 
+          ? 'border-green-300 bg-green-50/50' 
+          : field.suggestedMapping 
+            ? 'border-amber-200 bg-amber-50/30'
+            : 'border-gray-200 hover:border-gray-300'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          {/* Field name and path */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => toggleFieldExpanded(field.path)}
+              className="text-muted-foreground hover:text-foreground p-1"
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+            
+            <span className="font-medium text-base">{readableName}</span>
+            
+            <Badge className={`${typeInfo.color} border text-xs`}>
+              {typeInfo.label}
+            </Badge>
+            
+            {field.suggestedMapping && currentMapping === 'none' && (
+              <Badge variant="outline" className="text-xs bg-amber-100 border-amber-300 text-amber-800">
+                Suggestie: {MAPPING_OPTIONS.find(o => o.value === field.suggestedMapping)?.label}
+              </Badge>
+            )}
+            
+            {currentMapping !== 'none' && (
+              <Badge className="text-xs bg-green-100 border-green-300 text-green-800">
+                ✓ Toegewezen als {MAPPING_OPTIONS.find(o => o.value === currentMapping)?.label}
+              </Badge>
+            )}
+          </div>
+          
+          {/* Technical path */}
+          <code className="text-xs text-muted-foreground block mt-1 pl-7 font-mono">
+            {field.path}
+          </code>
+          
+          {/* Sample value */}
+          <div className="mt-2 pl-7">
+            <p className="text-sm text-gray-700 bg-gray-100 rounded px-2 py-1 inline-block max-w-full">
+              <span className="text-xs text-muted-foreground mr-1">Voorbeeld:</span>
+              {formatSampleValue(field.sampleValue, 150)}
+            </p>
+          </div>
+          
+          {/* More samples when expanded */}
+          {isExpanded && field.allSamples.length > 1 && (
+            <div className="mt-3 pl-7 space-y-1.5 border-l-2 border-gray-200 ml-2 py-1">
+              <p className="text-xs font-medium text-muted-foreground">Meer voorbeelden uit de feed:</p>
+              {field.allSamples.slice(1, 5).map((sample, i) => (
+                <p key={i} className="text-sm text-gray-600 pl-3">
+                  {formatSampleValue(sample, 120)}
+                </p>
+              ))}
+              {field.allSamples.length > 5 && (
+                <p className="text-xs text-muted-foreground pl-3">
+                  ...en {field.allSamples.length - 5} meer
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Mapping selector */}
+        <Select
+          value={currentMapping}
+          onValueChange={(value) => handleMappingChange(field.path, value)}
+        >
+          <SelectTrigger className="w-44 h-10">
+            <SelectValue placeholder="Toewijzen aan..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">
+              <span className="text-muted-foreground">Niet toewijzen</span>
+            </SelectItem>
+            {MAPPING_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              const isUsed = Boolean(mapping[opt.value as keyof FieldMapping] && 
+                             mapping[opt.value as keyof FieldMapping] !== field.path);
+              return (
+                <SelectItem 
+                  key={opt.value} 
+                  value={opt.value}
+                  disabled={isUsed}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4" />
+                    <span>{opt.label}</span>
+                    {opt.required && <span className="text-red-500">*</span>}
+                    {isUsed && <span className="text-xs text-muted-foreground">(in gebruik)</span>}
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

@@ -1377,6 +1377,7 @@ export class RssFeedService {
   /**
    * Fetch and parse a WordPress JSON API feed (wp-json/wp/v2/posts)
    * Uses smart content extraction when structured fields are missing
+   * Supports full pagination via X-WP-Total and X-WP-TotalPages headers
    */
   static async fetchAndParseJsonFeed(url: string, municipality?: string): Promise<FeedParseResult> {
     try {
@@ -1385,21 +1386,39 @@ export class RssFeedService {
       const items: ParsedFeedItem[] = [];
       let currentUrl = url;
       let page = 1;
-      const maxPages = 10;
+      const maxPages = 50; // Increased from 10 to support larger feeds (up to 5000 items with per_page=100)
       let extractionStats = { structured: 0, extracted: 0, incomplete: 0 };
+      let totalPagesFromHeader = 0;
+      let totalItemsFromHeader = 0;
+      
+      // Ensure we're using per_page=100 for efficiency
+      if (!currentUrl.includes('per_page=')) {
+        currentUrl = currentUrl.includes('?') 
+          ? `${currentUrl}&per_page=100`
+          : `${currentUrl}?per_page=100`;
+      }
       
       while (page <= maxPages) {
-        const pageUrl = currentUrl.includes('?') 
-          ? `${currentUrl}&page=${page}`
-          : `${currentUrl}?page=${page}`;
+        const pageUrl = page === 1 
+          ? currentUrl
+          : (currentUrl.includes('?') 
+            ? `${currentUrl}&page=${page}`
+            : `${currentUrl}?page=${page}`);
           
-        const response = await axios.get(page === 1 ? currentUrl : pageUrl, {
+        const response = await axios.get(pageUrl, {
           headers: {
             "User-Agent": this.USER_AGENT,
             "Accept": "application/json"
           },
           timeout: 30000
         });
+        
+        // Read WordPress pagination headers on first request
+        if (page === 1) {
+          totalPagesFromHeader = parseInt(response.headers['x-wp-totalpages'] || '1', 10);
+          totalItemsFromHeader = parseInt(response.headers['x-wp-total'] || '0', 10);
+          console.log(`[RSS] JSON API: ${totalItemsFromHeader} total items across ${totalPagesFromHeader} pages`);
+        }
 
         const data = response.data;
         
@@ -1521,16 +1540,23 @@ export class RssFeedService {
           });
         }
 
-        const totalPages = parseInt(response.headers['x-wp-totalpages'] || '1', 10);
-        if (page >= totalPages) {
+        // Use header-based pagination check (more accurate than maxPages alone)
+        const actualTotalPages = totalPagesFromHeader || parseInt(response.headers['x-wp-totalpages'] || '1', 10);
+        if (page >= actualTotalPages) {
+          console.log(`[RSS] Reached last page (${page}/${actualTotalPages})`);
           break;
         }
         
+        // Progress logging every 5 pages
+        if (page % 5 === 0) {
+          console.log(`[RSS] JSON API page ${page}/${actualTotalPages}: ${items.length} items so far`);
+        }
+        
         page++;
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 200)); // Rate limiting
       }
 
-      console.log(`[RSS] JSON feed parsed: ${items.length} items from ${page} pages`);
+      console.log(`[RSS] JSON feed parsed: ${items.length} items from ${page} pages (expected: ${totalItemsFromHeader})`);
       console.log(`[RSS] Extraction stats: ${extractionStats.structured} structured, ${extractionStats.extracted} extracted, ${extractionStats.incomplete} incomplete`);
       return { success: true, items };
     } catch (error: any) {
@@ -5108,7 +5134,7 @@ export class RssFeedService {
   }
 
   /**
-   * Try WordPress REST API extraction
+   * Try WordPress REST API extraction with full pagination support
    */
   private static async tryWordPressApi(baseUrl: string, municipality: string, feed: RssFeed): Promise<FeedParseResult> {
     try {
@@ -5140,25 +5166,66 @@ export class RssFeedService {
         c.name.toLowerCase().includes('evenement')
       );
       
-      let postsUrl = `${wpApiUrl}/posts?per_page=50&_embed`;
+      // Build base URL with per_page=100 for efficiency
+      let basePostsUrl = `${wpApiUrl}/posts?per_page=100&_embed`;
       if (eventCategory) {
-        postsUrl += `&categories=${eventCategory.id}`;
+        basePostsUrl += `&categories=${eventCategory.id}`;
         console.log(`[RSS] Found event category: ${eventCategory.name} (${eventCategory.id})`);
       }
       
-      const postsResponse = await axios.get(postsUrl, {
+      // First request to get total count from headers
+      const firstResponse = await axios.get(basePostsUrl, {
         headers: { "User-Agent": this.USER_AGENT },
         timeout: 30000
       });
       
-      const posts = postsResponse.data;
-      if (!Array.isArray(posts) || posts.length === 0) {
+      const firstPosts = firstResponse.data;
+      if (!Array.isArray(firstPosts) || firstPosts.length === 0) {
         return { success: false, items: [], error: "No posts found" };
+      }
+      
+      // Read pagination headers
+      const totalPosts = parseInt(firstResponse.headers['x-wp-total'] || '0', 10);
+      const totalPages = parseInt(firstResponse.headers['x-wp-totalpages'] || '1', 10);
+      
+      console.log(`[RSS] WordPress API: ${totalPosts} total posts across ${totalPages} pages`);
+      
+      // Collect all posts from all pages
+      let allPosts = [...firstPosts];
+      
+      // Fetch remaining pages if there are more
+      if (totalPages > 1) {
+        const maxPages = Math.min(totalPages, 20); // Safety limit of 20 pages (2000 items max)
+        
+        for (let page = 2; page <= maxPages; page++) {
+          try {
+            const pageUrl = `${basePostsUrl}&page=${page}`;
+            const pageResponse = await axios.get(pageUrl, {
+              headers: { "User-Agent": this.USER_AGENT },
+              timeout: 30000
+            });
+            
+            if (Array.isArray(pageResponse.data) && pageResponse.data.length > 0) {
+              allPosts = allPosts.concat(pageResponse.data);
+              console.log(`[RSS] WordPress API page ${page}/${maxPages}: fetched ${pageResponse.data.length} posts (total: ${allPosts.length})`);
+            } else {
+              console.log(`[RSS] WordPress API page ${page}: no more posts, stopping`);
+              break;
+            }
+          } catch (pageError: any) {
+            if (pageError.response?.status === 400) {
+              // Page out of range, stop pagination
+              console.log(`[RSS] WordPress API page ${page}: 400 error, end of pagination`);
+              break;
+            }
+            console.warn(`[RSS] WordPress API page ${page} error: ${pageError.message}`);
+          }
+        }
       }
       
       const items: ParsedFeedItem[] = [];
       
-      for (const post of posts) {
+      for (const post of allPosts) {
         const title = this.cleanText(post.title?.rendered || '');
         const description = this.cleanText(post.excerpt?.rendered?.replace(/<[^>]*>/g, '') || '');
         const link = post.link;
@@ -5184,7 +5251,7 @@ export class RssFeedService {
         });
       }
       
-      console.log(`[RSS] WordPress API: found ${items.length} items for ${municipality}`);
+      console.log(`[RSS] WordPress API: found ${items.length} items for ${municipality} (from ${allPosts.length} posts)`);
       return { success: true, items };
       
     } catch (error: any) {

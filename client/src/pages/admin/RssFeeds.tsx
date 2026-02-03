@@ -46,7 +46,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles, Crosshair, FileCode } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles, Crosshair, FileCode, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
@@ -936,16 +936,11 @@ export default function RssFeedsPage() {
                     </div>
                   )}
                   
-                  {/* Show skipped feeds count */}
-                  {(syncAllProgress.skippedFeeds || 0) > 0 && (
-                    <p className="text-xs text-amber-600">
-                      {syncAllProgress.skippedFeeds} feeds overgeslagen (recent gesynchroniseerd)
-                    </p>
-                  )}
-                  {syncAllProgress.feedResults.length > 0 && (
-                    <div className="mt-3 max-h-48 overflow-y-auto">
+                  {/* Processed feeds results */}
+                  {syncAllProgress.feedResults.filter(r => r.status !== 'skipped').length > 0 && (
+                    <div className="mt-3 max-h-40 overflow-y-auto">
                       <p className="text-xs font-medium text-muted-foreground mb-2">
-                        Resultaten ({syncAllProgress.feedResults.filter(r => r.status !== 'skipped').length} verwerkt, {syncAllProgress.feedResults.filter(r => r.status === 'skipped').length} overgeslagen):
+                        Verwerkte feeds ({syncAllProgress.feedResults.filter(r => r.status !== 'skipped').length}):
                       </p>
                       <div className="space-y-1">
                         {syncAllProgress.feedResults
@@ -988,6 +983,33 @@ export default function RssFeedsPage() {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  
+                  {/* Skipped feeds section */}
+                  {syncAllProgress.feedResults.filter(r => r.status === 'skipped').length > 0 && (
+                    <div className="mt-3">
+                      <details className="group">
+                        <summary className="text-xs font-medium text-amber-700 cursor-pointer hover:text-amber-800 flex items-center gap-1">
+                          <span className="group-open:rotate-90 transition-transform">▶</span>
+                          Overgeslagen feeds ({syncAllProgress.feedResults.filter(r => r.status === 'skipped').length}) - recent gesynchroniseerd
+                        </summary>
+                        <div className="mt-2 max-h-32 overflow-y-auto space-y-1">
+                          {syncAllProgress.feedResults
+                            .filter(r => r.status === 'skipped')
+                            .map((result, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-xs p-1.5 bg-amber-50 rounded border border-amber-100">
+                              <span className="flex items-center gap-1 flex-1 min-w-0">
+                                <Clock className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                                <span className="truncate">{result.feedName}</span>
+                              </span>
+                              <span className="text-amber-600 text-[10px] flex-shrink-0 ml-2">
+                                {result.skipReason || 'Recent gesynchroniseerd'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
                     </div>
                   )}
                 </div>

@@ -2530,12 +2530,26 @@ Respond with ONLY the search term, nothing else.`,
               };
             }
 
-            // Process the feed with progress callback
+            // Process the feed with progress callback - map fields from RssFeedService format
             const result = await RssFeedService.processFeed(feed, storage, (progressUpdate) => {
               if (SYNC_ALL_PROGRESS && SYNC_ALL_PROGRESS.currentFeedProgress) {
+                // Map RssFeedService fields to our expected format
+                const phaseMap: Record<string, 'starting' | 'fetching' | 'parsing' | 'processing' | 'saving' | 'completed' | 'error'> = {
+                  'fetching': 'fetching',
+                  'parsing': 'parsing',
+                  'processing': 'processing',
+                  'saving': 'saving',
+                  'complete': 'completed',
+                  'error': 'error'
+                };
+                
                 SYNC_ALL_PROGRESS.currentFeedProgress = {
                   ...SYNC_ALL_PROGRESS.currentFeedProgress,
-                  ...progressUpdate
+                  phase: progressUpdate.status ? (phaseMap[progressUpdate.status] || SYNC_ALL_PROGRESS.currentFeedProgress.phase) : SYNC_ALL_PROGRESS.currentFeedProgress.phase,
+                  message: progressUpdate.message || SYNC_ALL_PROGRESS.currentFeedProgress.message,
+                  itemsFound: progressUpdate.totalItems ?? SYNC_ALL_PROGRESS.currentFeedProgress.itemsFound,
+                  itemsProcessed: progressUpdate.processedItems ?? SYNC_ALL_PROGRESS.currentFeedProgress.itemsProcessed,
+                  eventsCreated: progressUpdate.eventsCreated ?? SYNC_ALL_PROGRESS.currentFeedProgress.eventsCreated,
                 };
               }
             });
@@ -2649,13 +2663,21 @@ Respond with ONLY the search term, nothing else.`,
     const avgTimePerFeed = SYNC_ALL_PROGRESS.completedFeeds > 0 
       ? elapsed / SYNC_ALL_PROGRESS.completedFeeds 
       : 0;
-    const remainingFeeds = SYNC_ALL_PROGRESS.totalFeeds - SYNC_ALL_PROGRESS.completedFeeds;
+    // Calculate feeds to process (total minus skipped)
+    const feedsToProcess = SYNC_ALL_PROGRESS.totalFeeds - SYNC_ALL_PROGRESS.skippedFeeds;
+    const remainingFeeds = feedsToProcess - SYNC_ALL_PROGRESS.completedFeeds;
+    
+    // percentComplete based on feeds to process (not including skipped)
+    const percentComplete = feedsToProcess > 0 
+      ? Math.round((SYNC_ALL_PROGRESS.completedFeeds / feedsToProcess) * 100)
+      : 100;
     
     res.json({
       ...SYNC_ALL_PROGRESS,
       elapsedMs: elapsed,
       estimatedRemainingMs: Math.round(avgTimePerFeed * remainingFeeds),
-      percentComplete: Math.round((SYNC_ALL_PROGRESS.completedFeeds / SYNC_ALL_PROGRESS.totalFeeds) * 100)
+      percentComplete,
+      feedsToProcess
     });
   });
 

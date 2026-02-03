@@ -3839,22 +3839,38 @@ export class RssFeedService {
             const startDay = parseInt(multiDayMatch[1]);
             const startMonthName = multiDayMatch[2].toLowerCase();
             const startYear = parseInt(multiDayMatch[3]);
-            const startTimeStr = multiDayMatch[4] || '12:00';
+            const startTimeStr = multiDayMatch[4]; // NO fallback - undefined if not in source
             
             const endDay = parseInt(multiDayMatch[5]);
             const endMonthName = multiDayMatch[6].toLowerCase();
             const endYear = parseInt(multiDayMatch[7]);
-            const endTimeStr = multiDayMatch[8] || '23:59';
+            const endTimeStr = multiDayMatch[8]; // NO fallback - undefined if not in source
             
             const startMonth = monthNames[startMonthName];
             const endMonth = monthNames[endMonthName];
             
             if (startMonth !== undefined && endMonth !== undefined) {
-              const [startHour, startMin] = startTimeStr.split(':').map(Number);
-              const [endHour, endMin] = endTimeStr.split(':').map(Number);
-              
-              startTime = new Date(startYear, startMonth, startDay, startHour || 12, startMin || 0);
-              endTime = new Date(endYear, endMonth, endDay, endHour || 23, endMin || 59);
+              // Only set times if explicitly provided in the source
+              if (startTimeStr) {
+                const [startHour, startMin] = startTimeStr.split(':').map(Number);
+                if (!isNaN(startHour) && !isNaN(startMin)) {
+                  startTime = new Date(startYear, startMonth, startDay, startHour, startMin);
+                }
+              }
+              if (endTimeStr) {
+                const [endHour, endMin] = endTimeStr.split(':').map(Number);
+                if (!isNaN(endHour) && !isNaN(endMin)) {
+                  endTime = new Date(endYear, endMonth, endDay, endHour, endMin);
+                }
+              }
+              // If no times found, set date-only (midnight) - but this is just for the date
+              // The UI should recognize 00:00 as "time unknown"
+              if (!startTime) {
+                startTime = new Date(startYear, startMonth, startDay);
+              }
+              if (!endTime && endMonth !== undefined) {
+                endTime = new Date(endYear, endMonth, endDay);
+              }
             }
           } else {
             // Single day format: "12 december 2025"

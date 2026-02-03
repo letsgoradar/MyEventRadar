@@ -7416,14 +7416,38 @@ export class RssFeedService {
   }
 
   private static extractImageFromRssItem(item: any): string | undefined {
-    if (item.enclosure?.$.url) return item.enclosure.$.url;
-    if (item["media:content"]?.$.url) return item["media:content"].$.url;
-    if (item["media:thumbnail"]?.$.url) return item["media:thumbnail"].$.url;
-    
-    const descMatch = item.description?.match(/<img[^>]+src=["']([^"']+)["']/);
-    if (descMatch) return descMatch[1];
-    
-    return undefined;
+    try {
+      // Handle enclosure - can be object or array
+      if (item.enclosure) {
+        const enclosure = Array.isArray(item.enclosure) ? item.enclosure[0] : item.enclosure;
+        if (enclosure?.$ && enclosure.$.url) return enclosure.$.url;
+        if (enclosure?.url) return enclosure.url;
+        if (typeof enclosure === 'string') return enclosure;
+      }
+      
+      // Handle media:content - can be object or array
+      if (item["media:content"]) {
+        const media = Array.isArray(item["media:content"]) ? item["media:content"][0] : item["media:content"];
+        if (media?.$ && media.$.url) return media.$.url;
+        if (media?.url) return media.url;
+      }
+      
+      // Handle media:thumbnail - can be object or array
+      if (item["media:thumbnail"]) {
+        const thumb = Array.isArray(item["media:thumbnail"]) ? item["media:thumbnail"][0] : item["media:thumbnail"];
+        if (thumb?.$ && thumb.$.url) return thumb.$.url;
+        if (thumb?.url) return thumb.url;
+      }
+      
+      // Try to extract from description HTML
+      const descMatch = item.description?.match(/<img[^>]+src=["']([^"']+)["']/);
+      if (descMatch) return descMatch[1];
+      
+      return undefined;
+    } catch (e) {
+      // Image extraction is not critical - return undefined on any error
+      return undefined;
+    }
   }
 
   private static extractImageFromAtomItem(item: any): string | undefined {

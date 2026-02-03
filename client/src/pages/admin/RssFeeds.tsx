@@ -452,7 +452,18 @@ export default function RssFeedsPage() {
     isRunning: boolean;
     totalFeeds: number;
     completedFeeds: number;
+    skippedFeeds?: number;
     currentFeedName: string | null;
+    currentFeedProgress?: {
+      phase: 'starting' | 'fetching' | 'parsing' | 'processing' | 'saving' | 'completed' | 'error';
+      message: string;
+      itemsFound?: number;
+      itemsProcessed?: number;
+      eventsCreated?: number;
+      currentPage?: number;
+      totalPages?: number;
+      startedAt: number;
+    } | null;
     percentComplete: number;
     feedResults: Array<{
       feedId: number;
@@ -463,6 +474,8 @@ export default function RssFeedsPage() {
       eventsSkipped?: number;
       eventsRejected?: number;
       message?: string;
+      skipReason?: string;
+      lastSyncAt?: string | null;
     }>;
     nextFeedIn?: number;
     totalEventsCreated?: number;
@@ -873,30 +886,82 @@ export default function RssFeedsPage() {
                     />
                   </div>
                   {syncAllProgress.currentFeedName && syncAllProgress.isRunning && (
-                    <p className="text-sm text-muted-foreground">
-                      Bezig met: <strong>{syncAllProgress.currentFeedName}</strong>
-                      {syncAllProgress.nextFeedIn && syncAllProgress.nextFeedIn > 0 && (
-                        <span className="ml-2 text-xs">
-                          (wacht {Math.round(syncAllProgress.nextFeedIn / 1000)}s tot volgende)
-                        </span>
+                    <div className="p-3 bg-white/70 rounded-lg border border-blue-100">
+                      <p className="text-sm font-medium mb-1">
+                        Bezig met: <strong>{syncAllProgress.currentFeedName}</strong>
+                      </p>
+                      {syncAllProgress.currentFeedProgress && (
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              syncAllProgress.currentFeedProgress.phase === 'fetching' ? 'bg-blue-100 text-blue-700' :
+                              syncAllProgress.currentFeedProgress.phase === 'parsing' ? 'bg-purple-100 text-purple-700' :
+                              syncAllProgress.currentFeedProgress.phase === 'processing' ? 'bg-amber-100 text-amber-700' :
+                              syncAllProgress.currentFeedProgress.phase === 'saving' ? 'bg-green-100 text-green-700' :
+                              syncAllProgress.currentFeedProgress.phase === 'completed' ? 'bg-green-100 text-green-700' :
+                              syncAllProgress.currentFeedProgress.phase === 'error' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {syncAllProgress.currentFeedProgress.phase === 'starting' && 'Starten'}
+                              {syncAllProgress.currentFeedProgress.phase === 'fetching' && 'Ophalen'}
+                              {syncAllProgress.currentFeedProgress.phase === 'parsing' && 'Parsen'}
+                              {syncAllProgress.currentFeedProgress.phase === 'processing' && 'Verwerken'}
+                              {syncAllProgress.currentFeedProgress.phase === 'saving' && 'Opslaan'}
+                              {syncAllProgress.currentFeedProgress.phase === 'completed' && 'Voltooid'}
+                              {syncAllProgress.currentFeedProgress.phase === 'error' && 'Fout'}
+                            </span>
+                            <span>{syncAllProgress.currentFeedProgress.message}</span>
+                          </div>
+                          <div className="flex gap-4">
+                            {syncAllProgress.currentFeedProgress.itemsFound !== undefined && (
+                              <span>Items gevonden: {syncAllProgress.currentFeedProgress.itemsFound}</span>
+                            )}
+                            {syncAllProgress.currentFeedProgress.itemsProcessed !== undefined && (
+                              <span>Verwerkt: {syncAllProgress.currentFeedProgress.itemsProcessed}</span>
+                            )}
+                            {syncAllProgress.currentFeedProgress.eventsCreated !== undefined && (
+                              <span className="text-green-600">Events: +{syncAllProgress.currentFeedProgress.eventsCreated}</span>
+                            )}
+                            {syncAllProgress.currentFeedProgress.currentPage !== undefined && (
+                              <span>Pagina: {syncAllProgress.currentFeedProgress.currentPage}{syncAllProgress.currentFeedProgress.totalPages ? `/${syncAllProgress.currentFeedProgress.totalPages}` : ''}</span>
+                            )}
+                          </div>
+                        </div>
                       )}
+                      {syncAllProgress.nextFeedIn && syncAllProgress.nextFeedIn > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Wacht {Math.round(syncAllProgress.nextFeedIn / 1000)}s tot volgende feed...
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Show skipped feeds count */}
+                  {(syncAllProgress.skippedFeeds || 0) > 0 && (
+                    <p className="text-xs text-amber-600">
+                      {syncAllProgress.skippedFeeds} feeds overgeslagen (recent gesynchroniseerd)
                     </p>
                   )}
                   {syncAllProgress.feedResults.length > 0 && (
-                    <div className="mt-3 max-h-40 overflow-y-auto">
-                      <p className="text-xs font-medium text-muted-foreground mb-2">Resultaten:</p>
+                    <div className="mt-3 max-h-48 overflow-y-auto">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                        Resultaten ({syncAllProgress.feedResults.filter(r => r.status !== 'skipped').length} verwerkt, {syncAllProgress.feedResults.filter(r => r.status === 'skipped').length} overgeslagen):
+                      </p>
                       <div className="space-y-1">
-                        {syncAllProgress.feedResults.slice(-5).map((result, idx) => (
-                          <div key={idx} className="flex items-center justify-between text-xs p-1 bg-white/50 rounded">
-                            <span className="flex items-center gap-1">
+                        {syncAllProgress.feedResults
+                          .filter(r => r.status !== 'skipped')
+                          .slice(-8)
+                          .map((result, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-xs p-1.5 bg-white/50 rounded">
+                            <span className="flex items-center gap-1 flex-1 min-w-0">
                               {result.status === 'success' ? (
-                                <CheckCircle className="w-3 h-3 text-green-600" />
+                                <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
                               ) : (
-                                <AlertCircle className="w-3 h-3 text-red-600" />
+                                <AlertCircle className="w-3 h-3 text-red-600 flex-shrink-0" />
                               )}
-                              {result.feedName}
+                              <span className="truncate">{result.feedName}</span>
                             </span>
-                            <span className="flex items-center gap-2">
+                            <span className="flex items-center gap-2 flex-shrink-0 ml-2">
                               {result.status === 'success' ? (
                                 <>
                                   <span className="text-green-600" title="Nieuwe events">+{result.eventsCreated}</span>
@@ -917,7 +982,7 @@ export default function RssFeedsPage() {
                                   )}
                                 </>
                               ) : (
-                                <span className="text-red-600">{result.message}</span>
+                                <span className="text-red-600 truncate max-w-[150px]" title={result.message}>{result.message}</span>
                               )}
                             </span>
                           </div>

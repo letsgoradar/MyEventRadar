@@ -3863,14 +3863,8 @@ export class RssFeedService {
                   endTime = new Date(endYear, endMonth, endDay, endHour, endMin);
                 }
               }
-              // If no times found, set date-only (midnight) - but this is just for the date
-              // The UI should recognize 00:00 as "time unknown"
-              if (!startTime) {
-                startTime = new Date(startYear, startMonth, startDay);
-              }
-              if (!endTime && endMonth !== undefined) {
-                endTime = new Date(endYear, endMonth, endDay);
-              }
+              // If no times found, leave startTime/endTime undefined
+              // NEVER fabricate times - the UI will show "datum alleen" for events without times
             }
           } else {
             // Single day format: "12 december 2025"
@@ -3882,45 +3876,44 @@ export class RssFeedService {
               const month = monthNames[monthName];
               
               if (month !== undefined) {
-                // Parse time from timeText: "19:00 tot 20:30"
-                let startHour = 12, startMin = 0, endHour = 23, endMin = 59;
-                
+                // Parse time from timeText: "19:00 tot 20:30" - ONLY if explicitly found
                 const timeMatch = timeText.match(/(\d{1,2}):(\d{2})\s*(?:tot|[-–])\s*(\d{1,2}):(\d{2})/);
                 if (timeMatch) {
-                  startHour = parseInt(timeMatch[1]);
-                  startMin = parseInt(timeMatch[2]);
-                  endHour = parseInt(timeMatch[3]);
-                  endMin = parseInt(timeMatch[4]);
+                  const startHour = parseInt(timeMatch[1]);
+                  const startMin = parseInt(timeMatch[2]);
+                  const endHour = parseInt(timeMatch[3]);
+                  const endMin = parseInt(timeMatch[4]);
+                  startTime = new Date(year, month, day, startHour, startMin);
+                  endTime = new Date(year, month, day, endHour, endMin);
+                  
+                  // Handle overnight events
+                  if (endTime <= startTime) {
+                    endTime.setDate(endTime.getDate() + 1);
+                  }
                 } else {
-                  // Try single time: "19:00"
+                  // Try single time: "19:00" - only set startTime, NO fabricated endTime
                   const singleTimeMatch = timeText.match(/(\d{1,2}):(\d{2})/);
                   if (singleTimeMatch) {
-                    startHour = parseInt(singleTimeMatch[1]);
-                    startMin = parseInt(singleTimeMatch[2]);
-                    endHour = startHour + 3; // Assume 3 hour duration
-                    if (endHour > 23) endHour = 23;
+                    const startHour = parseInt(singleTimeMatch[1]);
+                    const startMin = parseInt(singleTimeMatch[2]);
+                    startTime = new Date(year, month, day, startHour, startMin);
+                    // NO endTime - we don't know when it ends
                   }
-                }
-                
-                startTime = new Date(year, month, day, startHour, startMin);
-                endTime = new Date(year, month, day, endHour, endMin);
-                
-                // Handle overnight events
-                if (endTime <= startTime) {
-                  endTime.setDate(endTime.getDate() + 1);
+                  // If no time found at all, leave both startTime and endTime undefined
                 }
               }
             }
           }
           
-          if (!startTime || !endTime) {
+          if (!startTime) {
             console.log(`[RSS] Tilburg: Skipping "${title}" - could not parse date: "${dateText}"`);
             skippedCount++;
             continue;
           }
           
-          // Skip past events
-          if (endTime < new Date()) {
+          // Skip past events (use endTime if available, otherwise startTime)
+          const eventEnd = endTime || startTime;
+          if (eventEnd < new Date()) {
             skippedCount++;
             continue;
           }

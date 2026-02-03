@@ -3,10 +3,9 @@ import WebLayout from "@/components/Web/WebLayout";
 import { useLocation } from "wouter";
 import type { EventInterface as Event } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import { fetchEventsByRadius } from "@/lib/api"; 
+import { fetchAllEvents, calculateDistance } from "@/lib/api"; 
 import { useLocation as useGeoLocation } from "@/hooks/useLocation";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import L from "leaflet";
 
 export default function Web() {
   const [location, setLocation] = useLocation();
@@ -15,58 +14,64 @@ export default function Web() {
   const [radius, setRadius] = React.useState(10);
   const [windowDays, setWindowDays] = React.useState<number | null>(null); // null = alle events
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
-  const [visibleMapArea, setVisibleMapArea] = React.useState<L.LatLngBounds | null>(null);
   
-  // Debounce location and radius changes to prevent excessive API calls
-  // Wait 400ms after last change before fetching
-  const debouncedLat = useDebouncedValue(geoLocation?.lat, 400);
-  const debouncedLng = useDebouncedValue(geoLocation?.lng, 400);
-  const debouncedRadius = useDebouncedValue(radius, 400);
+  // Debounce only windowDays for API calls (radius is now client-side)
   const debouncedWindowDays = useDebouncedValue(windowDays, 300);
 
   // Ensure the URL has the web parameter
   React.useEffect(() => {
     if (!location.includes('web=true')) {
       setLocation('/?web=true', { replace: true });
-      
-      // Also store preference
       localStorage.setItem('useWebVersion', 'true');
     }
   }, [location, setLocation]);
   
-  // Fetch events based on DEBOUNCED location - prevents API spam during map movement
-  const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["events", debouncedLat, debouncedLng, debouncedRadius, debouncedWindowDays],
+  // Fetch ALL events once at startup - enables instant zoom/pan
+  // Only refetches when windowDays changes
+  const { data: allEvents, isLoading, isFetching } = useQuery({
+    queryKey: ["all-events", debouncedWindowDays],
     queryFn: async () => {
-      if (debouncedLat && debouncedLng) {
-        const result = await fetchEventsByRadius(debouncedLat, debouncedLng, debouncedRadius, debouncedWindowDays);
-        return result as Event[];
-      }
-      return [] as Event[];
+      const result = await fetchAllEvents(52.1326, 5.2913, debouncedWindowDays);
+      return result as Event[];
     },
-    enabled: !!(debouncedLat && debouncedLng),
-    staleTime: 1000 * 60 * 10, // 10 minutes - events don't change often
-    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
+    staleTime: 1000 * 60 * 15, // 15 minutes - events don't change often
+    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
   });
   
-  const events = data || [];
-  
-  // Filter events based on search query
+  // Client-side filtering based on radius, search query, and user location
+  // This runs instantly when radius/location changes - no API calls needed!
   React.useEffect(() => {
-    if (!events || events.length === 0) return;
+    if (!allEvents || allEvents.length === 0) {
+      setFilteredEvents([]);
+      return;
+    }
     
-    const filtered = events.filter((event) => {
-      if (!searchQuery) return true;
+    let filtered = allEvents;
+    
+    // Filter by radius from user's location
+    if (geoLocation?.lat && geoLocation?.lng) {
+      filtered = filtered.filter((event) => {
+        const eventLat = typeof event.latitude === 'string' ? parseFloat(event.latitude) : event.latitude;
+        const eventLng = typeof event.longitude === 'string' ? parseFloat(event.longitude) : event.longitude;
+        if (!eventLat || !eventLng) return false;
+        
+        const distance = calculateDistance(geoLocation.lat, geoLocation.lng, eventLat, eventLng);
+        return distance <= radius;
+      });
+    }
+    
+    // Filter by search query
+    if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      return (
+      filtered = filtered.filter((event) => 
         event.title.toLowerCase().includes(query) ||
         (event.description && event.description.toLowerCase().includes(query)) ||
         (event.category && event.category.toLowerCase().includes(query))
       );
-    });
+    }
     
     setFilteredEvents(filtered);
-  }, [events, searchQuery]);
+  }, [allEvents, geoLocation, radius, searchQuery]);
   
   const handleSearch = React.useCallback((query: string) => {
     setSearchQuery(query);
@@ -82,8 +87,8 @@ export default function Web() {
   }, []);
 
   // Determine loading states
-  const isInitialLoading = isLoading && !data; // First load ever
-  const isRefetching = isFetching && !!data; // Background refetch
+  const isInitialLoading = isLoading && !allEvents;
+  const isRefetching = isFetching && !!allEvents;
 
   return (
     <WebLayout 

@@ -65,6 +65,34 @@ export async function fetchEventsByRadius(lat: number, lng: number, radius: numb
   return apiRequest(`/api/events/nearby?${params.toString()}`);
 }
 
+// Fetch ALL future events at once (for web version - enables instant zoom/pan)
+// Uses large radius (500km) to get all Netherlands events in one call
+export async function fetchAllEvents(centerLat: number = 52.1326, centerLng: number = 5.2913, windowDays?: number | null) {
+  console.log('Fetching ALL events for Netherlands region');
+  const params = new URLSearchParams({
+    lat: centerLat.toString(),
+    lng: centerLng.toString(),
+    radius: '500', // 500km covers all of Netherlands + surrounding areas
+  });
+  if (windowDays !== undefined && windowDays !== null) {
+    params.append('windowDays', windowDays.toString());
+  }
+  return apiRequest(`/api/events/nearby?${params.toString()}`);
+}
+
+// Haversine distance calculation for client-side filtering
+export function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+}
+
 // Create a new queryClient instance
 export const queryClient = new QueryClient({
   defaultOptions: {

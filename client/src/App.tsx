@@ -60,6 +60,10 @@ const AppForgotPasswordPage = React.lazy(() => import("@/pages/App/forgot-passwo
 // Public SEO pagina's (lazy loaded)
 const CityPage = React.lazy(() => import("@/pages/public/CityPage"));
 
+// Error pagina's (lazy loaded)
+const NotFound = React.lazy(() => import("@/pages/not-found"));
+const ErrorPage = React.lazy(() => import("@/pages/error"));
+
 // Layout componenten
 const WebLayout = React.lazy(() => import("@/components/Web/WebLayout").then(m => ({ default: m.WebLayout })));
 
@@ -291,9 +295,14 @@ export default function App() {
           {isMobile ? <AppHomePage /> : <WebPage />}
         </Route>
         
-        {/* Fallback route voor onbekende routes */}
+        {/* Error route voor server errors */}
+        <Route path="/error">
+          <ErrorPage />
+        </Route>
+        
+        {/* Fallback route voor onbekende routes - 404 */}
         <Route>
-          {isMobile ? <AppHomePage /> : <WebPage />}
+          <NotFound />
         </Route>
           </Switch>
           </LazyLoad>

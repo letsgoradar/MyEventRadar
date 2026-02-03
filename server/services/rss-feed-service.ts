@@ -7484,6 +7484,12 @@ export class RssFeedService {
     try {
       const formattedTitle = this.formatTitle(parsedItem.title);
       
+      // Get existing event to compare/extend date range for multi-day events
+      const [existingEventData] = await db.select({
+        startTime: events.startTime,
+        endTime: events.endTime
+      }).from(events).where(eq(events.id, eventId));
+      
       // Build update data CONDITIONALLY - only update fields with verified new values
       // CRITICAL: Do NOT use fallbacks/defaults - preserve existing data when feed is incomplete
       const updateData: any = {};
@@ -7506,12 +7512,32 @@ export class RssFeedService {
         }
       }
       
-      // Only update times if the feed explicitly provides them (NO fallbacks!)
-      if (parsedItem.startTime) {
-        updateData.startTime = parsedItem.startTime;
-      }
-      if (parsedItem.endTime) {
-        updateData.endTime = parsedItem.endTime;
+      // MULTI-DAY EVENT HANDLING: Extend date range instead of overwriting
+      // If this is a new date for an existing event (same URL), expand the range
+      if (parsedItem.startTime && existingEventData) {
+        const existingStart = existingEventData.startTime;
+        const existingEnd = existingEventData.endTime || existingEventData.startTime;
+        const newDate = parsedItem.startTime;
+        
+        // If new date is BEFORE existing start, update startTime
+        if (newDate < existingStart) {
+          updateData.startTime = newDate;
+          console.log(`[RSS] Expanding event ${eventId} start date: ${existingStart.toDateString()} → ${newDate.toDateString()}`);
+        }
+        
+        // If new date is AFTER existing end, update endTime
+        if (newDate > existingEnd) {
+          updateData.endTime = newDate;
+          console.log(`[RSS] Expanding event ${eventId} end date: ${existingEnd.toDateString()} → ${newDate.toDateString()}`);
+        }
+      } else {
+        // Fallback: standard update if no existing data or no new time
+        if (parsedItem.startTime) {
+          updateData.startTime = parsedItem.startTime;
+        }
+        if (parsedItem.endTime) {
+          updateData.endTime = parsedItem.endTime;
+        }
       }
       
       // Only update external URL if we have one
@@ -7626,6 +7652,20 @@ export class RssFeedService {
       const normalizedTitle = title.toLowerCase().trim();
       const startDate = startTime.toISOString().split('T')[0];
       
+      // METHOD 0 (PRIORITY): Check for exact external_url match - this is the most reliable
+      // Multi-day events from the same source will have the same URL but different dates
+      if (sourceLink) {
+        const urlMatches = await db.select({ id: events.id, startTime: events.startTime, endTime: events.endTime })
+          .from(events)
+          .where(eq(events.externalUrl, sourceLink))
+          .limit(1);
+        
+        if (urlMatches.length > 0) {
+          console.log(`[RSS] DUPLICATE DETECTED via external_url: "${sourceLink}" → existing event ID ${urlMatches[0].id}`);
+          return urlMatches[0].id;
+        }
+      }
+      
       // Ensure latitude and longitude are valid numbers (not 0 or undefined)
       const hasValidCoords = latitude !== undefined && longitude !== undefined 
         && !isNaN(latitude) && !isNaN(longitude)
@@ -7698,6 +7738,19 @@ export class RssFeedService {
     try {
       const normalizedTitle = title.toLowerCase().trim();
       const startDate = startTime.toISOString().split('T')[0];
+      
+      // PRIORITY: Check for exact external_url match first
+      if (sourceLink) {
+        const urlMatches = await db.select({ id: events.id })
+          .from(events)
+          .where(eq(events.externalUrl, sourceLink))
+          .limit(1);
+        
+        if (urlMatches.length > 0) {
+          console.log(`[RSS] DUPLICATE DETECTED (basic) via external_url: "${sourceLink}" → existing event ID ${urlMatches[0].id}`);
+          return urlMatches[0].id;
+        }
+      }
       
       // Check for exact title match on same date
       const titleMatches = await db.select({ id: events.id })

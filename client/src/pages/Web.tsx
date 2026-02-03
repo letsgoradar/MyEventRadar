@@ -10,7 +10,7 @@ export default function Web() {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [radius, setRadius] = React.useState(20); // 20km default
-  const [windowDays, setWindowDays] = React.useState<number | null>(null); // null = alle events
+  const [windowDays, setWindowDays] = React.useState<number | null>(7); // Default 7 dagen voor betere performance
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
   
   // Debounce only windowDays for API calls (radius is now client-side)

@@ -891,7 +891,7 @@ export default function MapView({
       
       <MapContainer
         center={userLocation}
-        zoom={10}
+        zoom={8}
         style={{ height: "100%", width: "100%" }}
         zoomControl={!hideZoomControls}
         className="z-10 map-container"

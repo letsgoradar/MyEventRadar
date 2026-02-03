@@ -424,18 +424,15 @@ export function Header({
         </div>
       </div>
       
-      {/* Right side with filters and user profile */}
+      {/* Right side with navigation and user profile */}
       <div className="flex items-center gap-2">
-        {/* New EventFilters component */}
-        {eventFilters && onEventFiltersChange && (
-          <EventFilters
-            filters={eventFilters}
-            onFiltersChange={onEventFiltersChange}
-            resultCount={resultCount}
-            isOpen={isFilterSidebarOpen}
-            onOpenChange={onFilterSidebarOpenChange}
-          />
-        )}
+        {/* Mijn Events link */}
+        <Link href="/web/my-events">
+          <Button variant="ghost" size="sm" className="h-10 px-3 rounded-full flex items-center gap-1.5">
+            <MdCalendarToday className="h-4 w-4" />
+            <span className="hidden sm:inline">Mijn Events</span>
+          </Button>
+        </Link>
 
         {/* Toon de kaart/lijst schakelaar alleen indien niet verborgen */}
         {!hideViewToggle && (

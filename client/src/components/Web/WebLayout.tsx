@@ -1,6 +1,5 @@
 import * as React from "react";
 import type { EventInterface } from "@shared/schema";
-import Sidebar from "./Sidebar";
 import Header from "./Header";
 import SplitView from "./SplitView";
 import { EventDetailPanel } from "./EventDetailPanel";
@@ -157,11 +156,10 @@ export function WebLayout({
     propOnEventClick?.(event);
   }, [propOnEventClick]);
 
-  // Alleen desktop layout met sidebar en split view
+  // Desktop layout zonder sidebar - alles in de hoofdcontainer
   return (
     <div className="h-screen flex overflow-hidden">
-      <Sidebar />
-      <div className="flex-1 flex flex-col relative w-[calc(100vw-260px)]">
+      <div className="flex-1 flex flex-col relative w-full">
         {/* Header in een eigen fixed container */}
         <div className="sticky top-0 left-0 right-0 z-[100]">
           <Header 
@@ -218,6 +216,7 @@ export function WebLayout({
               onFilteredEventsChange={handleFilteredEventsChange}
               onEventClick={handleEventClick}
               selectedDays={selectedDays}
+              onFilterSidebarOpen={() => setIsFilterSidebarOpen(true)}
             />
           )}
           

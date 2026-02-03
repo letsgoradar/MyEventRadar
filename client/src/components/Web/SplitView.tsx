@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/resizable";
 import { startOfDay } from "date-fns";
 import L from "leaflet";
+import { useLocation as useRouterLocation } from "wouter";
 import { useLocation } from "@/hooks/useLocation";
-import { MapPin, Clock, ChevronDown } from "lucide-react";
+import { MapPin, Clock, ChevronDown, Plus, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -20,6 +21,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type SortOption = "time" | "distance";
 
@@ -45,6 +52,7 @@ interface SplitViewProps {
   onFilteredEventsChange?: (events: Event[]) => void;
   onEventClick?: (event: Event) => void;
   selectedDays?: Date[];
+  onFilterSidebarOpen?: () => void;
 }
 
 export function SplitView({ 
@@ -52,8 +60,10 @@ export function SplitView({
   filteredEvents, 
   onFilteredEventsChange,
   onEventClick,
-  selectedDays: propSelectedDays
+  selectedDays: propSelectedDays,
+  onFilterSidebarOpen
 }: SplitViewProps) {
+  const [, setRouterLocation] = useRouterLocation();
   const [activeEventId, setActiveEventId] = React.useState<number | null>(null);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
@@ -260,7 +270,7 @@ export function SplitView({
         <ResizablePanelGroup direction="horizontal" className="h-full absolute inset-0">
           {/* Linker paneel: kaartweergave */}
           <ResizablePanel defaultSize={50} minSize={30} className="relative">
-            <div className="h-full overflow-hidden">
+            <div className="h-full overflow-hidden relative">
               <MapView 
                 searchQuery={searchQuery} 
                 radius={50}
@@ -273,6 +283,43 @@ export function SplitView({
                 hoveredEventId={hoveredEventId}
               />
               
+              {/* Map action buttons - bottom left */}
+              <div className="absolute bottom-4 left-4 z-[100] flex flex-col gap-2">
+                <TooltipProvider>
+                  {/* Add Event Button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        className="h-12 w-12 rounded-full shadow-lg bg-primary hover:bg-primary/90"
+                        onClick={() => setRouterLocation('/create-event')}
+                      >
+                        <Plus className="h-6 w-6" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>Nieuw evenement</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  {/* Filter Button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-12 w-12 rounded-full shadow-lg bg-background"
+                        onClick={() => onFilterSidebarOpen?.()}
+                      >
+                        <SlidersHorizontal className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>Filters</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
           </ResizablePanel>
           

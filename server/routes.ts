@@ -82,16 +82,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     legacyHeaders: false,
   });
 
+  // Strikte rate limiting: 60 requests per minuut per IP
   const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minuten
-    max: 100, // Max 100 requests per 15 minuten
-    message: { error: "Te veel verzoeken. Probeer later opnieuw." },
+    windowMs: 60 * 1000, // 1 minuut
+    max: 60, // Max 60 requests per minuut
+    message: { error: "Te veel verzoeken. Wacht even voordat je verder gaat." },
     standardHeaders: true,
     legacyHeaders: false,
     skip: (req) => {
-      // Skip rate limiting for admin routes (admins are trusted)
-      return req.path.startsWith('/api/admin');
+      // Skip rate limiting for admin routes (admins are trusted) and static files
+      return req.path.startsWith('/api/admin') || !req.path.startsWith('/api');
+    },
+    handler: (req, res) => {
+      console.warn(`[Rate Limit] IP ${req.ip} exceeded limit on ${req.path}`);
+      storage.trackApiUsage(req.path, true).catch(() => {});
+      res.status(429).json({ error: "Te veel verzoeken. Wacht even voordat je verder gaat." });
     }
+  });
+  
+  // Extra strenge limiet voor expensive endpoints (AI, sync, etc.)
+  const expensiveLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minuut
+    max: 10, // Max 10 requests per minuut voor zware endpoints
+    message: { error: "Deze actie is tijdelijk beperkt. Probeer over een minuut opnieuw." },
+    standardHeaders: true,
+    legacyHeaders: false,
   });
 
   // Toepassen van rate limiting

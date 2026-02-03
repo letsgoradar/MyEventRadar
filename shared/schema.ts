@@ -809,5 +809,23 @@ export const premiumFeatures = pgTable("premium_features", {
 export type PremiumFeature = typeof premiumFeatures.$inferSelect;
 export type InsertPremiumFeature = typeof premiumFeatures.$inferInsert;
 
+// API Usage Tracking - voor monitoring en spike detectie
+export const apiUsageStats = pgTable("api_usage_stats", {
+  id: serial("id").primaryKey(),
+  hour: timestamp("hour").notNull(), // Afgerond naar hele uur
+  endpoint: text("endpoint").notNull(), // API endpoint pad
+  requestCount: integer("request_count").notNull().default(0),
+  uniqueIps: integer("unique_ips").notNull().default(0),
+  blockedRequests: integer("blocked_requests").notNull().default(0), // Rate limited requests
+  avgResponseMs: integer("avg_response_ms").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueHourEndpoint: unique().on(table.hour, table.endpoint),
+}));
+
+export type ApiUsageStats = typeof apiUsageStats.$inferSelect;
+export type InsertApiUsageStats = typeof apiUsageStats.$inferInsert;
+
 // Re-export chat models
 export * from "./models/chat";

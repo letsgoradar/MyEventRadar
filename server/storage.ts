@@ -69,6 +69,8 @@ import {
   type PremiumFeature,
   type InsertPremiumFeature,
   premiumFeatures,
+  apiUsageStats,
+  type ApiUsageStats,
 } from "@shared/schema";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
@@ -1669,6 +1671,113 @@ export class PgStorage implements IStorage {
     return this.withRetry(async () => {
       const [newFeature] = await db.insert(premiumFeatures).values(feature).returning();
       return newFeature;
+    });
+  }
+
+  // ===== API Usage Tracking operations =====
+  async trackApiUsage(endpoint: string, wasBlocked: boolean = false): Promise<void> {
+    try {
+      // Round to current hour
+      const now = new Date();
+      const hour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0, 0);
+      
+      // Simplify endpoint (remove query params and IDs)
+      const simplifiedEndpoint = endpoint.split('?')[0].replace(/\/\d+/g, '/:id');
+      
+      // Try to update existing record or insert new one
+      const existing = await db.select().from(apiUsageStats)
+        .where(and(
+          eq(apiUsageStats.hour, hour),
+          eq(apiUsageStats.endpoint, simplifiedEndpoint)
+        ))
+        .limit(1);
+      
+      if (existing.length > 0) {
+        await db.update(apiUsageStats)
+          .set({
+            requestCount: sql`${apiUsageStats.requestCount} + 1`,
+            blockedRequests: wasBlocked 
+              ? sql`${apiUsageStats.blockedRequests} + 1` 
+              : apiUsageStats.blockedRequests,
+            updatedAt: new Date(),
+          })
+          .where(eq(apiUsageStats.id, existing[0].id));
+      } else {
+        await db.insert(apiUsageStats).values({
+          hour,
+          endpoint: simplifiedEndpoint,
+          requestCount: 1,
+          uniqueIps: 1,
+          blockedRequests: wasBlocked ? 1 : 0,
+        });
+      }
+    } catch (error) {
+      // Don't throw - tracking shouldn't break the app
+      console.error('[API Usage] Failed to track usage:', error);
+    }
+  }
+
+  async getApiUsageStats(hoursBack: number = 24): Promise<ApiUsageStats[]> {
+    return this.withRetry(async () => {
+      const cutoff = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
+      return await db.select().from(apiUsageStats)
+        .where(sql`${apiUsageStats.hour} >= ${cutoff}`)
+        .orderBy(desc(apiUsageStats.hour));
+    });
+  }
+
+  async getApiUsageSummary(): Promise<{
+    last24h: { requests: number; blocked: number };
+    lastHour: { requests: number; blocked: number };
+    averageHourly: number;
+    peakHour: { hour: Date; requests: number } | null;
+    isSpike: boolean;
+  }> {
+    return this.withRetry(async () => {
+      const stats = await this.getApiUsageStats(24);
+      
+      const now = new Date();
+      const currentHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0, 0);
+      const oneHourAgo = new Date(currentHour.getTime() - 60 * 60 * 1000);
+      
+      // Last hour stats
+      const lastHourStats = stats.filter(s => s.hour >= oneHourAgo);
+      const lastHour = {
+        requests: lastHourStats.reduce((sum, s) => sum + s.requestCount, 0),
+        blocked: lastHourStats.reduce((sum, s) => sum + s.blockedRequests, 0),
+      };
+      
+      // Last 24h stats
+      const last24h = {
+        requests: stats.reduce((sum, s) => sum + s.requestCount, 0),
+        blocked: stats.reduce((sum, s) => sum + s.blockedRequests, 0),
+      };
+      
+      // Average hourly (excluding current hour)
+      const historicalStats = stats.filter(s => s.hour < currentHour);
+      const uniqueHours = new Set(historicalStats.map(s => s.hour.getTime())).size;
+      const averageHourly = uniqueHours > 0 
+        ? historicalStats.reduce((sum, s) => sum + s.requestCount, 0) / uniqueHours 
+        : 0;
+      
+      // Peak hour
+      const hourlyTotals = new Map<number, number>();
+      stats.forEach(s => {
+        const hourKey = s.hour.getTime();
+        hourlyTotals.set(hourKey, (hourlyTotals.get(hourKey) || 0) + s.requestCount);
+      });
+      
+      let peakHour: { hour: Date; requests: number } | null = null;
+      hourlyTotals.forEach((requests, hourKey) => {
+        if (!peakHour || requests > peakHour.requests) {
+          peakHour = { hour: new Date(hourKey), requests };
+        }
+      });
+      
+      // Spike detection: current hour > 200% of average
+      const isSpike = averageHourly > 0 && lastHour.requests > averageHourly * 2;
+      
+      return { last24h, lastHour, averageHourly, peakHour, isSpike };
     });
   }
 }

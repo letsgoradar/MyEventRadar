@@ -1420,16 +1420,39 @@ export class RssFeedService {
           console.log(`[RSS] JSON API: ${totalItemsFromHeader} total items across ${totalPagesFromHeader} pages`);
         }
 
-        const data = response.data;
+        const responseData = response.data;
         
-        if (!Array.isArray(data) || data.length === 0) {
+        // Handle different response formats:
+        // - WordPress REST API: Array of posts
+        // - Tribe Events v1: { events: [], total, total_pages }
+        let data: any[];
+        let isTribeEventsApi = false;
+        
+        if (Array.isArray(responseData)) {
+          data = responseData;
+        } else if (responseData?.events && Array.isArray(responseData.events)) {
+          // Tribe Events v1 API format
+          data = responseData.events;
+          isTribeEventsApi = true;
+          
+          // Read pagination from Tribe Events response body (first request only)
+          if (page === 1 && responseData.total_pages) {
+            totalPagesFromHeader = parseInt(responseData.total_pages, 10);
+            totalItemsFromHeader = parseInt(responseData.total || '0', 10);
+            console.log(`[RSS] Tribe Events API: ${totalItemsFromHeader} total items across ${totalPagesFromHeader} pages`);
+          }
+        } else {
+          break;
+        }
+        
+        if (data.length === 0) {
           break;
         }
 
         for (const post of data) {
           const title = post.title?.rendered || post.title || 'Geen titel';
-          const content = post.content?.rendered || '';
-          const excerpt = post.excerpt?.rendered || '';
+          const content = post.content?.rendered || post.description || '';
+          const excerpt = post.excerpt?.rendered || post.excerpt || '';
           const description = excerpt || content;
           
           let imageUrl: string | undefined;
@@ -1437,6 +1460,9 @@ export class RssFeedService {
             imageUrl = post._embedded['wp:featuredmedia'][0].source_url;
           } else if (post.featured_media_url) {
             imageUrl = post.featured_media_url;
+          } else if (post.image?.url) {
+            // Tribe Events API image format
+            imageUrl = post.image.url;
           } else if (post.acf?.afbeelding?.url) {
             imageUrl = post.acf.afbeelding.url;
           }
@@ -1445,17 +1471,18 @@ export class RssFeedService {
           let endTime: Date | undefined;
           let hasStructuredDate = false;
           
-          if (post.acf?.startdatum || post.meta?.start_date || post.start_date) {
-            const startStr = post.acf?.startdatum || post.meta?.start_date || post.start_date;
-            // Use parseLocalDateTime to avoid UTC interpretation
-            startTime = parseLocalDateTime(startStr);
+          // Check multiple date field formats (WordPress ACF, Tribe Events, etc.)
+          // NOTE: Do NOT use utc_start_date/utc_end_date as these are UTC and would need timezone conversion
+          // Only use fields that are already in local time
+          const startDateStr = post.acf?.startdatum || post.meta?.start_date || post.start_date;
+          if (startDateStr) {
+            startTime = parseLocalDateTime(startDateStr);
             if (startTime) hasStructuredDate = true;
           }
           
-          if (post.acf?.einddatum || post.meta?.end_date || post.end_date) {
-            const endStr = post.acf?.einddatum || post.meta?.end_date || post.end_date;
-            // Use parseLocalDateTime to avoid UTC interpretation
-            endTime = parseLocalDateTime(endStr);
+          const endDateStr = post.acf?.einddatum || post.meta?.end_date || post.end_date;
+          if (endDateStr) {
+            endTime = parseLocalDateTime(endDateStr);
           }
 
           let location: string | undefined;
@@ -1463,6 +1490,22 @@ export class RssFeedService {
           let latitude: number | undefined;
           let longitude: number | undefined;
           let hasStructuredLocation = false;
+          
+          // Check Tribe Events venue data first
+          if (post.venue) {
+            location = post.venue.venue || post.venue.name;
+            address = post.venue.address || '';
+            if (post.venue.city) {
+              address = address ? `${address}, ${post.venue.city}` : post.venue.city;
+            }
+            if (post.venue.geo_lat && post.venue.geo_lng) {
+              latitude = parseFloat(post.venue.geo_lat);
+              longitude = parseFloat(post.venue.geo_lng);
+              if (!isNaN(latitude) && !isNaN(longitude)) {
+                hasStructuredLocation = true;
+              }
+            }
+          }
           
           if (post.acf?.locatie) {
             location = post.acf.locatie;
@@ -1520,12 +1563,18 @@ export class RssFeedService {
           
           // Detect category from content
           const categoryResult = ContentExtractor.detectCategory(title, content);
+          
+          // Determine external ID and link based on API type
+          const externalId = isTribeEventsApi 
+            ? `tribe-${post.id}` 
+            : `wp-${post.id}`;
+          const link = post.url || post.link || post.guid?.rendered || post.website;
 
           items.push({
-            externalId: `wp-${post.id}`,
+            externalId,
             title: this.cleanText(title),
             description: this.cleanText(description),
-            link: post.link || post.guid?.rendered,
+            link,
             imageUrl,
             publishedAt: post.date ? new Date(post.date) : undefined,
             startTime,
@@ -1540,10 +1589,24 @@ export class RssFeedService {
           });
         }
 
-        // Use header-based pagination check (more accurate than maxPages alone)
-        const actualTotalPages = totalPagesFromHeader || parseInt(response.headers['x-wp-totalpages'] || '1', 10);
-        if (page >= actualTotalPages) {
+        // Pagination check with fallback to "continue until empty"
+        // Priority: 1) totalPagesFromHeader (from first request), 2) current response header, 3) continue until empty
+        let actualTotalPages = totalPagesFromHeader;
+        
+        if (!actualTotalPages && response.headers['x-wp-totalpages']) {
+          actualTotalPages = parseInt(response.headers['x-wp-totalpages'], 10);
+        }
+        
+        // If we have a known total pages, use it
+        if (actualTotalPages && page >= actualTotalPages) {
           console.log(`[RSS] Reached last page (${page}/${actualTotalPages})`);
+          break;
+        }
+        
+        // If no pagination info available and we got a full page, continue
+        // If we got less than 100 items, we're probably at the last page
+        if (!actualTotalPages && data.length < 100) {
+          console.log(`[RSS] Partial page (${data.length} items), likely last page`);
           break;
         }
         

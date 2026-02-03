@@ -1851,33 +1851,56 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
       const urlObj = new URL(baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`);
       const origin = urlObj.origin;
 
-      // Check WordPress REST API - use per_page=5 for quick check but read X-WP-Total for actual count
+      // Check WordPress REST API - use per_page=100 with _embed for full data
+      // Check ALL endpoints and choose the one with the highest event count
       const wpEndpoints = [
-        { url: `${origin}/wp-json/wp/v2/posts?per_page=5`, name: 'WordPress Posts API' },
-        { url: `${origin}/wp-json/tribe/events/v1/events?per_page=5`, name: 'The Events Calendar API' },
+        { url: `${origin}/wp-json/wp/v2/posts?per_page=100&_embed`, name: 'WordPress Posts API' },
+        { url: `${origin}/wp-json/wp/v2/tribe_events?per_page=100&_embed`, name: 'Tribe Events API' },
+        { url: `${origin}/wp-json/tribe/events/v1/events?per_page=100`, name: 'The Events Calendar API' },
       ];
+
+      let bestResult: MethodCheckResult | null = null;
+      let highestCount = 0;
 
       for (const endpoint of wpEndpoints) {
         try {
           const response = await axios.get(endpoint.url, {
             headers: { 'User-Agent': this.USER_AGENT },
-            timeout: 10000,
+            timeout: 15000,
           });
           
-          if (response.status === 200 && Array.isArray(response.data)) {
-            const events = response.data;
-            if (events.length > 0) {
-              const sample = events[0];
-              // Get total count from WordPress headers (X-WP-Total or x-wp-total)
-              const totalHeader = response.headers['x-wp-total'] || response.headers['X-WP-Total'];
-              const totalCount = totalHeader ? parseInt(totalHeader, 10) : events.length;
+          // Handle both array responses and object responses (Tribe Events v1 returns { events: [...] })
+          let events: any[] = [];
+          if (Array.isArray(response.data)) {
+            events = response.data;
+          } else if (response.data?.events && Array.isArray(response.data.events)) {
+            events = response.data.events;
+          }
+          
+          if (events.length > 0) {
+            const sample = events[0];
+            // Get total count from WordPress headers (X-WP-Total or x-wp-total)
+            // Also check Tribe Events response for total field
+            const totalHeader = response.headers['x-wp-total'] || response.headers['X-WP-Total'];
+            let totalCount = totalHeader ? parseInt(totalHeader, 10) : events.length;
+            
+            // Tribe Events API returns total in response body
+            if (response.data?.total && !totalHeader) {
+              totalCount = parseInt(response.data.total, 10);
+            }
+            
+            console.log(`[FeedAnalyzer] ${endpoint.name}: ${totalCount} events found`);
+            
+            // Keep track of the best option (highest count)
+            if (totalCount > highestCount) {
+              highestCount = totalCount;
               
               // Analyze content quality
               const contentQuality = ContentExtractor.analyzeContentQuality(events);
               
-              return {
+              bestResult = {
                 viable: true,
-                feedUrl: endpoint.url.replace('per_page=5', 'per_page=100'),
+                feedUrl: endpoint.url,
                 eventCount: totalCount,
                 reason: `${endpoint.name} gevonden met ${totalCount} events`,
                 sampleEvent: this.formatSampleEvent(sample, 'json-api'),
@@ -1885,7 +1908,13 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
               };
             }
           }
-        } catch {}
+        } catch (err: any) {
+          // Silently skip unavailable endpoints
+        }
+      }
+      
+      if (bestResult) {
+        return bestResult;
       }
     } catch {}
     return { viable: false, reason: 'Geen JSON API gevonden' };

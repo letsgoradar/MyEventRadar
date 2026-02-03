@@ -185,9 +185,9 @@ export function WebLayout({
           {isLoading && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[200]">
               <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-xl shadow-lg border">
-                <div className="relative">
-                  <MapPin className="h-12 w-12 text-primary animate-bounce" />
-                  <Loader2 className="h-6 w-6 text-primary animate-spin absolute -bottom-1 -right-1" />
+                <div className="relative flex items-center justify-center w-16 h-16">
+                  <MapPin className="h-12 w-12 text-primary animate-bounce absolute" />
+                  <Loader2 className="h-5 w-5 text-primary/70 animate-spin absolute" style={{ marginTop: '2px' }} />
                 </div>
                 <div className="text-center">
                   <h3 className="font-semibold text-lg">Events laden...</h3>

@@ -5,6 +5,7 @@ import type { EventInterface as Event } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { fetchEventsByRadius } from "@/lib/api"; 
 import { useLocation as useGeoLocation } from "@/hooks/useLocation";
+import { useDebouncedValue } from "@/hooks/use-debounce";
 import L from "leaflet";
 
 export default function Web() {
@@ -15,6 +16,13 @@ export default function Web() {
   const [windowDays, setWindowDays] = React.useState<number | null>(null); // null = alle events
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
   const [visibleMapArea, setVisibleMapArea] = React.useState<L.LatLngBounds | null>(null);
+  
+  // Debounce location and radius changes to prevent excessive API calls
+  // Wait 400ms after last change before fetching
+  const debouncedLat = useDebouncedValue(geoLocation?.lat, 400);
+  const debouncedLng = useDebouncedValue(geoLocation?.lng, 400);
+  const debouncedRadius = useDebouncedValue(radius, 400);
+  const debouncedWindowDays = useDebouncedValue(windowDays, 300);
 
   // Ensure the URL has the web parameter
   React.useEffect(() => {
@@ -26,17 +34,19 @@ export default function Web() {
     }
   }, [location, setLocation]);
   
-  // Fetch events based on location - windowDays bepaalt hoeveel dagen vooruit we ophalen
-  const { data } = useQuery({
-    queryKey: ["events", geoLocation?.lat, geoLocation?.lng, radius, windowDays],
+  // Fetch events based on DEBOUNCED location - prevents API spam during map movement
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ["events", debouncedLat, debouncedLng, debouncedRadius, debouncedWindowDays],
     queryFn: async () => {
-      if (geoLocation) {
-        const result = await fetchEventsByRadius(geoLocation.lat, geoLocation.lng, radius, windowDays);
+      if (debouncedLat && debouncedLng) {
+        const result = await fetchEventsByRadius(debouncedLat, debouncedLng, debouncedRadius, debouncedWindowDays);
         return result as Event[];
       }
       return [] as Event[];
     },
-    enabled: !!geoLocation,
+    enabled: !!(debouncedLat && debouncedLng),
+    staleTime: 1000 * 60 * 10, // 10 minutes - events don't change often
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
   });
   
   const events = data || [];
@@ -71,6 +81,10 @@ export default function Web() {
     setWindowDays(days);
   }, []);
 
+  // Determine loading states
+  const isInitialLoading = isLoading && !data; // First load ever
+  const isRefetching = isFetching && !!data; // Background refetch
+
   return (
     <WebLayout 
       searchQuery={searchQuery}
@@ -79,6 +93,8 @@ export default function Web() {
       onSearch={handleSearch}
       onRadiusChange={handleRadiusChange}
       onWindowDaysChange={handleWindowDaysChange}
+      isLoading={isInitialLoading}
+      isRefetching={isRefetching}
     />
   );
 }

@@ -6,6 +6,7 @@ import SplitView from "./SplitView";
 import { EventDetailPanel } from "./EventDetailPanel";
 import { addDays, startOfDay, eachDayOfInterval, differenceInDays } from "date-fns";
 import { type EventFilterState, FilterSidebar } from "@/components/Filters/EventFilters";
+import { Loader2, MapPin } from "lucide-react";
 
 type ExtendedEvent = EventInterface & {
   eventTagIds?: number[];
@@ -23,6 +24,8 @@ interface WebLayoutProps {
   onFilteredEventsChange?: (events: ExtendedEvent[]) => void;
   onEventClick?: (event: ExtendedEvent) => void;
   onWindowDaysChange?: (days: number | null) => void;
+  isLoading?: boolean;
+  isRefetching?: boolean;
 }
 
 export function WebLayout({ 
@@ -34,7 +37,9 @@ export function WebLayout({
   onRadiusChange: propOnRadiusChange,
   onFilteredEventsChange: propOnFilteredEventsChange,
   onEventClick: propOnEventClick,
-  onWindowDaysChange: propOnWindowDaysChange
+  onWindowDaysChange: propOnWindowDaysChange,
+  isLoading = false,
+  isRefetching = false
 }: WebLayoutProps) {
   // In de web-omgeving gebruiken we altijd de split view (geen toggle)
   const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
@@ -178,6 +183,30 @@ export function WebLayout({
         
         {/* Content container - SplitView handles all layout internally */}
         <div className="flex-1 relative overflow-hidden" style={{ zIndex: 50 }}>
+          {/* Initial loading overlay - shown only on first load */}
+          {isLoading && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[200]">
+              <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-xl shadow-lg border">
+                <div className="relative">
+                  <MapPin className="h-12 w-12 text-primary animate-bounce" />
+                  <Loader2 className="h-6 w-6 text-primary animate-spin absolute -bottom-1 -right-1" />
+                </div>
+                <div className="text-center">
+                  <h3 className="font-semibold text-lg">Events laden...</h3>
+                  <p className="text-sm text-muted-foreground">We zoeken naar activiteiten in jouw buurt</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Subtle refetching indicator - shown during background updates */}
+          {isRefetching && !isLoading && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[200] bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-full text-sm flex items-center gap-2 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Bijwerken...</span>
+            </div>
+          )}
+          
           {children ? (
             <div className="h-full overflow-y-auto p-4 pb-20 max-w-screen-2xl mx-auto" style={{ position: 'relative', zIndex: 50 }}>
               {children}

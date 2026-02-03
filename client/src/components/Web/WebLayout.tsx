@@ -43,7 +43,7 @@ export function WebLayout({
 }: WebLayoutProps) {
   // In de web-omgeving gebruiken we altijd de split view (geen toggle)
   const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
-  const [radius, setRadius] = React.useState(propRadius || 10);
+  const [radius, setRadius] = React.useState(propRadius || 20);
   const [filteredEvents, setFilteredEvents] = React.useState<ExtendedEvent[]>(propFilteredEvents || []);
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
   // Gesynchroniseerde datum selectie state - geen default, toont alle events

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Heart, UserPlus, Navigation, Bookmark, BookmarkCheck, ExternalLink, Eye, ChevronDown, Globe, Link } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Heart, UserPlus, Navigation, Bookmark, BookmarkCheck, ExternalLink, Eye, ChevronDown, Globe, Link } from "lucide-react";
+import { ShareMenu } from "@/components/ShareMenu";
 import { ExternalLinkInterstitial } from "@/components/Ads/ExternalLinkInterstitial";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -656,24 +657,17 @@ export function EventDetailPanel({
             }
           </Button>
           
-          <Button 
-            variant="outline" 
-            size="icon"
-            className="h-12 w-12"
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: event.title,
-                  text: event.description,
-                  url: window.location.href
-                });
-              } else {
-                console.log('Delen van event:', event.id);
-              }
-            }}
-          >
-            <Share2 className="h-5 w-5" />
-          </Button>
+        </div>
+        
+        {/* Share knoppen */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-sm text-gray-500 mb-2">Deel dit evenement</p>
+          <ShareMenu 
+            title={event.title}
+            url={`${window.location.origin}/app/event/${event.id}`}
+            description={event.description?.substring(0, 100)}
+            variant="mobile"
+          />
         </div>
       </div>
 

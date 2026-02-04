@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Share2, Bookmark, BookmarkCheck, UserPlus, UserCheck, Navigation, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Bookmark, BookmarkCheck, UserPlus, UserCheck, Navigation, ExternalLink } from "lucide-react";
+import { ShareMenu } from "@/components/ShareMenu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import CategoryIcon from "@/components/Events/CategoryIcon";
@@ -228,27 +229,6 @@ export function EventDetailPanel({
     }
   };
 
-  const handleShare = async () => {
-    const shareData = {
-      title: event.title,
-      text: `Bekijk dit evenement: ${event.title}`,
-      url: `${window.location.origin}/web/event/${event.id}`,
-    };
-    
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(shareData.url);
-        toast({
-          title: "Link gekopieerd",
-          description: "De link is naar je klembord gekopieerd.",
-        });
-      }
-    } catch (err) {
-      console.log('Share failed:', err);
-    }
-  };
 
   return (
     <>
@@ -454,10 +434,16 @@ export function EventDetailPanel({
               {isFavorited ? "Opgeslagen" : "Opslaan"}
             </Button>
             
-            <Button className="h-9 text-sm" variant="outline" onClick={handleShare}>
-              <Share2 className="h-4 w-4 mr-2" />
-              Delen
-            </Button>
+          </div>
+          
+          {/* Share knoppen voor web */}
+          <div className="mt-3">
+            <ShareMenu 
+              title={event.title}
+              url={`${window.location.origin}/web/event/${event.id}`}
+              description={event.description?.substring(0, 100)}
+              variant="web"
+            />
           </div>
         </div>
       </div>

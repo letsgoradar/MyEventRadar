@@ -58,6 +58,7 @@ import { SyncHistoryTooltip } from '@/components/admin/SyncHistoryTooltip';
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
 const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
 const FeedAnalyzerModal = lazy(() => import('@/components/admin/FeedAnalyzerModal'));
+const SimpleFeedWizard = lazy(() => import('@/components/admin/SimpleFeedWizard'));
 const QualityCheckPanel = lazy(() => import('@/components/admin/QualityCheckPanel'));
 
 interface RssFeed {
@@ -94,6 +95,7 @@ export default function RssFeedsPage() {
   const [, navigate] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isFeedAnalyzerOpen, setIsFeedAnalyzerOpen] = useState(false);
+  const [isSimpleWizardOpen, setIsSimpleWizardOpen] = useState(false);
   const [isDirectVisualMode, setIsDirectVisualMode] = useState(false);
   const [editingFeed, setEditingFeed] = useState<RssFeed | null>(null);
   const [editingVisualFeedId, setEditingVisualFeedId] = useState<number | null>(null);
@@ -669,8 +671,7 @@ export default function RssFeedsPage() {
               </Button>
               <Button 
                 onClick={() => {
-                  setIsDirectVisualMode(false);
-                  setIsFeedAnalyzerOpen(true);
+                  setIsSimpleWizardOpen(true);
                 }}
                 data-testid="button-add-feed"
               >
@@ -687,6 +688,17 @@ export default function RssFeedsPage() {
               >
                 <Crosshair className="w-4 h-4 mr-2" />
                 Visuele Scraper
+              </Button>
+              <Button 
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsDirectVisualMode(false);
+                  setIsFeedAnalyzerOpen(true);
+                }}
+                title="Geavanceerde wizard"
+              >
+                <FileCode className="w-4 h-4" />
               </Button>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
@@ -1433,6 +1445,17 @@ export default function RssFeedsPage() {
               }}
               directVisualMode={isDirectVisualMode}
               editingFeedId={editingVisualFeedId}
+            />
+          </Suspense>
+
+          <Suspense fallback={null}>
+            <SimpleFeedWizard 
+              open={isSimpleWizardOpen} 
+              onOpenChange={setIsSimpleWizardOpen}
+              onFeedCreated={() => {
+                queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+              }}
             />
           </Suspense>
 

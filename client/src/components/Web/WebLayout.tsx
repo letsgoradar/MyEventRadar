@@ -48,13 +48,13 @@ export function WebLayout({
   // Gesynchroniseerde datum selectie state - geen default, toont alle events
   const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
   
-  // Event filters state (tags, doelgroepen, thema's) - default 7 dagen voor betere performance
+  // Event filters state (tags, doelgroepen, thema's) - default 14 dagen (2 weken)
   const [eventFilters, setEventFilters] = React.useState<EventFilterState>({
     tagIds: [],
     audienceIds: [],
     themeIds: [],
     startDate: null,
-    endDate: addDays(startOfDay(new Date()), 7)
+    endDate: addDays(startOfDay(new Date()), 14)
   });
   
   // Filter sidebar open/close state

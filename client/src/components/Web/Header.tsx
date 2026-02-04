@@ -398,16 +398,25 @@ export function Header({
         <div className="flex items-center ml-2">
           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-10 rounded-full flex items-center gap-1">
+              <Button 
+                variant={endDate ? "default" : "outline"} 
+                size="sm" 
+                className={cn(
+                  "h-10 rounded-full flex items-center gap-1",
+                  endDate && "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
                 <Calendar className="h-4 w-4" />
                 <span>
                   {!startDate && !endDate 
-                    ? "Datum" 
-                    : startDate && endDate
-                      ? `${differenceInDays(endDate, startDate) + 1} dagen`
-                      : startDate
-                        ? format(startDate, 'd MMM', { locale: nl })
-                        : "Datum"}
+                    ? "Alle data" 
+                    : !startDate && endDate
+                      ? `Komende ${differenceInDays(endDate, today) + 1} dagen`
+                      : startDate && endDate
+                        ? `${differenceInDays(endDate, startDate) + 1} dagen`
+                        : startDate
+                          ? format(startDate, 'd MMM', { locale: nl })
+                          : "Alle data"}
                 </span>
               </Button>
             </PopoverTrigger>

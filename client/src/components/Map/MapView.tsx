@@ -656,8 +656,9 @@ export default function MapView({
   }, [propShowExpiredEvents]);
   
   // Bereken windowDays op basis van de geselecteerde datumrange
+  // Default is 14 dagen (2 weken) voor betere UX
   const windowDays = React.useMemo(() => {
-    if (!propEndDate) return 14; // Default 14 dagen
+    if (!propEndDate) return 14; // Default 14 dagen (2 weken)
     const today = startOfDay(new Date());
     const days = differenceInDays(propEndDate, today);
     return Math.max(1, days + 1); // Minimaal 1 dag, +1 om de einddag mee te nemen
@@ -692,13 +693,30 @@ export default function MapView({
   }, [currentBounds, refetch, filteredEvents, propOnRadiusChange, currentZoom]);
   
   // Update events data als filteredEvents of fetchedEvents wijzigen
+  // Apply client-side date filtering when filteredEvents come from parent
   React.useEffect(() => {
     if (filteredEvents) {
-      setEventsData(filteredEvents);
+      // If we have a date range, apply client-side filtering
+      if (propEndDate) {
+        const today = startOfDay(new Date());
+        const endOfRange = new Date(propEndDate);
+        endOfRange.setHours(23, 59, 59, 999); // End of day
+        const startOfRange = propStartDate ? startOfDay(propStartDate) : today;
+        
+        const dateFiltered = filteredEvents.filter(event => {
+          if (!event.startTime) return false;
+          const eventDate = new Date(event.startTime);
+          return eventDate >= startOfRange && eventDate <= endOfRange;
+        });
+        
+        setEventsData(dateFiltered);
+      } else {
+        setEventsData(filteredEvents);
+      }
     } else if (fetchedEvents) {
       setEventsData(fetchedEvents);
     }
-  }, [filteredEvents, fetchedEvents]);
+  }, [filteredEvents, fetchedEvents, propStartDate, propEndDate]);
   
   // Navigeer naar event (via props of direct aangeroepen vanuit zoekresultaten)
   const navigateToEvent = React.useCallback((event: EventInterface) => {

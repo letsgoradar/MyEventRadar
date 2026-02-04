@@ -3,7 +3,7 @@ import type { EventInterface } from "@shared/schema";
 import Header from "./Header";
 import SplitView from "./SplitView";
 import { EventDetailPanel } from "./EventDetailPanel";
-import { addDays, startOfDay, eachDayOfInterval, differenceInDays } from "date-fns";
+import { addDays, startOfDay, endOfDay, eachDayOfInterval, differenceInDays } from "date-fns";
 import { type EventFilterState, FilterSidebar } from "@/components/Filters/EventFilters";
 import { Loader2, MapPin } from "lucide-react";
 
@@ -94,6 +94,20 @@ export function WebLayout({
   React.useEffect(() => {
     if (propFilteredEvents) {
       let filtered = propFilteredEvents;
+      const today = startOfDay(new Date());
+      
+      // CRITICAL: Client-side date filtering - filter events within the date range
+      // This ensures the filter works even when events come from parent
+      if (eventFilters.endDate) {
+        const endOfRange = endOfDay(eventFilters.endDate);
+        const startOfRange = eventFilters.startDate ? startOfDay(eventFilters.startDate) : today;
+        
+        filtered = filtered.filter(event => {
+          if (!event.startTime) return false;
+          const eventDate = new Date(event.startTime);
+          return eventDate >= startOfRange && eventDate <= endOfRange;
+        });
+      }
       
       // Filter events based on selected categories
       if (selectedCategories.length > 0) {

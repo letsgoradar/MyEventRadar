@@ -111,9 +111,10 @@ export function AppLayout({
   onEndDateChange,
   selectedEventId,
 }: AppLayoutProps) {
-  // Date range state - default vandaag + 14 dagen
+  // Date range state - default vandaag + 14 dagen (inclusief vandaag)
+  // addDays(today, 13) = vandaag + 13 dagen = 14 dagen totaal
   const today = startOfDay(new Date());
-  const defaultEndDate = addDays(today, 14);
+  const defaultEndDate = addDays(today, 13);
   
   const [localStartDate, setLocalStartDate] = React.useState<Date | null>(today);
   const [localEndDate, setLocalEndDate] = React.useState<Date | null>(defaultEndDate);
@@ -227,15 +228,18 @@ export function AppLayout({
       );
     }
     
-    // Filter events based on date range from EventFilters
-    if (eventFilters.startDate || eventFilters.endDate) {
+    // Filter events based on date range from EventFilters OR header date range
+    const filterStartDate = eventFilters.startDate || startDate;
+    const filterEndDate = eventFilters.endDate || endDate;
+    
+    if (filterStartDate || filterEndDate) {
       filtered = filtered.filter(event => {
         const eventStart = new Date(event.startTime);
-        if (eventFilters.startDate && eventStart < startOfDay(eventFilters.startDate)) {
+        if (filterStartDate && eventStart < startOfDay(filterStartDate)) {
           return false;
         }
-        if (eventFilters.endDate) {
-          const endOfFilterDay = new Date(eventFilters.endDate);
+        if (filterEndDate) {
+          const endOfFilterDay = new Date(filterEndDate);
           endOfFilterDay.setHours(23, 59, 59, 999);
           if (eventStart > endOfFilterDay) {
             return false;
@@ -255,7 +259,7 @@ export function AppLayout({
     });
     
     return filtered;
-  }, [selectedCategories, originalEvents, showExpiredEvents, sortDirection, eventFilters]);
+  }, [selectedCategories, originalEvents, showExpiredEvents, sortDirection, eventFilters, startDate, endDate]);
   
   // Events gefilterd op kaart bounds (voor bottom sheet)
   const boundsFilteredEvents = React.useMemo(() => {
@@ -691,6 +695,8 @@ export function AppLayout({
               onEventClick={onEventClick}
               selectedEventId={selectedEventId}
               onBoundsChange={setMapBounds}
+              startDate={startDate}
+              endDate={endDate}
             />
             
             {/* Floating Filter knop - linksboven - Airbnb style EventFilters */}

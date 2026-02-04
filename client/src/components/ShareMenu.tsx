@@ -99,7 +99,7 @@ export function ShareMenu({ title, url, description = "", variant = "mobile", bu
           {buttonSize !== "icon" && "Delen"}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="w-48 z-[9999]" sideOffset={5}>
         {items.map((item, index) => (
           <DropdownMenuItem key={index} onClick={item.onClick} className="cursor-pointer">
             <item.icon className={`h-4 w-4 mr-2 ${item.color}`} />

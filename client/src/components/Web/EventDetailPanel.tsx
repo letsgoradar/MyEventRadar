@@ -434,15 +434,13 @@ export function EventDetailPanel({
               {isFavorited ? "Opgeslagen" : "Opslaan"}
             </Button>
             
-          </div>
-          
-          {/* Share knoppen voor web */}
-          <div className="mt-3">
+            
             <ShareMenu 
               title={event.title}
               url={`${window.location.origin}/web/event/${event.id}`}
               description={event.description?.substring(0, 100)}
               variant="web"
+              buttonSize="sm"
             />
           </div>
         </div>

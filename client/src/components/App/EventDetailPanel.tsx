@@ -657,16 +657,13 @@ export function EventDetailPanel({
             }
           </Button>
           
-        </div>
-        
-        {/* Share knoppen */}
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-sm text-gray-500 mb-2">Deel dit evenement</p>
+          
           <ShareMenu 
             title={event.title}
             url={`${window.location.origin}/app/event/${event.id}`}
             description={event.description?.substring(0, 100)}
             variant="mobile"
+            buttonSize="icon"
           />
         </div>
       </div>

@@ -179,6 +179,22 @@ const DOMAIN_MUNICIPALITY_MAP: Record<string, string> = {
   '013tilburg': 'Tilburg',
   'mezz': 'Breda',
   'poppodium013': 'Tilburg',
+  // Regional news/agenda sites
+  'bommelerwaard': 'Zaltbommel',
+  'bommelerwaardnet': 'Zaltbommel',
+  'altenanet': 'Altena',
+  'altena': 'Altena',
+  'rivierenlandnet': 'Tiel',
+  'geldersrivierenland': 'Tiel',
+  'maashorstnet': 'Uden',
+  'landvancuijk': 'Cuijk',
+  'meierijstad': 'Meierijstad',
+  'bernheze': 'Bernheze',
+  'boxtel': 'Boxtel',
+  'sintmichielsgestel': 'Sint-Michielsgestel',
+  'vught': 'Vught',
+  'oisterwijk': 'Oisterwijk',
+  'oosterhout': 'Oosterhout',
 };
 
 export interface AlternativeSource {
@@ -553,6 +569,16 @@ export class FeedAnalyzerService {
           sample: locationHint
         };
         result.warnings.push('Locatie moet mogelijk uit beschrijving worden geëxtraheerd');
+      }
+
+      // Detect RSS/Atom pagination
+      const paginationInfo = this.detectRssPagination(content, parsed, items.length);
+      if (paginationInfo.hasPagination) {
+        result.suggestions.push(`RSS/Atom paginering gedetecteerd: ${paginationInfo.description}`);
+        if (paginationInfo.nextUrl) {
+          result.suggestions.push(`Volgende pagina: ${paginationInfo.nextUrl}`);
+        }
+        result.suggestions.push(`Totaal geschat: ${paginationInfo.estimatedTotal} items over ${paginationInfo.estimatedPages} pagina's`);
       }
 
     } catch (error: any) {
@@ -1653,6 +1679,103 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
     }
   }
 
+  /**
+   * Detect RSS/Atom pagination - many feeds have multiple pages
+   * Common patterns:
+   * - Atom: <link rel="next" href="..."/>
+   * - WordPress: ?paged=2 or /page/2/
+   * - Generic: ?page=2, ?offset=X, ?start=X
+   */
+  private static detectRssPagination(
+    rawContent: string,
+    parsed: any,
+    itemCount: number
+  ): {
+    hasPagination: boolean;
+    nextUrl?: string;
+    estimatedPages: number;
+    estimatedTotal: number;
+    description: string;
+  } {
+    const result = {
+      hasPagination: false,
+      nextUrl: undefined as string | undefined,
+      estimatedPages: 1,
+      estimatedTotal: itemCount,
+      description: ''
+    };
+
+    try {
+      // 1. Check for Atom-style <link rel="next">
+      const atomNextMatch = rawContent.match(/<link[^>]*rel=["']next["'][^>]*href=["']([^"']+)["']/i) ||
+                            rawContent.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["']next["']/i);
+      if (atomNextMatch) {
+        result.hasPagination = true;
+        result.nextUrl = atomNextMatch[1];
+        result.description = 'Atom link rel="next" gevonden';
+        result.estimatedPages = 5; // Conservative estimate
+        result.estimatedTotal = itemCount * 5;
+        return result;
+      }
+
+      // 2. Check for atom:link in RSS (WordPress style)
+      const atomLinkMatch = rawContent.match(/<atom:link[^>]*rel=["']next["'][^>]*href=["']([^"']+)["']/i);
+      if (atomLinkMatch) {
+        result.hasPagination = true;
+        result.nextUrl = atomLinkMatch[1];
+        result.description = 'WordPress RSS paginering gevonden';
+        result.estimatedPages = 10;
+        result.estimatedTotal = itemCount * 10;
+        return result;
+      }
+
+      // 3. Check for opensearch totalResults (indicates more items available)
+      const totalResultsMatch = rawContent.match(/<opensearch:totalResults>(\d+)<\/opensearch:totalResults>/i) ||
+                                rawContent.match(/<openSearch:totalResults>(\d+)<\/openSearch:totalResults>/i);
+      if (totalResultsMatch) {
+        const total = parseInt(totalResultsMatch[1]);
+        if (total > itemCount) {
+          result.hasPagination = true;
+          result.estimatedTotal = total;
+          result.estimatedPages = Math.ceil(total / itemCount);
+          result.description = `OpenSearch: ${total} items totaal, ${itemCount} per pagina`;
+          return result;
+        }
+      }
+
+      // 4. Check if this looks like page 1 of a paginated feed (URL contains paged= or page=)
+      // This is informational - the current page might be paginated
+      const isPaged = rawContent.includes('?paged=') || rawContent.includes('&paged=') ||
+                      rawContent.includes('?page=') || rawContent.includes('&page=') ||
+                      rawContent.includes('/page/');
+      
+      // 5. Check for common pagination indicators in channel/feed metadata
+      if (parsed.rss?.channel) {
+        const channel = parsed.rss.channel;
+        // Some feeds include sy:updatePeriod or similar that hint at pagination
+        if (channel['sy:updateFrequency'] || channel['sy:updatePeriod']) {
+          // This indicates the feed updates regularly, might have archives
+          result.description = 'Feed wordt regelmatig bijgewerkt, mogelijk met archiefpaginas';
+        }
+      }
+
+      // 6. Estimate based on common patterns
+      // WordPress default is 10 items per page, many event feeds have 20-50
+      if (itemCount >= 10 && itemCount <= 50) {
+        // Likely a paginated feed with more pages
+        result.estimatedPages = 3; // Conservative estimate
+        result.estimatedTotal = itemCount * 3;
+        result.description = `Mogelijk meer pagina's beschikbaar (${itemCount} items op deze pagina)`;
+        // Don't set hasPagination unless we have proof
+      }
+
+    } catch (error: any) {
+      console.log(`[FeedAnalyzer] Error detecting RSS pagination: ${error.message}`);
+    }
+
+    return result;
+  }
+
   private static extractTextValue(value: any): string {
     if (typeof value === 'string') return value;
     if (value?._ ) return value._;
@@ -2107,12 +2230,35 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
         const $ = cheerio.load(html);
         
         const eventSelectors = [
+          // Standard event classes
           '.tiles__tile',
           'a.link-overlay',
           'article.event', '.event-item', '.event-card',
           '.agenda-item', '.calendar-event', '.uitagenda-item',
           'a[href*="/uitagenda/"]', 'a[href*="/evenementen/"]',
           '[class*="event"]', '[data-event]',
+          // Bommelerwaard.net / Laravel/PHP agenda patterns
+          'a[href*="/agenda/"][href*="/"]',
+          '.agenda a[href*="/agenda/"]',
+          '[class*="agenda"] a',
+          // Common Dutch agenda patterns
+          'a[href*="/activiteiten/"]',
+          'a[href*="/activiteit/"]',
+          '.activiteit', '.activity-item',
+          // Card-based layouts (common in modern websites)
+          '.card a[href*="/agenda"]',
+          '.card a[href*="/event"]',
+          '[class*="card"][class*="event"]',
+          // Grid/list layouts
+          '.grid-item a[href*="/"]',
+          '.list-item a[href*="/"]',
+          // WordPress event plugins
+          '.tribe-events-calendar-list__event',
+          '.eventlist-event',
+          '.events-list-item',
+          // General patterns
+          '[itemtype*="Event"]',
+          '[typeof="Event"]',
         ];
 
         let maxPage = 1;

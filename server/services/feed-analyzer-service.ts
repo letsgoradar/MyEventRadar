@@ -1083,6 +1083,100 @@ export class FeedAnalyzerService {
     }
   }
 
+  /**
+   * Detect Umbraco CMS sites (bezoekdelangstraat.nl and similar)
+   */
+  private static async detectUmbraco(
+    html: string,
+    origin: string,
+    result: FeedAnalysisResult,
+    alternatives: AlternativeSource[]
+  ): Promise<void> {
+    const $ = cheerio.load(html);
+    
+    // Check for Umbraco indicators
+    const generator = $('meta[name="generator"]').attr('content') || '';
+    const isUmbraco = generator.toLowerCase().includes('umbraco') ||
+                      html.includes('/App_Plugins/') ||
+                      html.includes('umbraco');
+    
+    if (!isUmbraco) return;
+    
+    console.log(`[FeedAnalyzer] Umbraco CMS detected`);
+    result.platformDetected = 'umbraco';
+    result.platformInfo = { type: 'umbraco', apiAvailable: false };
+    
+    // Known Umbraco site patterns
+    const umbracoApiPatterns = [
+      { domain: 'bezoekdelangstraat.nl', api: '/umbraco/surface/agenda/filter', paginated: true, pageParam: 'page' },
+      { domain: 'visitdelangstraat.com', api: '/umbraco/surface/agenda/filter', paginated: true, pageParam: 'page' },
+    ];
+    
+    const matchedPattern = umbracoApiPatterns.find(p => origin.includes(p.domain));
+    
+    if (matchedPattern) {
+      // Test the API endpoint
+      try {
+        const apiUrl = `${origin}${matchedPattern.api}?${matchedPattern.pageParam}=1`;
+        const response = await axios.get(apiUrl, {
+          timeout: 15000,
+          headers: { 'Accept': 'text/html, application/xhtml+xml' }
+        });
+        
+        if (response.status === 200 && response.data) {
+          const apiHtml = response.data;
+          const $api = cheerio.load(apiHtml);
+          
+          // Count events in response
+          const eventLinks = $api('.agenda__item, a[href*="/agenda/"]').toArray();
+          const uniqueLinks = Array.from(new Set(eventLinks.map(el => $api(el).attr('href')).filter(Boolean)));
+          
+          if (uniqueLinks.length > 0) {
+            result.platformInfo!.apiAvailable = true;
+            
+            // Estimate total by checking multiple pages
+            let totalEstimate = uniqueLinks.length;
+            try {
+              const page10 = await axios.get(`${origin}${matchedPattern.api}?${matchedPattern.pageParam}=10`, { timeout: 10000 });
+              if (page10.status === 200) {
+                const $page10 = cheerio.load(page10.data);
+                const page10Links = $page10('.agenda__item, a[href*="/agenda/"]').toArray();
+                if (page10Links.length > 0) {
+                  totalEstimate = uniqueLinks.length * 15; // Rough estimate: 12 per page * 15 pages
+                }
+              }
+            } catch (e) {
+              // Ignore pagination check errors
+            }
+            
+            alternatives.push(this.createAlternativeSource(
+              apiUrl,
+              'json-api',
+              totalEstimate,
+              92,
+              `Umbraco Agenda API met ${uniqueLinks.length}+ events per pagina`
+            ));
+            console.log(`[FeedAnalyzer] Umbraco agenda API found with ${uniqueLinks.length} events per page`);
+          }
+        }
+      } catch (e) {
+        console.log(`[FeedAnalyzer] Could not access Umbraco API`);
+      }
+    }
+    
+    // Also check for HTML scraper as fallback
+    const agendaItems = $('.agenda__item, .agenda__list .col-12, [class*="agenda-item"]').toArray();
+    if (agendaItems.length > 0) {
+      alternatives.push(this.createAlternativeSource(
+        origin + '/agenda/',
+        'scraper',
+        agendaItems.length,
+        75,
+        `Umbraco HTML scraper (${agendaItems.length} items zichtbaar)`
+      ));
+    }
+  }
+
   private static async discoverAlternativeSources(
     html: string,
     baseUrl: string,
@@ -1095,8 +1189,9 @@ export class FeedAnalyzerService {
 
     console.log(`[FeedAnalyzer] Discovering alternative sources for ${baseUrl}`);
     
-    // First, detect platform (WordPress, Drupal, etc.)
+    // First, detect platform (WordPress, Drupal, Umbraco, etc.)
     await this.detectWordPress(html, origin, result, alternatives);
+    await this.detectUmbraco(html, origin, result, alternatives);
 
     // 1. Check for RSS/Atom/iCal links in HTML head
     $('link[rel="alternate"]').each((_, el) => {

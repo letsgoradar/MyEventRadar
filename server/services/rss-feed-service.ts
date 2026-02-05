@@ -5438,6 +5438,13 @@ export class RssFeedService {
         return jsonLdResult;
       }
       
+      // STRATEGY 3.5: Try Umbraco CMS API (bezoekdelangstraat.nl and similar)
+      const umbracoResult = await this.tryUmbracoApi(url, municipality, feed, linkLimit);
+      if (umbracoResult.success && umbracoResult.items.length > 0) {
+        console.log(`[RSS] Umbraco API succeeded: ${umbracoResult.items.length} items`);
+        return umbracoResult;
+      }
+      
       // STRATEGY 4: Generic HTML parsing with multiple selectors
       const htmlResult = await this.tryGenericHtml($, url, municipality, feed, linkLimit);
       if (htmlResult.success && htmlResult.items.length > 0) {
@@ -5577,6 +5584,209 @@ export class RssFeedService {
       
     } catch (error: any) {
       return { success: false, items: [], error: `WordPress API failed: ${error.message}` };
+    }
+  }
+
+  /**
+   * Try Umbraco CMS API extraction (bezoekdelangstraat.nl and similar)
+   */
+  private static async tryUmbracoApi(baseUrl: string, municipality: string, feed: RssFeed, linkLimit?: number): Promise<FeedParseResult> {
+    try {
+      const urlObj = new URL(baseUrl);
+      const origin = urlObj.origin;
+      
+      // Known Umbraco patterns
+      const umbracoPatterns = [
+        { domain: 'bezoekdelangstraat.nl', api: '/umbraco/surface/agenda/filter', pageParam: 'page' },
+        { domain: 'visitdelangstraat.com', api: '/umbraco/surface/agenda/filter', pageParam: 'page' },
+      ];
+      
+      const matchedPattern = umbracoPatterns.find(p => origin.includes(p.domain));
+      if (!matchedPattern) {
+        return { success: false, items: [], error: "Not an Umbraco site" };
+      }
+      
+      console.log(`[RSS] Trying Umbraco API for ${municipality}: ${matchedPattern.api}`);
+      
+      const items: ParsedFeedItem[] = [];
+      const seenUrls = new Set<string>();
+      let page = 1;
+      const maxPages = linkLimit ? Math.ceil(linkLimit / 12) : 50;
+      
+      while (page <= maxPages) {
+        const apiUrl = `${origin}${matchedPattern.api}?${matchedPattern.pageParam}=${page}`;
+        const response = await axios.get(apiUrl, {
+          headers: { 
+            "User-Agent": this.USER_AGENT,
+            "Accept": "text/html, application/xhtml+xml"
+          },
+          timeout: 15000
+        });
+        
+        if (response.status !== 200 || !response.data) break;
+        
+        const $ = cheerio.load(response.data);
+        const eventLinks = $('.agenda__item').toArray();
+        
+        if (eventLinks.length === 0) break;
+        
+        let newLinksFound = false;
+        
+        for (const el of eventLinks) {
+          const href = $(el).attr('href');
+          if (!href || seenUrls.has(href)) continue;
+          seenUrls.add(href);
+          newLinksFound = true;
+          
+          const fullUrl = href.startsWith('http') ? href : `${origin}${href}`;
+          const title = $(el).find('h3').text().trim() || $(el).find('.agenda__what h3').text().trim();
+          const venue = $(el).find('.agenda__city').text().trim();
+          const venueFull = $(el).find('.agenda__what p').text().replace(venue, '').trim();
+          const dateStr = $(el).find('.agenda__date p').text().trim();
+          const imageUrl = $(el).find('img').attr('src');
+          
+          if (linkLimit && items.length >= linkLimit) break;
+          
+          items.push({
+            externalId: fullUrl,
+            title: title || 'Untitled',
+            link: fullUrl,
+            description: venueFull || venue || '',
+            publishedAt: new Date(),
+            location: venue || undefined,
+            imageUrl: imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `${origin}${imageUrl}`) : undefined,
+          });
+        }
+        
+        if (!newLinksFound || (linkLimit && items.length >= linkLimit)) break;
+        page++;
+      }
+      
+      if (items.length === 0) {
+        return { success: false, items: [], error: "No events found in Umbraco API" };
+      }
+      
+      console.log(`[RSS] Umbraco API: found ${items.length} event links from ${page} pages`);
+      
+      // Fetch detail pages for each event
+      const detailedItems: ParsedFeedItem[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        console.log(`[RSS] Fetching Umbraco event ${i + 1}/${items.length}: ${item.title}`);
+        
+        try {
+          const detailResponse = await axios.get(item.link!, {
+            headers: { "User-Agent": this.USER_AGENT },
+            timeout: 15000
+          });
+          
+          if (detailResponse.status === 200) {
+            const $detail = cheerio.load(detailResponse.data);
+            
+            // Extract detailed information
+            const fullTitle = $detail('h1').first().text().trim() || item.title;
+            const description = $detail('.hero__text').text().trim() || 
+                               $detail('.intro__text').text().trim() ||
+                               $detail('article p').first().text().trim() || 
+                               item.description;
+            
+            // Extract date from agenda__when section
+            const whenSection = $detail('.agenda__when');
+            let startDate = '';
+            let endDate = '';
+            let startTime = '';
+            let endTime = '';
+            
+            if (whenSection.length > 0) {
+              const dateText = whenSection.find('p').text().trim();
+              // Parse Dutch date format like "05/02 - 06/02" or "05/02"
+              const dateMatch = dateText.match(/(\d{2})\/(\d{2})(?:\s*-\s*(\d{2})\/(\d{2}))?/);
+              if (dateMatch) {
+                const year = new Date().getFullYear();
+                const month1 = parseInt(dateMatch[2], 10);
+                const day1 = parseInt(dateMatch[1], 10);
+                startDate = `${year}-${month1.toString().padStart(2, '0')}-${day1.toString().padStart(2, '0')}`;
+                
+                if (dateMatch[3] && dateMatch[4]) {
+                  const month2 = parseInt(dateMatch[4], 10);
+                  const day2 = parseInt(dateMatch[3], 10);
+                  endDate = `${year}-${month2.toString().padStart(2, '0')}-${day2.toString().padStart(2, '0')}`;
+                }
+              }
+              
+              // Extract time if available
+              const timeMatch = dateText.match(/(\d{1,2})[.:h](\d{2})(?:\s*(?:-|tot|–)\s*(\d{1,2})[.:h](\d{2}))?/);
+              if (timeMatch) {
+                startTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}:00`;
+                if (timeMatch[3] && timeMatch[4]) {
+                  endTime = `${timeMatch[3].padStart(2, '0')}:${timeMatch[4]}:00`;
+                }
+              }
+            }
+            
+            // Extract location from agenda__where section
+            const whereSection = $detail('.agenda__where');
+            let venueName = '';
+            let address = '';
+            if (whereSection.length > 0) {
+              venueName = whereSection.find('h2').text().trim();
+              address = whereSection.find('p').first().text().trim();
+            }
+            
+            // Extract image
+            const heroImage = $detail('.hero__image img').attr('src') ||
+                             $detail('.hero img').attr('src') ||
+                             $detail('figure img').first().attr('src');
+            
+            const imageFullUrl = heroImage ? 
+              (heroImage.startsWith('http') ? heroImage : `${origin}${heroImage}`) : 
+              item.imageUrl;
+            
+            // Convert string dates/times to Date objects
+            let startTimeDate: Date | undefined;
+            let endTimeDate: Date | undefined;
+            
+            if (startDate) {
+              const startDateTime = startTime ? `${startDate}T${startTime}` : `${startDate}T00:00:00`;
+              startTimeDate = new Date(startDateTime);
+            }
+            
+            if (endDate && endTime) {
+              endTimeDate = new Date(`${endDate}T${endTime}`);
+            } else if (startDate && endTime) {
+              endTimeDate = new Date(`${startDate}T${endTime}`);
+            }
+            
+            detailedItems.push({
+              externalId: item.link!,
+              title: fullTitle,
+              link: item.link,
+              description: description.substring(0, 2000),
+              publishedAt: startTimeDate || new Date(),
+              location: venueName || item.location,
+              address: address || undefined,
+              imageUrl: imageFullUrl,
+              startTime: startTimeDate,
+              endTime: endTimeDate,
+              venueName: venueName || undefined,
+            });
+          } else {
+            detailedItems.push(item);
+          }
+        } catch (e) {
+          detailedItems.push(item);
+        }
+        
+        // Rate limiting
+        if (i < items.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+      
+      return { success: true, items: detailedItems };
+      
+    } catch (error: any) {
+      return { success: false, items: [], error: `Umbraco API failed: ${error.message}` };
     }
   }
 

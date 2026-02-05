@@ -7156,6 +7156,10 @@ export class RssFeedService {
       } else if (feed.feedType === "json") {
         // Parse WordPress JSON API or similar JSON feeds with content extraction
         result = await this.fetchAndParseJsonFeed(feed.url, feed.municipality || undefined);
+      } else if (feed.feedType === "umbraco_api") {
+        // Use Umbraco CMS API for sites like bezoekdelangstraat.nl
+        console.log(`[RSS] ${feed.name}: Using Umbraco API method`);
+        result = await this.tryUmbracoApi(feed.url, feed.municipality || '', feed);
       } else {
         result = await this.fetchAndParseRssFeed(feed.url, feed.municipality || undefined);
       }
@@ -7359,6 +7363,10 @@ export class RssFeedService {
         } else if (feed.feedType === "json") {
           // Parse WordPress JSON API or similar JSON feeds with content extraction
           result = await this.fetchAndParseJsonFeed(feed.url, feed.municipality || undefined);
+        } else if (feed.feedType === "umbraco_api") {
+          // Use Umbraco CMS API for sites like bezoekdelangstraat.nl
+          console.log(`[RSS] ${feed.name}: Using Umbraco API method`);
+          result = await this.tryUmbracoApi(feed.url, feed.municipality || '', feed);
         } else {
           result = await this.fetchAndParseRssFeed(feed.url, feed.municipality || undefined);
         }

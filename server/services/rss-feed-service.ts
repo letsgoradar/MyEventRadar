@@ -4092,6 +4092,251 @@ export class RssFeedService {
   }
 
   /**
+   * BOMMELERWAARD SCRAPER - Scrapes events from bommelerwaard.net
+   * Regional news/events site for Bommelerwaard area (Zaltbommel, Maasdriel)
+   */
+  static async scrapeBommelerwaard(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const baseUrl = 'https://www.bommelerwaard.net';
+      const agendaUrl = `${baseUrl}/agenda`;
+      
+      console.log(`[RSS] Scraping Bommelerwaard agenda...`);
+      
+      // Known Bommelerwaard venues with GPS coordinates
+      const bommelerwaardVenues: Record<string, { lat: number; lng: number; address: string }> = {
+        'zaltbommel': { lat: 51.8108, lng: 5.2510, address: 'Zaltbommel' },
+        'sint-maartenskerk': { lat: 51.8105, lng: 5.2520, address: 'Sint-Maartenskerk, Zaltbommel' },
+        'de grote aak': { lat: 51.8100, lng: 5.2505, address: 'De Grote Aak, Zaltbommel' },
+        'mispelhal': { lat: 51.8130, lng: 5.2580, address: 'Mispelhal, Zaltbommel' },
+        'bruchem': { lat: 51.7920, lng: 5.2180, address: 'Bruchem' },
+        'rossum': { lat: 51.8020, lng: 5.3380, address: 'Rossum' },
+        'de parel': { lat: 51.8015, lng: 5.3375, address: 'De Parel, Rossum' },
+        'zuilichem': { lat: 51.7780, lng: 5.1930, address: 'Zuilichem' },
+        'hedel': { lat: 51.7470, lng: 5.2670, address: 'Hedel' },
+        'ammerzoden': { lat: 51.7570, lng: 5.2240, address: 'Ammerzoden' },
+        'well': { lat: 51.7410, lng: 5.2490, address: 'Well' },
+        'kerkdriel': { lat: 51.7680, lng: 5.3360, address: 'Kerkdriel' },
+        'velddriel': { lat: 51.7560, lng: 5.3460, address: 'Velddriel' },
+        'hoenzadriel': { lat: 51.7620, lng: 5.3250, address: 'Hoenzadriel' },
+        'alem': { lat: 51.7890, lng: 5.3080, address: 'Alem' },
+        'loevestein': { lat: 51.8190, lng: 5.0230, address: 'Slot Loevestein, Poederoijen' },
+        'slot loevestein': { lat: 51.8190, lng: 5.0230, address: 'Slot Loevestein, Poederoijen' },
+        'poederoijen': { lat: 51.8190, lng: 5.0230, address: 'Poederoijen' },
+        'woudrichem': { lat: 51.8210, lng: 4.9930, address: 'Woudrichem' },
+        'gameren': { lat: 51.8050, lng: 5.2030, address: 'Gameren' },
+        'nieuwaal': { lat: 51.8080, lng: 5.1780, address: 'Nieuwaal' },
+        'nederhemert': { lat: 51.7720, lng: 5.1430, address: 'Nederhemert' },
+        'brakel': { lat: 51.8000, lng: 5.0880, address: 'Brakel' },
+        'aalst': { lat: 51.7890, lng: 5.1270, address: 'Aalst' },
+        'delwijnen': { lat: 51.8140, lng: 5.1330, address: 'Delwijnen' },
+      };
+      
+      // Dutch month names for parsing
+      const monthNames: Record<string, number> = {
+        'januari': 0, 'februari': 1, 'maart': 2, 'april': 3,
+        'mei': 4, 'juni': 5, 'juli': 6, 'augustus': 7,
+        'september': 8, 'oktober': 9, 'november': 10, 'december': 11
+      };
+      
+      // Step 1: Fetch agenda page and extract event links
+      const eventLinks: string[] = [];
+      
+      const response = await axios.get(agendaUrl, {
+        headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
+        timeout: 30000
+      });
+      
+      const $ = cheerio.load(response.data);
+      
+      // Extract event links - pattern: /agenda/[id]/[slug]
+      $('a[href*="/agenda/"]').each((_, el) => {
+        const href = $(el).attr('href');
+        if (href && /\/agenda\/\d+\//.test(href) && !eventLinks.includes(href)) {
+          const fullUrl = href.startsWith('http') ? href : `${baseUrl}${href}`;
+          if (!eventLinks.includes(fullUrl)) {
+            eventLinks.push(fullUrl);
+          }
+        }
+      });
+      
+      console.log(`[RSS] Found ${eventLinks.length} event links on Bommelerwaard agenda`);
+      
+      // Step 2: Fetch each event page
+      let successCount = 0;
+      let skippedCount = 0;
+      
+      for (const eventUrl of eventLinks) {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 200)); // Rate limiting
+          
+          const eventResponse = await axios.get(eventUrl, {
+            headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
+            timeout: 15000
+          });
+          
+          const $event = cheerio.load(eventResponse.data);
+          
+          // Extract title from h1 or page title
+          let title = $event('h1').first().text().trim();
+          if (!title) {
+            title = $event('title').text().replace(' | BommelerwaardNet', '').trim();
+          }
+          
+          if (!title) {
+            skippedCount++;
+            continue;
+          }
+          
+          // Extract image
+          let imageUrl = '';
+          $event('img').each((_, el) => {
+            const src = $event(el).attr('src') || '';
+            if (src.includes('/storage/') && !imageUrl) {
+              imageUrl = src.startsWith('http') ? src : `${baseUrl}${src}`;
+              // Get high-res version if available
+              imageUrl = imageUrl.replace('-S.', '-L.').replace('-M.', '-L.');
+            }
+          });
+          
+          // Extract date and time from text content
+          // Format: "7 februari 2026 van 09.00 tot 12.00 uur"
+          const pageText = $event('body').text();
+          
+          let startTime: Date | undefined;
+          let endTime: Date | undefined;
+          let hasExplicitTime = false;
+          
+          // Pattern: "X maand YYYY van HH.MM tot HH.MM uur"
+          const dateTimeMatch = pageText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})\s+van\s+(\d{1,2})\.(\d{2})\s+tot\s+(\d{1,2})\.(\d{2})\s+uur/i);
+          
+          if (dateTimeMatch) {
+            const day = parseInt(dateTimeMatch[1]);
+            const month = monthNames[dateTimeMatch[2].toLowerCase()];
+            const year = parseInt(dateTimeMatch[3]);
+            const startHour = parseInt(dateTimeMatch[4]);
+            const startMin = parseInt(dateTimeMatch[5]);
+            const endHour = parseInt(dateTimeMatch[6]);
+            const endMin = parseInt(dateTimeMatch[7]);
+            
+            startTime = new Date(Date.UTC(year, month, day, startHour - 1, startMin)); // Adjust for CET
+            endTime = new Date(Date.UTC(year, month, day, endHour - 1, endMin));
+            hasExplicitTime = true;
+          } else {
+            // Try date-only pattern: "X maand YYYY"
+            const dateOnlyMatch = pageText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i);
+            if (dateOnlyMatch) {
+              const day = parseInt(dateOnlyMatch[1]);
+              const month = monthNames[dateOnlyMatch[2].toLowerCase()];
+              const year = parseInt(dateOnlyMatch[3]);
+              // Date-only: set to 00:00 UTC (no explicit time)
+              startTime = new Date(Date.UTC(year, month, day, 0, 0, 0));
+              endTime = new Date(Date.UTC(year, month, day, 23, 59, 59));
+            }
+          }
+          
+          // FEED PRINCIPLE 2: Only date-bound events
+          if (!startTime) {
+            skippedCount++;
+            continue;
+          }
+          
+          // Skip past events
+          const now = new Date();
+          if (endTime && endTime < now) {
+            skippedCount++;
+            continue;
+          }
+          
+          // Extract location from description or dedicated location element
+          let location = '';
+          let address = '';
+          let latitude: number | undefined;
+          let longitude: number | undefined;
+          
+          // Look for location in text - often starts with UPPERCASE town name
+          const locationMatch = pageText.match(/^([A-Z]{3,}(?:\s*[-\/]\s*[A-Z]+)?)\s*[-–:]/m);
+          if (locationMatch) {
+            location = locationMatch[1].trim();
+          }
+          
+          // Also check for "Locatie:" section
+          const locatieMatch = pageText.match(/Locatie:\s*([^\n]+)/i);
+          if (locatieMatch) {
+            address = locatieMatch[1].trim();
+            if (!location) {
+              location = address;
+            }
+          }
+          
+          // Try to geocode using known venues
+          const searchText = `${title} ${location} ${address}`.toLowerCase();
+          for (const [venueName, venueData] of Object.entries(bommelerwaardVenues)) {
+            if (searchText.includes(venueName)) {
+              latitude = venueData.lat;
+              longitude = venueData.lng;
+              if (!address) address = venueData.address;
+              break;
+            }
+          }
+          
+          // FEED PRINCIPLE 1: Skip events without verified location
+          if (!latitude || !longitude) {
+            // Default to Zaltbommel center for Bommelerwaard events
+            latitude = 51.8108;
+            longitude = 5.2510;
+            if (!address) address = 'Bommelerwaard';
+          }
+          
+          // Extract description - first few paragraphs
+          let description = '';
+          $event('p').each((i, el) => {
+            if (i < 3) {
+              const text = $event(el).text().trim();
+              if (text.length > 20 && text.length < 500) {
+                description += text + ' ';
+              }
+            }
+          });
+          description = description.trim().substring(0, 1000) || `${title} - Evenement in de Bommelerwaard`;
+          
+          // Generate external ID from URL
+          const urlMatch = eventUrl.match(/\/agenda\/(\d+)\//);
+          const externalId = urlMatch ? `bommelerwaard-${urlMatch[1]}` : `bommelerwaard-${title.toLowerCase().replace(/\s+/g, '-')}`;
+          
+          items.push({
+            externalId,
+            title: this.formatTitle(title),
+            description,
+            link: eventUrl,
+            imageUrl: imageUrl || undefined,
+            publishedAt: new Date(),
+            startTime,
+            endTime,
+            location: location || 'Bommelerwaard',
+            address,
+            latitude,
+            longitude,
+            rawData: { source: 'bommelerwaard.net', hasExplicitTime }
+          });
+          
+          successCount++;
+          
+        } catch (eventError: any) {
+          console.log(`[RSS] Error fetching Bommelerwaard event: ${eventError.message}`);
+          skippedCount++;
+        }
+      }
+      
+      console.log(`[RSS] Scraped ${items.length} events from Bommelerwaard (${successCount} success, ${skippedCount} skipped)`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Bommelerwaard:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  /**
    * INTONIJMEGEN SCRAPER - Scrapes events from intonijmegen.com
    * The website has an agenda page with event listings
    */
@@ -6691,6 +6936,8 @@ export class RssFeedService {
         result = await this.scrapeGrensland();
       } else if (feed.feedType === "scraper" && feed.url.includes("tilburg.com")) {
         result = await this.scrapeTilburg();
+      } else if (feed.feedType === "scraper" && feed.url.includes("bommelerwaard.net")) {
+        result = await this.scrapeBommelerwaard();
       } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
         result = await this.scrapeIntoNijmegen();
       } else if (feed.feedType === "scraper") {
@@ -6892,6 +7139,8 @@ export class RssFeedService {
           result = await this.scrapeGrensland();
         } else if (feed.feedType === "scraper" && feed.url.includes("tilburg.com")) {
           result = await this.scrapeTilburg();
+        } else if (feed.feedType === "scraper" && feed.url.includes("bommelerwaard.net")) {
+          result = await this.scrapeBommelerwaard();
         } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
           result = await this.scrapeIntoNijmegen();
         } else if (feed.feedType === "scraper") {

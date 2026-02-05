@@ -20,6 +20,7 @@ import { isAdmin, isAuthenticated, attachUser } from "./middleware/auth";
 import profilePhotoRoutes from "./routes/profile-photo";
 import generateImageRoutes from "./routes/generate-image";
 import unsplashSearchRoutes from "./routes/unsplash-search";
+import venueRoutes from "./routes/venue-routes";
 import themeHandler from "./theme-handler";
 
 // Query cache voor geocoding
@@ -131,6 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   app.use("/api/profile-photo", profilePhotoRoutes);
   app.use("/api/generate-image", generateImageRoutes);
+  app.use("/api/admin/venues", venueRoutes);
   app.use("/api/unsplash", unsplashSearchRoutes);
   app.use("/api", themeHandler);
   

@@ -18,6 +18,10 @@ import {
   leads,
   aiExtractionProfiles,
   venues,
+  venueContacts,
+  venueNotes,
+  venueTasks,
+  sponsorCampaigns,
   geocodeCache,
   feedQualityChecks,
   qualityCheckIssues,
@@ -56,6 +60,14 @@ import {
   type InsertAiExtractionProfile,
   type Venue,
   type InsertVenue,
+  type VenueContact,
+  type InsertVenueContact,
+  type VenueNote,
+  type InsertVenueNote,
+  type VenueTask,
+  type InsertVenueTask,
+  type SponsorCampaign,
+  type InsertSponsorCampaign,
   type FeedQualityCheck,
   type InsertFeedQualityCheck,
   type QualityCheckIssue,
@@ -207,11 +219,44 @@ export interface IStorage {
   // Venue operations
   createVenue(venue: InsertVenue): Promise<Venue>;
   getVenue(id: number): Promise<Venue | undefined>;
+  getVenueById(id: number): Promise<Venue | undefined>;
   getVenueByName(name: string): Promise<Venue | undefined>;
   getAllVenues(): Promise<Venue[]>;
   searchVenues(query: string): Promise<Venue[]>;
   updateVenue(id: number, venue: Partial<Venue>): Promise<Venue>;
+  deleteVenue(id: number): Promise<void>;
   getEventsByVenue(venueId: number): Promise<Event[]>;
+  getEventsByVenueId(venueId: number): Promise<Event[]>;
+  getVenueStats(): Promise<{ totalVenues: number; activeVenues: number; totalContacts: number; totalTasks: number; openTasks: number }>;
+  discoverPotentialVenues(minEvents: number): Promise<Array<{ address: string; eventCount: number; sampleTitle: string }>>;
+  createVenueFromLocation(address: string, name?: string): Promise<Venue>;
+
+  // Venue Contacts operations
+  getVenueContacts(venueId: number): Promise<VenueContact[]>;
+  createVenueContact(contact: InsertVenueContact): Promise<VenueContact>;
+  updateVenueContact(id: number, contact: Partial<VenueContact>): Promise<VenueContact>;
+  deleteVenueContact(id: number): Promise<void>;
+
+  // Venue Notes operations
+  getVenueNotes(venueId: number): Promise<VenueNote[]>;
+  createVenueNote(note: InsertVenueNote & { userId: number }): Promise<VenueNote>;
+  updateVenueNote(id: number, note: Partial<VenueNote>): Promise<VenueNote>;
+  deleteVenueNote(id: number): Promise<void>;
+
+  // Venue Tasks operations
+  getVenueTasks(venueId: number): Promise<VenueTask[]>;
+  getAllVenueTasks(userId?: number): Promise<VenueTask[]>;
+  createVenueTask(task: InsertVenueTask & { userId: number; createdByUserId: number }): Promise<VenueTask>;
+  updateVenueTask(id: number, task: Partial<VenueTask>): Promise<VenueTask>;
+  deleteVenueTask(id: number): Promise<void>;
+
+  // Sponsor Campaigns operations
+  getSponsorCampaignsByVenue(venueId: number): Promise<SponsorCampaign[]>;
+  getSponsorCampaignsByEvent(eventId: number): Promise<SponsorCampaign[]>;
+  getAllSponsorCampaigns(): Promise<SponsorCampaign[]>;
+  createSponsorCampaign(campaign: InsertSponsorCampaign & { createdByUserId: number }): Promise<SponsorCampaign>;
+  updateSponsorCampaign(id: number, campaign: Partial<SponsorCampaign>): Promise<SponsorCampaign>;
+  deleteSponsorCampaign(id: number): Promise<void>;
 
   // Geocode cache operations
   getGeocodeFromCache(addressQuery: string): Promise<{ latitude: number; longitude: number; displayName?: string } | null>;
@@ -1406,6 +1451,233 @@ export class PgStorage implements IStorage {
       return db.select().from(events)
         .where(eq(events.venueId, venueId))
         .orderBy(desc(events.startTime));
+    });
+  }
+
+  async getVenueById(id: number): Promise<Venue | undefined> {
+    return this.getVenue(id);
+  }
+
+  async deleteVenue(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(venues).where(eq(venues.id, id));
+    });
+  }
+
+  async getEventsByVenueId(venueId: number): Promise<Event[]> {
+    return this.getEventsByVenue(venueId);
+  }
+
+  async getVenueStats(): Promise<{ totalVenues: number; activeVenues: number; totalContacts: number; totalTasks: number; openTasks: number }> {
+    return this.withRetry(async () => {
+      const venueCount = await db.select({ count: count() }).from(venues);
+      const activeCount = await db.select({ count: count() }).from(venues).where(eq(venues.status, 'active'));
+      const contactCount = await db.select({ count: count() }).from(venueContacts);
+      const taskCount = await db.select({ count: count() }).from(venueTasks);
+      const openTaskCount = await db.select({ count: count() }).from(venueTasks)
+        .where(and(sql`${venueTasks.status} != 'done'`, sql`${venueTasks.status} != 'cancelled'`));
+      
+      return {
+        totalVenues: venueCount[0]?.count || 0,
+        activeVenues: activeCount[0]?.count || 0,
+        totalContacts: contactCount[0]?.count || 0,
+        totalTasks: taskCount[0]?.count || 0,
+        openTasks: openTaskCount[0]?.count || 0,
+      };
+    });
+  }
+
+  async discoverPotentialVenues(minEvents: number): Promise<Array<{ address: string; eventCount: number; sampleTitle: string }>> {
+    return this.withRetry(async () => {
+      const result = await db.execute(sql`
+        SELECT address, COUNT(*) as event_count, MIN(title) as sample_title
+        FROM events
+        WHERE address IS NOT NULL AND address != ''
+        GROUP BY address
+        HAVING COUNT(*) >= ${minEvents}
+        ORDER BY COUNT(*) DESC
+        LIMIT 100
+      `);
+      return (result.rows as any[]).map(row => ({
+        address: row.address,
+        eventCount: parseInt(row.event_count),
+        sampleTitle: row.sample_title,
+      }));
+    });
+  }
+
+  async createVenueFromLocation(address: string, name?: string): Promise<Venue> {
+    return this.withRetry(async () => {
+      const venueName = name || address.split(',')[0].trim();
+      const normalizedName = venueName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      const result = await db.insert(venues).values({
+        name: venueName,
+        normalizedName,
+        address,
+        status: 'active',
+      }).returning();
+      
+      return result[0];
+    });
+  }
+
+  // Venue Contacts operations
+  async getVenueContacts(venueId: number): Promise<VenueContact[]> {
+    return this.withRetry(async () => {
+      return db.select().from(venueContacts)
+        .where(eq(venueContacts.venueId, venueId))
+        .orderBy(desc(venueContacts.isPrimary), venueContacts.name);
+    });
+  }
+
+  async createVenueContact(contact: InsertVenueContact): Promise<VenueContact> {
+    return this.withRetry(async () => {
+      const result = await db.insert(venueContacts).values(contact).returning();
+      return result[0];
+    });
+  }
+
+  async updateVenueContact(id: number, contact: Partial<VenueContact>): Promise<VenueContact> {
+    return this.withRetry(async () => {
+      const result = await db.update(venueContacts)
+        .set({ ...contact, updatedAt: new Date() })
+        .where(eq(venueContacts.id, id))
+        .returning();
+      return result[0];
+    });
+  }
+
+  async deleteVenueContact(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(venueContacts).where(eq(venueContacts.id, id));
+    });
+  }
+
+  // Venue Notes operations
+  async getVenueNotes(venueId: number): Promise<VenueNote[]> {
+    return this.withRetry(async () => {
+      return db.select().from(venueNotes)
+        .where(eq(venueNotes.venueId, venueId))
+        .orderBy(desc(venueNotes.isPinned), desc(venueNotes.createdAt));
+    });
+  }
+
+  async createVenueNote(note: InsertVenueNote & { userId: number }): Promise<VenueNote> {
+    return this.withRetry(async () => {
+      const result = await db.insert(venueNotes).values(note).returning();
+      return result[0];
+    });
+  }
+
+  async updateVenueNote(id: number, note: Partial<VenueNote>): Promise<VenueNote> {
+    return this.withRetry(async () => {
+      const result = await db.update(venueNotes)
+        .set({ ...note, updatedAt: new Date() })
+        .where(eq(venueNotes.id, id))
+        .returning();
+      return result[0];
+    });
+  }
+
+  async deleteVenueNote(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(venueNotes).where(eq(venueNotes.id, id));
+    });
+  }
+
+  // Venue Tasks operations
+  async getVenueTasks(venueId: number): Promise<VenueTask[]> {
+    return this.withRetry(async () => {
+      return db.select().from(venueTasks)
+        .where(eq(venueTasks.venueId, venueId))
+        .orderBy(venueTasks.dueDate, desc(venueTasks.priority));
+    });
+  }
+
+  async getAllVenueTasks(userId?: number): Promise<VenueTask[]> {
+    return this.withRetry(async () => {
+      if (userId) {
+        return db.select().from(venueTasks)
+          .where(eq(venueTasks.userId, userId))
+          .orderBy(venueTasks.dueDate, desc(venueTasks.priority));
+      }
+      return db.select().from(venueTasks)
+        .orderBy(venueTasks.dueDate, desc(venueTasks.priority));
+    });
+  }
+
+  async createVenueTask(task: InsertVenueTask & { userId: number; createdByUserId: number }): Promise<VenueTask> {
+    return this.withRetry(async () => {
+      const result = await db.insert(venueTasks).values(task).returning();
+      return result[0];
+    });
+  }
+
+  async updateVenueTask(id: number, task: Partial<VenueTask>): Promise<VenueTask> {
+    return this.withRetry(async () => {
+      const updateData = { ...task, updatedAt: new Date() };
+      if (task.status === 'done') {
+        (updateData as any).completedAt = new Date();
+      }
+      const result = await db.update(venueTasks)
+        .set(updateData)
+        .where(eq(venueTasks.id, id))
+        .returning();
+      return result[0];
+    });
+  }
+
+  async deleteVenueTask(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(venueTasks).where(eq(venueTasks.id, id));
+    });
+  }
+
+  // Sponsor Campaigns operations
+  async getSponsorCampaignsByVenue(venueId: number): Promise<SponsorCampaign[]> {
+    return this.withRetry(async () => {
+      return db.select().from(sponsorCampaigns)
+        .where(eq(sponsorCampaigns.venueId, venueId))
+        .orderBy(desc(sponsorCampaigns.createdAt));
+    });
+  }
+
+  async getSponsorCampaignsByEvent(eventId: number): Promise<SponsorCampaign[]> {
+    return this.withRetry(async () => {
+      return db.select().from(sponsorCampaigns)
+        .where(eq(sponsorCampaigns.eventId, eventId))
+        .orderBy(desc(sponsorCampaigns.createdAt));
+    });
+  }
+
+  async getAllSponsorCampaigns(): Promise<SponsorCampaign[]> {
+    return this.withRetry(async () => {
+      return db.select().from(sponsorCampaigns)
+        .orderBy(desc(sponsorCampaigns.createdAt));
+    });
+  }
+
+  async createSponsorCampaign(campaign: InsertSponsorCampaign & { createdByUserId: number }): Promise<SponsorCampaign> {
+    return this.withRetry(async () => {
+      const result = await db.insert(sponsorCampaigns).values(campaign).returning();
+      return result[0];
+    });
+  }
+
+  async updateSponsorCampaign(id: number, campaign: Partial<SponsorCampaign>): Promise<SponsorCampaign> {
+    return this.withRetry(async () => {
+      const result = await db.update(sponsorCampaigns)
+        .set({ ...campaign, updatedAt: new Date() })
+        .where(eq(sponsorCampaigns.id, id))
+        .returning();
+      return result[0];
+    });
+  }
+
+  async deleteSponsorCampaign(id: number): Promise<void> {
+    return this.withRetry(async () => {
+      await db.delete(sponsorCampaigns).where(eq(sponsorCampaigns.id, id));
     });
   }
 

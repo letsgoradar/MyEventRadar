@@ -408,6 +408,82 @@ export const venueOrganizers = pgTable("venue_organizers", {
 export type VenueOrganizer = typeof venueOrganizers.$inferSelect;
 export type InsertVenueOrganizer = typeof venueOrganizers.$inferInsert;
 
+// Venue CRM: Contactpersonen
+export const venueContacts = pgTable("venue_contacts", {
+  id: serial("id").primaryKey(),
+  venueId: integer("venue_id").notNull().references(() => venues.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  role: text("role"), // e.g., "Programmeur", "Marketing", "Directeur"
+  email: text("email"),
+  phone: text("phone"),
+  isPrimary: boolean("is_primary").default(false),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type VenueContact = typeof venueContacts.$inferSelect;
+export type InsertVenueContact = typeof venueContacts.$inferInsert;
+
+// Venue CRM: Notities
+export const venueNotes = pgTable("venue_notes", {
+  id: serial("id").primaryKey(),
+  venueId: integer("venue_id").notNull().references(() => venues.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  isPinned: boolean("is_pinned").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type VenueNote = typeof venueNotes.$inferSelect;
+export type InsertVenueNote = typeof venueNotes.$inferInsert;
+
+// Venue CRM: Taken
+export const venueTasks = pgTable("venue_tasks", {
+  id: serial("id").primaryKey(),
+  venueId: integer("venue_id").notNull().references(() => venues.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id), // Assigned to
+  createdByUserId: integer("created_by_user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  dueDate: timestamp("due_date"),
+  priority: text("priority").default("medium").$type<"low" | "medium" | "high" | "urgent">(),
+  status: text("status").default("todo").$type<"todo" | "in_progress" | "done" | "cancelled">(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type VenueTask = typeof venueTasks.$inferSelect;
+export type InsertVenueTask = typeof venueTasks.$inferInsert;
+
+// Sponsor Campaigns (voor venues of specifieke events)
+export const sponsorCampaigns = pgTable("sponsor_campaigns", {
+  id: serial("id").primaryKey(),
+  venueId: integer("venue_id").references(() => venues.id, { onDelete: "cascade" }), // Optioneel - voor venue-brede campagnes
+  eventId: integer("event_id").references(() => events.id, { onDelete: "cascade" }), // Optioneel - voor event-specifieke campagnes
+  createdByUserId: integer("created_by_user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  sponsorName: text("sponsor_name"), // Naam van de sponsor
+  sponsorContact: text("sponsor_contact"), // Contactpersoon bij sponsor
+  sponsorEmail: text("sponsor_email"),
+  sponsorPhone: text("sponsor_phone"),
+  campaignType: text("campaign_type").default("visibility").$type<"visibility" | "financial" | "in_kind" | "media" | "other">(),
+  value: integer("value"), // Waarde in centen
+  currency: text("currency").default("EUR"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  status: text("status").default("draft").$type<"draft" | "proposed" | "active" | "completed" | "cancelled">(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type SponsorCampaign = typeof sponsorCampaigns.$inferSelect;
+export type InsertSponsorCampaign = typeof sponsorCampaigns.$inferInsert;
+
 export const feedFieldMappings = pgTable("feed_field_mappings", {
   id: serial("id").primaryKey(),
   domain: text("domain").notNull().unique(),

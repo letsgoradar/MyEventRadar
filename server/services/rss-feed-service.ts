@@ -5683,8 +5683,11 @@ export class RssFeedService {
           if (detailResponse.status === 200) {
             const $detail = cheerio.load(detailResponse.data);
             
-            // Extract detailed information
-            const fullTitle = $detail('h1').first().text().trim() || item.title;
+            // Extract detailed information - remove <small> from h1 (contains venue info)
+            const h1Element = $detail('h1').first();
+            // Remove <small> tag content before getting text
+            h1Element.find('small').remove();
+            const fullTitle = h1Element.text().trim() || item.title;
             const description = $detail('.hero__text').text().trim() || 
                                $detail('.intro__text').text().trim() ||
                                $detail('article p').first().text().trim() || 
@@ -5699,22 +5702,39 @@ export class RssFeedService {
             
             if (whenSection.length > 0) {
               const dateText = whenSection.find('p').text().trim();
-              // Parse Dutch date format like "05/02 - 06/02" or "05/02"
-              const dateMatch = dateText.match(/(\d{2})\/(\d{2})(?:\s*-\s*(\d{2})\/(\d{2}))?/);
-              if (dateMatch) {
-                const year = new Date().getFullYear();
-                const month1 = parseInt(dateMatch[2], 10);
-                const day1 = parseInt(dateMatch[1], 10);
+              
+              // Dutch month names to numbers
+              const dutchMonths: Record<string, number> = {
+                'januari': 1, 'februari': 2, 'maart': 3, 'april': 4,
+                'mei': 5, 'juni': 6, 'juli': 7, 'augustus': 8,
+                'september': 9, 'oktober': 10, 'november': 11, 'december': 12
+              };
+              
+              // Try full Dutch date format first: "donderdag 5 februari 2026"
+              const dutchDateMatch = dateText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i);
+              if (dutchDateMatch) {
+                const day1 = parseInt(dutchDateMatch[1], 10);
+                const month1 = dutchMonths[dutchDateMatch[2].toLowerCase()];
+                const year = parseInt(dutchDateMatch[3], 10);
                 startDate = `${year}-${month1.toString().padStart(2, '0')}-${day1.toString().padStart(2, '0')}`;
-                
-                if (dateMatch[3] && dateMatch[4]) {
-                  const month2 = parseInt(dateMatch[4], 10);
-                  const day2 = parseInt(dateMatch[3], 10);
-                  endDate = `${year}-${month2.toString().padStart(2, '0')}-${day2.toString().padStart(2, '0')}`;
+              } else {
+                // Fallback: Parse short Dutch date format like "05/02 - 06/02" or "05/02"
+                const dateMatch = dateText.match(/(\d{2})\/(\d{2})(?:\s*-\s*(\d{2})\/(\d{2}))?/);
+                if (dateMatch) {
+                  const year = new Date().getFullYear();
+                  const month1 = parseInt(dateMatch[2], 10);
+                  const day1 = parseInt(dateMatch[1], 10);
+                  startDate = `${year}-${month1.toString().padStart(2, '0')}-${day1.toString().padStart(2, '0')}`;
+                  
+                  if (dateMatch[3] && dateMatch[4]) {
+                    const month2 = parseInt(dateMatch[4], 10);
+                    const day2 = parseInt(dateMatch[3], 10);
+                    endDate = `${year}-${month2.toString().padStart(2, '0')}-${day2.toString().padStart(2, '0')}`;
+                  }
                 }
               }
               
-              // Extract time if available
+              // Extract time if available (e.g., "20:00 - 21:45 uur")
               const timeMatch = dateText.match(/(\d{1,2})[.:h](\d{2})(?:\s*(?:-|tot|–)\s*(\d{1,2})[.:h](\d{2}))?/);
               if (timeMatch) {
                 startTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}:00`;
@@ -5728,9 +5748,24 @@ export class RssFeedService {
             const whereSection = $detail('.agenda__where');
             let venueName = '';
             let address = '';
+            let venueCity = '';
+            let venuePostalCode = '';
             if (whereSection.length > 0) {
               venueName = whereSection.find('h2').text().trim();
-              address = whereSection.find('p').first().text().trim();
+              // Get raw text from first p, split by newlines/br
+              const locationHtml = whereSection.find('p').first().html() || '';
+              const locationText = locationHtml.split(/<br\s*\/?>/i)[0] || '';
+              address = cheerio.load(`<p>${locationText}</p>`)('p').text().trim();
+              
+              // Parse Dutch address format: "Straat 12, 5142 RA Waalwijk"
+              const addressMatch = address.match(/(.+),\s*(\d{4}\s*[A-Z]{2})\s+(.+)$/);
+              if (addressMatch) {
+                venuePostalCode = addressMatch[2].replace(/\s+/g, ' ').trim();
+                venueCity = addressMatch[3].trim();
+              } else {
+                // Fallback: extract city from item.location (from overview page)
+                venueCity = item.location || '';
+              }
             }
             
             // Extract image
@@ -5757,6 +5792,23 @@ export class RssFeedService {
               endTimeDate = new Date(`${startDate}T${endTime}`);
             }
             
+            // Geocode the address
+            let latitude: number | undefined;
+            let longitude: number | undefined;
+            
+            if (address && address.length > 5) {
+              try {
+                const geoResult = await this.geocodeAddress(address);
+                if (geoResult) {
+                  latitude = geoResult.lat;
+                  longitude = geoResult.lon;
+                  console.log(`[RSS] Geocoded "${venueName || 'venue'}" to ${latitude}, ${longitude}`);
+                }
+              } catch (geoError) {
+                console.log(`[RSS] Geocoding failed for "${address}"`);
+              }
+            }
+            
             detailedItems.push({
               externalId: item.link!,
               title: fullTitle,
@@ -5769,6 +5821,10 @@ export class RssFeedService {
               startTime: startTimeDate,
               endTime: endTimeDate,
               venueName: venueName || undefined,
+              venueCity: venueCity || undefined,
+              venuePostalCode: venuePostalCode || undefined,
+              latitude: latitude,
+              longitude: longitude,
             });
           } else {
             detailedItems.push(item);

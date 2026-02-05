@@ -29,6 +29,19 @@ function deg2rad(deg: number): number {
   return deg * (Math.PI / 180);
 }
 
+function extractCityFromAddress(address: string | null | undefined): string | null {
+  if (!address) return null;
+  const parts = address.split(',').map(p => p.trim());
+  if (parts.length >= 2) {
+    const lastPart = parts[parts.length - 1];
+    const cityMatch = lastPart.match(/\d{4}\s*[A-Z]{0,2}\s*(.+)/);
+    if (cityMatch) return cityMatch[1].trim();
+    const secondLast = parts[parts.length - 2];
+    if (secondLast && !secondLast.match(/^\d/)) return secondLast;
+  }
+  return parts[0] || null;
+}
+
 interface EventCardProps {
   event: EventInterface;
   distance?: number;
@@ -39,6 +52,7 @@ interface EventCardProps {
 
 export default function EventCard({ event, distance, gridView = false, onEventClick, isHighlighted = false }: EventCardProps) {
   const [showStreetView, setShowStreetView] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
   
   // Haal de huidige locatie op
@@ -151,50 +165,50 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
       }
     };
     
+    const cityName = extractCityFromAddress(event.address);
+    const showPlaceholder = !hasEventImage || imageError;
+    
     return (
       <div onClick={handleClick}>
         <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col event-card">
-          {/* Afbeelding bovenaan met overlay voor categorie en afstand */}
+          {/* Afbeelding bovenaan met overlay voor views en status */}
           <div className="relative h-48 overflow-hidden">
-            {hasEventImage ? (
-              // Toon de afbeelding van het evenement
-              <div className="h-full w-full">
-                <img 
-                  src={event.imageUrl || ''} 
-                  alt={event.title} 
-                  className="h-full w-full object-cover"
-                />
-              </div>
+            {showPlaceholder ? (
+              <img 
+                src={placeholderImage} 
+                alt={event.title} 
+                className="h-full w-full object-cover bg-gray-100"
+              />
             ) : (
-              // Als er geen afbeelding is, toon een placeholder
-              <div className="h-full w-full bg-gray-100 flex items-center justify-center">
-                <div className="flex flex-col items-center justify-center text-gray-500">
-                  <Image className="h-8 w-8 mb-2 opacity-50" />
-                  <span className="text-xs text-center">Geen afbeelding beschikbaar</span>
-                </div>
-              </div>
+              <img 
+                src={event.imageUrl || ''} 
+                alt={event.title} 
+                className="h-full w-full object-cover"
+                onError={() => setImageError(true)}
+              />
             )}
             
-            {/* Overlay met titel preview en afstand - alleen in tegelweergave (gridView), niet in kaartweergave */}
-            {window.location.pathname.includes('/web') && (
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-white z-20">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 truncate mr-2">
-                    <div className="flex items-center gap-1.5">
-                      <CategoryIcon category={event.category as any} className="h-4 w-4 flex-shrink-0" />
-                      <h3 className="text-lg font-semibold truncate">{event.title}</h3>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs font-medium shadow-sm flex-shrink-0">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                      ? `${calculatedDistance.toFixed(1)} km van jouw huidige locatie` 
-                      : 'Afstand onbekend'}
-                  </div>
-                </div>
+            {/* Links onder: views + event status overlay */}
+            <div className="absolute bottom-2 left-2 flex items-center gap-2 z-20">
+              {/* Views counter - altijd zichtbaar */}
+              <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs text-white">
+                <Eye className="h-3 w-3 mr-1" />
+                <span>{event.detailViews || 0}</span>
               </div>
-            )}
+              
+              {/* Event status badge */}
+              {isOngoing && (
+                <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium inline-flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-1 animate-pulse"></span>
+                  Nu bezig
+                </div>
+              )}
+              {isExpired && (
+                <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium inline-flex items-center">
+                  Verlopen
+                </div>
+              )}
+            </div>
           </div>
           
           {/* Content voor de kaart */}
@@ -203,28 +217,15 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
               {event.title}
             </CardTitle>
             
-            <div className="flex items-center gap-2 mt-1 text-gray-500">
-              <CategoryIcon category={event.category as any} className="flex-shrink-0 h-4 w-4" />
-              <div className="text-xs">
+            {/* Locatie: Plaatsnaam + km */}
+            <div className="flex items-center gap-1.5 mt-1 text-gray-500 text-sm">
+              <MapPin className="flex-shrink-0 h-4 w-4" />
+              <span>
+                {cityName && `${cityName} • `}
                 {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                  ? `${calculatedDistance.toFixed(1)} km van jouw huidige locatie` 
-                  : 'Afstand onbekend'}
-              </div>
-            </div>
-            
-            <div className="mt-2">
-              {isOngoing && (
-                <div className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
-                  Event is nu bezig
-                </div>
-              )}
-              {isExpired && (
-                <div className="bg-red-100 text-red-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
-                  <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
-                  Event is verlopen
-                </div>
-              )}
+                  ? `${calculatedDistance.toFixed(1)} km` 
+                  : ''}
+              </span>
             </div>
           </CardHeader>
           
@@ -259,14 +260,6 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 </div>
               )}
             </div>
-            
-            {/* View counter - alleen tonen als > 0 */}
-            {event.detailViews && event.detailViews > 0 && (
-              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground" data-testid={`stat-views-${event.id}`}>
-                <Eye className="h-3 w-3" />
-                <span>{event.detailViews}x bekeken</span>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -311,39 +304,65 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
       }
     };
     
+    const appCityName = extractCityFromAddress(event.address);
+    const appShowPlaceholder = !hasEventImage || imageError;
+    
     return (
       <div onClick={handleAppClick}>
         <Card className="overflow-hidden mb-4 transition-all hover:shadow-md cursor-pointer event-card">
           <div className="p-0">
             {/* Afbeelding container bovenaan */}
             <div className="w-full h-48 relative bg-gray-100">
-              {hasEventImage ? (
+              {appShowPlaceholder ? (
                 <img 
-                  src={event.imageUrl || ''} 
+                  src={placeholderImage} 
                   alt={event.title} 
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="h-full w-full flex items-center justify-center">
-                  <div className="flex flex-col items-center justify-center text-gray-500">
-                    <Image className="h-12 w-12 mb-2 opacity-50" />
-                    <span className="text-sm text-center">Geen afbeelding beschikbaar</span>
-                  </div>
-                </div>
+                <img 
+                  src={event.imageUrl || ''} 
+                  alt={event.title} 
+                  className="h-full w-full object-cover"
+                  onError={() => setImageError(true)}
+                />
               )}
+              
+              {/* Links onder: views + event status overlay */}
+              <div className="absolute bottom-2 left-2 flex items-center gap-2 z-20">
+                {/* Views counter - altijd zichtbaar */}
+                <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs text-white">
+                  <Eye className="h-3 w-3 mr-1" />
+                  <span>{event.detailViews || 0}</span>
+                </div>
+                
+                {/* Event status badge */}
+                {isOngoing && (
+                  <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium inline-flex items-center">
+                    <span className="w-1.5 h-1.5 bg-white rounded-full mr-1 animate-pulse"></span>
+                    Nu bezig
+                  </div>
+                )}
+                {isExpired && (
+                  <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium inline-flex items-center">
+                    Verlopen
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Titel en details container */}
             <div className="p-4">
               <h3 className="text-lg font-semibold mb-1">{event.title}</h3>
               
-              {/* Afstand indicator */}
+              {/* Locatie: Plaatsnaam + km */}
               <div className="flex items-center gap-1 text-blue-500 mb-1">
                 <MapPin className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm">
+                  {appCityName && `${appCityName} • `}
                   {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                    ? `${calculatedDistance.toFixed(1)} km van jouw huidige locatie` 
-                    : 'Afstand onbekend'}
+                    ? `${calculatedDistance.toFixed(1)} km` 
+                    : ''}
                 </span>
               </div>
               
@@ -366,33 +385,6 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                   })()}
                 </span>
               </div>
-              
-              {/* Status indicatoren */}
-              {isOngoing && (
-                <div className="text-green-500 font-medium text-sm">
-                  <span className="flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
-                    Event is nu bezig
-                  </span>
-                </div>
-              )}
-              
-              {isExpired && (
-                <div className="text-red-500 font-medium text-sm">
-                  <span className="flex items-center">
-                    <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
-                    Event is verlopen
-                  </span>
-                </div>
-              )}
-              
-              {/* View counter - alleen tonen als > 0 */}
-              {event.detailViews && event.detailViews > 0 && (
-                <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground" data-testid={`stat-views-${event.id}`}>
-                  <Eye className="h-3 w-3" />
-                  <span>{event.detailViews}x bekeken</span>
-                </div>
-              )}
             </div>
           </div>
         </Card>
@@ -401,37 +393,51 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
   }
 
   // De originele web lijstweergave (voor /web/ routes)
+  const listCityName = extractCityFromAddress(event.address);
+  const listShowPlaceholder = !hasEventImage || imageError;
+  
   return (
     <Link href={detailLink} onClick={window.location.pathname.includes('/web') ? showEventOnMap : undefined}>
       <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer event-card">
         <div className="flex flex-col md:flex-row">
           {/* Afbeelding links */}
           <div className="md:w-1/3 h-[180px] md:h-auto relative">
-            {hasEventImage ? (
+            {listShowPlaceholder ? (
+              <img 
+                src={placeholderImage} 
+                alt={event.title} 
+                className="h-full w-full object-cover bg-gray-100"
+              />
+            ) : (
               <img 
                 src={event.imageUrl || ''} 
                 alt={event.title} 
                 className="h-full w-full object-cover"
+                onError={() => setImageError(true)}
               />
-            ) : (
-              // Als er geen afbeelding is, toon een placeholder
-              <div className="h-full w-full bg-gray-100 flex items-center justify-center">
-                <div className="flex flex-col items-center justify-center text-gray-500">
-                  <Image className="h-8 w-8 mb-2 opacity-50" />
-                  <span className="text-xs text-center">Geen afbeelding beschikbaar</span>
-                </div>
-              </div>
             )}
             
-            {/* Titel preview overlay - alleen in lijstweergave, niet op de kaart zelf */}
-            {window.location.pathname.includes('/web') && (
-              <div className="absolute top-2 left-2 right-2 z-10">
-                <div className="flex items-center gap-1.5 text-white bg-black/60 px-2 py-1 rounded shadow">
-                  <CategoryIcon category={event.category as any} className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate text-lg font-semibold">{event.title}</span>
-                </div>
+            {/* Links onder: views + event status overlay */}
+            <div className="absolute bottom-2 left-2 flex items-center gap-2 z-20">
+              {/* Views counter - altijd zichtbaar */}
+              <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs text-white">
+                <Eye className="h-3 w-3 mr-1" />
+                <span>{event.detailViews || 0}</span>
               </div>
-            )}
+              
+              {/* Event status badge */}
+              {isOngoing && (
+                <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium inline-flex items-center">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full mr-1 animate-pulse"></span>
+                  Nu bezig
+                </div>
+              )}
+              {isExpired && (
+                <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium inline-flex items-center">
+                  Verlopen
+                </div>
+              )}
+            </div>
           </div>
           
           {/* Content rechts */}
@@ -446,9 +452,10 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
                       <span className="text-xs">
+                        {listCityName && `${listCityName} • `}
                         {calculatedDistance !== undefined && typeof calculatedDistance === 'number' 
-                          ? `${calculatedDistance.toFixed(1)} km van jouw huidige locatie` 
-                          : 'Afstand onbekend'}
+                          ? `${calculatedDistance.toFixed(1)} km` 
+                          : ''}
                       </span>
                     </div>
                   </CardDescription>
@@ -458,18 +465,6 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
 
             <CardContent className="p-4 pt-2 flex-1 flex flex-col">
               <div className="flex flex-col gap-2 mb-4">
-                {isOngoing && (
-                  <div className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
-                    Event is nu bezig
-                  </div>
-                )}
-                {isExpired && (
-                  <div className="bg-red-100 text-red-800 px-2 py-1 rounded-md text-xs font-medium inline-flex items-center">
-                    <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
-                    Event is verlopen
-                  </div>
-                )}
                 {!isOngoing && !isExpired && (
                   <CountdownTimer 
                     targetDate={startTime}
@@ -509,14 +504,6 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                     })()}
                   </span>
                 </div>
-                
-                {/* View counter - alleen tonen als > 0 */}
-                {event.detailViews && event.detailViews > 0 && (
-                  <div className="flex items-center gap-1 text-xs" data-testid={`stat-views-${event.id}`}>
-                    <Eye className="h-3 w-3" />
-                    <span>{event.detailViews}x</span>
-                  </div>
-                )}
               </div>
             </CardContent>
           </div>

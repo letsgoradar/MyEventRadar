@@ -4,10 +4,17 @@ export function formatEventTime(date: string | Date | null | undefined): string 
   const d = new Date(date);
   if (isNaN(d.getTime())) return null;
   
-  const hours = d.getHours();
-  const minutes = d.getMinutes();
+  // Check UTC hours - database stores times in UTC
+  // 00:00 UTC or 23:59 UTC indicates "date-only" (no explicit time)
+  const utcHours = d.getUTCHours();
+  const utcMinutes = d.getUTCMinutes();
+  const utcSeconds = d.getUTCSeconds();
   
-  if (hours === 0 && minutes === 0) {
+  // Date-only indicator: 00:00:00 UTC (start of day) or 23:59:59 UTC (end of day)
+  if (utcHours === 0 && utcMinutes === 0 && utcSeconds === 0) {
+    return null;
+  }
+  if (utcHours === 23 && utcMinutes === 59 && utcSeconds === 59) {
     return null;
   }
   
@@ -46,10 +53,16 @@ export function hasValidTime(date: string | Date | null | undefined): boolean {
   const d = new Date(date);
   if (isNaN(d.getTime())) return false;
   
-  const hours = d.getHours();
-  const minutes = d.getMinutes();
+  // Check UTC hours - database stores times in UTC
+  const utcHours = d.getUTCHours();
+  const utcMinutes = d.getUTCMinutes();
+  const utcSeconds = d.getUTCSeconds();
   
-  return !(hours === 0 && minutes === 0);
+  // 00:00:00 UTC or 23:59:59 UTC = no valid time (date-only)
+  if (utcHours === 0 && utcMinutes === 0 && utcSeconds === 0) return false;
+  if (utcHours === 23 && utcMinutes === 59 && utcSeconds === 59) return false;
+  
+  return true;
 }
 
 /**

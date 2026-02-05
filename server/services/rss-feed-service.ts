@@ -4551,15 +4551,24 @@ export class RssFeedService {
             const firstDate = futureDates[0];
             const lastDate = futureDates[futureDates.length - 1];
             
-            let startTime = firstDate.start;
-            let endTime = lastDate.end;
+            // CRITICAL: Start with date-only, no time (strip any placeholder time from startDate)
+            // The API sometimes puts T12:00:00 or T00:00:00 in startDate as placeholder
+            let startTime = new Date(firstDate.start);
+            startTime.setUTCHours(0, 0, 0, 0); // Reset to midnight - date only
             
-            // Apply specific times if available
+            let endTime = new Date(lastDate.end);
+            endTime.setUTCHours(23, 59, 59, 999); // End of day - date only
+            
+            // FEED PRINCIPLE 6: ONLY apply time if explicit startTime field exists
+            // If no startTime field, leave as date-only (no fake times!)
+            let hasExplicitTime = false;
+            
             if (firstDate.startTime) {
               const timeHours = firstDate.startTime.getUTCHours();
               const timeMinutes = firstDate.startTime.getUTCMinutes();
               startTime = new Date(firstDate.start);
               startTime.setUTCHours(timeHours, timeMinutes, 0, 0);
+              hasExplicitTime = true;
             }
             
             if (lastDate.endTime) {
@@ -4567,6 +4576,10 @@ export class RssFeedService {
               const timeMinutes = lastDate.endTime.getUTCMinutes();
               endTime = new Date(lastDate.end);
               endTime.setUTCHours(timeHours, timeMinutes, 0, 0);
+            } else if (!hasExplicitTime) {
+              // No explicit time at all - set endTime to end of day
+              endTime = new Date(lastDate.end);
+              endTime.setUTCHours(23, 59, 59, 999);
             }
             
             // FEED PRINCIPLE 3: Use source images

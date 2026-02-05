@@ -36,6 +36,8 @@ const AdminEventForm = React.lazy(() => import("@/pages/admin/EventForm"));
 const AdminRssFeeds = React.lazy(() => import("@/pages/admin/RssFeeds"));
 const TagManager = React.lazy(() => import("@/pages/admin/TagManager"));
 const AdminPromotions = React.lazy(() => import("@/pages/admin/Promotions"));
+const AdminVenues = React.lazy(() => import("@/pages/admin/Venues"));
+const AdminVenueDetail = React.lazy(() => import("@/pages/admin/VenueDetail"));
 
 // Web componenten (lazy loaded) - Let op: Web.tsx is direct in pages, niet in Web/
 const WebPage = React.lazy(() => import("@/pages/Web.tsx"));
@@ -144,6 +146,16 @@ export default function App() {
         <Route path="/admin/events/edit/:id">
           <AuthGuard>
             <AdminEventForm />
+          </AuthGuard>
+        </Route>
+        <Route path="/admin/venues">
+          <AuthGuard>
+            <AdminVenues />
+          </AuthGuard>
+        </Route>
+        <Route path="/admin/venues/:id">
+          <AuthGuard>
+            <AdminVenueDetail />
           </AuthGuard>
         </Route>
         

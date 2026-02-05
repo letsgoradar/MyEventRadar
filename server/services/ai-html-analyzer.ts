@@ -295,7 +295,7 @@ Antwoord in JSON formaat:
       const result = await AiProvider.complete({
         systemPrompt: "Je bent een expert in web scraping en CSS selectors. Analyseer HTML structuren en bepaal de beste selectors om event data te extraheren. Wees specifiek en gebruik relatieve selectors waar mogelijk. Antwoord alleen in JSON.",
         userPrompt: prompt,
-        maxTokens: 500,
+        maxTokens: 1000,
         temperature: 0.1,
         jsonMode: true,
       });

@@ -2076,6 +2076,9 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
             const itemArray = Array.isArray(items) ? items : [items];
             
             if (itemArray.length > 0) {
+              // Detect pagination in RSS/Atom feed and count total items
+              const paginationInfo = await this.detectAndCountRssPagination(feedUrl, content, parsed, itemArray.length);
+              
               // Analyze feed structure with FeedFieldDetector
               const itemsWithRaw = itemArray.map((item: any) => ({ rawData: item }));
               const fieldDetection = FeedFieldDetector.analyzeItems(itemsWithRaw);
@@ -2086,12 +2089,21 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
                 await FeedFieldDetector.saveMapping(domain, fieldDetection.suggestedMappings);
               }
               
+              const totalEvents = paginationInfo.totalItems || itemArray.length;
+              const paginationNote = paginationInfo.hasMore 
+                ? ` (${itemArray.length} per pagina, ~${totalEvents} totaal over ${paginationInfo.estimatedPages} pagina's)`
+                : '';
+              
               return {
                 viable: true,
                 feedUrl,
-                eventCount: itemArray.length,
-                reason: `RSS/Atom feed gevonden met ${itemArray.length} items`,
-                sampleEvent: this.formatSampleEvent(itemArray[0], 'rss'),
+                eventCount: totalEvents,
+                reason: `RSS/Atom feed gevonden met ${totalEvents} items${paginationNote}`,
+                sampleEvent: {
+                  ...this.formatSampleEvent(itemArray[0], 'rss'),
+                  paginationPages: paginationInfo.estimatedPages,
+                  paginationType: paginationInfo.type,
+                },
                 fieldDetection: {
                   detectedFields: fieldDetection.detectedFields,
                   hasLocationData: fieldDetection.hasLocationData,
@@ -2107,6 +2119,156 @@ Let op de tijdregel: alleen tijden extraheren als je 100% zeker bent welke start
       }
     } catch {}
     return { viable: false, reason: 'Geen RSS/Atom feed gevonden' };
+  }
+
+  private static async detectAndCountRssPagination(
+    feedUrl: string, 
+    rawContent: string, 
+    parsed: any, 
+    itemsOnFirstPage: number
+  ): Promise<{ hasMore: boolean; totalItems: number; estimatedPages: number; type?: string }> {
+    try {
+      // Check OpenSearch metadata (totalResults, itemsPerPage)
+      const channel = parsed.rss?.channel || parsed.feed || {};
+      const openSearchTotal = parseInt(
+        channel['opensearch:totalResults'] || 
+        channel['openSearch:totalResults'] || 
+        channel['totalResults'] || '0'
+      );
+      const openSearchPerPage = parseInt(
+        channel['opensearch:itemsPerPage'] || 
+        channel['openSearch:itemsPerPage'] || 
+        channel['itemsPerPage'] || '0'
+      );
+      
+      if (openSearchTotal > itemsOnFirstPage) {
+        const pages = openSearchPerPage > 0 
+          ? Math.ceil(openSearchTotal / openSearchPerPage) 
+          : Math.ceil(openSearchTotal / itemsOnFirstPage);
+        return { hasMore: true, totalItems: openSearchTotal, estimatedPages: pages, type: 'opensearch' };
+      }
+      
+      // Check Atom link rel="next"
+      const atomLinks = parsed.feed?.link || [];
+      const atomLinksArray = Array.isArray(atomLinks) ? atomLinks : [atomLinks];
+      const nextLink = atomLinksArray.find((l: any) => 
+        l?.$ && l.$.rel === 'next' || l?.['@_rel'] === 'next'
+      );
+      if (nextLink) {
+        // Follow pagination to count total
+        const totalCount = await this.countRssPaginatedItems(feedUrl, itemsOnFirstPage, 'atom-link');
+        return { 
+          hasMore: true, 
+          totalItems: totalCount.total, 
+          estimatedPages: totalCount.pages, 
+          type: 'atom-link' 
+        };
+      }
+      
+      // Check raw XML for link rel="next" (may not parse correctly)
+      if (rawContent.includes('rel="next"') || rawContent.includes("rel='next'")) {
+        const nextMatch = rawContent.match(/rel=["']next["'][^>]*href=["']([^"']+)["']/i) ||
+                          rawContent.match(/href=["']([^"']+)["'][^>]*rel=["']next["']/i);
+        if (nextMatch) {
+          const totalCount = await this.countRssPaginatedItems(feedUrl, itemsOnFirstPage, 'atom-link');
+          return { 
+            hasMore: true, 
+            totalItems: totalCount.total, 
+            estimatedPages: totalCount.pages, 
+            type: 'atom-link' 
+          };
+        }
+      }
+      
+      // Check WordPress paged parameter (try page 2)
+      const wpPagedUrl = feedUrl.includes('?') 
+        ? `${feedUrl}&paged=2` 
+        : `${feedUrl}?paged=2`;
+      
+      try {
+        const page2Response = await axios.get(wpPagedUrl, {
+          headers: { 
+            'User-Agent': this.USER_AGENT,
+            'Accept': 'application/rss+xml, application/atom+xml, application/xml'
+          },
+          timeout: 8000,
+        });
+        
+        if (typeof page2Response.data === 'string' && 
+            (page2Response.data.includes('<item>') || page2Response.data.includes('<entry>'))) {
+          const parsed2 = await parseXmlWithFallback(page2Response.data);
+          const items2 = parsed2.rss?.channel?.item || parsed2.feed?.entry || [];
+          const items2Array = Array.isArray(items2) ? items2 : [items2];
+          
+          if (items2Array.length > 0) {
+            // WordPress pagination works, count all pages
+            const totalCount = await this.countRssPaginatedItems(feedUrl, itemsOnFirstPage, 'wordpress');
+            return { 
+              hasMore: true, 
+              totalItems: totalCount.total, 
+              estimatedPages: totalCount.pages, 
+              type: 'wordpress' 
+            };
+          }
+        }
+      } catch {}
+      
+    } catch (error: any) {
+      console.log(`[FeedAnalyzer] RSS pagination detection error: ${error.message}`);
+    }
+    
+    return { hasMore: false, totalItems: itemsOnFirstPage, estimatedPages: 1 };
+  }
+
+  private static async countRssPaginatedItems(
+    feedUrl: string, 
+    itemsOnFirstPage: number, 
+    type: 'wordpress' | 'atom-link'
+  ): Promise<{ total: number; pages: number }> {
+    let totalItems = itemsOnFirstPage;
+    let currentPage = 2;
+    const maxPages = 10; // Safety limit
+    
+    while (currentPage <= maxPages) {
+      try {
+        let pageUrl: string;
+        if (type === 'wordpress') {
+          pageUrl = feedUrl.includes('?') 
+            ? `${feedUrl}&paged=${currentPage}` 
+            : `${feedUrl}?paged=${currentPage}`;
+        } else {
+          // For atom-link, we'd need to follow the next links - simplified estimation
+          break;
+        }
+        
+        const response = await axios.get(pageUrl, {
+          headers: { 
+            'User-Agent': this.USER_AGENT,
+            'Accept': 'application/rss+xml, application/atom+xml, application/xml'
+          },
+          timeout: 5000,
+        });
+        
+        if (typeof response.data === 'string') {
+          const parsed = await parseXmlWithFallback(response.data);
+          const items = parsed.rss?.channel?.item || parsed.feed?.entry || [];
+          const itemArray = Array.isArray(items) ? items : [items];
+          
+          if (itemArray.length === 0) {
+            break; // No more items
+          }
+          
+          totalItems += itemArray.length;
+          currentPage++;
+        } else {
+          break;
+        }
+      } catch {
+        break; // Stop on error
+      }
+    }
+    
+    return { total: totalItems, pages: currentPage - 1 };
   }
 
   private static async checkIcalFeed(baseUrl: string): Promise<MethodCheckResult | null> {

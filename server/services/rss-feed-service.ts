@@ -6647,27 +6647,15 @@ export class RssFeedService {
         if (detailSelectors.location) {
           const locEl = $(detailSelectors.location).first();
           if (locEl.length) {
-            const valueEls = locEl.find('.value');
-            if (valueEls.length) {
-              const values: string[] = [];
-              valueEls.each((_, v) => {
-                const t = $(v).text().trim();
-                if (t) values.push(t);
-              });
-              if (values.length > 0) {
-                venueName = values[0];
-                if (values.length > 1) {
-                  address = values.join(', ');
-                }
-                location = venueName;
-              }
-            } else {
-              let locText = locEl.text().trim();
-              locText = locText.replace(/^(Locatie|Waar|Location|Venue)\s*[:]\s*/i, '').trim();
-              if (locText) {
-                venueName = locText;
-                location = venueName;
-              }
+            const parsed = this.parseLocationFromElement($, locEl);
+            if (parsed.venueName) venueName = parsed.venueName;
+            if (parsed.streetAddress) address = parsed.streetAddress;
+            if (parsed.fullAddress) {
+              if (!address) address = parsed.fullAddress;
+            }
+            location = venueName || address;
+            if (venueName || address) {
+              console.log(`[RSS] Location parsed: venue="${venueName || ''}", address="${address || ''}" for "${title}"`);
             }
           }
         }
@@ -6821,18 +6809,26 @@ export class RssFeedService {
         }
       }
       
-      // Extract location from HTML if not found in JSON-LD
+      // Extract location from HTML if not found in JSON-LD or detail selectors
       if (!latitude || !longitude) {
-        const locationSelectors = [
-          '[class*="locatie"]', '[class*="location"]', '[class*="venue"]', '[class*="waar"]',
-          '[class*="adres"]', '[class*="address"]', '.event-location', '.location-name'
-        ];
-        
-        for (const selector of locationSelectors) {
-          const el = $(selector).first();
-          if (el.length && el.text().trim()) {
-            if (!venueName) venueName = el.text().trim();
-            break;
+        if (!venueName && !address) {
+          const locationSelectors = [
+            '[class*="locatie"]', '[class*="location"]', '[class*="venue"]', '[class*="waar"]',
+            '[class*="adres"]', '[class*="address"]', '.event-location', '.location-name'
+          ];
+          
+          for (const selector of locationSelectors) {
+            const el = $(selector).first();
+            if (el.length && el.text().trim()) {
+              const parsed = this.parseLocationFromElement($, el);
+              if (parsed.venueName && !venueName) venueName = parsed.venueName;
+              if (parsed.streetAddress && !address) address = parsed.streetAddress;
+              if (!venueName && !address && parsed.fullAddress) {
+                venueName = parsed.fullAddress;
+              }
+              location = venueName || address;
+              break;
+            }
           }
         }
         
@@ -6846,33 +6842,26 @@ export class RssFeedService {
         }
         
         if (!latitude || !longitude) {
-          if (!address) {
-            const addressSelectors = [
-              '[class*="address"]', '[class*="adres"]', '.street-address'
-            ];
-            for (const selector of addressSelectors) {
-              const el = $(selector).first();
-              if (el.length && el.text().trim()) {
-                address = el.text().trim();
-                break;
-              }
-            }
-          }
-          
+          const hasPostalCode = address && /\d{4}\s*[A-Z]{2}/.test(address);
+          const addrHasCity = address && /[A-Z][a-z]{2,}/.test(address.split(',').pop()?.trim() || '');
           const geocodeQuery = address && address.length > 5
-            ? address
+            ? ((hasPostalCode && addrHasCity) || address.includes(municipality)
+                ? `${address}, Nederland`
+                : `${address}, ${municipality}, Nederland`)
             : venueName
               ? `${venueName}, ${municipality}, Nederland`
               : null;
           
           if (geocodeQuery) {
+            console.log(`[RSS] Geocoding: "${geocodeQuery}"`);
             const geocodeResult = await this.geocodeWithMunicipalityValidation(geocodeQuery, municipality);
             if (geocodeResult) {
               latitude = geocodeResult.lat;
               longitude = geocodeResult.lon;
               
-              if (venueName) {
-                await VenueService.findOrCreateVenue(venueName, {
+              const venueLabel = venueName || address || '';
+              if (venueLabel) {
+                await VenueService.findOrCreateVenue(venueLabel, {
                   municipality,
                   address: address || geocodeQuery,
                   latitude,
@@ -7809,10 +7798,14 @@ export class RssFeedService {
         }
       }
 
-      // STEP 2: Try geocoding with regional distance limit
-      if (!geocodeSuccess && (parsedItem.address || parsedItem.location)) {
-        const locationQuery = parsedItem.address || parsedItem.location || "";
-        const geoResult = await this.geocodeWithRegionalLimit(locationQuery, expectedMunicipality, MAX_DISTANCE_KM);
+      // STEP 2: Try geocoding street address with municipality context
+      if (!geocodeSuccess && parsedItem.address) {
+        const hasPostalCode = /\d{4}\s*[A-Z]{2}/.test(parsedItem.address);
+        const hasCityName = /[A-Z][a-z]{2,}/.test(parsedItem.address.split(',').pop()?.trim() || '');
+        const addrQuery = (hasPostalCode && hasCityName) || parsedItem.address.includes(expectedMunicipality)
+          ? `${parsedItem.address}, Nederland`
+          : `${parsedItem.address}, ${expectedMunicipality}, Nederland`;
+        const geoResult = await this.geocodeWithRegionalLimit(addrQuery, expectedMunicipality, MAX_DISTANCE_KM);
         if (geoResult) {
           latitude = geoResult.lat.toString();
           longitude = geoResult.lon.toString();
@@ -7822,14 +7815,28 @@ export class RssFeedService {
         }
       }
       
-      // STEP 3: Try venue-only geocoding with regional limit
+      // STEP 3: Try venue name geocoding with regional limit
       if (!geocodeSuccess && parsedItem.location) {
-        const venueResult = await this.geocodeWithRegionalLimit(parsedItem.location, expectedMunicipality, MAX_DISTANCE_KM);
+        const venueQuery = `${parsedItem.location}, ${expectedMunicipality}, Nederland`;
+        const venueResult = await this.geocodeWithRegionalLimit(venueQuery, expectedMunicipality, MAX_DISTANCE_KM);
         if (venueResult) {
           latitude = venueResult.lat.toString();
           longitude = venueResult.lon.toString();
           address = parsedItem.address || `${parsedItem.location}, ${venueResult.actualMunicipality}`;
           actualMunicipality = venueResult.actualMunicipality;
+          geocodeSuccess = true;
+        }
+      }
+      
+      // STEP 4: Try combined venue + address query
+      if (!geocodeSuccess && parsedItem.location && parsedItem.address) {
+        const combinedQuery = `${parsedItem.location}, ${parsedItem.address}, Nederland`;
+        const combinedResult = await this.geocodeWithRegionalLimit(combinedQuery, expectedMunicipality, MAX_DISTANCE_KM);
+        if (combinedResult) {
+          latitude = combinedResult.lat.toString();
+          longitude = combinedResult.lon.toString();
+          address = parsedItem.address || `${parsedItem.location}, ${combinedResult.actualMunicipality}`;
+          actualMunicipality = combinedResult.actualMunicipality;
           geocodeSuccess = true;
         }
       }
@@ -8166,6 +8173,122 @@ export class RssFeedService {
     return result.trim();
   }
 
+  private static parseLocationFromElement($: any, el: any): {
+    venueName?: string;
+    streetAddress?: string;
+    fullAddress?: string;
+  } {
+    const result: { venueName?: string; streetAddress?: string; fullAddress?: string } = {};
+    
+    const childEls = el.find('.value, .address-line, [class*="street"], [class*="address"], [class*="city"], [class*="postal"], span, p, dd');
+    const values: string[] = [];
+    
+    if (childEls.length > 0) {
+      const seen = new Set<string>();
+      childEls.each((_: number, v: any) => {
+        let t = $(v).text().trim();
+        if (!t || seen.has(t)) return;
+        
+        if (t.includes('@') || t.match(/^[\+]?\d[\d\s\-\(\)]{6,}$/) || t.match(/^https?:\/\//) || t.match(/^www\./)) return;
+        
+        const linkChild = $(v).find('a[href^="http"], a[href^="mailto"], a[href^="tel"]');
+        if (linkChild.length > 0 && !t.match(/\d{4}\s*[A-Z]{2}/)) return;
+        
+        seen.add(t);
+        values.push(t);
+      });
+    }
+    
+    if (values.length === 0) {
+      let locText = el.text().trim();
+      locText = locText.replace(/^(Locatie|Waar|Location|Venue|Adres|Address)\s*[:]\s*/i, '').trim();
+      locText = locText.replace(/[\r\n]+/g, ', ').replace(/\s+/g, ' ').trim();
+      if (locText) {
+        const components = this.classifyAddressComponents([locText]);
+        Object.assign(result, components);
+      }
+      return result;
+    }
+    
+    return this.classifyAddressComponents(values);
+  }
+  
+  private static classifyAddressComponents(values: string[]): {
+    venueName?: string;
+    streetAddress?: string;
+    fullAddress?: string;
+  } {
+    const result: { venueName?: string; streetAddress?: string; fullAddress?: string } = {};
+    
+    const dutchPostcodeRegex = /\d{4}\s*[A-Z]{2}/;
+    const streetRegex = /^[A-Za-zÀ-ÿ\s\-\.']+(straat|weg|laan|plein|gracht|kade|singel|dijk|pad|dreef|hof|steeg|burcht|markt|park|haven|brug|ring|boulevard|dam)\s+\d/i;
+    const streetWithNumberRegex = /\d+\s*[a-zA-Z]?\s*$/;
+    const houseNumberRegex = /\b\d{1,5}\s*[a-zA-Z]?\s*$/;
+    
+    if (values.length === 1 && values[0].includes(',')) {
+      const parts = values[0].split(',').map(p => p.trim()).filter(p => p.length > 0);
+      if (parts.length >= 2) {
+        const hasPostcode = parts.some(p => dutchPostcodeRegex.test(p));
+        const hasStreet = parts.some(p => streetRegex.test(p) || (houseNumberRegex.test(p) && p.match(/[A-Za-zÀ-ÿ]/)));
+        if (hasPostcode || hasStreet) {
+          return this.classifyAddressComponents(parts);
+        }
+      }
+    }
+    
+    const streetParts: string[] = [];
+    const postcodeParts: string[] = [];
+    const venueNames: string[] = [];
+    const ambiguous: string[] = [];
+    
+    const hasExplicitStreet = values.some(v => streetRegex.test(v));
+    
+    for (const val of values) {
+      if (dutchPostcodeRegex.test(val)) {
+        postcodeParts.push(val);
+      } else if (streetRegex.test(val)) {
+        streetParts.push(val);
+      } else if (houseNumberRegex.test(val) && val.match(/[A-Za-zÀ-ÿ]/)) {
+        if (val.includes(' - ') || val.includes(' – ')) {
+          venueNames.push(val);
+        } else if (hasExplicitStreet) {
+          venueNames.push(val);
+        } else if (val.length < 60 && streetWithNumberRegex.test(val)) {
+          streetParts.push(val);
+        } else {
+          venueNames.push(val);
+        }
+      } else {
+        venueNames.push(val);
+      }
+    }
+    
+    if (streetParts.length > 0) {
+      result.streetAddress = [...streetParts, ...postcodeParts].join(', ');
+    } else if (postcodeParts.length > 0) {
+      result.streetAddress = postcodeParts.join(', ');
+    }
+    
+    if (venueNames.length > 0) {
+      result.venueName = venueNames[0];
+    }
+    
+    if (result.streetAddress && result.venueName) {
+      result.fullAddress = `${result.venueName}, ${result.streetAddress}`;
+    } else if (result.streetAddress) {
+      result.fullAddress = result.streetAddress;
+    } else if (result.venueName) {
+      result.fullAddress = result.venueName;
+    }
+    
+    if (!result.streetAddress && !result.venueName && values.length > 0) {
+      result.fullAddress = values.join(', ');
+      result.venueName = values[0];
+    }
+    
+    return result;
+  }
+  
   private static cleanText(text: string): string {
     if (!text) return "";
     return text

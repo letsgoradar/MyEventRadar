@@ -26,9 +26,8 @@ export interface AiCompletionResult {
 export class AiProvider {
   private static readonly GEMINI_MODEL = "gemini-2.5-flash";
   private static retryCount = 0;
-  private static readonly MAX_RETRIES = 1; // Reduced from 2 for faster failure
+  private static readonly MAX_RETRIES = 1;
   
-  // AI call tracking for cost control
   private static callCount = 0;
   private static sessionStartTime = Date.now();
   private static readonly MAX_CALLS_PER_SESSION = 50;
@@ -53,7 +52,6 @@ export class AiProvider {
   static async complete(options: AiCompletionOptions): Promise<AiCompletionResult> {
     const { systemPrompt, userPrompt, maxTokens = 500, temperature = 0.1, jsonMode = false } = options;
 
-    // Check AI call limit
     if (this.callCount >= this.MAX_CALLS_PER_SESSION) {
       return {
         success: false,
@@ -66,7 +64,7 @@ export class AiProvider {
     
     for (let attempt = 0; attempt <= this.MAX_RETRIES; attempt++) {
       try {
-        this.callCount++; // Count each API call attempt
+        this.callCount++;
         const result = await this.tryGemini(systemPrompt, userPrompt, maxTokens, temperature, jsonMode);
         if (result.success) {
           return result;
@@ -74,14 +72,14 @@ export class AiProvider {
         lastError = result.error || 'Unknown error';
         
         if (attempt < this.MAX_RETRIES) {
-          const delay = 250 * (attempt + 1); // Faster: 250ms, 500ms
+          const delay = 250 * (attempt + 1);
           console.log(`[AI Provider] Gemini attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       } catch (error: any) {
         lastError = error.message;
         if (attempt < this.MAX_RETRIES) {
-          const delay = 250 * (attempt + 1); // Faster: 250ms, 500ms
+          const delay = 250 * (attempt + 1);
           console.log(`[AI Provider] Gemini error: ${error.message}, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
@@ -112,6 +110,7 @@ CRITICAL JSON FORMAT REQUIREMENTS:
 - All property names must be in double quotes
 - All string values must be in double quotes
 - No trailing commas
+- Keep string values SHORT and CONCISE to avoid truncation
 - Your response must start with { and end with }
 
 ${userPrompt}`;
@@ -144,11 +143,16 @@ ${userPrompt}`;
       try {
         JSON.parse(cleanedContent);
       } catch (e) {
-        return {
-          success: false,
-          provider: 'gemini',
-          error: `Invalid JSON: ${(e as Error).message}`,
-        };
+        const repaired = this.repairTruncatedJson(cleanedContent);
+        if (repaired) {
+          cleanedContent = repaired;
+        } else {
+          return {
+            success: false,
+            provider: 'gemini',
+            error: `Invalid JSON: ${(e as Error).message}`,
+          };
+        }
       }
     }
 
@@ -159,32 +163,103 @@ ${userPrompt}`;
     };
   }
 
+  private static repairTruncatedJson(json: string): string | null {
+    let repaired = json.trim();
+    
+    const openBraces = (repaired.match(/\{/g) || []).length;
+    const closeBraces = (repaired.match(/\}/g) || []).length;
+    const openBrackets = (repaired.match(/\[/g) || []).length;
+    const closeBrackets = (repaired.match(/\]/g) || []).length;
+    
+    let inString = false;
+    let escaped = false;
+    let lastValidPos = 0;
+    
+    for (let i = 0; i < repaired.length; i++) {
+      const ch = repaired[i];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = !inString;
+        if (!inString) {
+          lastValidPos = i;
+        }
+        continue;
+      }
+      if (!inString) {
+        if (ch === '{' || ch === '}' || ch === '[' || ch === ']' || ch === ',' || ch === ':') {
+          lastValidPos = i;
+        }
+      }
+    }
+    
+    if (inString) {
+      repaired = repaired.substring(0, lastValidPos + 1);
+      
+      if (repaired.endsWith(':')) {
+        repaired = repaired.slice(0, -1);
+        const lastComma = repaired.lastIndexOf(',');
+        if (lastComma > 0) {
+          repaired = repaired.substring(0, lastComma);
+        }
+      }
+      
+      if (repaired.endsWith(',')) {
+        repaired = repaired.slice(0, -1);
+      }
+    }
+    
+    repaired = repaired.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+    
+    const remainingOpenBraces = (repaired.match(/\{/g) || []).length;
+    const remainingCloseBraces = (repaired.match(/\}/g) || []).length;
+    const remainingOpenBrackets = (repaired.match(/\[/g) || []).length;
+    const remainingCloseBrackets = (repaired.match(/\]/g) || []).length;
+    
+    for (let i = 0; i < remainingOpenBrackets - remainingCloseBrackets; i++) {
+      repaired += ']';
+    }
+    for (let i = 0; i < remainingOpenBraces - remainingCloseBraces; i++) {
+      repaired += '}';
+    }
+    
+    try {
+      JSON.parse(repaired);
+      console.log('[AI Provider] Successfully repaired truncated JSON');
+      return repaired;
+    } catch {
+      return null;
+    }
+  }
+
   private static cleanJsonResponse(content: string): string {
     let cleaned = content
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/gi, '')
       .trim();
     
-    // Extract JSON object if response contains extra text
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       cleaned = jsonMatch[0];
     }
     
-    // Fix common JSON issues step by step
     cleaned = cleaned
       .replace(/\n/g, ' ')
       .replace(/\r/g, '')
       .replace(/\t/g, ' ')
-      .replace(/\s+/g, ' ');  // Multiple spaces to single
+      .replace(/\s+/g, ' ');
     
-    // Try to parse, if fails, attempt fixes
     try {
       JSON.parse(cleaned);
       return cleaned;
     } catch {}
     
-    // Fix 1: Remove trailing commas
     cleaned = cleaned
       .replace(/,\s*}/g, '}')
       .replace(/,\s*]/g, ']');
@@ -194,7 +269,6 @@ ${userPrompt}`;
       return cleaned;
     } catch {}
     
-    // Fix 2: Quote unquoted property names (Gemini often outputs unquoted keys)
     cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
     
     try {
@@ -202,7 +276,6 @@ ${userPrompt}`;
       return cleaned;
     } catch {}
     
-    // Fix 3: Replace single quotes with double quotes
     cleaned = cleaned.replace(/'/g, '"');
     
     try {
@@ -210,8 +283,6 @@ ${userPrompt}`;
       return cleaned;
     } catch {}
     
-    // Fix 4: Handle unescaped quotes in string values (complex fix)
-    // Try to fix double-quoted strings that contain unescaped double quotes
     cleaned = cleaned.replace(/"([^"]*)"([^:,}\]])/g, (match, p1, p2) => {
       if (p2 && !':,}]'.includes(p2.trim()[0])) {
         return `"${p1.replace(/"/g, '\\"')}"${p2}`;

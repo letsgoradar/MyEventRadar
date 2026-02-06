@@ -663,6 +663,51 @@ export default function SimpleFeedWizard({ open, onOpenChange, onFeedCreated }: 
     );
   };
 
+  const [autoDetecting, setAutoDetecting] = useState(false);
+
+  const handleAutoDetectSelectors = async () => {
+    if (!detailPageHtml || fieldsToEnhance.length === 0) return;
+    setAutoDetecting(true);
+    try {
+      const response = await apiRequest('/api/admin/visual-configurator/analyze-detail-selectors', {
+        method: 'POST',
+        data: {
+          html: detailPageHtml.substring(0, 30000),
+          fields: fieldsToEnhance,
+          url: detailPageUrl,
+        },
+      });
+      if (response.error) {
+        toast({
+          title: 'Auto-detect deels mislukt',
+          description: response.error,
+          variant: 'destructive',
+        });
+      }
+      if (response.selectors && Object.keys(response.selectors).length > 0) {
+        setEnhanceSelectors(prev => ({ ...prev, ...response.selectors }));
+        toast({
+          title: 'Selectors gevonden',
+          description: `${Object.keys(response.selectors).length} veld(en) automatisch gedetecteerd`,
+        });
+      } else if (!response.error) {
+        toast({
+          title: 'Geen selectors gevonden',
+          description: 'Probeer de CSS selectors handmatig in te vullen',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      console.error('Auto-detect failed:', error);
+      toast({
+        title: 'Auto-detect mislukt',
+        description: error.message || 'Kon de velden niet automatisch detecteren',
+        variant: 'destructive',
+      });
+    }
+    setAutoDetecting(false);
+  };
+
   const renderEnhanceStep = () => {
     const fieldsToShow = analysisResult?.fields.filter(f => fieldsToEnhance.includes(f.name)) || [];
 
@@ -708,11 +753,61 @@ export default function SimpleFeedWizard({ open, onOpenChange, onFeedCreated }: 
             </div>
           </div>
 
+          {fetchDetailPageMutation.isPending && (
+            <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+              <p className="text-blue-800">Detail pagina wordt opgehaald...</p>
+            </div>
+          )}
+
+          {detailPageHtml && (
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="pt-4 pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <span className="font-medium text-green-800">Pagina geladen</span>
+                    <span className="text-sm text-green-700">({Math.round(detailPageHtml.length / 1024)} KB)</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleAutoDetectSelectors}
+                    disabled={autoDetecting}
+                  >
+                    {autoDetecting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Detecteren...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Auto-detect velden
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {fetchDetailPageMutation.isError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Kon de pagina niet laden: {(fetchDetailPageMutation.error as any)?.message || 'Onbekende fout'}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Aan te vullen velden</CardTitle>
               <CardDescription>
-                Klik op een veld en selecteer het corresponderende element op de pagina
+                {detailPageHtml 
+                  ? 'Klik op een veld om de CSS selector in te stellen, of gebruik auto-detect'
+                  : 'Laad eerst een detail pagina hierboven'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -723,34 +818,68 @@ export default function SimpleFeedWizard({ open, onOpenChange, onFeedCreated }: 
                   const isActive = activeEnhanceField === field.name;
                   
                   return (
-                    <div
-                      key={field.name}
-                      className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                        isActive 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : hasSelector
-                            ? 'border-green-300 bg-green-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => setActiveEnhanceField(isActive ? null : field.name)}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        hasSelector ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1">
-                        <span className="font-medium">{field.label}</span>
-                        {hasSelector && (
-                          <code className="text-xs text-muted-foreground block truncate">
-                            {enhanceSelectors[field.name]}
-                          </code>
+                    <div key={field.name}>
+                      <div
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                          isActive 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : hasSelector
+                              ? 'border-green-300 bg-green-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => setActiveEnhanceField(isActive ? null : field.name)}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          hasSelector ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1">
+                          <span className="font-medium">{field.label}</span>
+                          {hasSelector && (
+                            <code className="text-xs text-green-700 block truncate">
+                              {enhanceSelectors[field.name]}
+                            </code>
+                          )}
+                        </div>
+                        {hasSelector ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <CircleDot className="h-5 w-5 text-gray-400" />
                         )}
                       </div>
-                      {hasSelector ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      ) : (
-                        <CircleDot className="h-5 w-5 text-gray-400" />
+                      
+                      {isActive && (
+                        <div className="ml-11 mt-2 mb-1 space-y-2">
+                          <div className="flex gap-2">
+                            <Input
+                              value={enhanceSelectors[field.name] || ''}
+                              onChange={(e) => setEnhanceSelectors(prev => ({ ...prev, [field.name]: e.target.value }))}
+                              placeholder={field.name === 'date' ? '.event-date, time' : 
+                                          field.name === 'location' ? '.venue, .location' :
+                                          field.name === 'image' ? '.event-image img, .hero-image img' :
+                                          field.name === 'time' ? '.event-time, .time' : 
+                                          '.selector'}
+                              className="flex-1 text-sm"
+                            />
+                            {enhanceSelectors[field.name] && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEnhanceSelectors(prev => {
+                                    const next = { ...prev };
+                                    delete next[field.name];
+                                    return next;
+                                  });
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
                   );
@@ -758,17 +887,6 @@ export default function SimpleFeedWizard({ open, onOpenChange, onFeedCreated }: 
               </div>
             </CardContent>
           </Card>
-
-          {activeEnhanceField && (
-            <div className="space-y-2">
-              <Label>CSS Selector voor {analysisResult?.fields.find(f => f.name === activeEnhanceField)?.label}</Label>
-              <Input
-                value={enhanceSelectors[activeEnhanceField] || ''}
-                onChange={(e) => setEnhanceSelectors(prev => ({ ...prev, [activeEnhanceField]: e.target.value }))}
-                placeholder=".event-location, #venue-name, etc."
-              />
-            </div>
-          )}
         </div>
 
         <div className="flex justify-between pt-4">
@@ -925,8 +1043,8 @@ export default function SimpleFeedWizard({ open, onOpenChange, onFeedCreated }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <LinkIcon className="w-5 h-5" />
             Nieuwe Feed Toevoegen
@@ -936,14 +1054,16 @@ export default function SimpleFeedWizard({ open, onOpenChange, onFeedCreated }: 
           </DialogDescription>
         </DialogHeader>
 
-        {renderStepIndicator()}
+        <div className="shrink-0">
+          {renderStepIndicator()}
+        </div>
 
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto pr-2 min-h-0">
           {currentStep === 'url' && renderUrlStep()}
           {currentStep === 'quality' && renderQualityStep()}
           {currentStep === 'enhance' && renderEnhanceStep()}
           {currentStep === 'preview' && renderPreviewStep()}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

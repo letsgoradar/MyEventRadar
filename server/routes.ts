@@ -3098,6 +3098,84 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  app.post("/api/admin/visual-configurator/analyze-detail-selectors", isAdmin, async (req, res) => {
+    try {
+      const { html, fields } = req.body;
+      if (!html || !fields || !Array.isArray(fields)) {
+        return res.status(400).json({ message: "HTML and fields are required" });
+      }
+
+      const fieldDescriptions: Record<string, string> = {
+        date: 'datum van het event (bijv. "15 maart 2026")',
+        location: 'locatie/venue naam en adres',
+        image: 'hoofd afbeelding van het event (img src URL)',
+        time: 'starttijd en eindtijd (bijv. "20:00 - 22:00")',
+        description: 'beschrijving van het event',
+        category: 'categorie van het event',
+      };
+
+      const fieldsStr = fields.map((f: string) => `- ${f}: ${fieldDescriptions[f] || f}`).join('\n');
+      
+      const truncatedHtml = html.substring(0, 15000);
+
+      const prompt = `Analyseer deze HTML van een event detail pagina en vind CSS selectors voor de volgende velden:
+
+${fieldsStr}
+
+HTML (verkort):
+${truncatedHtml}
+
+Geef voor elk veld de beste CSS selector terug. Gebruik specifieke selectors die werken op detail pagina's van deze website.
+Voor afbeeldingen: geef de selector voor het img element (niet de container).
+
+Antwoord in dit JSON formaat:
+{
+  "selectors": {
+    ${fields.map((f: string) => `"${f}": "CSS selector of null als niet gevonden"`).join(',\n    ')}
+  },
+  "confidence": 0-100
+}`;
+
+      const result = await AiProvider.complete({
+        systemPrompt: "Je bent een expert in web scraping en CSS selectors. Analyseer HTML en bepaal de beste selectors. Antwoord alleen in JSON.",
+        userPrompt: prompt,
+        maxTokens: 800,
+        temperature: 0.1,
+        jsonMode: true,
+      });
+
+      if (!result.success || !result.content) {
+        return res.json({ selectors: {}, confidence: 0, error: result.error || 'AI analyse mislukt' });
+      }
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(result.content);
+      } catch (parseErr) {
+        console.error('[Detail Selectors] Failed to parse AI response:', result.content?.substring(0, 200));
+        return res.json({ selectors: {}, confidence: 0, error: 'AI response kon niet worden geparsed' });
+      }
+
+      const cleanSelectors: Record<string, string> = {};
+      
+      if (parsed.selectors) {
+        for (const [key, value] of Object.entries(parsed.selectors)) {
+          if (value && typeof value === 'string' && value !== 'null' && value.trim() !== '') {
+            cleanSelectors[key] = value;
+          }
+        }
+      }
+
+      res.json({ 
+        selectors: cleanSelectors, 
+        confidence: parsed.confidence || 0 
+      });
+    } catch (error: any) {
+      console.error('Error analyzing detail selectors:', error);
+      res.status(500).json({ message: error.message || "Analyse mislukt" });
+    }
+  });
+
   app.post("/api/admin/visual-configurator/save-config", isAdmin, async (req, res) => {
     try {
       const { url, domain, selectors, municipality, sampleDetailUrl } = req.body;

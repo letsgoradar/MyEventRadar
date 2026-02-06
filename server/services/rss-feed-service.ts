@@ -13,7 +13,7 @@ import { ContentExtractor } from "./content-extractor";
 import { VenueService } from "./venue-service";
 import { FeedFieldDetector } from "./feed-field-detector";
 import { AiHtmlAnalyzer, type AiExtractionSelectors, type AiPaginationInfo } from "./ai-html-analyzer";
-import { AiLocationExtractor } from "./ai-location-extractor";
+
 import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
 import { matchTags } from "./tag-matcher";
 
@@ -6785,21 +6785,7 @@ export class RssFeedService {
         }
         
         if (!latitude || !longitude) {
-          const pageText = $('body').text();
-          const combinedText = `${title}\n${description}\n${pageText.substring(0, 2000)}`;
-          
-          const aiResult = await AiLocationExtractor.extractAndResolveLocation(
-            combinedText,
-            { title, municipality, sourceUrl: url },
-            (addr) => this.geocodeWithMunicipalityValidation(addr, municipality).then(r => r ? { lat: r.lat, lon: r.lon } : null)
-          );
-          
-          if (aiResult) {
-            latitude = aiResult.latitude;
-            longitude = aiResult.longitude;
-            if (aiResult.venueName) venueName = aiResult.venueName;
-            console.log(`[RSS] AI extracted location for "${title}": ${aiResult.venueName || 'address'}`);
-          }
+          console.log(`[RSS] No specific location found for "${title}" - event will be imported without coordinates`);
         }
       }
       

@@ -164,7 +164,8 @@ ${userPrompt}`;
   }
 
   private static repairTruncatedJson(json: string): string | null {
-    let repaired = json.trim();
+    const original = json.trim();
+    let repaired = original;
     
     const openBraces = (repaired.match(/\{/g) || []).length;
     const closeBraces = (repaired.match(/\}/g) || []).length;
@@ -231,7 +232,9 @@ ${userPrompt}`;
     
     try {
       JSON.parse(repaired);
-      console.log('[AI Provider] Successfully repaired truncated JSON');
+      if (repaired !== original) {
+        console.log('[AI Provider] Successfully repaired truncated JSON');
+      }
       return repaired;
     } catch {
       return null;

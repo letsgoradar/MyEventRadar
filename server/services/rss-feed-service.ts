@@ -6517,12 +6517,23 @@ export class RssFeedService {
       const linksToProcess = linkLimit ? uniqueLinks.slice(0, linkLimit) : uniqueLinks;
       console.log(`[RSS] Processing ${linksToProcess.length} unique links${linkLimit ? ` (test mode limit: ${linkLimit})` : ''}`);
       
+      // Get detail selectors from AI extraction profile for this domain
+      let detailSelectors: AiExtractionSelectors | undefined;
+      try {
+        const domain = baseUrlObj.hostname.replace('www.', '');
+        const cachedProfile = await AiHtmlAnalyzer.getCachedProfilePublic(domain);
+        if (cachedProfile?.selectors) {
+          detailSelectors = cachedProfile.selectors as AiExtractionSelectors;
+          console.log(`[RSS] Using AI profile detail selectors for ${domain}: location=${detailSelectors.location || 'none'}, date=${detailSelectors.date || 'none'}, image=${detailSelectors.image || 'none'}`);
+        }
+      } catch (e) {}
+
       // Fetch detail pages in parallel batches (5 at a time)
       const fetchedItems = await parallelBatch(
         linksToProcess,
         async (link) => {
           try {
-            return await this.scrapeGenericEventPage(link, municipality);
+            return await this.scrapeGenericEventPage(link, municipality, detailSelectors);
           } catch (e: any) {
             console.log(`[RSS] Failed to scrape ${link}: ${e.message}`);
             return null;
@@ -6589,7 +6600,7 @@ export class RssFeedService {
   /**
    * Scrape a single event detail page with intelligent extraction
    */
-  private static async scrapeGenericEventPage(url: string, municipality: string): Promise<ParsedFeedItem | null> {
+  private static async scrapeGenericEventPage(url: string, municipality: string, detailSelectors?: AiExtractionSelectors): Promise<ParsedFeedItem | null> {
     try {
       const response = await axios.get(url, {
         headers: { "User-Agent": this.USER_AGENT },
@@ -6611,9 +6622,16 @@ export class RssFeedService {
                         $('meta[property="og:description"]').attr('content') ||
                         $('.entry-content p, .content p, article p').first().text().trim();
       
-      // Extract image
-      let imageUrl = $('meta[property="og:image"]').attr('content') ||
-                     $('article img, .entry-content img, .featured-image img').first().attr('src');
+      // Extract image - try profile selector first, then fallback
+      let imageUrl: string | undefined;
+      if (detailSelectors?.image) {
+        const imgEl = $(detailSelectors.image).first();
+        imageUrl = imgEl.attr('src') || imgEl.find('img').first().attr('src');
+      }
+      if (!imageUrl) {
+        imageUrl = $('meta[property="og:image"]').attr('content') ||
+                   $('article img, .entry-content img, .featured-image img').first().attr('src');
+      }
       
       // Try to extract date from various places
       let startTime: Date | undefined;
@@ -6623,6 +6641,80 @@ export class RssFeedService {
       let location: string | undefined;
       let address: string | undefined;
       let venueName: string | undefined;
+      
+      // Use profile detail selectors first if available
+      if (detailSelectors) {
+        if (detailSelectors.location) {
+          const locEl = $(detailSelectors.location).first();
+          if (locEl.length) {
+            const valueEls = locEl.find('.value');
+            if (valueEls.length) {
+              const values: string[] = [];
+              valueEls.each((_, v) => {
+                const t = $(v).text().trim();
+                if (t) values.push(t);
+              });
+              if (values.length > 0) {
+                venueName = values[0];
+                if (values.length > 1) {
+                  address = values.join(', ');
+                }
+                location = venueName;
+              }
+            } else {
+              let locText = locEl.text().trim();
+              locText = locText.replace(/^(Locatie|Waar|Location|Venue)\s*[:]\s*/i, '').trim();
+              if (locText) {
+                venueName = locText;
+                location = venueName;
+              }
+            }
+          }
+        }
+        if (detailSelectors.date) {
+          const dateEl = $(detailSelectors.date).first();
+          if (dateEl.length && dateEl.text().trim()) {
+            const dateText = dateEl.text().trim();
+            const parsed = parseLocalDateTime(dateText);
+            if (parsed && !isNaN(parsed.getTime())) {
+              startTime = parsed;
+            }
+            
+            const vanTotMatch = dateText.match(/van\s+(\d{1,2})[.:](\d{2})\s+tot\s+(\d{1,2})[.:](\d{2})/i);
+            if (vanTotMatch && startTime) {
+              startTime.setHours(parseInt(vanTotMatch[1]), parseInt(vanTotMatch[2]));
+              endTime = new Date(startTime);
+              endTime.setHours(parseInt(vanTotMatch[3]), parseInt(vanTotMatch[4]));
+            } else {
+              const timeMatch = dateText.match(/(\d{1,2})[.:](\d{2})\s*(?:uur|u\b)/i);
+              if (timeMatch && startTime) {
+                startTime.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2]));
+              }
+            }
+          }
+        }
+        if (detailSelectors.time && detailSelectors.time !== detailSelectors.date) {
+          const timeEl = $(detailSelectors.time).first();
+          if (timeEl.length && timeEl.text().trim()) {
+            const timeText = timeEl.text().trim();
+            const timeMatch = timeText.match(/(\d{1,2})[:.h](\d{2})/);
+            if (timeMatch && startTime) {
+              startTime.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2]));
+            }
+            const endMatch = timeText.match(/[-–]\s*(\d{1,2})[:.h](\d{2})/);
+            if (endMatch && startTime) {
+              endTime = new Date(startTime);
+              endTime.setHours(parseInt(endMatch[1]), parseInt(endMatch[2]));
+            }
+          }
+        }
+        if (detailSelectors.address) {
+          const addrEl = $(detailSelectors.address).first();
+          if (addrEl.length && addrEl.text().trim()) {
+            address = addrEl.text().trim();
+          }
+        }
+      }
       
       // Look for JSON-LD first
       $('script[type="application/ld+json"]').each((_, el) => {
@@ -6754,19 +6846,27 @@ export class RssFeedService {
         }
         
         if (!latitude || !longitude) {
-          const addressSelectors = [
-            '[class*="address"]', '[class*="adres"]', '.street-address'
-          ];
-          for (const selector of addressSelectors) {
-            const el = $(selector).first();
-            if (el.length && el.text().trim()) {
-              address = el.text().trim();
-              break;
+          if (!address) {
+            const addressSelectors = [
+              '[class*="address"]', '[class*="adres"]', '.street-address'
+            ];
+            for (const selector of addressSelectors) {
+              const el = $(selector).first();
+              if (el.length && el.text().trim()) {
+                address = el.text().trim();
+                break;
+              }
             }
           }
           
-          if (address && address.length > 5) {
-            const geocodeResult = await this.geocodeWithMunicipalityValidation(address, municipality);
+          const geocodeQuery = address && address.length > 5
+            ? address
+            : venueName
+              ? `${venueName}, ${municipality}, Nederland`
+              : null;
+          
+          if (geocodeQuery) {
+            const geocodeResult = await this.geocodeWithMunicipalityValidation(geocodeQuery, municipality);
             if (geocodeResult) {
               latitude = geocodeResult.lat;
               longitude = geocodeResult.lon;
@@ -6774,7 +6874,7 @@ export class RssFeedService {
               if (venueName) {
                 await VenueService.findOrCreateVenue(venueName, {
                   municipality,
-                  address,
+                  address: address || geocodeQuery,
                   latitude,
                   longitude,
                   sourceUrl: url

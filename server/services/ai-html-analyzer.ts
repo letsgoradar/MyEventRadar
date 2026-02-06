@@ -458,15 +458,51 @@ Antwoord in JSON formaat:
     return { type: 'none' };
   }
 
+  static async getCachedProfilePublic(domain: string) {
+    return this.getCachedProfile(domain);
+  }
+
   private static async getCachedProfile(domain: string) {
     try {
+      const altDomain = domain.startsWith('www.') ? domain.replace('www.', '') : `www.${domain}`;
+      
       const profiles = await db
         .select()
         .from(aiExtractionProfiles)
-        .where(eq(aiExtractionProfiles.domain, domain))
-        .limit(1);
+        .where(eq(aiExtractionProfiles.domain, domain));
       
-      return profiles[0] || null;
+      const altProfiles = await db
+        .select()
+        .from(aiExtractionProfiles)
+        .where(eq(aiExtractionProfiles.domain, altDomain));
+      
+      const allProfiles = [...profiles, ...altProfiles];
+      if (allProfiles.length === 0) return null;
+      if (allProfiles.length === 1) return allProfiles[0];
+      
+      const mergedSelectors: Record<string, string> = {};
+      for (const profile of allProfiles) {
+        const sel = profile.selectors as Record<string, string> | null;
+        if (!sel) continue;
+        for (const [key, value] of Object.entries(sel)) {
+          if (!value) continue;
+          if (key === 'eventCard') {
+            if (!mergedSelectors.eventCard || (value.startsWith('a') && !mergedSelectors.eventCard.startsWith('a'))) {
+              mergedSelectors.eventCard = value;
+            }
+          } else {
+            if (!mergedSelectors[key]) {
+              mergedSelectors[key] = value;
+            }
+          }
+        }
+      }
+      
+      const bestProfile = allProfiles.reduce((best, current) => {
+        return (current.confidence || 0) > (best.confidence || 0) ? current : best;
+      });
+      
+      return { ...bestProfile, selectors: mergedSelectors };
     } catch {
       return null;
     }

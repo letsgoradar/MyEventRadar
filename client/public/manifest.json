@@ -1,7 +1,7 @@
 {
-  "name": "letsgo radar",
-  "short_name": "letsgo",
-  "description": "Ontdek lokale evenementen in jouw buurt met letsgo radar",
+  "name": "let's go Radar",
+  "short_name": "let's go Radar",
+  "description": "Ontdek lokale evenementen in jouw buurt met let's go Radar",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5fcfa",
@@ -10,7 +10,7 @@
   "icons": [
     {
       "src": "/images/letsgo-radar-logo.png",
-      "sizes": "512x512",
+      "sizes": "724x724",
       "type": "image/png",
       "purpose": "any maskable"
     }

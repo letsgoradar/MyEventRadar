@@ -5,7 +5,7 @@ import { EventInterface } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bookmark, UserCheck, CalendarPlus, Calendar, MapPin, Users, Edit, Trash2, X, Clock } from "lucide-react";
+import { Bookmark, CalendarPlus, Calendar, MapPin, Users, Edit, Trash2, X, Clock } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,7 +39,7 @@ export function AppMyEventsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = React.useState<string>("organized");
+  const [activeTab, setActiveTab] = React.useState<string>("saved");
   const [selectedEvent, setSelectedEvent] = React.useState<EventInterface | null>(null);
   const [managingEvent, setManagingEvent] = React.useState<EventInterface | null>(null);
   const [deleteEventId, setDeleteEventId] = React.useState<number | null>(null);
@@ -51,11 +51,6 @@ export function AppMyEventsPage() {
       if (!response.ok) throw new Error('Failed to fetch');
       return response.json();
     },
-    enabled: !!user?.id,
-  });
-
-  const { data: participatingEvents = [], isLoading: loadingParticipating } = useQuery<EventInterface[]>({
-    queryKey: [`/api/events/participation/${user?.id}`],
     enabled: !!user?.id,
   });
 
@@ -96,14 +91,13 @@ export function AppMyEventsPage() {
     },
   });
 
-  const isLoading = loadingOrganized || loadingParticipating || loadingFavorites;
+  const isLoading = loadingOrganized || loadingFavorites;
 
   const displayEvents = React.useMemo(() => {
-    if (activeTab === "organized") return organizedEvents;
-    if (activeTab === "participating") return participatingEvents;
     if (activeTab === "saved") return favoriteEvents;
-    return organizedEvents;
-  }, [activeTab, organizedEvents, participatingEvents, favoriteEvents]);
+    if (activeTab === "organized") return organizedEvents;
+    return favoriteEvents;
+  }, [activeTab, organizedEvents, favoriteEvents]);
 
   const handleEventClick = React.useCallback((event: EventInterface) => {
     if (activeTab === "organized") {
@@ -166,13 +160,6 @@ export function AppMyEventsPage() {
         description: "Maak je eerste evenement aan!",
         buttonText: "Nieuw Evenement",
         buttonLink: "/app/create-event",
-      },
-      participating: {
-        icon: <UserCheck className="h-12 w-12 text-muted-foreground mb-3" />,
-        title: "Nog niet aangemeld",
-        description: "Meld je aan voor evenementen.",
-        buttonText: "Ontdek",
-        buttonLink: "/app",
       },
       saved: {
         icon: <Bookmark className="h-12 w-12 text-muted-foreground mb-3" />,
@@ -452,25 +439,19 @@ export function AppMyEventsPage() {
   return (
     <>
       <AppLayout title="Mijn Events" hideViewToggle={true} defaultView="list" hideSearchAndFilters={true}>
-        <div className="pb-20">
+        <div className="pb-28">
           <div className="sticky top-0 bg-background z-10 border-b">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full grid grid-cols-3 h-11 rounded-none">
-                <TabsTrigger value="organized" className="text-xs px-1 gap-1">
-                  <CalendarPlus className="h-3 w-3" />
-                  Mijn
-                  ({organizedEvents.length})
-                </TabsTrigger>
-                <TabsTrigger value="participating" className="text-xs px-1 gap-1">
-                  <UserCheck className="h-3 w-3" />
-                  <span className="hidden xs:inline">Aangemeld</span>
-                  <span className="xs:hidden">Aanm.</span>
-                  ({participatingEvents.length})
-                </TabsTrigger>
+              <TabsList className="w-full grid grid-cols-2 h-11 rounded-none">
                 <TabsTrigger value="saved" className="text-xs px-1 gap-1">
                   <Bookmark className="h-3 w-3" />
-                  Bewaard
+                  Opgeslagen
                   ({favoriteEvents.length})
+                </TabsTrigger>
+                <TabsTrigger value="organized" className="text-xs px-1 gap-1">
+                  <CalendarPlus className="h-3 w-3" />
+                  Mijn Evenementen
+                  ({organizedEvents.length})
                 </TabsTrigger>
               </TabsList>
             </Tabs>

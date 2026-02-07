@@ -715,7 +715,7 @@ export function AppLayout({
       <div className={cn(
         "container pb-4 px-4",
         view === "map" && !isProfilePage ? "pt-2" : "",
-        isProfilePage ? "overflow-auto h-[calc(100vh-11rem)]" : "overflow-auto h-[calc(100vh-16rem)]"
+        isProfilePage ? "overflow-auto h-[calc(100vh-11rem)]" : hideSearchAndFilters ? "overflow-auto h-[calc(100vh-7rem)]" : "overflow-auto h-[calc(100vh-16rem)]"
       )}>
         {(view === "list" || isProfilePage) && 
           <div className="space-y-4 list-view-content overflow-y-auto">

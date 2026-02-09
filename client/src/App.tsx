@@ -6,6 +6,7 @@ import { AuthProvider } from "@/hooks/use-auth"
 import { LanguageProvider } from "@/contexts/LanguageContext"
 import AuthGuard from "@/components/Admin/AuthGuard"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useIsPWA } from "@/hooks/use-pwa"
 import { queryClient } from "@/lib/queryClient"
 import { ThemeInjector } from "@/components/ThemeInjector"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -62,6 +63,9 @@ const AppForgotPasswordPage = React.lazy(() => import("@/pages/App/forgot-passwo
 // Public SEO pagina's (lazy loaded)
 const CityPage = React.lazy(() => import("@/pages/public/CityPage"));
 
+// PWA install scherm (lazy loaded)
+const InstallPWA = React.lazy(() => import("@/components/App/InstallPWA").then(m => ({ default: m.InstallPWA })));
+
 // Error pagina's (lazy loaded)
 const NotFound = React.lazy(() => import("@/pages/not-found"));
 const ErrorPage = React.lazy(() => import("@/pages/error"));
@@ -80,10 +84,10 @@ function AppRedirect({ to }: { to: string }) {
 
 export default function App() {
   const isMobile = useIsMobile();
+  const isPWA = useIsPWA();
 
-  // We kiezen de juiste interface op basis van het apparaat:
-  // Desktop/tablet → Web interface
-  // Mobiel → App interface
+  const showInstallScreen = isMobile && !isPWA;
+
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
@@ -159,6 +163,21 @@ export default function App() {
           </AuthGuard>
         </Route>
         
+        {/* Mobiel browser guard: toon install scherm voor alle niet-admin routes */}
+        {showInstallScreen && (
+          <>
+            <Route path="/:province/:city/evenementen">
+              <CityPage />
+            </Route>
+            <Route path="/:province/:city">
+              <CityPage />
+            </Route>
+            <Route>
+              <InstallPWA />
+            </Route>
+          </>
+        )}
+
         {/* Desktop Web Routes */}
         {!isMobile && (
           <>
@@ -236,7 +255,7 @@ export default function App() {
           </>
         )}
         
-        {/* App Routes - altijd beschikbaar, ongeacht apparaat type */}
+        {/* App Routes - alleen beschikbaar in PWA modus of op desktop */}
         <Route path="/app/welcome">
           <AppWelcomePage />
         </Route>
@@ -257,8 +276,6 @@ export default function App() {
         </Route>
         <Route path="/app/event/:id">
           {() => {
-            // Redirect oude event detail route naar homepage
-            // Events worden nu getoond via EventDetailPanel overlay
             window.location.href = '/app';
             return null;
           }}

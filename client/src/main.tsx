@@ -33,3 +33,7 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+
+if (window.matchMedia('(display-mode: standalone)').matches && screen.orientation && 'lock' in screen.orientation) {
+  (screen.orientation as any).lock('portrait-primary').catch(() => {});
+}

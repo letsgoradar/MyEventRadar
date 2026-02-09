@@ -102,7 +102,6 @@ export function setupAuth(app: Express) {
   );
 
   passport.serializeUser((user, done) => {
-    console.log("Serializing user:", { id: user.id, email: user.email, role: user.role });
     done(null, user.id);
   });
   
@@ -110,10 +109,8 @@ export function setupAuth(app: Express) {
     try {
       const user = await storage.getUser(id);
       if (!user) {
-        console.log("Deserialize failed: No user found with id", id);
         return done(new Error('Gebruiker niet gevonden'));
       }
-      console.log("Deserialized user:", { id: user.id, email: user.email, role: user.role });
       done(null, user);
     } catch (error) {
       console.error("Deserialize error:", error);
@@ -215,7 +212,6 @@ export function setupAuth(app: Express) {
     }
     // Verwijder wachtwoord uit de response
     const { password, ...userWithoutPassword } = req.user;
-    console.log("User data sent to client:", userWithoutPassword);
     res.json(userWithoutPassword);
   });
 

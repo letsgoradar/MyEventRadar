@@ -62,8 +62,6 @@ export const autoLoginTestUser = async (req: Request, res: Response, next: NextF
       (req.session as any).passport = { user: user.id };
       req.user = user;
       
-      // Log the auto-login for debugging
-      console.log(`🔐 Auto-logged in as ${user.name || user.username} (ID: ${user.id}, role: ${user.role})`);
     }
   } catch (error) {
     console.log('Auto-login failed, continuing without authentication:', error);

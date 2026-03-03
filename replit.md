@@ -178,3 +178,13 @@ Twee-producten advertentiesysteem:
 ### Optional Integrations
 - **AI Image Generation**: Hugging Face API
 - **Geocoding**: OpenStreetMap Nominatim
+
+### Security Configuration
+- **Session Secret**: `SESSION_SECRET` environment variable is **required** in production. In development, a random secret is generated automatically.
+- **Auto-login Middleware**: Disabled by default. To enable in development, set both `NODE_ENV=development` and `ENABLE_AUTO_LOGIN=true`.
+- **Content Security Policy**: Strict in production (no `unsafe-inline`/`unsafe-eval`). Relaxed in development for Vite HMR.
+- **SSL Certificate Validation**: Enabled in production (`rejectUnauthorized: true`), disabled in development for self-signed certs.
+- **Rate Limiting**: Auth routes (5/15min), general API (60/min), expensive endpoints (10/min), advertiser impressions/clicks (30/min per IP+ID).
+- **Authorization**: All user-specific data routes (favorites, saved searches, notifications) require authentication and verify ownership.
+- **Chat Routes**: State-changing conversation endpoints (create, delete, send message) require authentication.
+- **Passwords**: Hashed with bcrypt (10 rounds). No hardcoded credentials in frontend forms.

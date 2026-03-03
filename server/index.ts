@@ -16,6 +16,19 @@ import { setupVite, serveStatic, log } from "./vite";
 import { startNotificationScheduler } from "./notification-scheduler";
 import { startRssScheduler } from "./rss-scheduler";
 import { expirePromotions } from "./routes/advertiser-routes";
+import { randomBytes } from "crypto";
+
+function getSessionSecret(): string {
+  if (process.env.SESSION_SECRET) {
+    return process.env.SESSION_SECRET;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SESSION_SECRET environment variable is required in production');
+  }
+  const devSecret = randomBytes(64).toString('hex');
+  console.warn('[Dev] No SESSION_SECRET set, using randomly generated secret. Sessions will not persist across restarts.');
+  return devSecret;
+}
 
 const app = express();
 
@@ -31,7 +44,9 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Voor Vite development
+      scriptSrc: process.env.NODE_ENV === 'production' 
+        ? ["'self'"] 
+        : ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       connectSrc: ["'self'", "ws:", "wss:", "https:"],
     },
   },
@@ -54,7 +69,7 @@ app.use(cookieParser());
 
 // Setup session with forced reset
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'eventapp-session-secret-new-' + Date.now(),
+  secret: getSessionSecret(),
   resave: false,
   saveUninitialized: false,
   name: 'eventapp.sid', // Use a specific session name
@@ -66,8 +81,8 @@ app.use(session({
   }
 }));
 
-if (process.env.NODE_ENV !== 'production') {
-  console.log('[Dev] Auto-login middleware actief');
+if (process.env.NODE_ENV === 'development' && process.env.ENABLE_AUTO_LOGIN === 'true') {
+  console.warn('[SECURITY] Auto-login middleware is active - ONLY for development');
   app.use(autoLoginTestUser);
 }
 

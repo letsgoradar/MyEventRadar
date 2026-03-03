@@ -11,6 +11,20 @@ import { z } from "zod";
 import { attachUser, isAuthenticated, isAdmin } from "../middleware/auth";
 import { getStripe, isStripeConfigured } from "../stripe";
 import { sendVerificationEmail } from "../services/email-service";
+import rateLimit from "express-rate-limit";
+
+const impressionClickLimiter = rateLimit({
+  windowMs: 60000,
+  max: 30,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const id = req.params.id || req.body?.adId || "unknown";
+    return `${ip}-${id}`;
+  },
+  message: { error: "Too many requests, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const router = Router();
 
@@ -93,7 +107,7 @@ router.get("/active", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/:id/impression", async (req: Request, res: Response) => {
+router.post("/:id/impression", impressionClickLimiter, async (req: Request, res: Response) => {
   try {
     const promotionId = parseInt(req.params.id);
     if (isNaN(promotionId)) {
@@ -114,7 +128,7 @@ router.post("/:id/impression", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/:id/click", async (req: Request, res: Response) => {
+router.post("/:id/click", impressionClickLimiter, async (req: Request, res: Response) => {
   try {
     const promotionId = parseInt(req.params.id);
     if (isNaN(promotionId)) {
@@ -247,7 +261,7 @@ router.get("/ads/serve", attachUser, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/ads/impression", attachUser, async (req: Request, res: Response) => {
+router.post("/ads/impression", impressionClickLimiter, attachUser, async (req: Request, res: Response) => {
   try {
     const schema = z.object({
       adId: z.number(),
@@ -327,7 +341,7 @@ router.post("/ads/impression", attachUser, async (req: Request, res: Response) =
   }
 });
 
-router.post("/ads/click", async (req: Request, res: Response) => {
+router.post("/ads/click", impressionClickLimiter, async (req: Request, res: Response) => {
   try {
     const schema = z.object({
       adId: z.number(),

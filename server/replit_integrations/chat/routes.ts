@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { GoogleGenAI } from "@google/genai";
 import { chatStorage } from "./storage";
+import { isAuthenticated } from "../../middleware/auth";
 
 /*
 Supported models: gemini-2.5-flash (fast), gemini-2.5-pro (advanced reasoning)
@@ -45,7 +46,7 @@ export function registerChatRoutes(app: Express): void {
   });
 
   // Create new conversation
-  app.post("/api/conversations", async (req: Request, res: Response) => {
+  app.post("/api/conversations", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { title } = req.body;
       const conversation = await chatStorage.createConversation(title || "New Chat");
@@ -57,7 +58,7 @@ export function registerChatRoutes(app: Express): void {
   });
 
   // Delete conversation
-  app.delete("/api/conversations/:id", async (req: Request, res: Response) => {
+  app.delete("/api/conversations/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       await chatStorage.deleteConversation(id);
@@ -69,7 +70,7 @@ export function registerChatRoutes(app: Express): void {
   });
 
   // Send message and get AI response (streaming)
-  app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
+  app.post("/api/conversations/:id/messages", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const conversationId = parseInt(req.params.id);
       const { content } = req.body;

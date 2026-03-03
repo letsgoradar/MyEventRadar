@@ -8,6 +8,18 @@ import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import createMemoryStore from "memorystore";
 
+function getSessionSecret(): string {
+  if (process.env.SESSION_SECRET) {
+    return process.env.SESSION_SECRET;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SESSION_SECRET environment variable is required in production');
+  }
+  const devSecret = randomBytes(64).toString('hex');
+  console.warn('[Dev] No SESSION_SECRET set, using randomly generated secret. Sessions will not persist across restarts.');
+  return devSecret;
+}
+
 // Voor wachtwoord reset tokens
 interface PasswordResetToken {
   userId: number;
@@ -38,7 +50,7 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || 'event-app-secret-key',
+    secret: getSessionSecret(),
     resave: false,
     saveUninitialized: false,
     store: new MemoryStore({

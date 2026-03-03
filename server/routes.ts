@@ -127,8 +127,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Toepassen van rate limiting
-  app.use("/api/login", authLimiter);
-  app.use("/api/register", authLimiter);
+  app.use("/api/auth/login", authLimiter);
+  app.use("/api/auth/register", authLimiter);
   app.use("/api", generalLimiter);
 
   setupAuth(app);
@@ -1047,12 +1047,16 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
-  app.get("/api/favorites/:userId", async (req, res) => {
+  app.get("/api/favorites/:userId", isAuthenticated, async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       
       if (isNaN(userId)) {
         return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      if (req.user?.id !== userId && (req.user as any)?.role !== 'admin') {
+        return res.status(403).json({ message: "Forbidden: You can only access your own favorites" });
       }
       
       const favorites = await storage.getFavoritesByUser(userId);
@@ -1169,12 +1173,16 @@ Respond with ONLY the search term, nothing else.`,
   });
   
   // Opgeslagen zoekopdrachten van een gebruiker ophalen
-  app.get("/api/saved-searches/:userId", async (req, res) => {
+  app.get("/api/saved-searches/:userId", isAuthenticated, async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       
       if (isNaN(userId)) {
         return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      if (req.user?.id !== userId && (req.user as any)?.role !== 'admin') {
+        return res.status(403).json({ message: "Forbidden: You can only access your own saved searches" });
       }
       
       const savedSearches = await storage.getSavedSearchesByUser(userId);

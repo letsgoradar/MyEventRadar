@@ -42,8 +42,8 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: 'admin@example.com',
-      password: 'admin123',
+      email: '',
+      password: '',
     },
   });
 

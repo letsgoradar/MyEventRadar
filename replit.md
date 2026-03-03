@@ -138,6 +138,22 @@ Twee-producten advertentiesysteem:
 
 **Stripe**: Packages geïnstalleerd (`stripe`, `@stripe/stripe-js`, `@stripe/react-stripe-js`). Vereist `STRIPE_SECRET_KEY` en optioneel `STRIPE_WEBHOOK_SECRET` environment variables.
 
+### Event Ownership & Bedrijfsaccount Systeem
+
+**RSS Events zonder eigenaar**: Alle RSS-geïmporteerde events hebben `hostId: null`. Ze verschijnen gewoon op de kaart maar staan niet onder iemands "Mijn Evenementen". Handmatig aangemaakte events krijgen de ingelogde gebruiker als hostId.
+
+**Bedrijfsaccount (Adverteerdersprofiel) met e-mailverificatie**:
+- Gebruiker maakt eerst een persoonlijk account aan (bestaand systeem)
+- Daarna optioneel een bedrijfsaccount via `/advertiser/register` met verplicht bedrijfs e-mailadres
+- Verificatie via e-mail link (24 uur geldig), token in `advertiser_profiles` tabel
+- Na verificatie: status wordt "active", `emailVerified: true`
+- Alleen geverifieerde bedrijfsaccounts kunnen events promoten
+- E-mail service: `server/services/email-service.ts` (Nodemailer SMTP, fallback naar console in dev)
+- SMTP config: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` environment variables
+- Verificatie pagina: `/advertiser/verify` (toont status: success/expired/invalid/error)
+
+**Promotie-flow**: Gebruikers met geverifieerd bedrijfsaccount zoeken events via een zoekbalk (niet handmatig ID invoeren), selecteren een event, kiezen periode + radius, en kopen de promotie. Je hoeft het event NIET te bezitten om het te promoten.
+
 ## External Dependencies
 
 ### Core

@@ -7908,7 +7908,7 @@ export class RssFeedService {
           endTime: endTime,
           category: category,
           isPaid: false,
-          hostId: 1,
+          hostId: null,
           recurrence: recurrence,
           tags: ["rss-import", feed.name.toLowerCase().replace(/\s+/g, "-")],
           imageUrl: imageUrl || null,

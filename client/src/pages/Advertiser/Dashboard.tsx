@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -10,8 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Wallet, TrendingUp, Eye, MousePointerClick, Megaphone,
   ImagePlus, CreditCard, ArrowRight, Building2, AlertCircle,
-  BarChart3, Loader2,
+  BarChart3, Loader2, Mail,
 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import AdvertiserSidebar from "@/components/Advertiser/Sidebar";
 
 interface BalanceData {
@@ -25,6 +27,8 @@ interface ProfileData {
     id: number;
     companyName: string;
     status: string;
+    emailVerified: boolean;
+    verificationEmail: string | null;
     balanceCents: number;
     currentMonthSpendCents: number;
     monthlyBudgetCapCents: number | null;
@@ -70,6 +74,17 @@ function formatCents(cents: number): string {
 export default function AdvertiserDashboard() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const resendVerificationMutation = useMutation({
+    mutationFn: () => apiRequest("/api/advertiser/resend-verification", { method: "POST" }),
+    onSuccess: () => {
+      toast({ title: "Verificatie-e-mail opnieuw verzonden" });
+    },
+    onError: () => {
+      toast({ title: "Fout bij verzenden", description: "Probeer het later opnieuw.", variant: "destructive" });
+    },
+  });
 
   const { data: profileData, isLoading: profileLoading } = useQuery<ProfileData>({
     queryKey: ["/api/advertiser/profile"],
@@ -168,6 +183,29 @@ export default function AdvertiserDashboard() {
               </div>
             </div>
           </div>
+
+          {(profile.status === "pending" || !profile.emailVerified) && (
+            <Card className="mb-6 bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+              <CardContent className="flex items-center gap-4 py-4">
+                <Mail className="h-8 w-8 text-amber-600 dark:text-amber-400 shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-amber-800 dark:text-amber-200">E-mail verificatie vereist</h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-300">
+                    Je bedrijfsaccount is nog niet geverifieerd. Controleer je e-mail ({profile.verificationEmail}) voor de verificatie-link.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+                  disabled={resendVerificationMutation.isPending}
+                  onClick={() => resendVerificationMutation.mutate()}
+                >
+                  {resendVerificationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Opnieuw verzenden
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">

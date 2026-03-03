@@ -21,7 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Building2, ArrowRight, Loader2, CheckCircle2, MapPin } from "lucide-react";
+import { Building2, ArrowRight, Loader2, Mail, MapPin } from "lucide-react";
 import { Link } from "wouter";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -38,6 +38,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const registerSchema = z.object({
   companyName: z.string().min(2, "Bedrijfsnaam is verplicht"),
+  verificationEmail: z.string().email("Voer een geldig e-mailadres in"),
   description: z.string().optional(),
   websiteUrl: z.string().url("Voer een geldig URL in").optional().or(z.literal("")),
   address: z.string().optional(),
@@ -59,6 +60,7 @@ export default function AdvertiserRegister() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       companyName: "",
+      verificationEmail: "",
       description: "",
       websiteUrl: "",
       address: "",
@@ -79,12 +81,33 @@ export default function AdvertiserRegister() {
       queryClient.invalidateQueries({ queryKey: ["/api/advertiser/profile"] });
       toast({
         title: "Registratie succesvol!",
-        description: "Je adverteerdersprofiel is aangemaakt. Je kunt nu advertenties en promoties beheren.",
+        description: "Verificatie-e-mail verzonden naar je bedrijfsadres.",
       });
     },
     onError: (error: Error) => {
       toast({
         title: "Registratie mislukt",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("/api/advertiser/resend-verification", {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "E-mail verzonden",
+        description: "Verificatie-e-mail is opnieuw verzonden.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Verzenden mislukt",
         description: error.message,
         variant: "destructive",
       });
@@ -132,15 +155,29 @@ export default function AdvertiserRegister() {
       <div className="flex items-center justify-center min-h-screen bg-muted/40">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-2" />
-            <CardTitle>Welkom als adverteerder!</CardTitle>
+            <Mail className="h-12 w-12 mx-auto text-primary mb-2" />
+            <CardTitle>Controleer je e-mail!</CardTitle>
             <CardDescription>
-              Je profiel is aangemaakt. Ga naar je dashboard om advertenties te maken of events te promoten.
+              We hebben een verificatie-e-mail gestuurd. Klik op de link in de e-mail om je bedrijfsaccount te activeren.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center">
+          <CardContent className="flex flex-col items-center gap-3">
             <Button onClick={() => setLocation("/advertiser/dashboard")}>
               Naar dashboard <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => resendMutation.mutate()}
+              disabled={resendMutation.isPending}
+            >
+              {resendMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verzenden...
+                </>
+              ) : (
+                "Opnieuw verzenden"
+              )}
             </Button>
           </CardContent>
         </Card>
@@ -178,6 +215,23 @@ export default function AdvertiserRegister() {
                       <FormControl>
                         <Input placeholder="Jouw bedrijfsnaam" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="verificationEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bedrijfs e-mailadres *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="info@jouwbedrijf.nl" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        We sturen een verificatie-e-mail naar dit adres om je account te activeren.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -282,7 +336,7 @@ export default function AdvertiserRegister() {
                   <ul className="text-sm text-muted-foreground space-y-1">
                     <li className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-xs">1</Badge>
-                      Bedrijfsadvertenties plaatsen (CPM-model)
+                      E-mail verifiëren om je account te activeren
                     </li>
                     <li className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-xs">2</Badge>

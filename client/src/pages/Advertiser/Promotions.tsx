@@ -7,6 +7,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { RADIUS_OPTIONS } from "@shared/schema";
+import { Link } from "wouter";
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card";
@@ -24,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Megaphone, Plus, Loader2, Eye, MousePointerClick, Calendar, Clock,
-  MapPin, ArrowRight,
+  MapPin, ArrowRight, Search,
 } from "lucide-react";
 import AdvertiserSidebar from "@/components/Advertiser/Sidebar";
 
@@ -39,6 +40,10 @@ function formatCents(cents: number): string {
   return new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(cents / 100);
 }
 
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
+}
+
 const PERIOD_LABELS: Record<string, string> = {
   day: "1 dag",
   week: "1 week",
@@ -46,7 +51,7 @@ const PERIOD_LABELS: Record<string, string> = {
 };
 
 const purchaseSchema = z.object({
-  eventId: z.number({ required_error: "Voer een event ID in" }),
+  eventId: z.number({ required_error: "Selecteer een event" }),
   period: z.enum(["day", "week", "month"], { required_error: "Kies een periode" }),
   radiusKm: z.number({ required_error: "Kies een radius" }),
 });
@@ -57,6 +62,8 @@ export default function AdvertiserPromotions() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [showPurchase, setShowPurchase] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
   const { data: promotionsData, isLoading } = useQuery<{
     promotions: Array<{
@@ -71,6 +78,19 @@ export default function AdvertiserPromotions() {
   const { data: pricingData } = useQuery<PricingItem[]>({
     queryKey: ["/api/promotions/pricing"],
   });
+
+  const { data: profileData } = useQuery<{ profile: { emailVerified: boolean; status: string } }>({
+    queryKey: ["/api/advertiser/profile"],
+    enabled: !!user,
+  });
+
+  const { data: searchResults, isLoading: isSearching } = useQuery<any[]>({
+    queryKey: ["/api/advertiser/events/search", searchQuery],
+    enabled: searchQuery.length >= 2,
+    queryFn: () => fetch(`/api/advertiser/events/search?q=${encodeURIComponent(searchQuery)}`).then(r => r.json()),
+  });
+
+  const isVerified = profileData?.profile?.emailVerified !== false;
 
   const form = useForm<PurchaseForm>({
     resolver: zodResolver(purchaseSchema),
@@ -98,6 +118,8 @@ export default function AdvertiserPromotions() {
       queryClient.invalidateQueries({ queryKey: ["/api/advertiser/my-promotions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/advertiser/balance"] });
       setShowPurchase(false);
+      setSelectedEvent(null);
+      setSearchQuery("");
       form.reset({ eventId: undefined, period: "week", radiusKm: 10 });
       if (result.paymentRequired) {
         toast({
@@ -143,9 +165,28 @@ export default function AdvertiserPromotions() {
                 Promoot events bovenaan de zoekresultaten
               </p>
             </div>
-            <Dialog open={showPurchase} onOpenChange={setShowPurchase}>
+
+            {profileData?.profile && !profileData.profile.emailVerified && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300 rounded-lg p-4 flex items-center gap-3 mr-4">
+                <Megaphone className="h-5 w-5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Verifieer eerst je bedrijfs e-mail om events te promoten.</p>
+                  <Link href="/advertiser/dashboard" className="text-sm underline flex items-center gap-1 mt-1">
+                    Ga naar dashboard <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            <Dialog open={showPurchase} onOpenChange={(open) => {
+              setShowPurchase(open);
+              if (!open) {
+                setSelectedEvent(null);
+                setSearchQuery("");
+              }
+            }}>
               <DialogTrigger asChild>
-                <Button>
+                <Button disabled={!isVerified}>
                   <Plus className="mr-2 h-4 w-4" /> Event promoten
                 </Button>
               </DialogTrigger>
@@ -161,27 +202,112 @@ export default function AdvertiserPromotions() {
                     onSubmit={form.handleSubmit((data) => purchaseMutation.mutate(data))}
                     className="space-y-4"
                   >
-                    <FormField
-                      control={form.control}
-                      name="eventId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Event ID *</FormLabel>
-                          <FormControl>
+                    <FormItem>
+                      <FormLabel>Event *</FormLabel>
+                      {selectedEvent === null ? (
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                              type="number"
-                              placeholder="Voer het event ID in"
-                              value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                              className="pl-9"
+                              placeholder="Zoek op eventnaam of locatie..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
                             />
-                          </FormControl>
-                          <FormDescription>
-                            Je vindt het event ID op de event detail pagina.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
+                          </div>
+                          {searchQuery.length >= 2 && (
+                            <div className="max-h-48 overflow-y-auto border rounded-md">
+                              {isSearching ? (
+                                <div className="flex justify-center py-4">
+                                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                </div>
+                              ) : searchResults && searchResults.length > 0 ? (
+                                searchResults.map((event: any) => (
+                                  <div
+                                    key={event.id}
+                                    className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0 transition-colors"
+                                    onClick={() => {
+                                      setSelectedEvent(event);
+                                      form.setValue("eventId", event.id);
+                                    }}
+                                  >
+                                    <div className="font-medium text-sm">{event.title}</div>
+                                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                                      {event.startTime && (
+                                        <span className="flex items-center gap-1">
+                                          <Calendar className="h-3 w-3" />
+                                          {formatDate(event.startTime)}
+                                        </span>
+                                      )}
+                                      {event.address && (
+                                        <span className="flex items-center gap-1">
+                                          <MapPin className="h-3 w-3" />
+                                          {event.address}
+                                        </span>
+                                      )}
+                                      {event.category && (
+                                        <Badge variant="outline" className="text-xs py-0">
+                                          {event.category}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="p-4 text-center text-sm text-muted-foreground">
+                                  Geen events gevonden
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {form.formState.errors.eventId && (
+                            <p className="text-sm font-medium text-destructive">
+                              {form.formState.errors.eventId.message}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <Card className="relative">
+                          <CardContent className="p-3 flex items-center gap-3">
+                            {selectedEvent.imageUrl && (
+                              <img
+                                src={selectedEvent.imageUrl}
+                                alt={selectedEvent.title}
+                                className="w-14 h-14 rounded-md object-cover flex-shrink-0"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">{selectedEvent.title}</div>
+                              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                                {selectedEvent.startTime && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {formatDate(selectedEvent.startTime)}
+                                  </span>
+                                )}
+                                {selectedEvent.address && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {selectedEvent.address}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedEvent(null);
+                                setSearchQuery("");
+                              }}
+                            >
+                              Wijzig
+                            </Button>
+                          </CardContent>
+                        </Card>
                       )}
-                    />
+                    </FormItem>
 
                     <FormField
                       control={form.control}
@@ -373,7 +499,7 @@ export default function AdvertiserPromotions() {
                 <p className="text-muted-foreground mb-4">
                   Promoot je event bovenaan de zoekresultaten van letsgo radar.
                 </p>
-                <Button onClick={() => setShowPurchase(true)}>
+                <Button onClick={() => setShowPurchase(true)} disabled={!isVerified}>
                   <Plus className="mr-2 h-4 w-4" /> Eerste event promoten
                 </Button>
               </CardContent>

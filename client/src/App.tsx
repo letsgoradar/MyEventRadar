@@ -78,6 +78,7 @@ const AdvertiserDashboard = React.lazy(() => import("@/pages/Advertiser/Dashboar
 const AdvertiserAds = React.lazy(() => import("@/pages/Advertiser/Ads"));
 const AdvertiserPromotions = React.lazy(() => import("@/pages/Advertiser/Promotions"));
 const AdvertiserBilling = React.lazy(() => import("@/pages/Advertiser/Billing"));
+const AdvertiserVerify = React.lazy(() => import("@/pages/Advertiser/Verify"));
 
 // Layout componenten
 const WebLayout = React.lazy(() => import("@/components/Web/WebLayout").then(m => ({ default: m.WebLayout })));
@@ -200,6 +201,11 @@ export default function App() {
           <AdvertiserAuthGuard>
             <AdvertiserBilling />
           </AdvertiserAuthGuard>
+        </Route>
+        <Route path="/advertiser/verify">
+          <LazyLoad>
+            <AdvertiserVerify />
+          </LazyLoad>
         </Route>
 
         {/* Mobiel browser guard: toon install scherm voor alle niet-admin routes */}

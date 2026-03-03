@@ -1,14 +1,16 @@
 import { Router, Request, Response } from "express";
+import { randomUUID } from "crypto";
 import { db } from "../db";
 import {
   eventPromotions, events, pricingConfig, businessAds, adImpressions,
   advertiserProfiles, users,
   RADIUS_OPTIONS, PROMOTION_PERIOD, BUSINESS_CATEGORIES, PRICING_PRODUCT_TYPE,
 } from "@shared/schema";
-import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
+import { eq, and, gte, lte, sql, desc, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { attachUser, isAuthenticated, isAdmin } from "../middleware/auth";
 import { getStripe, isStripeConfigured } from "../stripe";
+import { sendVerificationEmail } from "../services/email-service";
 
 const router = Router();
 
@@ -395,6 +397,40 @@ router.get("/pricing-matrix", async (_req: Request, res: Response) => {
   }
 });
 
+// ============ EVENT SEARCH FOR PROMOTIONS ============
+
+router.get("/events/search", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const q = (req.query.q as string || "").trim();
+    if (q.length < 2) {
+      return res.json([]);
+    }
+    const searchPattern = `%${q}%`;
+    const results = await db.select({
+      id: events.id,
+      title: events.title,
+      startTime: events.startTime,
+      address: events.address,
+      imageUrl: events.imageUrl,
+      category: events.category,
+      latitude: events.latitude,
+      longitude: events.longitude,
+    }).from(events)
+      .where(
+        or(
+          ilike(events.title, searchPattern),
+          ilike(events.address, searchPattern),
+        )
+      )
+      .orderBy(desc(events.startTime))
+      .limit(20);
+    res.json(results);
+  } catch (error) {
+    console.error("Error searching events:", error);
+    res.status(500).json({ error: "Kon events niet zoeken" });
+  }
+});
+
 // ============ ADVERTISER PROFILE ============
 
 const registerAdvertiserSchema = z.object({
@@ -407,6 +443,7 @@ const registerAdvertiserSchema = z.object({
   longitude: z.string().optional(),
   businessCategory: z.enum(BUSINESS_CATEGORIES),
   phone: z.string().optional(),
+  verificationEmail: z.string().email("Voer een geldig e-mailadres in"),
 });
 
 router.post("/register", isAuthenticated, async (req: Request, res: Response) => {
@@ -417,12 +454,85 @@ router.post("/register", isAuthenticated, async (req: Request, res: Response) =>
     if (existing.length > 0) {
       return res.status(400).json({ error: "Je hebt al een adverteerdersprofiel" });
     }
+    const token = randomUUID();
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const [profile] = await db.insert(advertiserProfiles).values({
-      userId, ...data, status: "pending",
+      userId,
+      companyName: data.companyName,
+      description: data.description,
+      logoUrl: data.logoUrl,
+      websiteUrl: data.websiteUrl,
+      address: data.address,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      businessCategory: data.businessCategory,
+      phone: data.phone,
+      status: "pending",
+      verificationEmail: data.verificationEmail,
+      emailVerified: false,
+      verificationToken: token,
+      tokenExpiresAt: tokenExpires,
     }).returning();
-    res.json({ profile });
+    await sendVerificationEmail(data.verificationEmail, token, data.companyName);
+    res.json({ profile, verificationSent: true });
   } catch (error: any) {
     res.status(400).json({ error: error.message || "Registratie mislukt" });
+  }
+});
+
+router.get("/verify/:token", async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    const [profile] = await db.select().from(advertiserProfiles)
+      .where(eq(advertiserProfiles.verificationToken, token));
+    if (!profile) {
+      return res.redirect("/advertiser/verify?status=invalid");
+    }
+    if (profile.tokenExpiresAt && new Date() > profile.tokenExpiresAt) {
+      return res.redirect("/advertiser/verify?status=expired");
+    }
+    if (profile.emailVerified) {
+      return res.redirect("/advertiser/verify?status=already");
+    }
+    await db.update(advertiserProfiles)
+      .set({
+        emailVerified: true,
+        status: "active",
+        verificationToken: null,
+        tokenExpiresAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(advertiserProfiles.id, profile.id));
+    return res.redirect("/advertiser/verify?status=success");
+  } catch (error) {
+    console.error("[Verify] Error:", error);
+    return res.redirect("/advertiser/verify?status=error");
+  }
+});
+
+router.post("/resend-verification", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+    const [profile] = await db.select().from(advertiserProfiles)
+      .where(eq(advertiserProfiles.userId, userId));
+    if (!profile) {
+      return res.status(404).json({ error: "Geen adverteerdersprofiel gevonden" });
+    }
+    if (profile.emailVerified) {
+      return res.status(400).json({ error: "E-mail is al geverifieerd" });
+    }
+    if (!profile.verificationEmail) {
+      return res.status(400).json({ error: "Geen verificatie e-mailadres ingesteld" });
+    }
+    const token = randomUUID();
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await db.update(advertiserProfiles)
+      .set({ verificationToken: token, tokenExpiresAt: tokenExpires, updatedAt: new Date() })
+      .where(eq(advertiserProfiles.id, profile.id));
+    await sendVerificationEmail(profile.verificationEmail, token, profile.companyName);
+    res.json({ success: true, message: "Verificatie-e-mail opnieuw verzonden" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Kon verificatie niet opnieuw verzenden" });
   }
 });
 
@@ -555,6 +665,14 @@ router.post("/purchase", isAuthenticated, async (req: Request, res: Response) =>
   try {
     const data = purchasePromotionSchema.parse(req.body);
     const userId = (req.user as any).id;
+
+    const [advertiser] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, userId));
+    if (!advertiser) {
+      return res.status(403).json({ error: "Je hebt een bedrijfsaccount nodig om events te promoten" });
+    }
+    if (!advertiser.emailVerified) {
+      return res.status(403).json({ error: "Verifieer eerst je bedrijfs e-mailadres voordat je events kunt promoten" });
+    }
 
     const [price] = await db.select().from(pricingConfig)
       .where(and(

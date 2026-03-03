@@ -165,7 +165,7 @@ export const events = pgTable("events", {
   isPaid: boolean("is_paid").default(false),
   price: decimal("price"),
   maxParticipants: integer("max_participants"),
-  hostId: integer("host_id").notNull(),
+  hostId: integer("host_id"),
   recurrence: text("recurrence").notNull().default('once'),
   tags: text("tags").array(),
   imageUrl: text("image_url"),
@@ -575,7 +575,7 @@ export const insertEventSchema = z.object({
   isPaid: z.boolean().default(false),
   price: z.number().optional().nullable(),
   maxParticipants: z.number().optional().nullable(), // Let op: Added nullable() to fix form submission
-  hostId: z.number().optional(), // Wordt ingesteld door de backend op basis van ingelogde gebruiker
+  hostId: z.number().nullable().optional(),
   recurrence: z.enum(['once', 'daily', 'weekly', 'monthly']).default('once'),
   tags: z.array(z.string()).max(5, "Maximaal 5 tags toegestaan"),
   imageUrl: z.string().optional(),
@@ -635,7 +635,7 @@ export interface EventInterface {
   isPaid: boolean;
   price?: string | number | null;
   maxParticipants?: number | null;
-  hostId: number;
+  hostId: number | null;
   recurrence: string;
   tags?: string[] | null;
   imageUrl?: string | null;
@@ -943,6 +943,10 @@ export const advertiserProfiles = pgTable("advertiser_profiles", {
   monthlyBudgetCapCents: integer("monthly_budget_cap_cents"),
   currentMonthSpendCents: integer("current_month_spend_cents").notNull().default(0),
   status: text("status").notNull().default('pending').$type<typeof ADVERTISER_STATUS[number]>(),
+  verificationEmail: text("verification_email"),
+  emailVerified: boolean("email_verified").default(false),
+  verificationToken: text("verification_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

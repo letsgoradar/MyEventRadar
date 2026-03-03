@@ -3605,7 +3605,7 @@ Antwoord in dit JSON formaat:
         startTime: startDate.toISOString(),
         endTime: rawData.endTime || null,
         category: category as any,
-        hostId: 1,
+        hostId: null,
         recurrence: 'once' as const,
         tags: ['rss-import', 'manual-import'],
         imageUrl: item.imageUrl || null,

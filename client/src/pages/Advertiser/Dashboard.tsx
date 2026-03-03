@@ -108,9 +108,9 @@ export default function AdvertiserDashboard() {
 
   if (authLoading || profileLoading) {
     return (
-      <div className="h-screen flex bg-background">
+      <div className="min-h-screen flex flex-col lg:flex-row bg-background">
         <AdvertiserSidebar />
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto pt-14 lg:pt-0 p-6">
           <div className="space-y-4">
             <Skeleton className="h-8 w-64" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -165,9 +165,9 @@ export default function AdvertiserDashboard() {
   };
 
   return (
-    <div className="h-screen flex bg-background">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       <AdvertiserSidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pt-14 lg:pt-0">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div>

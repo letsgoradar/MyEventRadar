@@ -112,13 +112,14 @@ Twee-producten advertentiesysteem:
 
 **Product 1: Bedrijfsadvertenties (CPM-model)**
 - Hospitality-bedrijven adverteren in ExternalLinkInterstitial
-- Pay-per-impression, prijs schaalt met gekozen doelradius (5/10/15/20/25 km)
+- Pay-per-impression, prijs schaalt met gekozen doelradius (5/10/15/20/25/30/40/50 km + landelijk)
 - Auto-incasso via Stripe, budget-cap instelbaar
 - Tabellen: `advertiser_profiles`, `business_ads`, `ad_impressions`
 
 **Product 2: Gepromote Events (prepaid)**
 - Events verschijnen als "Gepromoot" bovenaan zoekresultaten (max 2 tegelijk, carousel bij meer)
-- Prepaid per periode (dag/week/maand), prijs schaalt met radius
+- Prepaid per periode (dag/week/maand), prijs schaalt met radius (5-50 km + landelijk)
+- Landelijk (radius=0) bereikt alle gebruikers in Nederland
 - Carousel met eerlijke rotatie (auto 8s), dot-indicators
 - Tabel: `event_promotions`
 

@@ -121,7 +121,7 @@ export default function AdvertiserLanding() {
                   {[
                     'Betaal alleen voor vertoningen (CPM)',
                     'Stel een maandelijks budgetlimiet in',
-                    'Kies je doelradius (5-25 km)',
+                    'Kies je doelradius (5-50 km of landelijk)',
                     'Automatische incasso via Stripe',
                     'Real-time statistieken',
                   ].map((item) => (
@@ -155,7 +155,7 @@ export default function AdvertiserLanding() {
                   {[
                     'Bovenaan in zoekresultaten',
                     'Kies 1 dag, 1 week of 1 maand',
-                    'Kies je doelradius (5-25 km)',
+                    'Kies je doelradius (5-50 km of landelijk)',
                     'Eenmalige betaling, geen verrassingen',
                     'Gouden badge op je evenement',
                   ].map((item) => (
@@ -198,14 +198,14 @@ export default function AdvertiserLanding() {
                     Doelradius
                   </label>
                   <div className="flex gap-2 flex-wrap">
-                    {(RADIUS_OPTIONS as readonly number[]).map((r) => (
+                    {[...RADIUS_OPTIONS].sort((a, b) => { if (a === 0) return 1; if (b === 0) return -1; return a - b; }).map((r) => (
                       <Button
                         key={r}
                         variant={selectedRadius === r ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setSelectedRadius(r)}
                       >
-                        {r} km
+                        {r === 0 ? 'Landelijk' : `${r} km`}
                       </Button>
                     ))}
                   </div>
@@ -250,9 +250,9 @@ export default function AdvertiserLanding() {
                           </tr>
                         </thead>
                         <tbody>
-                          {(RADIUS_OPTIONS as readonly number[]).map((r) => (
+                          {[...RADIUS_OPTIONS].sort((a, b) => { if (a === 0) return 1; if (b === 0) return -1; return a - b; }).map((r) => (
                             <tr key={r} className={`border-b ${r === selectedRadius ? 'bg-primary/5 font-medium' : ''}`}>
-                              <td className="py-2">{r} km</td>
+                              <td className="py-2">{r === 0 ? 'Landelijk' : `${r} km`}</td>
                               {['day', 'week', 'month'].map((p) => {
                                 const price = pricingData.pricing?.event_promotion?.[String(r)]?.[p];
                                 return (
@@ -272,7 +272,7 @@ export default function AdvertiserLanding() {
                 <TabsContent value="ads">
                   <div className="bg-muted/50 rounded-xl p-6 text-center">
                     <p className="text-sm text-muted-foreground mb-2">
-                      CPM bij {selectedRadius} km radius
+                      CPM bij {selectedRadius === 0 ? 'landelijk' : `${selectedRadius} km`} bereik
                     </p>
                     <p className="text-4xl font-bold text-primary">
                       {adCpmPrice !== undefined ? formatCents(adCpmPrice) : '—'}
@@ -290,11 +290,11 @@ export default function AdvertiserLanding() {
                           </tr>
                         </thead>
                         <tbody>
-                          {(RADIUS_OPTIONS as readonly number[]).map((r) => {
+                          {[...RADIUS_OPTIONS].sort((a, b) => { if (a === 0) return 1; if (b === 0) return -1; return a - b; }).map((r) => {
                             const price = pricingData.pricing?.business_ad?.[String(r)]?.cpm;
                             return (
                               <tr key={r} className={`border-b ${r === selectedRadius ? 'bg-primary/5 font-medium' : ''}`}>
-                                <td className="py-2">{r} km</td>
+                                <td className="py-2">{r === 0 ? 'Landelijk' : `${r} km`}</td>
                                 <td className="text-right py-2">
                                   {price !== undefined ? formatCents(price) : '—'}
                                 </td>

@@ -44,6 +44,10 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
 }
 
+function formatRadius(km: number): string {
+  return km === 0 ? "Landelijk" : km + " km";
+}
+
 const PERIOD_LABELS: Record<string, string> = {
   day: "1 dag",
   week: "1 week",
@@ -151,9 +155,9 @@ export default function AdvertiserPromotions() {
   };
 
   return (
-    <div className="h-screen flex bg-background">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       <AdvertiserSidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pt-14 lg:pt-0">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -190,7 +194,7 @@ export default function AdvertiserPromotions() {
                   <Plus className="mr-2 h-4 w-4" /> Event promoten
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Event promoten</DialogTitle>
                   <DialogDescription>
@@ -348,15 +352,15 @@ export default function AdvertiserPromotions() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {RADIUS_OPTIONS.map((r) => (
+                              {[...RADIUS_OPTIONS].sort((a, b) => { if (a === 0) return 1; if (b === 0) return -1; return a - b; }).map((r) => (
                                 <SelectItem key={r} value={String(r)}>
-                                  {r} km
+                                  {formatRadius(r)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            Alleen gebruikers binnen deze radius zien je gepromote event.
+                            Kies een bereik. Landelijk bereikt alle gebruikers in Nederland.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -372,7 +376,7 @@ export default function AdvertiserPromotions() {
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {PERIOD_LABELS[selectedPeriod]} × {selectedRadius} km radius
+                          {PERIOD_LABELS[selectedPeriod]} × {formatRadius(selectedRadius)} bereik
                         </p>
                       </div>
                     )}
@@ -408,9 +412,9 @@ export default function AdvertiserPromotions() {
                       </tr>
                     </thead>
                     <tbody>
-                      {RADIUS_OPTIONS.map((r) => (
+                      {[...RADIUS_OPTIONS].sort((a, b) => { if (a === 0) return 1; if (b === 0) return -1; return a - b; }).map((r) => (
                         <tr key={r} className="border-b last:border-0">
-                          <td className="p-2 font-medium">{r} km</td>
+                          <td className="p-2 font-medium">{formatRadius(r)}</td>
                           {(["day", "week", "month"] as const).map((period) => {
                             const price = pricingData.find(
                               (p) => p.radiusKm === r && p.period === period
@@ -461,7 +465,7 @@ export default function AdvertiserPromotions() {
                             </div>
                             <div className="flex items-center gap-2">
                               <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <span>{promotion.targetRadiusKm} km</span>
+                              <span>{formatRadius(promotion.targetRadiusKm)}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Eye className="h-4 w-4 text-muted-foreground" />

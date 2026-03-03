@@ -65,6 +65,7 @@ router.get("/active", async (req: Request, res: Response) => {
       );
 
     const filtered = activePromotions.filter((row) => {
+      if (row.promotion.targetRadiusKm === 0) return true;
       const eventLat = Number(row.event.latitude);
       const eventLng = Number(row.event.longitude);
       const distance = calculateDistance(lat, lng, eventLat, eventLng);
@@ -193,7 +194,7 @@ router.get("/ads/serve", attachUser, async (req: Request, res: Response) => {
           parseFloat(profile.latitude as string),
           parseFloat(profile.longitude as string)
         );
-        if (distance > ad.targetRadiusKm) return false;
+        if (ad.targetRadiusKm > 0 && distance > ad.targetRadiusKm) return false;
       }
 
       if (
@@ -658,7 +659,7 @@ router.patch("/budget-cap", isAuthenticated, async (req: Request, res: Response)
 const purchasePromotionSchema = z.object({
   eventId: z.number(),
   period: z.enum(["day", "week", "month"]),
-  radiusKm: z.number().refine(v => [5, 10, 15, 20, 25].includes(v), "Ongeldige radius"),
+  radiusKm: z.number().refine(v => [0, 5, 10, 15, 20, 25, 30, 40, 50].includes(v), "Ongeldige radius"),
 });
 
 router.post("/purchase", isAuthenticated, async (req: Request, res: Response) => {
@@ -730,7 +731,7 @@ const createBusinessAdSchema = z.object({
   imageUrl: z.string().optional(),
   ctaUrl: z.string().url(),
   ctaText: z.string().max(30).optional(),
-  targetRadiusKm: z.number().refine(v => [5, 10, 15, 20, 25].includes(v)),
+  targetRadiusKm: z.number().refine(v => [0, 5, 10, 15, 20, 25, 30, 40, 50].includes(v)),
   targetCategories: z.array(z.string()).optional(),
 });
 

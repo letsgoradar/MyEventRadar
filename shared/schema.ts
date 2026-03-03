@@ -923,7 +923,7 @@ export const ADVERTISER_STATUS = ['pending', 'active', 'suspended'] as const;
 export const BUSINESS_AD_STATUS = ['draft', 'pending', 'active', 'paused', 'exhausted'] as const;
 export const PROMOTION_PERIOD = ['day', 'week', 'month'] as const;
 export const PROMOTION_STATUS = ['active', 'expired', 'cancelled'] as const;
-export const RADIUS_OPTIONS = [5, 10, 15, 20, 25] as const;
+export const RADIUS_OPTIONS = [5, 10, 15, 20, 25, 30, 40, 50, 0] as const;
 export const PRICING_PRODUCT_TYPE = ['event_promotion', 'business_ad'] as const;
 
 export const advertiserProfiles = pgTable("advertiser_profiles", {

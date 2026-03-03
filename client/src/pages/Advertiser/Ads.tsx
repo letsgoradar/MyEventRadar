@@ -37,6 +37,10 @@ function formatCents(cents: number): string {
   return new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(cents / 100);
 }
 
+function formatRadius(km: number): string {
+  return km === 0 ? "Landelijk" : km + " km";
+}
+
 const createAdSchema = z.object({
   title: z.string().min(2, "Titel is verplicht").max(60, "Max 60 tekens"),
   description: z.string().optional(),
@@ -128,9 +132,9 @@ export default function AdvertiserAds() {
   };
 
   return (
-    <div className="h-screen flex bg-background">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       <AdvertiserSidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pt-14 lg:pt-0">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -146,7 +150,7 @@ export default function AdvertiserAds() {
                   <Plus className="mr-2 h-4 w-4" /> Nieuwe advertentie
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Nieuwe advertentie</DialogTitle>
                   <DialogDescription>
@@ -241,18 +245,18 @@ export default function AdvertiserAds() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {RADIUS_OPTIONS.map((r) => {
+                              {[...RADIUS_OPTIONS].sort((a, b) => { if (a === 0) return 1; if (b === 0) return -1; return a - b; }).map((r) => {
                                 const price = pricing?.find((p) => p.radiusKm === r);
                                 return (
                                   <SelectItem key={r} value={String(r)}>
-                                    {r} km {price ? `— ${formatCents(price.cpmCents)} per 1000 impressies` : ""}
+                                    {formatRadius(r)} {price ? `— ${formatCents(price.cpmCents)} per 1000 impressies` : ""}
                                   </SelectItem>
                                 );
                               })}
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            Grotere radius = meer bereik, hogere CPM.
+                            Kies een bereik. Landelijk bereikt alle gebruikers in Nederland.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -262,7 +266,7 @@ export default function AdvertiserAds() {
                     {selectedPrice && (
                       <div className="bg-primary/5 rounded-lg p-3 border border-primary/20">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">CPM prijs ({selectedRadius} km)</span>
+                          <span className="text-sm font-medium">CPM prijs ({formatRadius(selectedRadius)})</span>
                           <span className="text-lg font-bold text-primary">
                             {formatCents(selectedPrice.cpmCents)}
                           </span>
@@ -327,7 +331,7 @@ export default function AdvertiserAds() {
                             </div>
                             <div className="text-sm">
                               <span className="text-muted-foreground">Radius:</span>{" "}
-                              <span className="font-medium">{ad.targetRadiusKm} km</span>
+                              <span className="font-medium">{formatRadius(ad.targetRadiusKm)}</span>
                             </div>
                           </div>
                         </div>

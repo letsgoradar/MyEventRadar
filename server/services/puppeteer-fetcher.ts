@@ -1,4 +1,5 @@
 import puppeteer, { Browser } from "puppeteer";
+import { validateExternalUrl } from "../utils/url-validator";
 
 let browserInstance: Browser | null = null;
 
@@ -46,6 +47,7 @@ export async function fetchRenderedHtml(
   let page = null;
   
   try {
+    validateExternalUrl(url, "puppeteer-fetch");
     const browser = await getBrowser();
     page = await browser.newPage();
     

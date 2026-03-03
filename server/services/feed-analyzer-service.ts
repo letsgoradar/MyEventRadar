@@ -9,6 +9,7 @@ import { FeedFieldDetector } from "./feed-field-detector";
 import { AiHtmlAnalyzer } from "./ai-html-analyzer";
 import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
 import { AiProvider } from "./ai-provider";
+import { validateExternalUrl } from "../utils/url-validator";
 
 /**
  * Sanitize XML content to fix common parsing issues.
@@ -350,6 +351,7 @@ export class FeedAnalyzerService {
     };
 
     try {
+      validateExternalUrl(url, "feed-analyzer");
       const response = await axios.get(url, {
         headers: { 
           "User-Agent": this.USER_AGENT,

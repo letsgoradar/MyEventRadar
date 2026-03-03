@@ -50,12 +50,16 @@ router.get('/search', async (req: Request, res: Response) => {
     // Zoek foto's via Unsplash API
     const searchUrl = `${UNSPLASH_API_URL}/search/photos?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`;
     
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(searchUrl, {
       headers: {
         'Authorization': `Client-ID ${accessKey}`,
         'Accept-Version': 'v1'
-      }
+      },
+      signal: controller.signal,
     });
+    clearTimeout(fetchTimeout);
 
     if (!response.ok) {
       console.error('Unsplash API error:', response.status, response.statusText);

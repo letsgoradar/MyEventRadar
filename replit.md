@@ -202,3 +202,10 @@ Twee-producten advertentiesysteem:
 - **Unhandled Errors**: Global `unhandledRejection` and `uncaughtException` handlers log errors and trigger graceful shutdown.
 - **Health Check**: `GET /api/health` returns database status, uptime, memory usage. Returns 503 if database is unreachable.
 - **Cache Limits**: All in-memory caches (AI title/location/translation, geocoding) are capped at 500-1000 entries to prevent memory growth.
+
+### Network Security (Session 4)
+- **SSRF Protection**: `server/utils/url-validator.ts` blocks requests to private IPs (RFC 1918), localhost, metadata endpoints (169.254.x.x), and non-http(s) protocols. Applied to RSS feed fetching, Puppeteer, and feed analyzer.
+- **Stripe Webhook**: Signature verification is now mandatory — rejects requests when `STRIPE_WEBHOOK_SECRET` is missing or signature is invalid.
+- **WebSocket Hardening**: Max 200 concurrent connections, 5-minute idle timeout, 1KB max message size. Excess connections rejected with code 1013.
+- **Request Limits**: JSON/urlencoded body limit reduced from 10MB to 2MB. Unsplash API calls have 10s timeout.
+- **File Uploads**: Profile photo uploads validated (JPEG/PNG/GIF/WEBP only, 5MB max, server-generated filenames prevent path traversal).

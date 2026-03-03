@@ -64,8 +64,8 @@ const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunctio
 };
 
 // Setup middleware
-app.use(express.json({ limit: '10mb' })); // Verhoog de limiet voor JSON verzoeken
-app.use(express.urlencoded({ extended: false, limit: '10mb' })); // Verhoog de limiet voor urlencoded verzoeken
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 app.use(cookieParser());
 
 // Setup session with forced reset

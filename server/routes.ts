@@ -155,31 +155,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.warn("This is expected in development mode.");
   }
   
-  // WebSocket server voor realtime functionaliteit
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const MAX_WS_CONNECTIONS = 200;
+  const WS_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+  const WS_MAX_MESSAGE_SIZE = 1024;
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws', maxPayload: WS_MAX_MESSAGE_SIZE });
 
-  wss.on('connection', (ws) => {
-    console.log('Client connected to WebSocket');
+  const wsIdleTimers = new WeakMap<import("ws").WebSocket, NodeJS.Timeout>();
+
+  function resetIdleTimer(ws: import("ws").WebSocket) {
+    const existing = wsIdleTimers.get(ws);
+    if (existing) clearTimeout(existing);
+    wsIdleTimers.set(ws, setTimeout(() => {
+      ws.close(1000, "Idle timeout");
+    }, WS_IDLE_TIMEOUT_MS));
+  }
+
+  wss.on('connection', (ws, req) => {
+    if (wss.clients.size > MAX_WS_CONNECTIONS) {
+      console.warn(`[WebSocket] Connection limit reached (${MAX_WS_CONNECTIONS}), rejecting new client`);
+      ws.close(1013, "Connection limit reached");
+      return;
+    }
+
+    console.log(`[WebSocket] Client connected (${wss.clients.size} total)`);
+    resetIdleTimer(ws);
     
-    // Send welcome message
     ws.send(JSON.stringify({ type: 'welcome', message: 'Welcome to the EventApp WebSocket Server' }));
     
     ws.on('message', (message) => {
+      resetIdleTimer(ws);
       try {
         const data = JSON.parse(message.toString());
-        console.log('Received:', data);
-        
-        // Handle different message types
         if (data.type === 'ping') {
           ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
         }
       } catch (e) {
-        console.error('Error parsing message:', e);
+        // ignore malformed messages
       }
     });
     
     ws.on('close', () => {
-      console.log('Client disconnected from WebSocket');
+      const timer = wsIdleTimers.get(ws);
+      if (timer) clearTimeout(timer);
+      console.log(`[WebSocket] Client disconnected (${wss.clients.size} remaining)`);
     });
   });
   

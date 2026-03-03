@@ -16,6 +16,7 @@ import { AiHtmlAnalyzer, type AiExtractionSelectors, type AiPaginationInfo } fro
 
 import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
 import { matchTags } from "./tag-matcher";
+import { validateExternalUrl } from "../utils/url-validator";
 
 /**
  * Determine if a given date/time is in Dutch Summer Time (CEST = UTC+2) or Winter Time (CET = UTC+1).
@@ -1035,7 +1036,7 @@ export class RssFeedService {
 
   static async fetchAndParseRssFeed(url: string, municipality?: string): Promise<FeedParseResult> {
     try {
-      // Try to load stored field mappings for this feed domain
+      validateExternalUrl(url, "rss-feed-fetch");
       const domain = FeedFieldDetector.extractDomain(url);
       const storedMappings = await FeedFieldDetector.getMapping(domain);
       if (storedMappings) {

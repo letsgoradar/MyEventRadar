@@ -240,35 +240,57 @@ export function ClusterLayer({
           icon: createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected),
         });
         
-        const popupContent = `
-          <div style="min-width: 200px;" class="cluster-popup-content" data-event-id="${event.id}">
-            ${event.event.imageUrl ? `
-              <img src="${event.event.imageUrl}" alt="${event.title}" 
-                style="width: 100%; height: 100px; object-fit: cover; border-radius: 4px 4px 0 0;" />
-            ` : ''}
-            <div style="padding: 8px;">
-              <h3 style="margin: 0 0 4px; font-size: 14px; font-weight: 600;">${event.title}</h3>
-              <p style="margin: 0; font-size: 12px; color: #666;">${event.event.address || ''}</p>
-              <p style="margin: 4px 0 0; font-size: 11px; color: #888;">${event.category}</p>
-              ${!isWebView ? `
-                <button class="cluster-popup-details-btn" data-event-id="${event.id}" style="
-                  width: 100%;
-                  margin-top: 8px;
-                  padding: 6px 12px;
-                  background-color: hsl(var(--primary));
-                  color: white;
-                  border: none;
-                  border-radius: 6px;
-                  font-size: 13px;
-                  font-weight: 500;
-                  cursor: pointer;
-                ">Bekijk details</button>
-              ` : ''}
-            </div>
-          </div>
-        `;
+        const createPopupElement = () => {
+          const container = document.createElement('div');
+          container.style.minWidth = '200px';
+          container.className = 'cluster-popup-content';
+          container.dataset.eventId = String(event.id);
+          
+          if (event.event.imageUrl) {
+            const img = document.createElement('img');
+            img.src = event.event.imageUrl;
+            img.alt = event.title;
+            img.style.cssText = 'width: 100%; height: 100px; object-fit: cover; border-radius: 4px 4px 0 0;';
+            container.appendChild(img);
+          }
+          
+          const info = document.createElement('div');
+          info.style.padding = '8px';
+          
+          const title = document.createElement('h3');
+          title.style.cssText = 'margin: 0 0 4px; font-size: 14px; font-weight: 600;';
+          title.textContent = event.title;
+          info.appendChild(title);
+          
+          const address = document.createElement('p');
+          address.style.cssText = 'margin: 0; font-size: 12px; color: #666;';
+          address.textContent = event.event.address || '';
+          info.appendChild(address);
+          
+          const category = document.createElement('p');
+          category.style.cssText = 'margin: 4px 0 0; font-size: 11px; color: #888;';
+          category.textContent = event.category;
+          info.appendChild(category);
+          
+          if (!isWebView) {
+            const btn = document.createElement('button');
+            btn.className = 'cluster-popup-details-btn';
+            btn.style.cssText = 'width: 100%; margin-top: 8px; padding: 6px 12px; background-color: hsl(var(--primary)); color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;';
+            btn.textContent = 'Bekijk details';
+            L.DomEvent.on(btn, 'click', (e) => {
+              L.DomEvent.stopPropagation(e);
+              L.DomEvent.preventDefault(e);
+              marker.closePopup();
+              onEventClick(event.event);
+            });
+            info.appendChild(btn);
+          }
+          
+          container.appendChild(info);
+          return container;
+        };
         
-        marker.bindPopup(popupContent, {
+        marker.bindPopup(createPopupElement, {
           maxWidth: 250,
           className: "event-cluster-popup",
           autoPan: !isWebView,
@@ -315,20 +337,6 @@ export function ClusterLayer({
         } else {
           marker.on("click", () => {
             marker.openPopup();
-          });
-          
-          marker.on("popupopen", () => {
-            const popupEl = marker.getPopup()?.getElement();
-            if (popupEl) {
-              const detailsBtn = popupEl.querySelector('.cluster-popup-details-btn');
-              if (detailsBtn) {
-                detailsBtn.addEventListener("click", (e) => {
-                  e.stopPropagation();
-                  marker.closePopup();
-                  onEventClick(event.event);
-                });
-              }
-            }
           });
         }
         

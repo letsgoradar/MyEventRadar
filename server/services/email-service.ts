@@ -39,6 +39,81 @@ function getBaseUrl(): string {
   return `https://${process.env.REPLIT_DEV_DOMAIN || "localhost:5000"}`;
 }
 
+export async function sendFeedbackNotification(feedback: {
+  feedbackType: string;
+  message: string;
+  pageUrl: string;
+  username?: string;
+  rating?: number | null;
+  email?: string | null;
+}): Promise<boolean> {
+  const typeLabels: Record<string, string> = {
+    bug: "Bug 🐛",
+    idee: "Idee 💡",
+    vraag: "Vraag ❓",
+    anders: "Anders 📝",
+  };
+
+  const subject = `[letsgo radar BETA] Nieuwe feedback: ${typeLabels[feedback.feedbackType] || feedback.feedbackType}`;
+
+  const ratingHtml = feedback.rating
+    ? `<p><strong>Rating:</strong> ${"★".repeat(feedback.rating)}${"☆".repeat(5 - feedback.rating)} (${feedback.rating}/5)</p>`
+    : "";
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #333; font-size: 20px; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+        ${typeLabels[feedback.feedbackType] || feedback.feedbackType} — Nieuwe Beta Feedback
+      </h2>
+      <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 16px 0;">
+        <p style="color: #333; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${feedback.message}</p>
+      </div>
+      ${ratingHtml}
+      <table style="width: 100%; font-size: 14px; color: #555;">
+        <tr><td style="padding: 4px 0;"><strong>Pagina:</strong></td><td>${feedback.pageUrl}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Gebruiker:</strong></td><td>${feedback.username || "Anoniem"}</td></tr>
+        ${feedback.email ? `<tr><td style="padding: 4px 0;"><strong>E-mail:</strong></td><td>${feedback.email}</td></tr>` : ""}
+        <tr><td style="padding: 4px 0;"><strong>Tijdstip:</strong></td><td>${new Date().toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</td></tr>
+      </table>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+      <p style="color: #aaa; font-size: 12px;">
+        letsgo radar BETA — Feedback systeem
+      </p>
+    </div>
+  `;
+
+  const transport = getTransporter();
+  const notificationEmail = "info@letsgoradar.com";
+
+  if (!transport) {
+    console.log("\n========================================");
+    console.log("[Email] FEEDBACK NOTIFICATIE (dev mode)");
+    console.log(`Aan: ${notificationEmail}`);
+    console.log(`Type: ${feedback.feedbackType}`);
+    console.log(`Bericht: ${feedback.message}`);
+    console.log(`Pagina: ${feedback.pageUrl}`);
+    console.log(`Gebruiker: ${feedback.username || "Anoniem"}`);
+    if (feedback.rating) console.log(`Rating: ${feedback.rating}/5`);
+    if (feedback.email) console.log(`Contact: ${feedback.email}`);
+    console.log("========================================\n");
+    return true;
+  }
+
+  try {
+    await transport.sendMail({
+      from: `letsgo radar <${getFromAddress()}>`,
+      to: notificationEmail,
+      subject,
+      html,
+    });
+    console.log(`[Email] Feedback notificatie verzonden naar ${notificationEmail}`);
+    return true;
+  } catch (error) {
+    console.error(`[Email] Fout bij verzenden feedback notificatie:`, error);
+    return false;
+  }
+}
+
 export async function sendVerificationEmail(
   email: string,
   token: string,

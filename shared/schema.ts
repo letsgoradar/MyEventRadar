@@ -1055,5 +1055,30 @@ export type InsertEventPromotion = z.infer<typeof insertEventPromotionSchema>;
 export type PricingConfig = typeof pricingConfig.$inferSelect;
 export type InsertPricingConfig = z.infer<typeof insertPricingConfigSchema>;
 
+// Beta Feedback
+export const FEEDBACK_TYPES = ['bug', 'idee', 'vraag', 'anders'] as const;
+export const FEEDBACK_STATUS = ['nieuw', 'gelezen', 'verwerkt'] as const;
+
+export const betaFeedback = pgTable("beta_feedback", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  pageUrl: text("page_url").notNull(),
+  feedbackType: text("feedback_type").notNull().$type<typeof FEEDBACK_TYPES[number]>(),
+  message: text("message").notNull(),
+  rating: integer("rating"),
+  email: text("email"),
+  status: text("status").notNull().default('nieuw').$type<typeof FEEDBACK_STATUS[number]>(),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBetaFeedbackSchema = createInsertSchema(betaFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type BetaFeedback = typeof betaFeedback.$inferSelect;
+export type InsertBetaFeedback = z.infer<typeof insertBetaFeedbackSchema>;
+
 // Re-export chat models
 export * from "./models/chat";

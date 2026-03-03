@@ -22,6 +22,7 @@ import generateImageRoutes from "./routes/generate-image";
 import unsplashSearchRoutes from "./routes/unsplash-search";
 import venueRoutes from "./routes/venue-routes";
 import promotionRoutes from "./routes/advertiser-routes";
+import feedbackRoutes from "./routes/feedback-routes";
 import themeHandler from "./theme-handler";
 
 // Query cache voor geocoding
@@ -138,6 +139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/promotions", promotionRoutes);
   app.use("/api/advertiser", promotionRoutes);
   app.use("/api", promotionRoutes);
+  app.use("/api", feedbackRoutes);
   app.use("/api", themeHandler);
   
   // Create HTTP server

@@ -132,10 +132,19 @@ Twee-producten advertentiesysteem:
 - Admin: Admin → Promotions tab met 5 subtabs (advertenties goedkeuring, promoties, adverteerders, inkomsten, prijsbeheer)
 
 **Bestanden**:
-- Schema: `shared/schema.ts` (onderaan: advertiser tables)
-- Routes: `server/routes/advertiser-routes.ts`
+- Schema: `shared/schema.ts` (onderaan: advertiser tables + beta_feedback)
+- Routes: `server/routes/advertiser-routes.ts`, `server/routes/feedback-routes.ts`
 - Stripe: `server/stripe.ts`
+- Email: `server/services/email-service.ts` (sendVerificationEmail + sendFeedbackNotification)
 - Frontend: `client/src/pages/Advertiser/` (5 pagina's), `client/src/components/Advertiser/` (AuthGuard, Sidebar), `client/src/components/Ads/` (AdBanner, ExternalLinkInterstitial, PromotedEventsCarousel)
+
+### Beta Feedback Systeem
+- **Beta banner**: `client/src/components/BetaBanner.tsx` — sluitbare balk bovenaan alle niet-admin pagina's
+- **Feedback widget**: `client/src/components/FeedbackWidget.tsx` — zwevende knop rechtsonder met formulier (type/bericht/rating/email)
+- **Database**: `beta_feedback` tabel (feedbackType: bug/idee/vraag/anders, status: nieuw/gelezen/verwerkt)
+- **API**: `POST /api/feedback` (public), `GET/PATCH /api/admin/feedback`, `GET /api/admin/feedback/stats`
+- **E-mail**: Bij nieuwe feedback wordt notificatie gestuurd naar info@letsgoradar.com
+- **Admin**: `/admin/feedback` — overzichtspagina met filters, statistieken en detail-dialoog
 
 **Stripe**: Packages geïnstalleerd (`stripe`, `@stripe/stripe-js`, `@stripe/react-stripe-js`). Vereist `STRIPE_SECRET_KEY` en optioneel `STRIPE_WEBHOOK_SECRET` environment variables.
 

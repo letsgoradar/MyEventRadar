@@ -10,6 +10,9 @@ import { useIsPWA } from "@/hooks/use-pwa"
 import { queryClient } from "@/lib/queryClient"
 import { ThemeInjector } from "@/components/ThemeInjector"
 import { Skeleton } from "@/components/ui/skeleton"
+import { BetaBanner } from "@/components/BetaBanner"
+import { FeedbackWidget } from "@/components/FeedbackWidget"
+import { useLocation } from "wouter"
 
 // Lazy loading wrapper voor betere code splitting
 const LazyLoad = ({ children }: { children: React.ReactNode }) => (
@@ -39,6 +42,7 @@ const TagManager = React.lazy(() => import("@/pages/admin/TagManager"));
 const AdminPromotions = React.lazy(() => import("@/pages/admin/Promotions"));
 const AdminVenues = React.lazy(() => import("@/pages/admin/Venues"));
 const AdminVenueDetail = React.lazy(() => import("@/pages/admin/VenueDetail"));
+const AdminFeedback = React.lazy(() => import("@/pages/admin/Feedback"));
 
 // Web componenten (lazy loaded) - Let op: Web.tsx is direct in pages, niet in Web/
 const WebPage = React.lazy(() => import("@/pages/Web.tsx"));
@@ -145,6 +149,11 @@ export default function App() {
         <Route path="/admin/promotions">
           <AuthGuard>
             <AdminPromotions />
+          </AuthGuard>
+        </Route>
+        <Route path="/admin/feedback">
+          <AuthGuard>
+            <AdminFeedback />
           </AuthGuard>
         </Route>
         <Route path="/admin/events/:id">
@@ -380,9 +389,22 @@ export default function App() {
         </Route>
           </Switch>
           </LazyLoad>
+          <BetaOverlay />
           <Toaster />
         </AuthProvider>
       </LanguageProvider>
     </QueryClientProvider>
+  );
+}
+
+function BetaOverlay() {
+  const [location] = useLocation();
+  const isAdmin = location.startsWith("/admin") || location === "/login";
+  if (isAdmin) return null;
+  return (
+    <>
+      <BetaBanner />
+      <FeedbackWidget />
+    </>
   );
 }

@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { eq, and, desc, count, sql, isNotNull, inArray } from 'drizzle-orm';
+import { eq, and, desc, count, sql, isNotNull, isNull, inArray } from 'drizzle-orm';
 import {
   users,
   events,
@@ -112,6 +112,8 @@ export interface IStorage {
   getAllEvents(): Promise<Event[]>;
   updateEvent(id: number, event: Partial<Event>): Promise<Event>;
   deleteEvent(id: number): Promise<void>;
+  hardDeleteEvent(id: number): Promise<void>;
+  restoreEvent(id: number): Promise<Event>;
   getEventCount(): Promise<number>;
   importEvents(events: InsertEvent[]): Promise<Event[]>;
   
@@ -170,7 +172,7 @@ export interface IStorage {
   getAllRssFeeds(): Promise<RssFeed[]>;
   updateRssFeed(id: number, feed: Partial<RssFeed>): Promise<RssFeed>;
   deleteRssFeed(id: number): Promise<void>;
-  deleteEventsByFeedId(feedId: number): Promise<void>;
+  deleteEventsByFeedId(feedId: number, confirmDeletion?: boolean): Promise<void>;
   unlinkEventsFromFeed(feedId: number): Promise<void>;
   getRssFeedItems(feedId: number): Promise<RssFeedItem[]>;
   getRssFeedItemsCount(): Promise<number>;
@@ -441,7 +443,7 @@ export class PgStorage implements IStorage {
 
   async getEvent(id: number): Promise<Event | undefined> {
     return this.withRetry(async () => {
-      const [result] = await db.select().from(events).where(eq(events.id, id));
+      const [result] = await db.select().from(events).where(and(eq(events.id, id), isNull(events.deletedAt)));
       return result;
     });
   }
@@ -449,7 +451,7 @@ export class PgStorage implements IStorage {
   async getEventsByRadius(lat: number, lng: number, radius: number, windowDays: number | null = null): Promise<Event[]> {
     try {
       console.log('Fetching events with params:', { lat, lng, radius, windowDays });
-      const result = await db.select().from(events);
+      const result = await db.select().from(events).where(isNull(events.deletedAt));
 
       const now = new Date();
       
@@ -486,11 +488,14 @@ export class PgStorage implements IStorage {
 
   async getEventsByHost(hostId: number): Promise<Event[]> {
     return this.withRetry(async () => {
-      return db.select().from(events).where(eq(events.hostId, hostId));
+      return db.select().from(events).where(and(eq(events.hostId, hostId), isNull(events.deletedAt)));
     });
   }
 
-  async clearEvents(): Promise<void> { // Added clearEvents method implementation
+  async clearEvents(): Promise<void> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('clearEvents is not allowed in production environment');
+    }
     return this.withRetry(async () => {
       await db.delete(events);
     });
@@ -633,7 +638,7 @@ export class PgStorage implements IStorage {
   
   async getAllEvents(): Promise<Event[]> {
     return this.withRetry(async () => {
-      return db.select().from(events);
+      return db.select().from(events).where(isNull(events.deletedAt));
     });
   }
   
@@ -687,7 +692,20 @@ export class PgStorage implements IStorage {
   
   async deleteEvent(id: number): Promise<void> {
     return this.withRetry(async () => {
+      await db.update(events).set({ deletedAt: new Date() }).where(eq(events.id, id));
+    });
+  }
+
+  async hardDeleteEvent(id: number): Promise<void> {
+    return this.withRetry(async () => {
       await db.delete(events).where(eq(events.id, id));
+    });
+  }
+
+  async restoreEvent(id: number): Promise<Event> {
+    return this.withRetry(async () => {
+      const [result] = await db.update(events).set({ deletedAt: null }).where(eq(events.id, id)).returning();
+      return result;
     });
   }
 
@@ -729,7 +747,7 @@ export class PgStorage implements IStorage {
   
   async getEventCount(): Promise<number> {
     return this.withRetry(async () => {
-      const result = await db.select({ count: count() }).from(events);
+      const result = await db.select({ count: count() }).from(events).where(isNull(events.deletedAt));
       return result[0].count;
     });
   }
@@ -1048,7 +1066,10 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async deleteEventsByFeedId(feedId: number): Promise<void> {
+  async deleteEventsByFeedId(feedId: number, confirmDeletion: boolean = false): Promise<void> {
+    if (process.env.NODE_ENV === 'production' && !confirmDeletion) {
+      throw new Error('deleteEventsByFeedId requires explicit confirmation in production. Pass confirmDeletion=true to proceed.');
+    }
     return this.withRetry(async () => {
       // Find all events linked to this feed via rssFeedItems
       const linkedItems = await db.select({ eventId: rssFeedItems.eventId })
@@ -1387,7 +1408,8 @@ export class PgStorage implements IStorage {
         .where(and(
           sql`${events.latitude}::float BETWEEN ${city.latitude - latDiff} AND ${city.latitude + latDiff}`,
           sql`${events.longitude}::float BETWEEN ${city.longitude - lonDiff} AND ${city.longitude + lonDiff}`,
-          sql`${events.startTime} >= ${now}`
+          sql`${events.startTime} >= ${now}`,
+          isNull(events.deletedAt)
         ));
       return result[0]?.count || 0;
     });

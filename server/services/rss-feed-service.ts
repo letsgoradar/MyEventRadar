@@ -348,6 +348,7 @@ async function parallelBatch<T, R>(
 
 export class RssFeedService {
   private static readonly USER_AGENT = "letsgo-radar/1.0 (+https://letsgo-radar.nl)";
+  private static readonly MAX_BATCH_IMPORT_SIZE = 500;
   private static geocodeCache: Map<string, GeocodingResult> = new Map();
 
   /**
@@ -7525,10 +7526,15 @@ export class RssFeedService {
 
         // UNIVERSAL MULTI-DAY CONSOLIDATION - apply to ALL feeds
         const consolidatedItems = this.consolidateMultiDayEvents(result.items);
+
+        if (consolidatedItems.length > this.MAX_BATCH_IMPORT_SIZE) {
+          console.warn(`[RSS] BATCH LIMIT: ${feed.name} returned ${consolidatedItems.length} items, capping at ${this.MAX_BATCH_IMPORT_SIZE} to prevent runaway bulk creation`);
+        }
+        const itemsToProcess = consolidatedItems.slice(0, this.MAX_BATCH_IMPORT_SIZE);
         
         let newItemsCount = 0;
         let updatedItemsCount = 0;
-        for (const item of consolidatedItems) {
+        for (const item of itemsToProcess) {
           const itemResult = await this.createOrUpdateFeedItem(feed, item);
           if (itemResult.isNew) newItemsCount++;
           if (itemResult.isUpdated) updatedItemsCount++;

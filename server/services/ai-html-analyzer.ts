@@ -508,6 +508,8 @@ Antwoord in JSON formaat:
     }
   }
 
+  private static readonly MIN_CONFIDENCE_TO_SAVE = 40;
+
   private static async saveProfile(
     domain: string,
     selectors: AiExtractionSelectors,
@@ -519,6 +521,11 @@ Antwoord in JSON formaat:
       const existing = await this.getCachedProfile(domain);
       
       const confidence = Math.min(90, 50 + eventCount * 2);
+
+      if (confidence < this.MIN_CONFIDENCE_TO_SAVE) {
+        console.log(`[AI Analyzer] SKIPPED saving profile for ${domain}: confidence ${confidence}% below minimum threshold ${this.MIN_CONFIDENCE_TO_SAVE}%`);
+        return;
+      }
       
       if (existing) {
         await db

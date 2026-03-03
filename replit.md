@@ -188,3 +188,8 @@ Twee-producten advertentiesysteem:
 - **Authorization**: All user-specific data routes (favorites, saved searches, notifications) require authentication and verify ownership.
 - **Chat Routes**: State-changing conversation endpoints (create, delete, send message) require authentication.
 - **Passwords**: Hashed with bcrypt (10 rounds). No hardcoded credentials in frontend forms.
+- **Soft-Delete**: Events use a `deletedAt` column instead of permanent deletion. Admin can restore soft-deleted events via `POST /api/admin/events/:id/restore`. Hard delete available via `storage.hardDeleteEvent()` for permanent removal.
+- **Audit Logging**: All destructive admin operations (user deletion, feed deletion, event deletion, bulk sync) are logged to the `activity_logs` table with admin ID, action details, IP and user-agent.
+- **Production Guards**: `clearEvents()` and bulk seed/test scripts refuse to run when `NODE_ENV === 'production'`. `deleteEventsByFeedId()` requires explicit confirmation in production.
+- **Data Backup**: Admin can export events and users as JSON via `POST /api/admin/backup/events` and `POST /api/admin/backup/users`.
+- **AI Safeguards**: AI-created venues are validated for NL bounds (lat 50.7-53.6, lng 3.3-7.2). AI extraction profiles require minimum 40% confidence. RSS batch imports are limited to 500 items per feed.

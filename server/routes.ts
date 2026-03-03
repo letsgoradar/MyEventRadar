@@ -24,6 +24,7 @@ import venueRoutes from "./routes/venue-routes";
 import promotionRoutes from "./routes/advertiser-routes";
 import feedbackRoutes from "./routes/feedback-routes";
 import themeHandler from "./theme-handler";
+import backupRoutes from "./routes/backup-routes";
 
 // Query cache voor geocoding
 const GEOCODING_CACHE = new Map();
@@ -141,6 +142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", promotionRoutes);
   app.use("/api", feedbackRoutes);
   app.use("/api", themeHandler);
+  app.use("/api/admin/backup", backupRoutes);
   
   // Create HTTP server
   const httpServer = createServer(app);
@@ -469,6 +471,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       await storage.deleteUser(userId);
+      
+      await storage.logActivity({
+        userId: req.user!.id,
+        activityType: 'admin_action',
+        entityId: userId,
+        entityType: 'user',
+        details: { action: 'delete_user', targetUsername: user.username, targetEmail: user.email },
+        ipAddress: req.ip || null,
+        userAgent: req.headers['user-agent'] || null,
+      });
       
       console.log(`Admin ${req.user?.username} deleted user ${user.username} (ID: ${userId})`);
       
@@ -1352,7 +1364,19 @@ Respond with ONLY the search term, nothing else.`,
         return res.status(400).json({ message: "Invalid promotion ID" });
       }
       
+      const promotion = await storage.getPromotedNotification(id);
       await storage.deletePromotedNotification(id);
+      
+      await storage.logActivity({
+        userId: req.user!.id,
+        activityType: 'admin_action',
+        entityId: id,
+        entityType: 'promotion',
+        details: { action: 'delete_promotion', promotionTitle: promotion?.title || 'unknown' },
+        ipAddress: req.ip || null,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      
       res.json({ message: "Promotion deleted" });
     } catch (error) {
       console.error('Error in DELETE /api/admin/promotions/:id:', error);
@@ -1757,6 +1781,16 @@ Respond with ONLY the search term, nothing else.`,
       // Verwijder het evenement
       await storage.deleteEvent(eventId);
       
+      await storage.logActivity({
+        userId: req.user!.id,
+        activityType: 'delete_event',
+        entityId: eventId,
+        entityType: 'event',
+        details: { action: 'delete_event', eventTitle: existingEvent.title },
+        ipAddress: req.ip || null,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      
       // Broadcast de verwijdering
       broadcastEventUpdate({ id: eventId }, 'delete');
       
@@ -1767,6 +1801,29 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
   
+  app.post("/api/admin/events/:id/restore", isAdmin, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+      const restored = await storage.restoreEvent(eventId);
+      await storage.logActivity({
+        userId: req.user!.id,
+        activityType: 'admin_action',
+        entityId: eventId,
+        entityType: 'event',
+        details: { action: 'restore_event', title: restored.title },
+        ipAddress: req.ip || null,
+        userAgent: req.get('user-agent') || null,
+      });
+      res.json(restored);
+    } catch (error) {
+      console.error('Error in POST /api/admin/events/:id/restore:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Alle evenementen ophalen - voor admin en testen
   app.get("/api/admin/events", isAdmin, async (req, res) => {
     try {
@@ -2062,7 +2119,7 @@ Respond with ONLY the search term, nothing else.`,
       // Handle linked events based on user choice
       if (eventAction === 'delete') {
         // Delete all events linked to this feed
-        await storage.deleteEventsByFeedId(feedId);
+        await storage.deleteEventsByFeedId(feedId, true);
         console.log(`[RSS] Deleted events linked to feed ${feedId}`);
       } else if (eventAction === 'unlink') {
         // Unlink events from this feed (set feed reference to null in rssFeedItems)
@@ -2071,7 +2128,19 @@ Respond with ONLY the search term, nothing else.`,
       }
       // 'keep' is default - events remain as-is
 
+      const feedToDelete = await storage.getRssFeed(feedId);
       await storage.deleteRssFeed(feedId);
+      
+      await storage.logActivity({
+        userId: req.user!.id,
+        activityType: 'admin_action',
+        entityId: feedId,
+        entityType: 'rss_feed',
+        details: { action: 'delete_rss_feed', feedName: feedToDelete?.name || 'unknown', eventAction },
+        ipAddress: req.ip || null,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      
       res.json({ message: "Feed deleted", eventAction });
     } catch (error) {
       console.error('Error in DELETE /api/admin/rss-feeds/:id:', error);
@@ -2654,6 +2723,16 @@ Respond with ONLY the search term, nothing else.`,
         }
       })();
 
+      await storage.logActivity({
+        userId: req.user!.id,
+        activityType: 'admin_action',
+        entityId: null,
+        entityType: 'rss_feed',
+        details: { action: 'sync_all_feeds', totalFeeds: activeFeeds.length, feedsToProcess: feedsToProcess.length, feedsSkipped: feedsToSkip.length },
+        ipAddress: req.ip || null,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      
       res.json({ 
         message: "Sync-all gestart",
         totalFeeds: activeFeeds.length,

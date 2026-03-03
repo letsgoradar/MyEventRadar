@@ -92,6 +92,11 @@ function getRandomCoordinates(radiusKm: number) {
 }
 
 async function generateTestEvents(count: number) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('ERROR: generate_test_events cannot run in production environment');
+    process.exit(1);
+  }
+
   const eventsToCreate = [];
   const now = new Date();
 

@@ -144,15 +144,27 @@ Antwoord alleen in JSON:
     const coords = await geocodeFunction(fullAddress);
     
     if (coords && extractedLocation.venueName) {
-      await VenueService.findOrCreateVenue(extractedLocation.venueName, {
-        municipality: extractedLocation.municipality,
-        address: extractedLocation.address,
-        postalCode: extractedLocation.postalCode,
-        city: extractedLocation.city,
-        latitude: coords.lat,
-        longitude: coords.lon,
-      });
-      console.log(`[AI Location] Saved venue to cache: ${extractedLocation.venueName}`);
+      const NL_BOUNDS = { latMin: 50.7, latMax: 53.6, lngMin: 3.3, lngMax: 7.2 };
+      const venueName = extractedLocation.venueName.trim();
+
+      if (!venueName) {
+        console.warn(`[AI Location] BLOCKED venue creation: empty venue name`);
+      } else if (
+        coords.lat < NL_BOUNDS.latMin || coords.lat > NL_BOUNDS.latMax ||
+        coords.lon < NL_BOUNDS.lngMin || coords.lon > NL_BOUNDS.lngMax
+      ) {
+        console.warn(`[AI Location] BLOCKED venue creation: coordinates (${coords.lat}, ${coords.lon}) outside Netherlands bounds for "${venueName}"`);
+      } else {
+        await VenueService.findOrCreateVenue(venueName, {
+          municipality: extractedLocation.municipality,
+          address: extractedLocation.address,
+          postalCode: extractedLocation.postalCode,
+          city: extractedLocation.city,
+          latitude: coords.lat,
+          longitude: coords.lon,
+        });
+        console.log(`[AI Location] AUDIT: AI-created venue "${venueName}" at (${coords.lat}, ${coords.lon}), municipality: ${extractedLocation.municipality || 'unknown'}, address: ${extractedLocation.address || 'unknown'}, city: ${extractedLocation.city || 'unknown'}`);
+      }
     }
 
     return coords ? { latitude: coords.lat, longitude: coords.lon } : null;

@@ -186,6 +186,7 @@ export const events = pgTable("events", {
   eventTagIds: integer("event_tag_ids").array(), // References eventTags.id
   targetAudienceIds: integer("target_audience_ids").array(), // References targetAudiences.id
   seasonalThemeIds: integer("seasonal_theme_ids").array(), // References seasonalThemes.id
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const eventSources = pgTable("event_sources", {

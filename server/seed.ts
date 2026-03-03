@@ -108,7 +108,11 @@ async function seedEvents() {
     });
   }
 
-  // Clear existing events
+  // Clear existing events (blocked in production)
+  if (process.env.NODE_ENV === 'production') {
+    console.error('ERROR: seed.ts cannot clear events in production environment');
+    return;
+  }
   await storage.clearEvents();
 
   // Create new events

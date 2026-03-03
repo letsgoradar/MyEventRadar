@@ -216,4 +216,13 @@ Twee-producten advertentiesysteem:
 - **SQL Injection**: All queries use Drizzle ORM parameterized queries. No raw string concatenation found. `sql` tagged templates with `${}` interpolation are properly parameterized by Drizzle.
 - **XSS Prevention**: `server/utils/sanitize.ts` provides `sanitizeRichText()`, `stripHtml()`, and `sanitizeUserInput()` using `sanitize-html`. Registration validates usernames with regex.
 - **Input Validation**: Registration uses Zod schema (username regex, email format, password length 6-128). Events validated via `insertEventSchema.parse()`. Leads validated via `insertLeadSchema.safeParse()`.
+
+### RSS Date Quality (Session 5)
+- **Root Cause Fix**: `createEventFromFeedItem()` no longer falls back to `publishedAt` or `new Date()` when `startTime` is missing. Items without a parsed date are marked `processingStatus: 'missing_date'` instead of creating events with incorrect dates.
+- **AI Date Rescue**: After each feed sync, `rescueMissingDates(feedId)` runs automatically. It fetches the source page for each `missing_date` item and uses Gemini AI to extract event dates from the page content. Max 20 AI lookups per feed sync.
+  - Confidence >= 0.6: Item updated to `processingStatus: 'incomplete'` with AI-extracted date in `derivedData.parsedStartDate` for admin review.
+  - Confidence < 0.6: Item stays as `missing_date` with AI analysis stored for reference.
+- **Admin UI**: IncompleteItemsManager now has tabs (Incompleet / Datum ontbreekt / Alles). Shows AI date suggestions with confidence scores. Admins can accept AI dates or manually enter dates.
+- **Manual Trigger**: `POST /api/admin/rss-feeds/:id/rescue-dates` allows admins to re-run AI date rescue for a specific feed.
+- **Data Cleanup**: 73 events from March 3rd sync that had incorrect dates (sync date as start date) were soft-deleted.
 - **Sensitive Data Logging**: Login credentials no longer logged even in development mode.

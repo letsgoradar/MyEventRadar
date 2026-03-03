@@ -2230,6 +2230,24 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  app.post("/api/admin/rss-feeds/:id/rescue-dates", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Ongeldig feed ID" });
+      }
+      const { RssFeedService } = await import('./services/rss-feed-service');
+      const result = await RssFeedService.rescueMissingDates(feedId);
+      res.json({
+        message: `AI Date Rescue voltooid: ${result.rescued} hersteld, ${result.failed} mislukt`,
+        ...result
+      });
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/rss-feeds/:id/rescue-dates:', error);
+      res.status(500).json({ message: "Fout bij AI datum-rescue" });
+    }
+  });
+
   app.post("/api/admin/rss-feeds/analyze", isAdmin, async (req, res) => {
     try {
       const { url } = req.body;
@@ -2893,7 +2911,8 @@ Respond with ONLY the search term, nothing else.`,
   app.get("/api/admin/incomplete-items", isAdmin, async (req, res) => {
     try {
       const feedId = req.query.feedId ? parseInt(req.query.feedId as string) : undefined;
-      const items = await storage.getIncompleteItems(feedId);
+      const status = (req.query.status as string) || undefined;
+      const items = await storage.getIncompleteItems(feedId, status);
       res.json(items);
     } catch (error) {
       console.error('Error in GET /api/admin/incomplete-items:', error);
@@ -2904,7 +2923,8 @@ Respond with ONLY the search term, nothing else.`,
   app.get("/api/admin/incomplete-items/count", isAdmin, async (req, res) => {
     try {
       const feedId = req.query.feedId ? parseInt(req.query.feedId as string) : undefined;
-      const count = await storage.getIncompleteItemsCount(feedId);
+      const status = (req.query.status as string) || undefined;
+      const count = await storage.getIncompleteItemsCount(feedId, status);
       res.json({ count });
     } catch (error) {
       console.error('Error in GET /api/admin/incomplete-items/count:', error);

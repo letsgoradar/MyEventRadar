@@ -178,8 +178,8 @@ export interface IStorage {
   getRssFeedItemsCount(): Promise<number>;
   
   // Incomplete RSS Feed Items operations
-  getIncompleteItems(feedId?: number): Promise<RssFeedItem[]>;
-  getIncompleteItemsCount(feedId?: number): Promise<number>;
+  getIncompleteItems(feedId?: number, status?: string): Promise<RssFeedItem[]>;
+  getIncompleteItemsCount(feedId?: number, status?: string): Promise<number>;
   updateRssFeedItem(id: number, item: Partial<RssFeedItem>): Promise<RssFeedItem>;
   createRssFeedItem(item: InsertRssFeedItem): Promise<RssFeedItem>;
   deleteRssFeedItem(id: number): Promise<void>;
@@ -1115,34 +1115,36 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async getIncompleteItems(feedId?: number): Promise<RssFeedItem[]> {
+  async getIncompleteItems(feedId?: number, status?: string): Promise<RssFeedItem[]> {
     return this.withRetry(async () => {
-      if (feedId) {
-        return await db.select().from(rssFeedItems)
-          .where(and(
-            eq(rssFeedItems.feedId, feedId),
-            eq(rssFeedItems.processingStatus, 'incomplete')
-          ))
-          .orderBy(desc(rssFeedItems.createdAt));
-      }
+      const statuses = status === 'missing_date'
+        ? ['missing_date']
+        : status === 'all'
+          ? ['incomplete', 'missing_date']
+          : ['incomplete'];
+
+      const conditions = [inArray(rssFeedItems.processingStatus, statuses)];
+      if (feedId) conditions.push(eq(rssFeedItems.feedId, feedId));
+
       return await db.select().from(rssFeedItems)
-        .where(eq(rssFeedItems.processingStatus, 'incomplete'))
+        .where(and(...conditions))
         .orderBy(desc(rssFeedItems.createdAt));
     });
   }
 
-  async getIncompleteItemsCount(feedId?: number): Promise<number> {
+  async getIncompleteItemsCount(feedId?: number, status?: string): Promise<number> {
     return this.withRetry(async () => {
-      if (feedId) {
-        const result = await db.select({ count: count() }).from(rssFeedItems)
-          .where(and(
-            eq(rssFeedItems.feedId, feedId),
-            eq(rssFeedItems.processingStatus, 'incomplete')
-          ));
-        return result[0]?.count || 0;
-      }
+      const statuses = status === 'missing_date'
+        ? ['missing_date']
+        : status === 'all'
+          ? ['incomplete', 'missing_date']
+          : ['incomplete'];
+
+      const conditions = [inArray(rssFeedItems.processingStatus, statuses)];
+      if (feedId) conditions.push(eq(rssFeedItems.feedId, feedId));
+
       const result = await db.select({ count: count() }).from(rssFeedItems)
-        .where(eq(rssFeedItems.processingStatus, 'incomplete'));
+        .where(and(...conditions));
       return result[0]?.count || 0;
     });
   }

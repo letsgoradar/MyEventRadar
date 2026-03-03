@@ -7398,6 +7398,16 @@ export class RssFeedService {
       });
 
       console.log(`[RSS] ${feed.name}: SUCCESS - ${newItemsCount} new, ${updatedItemsCount} updated in ${feedDuration} min (total: ${consolidatedItems.length} consolidated from ${result.items.length})`);
+
+      try {
+        const rescueResult = await this.rescueMissingDates(feed.id);
+        if (rescueResult.rescued > 0 || rescueResult.failed > 0) {
+          console.log(`[RSS] ${feed.name}: AI Date Rescue — ${rescueResult.rescued} rescued, ${rescueResult.failed} unresolved`);
+        }
+      } catch (rescueErr: any) {
+        console.warn(`[RSS] ${feed.name}: AI Date Rescue error — ${rescueErr.message}`);
+      }
+
       return { success: true, itemsProcessed: result.items.length, eventsCreated: newItemsCount, eventsUpdated: updatedItemsCount };
     } catch (error: any) {
       const durationMs = Date.now() - feedStartTime;
@@ -7426,6 +7436,130 @@ export class RssFeedService {
       
       return { success: false, itemsProcessed: 0, eventsCreated: 0, eventsUpdated: 0, error: error.message };
     }
+  }
+
+  static async rescueMissingDates(feedId: number): Promise<{ rescued: number; failed: number }> {
+    const MAX_AI_LOOKUPS = 20;
+    let rescued = 0;
+    let failed = 0;
+
+    try {
+      const missingDateItems = await db.select()
+        .from(rssFeedItems)
+        .where(and(
+          eq(rssFeedItems.feedId, feedId),
+          eq(rssFeedItems.processingStatus, 'missing_date')
+        ))
+        .limit(MAX_AI_LOOKUPS);
+
+      if (missingDateItems.length === 0) return { rescued: 0, failed: 0 };
+
+      console.log(`[RSS AI Date Rescue] Processing ${missingDateItems.length} items for feed ${feedId}`);
+
+      const { AiProvider } = await import('./ai-provider');
+
+      for (const item of missingDateItems) {
+        try {
+          const rawData = item.rawData as Record<string, any> || {};
+          const derivedData = item.derivedData as Record<string, any> || {};
+          const sourceUrl = derivedData.sourceUrl || rawData.link || rawData.url;
+          const title = rawData.title || item.title || 'Unknown';
+
+          let pageContent = '';
+
+          if (sourceUrl) {
+            try {
+              const response = await axios.get(sourceUrl, {
+                timeout: 10000,
+                headers: { 'User-Agent': this.USER_AGENT },
+                maxContentLength: 2 * 1024 * 1024,
+              });
+              if (typeof response.data === 'string') {
+                const $ = cheerio.load(response.data);
+                $('script, style, nav, footer, header, iframe').remove();
+                pageContent = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 3000);
+              }
+            } catch (fetchErr: any) {
+              console.warn(`[RSS AI Date Rescue] Could not fetch ${sourceUrl}: ${fetchErr.message}`);
+            }
+          }
+
+          const description = rawData.description || rawData.summary || rawData.content || '';
+          const textToAnalyze = `Titel: ${title}\n\nBeschrijving: ${typeof description === 'string' ? description.replace(/<[^>]+>/g, ' ').slice(0, 1500) : ''}\n\n${pageContent ? 'Pagina-inhoud: ' + pageContent : ''}`;
+
+          const aiResult = await AiProvider.complete({
+            systemPrompt: `Je bent een Nederlandse evenementen-datumextractor. Analyseer de tekst en vind wanneer het evenement plaatsvindt. Het huidige jaar is ${new Date().getFullYear()}. Zoek naar specifieke datums, maanden, seizoenen, en tijdsaanduidingen. Kijk naar JSON-LD data, meta-tags, en broodtekst. Geef je antwoord als JSON.`,
+            userPrompt: `Wanneer vindt dit evenement plaats?\n\n${textToAnalyze}\n\nAntwoord ALLEEN met JSON:\n{"startDate": "YYYY-MM-DDTHH:mm:ss", "endDate": "YYYY-MM-DDTHH:mm:ss of null", "confidence": 0.0-1.0, "source": "korte beschrijving waar je de datum vond"}`,
+            maxTokens: 200,
+            temperature: 0.1,
+            jsonMode: true,
+          });
+
+          if (aiResult.success && aiResult.content) {
+            try {
+              const parsed = JSON.parse(aiResult.content);
+              const confidence = parsed.confidence || 0;
+
+              if (parsed.startDate && confidence >= 0.6) {
+                const parsedStart = new Date(parsed.startDate);
+                const parsedEnd = parsed.endDate ? new Date(parsed.endDate) : null;
+
+                if (!isNaN(parsedStart.getTime())) {
+                  await db.update(rssFeedItems)
+                    .set({
+                      processingStatus: 'incomplete',
+                      missingFields: [],
+                      derivedData: {
+                        ...derivedData,
+                        parsedStartDate: parsedStart.toISOString(),
+                        parsedEndDate: parsedEnd?.toISOString() || null,
+                        aiDateConfidence: confidence,
+                        aiDateSource: parsed.source || 'AI extraction',
+                        dateRescueNeeded: false,
+                        dateRescuedByAi: true,
+                      }
+                    })
+                    .where(eq(rssFeedItems.id, item.id));
+
+                  console.log(`[RSS AI Date Rescue] Found date for "${title}": ${parsedStart.toISOString()} (confidence: ${(confidence * 100).toFixed(0)}%, source: ${parsed.source})`);
+                  rescued++;
+                  continue;
+                }
+              }
+
+              await db.update(rssFeedItems)
+                .set({
+                  derivedData: {
+                    ...derivedData,
+                    aiDateResult: parsed,
+                    dateRescueNeeded: false,
+                    dateRescueFailed: true,
+                  }
+                })
+                .where(eq(rssFeedItems.id, item.id));
+
+              console.log(`[RSS AI Date Rescue] Could not determine date for "${title}" (confidence: ${(confidence * 100).toFixed(0)}%)`);
+              failed++;
+            } catch (parseErr) {
+              console.warn(`[RSS AI Date Rescue] Failed to parse AI response for "${title}"`);
+              failed++;
+            }
+          } else {
+            console.warn(`[RSS AI Date Rescue] AI call failed for "${title}": ${aiResult.error}`);
+            failed++;
+          }
+        } catch (itemErr: any) {
+          console.error(`[RSS AI Date Rescue] Error processing item ${item.id}: ${itemErr.message}`);
+          failed++;
+        }
+      }
+
+      console.log(`[RSS AI Date Rescue] Feed ${feedId}: ${rescued} rescued, ${failed} failed out of ${missingDateItems.length} items`);
+    } catch (error: any) {
+      console.error(`[RSS AI Date Rescue] Error: ${error.message}`);
+    }
+
+    return { rescued, failed };
   }
 
   static async processFeeds(): Promise<{ processed: number; errors: number }> {
@@ -7718,7 +7852,23 @@ export class RssFeedService {
     parsedItem: ParsedFeedItem
   ): Promise<void> {
     try {
-      const startTime = parsedItem.startTime || parsedItem.publishedAt || new Date();
+      if (!parsedItem.startTime) {
+        console.warn(`[RSS] No start date found for "${parsedItem.title}" — marking as missing_date for AI rescue`);
+        await db.update(rssFeedItems)
+          .set({
+            isProcessed: false,
+            processingStatus: 'missing_date',
+            missingFields: ['date'],
+            derivedData: {
+              ...(feedItem.derivedData as Record<string, any> || {}),
+              dateRescueNeeded: true,
+              sourceUrl: parsedItem.link || null,
+            }
+          })
+          .where(eq(rssFeedItems.id, feedItem.id));
+        return;
+      }
+      const startTime = parsedItem.startTime;
       const endTime = parsedItem.endTime;
 
       const formattedTitle = this.formatTitle(parsedItem.title);

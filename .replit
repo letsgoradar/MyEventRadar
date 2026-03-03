@@ -52,3 +52,10 @@ args = "npm run dev"
 
 [agent]
 integrations = ["javascript_websocket:1.0.0", "javascript_openai:1.0.0", "javascript_gemini_ai_integrations:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+SMTP_HOST = "smtp.hostnet.nl"
+SMTP_PORT = "587"
+SMTP_FROM = "info@letsgoradar.com"

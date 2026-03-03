@@ -573,6 +573,7 @@ interface MapViewProps {
   hoveredEventId?: number | null;
   startDate?: Date | null;
   endDate?: Date | null;
+  isWebView?: boolean;
 }
 
 export default function MapView({ 
@@ -589,7 +590,8 @@ export default function MapView({
   selectedEventId: propSelectedEventId,
   hoveredEventId: propHoveredEventId,
   startDate: propStartDate,
-  endDate: propEndDate
+  endDate: propEndDate,
+  isWebView: propIsWebView
 }: MapViewProps) {
   // State voor locatie van gebruiker
   const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
@@ -602,6 +604,7 @@ export default function MapView({
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [targetEvent, setTargetEvent] = React.useState<EventInterface | null>(null);
   
+  const isWebView = propIsWebView ?? window.location.pathname.includes('/web');
   
   // Referentie naar de MapContainer
   const mapRef = React.useRef<L.Map | null>(null);
@@ -966,11 +969,16 @@ export default function MapView({
           <ClusterLayer
             events={formattedEvents}
             onEventClick={(event) => {
-              setSelectedEvent(event);
-              if (onEventClick) onEventClick(event);
+              if (isWebView) {
+                if (onEventClick) onEventClick(event);
+              } else {
+                setSelectedEvent(event);
+                if (onEventClick) onEventClick(event);
+              }
             }}
             selectedEventId={selectedEvent?.id}
             userLocation={userLocation}
+            isWebView={isWebView}
           />
         ) : (
           /* Markers voor events met radar-gesynchroniseerde animatie */
@@ -992,7 +1000,21 @@ export default function MapView({
                 isSelected,
                 eventAngle
               )}
-              eventHandlers={{
+              eventHandlers={isWebView ? {
+                mouseover: (e) => {
+                  e.target.openPopup();
+                },
+                mouseout: (e) => {
+                  setTimeout(() => {
+                    const popupEl = e.target.getPopup()?.getElement();
+                    if (popupEl && popupEl.matches(':hover')) return;
+                    e.target.closePopup();
+                  }, 300);
+                },
+                click: () => {
+                  onEventClick?.(event.event);
+                },
+              } : {
                 click: () => {
                   setSelectedEvent(event.event);
                 },
@@ -1003,7 +1025,7 @@ export default function MapView({
                 }
               }}
               ref={(markerRef) => {
-                if (markerRef && selectedEvent && selectedEvent.id === event.id) {
+                if (!isWebView && markerRef && selectedEvent && selectedEvent.id === event.id) {
                   if (!markerRef.isPopupOpen()) {
                     setTimeout(() => {
                       markerRef.openPopup();
@@ -1012,7 +1034,7 @@ export default function MapView({
                 }
               }}
             >
-            <Popup>
+            <Popup autoPan={!isWebView}>
               <Card className="border-0 shadow-none">
                 {event.event.imageUrl && (
                   <div className="relative w-full h-32 overflow-hidden rounded-t-md">
@@ -1056,29 +1078,16 @@ export default function MapView({
                   )}
                 </CardContent>
                 <CardFooter className="p-2 pt-0">
-                  {window.location.pathname.includes('/web') ? (
-                    <Button 
-                      size="sm" 
-                      className="w-full bg-primary text-white hover:bg-primary/90 border border-primary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEventClick?.(event.event);
-                      }}
-                    >
-                      Bekijk details
-                    </Button>
-                  ) : (
-                    <Button 
-                      size="sm" 
-                      className="w-full bg-primary text-white hover:bg-primary/90 border border-primary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEventClick?.(event.event);
-                      }}
-                    >
-                      Bekijk details
-                    </Button>
-                  )}
+                  <Button 
+                    size="sm" 
+                    className="w-full bg-primary text-white hover:bg-primary/90 border border-primary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick?.(event.event);
+                    }}
+                  >
+                    Bekijk details
+                  </Button>
                 </CardFooter>
               </Card>
             </Popup>

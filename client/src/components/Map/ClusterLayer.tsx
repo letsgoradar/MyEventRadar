@@ -23,6 +23,7 @@ interface ClusterLayerProps {
   selectedEventId?: number | null;
   userLocation: [number, number];
   isInteracting?: boolean;
+  isWebView?: boolean;
 }
 
 const CLUSTER_THRESHOLD = 200;
@@ -174,7 +175,8 @@ export function ClusterLayer({
   onEventClick, 
   selectedEventId, 
   userLocation,
-  isInteracting = false
+  isInteracting = false,
+  isWebView = false
 }: ClusterLayerProps) {
   const map = useMap();
   const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -195,7 +197,7 @@ export function ClusterLayer({
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
-        disableClusteringAtZoom: 16,
+        spiderfyDistanceMultiplier: 1.5,
         iconCreateFunction: createClusterIcon,
         animate: !isInteracting,
         animateAddingMarkers: false,
@@ -238,12 +240,8 @@ export function ClusterLayer({
           icon: createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected),
         });
         
-        marker.on("click", () => {
-          onEventClick(event.event);
-        });
-        
         const popupContent = `
-          <div style="min-width: 200px;">
+          <div style="min-width: 200px;" class="cluster-popup-content" data-event-id="${event.id}">
             ${event.event.imageUrl ? `
               <img src="${event.event.imageUrl}" alt="${event.title}" 
                 style="width: 100%; height: 100px; object-fit: cover; border-radius: 4px 4px 0 0;" />
@@ -252,21 +250,94 @@ export function ClusterLayer({
               <h3 style="margin: 0 0 4px; font-size: 14px; font-weight: 600;">${event.title}</h3>
               <p style="margin: 0; font-size: 12px; color: #666;">${event.event.address || ''}</p>
               <p style="margin: 4px 0 0; font-size: 11px; color: #888;">${event.category}</p>
+              ${!isWebView ? `
+                <button class="cluster-popup-details-btn" data-event-id="${event.id}" style="
+                  width: 100%;
+                  margin-top: 8px;
+                  padding: 6px 12px;
+                  background-color: hsl(var(--primary));
+                  color: white;
+                  border: none;
+                  border-radius: 6px;
+                  font-size: 13px;
+                  font-weight: 500;
+                  cursor: pointer;
+                ">Bekijk details</button>
+              ` : ''}
             </div>
           </div>
         `;
         
         marker.bindPopup(popupContent, {
           maxWidth: 250,
-          className: "event-cluster-popup"
+          className: "event-cluster-popup",
+          autoPan: !isWebView,
         });
+        
+        if (isWebView) {
+          let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+          
+          marker.on("mouseover", () => {
+            if (hoverTimeout) clearTimeout(hoverTimeout);
+            marker.openPopup();
+          });
+          
+          marker.on("mouseout", () => {
+            hoverTimeout = setTimeout(() => {
+              marker.closePopup();
+            }, 300);
+          });
+          
+          marker.on("click", () => {
+            if (hoverTimeout) clearTimeout(hoverTimeout);
+            marker.closePopup();
+            onEventClick(event.event);
+          });
+          
+          marker.on("popupopen", () => {
+            const popupEl = marker.getPopup()?.getElement();
+            if (popupEl) {
+              popupEl.addEventListener("mouseenter", () => {
+                if (hoverTimeout) clearTimeout(hoverTimeout);
+              });
+              popupEl.addEventListener("mouseleave", () => {
+                hoverTimeout = setTimeout(() => {
+                  marker.closePopup();
+                }, 300);
+              });
+              popupEl.addEventListener("click", () => {
+                if (hoverTimeout) clearTimeout(hoverTimeout);
+                marker.closePopup();
+                onEventClick(event.event);
+              });
+            }
+          });
+        } else {
+          marker.on("click", () => {
+            marker.openPopup();
+          });
+          
+          marker.on("popupopen", () => {
+            const popupEl = marker.getPopup()?.getElement();
+            if (popupEl) {
+              const detailsBtn = popupEl.querySelector('.cluster-popup-details-btn');
+              if (detailsBtn) {
+                detailsBtn.addEventListener("click", (e) => {
+                  e.stopPropagation();
+                  marker.closePopup();
+                  onEventClick(event.event);
+                });
+              }
+            }
+          });
+        }
         
         clusterGroup.addLayer(marker);
         currentMarkers.set(event.id, marker);
       }
     });
     
-  }, [events, selectedEventId, onEventClick]);
+  }, [events, selectedEventId, onEventClick, isWebView]);
   
   useEffect(() => {
     if (clusterGroupRef.current && selectedEventId) {

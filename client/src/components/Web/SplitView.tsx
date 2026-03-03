@@ -72,6 +72,8 @@ export function SplitView({
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [hoveredEventId, setHoveredEventId] = React.useState<number | null>(null);
   const [sortOption, setSortOption] = React.useState<SortOption>("time");
+  const scrollPositionRef = React.useRef<number>(0);
+  const listContainerRef = React.useRef<HTMLDivElement>(null);
   
   // Haal gebruikerslocatie op
   const { location } = useLocation();
@@ -203,7 +205,9 @@ export function SplitView({
   const [previewEvent, setPreviewEvent] = React.useState<Event | null>(null);
 
   const handleMapEventClick = React.useCallback((event: Event) => {
-    // Bij kaart klik: direct detail mode (net als tegels)
+    if (listContainerRef.current) {
+      scrollPositionRef.current = listContainerRef.current.scrollTop;
+    }
     setActiveEventId(event.id);
     setSelectedEvent(event);
     setIsPreviewMode(false);
@@ -212,7 +216,9 @@ export function SplitView({
   }, [onEventClick]);
 
   const handleTileEventClick = React.useCallback((event: Event) => {
-    // Bij tegel klik: direct detail mode
+    if (listContainerRef.current) {
+      scrollPositionRef.current = listContainerRef.current.scrollTop;
+    }
     setActiveEventId(event.id);
     setSelectedEvent(event);
     setIsPreviewMode(false);
@@ -234,6 +240,14 @@ export function SplitView({
     setActiveEventId(null);
     setIsPreviewMode(false);
     setPreviewEvent(null);
+    const savedPosition = scrollPositionRef.current;
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (listContainerRef.current) {
+          listContainerRef.current.scrollTop = savedPosition;
+        }
+      }, 50);
+    });
   }, []);
 
   const handleNavigateEvent = React.useCallback((direction: 'previous' | 'next') => {
@@ -281,6 +295,7 @@ export function SplitView({
                 showExpiredEvents={showExpiredEvents}
                 onShowExpiredEventsChange={(show) => setShowExpiredEvents(show)}
                 hoveredEventId={hoveredEventId}
+                isWebView={true}
               />
               
               {/* Map action buttons - bottom left */}
@@ -339,7 +354,7 @@ export function SplitView({
               />
             ) : (
               /* Event List/Grid View with optional preview */
-              <div className="h-full overflow-y-auto pb-20 px-4 relative">
+              <div ref={listContainerRef} className="h-full overflow-y-auto pb-20 px-4 relative">
                 {/* Toon het aantal resultaten en sorteeroptie */}
                 <div className="sticky top-0 pt-4 pb-3 bg-background z-10 mb-2">
                   <div className="flex justify-between items-center">

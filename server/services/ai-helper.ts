@@ -14,6 +14,16 @@ interface LocationInference {
   confidence: number;
 }
 
+const MAX_CACHE_SIZE = 500;
+
+function limitedSet<K, V>(map: Map<K, V>, key: K, value: V) {
+  if (map.size >= MAX_CACHE_SIZE) {
+    const firstKey = map.keys().next().value;
+    if (firstKey !== undefined) map.delete(firstKey);
+  }
+  map.set(key, value);
+}
+
 const titleCache = new Map<string, TitleSuggestion>();
 const locationCache = new Map<string, LocationInference>();
 const translationCache = new Map<string, { title: string; description: string }>();
@@ -323,7 +333,7 @@ Antwoord alleen met de titel, zonder aanhalingstekens of extra tekst.`;
           title: suggestedTitle,
           confidence: 0.9
         };
-        titleCache.set(cacheKey, result);
+        limitedSet(titleCache, cacheKey, result);
         console.log(`[AI] Generated title: "${suggestedTitle}"`);
         return result;
       }
@@ -385,7 +395,7 @@ Gebruik alleen echte, bestaande locaties in ${city}. Als je niet zeker bent, gee
         const parsed = JSON.parse(response.content) as LocationInference;
         
         if (parsed.venueName && parsed.address && parsed.confidence > 0) {
-          locationCache.set(cacheKey, parsed);
+          limitedSet(locationCache, cacheKey, parsed);
           console.log(`[AI] Inferred location: "${parsed.venueName}" at "${parsed.address}" (confidence: ${parsed.confidence})`);
           return parsed;
         }
@@ -442,7 +452,7 @@ Antwoord alleen met de Nederlandse vertaling.`;
       const translated = response.content?.trim();
       
       if (response.success && translated && translated.length > 2) {
-        titleCache.set(cacheKey, { title: translated, confidence: 1 });
+        limitedSet(titleCache, cacheKey, { title: translated, confidence: 1 });
         console.log(`[AI] Translated ${type}: "${englishText.substring(0, 30)}..." -> "${translated.substring(0, 30)}..."`);
         return translated;
       }
@@ -490,7 +500,7 @@ Geef je antwoord EXACT in dit JSON formaat (geen markdown):
       if (response.success && response.content) {
         const parsed = JSON.parse(response.content) as { title: string; description: string };
         if (parsed.title && parsed.description) {
-          translationCache.set(cacheKey, parsed);
+          limitedSet(translationCache, cacheKey, parsed);
           console.log(`[AI] Translated event: "${title.substring(0, 25)}..." -> "${parsed.title.substring(0, 25)}..."`);
           return parsed;
         }

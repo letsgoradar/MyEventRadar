@@ -24,3 +24,12 @@ pool.on('error', (err) => {
 });
 
 export const db = drizzle(pool, { schema });
+
+export async function closePool(): Promise<void> {
+  try {
+    await pool.end();
+    console.log('[DB] Connection pool closed');
+  } catch (err) {
+    console.error('[DB] Error closing pool:', err);
+  }
+}

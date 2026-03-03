@@ -17,6 +17,7 @@ import { startNotificationScheduler } from "./notification-scheduler";
 import { startRssScheduler } from "./rss-scheduler";
 import { expirePromotions } from "./routes/advertiser-routes";
 import { randomBytes } from "crypto";
+import { closePool } from "./db";
 
 function getSessionSecret(): string {
   if (process.env.SESSION_SECRET) {
@@ -159,3 +160,37 @@ const HOST = '0.0.0.0';
     process.exit(1);
   }
 })();
+
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`\n[Shutdown] Received ${signal}, shutting down gracefully...`);
+
+  setTimeout(() => {
+    console.error('[Shutdown] Forced exit after timeout');
+    process.exit(1);
+  }, 10000);
+
+  try {
+    await closePool();
+    console.log('[Shutdown] Cleanup complete');
+    process.exit(0);
+  } catch (err) {
+    console.error('[Shutdown] Error during cleanup:', err);
+    process.exit(1);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Process] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Process] Uncaught Exception:', err);
+  gracefulShutdown('uncaughtException');
+});

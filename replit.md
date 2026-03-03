@@ -193,3 +193,12 @@ Twee-producten advertentiesysteem:
 - **Production Guards**: `clearEvents()` and bulk seed/test scripts refuse to run when `NODE_ENV === 'production'`. `deleteEventsByFeedId()` requires explicit confirmation in production.
 - **Data Backup**: Admin can export events and users as JSON via `POST /api/admin/backup/events` and `POST /api/admin/backup/users`.
 - **AI Safeguards**: AI-created venues are validated for NL bounds (lat 50.7-53.6, lng 3.3-7.2). AI extraction profiles require minimum 40% confidence. RSS batch imports are limited to 500 items per feed.
+
+### Deployment Configuration
+- **Type**: Reserved VM (`vm`) — always running, required for scheduled tasks and WebSocket connections
+- **Build**: `npm run build` (Vite frontend + esbuild backend)
+- **Run**: `npm run start` (`NODE_ENV=production node dist/index.js`)
+- **Graceful Shutdown**: `SIGTERM`/`SIGINT` handlers close the database pool cleanly before exit. 10s forced timeout.
+- **Unhandled Errors**: Global `unhandledRejection` and `uncaughtException` handlers log errors and trigger graceful shutdown.
+- **Health Check**: `GET /api/health` returns database status, uptime, memory usage. Returns 503 if database is unreachable.
+- **Cache Limits**: All in-memory caches (AI title/location/translation, geocoding) are capped at 500-1000 entries to prevent memory growth.

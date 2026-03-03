@@ -26,7 +26,7 @@ import feedbackRoutes from "./routes/feedback-routes";
 import themeHandler from "./theme-handler";
 import backupRoutes from "./routes/backup-routes";
 
-// Query cache voor geocoding
+const MAX_GEO_CACHE_SIZE = 1000;
 const GEOCODING_CACHE = new Map();
 const CACHE_EXPIRES_MS = 24 * 60 * 60 * 1000; // 24 uur
 
@@ -197,9 +197,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
   
   // API endpoints
-  // API health check
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  app.get("/api/health", async (req, res) => {
+    const checks: Record<string, string> = {};
+    let healthy = true;
+
+    try {
+      const dbStart = Date.now();
+      await storage.getEventCount();
+      checks.database = `ok (${Date.now() - dbStart}ms)`;
+    } catch {
+      checks.database = 'error';
+      healthy = false;
+    }
+
+    checks.uptime = `${Math.floor(process.uptime())}s`;
+    checks.memory = `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`;
+
+    res.status(healthy ? 200 : 503).json({
+      status: healthy ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      checks,
+    });
   });
   
   // Check if user is authenticated - voor alle gebruikers
@@ -1511,7 +1529,10 @@ Respond with ONLY the search term, nothing else.`,
                    data.address?.municipality ||
                    "Unknown location";
 
-      // Cache the result
+      if (GEOCODING_CACHE.size >= MAX_GEO_CACHE_SIZE) {
+        const firstKey = GEOCODING_CACHE.keys().next().value;
+        if (firstKey !== undefined) GEOCODING_CACHE.delete(firstKey);
+      }
       GEOCODING_CACHE.set(cacheKey, {
         city,
         timestamp: Date.now()

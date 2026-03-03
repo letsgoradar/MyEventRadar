@@ -108,8 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     standardHeaders: true,
     legacyHeaders: false,
     skip: (req) => {
-      // Skip rate limiting for admin routes (admins are trusted) and static files
-      return req.path.startsWith('/api/admin') || !req.path.startsWith('/api');
+      return !req.path.startsWith('/api');
     },
     handler: (req, res) => {
       console.warn(`[Rate Limit] IP ${req.ip} exceeded limit on ${req.path}`);
@@ -127,10 +126,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     legacyHeaders: false,
   });
 
-  // Toepassen van rate limiting
+  const adminLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    message: { error: "Te veel admin-verzoeken. Wacht even." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   app.use("/api/auth/login", authLimiter);
   app.use("/api/auth/register", authLimiter);
+  app.use("/api/admin", adminLimiter);
   app.use("/api", generalLimiter);
+
+  app.use("/api/assistant/ask", expensiveLimiter);
+  app.use("/api/generate-search-term", expensiveLimiter);
+  app.use("/api/generate-image", expensiveLimiter);
+  app.use("/api/location/name", expensiveLimiter);
+  app.use("/api/leads", expensiveLimiter);
 
   setupAuth(app);
   app.use("/api/profile-photo", profilePhotoRoutes);

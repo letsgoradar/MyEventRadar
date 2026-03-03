@@ -209,3 +209,11 @@ Twee-producten advertentiesysteem:
 - **WebSocket Hardening**: Max 200 concurrent connections, 5-minute idle timeout, 1KB max message size. Excess connections rejected with code 1013.
 - **Request Limits**: JSON/urlencoded body limit reduced from 10MB to 2MB. Unsplash API calls have 10s timeout.
 - **File Uploads**: Profile photo uploads validated (JPEG/PNG/GIF/WEBP only, 5MB max, server-generated filenames prevent path traversal).
+
+### Attack Prevention (Session 4 continued)
+- **Brute-Force Protection**: Per-account lockout after 10 failed attempts (30-min lockout). Tracked in-memory via `failedAttempts` map in `server/auth.ts`. IP-level rate limiting (5/15min) on auth routes.
+- **Rate Limiting Layers**: Auth (5/15min), General API (60/min), Expensive endpoints like AI/geocoding (10/min), Admin (120/min), Ad impressions (30/min per IP+ad).
+- **SQL Injection**: All queries use Drizzle ORM parameterized queries. No raw string concatenation found. `sql` tagged templates with `${}` interpolation are properly parameterized by Drizzle.
+- **XSS Prevention**: `server/utils/sanitize.ts` provides `sanitizeRichText()`, `stripHtml()`, and `sanitizeUserInput()` using `sanitize-html`. Registration validates usernames with regex.
+- **Input Validation**: Registration uses Zod schema (username regex, email format, password length 6-128). Events validated via `insertEventSchema.parse()`. Leads validated via `insertLeadSchema.safeParse()`.
+- **Sensitive Data Logging**: Login credentials no longer logged even in development mode.

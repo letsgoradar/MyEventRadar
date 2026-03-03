@@ -7,6 +7,8 @@ import { randomBytes } from "crypto";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import createMemoryStore from "memorystore";
+import { z } from "zod";
+import { sanitizeUserInput } from "./utils/sanitize";
 
 function getSessionSecret(): string {
   if (process.env.SESSION_SECRET) {
@@ -20,15 +22,45 @@ function getSessionSecret(): string {
   return devSecret;
 }
 
-// Voor wachtwoord reset tokens
 interface PasswordResetToken {
   userId: number;
   token: string;
   expiresAt: Date;
 }
 
-// In-memory token opslag (in productie zou dit in een database moeten)
 const resetTokens = new Map<string, PasswordResetToken>();
+
+const MAX_FAILED_ATTEMPTS = 10;
+const LOCKOUT_DURATION_MS = 30 * 60 * 1000;
+const failedAttempts = new Map<string, { count: number; lockedUntil?: number }>();
+
+function checkAccountLockout(identifier: string): { locked: boolean; remaining?: number } {
+  const record = failedAttempts.get(identifier.toLowerCase());
+  if (!record) return { locked: false };
+  if (record.lockedUntil && Date.now() < record.lockedUntil) {
+    return { locked: true, remaining: Math.ceil((record.lockedUntil - Date.now()) / 60000) };
+  }
+  if (record.lockedUntil && Date.now() >= record.lockedUntil) {
+    failedAttempts.delete(identifier.toLowerCase());
+    return { locked: false };
+  }
+  return { locked: false };
+}
+
+function recordFailedAttempt(identifier: string): void {
+  const key = identifier.toLowerCase();
+  const record = failedAttempts.get(key) || { count: 0 };
+  record.count++;
+  if (record.count >= MAX_FAILED_ATTEMPTS) {
+    record.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+    console.warn(`[Auth] Account locked: "${key}" after ${record.count} failed attempts`);
+  }
+  failedAttempts.set(key, record);
+}
+
+function clearFailedAttempts(identifier: string): void {
+  failedAttempts.delete(identifier.toLowerCase());
+}
 
 const MemoryStore = createMemoryStore(session);
 
@@ -77,31 +109,29 @@ export function setupAuth(app: Express) {
       },
       async (username, password, done) => {
       try {
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[Dev] Login attempt: "${username}"`);
+        const lockStatus = checkAccountLockout(username);
+        if (lockStatus.locked) {
+          return done(null, false, { message: `Account tijdelijk vergrendeld. Probeer over ${lockStatus.remaining} minuten opnieuw.` });
         }
-        
-        // Probeer eerst username
+
         let user = await storage.getUserByUsername(username);
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[Dev] getUserByUsername result:`, user ? `Found user ID ${user.id}` : 'No user found');
-        }
-        
-        // Als username niet werkt, probeer email
         if (!user) {
           user = await storage.getUserByEmail(username);
         }
         
         if (!user) {
+          recordFailedAttempt(username);
           return done(null, false);
         }
         
         const isValidPassword = await comparePasswords(password, user.password);
         
         if (!isValidPassword) {
+          recordFailedAttempt(username);
           return done(null, false);
         }
         
+        clearFailedAttempts(username);
         return done(null, user);
       } catch (error) {
         console.error('Login error:', error);
@@ -127,27 +157,35 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Route voor registratie
+  const registerSchema = z.object({
+    username: z.string().min(2).max(50).regex(/^[a-zA-Z0-9_\-. ]+$/, "Gebruikersnaam bevat ongeldige tekens"),
+    email: z.string().email("Ongeldig e-mailadres").max(255),
+    password: z.string().min(6, "Wachtwoord moet minimaal 6 tekens zijn").max(128),
+    role: z.enum(["user", "host"]).default("user"),
+  });
+
   app.post("/api/auth/register", async (req, res, next) => {
     try {
-      const { username, email, password, role = 'user' } = req.body;
-      
-      // Controleer of de gebruikersnaam al bestaat
-      const existingUsername = await storage.getUserByUsername(username);
+      const parsed = registerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.issues[0]?.message || "Ongeldige invoer" });
+      }
+      const { username, email, password, role } = parsed.data;
+      const cleanUsername = sanitizeUserInput(username, 50);
+
+      const existingUsername = await storage.getUserByUsername(cleanUsername);
       if (existingUsername) {
         return res.status(400).json({ message: "Gebruikersnaam bestaat al" });
       }
       
-      // Controleer of het e-mailadres al bestaat
       const existingEmail = await storage.getUserByEmail(email);
       if (existingEmail) {
         return res.status(400).json({ message: "E-mailadres is al in gebruik" });
       }
 
-      // Hash het wachtwoord en maak de gebruiker aan
       const hashedPassword = await hashPassword(password);
       const user = await storage.createUser({
-        username,
+        username: cleanUsername,
         email,
         password: hashedPassword,
         role,
@@ -166,10 +204,7 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Route voor inloggen
   app.post("/api/auth/login", (req, res, next) => {
-    console.log("Login request received:", req.body);
-    
     passport.authenticate("local", (err: Error | null, user: any, info: any) => {
       if (err) {
         console.error("Login authentication error:", err);
@@ -177,7 +212,9 @@ export function setupAuth(app: Express) {
       }
       
       if (!user) {
-        console.log("Authentication failed - no user returned");
+        if (info?.message?.includes('vergrendeld')) {
+          return res.status(423).json({ message: info.message });
+        }
         return res.status(401).json({ message: "Ongeldige gebruikersnaam of wachtwoord" });
       }
       
@@ -186,8 +223,6 @@ export function setupAuth(app: Express) {
           console.error("Login session error:", loginErr);
           return next(loginErr);
         }
-        
-        console.log("User successfully logged in:", user.username);
         
         // Verwijder wachtwoord uit de response
         const { password, ...userWithoutPassword } = user;

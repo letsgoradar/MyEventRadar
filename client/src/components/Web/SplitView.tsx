@@ -14,6 +14,7 @@ import L from "leaflet";
 import { useLocation as useRouterLocation } from "wouter";
 import { useLocation } from "@/hooks/useLocation";
 import { MapPin, Clock, ChevronDown, Plus, SlidersHorizontal } from "lucide-react";
+import { PromotedEventsCarousel } from "@/components/Ads/PromotedEventsCarousel";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -398,6 +399,11 @@ export function SplitView({
                   </div>
                 </div>
                 
+                <PromotedEventsCarousel
+                  onEventClick={handleTileEventClick}
+                  onEventHover={setHoveredEventId}
+                  hoveredEventId={hoveredEventId}
+                />
                 <EventList 
                   searchQuery={searchQuery} 
                   radius={50} 

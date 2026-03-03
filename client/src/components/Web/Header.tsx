@@ -435,6 +435,13 @@ export function Header({
       
       {/* Right side with navigation and user profile */}
       <div className="flex items-center gap-2">
+        {/* Adverteren link */}
+        <Link href="/adverteren">
+          <Button variant="ghost" size="sm" className="h-10 px-3 rounded-full flex items-center gap-1.5">
+            <span className="hidden sm:inline text-muted-foreground hover:text-foreground">Adverteren</span>
+          </Button>
+        </Link>
+
         {/* Mijn Events link */}
         <Link href="/web/my-events">
           <Button variant="ghost" size="sm" className="h-10 px-3 rounded-full flex items-center gap-1.5">

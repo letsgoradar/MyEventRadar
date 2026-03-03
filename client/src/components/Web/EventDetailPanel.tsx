@@ -237,6 +237,10 @@ export function EventDetailPanel({
         externalUrl={event.externalUrl}
         eventTitle={event.title}
         onClose={handleCloseInterstitial}
+        eventLat={Number(event.latitude)}
+        eventLng={Number(event.longitude)}
+        eventCategory={event.category}
+        eventId={event.id}
       />
     )}
     <div className="w-full h-full bg-white flex flex-col">

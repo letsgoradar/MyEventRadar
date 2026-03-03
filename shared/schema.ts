@@ -903,5 +903,153 @@ export const apiUsageStats = pgTable("api_usage_stats", {
 export type ApiUsageStats = typeof apiUsageStats.$inferSelect;
 export type InsertApiUsageStats = typeof apiUsageStats.$inferInsert;
 
+// =============================================
+// Advertising System - Adverteerder, Advertenties & Promoties
+// =============================================
+
+export const BUSINESS_CATEGORIES = [
+  'museum',
+  'dierentuin',
+  'brouwerij',
+  'pretpark',
+  'horeca',
+  'theater',
+  'bioscoop',
+  'sportlocatie',
+  'overig'
+] as const;
+
+export const ADVERTISER_STATUS = ['pending', 'active', 'suspended'] as const;
+export const BUSINESS_AD_STATUS = ['draft', 'pending', 'active', 'paused', 'exhausted'] as const;
+export const PROMOTION_PERIOD = ['day', 'week', 'month'] as const;
+export const PROMOTION_STATUS = ['active', 'expired', 'cancelled'] as const;
+export const RADIUS_OPTIONS = [5, 10, 15, 20, 25] as const;
+export const PRICING_PRODUCT_TYPE = ['event_promotion', 'business_ad'] as const;
+
+export const advertiserProfiles = pgTable("advertiser_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  companyName: text("company_name").notNull(),
+  description: text("description"),
+  logoUrl: text("logo_url"),
+  websiteUrl: text("website_url"),
+  address: text("address"),
+  latitude: decimal("latitude"),
+  longitude: decimal("longitude"),
+  businessCategory: text("business_category").notNull().$type<typeof BUSINESS_CATEGORIES[number]>(),
+  phone: text("phone"),
+  stripeCustomerId: text("stripe_customer_id"),
+  balanceCents: integer("balance_cents").notNull().default(0),
+  monthlyBudgetCapCents: integer("monthly_budget_cap_cents"),
+  currentMonthSpendCents: integer("current_month_spend_cents").notNull().default(0),
+  status: text("status").notNull().default('pending').$type<typeof ADVERTISER_STATUS[number]>(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const businessAds = pgTable("business_ads", {
+  id: serial("id").primaryKey(),
+  advertiserId: integer("advertiser_id").references(() => advertiserProfiles.id, { onDelete: "cascade" }).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  ctaUrl: text("cta_url").notNull(),
+  ctaText: text("cta_text").default("Meer info"),
+  targetRadiusKm: integer("target_radius_km").notNull().default(10),
+  targetCategories: text("target_categories").array(),
+  status: text("status").notNull().default('draft').$type<typeof BUSINESS_AD_STATUS[number]>(),
+  impressions: integer("impressions").notNull().default(0),
+  clicks: integer("clicks").notNull().default(0),
+  cpmCents: integer("cpm_cents").notNull(),
+  totalSpendCents: integer("total_spend_cents").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const adImpressions = pgTable("ad_impressions", {
+  id: serial("id").primaryKey(),
+  adId: integer("ad_id").references(() => businessAds.id, { onDelete: "cascade" }).notNull(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "set null" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  costCents: integer("cost_cents").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const eventPromotions = pgTable("event_promotions", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "cascade" }).notNull(),
+  purchasedByUserId: integer("purchased_by_user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  promotionPeriod: text("promotion_period").notNull().$type<typeof PROMOTION_PERIOD[number]>(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  targetRadiusKm: integer("target_radius_km").notNull().default(10),
+  status: text("status").notNull().default('active').$type<typeof PROMOTION_STATUS[number]>(),
+  priceCents: integer("price_cents").notNull(),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  impressions: integer("impressions").notNull().default(0),
+  clicks: integer("clicks").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const pricingConfig = pgTable("pricing_config", {
+  id: serial("id").primaryKey(),
+  productType: text("product_type").notNull().$type<typeof PRICING_PRODUCT_TYPE[number]>(),
+  radiusKm: integer("radius_km").notNull(),
+  period: text("period").$type<typeof PROMOTION_PERIOD[number]>(),
+  priceCents: integer("price_cents").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert schemas
+export const insertAdvertiserProfileSchema = createInsertSchema(advertiserProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  balanceCents: true,
+  currentMonthSpendCents: true,
+  stripeCustomerId: true,
+});
+
+export const insertBusinessAdSchema = createInsertSchema(businessAds).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  impressions: true,
+  clicks: true,
+  totalSpendCents: true,
+});
+
+export const insertAdImpressionSchema = createInsertSchema(adImpressions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertEventPromotionSchema = createInsertSchema(eventPromotions).omit({
+  id: true,
+  createdAt: true,
+  impressions: true,
+  clicks: true,
+});
+
+export const insertPricingConfigSchema = createInsertSchema(pricingConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types
+export type AdvertiserProfile = typeof advertiserProfiles.$inferSelect;
+export type InsertAdvertiserProfile = z.infer<typeof insertAdvertiserProfileSchema>;
+export type BusinessAd = typeof businessAds.$inferSelect;
+export type InsertBusinessAd = z.infer<typeof insertBusinessAdSchema>;
+export type AdImpression = typeof adImpressions.$inferSelect;
+export type InsertAdImpression = z.infer<typeof insertAdImpressionSchema>;
+export type EventPromotion = typeof eventPromotions.$inferSelect;
+export type InsertEventPromotion = z.infer<typeof insertEventPromotionSchema>;
+export type PricingConfig = typeof pricingConfig.$inferSelect;
+export type InsertPricingConfig = z.infer<typeof insertPricingConfigSchema>;
+
 // Re-export chat models
 export * from "./models/chat";

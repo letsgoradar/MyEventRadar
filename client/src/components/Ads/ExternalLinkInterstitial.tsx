@@ -10,6 +10,10 @@ interface ExternalLinkInterstitialProps {
   onClose: () => void;
   onAdClick?: () => void;
   isPremium?: boolean;
+  eventLat?: number;
+  eventLng?: number;
+  eventCategory?: string;
+  eventId?: number;
 }
 
 export function ExternalLinkInterstitial({ 
@@ -17,10 +21,16 @@ export function ExternalLinkInterstitial({
   eventTitle,
   onClose,
   onAdClick,
-  isPremium = false
+  isPremium = false,
+  eventLat,
+  eventLng,
+  eventCategory,
+  eventId,
 }: ExternalLinkInterstitialProps) {
   const [countdown, setCountdown] = useState(isPremium ? 0 : 5);
   const [canProceed, setCanProceed] = useState(isPremium);
+
+  const hasLocation = eventLat !== undefined && eventLng !== undefined;
 
   useEffect(() => {
     if (isPremium) {
@@ -77,7 +87,14 @@ export function ExternalLinkInterstitial({
         </div>
 
         <div className="w-full max-w-md aspect-[2/1] min-h-[180px]">
-          <AdBanner type="house" onClick={handleAdClick} />
+          <AdBanner
+            type={hasLocation ? "served" : "house"}
+            onClick={handleAdClick}
+            lat={eventLat}
+            lng={eventLng}
+            eventCategory={eventCategory}
+            eventId={eventId}
+          />
         </div>
 
         <div className="flex flex-col items-center gap-4 mt-4">

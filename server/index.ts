@@ -15,6 +15,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startNotificationScheduler } from "./notification-scheduler";
 import { startRssScheduler } from "./rss-scheduler";
+import { expirePromotions } from "./routes/advertiser-routes";
 
 const app = express();
 
@@ -95,6 +96,12 @@ const HOST = '0.0.0.0';
     // Start RSS feed scheduler
     startRssScheduler();
     console.log('RSS feed scheduler started');
+
+    setInterval(() => {
+      expirePromotions().catch(console.error);
+    }, 5 * 60 * 1000);
+    expirePromotions().catch(console.error);
+    console.log('Promotion expiration scheduler started');
 
     // Add error handling middleware
     app.use(errorHandler);

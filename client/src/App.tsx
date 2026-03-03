@@ -70,6 +70,15 @@ const InstallPWA = React.lazy(() => import("@/components/App/InstallPWA").then(m
 const NotFound = React.lazy(() => import("@/pages/not-found"));
 const ErrorPage = React.lazy(() => import("@/pages/error"));
 
+// Advertiser componenten (lazy loaded)
+const AdvertiserAuthGuard = React.lazy(() => import("@/components/Advertiser/AuthGuard"));
+const AdvertiserLanding = React.lazy(() => import("@/pages/Advertiser/Landing"));
+const AdvertiserRegister = React.lazy(() => import("@/pages/Advertiser/Register"));
+const AdvertiserDashboard = React.lazy(() => import("@/pages/Advertiser/Dashboard"));
+const AdvertiserAds = React.lazy(() => import("@/pages/Advertiser/Ads"));
+const AdvertiserPromotions = React.lazy(() => import("@/pages/Advertiser/Promotions"));
+const AdvertiserBilling = React.lazy(() => import("@/pages/Advertiser/Billing"));
+
 // Layout componenten
 const WebLayout = React.lazy(() => import("@/components/Web/WebLayout").then(m => ({ default: m.WebLayout })));
 
@@ -163,6 +172,36 @@ export default function App() {
           </AuthGuard>
         </Route>
         
+        {/* Advertiser Routes - publieke landing + beschermde dashboard */}
+        <Route path="/adverteren">
+          <AdvertiserLanding />
+        </Route>
+        <Route path="/advertiser/register">
+          <AdvertiserAuthGuard>
+            <AdvertiserRegister />
+          </AdvertiserAuthGuard>
+        </Route>
+        <Route path="/advertiser/dashboard">
+          <AdvertiserAuthGuard>
+            <AdvertiserDashboard />
+          </AdvertiserAuthGuard>
+        </Route>
+        <Route path="/advertiser/ads">
+          <AdvertiserAuthGuard>
+            <AdvertiserAds />
+          </AdvertiserAuthGuard>
+        </Route>
+        <Route path="/advertiser/promotions">
+          <AdvertiserAuthGuard>
+            <AdvertiserPromotions />
+          </AdvertiserAuthGuard>
+        </Route>
+        <Route path="/advertiser/billing">
+          <AdvertiserAuthGuard>
+            <AdvertiserBilling />
+          </AdvertiserAuthGuard>
+        </Route>
+
         {/* Mobiel browser guard: toon install scherm voor alle niet-admin routes */}
         {showInstallScreen && (
           <>

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { EventInterface, type events } from "@shared/schema"
+import { PromotedEventsCarousel } from "@/components/Ads/PromotedEventsCarousel"
 
 // Uitgebreide Event interface met distance property
 interface EventWithDistance extends EventInterface {
@@ -61,6 +62,11 @@ export function EventList({ filteredEvents, gridView = false, onEventClick, onEv
   if (useGridLayout) {
     return (
       <div className="p-4 event-list-container">
+        <PromotedEventsCarousel
+          onEventClick={onEventClick}
+          onEventHover={onEventHover}
+          hoveredEventId={hoveredEventId}
+        />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr event-list-bg">
           {processedEvents.map((event) => (
             <div
@@ -85,6 +91,11 @@ export function EventList({ filteredEvents, gridView = false, onEventClick, onEv
   // Standaard lijstweergave
   return (
     <div className="px-4 pt-2 pb-4 event-list-container">
+      <PromotedEventsCarousel
+        onEventClick={onEventClick}
+        onEventHover={onEventHover}
+        hoveredEventId={hoveredEventId}
+      />
       <div className="space-y-3 event-list-bg">
         {processedEvents.map((event) => (
           <div

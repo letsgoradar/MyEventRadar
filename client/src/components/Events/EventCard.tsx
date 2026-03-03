@@ -48,9 +48,10 @@ interface EventCardProps {
   gridView?: boolean;
   onEventClick?: (event: EventInterface) => void;
   isHighlighted?: boolean;
+  isPromoted?: boolean;
 }
 
-export default function EventCard({ event, distance, gridView = false, onEventClick, isHighlighted = false }: EventCardProps) {
+export default function EventCard({ event, distance, gridView = false, onEventClick, isHighlighted = false, isPromoted = false }: EventCardProps) {
   const [showStreetView, setShowStreetView] = useState(false);
   const [imageError, setImageError] = useState(false);
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
@@ -170,9 +171,14 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
     
     return (
       <div onClick={handleClick}>
-        <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col event-card">
+        <Card className={`overflow-hidden transition-all hover:shadow-md cursor-pointer h-full flex flex-col event-card ${isPromoted ? 'ring-2 ring-amber-400 shadow-amber-100' : ''}`}>
           {/* Afbeelding bovenaan met overlay voor views en status */}
           <div className="relative h-48 overflow-hidden">
+            {isPromoted && (
+              <div className="absolute top-2 left-2 z-30 bg-amber-500 text-white px-2 py-0.5 rounded-full text-xs font-semibold">
+                Gepromoot
+              </div>
+            )}
             {showPlaceholder ? (
               <img 
                 src={placeholderImage} 
@@ -309,10 +315,15 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
     
     return (
       <div onClick={handleAppClick}>
-        <Card className="overflow-hidden mb-4 transition-all hover:shadow-md cursor-pointer event-card">
+        <Card className={`overflow-hidden mb-4 transition-all hover:shadow-md cursor-pointer event-card ${isPromoted ? 'ring-2 ring-amber-400 shadow-amber-100' : ''}`}>
           <div className="p-0">
             {/* Afbeelding container bovenaan */}
             <div className="w-full h-48 relative bg-gray-100">
+              {isPromoted && (
+                <div className="absolute top-2 left-2 z-30 bg-amber-500 text-white px-2 py-0.5 rounded-full text-xs font-semibold">
+                  Gepromoot
+                </div>
+              )}
               {appShowPlaceholder ? (
                 <img 
                   src={placeholderImage} 
@@ -398,10 +409,15 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
   
   return (
     <Link href={detailLink} onClick={window.location.pathname.includes('/web') ? showEventOnMap : undefined}>
-      <Card className="overflow-hidden transition-all hover:shadow-md cursor-pointer event-card">
+      <Card className={`overflow-hidden transition-all hover:shadow-md cursor-pointer event-card ${isPromoted ? 'ring-2 ring-amber-400 shadow-amber-100' : ''}`}>
         <div className="flex flex-col md:flex-row">
           {/* Afbeelding links */}
           <div className="md:w-1/3 h-[180px] md:h-auto relative">
+            {isPromoted && (
+              <div className="absolute top-2 left-2 z-30 bg-amber-500 text-white px-2 py-0.5 rounded-full text-xs font-semibold">
+                Gepromoot
+              </div>
+            )}
             {listShowPlaceholder ? (
               <img 
                 src={placeholderImage} 

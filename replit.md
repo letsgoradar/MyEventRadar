@@ -107,6 +107,37 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
    - Logs tonen `[RSS] Page X: found Y new event links` - als Y=0, matcht de eventLinkPath niet
    - Test de website met curl: `curl -s "URL" | grep -oE 'href="[^"]*"' | head -50`
 
+### Advertising System (nieuw)
+Twee-producten advertentiesysteem:
+
+**Product 1: Bedrijfsadvertenties (CPM-model)**
+- Hospitality-bedrijven adverteren in ExternalLinkInterstitial
+- Pay-per-impression, prijs schaalt met gekozen doelradius (5/10/15/20/25 km)
+- Auto-incasso via Stripe, budget-cap instelbaar
+- Tabellen: `advertiser_profiles`, `business_ads`, `ad_impressions`
+
+**Product 2: Gepromote Events (prepaid)**
+- Events verschijnen als "Gepromoot" bovenaan zoekresultaten (max 2 tegelijk, carousel bij meer)
+- Prepaid per periode (dag/week/maand), prijs schaalt met radius
+- Carousel met eerlijke rotatie (auto 8s), dot-indicators
+- Tabel: `event_promotions`
+
+**Prijsconfiguratie**: `pricing_config` tabel met radius × periode matrix, aanpasbaar via admin
+
+**Routes**:
+- Public: `/adverteren` (landingspagina met prijscalculator)
+- Adverteerder: `/advertiser/register`, `/advertiser/dashboard`, `/advertiser/ads`, `/advertiser/promotions`, `/advertiser/billing`
+- Backend: `/api/promotions/*`, `/api/advertiser/*`, `/api/ads/*`
+- Admin: Admin → Promotions tab met 5 subtabs (advertenties goedkeuring, promoties, adverteerders, inkomsten, prijsbeheer)
+
+**Bestanden**:
+- Schema: `shared/schema.ts` (onderaan: advertiser tables)
+- Routes: `server/routes/advertiser-routes.ts`
+- Stripe: `server/stripe.ts`
+- Frontend: `client/src/pages/Advertiser/` (5 pagina's), `client/src/components/Advertiser/` (AuthGuard, Sidebar), `client/src/components/Ads/` (AdBanner, ExternalLinkInterstitial, PromotedEventsCarousel)
+
+**Stripe**: Packages geïnstalleerd (`stripe`, `@stripe/stripe-js`, `@stripe/react-stripe-js`). Vereist `STRIPE_SECRET_KEY` en optioneel `STRIPE_WEBHOOK_SECRET` environment variables.
+
 ## External Dependencies
 
 ### Core
@@ -116,6 +147,7 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
 - **Styling**: Tailwind CSS
 - **File Uploads**: Multer
 - **Validation**: Zod
+- **Payments**: Stripe (stripe, @stripe/stripe-js, @stripe/react-stripe-js)
 
 ### Optional Integrations
 - **AI Image Generation**: Hugging Face API

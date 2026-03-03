@@ -15,6 +15,7 @@ interface FormattedEvent {
   expired: boolean;
   event: EventInterface;
   startTime: string | Date;
+  isPromoted?: boolean;
 }
 
 interface ClusterLayerProps {
@@ -41,9 +42,10 @@ function createImageMarkerIcon(
   imageUrl: string | null | undefined, 
   category: string, 
   isExpired: boolean = false, 
-  isSelected: boolean = false
+  isSelected: boolean = false,
+  isPromoted: boolean = false
 ) {
-  const size = isSelected ? 52 : 44;
+  const size = isPromoted ? 52 : (isSelected ? 52 : 44);
   const borderWidth = 3;
   const innerSize = size - (borderWidth * 2);
   const fallbackColor = `rgb(${CLUSTER_COLOR})`;
@@ -66,7 +68,8 @@ function createImageMarkerIcon(
             border-radius: 50%;
             padding: ${borderWidth}px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            ${isSelected ? 'box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);' : ''}
+            ${isPromoted ? 'box-shadow: 0 4px 12px rgba(245, 158, 11, 0.5); border: 2px solid #f59e0b;' : ''}
+            ${isSelected && !isPromoted ? 'box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);' : ''}
           ">
             <img 
               src="${imageUrl}" 
@@ -111,7 +114,8 @@ function createImageMarkerIcon(
         border-radius: 50%;
         padding: ${borderWidth}px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        ${isSelected ? 'box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);' : ''}
+        ${isPromoted ? 'box-shadow: 0 4px 12px rgba(245, 158, 11, 0.5); border: 2px solid #f59e0b;' : ''}
+        ${isSelected && !isPromoted ? 'box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);' : ''}
       ">
         <div style="
           width: ${innerSize}px;
@@ -234,10 +238,10 @@ export function ClusterLayer({
       
       if (currentMarkers.has(event.id)) {
         const existingMarker = currentMarkers.get(event.id)!;
-        existingMarker.setIcon(createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected));
+        existingMarker.setIcon(createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected, event.isPromoted));
       } else {
         const marker = L.marker(event.coords, {
-          icon: createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected),
+          icon: createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected, event.isPromoted),
         });
         
         const createPopupElement = () => {

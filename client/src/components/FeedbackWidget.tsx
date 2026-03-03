@@ -42,14 +42,13 @@ export function FeedbackWidget() {
     try {
       await apiRequest("/api/feedback", {
         method: "POST",
-        body: JSON.stringify({
+        data: {
           pageUrl: window.location.pathname,
           feedbackType,
           message,
           rating: rating > 0 ? rating : null,
           email: email || null,
-        }),
-        headers: { "Content-Type": "application/json" },
+        },
       });
 
       setIsSuccess(true);
@@ -175,18 +174,31 @@ export function FeedbackWidget() {
         </div>
       )}
 
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "fixed bottom-20 lg:bottom-6 right-4 z-[85] w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110",
-          isOpen
-            ? "bg-muted text-muted-foreground rotate-45"
-            : "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+      <div className="fixed bottom-20 lg:bottom-6 right-4 z-[85] flex items-end gap-0">
+        {!isOpen && (
+          <div
+            className="origin-bottom-right mb-1 mr-[-6px] cursor-pointer select-none"
+            onClick={() => setIsOpen(true)}
+            style={{ transform: "rotate(-35deg)" }}
+          >
+            <span className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-md whitespace-nowrap tracking-wide uppercase">
+              Feedback
+            </span>
+          </div>
         )}
-        aria-label="Feedback geven"
-      >
-        <MessageSquarePlus className="w-5 h-5" />
-      </button>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            "w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110",
+            isOpen
+              ? "bg-muted text-muted-foreground rotate-45"
+              : "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+          )}
+          aria-label="Feedback geven"
+        >
+          <MessageSquarePlus className="w-5 h-5" />
+        </button>
+      </div>
     </>
   );
 }

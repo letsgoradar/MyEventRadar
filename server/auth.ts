@@ -65,37 +65,34 @@ export function setupAuth(app: Express) {
       },
       async (username, password, done) => {
       try {
-        console.log(`🔐 Login attempt with username/email: "${username}"`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[Dev] Login attempt: "${username}"`);
+        }
         
         // Probeer eerst username
         let user = await storage.getUserByUsername(username);
-        console.log(`📋 getUserByUsername result:`, user ? `Found user ID ${user.id}` : 'No user found');
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[Dev] getUserByUsername result:`, user ? `Found user ID ${user.id}` : 'No user found');
+        }
         
         // Als username niet werkt, probeer email
         if (!user) {
-          console.log(`📧 Trying as email address...`);
           user = await storage.getUserByEmail(username);
-          console.log(`📋 getUserByEmail result:`, user ? `Found user ID ${user.id}` : 'No user found');
         }
         
         if (!user) {
-          console.log(`❌ No user found with username/email: "${username}"`);
           return done(null, false);
         }
         
-        console.log(`🔓 User found, checking password for user: ${user.username} (ID: ${user.id})`);
         const isValidPassword = await comparePasswords(password, user.password);
-        console.log(`🔒 Password check result:`, isValidPassword ? 'Valid' : 'Invalid');
         
         if (!isValidPassword) {
-          console.log(`❌ Invalid password for user: ${username}`);
           return done(null, false);
         }
         
-        console.log(`✅ Login successful for user: ${user.username} (ID: ${user.id})`);
         return done(null, user);
       } catch (error) {
-        console.error(`💥 Login error for user ${username}:`, error);
+        console.error('Login error:', error);
         return done(error);
       }
     }),
@@ -266,7 +263,9 @@ export function setupAuth(app: Express) {
       
       // In een echte applicatie zou hier een email worden verzonden
       // met een link zoals /reset-password?token=123abc
-      console.log(`Reset token voor gebruiker ${user.id}: ${token}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Dev] Reset token voor gebruiker ${user.id}: ${token}`);
+      }
       
       res.status(200).json({
         message: "Als dit e-mailadres bij ons bekend is, ontvang je binnenkort een e-mail met instructies."

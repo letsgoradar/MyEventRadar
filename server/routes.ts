@@ -1760,7 +1760,7 @@ Respond with ONLY the search term, nothing else.`,
   });
   
   // Alle evenementen ophalen - voor admin en testen
-  app.get("/api/admin/events", async (req, res) => {
+  app.get("/api/admin/events", isAdmin, async (req, res) => {
     try {
       const events = await storage.getAllEvents();
       res.json(events);

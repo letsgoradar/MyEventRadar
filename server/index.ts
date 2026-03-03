@@ -66,8 +66,10 @@ app.use(session({
   }
 }));
 
-// Auto-login testuser for development
-app.use(autoLoginTestUser);
+if (process.env.NODE_ENV !== 'production') {
+  console.log('[Dev] Auto-login middleware actief');
+  app.use(autoLoginTestUser);
+}
 
 // Attach user to request if authenticated
 app.use(attachUser);

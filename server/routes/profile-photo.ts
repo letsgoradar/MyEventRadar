@@ -86,10 +86,10 @@ const handleMulterError = (err: any, req: Request, res: Response, next: Function
 // Route voor het uploaden van een profielfoto
 router.post('/', 
   (req, res, next) => {
-    // Debug authenticatie status
-    console.log('Upload request - isAuthenticated:', req.isAuthenticated?.());
-    console.log('Upload request - user:', req.user ? { id: req.user.id, email: req.user.email } : 'None');
-    console.log('Upload request - session:', req.session ? 'Present' : 'None');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Upload request - isAuthenticated:', req.isAuthenticated?.());
+      console.log('Upload request - user:', req.user ? { id: (req.user as any).id } : 'None');
+    }
     next();
   },
   (req, res, next) => {

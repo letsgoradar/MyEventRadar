@@ -284,8 +284,8 @@ export function Header({
       
       {/* Center area with AI assistant, search and date filters */}
       <div className="flex items-center justify-center gap-2 max-w-xl flex-1">
-        {/* AI Assistent knop - links van zoekbalk */}
-        <AssistantButton variant="header" />
+        {/* AI Assistent tijdelijk verborgen */}
+        {/* <AssistantButton variant="header" /> */}
         
         {/* Zoekveld */}
         <div className="relative flex-1">

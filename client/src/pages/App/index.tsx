@@ -170,8 +170,8 @@ export function AppHomePage() {
         />
       )}
       
-      {/* AI Assistant floating button */}
-      <AssistantButton />
+      {/* AI Assistant temporarily hidden */}
+      {/* <AssistantButton /> */}
     </>
   );
 }

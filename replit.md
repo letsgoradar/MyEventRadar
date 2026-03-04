@@ -252,4 +252,13 @@ Twee-producten advertentiesysteem:
 - **Import Pipeline (scrapeUniversal)**: When a feed has `aiExtractionProfileId`, `scrapeUniversal()` tries AI profile selectors FIRST (Strategy 0) before falling back to WordPress API, Next.js, JSON-LD, Umbraco, Generic HTML. The `tryAiProfileSelectors` method: loads the saved profile selectors → extracts event links from overview pages using the AI-detected eventCard + link selectors → follows pagination → fetches detail pages in parallel (5 at a time) → extracts full event data via JSON-LD + CSS selectors.
 - **Validation Relaxation**: `save-config` endpoint skips location selector requirement for AI-generated scrapers (`isAiGenerated` flag) since location data comes from detail page JSON-LD.
 - **Tested**: visitmaastricht.com/nl/uitagenda — 24 events/page, 144 estimated total, 95% confidence, JSON-LD found
-- **Files**: `server/services/ai-provider.ts`, `server/services/ai-html-analyzer.ts`, `server/services/rss-feed-service.ts`, `server/routes.ts`, `client/src/components/admin/FeedAnalyzerModal.tsx`
+- **Tested**: heerlenmijnstad.nl/uitagenda — 87 events/page, 60% confidence, no JSON-LD, Puppeteer rendering, 72 events imported (Feed #69, Profile #25)
+
+### AI Import Robustness (Session 10)
+- **Pro→Flash Fallback**: `AiProvider.complete()` now falls back from Gemini Pro to Flash if Pro fails after 5 attempts. Flash gets 3 additional attempts.
+- **JSON Cleaning**: Added JS comment removal (`//` and `/* */`) in `cleanJsonResponse()`. Single-quote → double-quote conversion moved before unquoted property name fix for better repair order.
+- **Event Link Extraction**: Fixed relative URL resolution using full page URL as base (not just origin). When eventCard IS an `<a>` tag, href is extracted from the card itself.
+- **Fallback Selector Selection**: Changed from first-match to best-match strategy — all candidate selectors are tested, the one matching most events wins.
+- **Reasoning Fix**: When AI model returns no `reasoning` field, generate descriptive fallback text instead of `undefined`.
+- **Request Timeout**: AI scraper analyze endpoint now has 180s timeout (`req.setTimeout(180000)`).
+- **Files**: `server/services/ai-provider.ts`, `server/services/ai-html-analyzer.ts`, `server/routes.ts`

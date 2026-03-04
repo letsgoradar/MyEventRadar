@@ -2249,6 +2249,7 @@ Respond with ONLY the search term, nothing else.`,
   });
 
   app.post("/api/admin/rss-feeds/ai-scraper-analyze", isAdmin, async (req, res) => {
+    req.setTimeout(180000);
     try {
       const { url } = req.body;
       if (!url || typeof url !== 'string') {

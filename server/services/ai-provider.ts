@@ -63,7 +63,7 @@ export class AiProvider {
     }
 
     let lastError = '';
-    const maxRetries = model === 'pro' ? 3 : this.MAX_RETRIES;
+    const maxRetries = model === 'pro' ? 4 : this.MAX_RETRIES;
     
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -76,15 +76,37 @@ export class AiProvider {
         
         if (attempt < maxRetries) {
           const delay = (model === 'pro' ? 500 : 250) * (attempt + 1);
-          console.log(`[AI Provider] Gemini ${model} attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+          console.log(`[AI Provider] Gemini ${model} attempt ${attempt + 1} failed: ${lastError.substring(0, 100)}, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       } catch (error: any) {
         lastError = error.message;
         if (attempt < maxRetries) {
           const delay = (model === 'pro' ? 500 : 250) * (attempt + 1);
-          console.log(`[AI Provider] Gemini ${model} error: ${error.message}, retrying in ${delay}ms...`);
+          console.log(`[AI Provider] Gemini ${model} error: ${error.message.substring(0, 100)}, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    if (model === 'pro') {
+      console.log(`[AI Provider] Pro model failed after ${maxRetries + 1} attempts, falling back to flash...`);
+      for (let attempt = 0; attempt <= 2; attempt++) {
+        try {
+          this.callCount++;
+          const result = await this.tryGemini(systemPrompt, userPrompt, maxTokens, temperature, jsonMode, 'flash');
+          if (result.success) {
+            return result;
+          }
+          lastError = result.error || 'Unknown error';
+          if (attempt < 2) {
+            await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+          }
+        } catch (error: any) {
+          lastError = error.message;
+          if (attempt < 2) {
+            await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+          }
         }
       }
     }
@@ -258,6 +280,8 @@ ${userPrompt}`;
     }
     
     cleaned = cleaned
+      .replace(/\/\/[^\n]*/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/\n/g, ' ')
       .replace(/\r/g, '')
       .replace(/\t/g, ' ')
@@ -276,15 +300,15 @@ ${userPrompt}`;
       JSON.parse(cleaned);
       return cleaned;
     } catch {}
-    
-    cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
+
+    cleaned = cleaned.replace(/'/g, '"');
     
     try {
       JSON.parse(cleaned);
       return cleaned;
     } catch {}
     
-    cleaned = cleaned.replace(/'/g, '"');
+    cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
     
     try {
       JSON.parse(cleaned);

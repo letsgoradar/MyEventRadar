@@ -276,6 +276,7 @@ export class AiHtmlAnalyzer {
       { selector: 'div[class*="event"]:has(a)', priority: 5 },
       { selector: 'div[class*="item"]:has(a):has(img)', priority: 4 },
       { selector: 'div:has(> a):has(img)', priority: 3 },
+      { selector: 'a[class]:has(img):has(h1, h2, h3, h4, h5, h6)', priority: 3 },
       { selector: 'a:has(img):has(h1, h2, h3, h4)', priority: 1 },
     ];
 
@@ -730,22 +731,24 @@ Antwoord in JSON:
 
       if (validationResult.eventCount < 3) {
         console.log(`[AI Scraper Builder] AI selector "${overviewSelectors.eventCard}" found ${validationResult.eventCount} events, trying candidate fallbacks...`);
-        const fallbackSelectors: string[] = [];
+        const fallbackCandidates: Array<{ selector: string; count: number }> = [];
         for (const candidate of candidateCards) {
-          fallbackSelectors.push(candidate.selector);
+          fallbackCandidates.push({ selector: candidate.selector, count: candidate.count });
           const exact = (candidate as any).exactSelector;
           if (exact && exact !== candidate.selector) {
-            fallbackSelectors.push(exact);
+            fallbackCandidates.push({ selector: exact, count: candidate.count });
           }
         }
-        for (const fallbackSel of fallbackSelectors) {
-          const testSelectors = { ...overviewSelectors, eventCard: fallbackSel };
+        fallbackCandidates.sort((a, b) => b.count - a.count);
+        let bestFallbackCount = 0;
+        for (const fallback of fallbackCandidates) {
+          const testSelectors = { ...overviewSelectors, eventCard: fallback.selector };
           const fallbackResult = await this.extractWithSelectors(overviewHtml, testSelectors);
-          if (fallbackResult.eventCount >= 3) {
-            console.log(`[AI Scraper Builder] Fallback selector "${fallbackSel}" found ${fallbackResult.eventCount} events`);
+          if (fallbackResult.eventCount > bestFallbackCount && fallbackResult.eventCount >= 3) {
+            console.log(`[AI Scraper Builder] Fallback selector "${fallback.selector}" found ${fallbackResult.eventCount} events`);
             overviewSelectors = testSelectors;
             validationResult = fallbackResult;
-            break;
+            bestFallbackCount = fallbackResult.eventCount;
           }
         }
       }
@@ -768,16 +771,23 @@ Antwoord in JSON:
         : validationResult.eventCount;
 
       steps[1].status = 'success';
-      steps[1].message = `${validationResult.eventCount} events op pagina 1${pagination.type !== 'none' ? ` (geschat totaal: ~${estimatedTotal} over ${pagination.maxPages} pagina's)` : ''} (confidence: ${overviewParsed.confidence}%)`;
-      reasoningParts.push(`Overzicht: ${overviewParsed.reasoning}`);
-      confidence = Math.min(overviewParsed.confidence || 50, 60);
+      const overviewConfidence = overviewParsed.confidence || 50;
+      steps[1].message = `${validationResult.eventCount} events op pagina 1${pagination.type !== 'none' ? ` (geschat totaal: ~${estimatedTotal} over ${pagination.maxPages} pagina's)` : ''} (confidence: ${overviewConfidence}%)`;
+      if (overviewParsed.reasoning) {
+        reasoningParts.push(`Overzicht: ${overviewParsed.reasoning}`);
+      } else {
+        reasoningParts.push(`Overzicht: ${validationResult.eventCount} events gevonden met selector "${overviewSelectors.eventCard}"`);
+      }
+      confidence = Math.min(overviewConfidence, 60);
 
       const eventLinks: string[] = [];
       const $overview = cheerio.load(overviewHtml);
       $overview(overviewSelectors.eventCard).each((_, card) => {
         const $card = $overview(card);
         let link = '';
-        if (overviewSelectors.link && overviewSelectors.link !== 'self') {
+        if (overviewSelectors.link === 'self' || $card.is('a')) {
+          link = $card.attr('href') || '';
+        } else if (overviewSelectors.link) {
           link = $card.find(overviewSelectors.link).first().attr('href') || '';
         }
         if (!link) {
@@ -787,7 +797,7 @@ Antwoord in JSON:
           try {
             const absoluteLink = link.startsWith('http')
               ? link
-              : new URL(link, baseUrl.origin).href;
+              : new URL(link, url).href;
             if (!eventLinks.includes(absoluteLink) && absoluteLink !== url) {
               eventLinks.push(absoluteLink);
             }
@@ -874,7 +884,7 @@ Antwoord in JSON:
 
       const detailHtmlSamples = detailPages.map((p, i) => {
         const simplified = this.simplifyDetailHtml(p.html);
-        return `--- Detailpagina ${i + 1} (${p.url}) ---\n${simplified.substring(0, 3000)}`;
+        return `--- Detailpagina ${i + 1} (${p.url}) ---\n${simplified.substring(0, 2500)}`;
       }).join('\n\n');
 
       const detailAiResult = await AiProvider.complete({
@@ -958,7 +968,12 @@ Antwoord in JSON:
 
           steps[3].status = 'success';
           steps[3].message = `Detail-selectors gevonden (confidence: ${detailConfidence}%)${hasJsonLd ? ' — JSON-LD beschikbaar!' : ''}`;
-          reasoningParts.push(`Detail: ${detailParsed.reasoning}`);
+          if (detailParsed.reasoning) {
+            reasoningParts.push(`Detail: ${detailParsed.reasoning}`);
+          } else {
+            const foundFields = Object.entries(detailSelectors || {}).filter(([, v]) => v).map(([k]) => k);
+            reasoningParts.push(`Detail: ${foundFields.length} velden gevonden (${foundFields.join(', ')})`);
+          }
         } else {
           steps[3].status = 'failed';
           steps[3].message = 'AI kon geen detail-selectors vinden';

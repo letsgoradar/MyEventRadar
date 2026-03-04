@@ -263,5 +263,7 @@ Twee-producten advertentiesysteem:
 - **Request Timeout**: AI scraper analyze endpoint now has 180s timeout (`req.setTimeout(180000)`).
 - **Selector Sanitization**: `sanitizeSelector()` auto-generalizes selectors with unique attribute values (e.g. `[data-item-id="4808"]` → `[data-item-id]`). Prevents AI from generating selectors that match only 1 item.
 - **AI Prompt Update**: Added explicit instruction to never use unique attribute values in selectors.
-- **Tested**: ditisassen.nl/nl/agenda/agenda-overzicht — Feed #70, Profile #27, 24 items → 21 events (3 merged duplicates), `[data-item-id]` selector
+- **Tested**: ditisassen.nl/nl/agenda/agenda-overzicht — Feed #70, Profile #27, 371 items across 16 pages → 284 events (87 merged duplicates), `[data-item-id]` selector, pagination `?page=N`
+- **Pagination Auto-detect**: When AI profile has no stored pagination config, `tryAiProfileSelectors()` now auto-detects `?page=N` or `/page/N` patterns from the overview page HTML. Falls back to this when `scraperConfig.pagination` and `profile.pagination` are both empty.
+- **Save-config Route**: Now passes `pagination` data from `scraperConfig.pagination` or `req.body.pagination` to the saved AI extraction profile.
 - **Files**: `server/services/ai-provider.ts`, `server/services/ai-html-analyzer.ts`, `server/routes.ts`

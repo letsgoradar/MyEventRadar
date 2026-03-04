@@ -3432,10 +3432,13 @@ Antwoord in dit JSON formaat:
         address: typeof selectors.address === 'string' ? selectors.address : undefined,
       };
 
+      const paginationData = req.body.scraperConfig?.pagination || req.body.pagination || undefined;
+
       const profileData = {
         domain,
         pathPattern,
         selectors: validatedSelectors,
+        pagination: paginationData || undefined,
         confidence: 80,
         requiresJsRendering: false,
         municipality: typeof municipality === 'string' ? municipality : undefined,

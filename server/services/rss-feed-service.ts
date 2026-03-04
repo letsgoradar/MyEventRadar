@@ -6194,9 +6194,33 @@ export class RssFeedService {
         return { success: false, items: [], error: "AI profile selectors found no event links" };
       }
 
-      if (!(linkLimit && allEventLinks.length >= linkLimit) && paginationConfig && paginationConfig.type !== 'none') {
-        const maxPages = linkLimit ? Math.min(3, paginationConfig.maxPages || 10) : Math.min(paginationConfig.maxPages || 10, 30);
-        console.log(`[RSS] AI Profile pagination: ${paginationConfig.type}, up to ${maxPages} pages`);
+      let effectivePagination = paginationConfig;
+      if (!effectivePagination || effectivePagination.type === 'none') {
+        const detectedPagination = this.detectPagination($, baseUrl);
+        if (detectedPagination && detectedPagination.nextUrls && detectedPagination.nextUrls.length > 0) {
+          const paginationLinks = $('a[href*="page"], .pagination a, .pager a, [class*="pager"] a');
+          let maxDetectedPage = 1;
+          let detectedParamName = 'page';
+          paginationLinks.each((_, el) => {
+            const href = $(el).attr('href') || '';
+            const queryMatch = href.match(/[?&](page[_\d]*|pagina)=(\d+)/);
+            if (queryMatch) {
+              detectedParamName = queryMatch[1];
+              maxDetectedPage = Math.max(maxDetectedPage, parseInt(queryMatch[2]));
+            }
+            const numMatch = $(el).text().trim().match(/^(\d+)$/);
+            if (numMatch) maxDetectedPage = Math.max(maxDetectedPage, parseInt(numMatch[1]));
+          });
+          if (maxDetectedPage > 1) {
+            effectivePagination = { type: 'query', paramName: detectedParamName, maxPages: Math.min(maxDetectedPage, 30) };
+            console.log(`[RSS] AI Profile auto-detected pagination: ${detectedParamName}=N, ${maxDetectedPage} pages`);
+          }
+        }
+      }
+
+      if (!(linkLimit && allEventLinks.length >= linkLimit) && effectivePagination && effectivePagination.type !== 'none') {
+        const maxPages = linkLimit ? Math.min(3, effectivePagination.maxPages || 10) : Math.min(effectivePagination.maxPages || 10, 30);
+        console.log(`[RSS] AI Profile pagination: ${effectivePagination.type}, up to ${maxPages} pages`);
 
         for (let page = 2; page <= maxPages; page++) {
           if (linkLimit && allEventLinks.length >= linkLimit) break;
@@ -6205,11 +6229,11 @@ export class RssFeedService {
             await new Promise(resolve => setTimeout(resolve, 300));
 
             let pageUrl = baseUrl;
-            if (paginationConfig.type === 'query' && paginationConfig.paramName) {
+            if (effectivePagination.type === 'query' && effectivePagination.paramName) {
               const urlObj = new URL(baseUrl);
-              urlObj.searchParams.set(paginationConfig.paramName, String(page));
+              urlObj.searchParams.set(effectivePagination.paramName, String(page));
               pageUrl = urlObj.toString();
-            } else if (paginationConfig.type === 'path') {
+            } else if (effectivePagination.type === 'path') {
               pageUrl = baseUrl.replace(/\/$/, '') + `/page/${page}`;
             }
 

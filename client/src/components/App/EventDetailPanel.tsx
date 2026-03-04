@@ -53,6 +53,16 @@ interface UserLocation {
 // Simple date formatter - handles both string and Date
 const formatDateTime = (dateInput: string | Date) => {
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  const utcH = date.getUTCHours(), utcM = date.getUTCMinutes(), utcS = date.getUTCSeconds();
+  const isDateOnly = (utcH === 0 && utcM === 0 && utcS === 0) || (utcH === 23 && utcM === 59 && utcS === 59);
+  if (isDateOnly) {
+    return date.toLocaleDateString('nl-NL', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
   return date.toLocaleDateString('nl-NL', {
     weekday: 'long',
     year: 'numeric',

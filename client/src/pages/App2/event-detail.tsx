@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 import { formatDistanceToNow, format, differenceInHours } from "date-fns";
+import { hasValidTime, formatEventTimeRange } from "@/utils/date-utils";
 import { nl } from "date-fns/locale";
 import { apiRequest } from "@/lib/api";
 import { Event } from "@shared/schema";
@@ -232,12 +233,14 @@ export function App2EventDetail() {
                 <div className="flex items-center gap-3">
                   <Clock className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="font-medium">{formattedStartTime} - {formattedEndTime}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {durationHours <= 24 
-                        ? `${durationHours} uur` 
-                        : `${Math.floor(durationHours / 24)} dagen en ${durationHours % 24} uur`}
-                    </p>
+                    <p className="font-medium">{formatEventTimeRange(event.startTime, event.endTime)}</p>
+                    {hasValidTime(event.startTime) && (
+                      <p className="text-sm text-muted-foreground">
+                        {durationHours <= 24 
+                          ? `${durationHours} uur` 
+                          : `${Math.floor(durationHours / 24)} dagen en ${durationHours % 24} uur`}
+                      </p>
+                    )}
                   </div>
                 </div>
                 

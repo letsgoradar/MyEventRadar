@@ -18,6 +18,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { EventInterface } from '@shared/schema';
+import { formatEventTimeRange } from '@/utils/date-utils';
 import { WebLayout } from '@/components/Web/WebLayout';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { CategoryIcon, getCategoryColor } from '@/components/CategoryIcon';
@@ -257,8 +258,7 @@ const EventDetail = () => {
                   </div>
                   <div className="flex items-center">
                     <Clock className="mr-2 h-4 w-4" />
-                    {eventDate.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })} - 
-                    {endDate.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
+                    {formatEventTimeRange(event.startTime, event.endTime)}
                   </div>
                   {event.isPaid && (
                     <div className="flex items-center">

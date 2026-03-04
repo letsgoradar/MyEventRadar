@@ -137,14 +137,22 @@ const EventDetailPage: React.FC = () => {
       if (typeof dateTimeStr === 'string') {
         const date = parseISO(dateTimeStr);
         if (isValid(date)) {
-          return format(date, 'd MMMM yyyy, HH:mm', { locale: nl });
+          const utcH = date.getUTCHours(), utcM = date.getUTCMinutes(), utcS = date.getUTCSeconds();
+          const isDateOnly = (utcH === 0 && utcM === 0 && utcS === 0) || (utcH === 23 && utcM === 59 && utcS === 59);
+          return isDateOnly
+            ? format(date, 'd MMMM yyyy', { locale: nl }) + ' (tijd onbekend)'
+            : format(date, 'd MMMM yyyy, HH:mm', { locale: nl });
         }
       }
       
       // Probeer normale datum constructie
       const date = new Date(dateTimeStr);
       if (isValid(date)) {
-        return format(date, 'd MMMM yyyy, HH:mm', { locale: nl });
+        const utcH = date.getUTCHours(), utcM = date.getUTCMinutes(), utcS = date.getUTCSeconds();
+        const isDateOnly = (utcH === 0 && utcM === 0 && utcS === 0) || (utcH === 23 && utcM === 59 && utcS === 59);
+        return isDateOnly
+          ? format(date, 'd MMMM yyyy', { locale: nl }) + ' (tijd onbekend)'
+          : format(date, 'd MMMM yyyy, HH:mm', { locale: nl });
       }
       
       return "Onbekende datum/tijd";

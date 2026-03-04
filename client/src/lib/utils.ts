@@ -23,6 +23,12 @@ export function formatDateTime(dateTimeStr: string | Date | null | undefined): s
   if (!dateTimeStr) return "Onbekend";
   
   try {
+    const dateObj = typeof dateTimeStr === "string" ? new Date(dateTimeStr) : dateTimeStr;
+    const utcH = dateObj.getUTCHours(), utcM = dateObj.getUTCMinutes(), utcS = dateObj.getUTCSeconds();
+    const isDateOnly = (utcH === 0 && utcM === 0 && utcS === 0) || (utcH === 23 && utcM === 59 && utcS === 59);
+    if (isDateOnly) {
+      return formatDate(dateTimeStr, "d MMMM yyyy") + " (tijd onbekend)";
+    }
     return formatDate(dateTimeStr, "d MMMM yyyy 'om' HH:mm 'uur'");
   } catch (error) {
     console.error("Error formatting date time:", error);

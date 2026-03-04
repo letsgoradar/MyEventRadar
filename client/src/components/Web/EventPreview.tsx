@@ -28,6 +28,15 @@ interface Event {
 // Simple date formatter
 const formatDateTime = (dateString: string) => {
   const date = new Date(dateString);
+  const utcH = date.getUTCHours(), utcM = date.getUTCMinutes(), utcS = date.getUTCSeconds();
+  const isDateOnly = (utcH === 0 && utcM === 0 && utcS === 0) || (utcH === 23 && utcM === 59 && utcS === 59);
+  if (isDateOnly) {
+    return date.toLocaleDateString('nl-NL', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+  }
   return date.toLocaleDateString('nl-NL', {
     weekday: 'long',
     day: 'numeric',

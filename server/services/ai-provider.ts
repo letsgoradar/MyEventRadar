@@ -63,8 +63,9 @@ export class AiProvider {
     }
 
     let lastError = '';
+    const maxRetries = model === 'pro' ? 3 : this.MAX_RETRIES;
     
-    for (let attempt = 0; attempt <= this.MAX_RETRIES; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         this.callCount++;
         const result = await this.tryGemini(systemPrompt, userPrompt, maxTokens, temperature, jsonMode, model);
@@ -73,16 +74,16 @@ export class AiProvider {
         }
         lastError = result.error || 'Unknown error';
         
-        if (attempt < this.MAX_RETRIES) {
-          const delay = 250 * (attempt + 1);
-          console.log(`[AI Provider] Gemini attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+        if (attempt < maxRetries) {
+          const delay = (model === 'pro' ? 500 : 250) * (attempt + 1);
+          console.log(`[AI Provider] Gemini ${model} attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       } catch (error: any) {
         lastError = error.message;
-        if (attempt < this.MAX_RETRIES) {
-          const delay = 250 * (attempt + 1);
-          console.log(`[AI Provider] Gemini error: ${error.message}, retrying in ${delay}ms...`);
+        if (attempt < maxRetries) {
+          const delay = (model === 'pro' ? 500 : 250) * (attempt + 1);
+          console.log(`[AI Provider] Gemini ${model} error: ${error.message}, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
@@ -91,7 +92,7 @@ export class AiProvider {
     return {
       success: false,
       provider: 'gemini',
-      error: `Gemini failed after ${this.MAX_RETRIES + 1} attempts: ${lastError}`,
+      error: `Gemini failed after ${maxRetries + 1} attempts: ${lastError}`,
     };
   }
 

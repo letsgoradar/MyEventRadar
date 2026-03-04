@@ -406,6 +406,9 @@ Antwoord in JSON formaat:
       } else if (selectors.link) {
         event.link = $card.find(selectors.link).first().attr('href');
       }
+      if (!event.link && $card.is('a')) {
+        event.link = $card.attr('href');
+      }
       if (!event.link) {
         event.link = $card.find('a').first().attr('href');
       }
@@ -695,7 +698,21 @@ Antwoord in JSON:
       }
 
       overviewSelectors = overviewParsed.selectors as AiExtractionSelectors;
-      const validationResult = await this.extractWithSelectors(overviewHtml, overviewSelectors);
+      let validationResult = await this.extractWithSelectors(overviewHtml, overviewSelectors);
+
+      if (validationResult.eventCount < 2) {
+        console.log(`[AI Scraper Builder] AI selector "${overviewSelectors.eventCard}" found ${validationResult.eventCount} events, trying candidate fallbacks...`);
+        for (const candidate of candidateCards) {
+          const fallbackSelectors = { ...overviewSelectors, eventCard: candidate.selector };
+          const fallbackResult = await this.extractWithSelectors(overviewHtml, fallbackSelectors);
+          if (fallbackResult.eventCount >= 3) {
+            console.log(`[AI Scraper Builder] Fallback selector "${candidate.selector}" found ${fallbackResult.eventCount} events`);
+            overviewSelectors = fallbackSelectors;
+            validationResult = fallbackResult;
+            break;
+          }
+        }
+      }
 
       if (validationResult.eventCount < 2) {
         steps[1].status = 'failed';

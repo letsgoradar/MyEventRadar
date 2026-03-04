@@ -3390,6 +3390,7 @@ Antwoord in dit JSON formaat:
         return res.status(400).json({ message: "Event card selector is verplicht" });
       }
 
+      const isAiGenerated = req.body.scraperConfig?.aiGenerated === true;
       const validationErrors: string[] = [];
       if (!selectors.title || typeof selectors.title !== 'string') {
         validationErrors.push('Titel selector is verplicht');
@@ -3400,7 +3401,7 @@ Antwoord in dit JSON formaat:
       if (!selectors.link || typeof selectors.link !== 'string') {
         validationErrors.push('Detail link selector is verplicht (om extra velden van detail pagina op te halen)');
       }
-      if (!selectors.location || typeof selectors.location !== 'string') {
+      if (!isAiGenerated && (!selectors.location || typeof selectors.location !== 'string')) {
         validationErrors.push('Locatie selector is verplicht (geen fallback locaties)');
       }
 
@@ -3462,8 +3463,9 @@ Antwoord in dit JSON formaat:
         ? `${domain.replace('www.', '')} - ${municipality}` 
         : domain.replace('www.', ''));
       
+      const scraperConfigData = req.body.scraperConfig || undefined;
+      
       if (existingFeed) {
-        // Update existing feed with new profile ID and URL
         rssFeed = await storage.updateRssFeed(existingFeed.id, {
           name: feedName,
           url: url,
@@ -3471,10 +3473,10 @@ Antwoord in dit JSON formaat:
           aiExtractionProfileId: savedProfile.id,
           municipality: municipality || existingFeed.municipality,
           status: 'active',
+          scraperConfig: scraperConfigData || existingFeed.scraperConfig,
         });
         console.log('[Visual Configurator] Updated existing RSS feed:', rssFeed.id, 'with profile:', savedProfile.id);
       } else {
-        // Create new RSS feed linked to the profile
         rssFeed = await storage.createRssFeed({
           name: feedName,
           url: url,
@@ -3482,9 +3484,10 @@ Antwoord in dit JSON formaat:
           status: 'active',
           defaultCategory: 'community',
           municipality: municipality || undefined,
-          updateFrequencyMinutes: 360, // 6 hours
+          updateFrequencyMinutes: 360,
           autoCreateEvents: true,
           aiExtractionProfileId: savedProfile.id,
+          scraperConfig: scraperConfigData || undefined,
         });
         console.log('[Visual Configurator] Created new RSS feed:', rssFeed.id, 'linked to profile:', savedProfile.id);
       }

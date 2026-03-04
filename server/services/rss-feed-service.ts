@@ -5419,6 +5419,16 @@ export class RssFeedService {
       
       const $ = cheerio.load(html);
       
+      // STRATEGY 0: Try AI profile selectors (highest priority for AI-configured feeds)
+      if (feed.aiExtractionProfileId) {
+        const aiProfileResult = await this.tryAiProfileSelectors($, url, municipality, feed, html, linkLimit);
+        if (aiProfileResult.success && aiProfileResult.items.length > 0) {
+          console.log(`[RSS] AI Profile selectors succeeded: ${aiProfileResult.items.length} items`);
+          return aiProfileResult;
+        }
+        console.log(`[RSS] AI Profile selectors returned ${aiProfileResult.items.length} items, falling back to other strategies`);
+      }
+      
       // STRATEGY 1: Try WordPress REST API
       const wpApiResult = await this.tryWordPressApi(url, municipality, feed);
       if (wpApiResult.success && wpApiResult.items.length > 0) {
@@ -6112,6 +6122,153 @@ export class RssFeedService {
     }
     
     return null;
+  }
+
+  /**
+   * Try AI profile selectors — uses the saved AI extraction profile to extract event links
+   */
+  private static async tryAiProfileSelectors(
+    $: cheerio.CheerioAPI, 
+    baseUrl: string, 
+    municipality: string, 
+    feed: RssFeed, 
+    html: string,
+    linkLimit?: number
+  ): Promise<FeedParseResult> {
+    try {
+      if (!feed.aiExtractionProfileId) {
+        return { success: false, items: [], error: "No AI extraction profile" };
+      }
+
+      const profile = await storage.getAiExtractionProfile(feed.aiExtractionProfileId);
+      if (!profile || !profile.selectors) {
+        return { success: false, items: [], error: "AI extraction profile not found" };
+      }
+
+      const selectors = profile.selectors as AiExtractionSelectors;
+      if (!selectors.eventCard) {
+        return { success: false, items: [], error: "No eventCard selector in profile" };
+      }
+
+      console.log(`[RSS] Using AI profile #${profile.id} for ${municipality}: eventCard="${selectors.eventCard}"`);
+
+      const scraperConfig = feed.scraperConfig as any;
+      const detailSelectors = scraperConfig?.detailSelectors as AiExtractionSelectors | undefined;
+      const paginationConfig = scraperConfig?.pagination || profile.pagination;
+
+      const baseUrlObj = new URL(baseUrl);
+      const allEventLinks: string[] = [];
+
+      const extractLinksFromPage = ($page: cheerio.CheerioAPI): string[] => {
+        const links: string[] = [];
+        const cards = $page(selectors.eventCard);
+        cards.each((_, card) => {
+          const $card = $page(card);
+          let link = '';
+          if (selectors.link && selectors.link !== 'self') {
+            link = $card.find(selectors.link).first().attr('href') || '';
+          }
+          if (!link) {
+            link = $card.find('a[href]').first().attr('href') || '';
+          }
+          if (!link && $card.is('a')) {
+            link = $card.attr('href') || '';
+          }
+          if (link && !link.startsWith('#') && !link.startsWith('javascript:')) {
+            try {
+              const absoluteLink = link.startsWith('http') ? link : new URL(link, baseUrlObj.origin).href;
+              if (!links.includes(absoluteLink) && !allEventLinks.includes(absoluteLink) && absoluteLink !== baseUrl) {
+                links.push(absoluteLink);
+              }
+            } catch {}
+          }
+        });
+        return links;
+      };
+
+      const page1Links = extractLinksFromPage($);
+      allEventLinks.push(...page1Links);
+      console.log(`[RSS] AI Profile page 1: found ${page1Links.length} event links`);
+
+      if (page1Links.length === 0) {
+        return { success: false, items: [], error: "AI profile selectors found no event links" };
+      }
+
+      if (!(linkLimit && allEventLinks.length >= linkLimit) && paginationConfig && paginationConfig.type !== 'none') {
+        const maxPages = linkLimit ? Math.min(3, paginationConfig.maxPages || 10) : Math.min(paginationConfig.maxPages || 10, 30);
+        console.log(`[RSS] AI Profile pagination: ${paginationConfig.type}, up to ${maxPages} pages`);
+
+        for (let page = 2; page <= maxPages; page++) {
+          if (linkLimit && allEventLinks.length >= linkLimit) break;
+
+          try {
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            let pageUrl = baseUrl;
+            if (paginationConfig.type === 'query' && paginationConfig.paramName) {
+              const urlObj = new URL(baseUrl);
+              urlObj.searchParams.set(paginationConfig.paramName, String(page));
+              pageUrl = urlObj.toString();
+            } else if (paginationConfig.type === 'path') {
+              pageUrl = baseUrl.replace(/\/$/, '') + `/page/${page}`;
+            }
+
+            const pageResponse = await axios.get(pageUrl, {
+              headers: { "User-Agent": this.USER_AGENT, "Accept": "text/html,application/xhtml+xml" },
+              timeout: 30000,
+            });
+
+            const $page = cheerio.load(pageResponse.data);
+            const pageLinks = extractLinksFromPage($page);
+
+            if (pageLinks.length === 0) {
+              console.log(`[RSS] AI Profile page ${page}: no new events, stopping`);
+              break;
+            }
+
+            const newLinks = pageLinks.filter(l => !allEventLinks.includes(l));
+            if (newLinks.length === 0) break;
+
+            allEventLinks.push(...newLinks);
+            console.log(`[RSS] AI Profile page ${page}: found ${newLinks.length} new links (total: ${allEventLinks.length})`);
+          } catch (error: any) {
+            if (error.response?.status === 404) break;
+            console.log(`[RSS] AI Profile pagination error on page ${page}: ${error.message}`);
+            break;
+          }
+        }
+      }
+
+      console.log(`[RSS] AI Profile total: ${allEventLinks.length} event links`);
+
+      const uniqueLinks = Array.from(new Set(allEventLinks));
+      const linksToProcess = linkLimit ? uniqueLinks.slice(0, linkLimit) : uniqueLinks;
+
+      const mergedDetailSelectors = detailSelectors || selectors;
+
+      const fetchedItems = await parallelBatch(
+        linksToProcess,
+        async (link) => {
+          try {
+            return await this.scrapeGenericEventPage(link, municipality, mergedDetailSelectors);
+          } catch (e: any) {
+            console.log(`[RSS] Failed to scrape ${link}: ${e.message}`);
+            return null;
+          }
+        },
+        { concurrency: 5, delayMs: 200 }
+      );
+
+      if (fetchedItems.length === 0) {
+        return { success: false, items: [], error: "No events extracted from detail pages" };
+      }
+
+      console.log(`[RSS] AI Profile: extracted ${fetchedItems.length} items for ${municipality}`);
+      return { success: true, items: fetchedItems };
+    } catch (error: any) {
+      console.error(`[RSS] AI Profile selectors error:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
   }
 
   /**

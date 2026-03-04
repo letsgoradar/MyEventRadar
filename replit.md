@@ -245,5 +245,8 @@ Twee-producten advertentiesysteem:
   - Collapsible AI reasoning section
   - "Handmatig aanpassen" pre-fills visual editor with AI-found selectors
 - **Stepper Navigation**: Clickable breadcrumb: Feed zoeken → AI Scraper → Handmatig → Opslaan
+- **Scraper Opslaan**: "Scraper Opslaan" button in AI Scraper wizard directly saves the AI-generated config as a feed via `POST /api/admin/visual-configurator/save-config`. Creates both an AI extraction profile AND an RSS feed (feedType='scraper') with scraperConfig containing overviewSelectors, detailSelectors, pagination, and hasJsonLd flag.
+- **Import Pipeline (scrapeUniversal)**: When a feed has `aiExtractionProfileId`, `scrapeUniversal()` tries AI profile selectors FIRST (Strategy 0) before falling back to WordPress API, Next.js, JSON-LD, Umbraco, Generic HTML. The `tryAiProfileSelectors` method: loads the saved profile selectors → extracts event links from overview pages using the AI-detected eventCard + link selectors → follows pagination → fetches detail pages in parallel (5 at a time) → extracts full event data via JSON-LD + CSS selectors.
+- **Validation Relaxation**: `save-config` endpoint skips location selector requirement for AI-generated scrapers (`isAiGenerated` flag) since location data comes from detail page JSON-LD.
 - **Tested**: visitmaastricht.com/nl/uitagenda — 24 events/page, 144 estimated total, 95% confidence, JSON-LD found
-- **Files**: `server/services/ai-provider.ts`, `server/services/ai-html-analyzer.ts`, `server/routes.ts`, `client/src/components/admin/FeedAnalyzerModal.tsx`
+- **Files**: `server/services/ai-provider.ts`, `server/services/ai-html-analyzer.ts`, `server/services/rss-feed-service.ts`, `server/routes.ts`, `client/src/components/admin/FeedAnalyzerModal.tsx`

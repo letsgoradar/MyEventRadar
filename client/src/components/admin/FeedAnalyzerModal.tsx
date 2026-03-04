@@ -574,11 +574,35 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
   };
 
   const handleAiScraperSave = () => {
-    if (!aiScraperResult?.suggestedFeedConfig) return;
-    setCurrentStep('configure');
-    setPageContext('overview');
-    setIframeLoading(true);
-    fetchPageMutation.mutate(overviewUrl);
+    if (!aiScraperResult?.suggestedFeedConfig || !aiScraperResult.overviewSelectors) return;
+    
+    const parsedUrl = new URL(overviewUrl);
+    const domain = parsedUrl.hostname;
+    
+    const selectorsToSave: SelectorConfig = {
+      eventCard: aiScraperResult.overviewSelectors.eventCard || '',
+      title: aiScraperResult.overviewSelectors.title,
+      date: aiScraperResult.overviewSelectors.date,
+      link: aiScraperResult.overviewSelectors.link,
+      image: aiScraperResult.overviewSelectors.image,
+      venue: aiScraperResult.overviewSelectors.venue,
+      address: aiScraperResult.overviewSelectors.address,
+    };
+    if (aiScraperResult.detailSelectors) {
+      if (aiScraperResult.detailSelectors.description) selectorsToSave.description = aiScraperResult.detailSelectors.description;
+      if (aiScraperResult.detailSelectors.time) selectorsToSave.time = aiScraperResult.detailSelectors.time;
+      if (aiScraperResult.detailSelectors.location) selectorsToSave.location = aiScraperResult.detailSelectors.location;
+    }
+    setSelectors(selectorsToSave);
+    
+    saveAiScraperMutation.mutate({
+      url: overviewUrl,
+      domain,
+      feedName: feedName || `${domain.replace('www.', '')}${selectedMunicipality ? ` - ${selectedMunicipality}` : ''}`,
+      selectors: selectorsToSave,
+      municipality: selectedMunicipality || undefined,
+      scraperConfig: aiScraperResult.suggestedFeedConfig.scraperConfig,
+    });
   };
 
   const getSelectedMethod = () => {
@@ -707,6 +731,47 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
       toast({
         title: 'Fout bij opslaan',
         description: error.message || 'Kon de configuratie niet opslaan.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const saveAiScraperMutation = useMutation({
+    mutationFn: async (data: {
+      url: string;
+      domain: string;
+      feedName: string;
+      selectors: SelectorConfig;
+      municipality?: string;
+      scraperConfig: Record<string, any>;
+    }) => {
+      const response = await apiRequest('/api/admin/visual-configurator/save-config', {
+        method: 'POST',
+        data: {
+          url: data.url,
+          domain: data.domain,
+          feedName: data.feedName,
+          selectors: data.selectors,
+          municipality: data.municipality,
+          scraperConfig: data.scraperConfig,
+        },
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'Scraper opgeslagen',
+        description: data.message || 'De AI scraper configuratie en feed zijn succesvol aangemaakt.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+      onFeedCreated?.();
+      handleClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Fout bij opslaan',
+        description: error.message || 'Kon de scraper configuratie niet opslaan.',
         variant: 'destructive',
       });
     },
@@ -3009,21 +3074,33 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Opnieuw
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleAiScraperToVisual}
-              >
-                <Crosshair className="w-4 h-4 mr-2" />
-                Handmatig aanpassen
-              </Button>
               {aiScraperResult.success && aiScraperResult.confidence >= 30 && (
-                <Button
-                  onClick={handleAiScraperSave}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <ChevronRight className="w-4 h-4 mr-2" />
-                  Naar Visuele Check
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleAiScraperToVisual}
+                  >
+                    <Crosshair className="w-4 h-4 mr-2" />
+                    Handmatig aanpassen
+                  </Button>
+                  <Button
+                    onClick={handleAiScraperSave}
+                    className="bg-green-600 hover:bg-green-700"
+                    disabled={saveAiScraperMutation.isPending}
+                  >
+                    {saveAiScraperMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Opslaan...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Scraper Opslaan
+                      </>
+                    )}
+                  </Button>
+                </>
               )}
             </div>
           )}

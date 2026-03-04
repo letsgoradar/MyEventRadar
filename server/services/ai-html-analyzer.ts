@@ -223,6 +223,17 @@ export class AiHtmlAnalyzer {
     }
   }
 
+  private static sanitizeSelector(selector: string): string {
+    return selector.replace(/\[([a-zA-Z_-]+)="[^"]*"\]/g, (match, attrName) => {
+      const keepValueAttrs = ['type', 'role', 'itemtype', 'rel', 'name'];
+      if (keepValueAttrs.includes(attrName)) return match;
+      if (attrName.startsWith('data-') && /id|key|slug|pk|uuid/i.test(attrName)) {
+        return `[${attrName}]`;
+      }
+      return match;
+    });
+  }
+
   private static simplifyHtml(html: string): string {
     const $ = cheerio.load(html);
     
@@ -340,10 +351,9 @@ Bepaal de beste CSS selectors voor:
 7. venue: Relatieve selector voor de locatie/venue naam (bijv. ".location", ".venue", "[class*='locatie']")
 8. address: Relatieve selector voor het adres (bijv. ".address", ".adres", "[class*='address']")
 
-BELANGRIJK: venue en address zijn cruciaal! Zoek ook naar:
-- Locatie-iconen gevolgd door tekst
-- Elementen met 'locatie', 'location', 'venue', 'adres', 'waar' in class/id
-- Adres patronen (straatnaam + nummer, postcode)
+BELANGRIJK:
+- venue en address zijn cruciaal! Zoek ook naar locatie-iconen, elementen met 'locatie', 'location', 'venue', 'adres', 'waar' in class/id
+- NOOIT specifieke attribuut-waarden gebruiken die per item uniek zijn! Bijv. FOUT: [data-item-id="4808"], GOED: [data-item-id]. Een selector met een unieke ID matcht slechts 1 element!
 
 Antwoord in JSON formaat:
 {
@@ -679,6 +689,7 @@ KRITISCHE REGELS:
 - Alle andere selectors zijn RELATIEF binnen de eventCard container
 - Een goede eventCard selector matcht precies het aantal echte events op de pagina (niet meer, niet minder)
 - Gebruik specifieke class-selectors boven generieke tag-selectors
+- NOOIT specifieke attribuut-waarden gebruiken die per item uniek zijn! Bijv. FOUT: [data-item-id="4808"], GOED: [data-item-id]. Een selector met een unieke ID matcht slechts 1 element!
 - Als een veld niet op de overzichtspagina staat, gebruik null
 - Controleer dat de eventCard geen navigatie-elementen of niet-event items bevat
 
@@ -727,6 +738,7 @@ Antwoord in JSON:
       }
 
       overviewSelectors = overviewParsed.selectors as AiExtractionSelectors;
+      overviewSelectors.eventCard = this.sanitizeSelector(overviewSelectors.eventCard);
       let validationResult = await this.extractWithSelectors(overviewHtml, overviewSelectors);
 
       if (validationResult.eventCount < 3) {

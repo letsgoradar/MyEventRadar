@@ -261,4 +261,7 @@ Twee-producten advertentiesysteem:
 - **Fallback Selector Selection**: Changed from first-match to best-match strategy — all candidate selectors are tested, the one matching most events wins.
 - **Reasoning Fix**: When AI model returns no `reasoning` field, generate descriptive fallback text instead of `undefined`.
 - **Request Timeout**: AI scraper analyze endpoint now has 180s timeout (`req.setTimeout(180000)`).
+- **Selector Sanitization**: `sanitizeSelector()` auto-generalizes selectors with unique attribute values (e.g. `[data-item-id="4808"]` → `[data-item-id]`). Prevents AI from generating selectors that match only 1 item.
+- **AI Prompt Update**: Added explicit instruction to never use unique attribute values in selectors.
+- **Tested**: ditisassen.nl/nl/agenda/agenda-overzicht — Feed #70, Profile #27, 24 items → 21 events (3 merged duplicates), `[data-item-id]` selector
 - **Files**: `server/services/ai-provider.ts`, `server/services/ai-html-analyzer.ts`, `server/routes.ts`

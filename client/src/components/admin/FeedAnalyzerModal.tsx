@@ -46,11 +46,41 @@ import {
   List,
   Map,
   Globe,
+  Brain,
+  Rss,
+  Sparkles,
+  Tag,
+  DollarSign,
 } from 'lucide-react';
 import { DUTCH_MUNICIPALITIES, type Municipality } from '@shared/dutch-municipalities';
 import { FeedFieldMapper } from './FeedFieldMapper';
 
-type WizardStep = 'analyze' | 'configure' | 'preview' | 'direct-detail' | 'direct-overview' | 'field-mapping';
+type WizardStep = 'analyze' | 'ai-scraper' | 'configure' | 'preview' | 'direct-detail' | 'direct-overview' | 'field-mapping';
+
+interface AiScraperStep {
+  name: string;
+  status: 'success' | 'failed' | 'pending';
+  message: string;
+}
+
+interface AiScraperResult {
+  success: boolean;
+  overviewSelectors?: Record<string, string>;
+  detailSelectors?: Record<string, string>;
+  hasJsonLd: boolean;
+  pagination?: { type: string; selector?: string; paramName?: string };
+  sampleEvents: Array<Record<string, string>>;
+  confidence: number;
+  reasoning: string;
+  requiresJsRendering: boolean;
+  suggestedFeedConfig?: {
+    feedType: string;
+    scraperConfig: Record<string, any>;
+    fieldMappings: Record<string, string>;
+  };
+  error?: string;
+  steps: AiScraperStep[];
+}
 
 interface ProgressiveStep {
   id: string;
@@ -346,6 +376,9 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
   }>>([]);
   const [totalEventsFound, setTotalEventsFound] = useState<number>(0);
   
+  const [aiScraperResult, setAiScraperResult] = useState<AiScraperResult | null>(null);
+  const [aiScraperFromAnalyze, setAiScraperFromAnalyze] = useState(false);
+
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
   const [isTestMode, setIsTestMode] = useState<boolean>(true); // Start in test mode (5 events)
@@ -468,6 +501,83 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
       });
     },
   });
+
+  const aiScraperMutation = useMutation({
+    mutationFn: async (urlToAnalyze: string): Promise<AiScraperResult> => {
+      return apiRequest('/api/admin/rss-feeds/ai-scraper-analyze', {
+        method: 'POST',
+        data: { url: urlToAnalyze },
+      });
+    },
+    onSuccess: (data) => {
+      setAiScraperResult(data);
+      if (data.success && data.confidence >= 70 && data.suggestedFeedConfig) {
+        if (data.overviewSelectors) {
+          const newSelectors: SelectorConfig = {
+            eventCard: data.overviewSelectors.eventCard || '',
+            title: data.overviewSelectors.title,
+            date: data.overviewSelectors.date,
+            link: data.overviewSelectors.link,
+            image: data.overviewSelectors.image,
+            venue: data.overviewSelectors.venue,
+            address: data.overviewSelectors.address,
+          };
+          if (data.detailSelectors) {
+            if (data.detailSelectors.description) newSelectors.description = data.detailSelectors.description;
+            if (data.detailSelectors.time) newSelectors.time = data.detailSelectors.time;
+            if (data.detailSelectors.location) newSelectors.location = data.detailSelectors.location;
+          }
+          setSelectors(newSelectors);
+        }
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'AI analyse mislukt',
+        description: error.message || 'Er is een fout opgetreden.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleStartAiScraper = () => {
+    setCurrentStep('ai-scraper');
+    setAiScraperResult(null);
+    setAiScraperFromAnalyze(true);
+    aiScraperMutation.mutate(overviewUrl);
+  };
+
+  const handleAiScraperToVisual = () => {
+    if (aiScraperResult?.overviewSelectors && aiScraperResult.confidence >= 50) {
+      const newSelectors: SelectorConfig = {
+        eventCard: aiScraperResult.overviewSelectors.eventCard || '',
+        title: aiScraperResult.overviewSelectors.title,
+        date: aiScraperResult.overviewSelectors.date,
+        link: aiScraperResult.overviewSelectors.link,
+        image: aiScraperResult.overviewSelectors.image,
+        venue: aiScraperResult.overviewSelectors.venue,
+        address: aiScraperResult.overviewSelectors.address,
+      };
+      if (aiScraperResult.detailSelectors) {
+        if (aiScraperResult.detailSelectors.description) newSelectors.description = aiScraperResult.detailSelectors.description;
+        if (aiScraperResult.detailSelectors.time) newSelectors.time = aiScraperResult.detailSelectors.time;
+        if (aiScraperResult.detailSelectors.location) newSelectors.location = aiScraperResult.detailSelectors.location;
+      }
+      setSelectors(newSelectors);
+    }
+    setCurrentStep('configure');
+    setPageContext('overview');
+    setIframeLoading(true);
+    fetchPageMutation.mutate(overviewUrl);
+  };
+
+  const handleAiScraperSave = () => {
+    if (!aiScraperResult?.suggestedFeedConfig) return;
+    setCurrentStep('configure');
+    setPageContext('overview');
+    setIframeLoading(true);
+    fetchPageMutation.mutate(overviewUrl);
+  };
 
   const getSelectedMethod = () => {
     if (!result || !selectedMethodId) return null;
@@ -785,7 +895,9 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
     setPageContext('overview');
     setPreviewResult(null);
     setSelectedMethodId(null);
-    setIsTestMode(true); // Reset to test mode for next use
+    setIsTestMode(true);
+    setAiScraperResult(null);
+    setAiScraperFromAnalyze(false);
     setDetailUrl('');
     setOverviewUrl('');
     onOpenChange(false);
@@ -1143,13 +1255,6 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
 
   useEffect(() => {
     if (result?.isComplete && currentStep === 'analyze') {
-      const hasNonScraperSuccess = result.steps?.some(s => s.status === 'success' && s.id !== 'scraper');
-      if (!hasNonScraperSuccess) {
-        setCurrentStep('configure');
-        setPageContext('overview');
-        setIframeLoading(true);
-        fetchPageMutation.mutate(overviewUrl);
-      }
     }
   }, [result?.isComplete, result?.steps]);
 
@@ -1672,6 +1777,262 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
     );
   };
 
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 70) return 'text-green-600';
+    if (confidence >= 50) return 'text-amber-600';
+    return 'text-red-600';
+  };
+
+  const getConfidenceBarColor = (confidence: number) => {
+    if (confidence >= 70) return 'bg-green-500';
+    if (confidence >= 50) return 'bg-amber-500';
+    return 'bg-red-500';
+  };
+
+  const getConfidenceLabel = (confidence: number) => {
+    if (confidence >= 70) return 'Hoog';
+    if (confidence >= 50) return 'Gemiddeld';
+    return 'Laag';
+  };
+
+  const renderAiScraperStep = () => {
+    const isAnalyzing = aiScraperMutation.isPending;
+    const result = aiScraperResult;
+
+    return (
+      <div className="space-y-4 py-2">
+        {isAnalyzing && !result && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Brain className="w-5 h-5 text-purple-500" />
+              <span className="font-medium">AI analyseert de website met Gemini Pro...</span>
+            </div>
+            <div className="border rounded-lg divide-y">
+              {[
+                'Overzichtspagina ophalen...',
+                'Event-kaarten analyseren met AI...',
+                'Detailpagina\'s ophalen...',
+                'Event-details analyseren met AI...',
+                'Configuratie valideren...',
+              ].map((stepName, i) => (
+                <div key={i} className="flex items-center gap-3 p-3">
+                  {i === 0 ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-purple-500 flex-shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border-2 border-gray-200 flex-shrink-0" />
+                  )}
+                  <span className={`text-sm ${i === 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {stepName}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Dit kan 30-60 seconden duren — AI analyseert zowel de overzichts- als detailpagina's
+            </p>
+          </div>
+        )}
+
+        {result && (
+          <div className="space-y-4">
+            <div className="border rounded-lg divide-y">
+              {result.steps.map((step, i) => (
+                <div key={i} className="flex items-center gap-3 p-3">
+                  <div className="flex-shrink-0">
+                    {step.status === 'success' ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : step.status === 'failed' ? (
+                      <X className="w-4 h-4 text-red-500" />
+                    ) : (
+                      <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium">{step.name}</span>
+                    <p className="text-xs text-muted-foreground">{step.message}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-gray-50 border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className={`w-5 h-5 ${getConfidenceColor(result.confidence)}`} />
+                  <span className="font-semibold">Betrouwbaarheid</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-lg font-bold ${getConfidenceColor(result.confidence)}`}>
+                    {result.confidence}%
+                  </span>
+                  <Badge variant={result.confidence >= 70 ? 'default' : result.confidence >= 50 ? 'secondary' : 'destructive'} className="text-xs">
+                    {getConfidenceLabel(result.confidence)}
+                  </Badge>
+                </div>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all duration-500 ${getConfidenceBarColor(result.confidence)}`}
+                  style={{ width: `${Math.min(result.confidence, 100)}%` }}
+                />
+              </div>
+              {result.confidence >= 70 && (
+                <p className="text-sm text-green-700">
+                  AI heeft een betrouwbare configuratie gevonden! Controleer de preview hieronder.
+                </p>
+              )}
+              {result.confidence >= 50 && result.confidence < 70 && (
+                <p className="text-sm text-amber-700">
+                  AI heeft een configuratie gevonden maar de betrouwbaarheid is gemiddeld. Controleer goed of pas handmatig aan.
+                </p>
+              )}
+              {result.confidence < 50 && (
+                <p className="text-sm text-red-700">
+                  AI kon geen betrouwbare configuratie vinden. Gebruik de visuele editor hieronder.
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {result.hasJsonLd && (
+                <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                  <Sparkles className="w-3 h-3 mr-1" /> JSON-LD gevonden
+                </Badge>
+              )}
+              {result.requiresJsRendering && (
+                <Badge variant="secondary" className="text-xs">
+                  <Globe className="w-3 h-3 mr-1" /> Browser rendering vereist
+                </Badge>
+              )}
+              {result.pagination && result.pagination.type !== 'none' && (
+                <Badge variant="secondary" className="text-xs">
+                  <List className="w-3 h-3 mr-1" /> Paginatie: {result.pagination.type}
+                </Badge>
+              )}
+            </div>
+
+            {result.overviewSelectors && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Eye className="w-4 h-4" /> Gevonden Selectors
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Overzichtspagina</p>
+                    {Object.entries(result.overviewSelectors).map(([key, value]) => (
+                      <div key={key} className="flex items-center gap-2 text-xs">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono bg-blue-50 border-blue-200">
+                          {key}
+                        </Badge>
+                        <code className="text-[10px] text-muted-foreground truncate max-w-[200px]">{value}</code>
+                      </div>
+                    ))}
+                  </div>
+                  {result.detailSelectors && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">Detailpagina</p>
+                      {Object.entries(result.detailSelectors).filter(([, v]) => v).map(([key, value]) => (
+                        <div key={key} className="flex items-center gap-2 text-xs">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono bg-green-50 border-green-200">
+                            {key}
+                          </Badge>
+                          <code className="text-[10px] text-muted-foreground truncate max-w-[200px]">{value}</code>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {result.sampleEvents.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <List className="w-4 h-4" /> Voorbeeld Events ({result.sampleEvents.length})
+                </h4>
+                <div className="border rounded-lg divide-y max-h-[250px] overflow-y-auto">
+                  {result.sampleEvents.slice(0, 5).map((event, i) => (
+                    <div key={i} className="p-3 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium">{event.title || 'Geen titel'}</p>
+                        {event.link && (
+                          <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex-shrink-0">
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                        {event.date && (
+                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {event.date}</span>
+                        )}
+                        {(event.venue || event.location) && (
+                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {event.venue || event.location}</span>
+                        )}
+                        {event.category && (
+                          <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> {event.category}</span>
+                        )}
+                        {event.price && (
+                          <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> {event.price}</span>
+                        )}
+                      </div>
+                      {event.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{event.description}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {result.reasoning && (
+              <Accordion type="single" collapsible>
+                <AccordionItem value="reasoning">
+                  <AccordionTrigger className="text-sm py-2">
+                    <span className="flex items-center gap-2">
+                      <Brain className="w-4 h-4 text-purple-500" /> AI Analyse Details
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <pre className="text-xs text-muted-foreground whitespace-pre-wrap bg-gray-50 p-3 rounded border">
+                      {result.reasoning}
+                    </pre>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="feedNameAi">Feed naam</Label>
+                <Input
+                  id="feedNameAi"
+                  value={feedName}
+                  onChange={(e) => setFeedName(e.target.value)}
+                  placeholder="Geef de feed een naam"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Gemeente</Label>
+                <MunicipalitySearch
+                  value={selectedMunicipality}
+                  onChange={setSelectedMunicipality}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {result && result.error && !result.success && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Analyse mislukt</AlertTitle>
+            <AlertDescription>{result.error}</AlertDescription>
+          </Alert>
+        )}
+      </div>
+    );
+  };
+
   const renderAnalyzeStep = () => (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -1842,32 +2203,35 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
       )}
 
       {result?.isComplete && (result.chosenMethod?.id === 'scraper' || !result.chosenMethod) && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-semibold text-blue-800 flex items-center gap-2">
-            <Crosshair className="w-5 h-5" />
-            Visuele configuratie nodig
-          </h4>
-          <p className="text-sm text-blue-700 mt-1">
-            {result.chosenMethod 
-              ? 'Voor betere resultaten kun je handmatig de event velden selecteren.'
-              : 'Geen automatische import methode gevonden. Configureer handmatig de event velden.'}
-          </p>
-          <div className="mt-3 space-y-2">
-            <Label htmlFor="feedName">Feed naam</Label>
-            <Input
-              id="feedName"
-              value={feedName}
-              onChange={(e) => setFeedName(e.target.value)}
-              placeholder={result.suggestedFeedName || 'Geef de feed een naam'}
-            />
+        <div className="space-y-3">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <h4 className="font-semibold text-purple-800 flex items-center gap-2">
+              <Brain className="w-5 h-5" />
+              Geen feed gevonden — AI Scraper Builder
+            </h4>
+            <p className="text-sm text-purple-700 mt-1">
+              AI kan automatisch de pagina analyseren en een scraper configureren. Dit analyseert zowel de overzichts- als detailpagina's.
+            </p>
+            <div className="mt-3 space-y-2">
+              <Label htmlFor="feedName">Feed naam</Label>
+              <Input
+                id="feedName"
+                value={feedName}
+                onChange={(e) => setFeedName(e.target.value)}
+                placeholder={result.suggestedFeedName || 'Geef de feed een naam'}
+              />
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Button onClick={handleStartAiScraper} className="bg-purple-600 hover:bg-purple-700">
+                <Brain className="w-4 h-4 mr-2" />
+                Start AI Analyse
+              </Button>
+              <Button variant="outline" onClick={handleGoToConfigureStep}>
+                <Crosshair className="w-4 h-4 mr-2" />
+                Handmatig Configureren
+              </Button>
+            </div>
           </div>
-          <Button 
-            className="mt-3"
-            onClick={handleGoToConfigureStep}
-          >
-            <Crosshair className="w-4 h-4 mr-2" />
-            Start Visuele Configuratie
-          </Button>
         </div>
       )}
     </div>
@@ -2465,6 +2829,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           </DialogTitle>
           <DialogDescription>
             {currentStep === 'analyze' && 'Voer de URL van de overzichtspagina in om de beste import methode te vinden'}
+            {currentStep === 'ai-scraper' && 'AI analyseert automatisch de overzichts- en detailpagina\'s'}
             {currentStep === 'configure' && 'Selecteer de event velden op de overzicht- en detailpagina'}
             {currentStep === 'preview' && 'Bekijk de gevonden events en sla de configuratie op'}
             {currentStep === 'direct-detail' && 'Voer een voorbeeld detailpagina URL in en configureer de event velden'}
@@ -2487,16 +2852,55 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
             </div>
           ) : (
             <div className="flex items-center gap-2 pt-2">
-              <Badge variant={currentStep === 'analyze' ? 'default' : 'secondary'} className="text-xs">
-                1. Analyseren
-              </Badge>
+              <button
+                onClick={() => { if (currentStep !== 'analyze') setCurrentStep('analyze'); }}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                  currentStep === 'analyze' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                <Rss className="w-3 h-3" />
+                1. Feed zoeken
+                {result?.isComplete && result.chosenMethod && result.chosenMethod.id !== 'scraper' && (
+                  <Check className="w-3 h-3 text-green-300" />
+                )}
+                {result?.isComplete && (!result.chosenMethod || result.chosenMethod.id === 'scraper') && (
+                  <X className="w-3 h-3 text-red-300" />
+                )}
+              </button>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              <Badge variant={currentStep === 'configure' ? 'default' : 'secondary'} className="text-xs">
-                2. Configureren
-              </Badge>
+              <button
+                onClick={() => { if (aiScraperResult || aiScraperFromAnalyze) setCurrentStep('ai-scraper'); }}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                  currentStep === 'ai-scraper' ? 'bg-purple-600 text-white' :
+                  aiScraperResult ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80' :
+                  'bg-secondary/50 text-muted-foreground'
+                }`}
+              >
+                <Brain className="w-3 h-3" />
+                2. AI Scraper
+                {aiScraperResult && aiScraperResult.confidence >= 70 && (
+                  <Check className="w-3 h-3 text-green-300" />
+                )}
+                {aiScraperResult && aiScraperResult.confidence > 0 && aiScraperResult.confidence < 70 && (
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1 border-current">
+                    {aiScraperResult.confidence}%
+                  </Badge>
+                )}
+              </button>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              <button
+                onClick={() => { if (currentStep === 'preview' || currentStep === 'configure') setCurrentStep('configure'); }}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                  currentStep === 'configure' ? 'bg-primary text-primary-foreground' :
+                  'bg-secondary/50 text-muted-foreground'
+                }`}
+              >
+                <Crosshair className="w-3 h-3" />
+                3. Handmatig
+              </button>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
               <Badge variant={currentStep === 'preview' ? 'default' : 'secondary'} className="text-xs">
-                3. Opslaan
+                4. Opslaan
               </Badge>
             </div>
           )}
@@ -2504,6 +2908,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
 
         <div className="flex-1 overflow-y-auto">
           {currentStep === 'analyze' && renderAnalyzeStep()}
+          {currentStep === 'ai-scraper' && renderAiScraperStep()}
           {currentStep === 'configure' && renderConfigureStep()}
           {currentStep === 'preview' && renderPreviewStep()}
           {currentStep === 'direct-detail' && renderDirectDetailStep()}
@@ -2538,6 +2943,10 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                 } else {
                   setPageHtml('');
                 }
+              } else if (currentStep === 'ai-scraper') {
+                setCurrentStep('analyze');
+              } else if (currentStep === 'configure' && aiScraperFromAnalyze) {
+                setCurrentStep('ai-scraper');
               } else {
                 setCurrentStep('analyze');
               }
@@ -2575,6 +2984,37 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                   </>
                 )}
               </Button>
+            </div>
+          )}
+
+          {currentStep === 'ai-scraper' && aiScraperResult && !aiScraperMutation.isPending && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAiScraperResult(null);
+                  aiScraperMutation.mutate(overviewUrl);
+                }}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Opnieuw
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleAiScraperToVisual}
+              >
+                <Crosshair className="w-4 h-4 mr-2" />
+                Handmatig aanpassen
+              </Button>
+              {aiScraperResult.success && aiScraperResult.confidence >= 30 && (
+                <Button
+                  onClick={handleAiScraperSave}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <ChevronRight className="w-4 h-4 mr-2" />
+                  Naar Visuele Check
+                </Button>
+              )}
             </div>
           )}
 

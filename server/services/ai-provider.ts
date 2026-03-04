@@ -14,6 +14,7 @@ export interface AiCompletionOptions {
   maxTokens?: number;
   temperature?: number;
   jsonMode?: boolean;
+  model?: 'flash' | 'pro';
 }
 
 export interface AiCompletionResult {
@@ -24,7 +25,8 @@ export interface AiCompletionResult {
 }
 
 export class AiProvider {
-  private static readonly GEMINI_MODEL = "gemini-2.5-flash";
+  private static readonly GEMINI_MODEL_FLASH = "gemini-2.5-flash";
+  private static readonly GEMINI_MODEL_PRO = "gemini-2.5-pro";
   private static retryCount = 0;
   private static readonly MAX_RETRIES = 1;
   
@@ -50,7 +52,7 @@ export class AiProvider {
   }
 
   static async complete(options: AiCompletionOptions): Promise<AiCompletionResult> {
-    const { systemPrompt, userPrompt, maxTokens = 500, temperature = 0.1, jsonMode = false } = options;
+    const { systemPrompt, userPrompt, maxTokens = 500, temperature = 0.1, jsonMode = false, model = 'flash' } = options;
 
     if (this.callCount >= this.MAX_CALLS_PER_SESSION) {
       return {
@@ -65,7 +67,7 @@ export class AiProvider {
     for (let attempt = 0; attempt <= this.MAX_RETRIES; attempt++) {
       try {
         this.callCount++;
-        const result = await this.tryGemini(systemPrompt, userPrompt, maxTokens, temperature, jsonMode);
+        const result = await this.tryGemini(systemPrompt, userPrompt, maxTokens, temperature, jsonMode, model);
         if (result.success) {
           return result;
         }
@@ -98,7 +100,8 @@ export class AiProvider {
     userPrompt: string,
     maxTokens: number,
     temperature: number,
-    jsonMode: boolean
+    jsonMode: boolean,
+    modelType: 'flash' | 'pro' = 'flash'
   ): Promise<AiCompletionResult> {
     let fullPrompt: string;
     if (jsonMode) {
@@ -118,8 +121,9 @@ ${userPrompt}`;
       fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
     }
 
+    const selectedModel = modelType === 'pro' ? this.GEMINI_MODEL_PRO : this.GEMINI_MODEL_FLASH;
     const response = await gemini.models.generateContent({
-      model: this.GEMINI_MODEL,
+      model: selectedModel,
       contents: fullPrompt,
       config: {
         maxOutputTokens: maxTokens,

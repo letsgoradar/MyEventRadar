@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import axios from "axios";
 import { db } from "../db";
 import { aiExtractionProfiles } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -46,9 +47,58 @@ export interface AiAnalysisResult {
   requiresJsRendering?: boolean;
 }
 
+export interface AiDetailSelectors {
+  title?: string;
+  date?: string;
+  time?: string;
+  description?: string;
+  image?: string;
+  location?: string;
+  venue?: string;
+  address?: string;
+  category?: string;
+  price?: string;
+}
+
+export interface AiScraperAnalysisResult {
+  success: boolean;
+  overviewSelectors?: AiExtractionSelectors;
+  detailSelectors?: AiDetailSelectors;
+  hasJsonLd: boolean;
+  pagination?: AiPaginationInfo;
+  sampleEvents: Array<{
+    title?: string;
+    date?: string;
+    time?: string;
+    link?: string;
+    image?: string;
+    location?: string;
+    venue?: string;
+    address?: string;
+    description?: string;
+    category?: string;
+    price?: string;
+  }>;
+  confidence: number;
+  reasoning: string;
+  requiresJsRendering: boolean;
+  suggestedFeedConfig?: {
+    feedType: string;
+    scraperConfig: Record<string, any>;
+    fieldMappings: Record<string, string>;
+  };
+  error?: string;
+  steps: Array<{
+    name: string;
+    status: 'success' | 'failed' | 'skipped';
+    message: string;
+  }>;
+}
+
 export class AiHtmlAnalyzer {
   private static readonly MAX_HTML_TOKENS = 4000;
   private static readonly PROMPT_VERSION = "v1.0";
+  private static readonly USER_AGENT = "letsgo-radar/1.0 (+https://letsgo-radar.nl)";
 
   static async analyzeAndExtract(url: string, html: string): Promise<AiAnalysisResult> {
     try {
@@ -506,6 +556,504 @@ Antwoord in JSON formaat:
     } catch {
       return null;
     }
+  }
+
+  static async analyzeForScraper(url: string): Promise<AiScraperAnalysisResult> {
+    const steps: AiScraperAnalysisResult['steps'] = [];
+    let overviewSelectors: AiExtractionSelectors | undefined;
+    let detailSelectors: AiDetailSelectors | undefined;
+    let hasJsonLd = false;
+    let requiresJsRendering = false;
+    let confidence = 0;
+    const reasoningParts: string[] = [];
+
+    try {
+      console.log(`[AI Scraper Builder] Starting analysis for: ${url}`);
+      const baseUrl = new URL(url);
+
+      steps.push({ name: 'Overzichtspagina ophalen', status: 'success', message: 'Bezig...' });
+      let overviewHtml = '';
+      try {
+        const response = await axios.get(url, {
+          timeout: 15000,
+          headers: { 'User-Agent': this.USER_AGENT },
+          maxContentLength: 5 * 1024 * 1024,
+        });
+        overviewHtml = typeof response.data === 'string' ? response.data : '';
+      } catch {
+        overviewHtml = '';
+      }
+
+      if (!overviewHtml || detectJsRenderingNeeded(overviewHtml)) {
+        console.log(`[AI Scraper Builder] Trying Puppeteer for overview page...`);
+        const puppeteerResult = await fetchRenderedHtml(url, { waitForNetworkIdle: true });
+        if (puppeteerResult.success && puppeteerResult.html) {
+          overviewHtml = puppeteerResult.html;
+          requiresJsRendering = true;
+        }
+      }
+
+      if (!overviewHtml) {
+        steps[0].status = 'failed';
+        steps[0].message = 'Kon de pagina niet ophalen';
+        return {
+          success: false, hasJsonLd: false, sampleEvents: [], confidence: 0,
+          reasoning: 'Kon de overzichtspagina niet ophalen', requiresJsRendering: false,
+          error: 'Pagina niet bereikbaar', steps,
+        };
+      }
+      steps[0].status = 'success';
+      steps[0].message = `Pagina opgehaald (${(overviewHtml.length / 1024).toFixed(0)} KB)${requiresJsRendering ? ' via browser rendering' : ''}`;
+
+      steps.push({ name: 'Event-kaarten analyseren met AI', status: 'success', message: 'Bezig...' });
+      const simplifiedOverview = this.simplifyHtml(overviewHtml);
+      const candidateCards = this.findCandidateCards(overviewHtml);
+
+      if (candidateCards.length === 0) {
+        steps[1].status = 'failed';
+        steps[1].message = 'Geen herhalende kaart-structuren gevonden';
+        return {
+          success: false, hasJsonLd: false, sampleEvents: [], confidence: 0,
+          reasoning: 'Geen herhalende event-kaarten gevonden op de overzichtspagina', requiresJsRendering,
+          error: 'Geen event-kaarten gevonden', steps,
+        };
+      }
+
+      const candidateInfo = candidateCards.map(c =>
+        `- Selector: "${c.selector}" (${c.count} items)\n  Sample: ${c.sample.substring(0, 300)}...`
+      ).join('\n\n');
+
+      const overviewAiResult = await AiProvider.complete({
+        systemPrompt: `Je bent een senior web scraping expert gespecialiseerd in Nederlandse evenementen-websites. Analyseer de HTML structuur grondig en bepaal de meest betrouwbare CSS selectors. Wees precies en specifiek. Overweeg meerdere opties en kies de meest robuuste. Antwoord alleen in JSON.`,
+        userPrompt: `Analyseer deze Nederlandse evenementen-overzichtspagina en bepaal de CSS selectors.
+
+URL: ${url}
+
+Gevonden kandidaat-patronen:
+${candidateInfo}
+
+HTML fragment (vereenvoudigd):
+${simplifiedOverview.substring(0, 5000)}
+
+Bepaal de beste CSS selectors voor de OVERZICHTSPAGINA:
+1. eventCard: Hoofd-selector voor elk event kaartje (het herhalende element)
+2. title: Relatieve selector binnen de kaart voor de titel
+3. date: Relatieve selector voor datum/tijd info
+4. link: Relatieve selector voor de link naar de detailpagina (of "self" als de kaart een <a> tag is)
+5. image: Relatieve selector voor de event afbeelding
+6. category: Relatieve selector voor categorie (optioneel)
+7. venue: Relatieve selector voor locatie/venue naam
+8. address: Relatieve selector voor adres
+
+BELANGRIJK:
+- Kies de meest SPECIFIEKE selectors die uniek matchen
+- Test mentaal of de selectors werken voor ALLE kaarten, niet alleen de eerste
+- Bij twijfel, gebruik class-based selectors boven tag-only selectors
+- "self" voor link betekent dat de eventCard zelf een <a> element is
+
+Antwoord in JSON:
+{
+  "success": true,
+  "selectors": {
+    "eventCard": "...",
+    "title": "...",
+    "date": "...",
+    "link": "...",
+    "image": "...",
+    "category": "...",
+    "venue": "...",
+    "address": "..."
+  },
+  "confidence": 0-100,
+  "reasoning": "Uitleg van de gekozen strategie en waarom deze selectors betrouwbaar zijn"
+}`,
+        maxTokens: 1500,
+        temperature: 0.1,
+        jsonMode: true,
+        model: 'pro',
+      });
+
+      if (!overviewAiResult.success || !overviewAiResult.content) {
+        steps[1].status = 'failed';
+        steps[1].message = `AI analyse mislukt: ${overviewAiResult.error}`;
+        return {
+          success: false, hasJsonLd: false, sampleEvents: [], confidence: 0,
+          reasoning: 'AI kon de overzichtspagina niet analyseren', requiresJsRendering,
+          error: overviewAiResult.error || 'AI analyse mislukt', steps,
+        };
+      }
+
+      const overviewParsed = JSON.parse(overviewAiResult.content);
+      if (!overviewParsed.success || !overviewParsed.selectors?.eventCard) {
+        steps[1].status = 'failed';
+        steps[1].message = 'AI kon geen bruikbare selectors vinden';
+        return {
+          success: false, hasJsonLd: false, sampleEvents: [], confidence: 0,
+          reasoning: overviewParsed.reasoning || 'Geen selectors gevonden', requiresJsRendering,
+          error: 'Geen bruikbare selectors', steps,
+        };
+      }
+
+      overviewSelectors = overviewParsed.selectors as AiExtractionSelectors;
+      const validationResult = await this.extractWithSelectors(overviewHtml, overviewSelectors);
+
+      if (validationResult.eventCount < 2) {
+        steps[1].status = 'failed';
+        steps[1].message = `Selectors vonden slechts ${validationResult.eventCount} events`;
+        return {
+          success: false, overviewSelectors, hasJsonLd: false,
+          sampleEvents: validationResult.sampleEvents, confidence: 15,
+          reasoning: `Selectors vonden te weinig events (${validationResult.eventCount})`, requiresJsRendering,
+          error: `Slechts ${validationResult.eventCount} events gevonden`, steps,
+        };
+      }
+
+      steps[1].status = 'success';
+      steps[1].message = `${validationResult.eventCount} events gevonden met AI selectors (confidence: ${overviewParsed.confidence}%)`;
+      reasoningParts.push(`Overzicht: ${overviewParsed.reasoning}`);
+      confidence = Math.min(overviewParsed.confidence || 50, 60);
+
+      const eventLinks: string[] = [];
+      for (const sample of validationResult.sampleEvents) {
+        if (sample.link) {
+          try {
+            const absoluteLink = sample.link.startsWith('http')
+              ? sample.link
+              : new URL(sample.link, baseUrl.origin).href;
+            eventLinks.push(absoluteLink);
+          } catch {}
+        }
+      }
+
+      steps.push({ name: 'Detailpagina\'s ophalen', status: 'success', message: 'Bezig...' });
+
+      if (eventLinks.length === 0) {
+        steps[2].status = 'failed';
+        steps[2].message = 'Geen event-links gevonden op overzichtspagina';
+        const pagination = this.detectPagination(overviewHtml, url);
+        return {
+          success: true, overviewSelectors, hasJsonLd: false, pagination,
+          sampleEvents: validationResult.sampleEvents, confidence: Math.max(confidence - 10, 20),
+          reasoning: reasoningParts.join('\n'), requiresJsRendering,
+          suggestedFeedConfig: this.buildFeedConfig(url, overviewSelectors, undefined, false, pagination, requiresJsRendering),
+          steps,
+        };
+      }
+
+      const detailPages: Array<{ url: string; html: string }> = [];
+      const linksToFetch = eventLinks.slice(0, 3);
+      for (const link of linksToFetch) {
+        try {
+          if (requiresJsRendering) {
+            const result = await fetchRenderedHtml(link, { waitForNetworkIdle: true });
+            if (result.success && result.html) {
+              detailPages.push({ url: link, html: result.html });
+            }
+          } else {
+            const resp = await axios.get(link, {
+              timeout: 10000,
+              headers: { 'User-Agent': this.USER_AGENT },
+              maxContentLength: 5 * 1024 * 1024,
+            });
+            if (typeof resp.data === 'string') {
+              detailPages.push({ url: link, html: resp.data });
+            }
+          }
+        } catch (err: any) {
+          console.warn(`[AI Scraper Builder] Failed to fetch detail page ${link}: ${err.message}`);
+        }
+      }
+
+      if (detailPages.length === 0) {
+        steps[2].status = 'failed';
+        steps[2].message = 'Kon geen detailpagina\'s ophalen';
+        const pagination = this.detectPagination(overviewHtml, url);
+        return {
+          success: true, overviewSelectors, hasJsonLd: false, pagination,
+          sampleEvents: validationResult.sampleEvents, confidence: Math.max(confidence - 10, 25),
+          reasoning: reasoningParts.join('\n') + '\nDetailpagina\'s niet bereikbaar.',
+          requiresJsRendering,
+          suggestedFeedConfig: this.buildFeedConfig(url, overviewSelectors, undefined, false, pagination, requiresJsRendering),
+          steps,
+        };
+      }
+
+      steps[2].status = 'success';
+      steps[2].message = `${detailPages.length} van ${linksToFetch.length} detailpagina's opgehaald`;
+
+      steps.push({ name: 'Event-details analyseren met AI', status: 'success', message: 'Bezig...' });
+
+      const firstDetail$ = cheerio.load(detailPages[0].html);
+      const jsonLdScripts = firstDetail$('script[type="application/ld+json"]');
+      let jsonLdEvent: any = null;
+      jsonLdScripts.each((_, el) => {
+        try {
+          const data = JSON.parse(firstDetail$(el).text());
+          if (data['@type'] === 'Event' || (Array.isArray(data['@graph']) && data['@graph'].find((g: any) => g['@type'] === 'Event'))) {
+            jsonLdEvent = data['@type'] === 'Event' ? data : data['@graph'].find((g: any) => g['@type'] === 'Event');
+            hasJsonLd = true;
+          }
+        } catch {}
+      });
+
+      if (hasJsonLd && jsonLdEvent) {
+        console.log(`[AI Scraper Builder] JSON-LD Event data found on detail page!`);
+        reasoningParts.push('Detail: JSON-LD gestructureerde data gevonden — hoogste betrouwbaarheid.');
+        confidence = Math.min(confidence + 25, 95);
+      }
+
+      const detailHtmlSamples = detailPages.map((p, i) => {
+        const simplified = this.simplifyDetailHtml(p.html);
+        return `--- Detailpagina ${i + 1} (${p.url}) ---\n${simplified.substring(0, 3000)}`;
+      }).join('\n\n');
+
+      const detailAiResult = await AiProvider.complete({
+        systemPrompt: `Je bent een senior web scraping expert gespecialiseerd in het extraheren van evenementgegevens van Nederlandse websites. Analyseer de HTML van event-detailpagina's en bepaal de CSS selectors voor elk veld. Vergelijk meerdere pagina's om consistente patronen te vinden. Antwoord alleen in JSON.`,
+        userPrompt: `Analyseer deze ${detailPages.length} Nederlandse event-detailpagina's en bepaal de CSS selectors.
+
+${hasJsonLd ? `LET OP: Er is JSON-LD (schema.org Event) data gevonden! Dit is de meest betrouwbare bron. Geef dit aan in je analyse.\n\nJSON-LD voorbeeld:\n${JSON.stringify(jsonLdEvent, null, 2).substring(0, 1000)}\n\n` : ''}
+
+${detailHtmlSamples}
+
+Bepaal de CSS selectors voor de DETAILPAGINA:
+1. title: Selector voor de event-titel (vaak h1 of h2)
+2. date: Selector voor datum informatie (zoek naar datetime attributen, .date, .datum, time elementen)
+3. time: Selector voor tijdsinformatie (optioneel, als apart van datum)
+4. description: Selector voor de beschrijving/inhoud (vaak .content, .description, article p)
+5. image: Selector voor de hoofdafbeelding (vaak .hero img, .featured-image, article img:first)
+6. location: Selector voor locatie/adres (breed)
+7. venue: Selector voor de venue/locatie naam
+8. address: Selector voor het straatadres
+9. category: Selector voor categorie (optioneel)
+10. price: Selector voor prijs informatie (optioneel)
+
+BELANGRIJK:
+- Vergelijk de ${detailPages.length} pagina's: selectors moeten op ALLE pagina's werken
+- Zoek naar consistente patronen (dezelfde classes/structuur op elke pagina)
+- Bij JSON-LD: meld dit, maar geef OOK HTML selectors als fallback
+- Wees specifiek: gebruik classes boven generieke tags
+
+Antwoord in JSON:
+{
+  "success": true,
+  "detailSelectors": {
+    "title": "...",
+    "date": "...",
+    "time": "... of null",
+    "description": "...",
+    "image": "...",
+    "location": "... of null",
+    "venue": "... of null",
+    "address": "... of null",
+    "category": "... of null",
+    "price": "... of null"
+  },
+  "hasJsonLd": true/false,
+  "confidence": 0-100,
+  "reasoning": "Uitleg van hoe de selectors werken en waarom ze betrouwbaar zijn",
+  "extractedSamples": [
+    {"title": "...", "date": "...", "venue": "...", "description": "eerste 100 tekens..."}
+  ]
+}`,
+        maxTokens: 2000,
+        temperature: 0.1,
+        jsonMode: true,
+        model: 'pro',
+      });
+
+      if (!detailAiResult.success || !detailAiResult.content) {
+        steps[3].status = 'failed';
+        steps[3].message = `AI detail-analyse mislukt: ${detailAiResult.error}`;
+        reasoningParts.push('Detail: AI kon de detailpagina\'s niet analyseren.');
+      } else {
+        const detailParsed = JSON.parse(detailAiResult.content);
+
+        if (detailParsed.success && detailParsed.detailSelectors) {
+          detailSelectors = detailParsed.detailSelectors as AiDetailSelectors;
+          hasJsonLd = hasJsonLd || detailParsed.hasJsonLd === true;
+
+          const detailConfidence = detailParsed.confidence || 50;
+          confidence = Math.min(Math.round((confidence + detailConfidence) / 2 + 10), 95);
+
+          const extractedFromDetail = await this.extractFromDetailPages(detailPages, detailSelectors);
+
+          if (extractedFromDetail.length > 0) {
+            for (let i = 0; i < Math.min(validationResult.sampleEvents.length, extractedFromDetail.length); i++) {
+              validationResult.sampleEvents[i] = {
+                ...validationResult.sampleEvents[i],
+                ...extractedFromDetail[i],
+              };
+            }
+          }
+
+          steps[3].status = 'success';
+          steps[3].message = `Detail-selectors gevonden (confidence: ${detailConfidence}%)${hasJsonLd ? ' — JSON-LD beschikbaar!' : ''}`;
+          reasoningParts.push(`Detail: ${detailParsed.reasoning}`);
+        } else {
+          steps[3].status = 'failed';
+          steps[3].message = 'AI kon geen detail-selectors vinden';
+          reasoningParts.push('Detail: Geen betrouwbare selectors gevonden.');
+          confidence = Math.max(confidence - 10, 20);
+        }
+      }
+
+      steps.push({ name: 'Configuratie valideren', status: 'success', message: 'Bezig...' });
+      const pagination = this.detectPagination(overviewHtml, url);
+
+      const feedConfig = this.buildFeedConfig(url, overviewSelectors, detailSelectors, hasJsonLd, pagination, requiresJsRendering);
+
+      steps[4].status = 'success';
+      steps[4].message = `Configuratie aangemaakt (totaal confidence: ${confidence}%)`;
+
+      const domain = baseUrl.hostname.replace('www.', '');
+      if (confidence >= 40) {
+        await this.saveProfile(domain, overviewSelectors, pagination, validationResult.eventCount, requiresJsRendering);
+      }
+
+      return {
+        success: confidence >= 30,
+        overviewSelectors,
+        detailSelectors,
+        hasJsonLd,
+        pagination,
+        sampleEvents: validationResult.sampleEvents,
+        confidence,
+        reasoning: reasoningParts.join('\n'),
+        requiresJsRendering,
+        suggestedFeedConfig: feedConfig,
+        steps,
+      };
+
+    } catch (error: any) {
+      console.error('[AI Scraper Builder] Error:', error);
+      return {
+        success: false, hasJsonLd: false, sampleEvents: [], confidence: 0,
+        reasoning: `Fout: ${error.message}`, requiresJsRendering: false,
+        error: error.message, steps,
+      };
+    }
+  }
+
+  private static simplifyDetailHtml(html: string): string {
+    const $ = cheerio.load(html);
+    $('script:not([type="application/ld+json"]), style, noscript, iframe, svg, path, link[rel="stylesheet"]').remove();
+    $('[style]').removeAttr('style');
+    $('[class*="cookie"], [class*="popup"], [class*="modal"], [id*="cookie"]').remove();
+    $('[class*="menu"], [class*="nav-"], [class*="sidebar"]').remove();
+    $('footer, nav, aside').remove();
+
+    $('*').each((_, el) => {
+      const attrs = (el as any).attribs || {};
+      for (const attr of Object.keys(attrs)) {
+        if (!['class', 'id', 'href', 'src', 'alt', 'datetime', 'data-date', 'data-time', 'content', 'type'].includes(attr)) {
+          $(el).removeAttr(attr);
+        }
+      }
+    });
+
+    let simplified = $.html();
+    simplified = simplified.replace(/\s+/g, ' ').replace(/>\s+</g, '><');
+
+    const mainContent = $('main, [role="main"], .content, #content, article, .event-detail, .single-event').first();
+    if (mainContent.length && mainContent.html()) {
+      const jsonLd = $('script[type="application/ld+json"]').toString();
+      simplified = jsonLd + (mainContent.html() || '');
+    }
+
+    return simplified.substring(0, 6000);
+  }
+
+  private static async extractFromDetailPages(
+    pages: Array<{ url: string; html: string }>,
+    selectors: AiDetailSelectors
+  ): Promise<Array<Record<string, string>>> {
+    const results: Array<Record<string, string>> = [];
+
+    for (const page of pages) {
+      const $ = cheerio.load(page.html);
+      const extracted: Record<string, string> = {};
+
+      const fieldMap: Array<[keyof AiDetailSelectors, string]> = [
+        ['title', 'title'], ['date', 'date'], ['time', 'time'],
+        ['description', 'description'], ['venue', 'venue'],
+        ['address', 'address'], ['category', 'category'], ['price', 'price'],
+      ];
+
+      for (const [key, name] of fieldMap) {
+        const sel = selectors[key];
+        if (sel) {
+          const el = $(sel).first();
+          if (el.length) {
+            let value = el.text().trim();
+            if (name === 'description') value = value.substring(0, 200);
+            if (value) extracted[name] = value;
+          }
+        }
+      }
+
+      if (selectors.image) {
+        const imgEl = $(selectors.image).first();
+        if (imgEl.length) {
+          extracted.image = imgEl.attr('src') || imgEl.attr('data-src') || '';
+        }
+      }
+
+      if (selectors.location) {
+        const locEl = $(selectors.location).first();
+        if (locEl.length) {
+          extracted.location = locEl.text().trim();
+        }
+      }
+
+      extracted.link = page.url;
+      results.push(extracted);
+    }
+
+    return results;
+  }
+
+  private static buildFeedConfig(
+    url: string,
+    overviewSelectors: AiExtractionSelectors,
+    detailSelectors: AiDetailSelectors | undefined,
+    hasJsonLd: boolean,
+    pagination: AiPaginationInfo,
+    requiresJsRendering: boolean
+  ): AiScraperAnalysisResult['suggestedFeedConfig'] {
+    const scraperConfig: Record<string, any> = {
+      cardSelector: overviewSelectors.eventCard,
+      overviewSelectors: { ...overviewSelectors },
+      requiresJsRendering,
+      aiGenerated: true,
+      aiGeneratedAt: new Date().toISOString(),
+    };
+
+    if (detailSelectors) {
+      scraperConfig.detailSelectors = { ...detailSelectors };
+    }
+
+    if (hasJsonLd) {
+      scraperConfig.hasJsonLd = true;
+      scraperConfig.preferJsonLd = true;
+    }
+
+    if (pagination.type !== 'none') {
+      scraperConfig.pagination = { ...pagination };
+    }
+
+    const fieldMappings: Record<string, string> = {};
+    if (overviewSelectors.title) fieldMappings.title = overviewSelectors.title;
+    if (overviewSelectors.date) fieldMappings.date = overviewSelectors.date;
+    if (overviewSelectors.link) fieldMappings.link = overviewSelectors.link;
+    if (overviewSelectors.image) fieldMappings.image = overviewSelectors.image;
+    if (overviewSelectors.venue) fieldMappings.venue = overviewSelectors.venue;
+    if (overviewSelectors.address) fieldMappings.address = overviewSelectors.address;
+
+    return {
+      feedType: 'scraper',
+      scraperConfig,
+      fieldMappings,
+    };
   }
 
   private static readonly MIN_CONFIDENCE_TO_SAVE = 40;

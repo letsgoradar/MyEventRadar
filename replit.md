@@ -226,3 +226,21 @@ Twee-producten advertentiesysteem:
 - **Manual Trigger**: `POST /api/admin/rss-feeds/:id/rescue-dates` allows admins to re-run AI date rescue for a specific feed.
 - **Data Cleanup**: 73 events from March 3rd sync that had incorrect dates (sync date as start date) were soft-deleted.
 - **Sensitive Data Logging**: Login credentials no longer logged even in development mode.
+
+### AI Scraper Builder (Session 6)
+- **3-Step Feed Wizard**: Feed Analyzer wizard now has a 3-step flow: 1) Feed zoeken (RSS/Atom/JSON), 2) AI Scraper Builder, 3) Handmatig (visuele editor)
+- **AI Provider Model Selection**: `AiProvider.complete()` accepts `model: 'flash' | 'pro'` parameter. Default: `gemini-2.5-flash`. Pro: `gemini-2.5-pro` for complex analysis tasks.
+- **AI HTML Analyzer**: `AiHtmlAnalyzer.analyzeForScraper(url)` performs 2-step analysis:
+  - Step A: Overview page — finds event cards, validates CSS selectors, extracts event links
+  - Step B: Detail pages — fetches 2-3 detail pages, detects JSON-LD, extracts date/venue/description selectors
+  - Returns: overviewSelectors, detailSelectors, hasJsonLd, pagination, sampleEvents, confidence score, suggestedFeedConfig
+- **Backend Endpoint**: `POST /api/admin/rss-feeds/ai-scraper-analyze` — admin-only, calls analyzeForScraper
+- **Frontend Integration**: New `ai-scraper` wizard step in `FeedAnalyzerModal.tsx` with:
+  - Progress indicator (5 steps)
+  - Confidence bar (green >70%, amber 50-70%, red <50%)
+  - Sample events preview from real detail pages
+  - JSON-LD badge, browser rendering badge, pagination info
+  - Collapsible AI reasoning section
+  - "Handmatig aanpassen" pre-fills visual editor with AI-found selectors
+- **Stepper Navigation**: Clickable breadcrumb: Feed zoeken → AI Scraper → Handmatig → Opslaan
+- **Files**: `server/services/ai-provider.ts`, `server/services/ai-html-analyzer.ts`, `server/routes.ts`, `client/src/components/admin/FeedAnalyzerModal.tsx`

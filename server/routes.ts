@@ -2248,6 +2248,38 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  app.post("/api/admin/rss-feeds/ai-scraper-analyze", isAdmin, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: "URL is verplicht" });
+      }
+
+      try {
+        new URL(url);
+      } catch {
+        return res.status(400).json({ message: "Ongeldige URL" });
+      }
+
+      console.log(`[API] Starting AI Scraper Builder analysis for: ${url}`);
+      const { AiHtmlAnalyzer } = await import('./services/ai-html-analyzer');
+      const result = await AiHtmlAnalyzer.analyzeForScraper(url);
+      res.json(result);
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/rss-feeds/ai-scraper-analyze:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'AI scraper analyse mislukt',
+        steps: [],
+        sampleEvents: [],
+        confidence: 0,
+        hasJsonLd: false,
+        reasoning: '',
+        requiresJsRendering: false,
+      });
+    }
+  });
+
   app.post("/api/admin/rss-feeds/analyze", isAdmin, async (req, res) => {
     try {
       const { url } = req.body;

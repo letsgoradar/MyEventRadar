@@ -6868,13 +6868,45 @@ export class RssFeedService {
         try {
           const rawData = JSON.parse($(el).html() || '');
           
-          // Handle both single objects and arrays of objects
           const dataItems = Array.isArray(rawData) ? rawData : [rawData];
           
           for (const data of dataItems) {
             if (data['@type'] === 'Event' || data['@type']?.includes?.('Event')) {
               if (data.startDate) startTime = parseLocalDateTime(data.startDate);
-              if (data.endDate) endTime = parseLocalDateTime(data.endDate);
+              if (data.endDate) {
+                const endStr = String(data.endDate);
+                if (endStr.includes('T')) {
+                  endTime = parseLocalDateTime(endStr);
+                }
+              }
+              
+              if (data.eventSchedule && Array.isArray(data.eventSchedule) && data.eventSchedule.length > 0) {
+                const now = new Date();
+                let bestSchedule: any = null;
+                for (const sched of data.eventSchedule) {
+                  if (sched.startDate) {
+                    const schedStart = parseLocalDateTime(sched.startDate);
+                    if (schedStart && schedStart >= now) {
+                      bestSchedule = sched;
+                      break;
+                    }
+                    if (!bestSchedule) bestSchedule = sched;
+                  }
+                }
+                if (bestSchedule) {
+                  if (bestSchedule.startDate) {
+                    const parsed = parseLocalDateTime(bestSchedule.startDate);
+                    if (parsed) startTime = parsed;
+                  }
+                  if (bestSchedule.endDate) {
+                    const endStr = String(bestSchedule.endDate);
+                    if (endStr.includes('T')) {
+                      const parsed = parseLocalDateTime(endStr);
+                      if (parsed) endTime = parsed;
+                    }
+                  }
+                }
+              }
               
               if (data.location) {
                 const loc = data.location;
@@ -6883,7 +6915,6 @@ export class RssFeedService {
                   if (typeof loc.address === 'string') {
                     address = loc.address;
                   } else if (loc.address.streetAddress) {
-                    // Build complete address from structured data
                     const parts = [loc.address.streetAddress];
                     if (loc.address.postalCode) parts.push(loc.address.postalCode);
                     if (loc.address.addressLocality) {
@@ -6899,7 +6930,6 @@ export class RssFeedService {
                 }
               }
               
-              // Found Event data, stop processing more JSON-LD blocks
               if (startTime || latitude) break;
             }
           }
@@ -8026,7 +8056,7 @@ export class RssFeedService {
         return;
       }
       const startTime = parsedItem.startTime;
-      const endTime = parsedItem.endTime;
+      const endTime = validateEndTime(startTime, parsedItem.endTime);
 
       const formattedTitle = this.formatTitle(parsedItem.title);
       

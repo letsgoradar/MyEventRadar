@@ -239,12 +239,15 @@ Twee-producten advertentiesysteem:
 - **Backend Endpoint**: `POST /api/admin/rss-feeds/ai-scraper-analyze` — admin-only, calls analyzeForScraper
 - **Frontend Integration**: New `ai-scraper` wizard step in `FeedAnalyzerModal.tsx` with:
   - Progress indicator (5 steps)
-  - Confidence bar (green >70%, amber 50-70%, red <50%)
+  - Confidence bar (green >70%, amber 50-70%, red <50%) with colored messages
   - Sample events preview with title, date, venue, address, category, description from real detail pages
   - JSON-LD badge, browser rendering badge, pagination info with page count and estimated total events
-  - Collapsible AI reasoning section
+  - Collapsible AI reasoning section (Accordion)
   - "Handmatig aanpassen" pre-fills visual editor with AI-found selectors
-- **Stepper Navigation**: Clickable breadcrumb: Feed zoeken → AI Scraper → Handmatig → Opslaan
+  - Purple "AI" badges on AI-filled fields in configure step (removed on manual edit)
+  - "Terug naar AI" button in configure step footer to navigate back to AI results
+  - Auto-transition: when no usable feed is found (no RSS/Atom/iCal/JSON-LD), automatically starts AI Scraper analysis after 1.5s
+- **Stepper Navigation**: Clickable breadcrumb: Feed zoeken → AI Scraper → Handmatig → Opslaan. AI Scraper step shows ✓ green (≥70%), ⚠ orange (50-69%), ✕ red (<50%) with confidence percentage badge
 - **Scraper Opslaan**: "Scraper Opslaan" button in AI Scraper wizard directly saves the AI-generated config as a feed via `POST /api/admin/visual-configurator/save-config`. Creates both an AI extraction profile AND an RSS feed (feedType='scraper') with scraperConfig containing overviewSelectors, detailSelectors, pagination, and hasJsonLd flag.
 - **Import Pipeline (scrapeUniversal)**: When a feed has `aiExtractionProfileId`, `scrapeUniversal()` tries AI profile selectors FIRST (Strategy 0) before falling back to WordPress API, Next.js, JSON-LD, Umbraco, Generic HTML. The `tryAiProfileSelectors` method: loads the saved profile selectors → extracts event links from overview pages using the AI-detected eventCard + link selectors → follows pagination → fetches detail pages in parallel (5 at a time) → extracts full event data via JSON-LD + CSS selectors.
 - **Validation Relaxation**: `save-config` endpoint skips location selector requirement for AI-generated scrapers (`isAiGenerated` flag) since location data comes from detail page JSON-LD.

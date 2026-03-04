@@ -380,6 +380,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
   
   const [aiScraperResult, setAiScraperResult] = useState<AiScraperResult | null>(null);
   const [aiScraperFromAnalyze, setAiScraperFromAnalyze] = useState(false);
+  const [aiFilledFields, setAiFilledFields] = useState<Set<string>>(new Set());
 
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
@@ -494,6 +495,16 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
       if (data.suggestedMunicipality) {
         setSelectedMunicipality(data.suggestedMunicipality);
       }
+      const hasUsableFeed = data.chosenMethod && data.chosenMethod.id !== 'scraper';
+      const hasAnySuccess = data.steps?.some(s => s.status === 'success' && s.id !== 'scraper');
+      if (data.isComplete && !hasUsableFeed && !hasAnySuccess) {
+        setTimeout(() => {
+          setCurrentStep('ai-scraper');
+          setAiScraperFromAnalyze(true);
+          setAiScraperResult(null);
+          aiScraperMutation.mutate(overviewUrl);
+        }, 1500);
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -550,6 +561,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
   };
 
   const handleAiScraperToVisual = () => {
+    const filledFields = new Set<string>();
     if (aiScraperResult?.overviewSelectors && aiScraperResult.confidence >= 50) {
       const newSelectors: SelectorConfig = {
         eventCard: aiScraperResult.overviewSelectors.eventCard || '',
@@ -560,13 +572,21 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
         venue: aiScraperResult.overviewSelectors.venue,
         address: aiScraperResult.overviewSelectors.address,
       };
+      if (newSelectors.eventCard) filledFields.add('eventCard');
+      if (newSelectors.title) filledFields.add('title');
+      if (newSelectors.date) filledFields.add('date');
+      if (newSelectors.link) filledFields.add('link');
+      if (newSelectors.image) filledFields.add('image');
+      if (newSelectors.venue) filledFields.add('venue');
+      if (newSelectors.address) filledFields.add('address');
       if (aiScraperResult.detailSelectors) {
-        if (aiScraperResult.detailSelectors.description) newSelectors.description = aiScraperResult.detailSelectors.description;
-        if (aiScraperResult.detailSelectors.time) newSelectors.time = aiScraperResult.detailSelectors.time;
-        if (aiScraperResult.detailSelectors.location) newSelectors.location = aiScraperResult.detailSelectors.location;
+        if (aiScraperResult.detailSelectors.description) { newSelectors.description = aiScraperResult.detailSelectors.description; filledFields.add('description'); }
+        if (aiScraperResult.detailSelectors.time) { newSelectors.time = aiScraperResult.detailSelectors.time; filledFields.add('time'); }
+        if (aiScraperResult.detailSelectors.location) { newSelectors.location = aiScraperResult.detailSelectors.location; filledFields.add('location'); }
       }
       setSelectors(newSelectors);
     }
+    setAiFilledFields(filledFields);
     setCurrentStep('configure');
     setPageContext('overview');
     setIframeLoading(true);
@@ -1009,6 +1029,11 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
       ...prev,
       [activeField]: selector,
     }));
+    setAiFilledFields(prev => {
+      const next = new Set(prev);
+      next.delete(activeField);
+      return next;
+    });
 
     toast({
       title: `${activeField} geconfigureerd`,
@@ -1991,29 +2016,41 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                 <h4 className="text-sm font-semibold flex items-center gap-2">
                   <Eye className="w-4 h-4" /> Gevonden Selectors
                 </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground">Overzichtspagina</p>
-                    {Object.entries(result.overviewSelectors).map(([key, value]) => (
-                      <div key={key} className="flex items-center gap-2 text-xs">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono bg-blue-50 border-blue-200">
-                          {key}
-                        </Badge>
-                        <code className="text-[10px] text-muted-foreground truncate max-w-[200px]">{value}</code>
-                      </div>
-                    ))}
-                  </div>
-                  {result.detailSelectors && (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground">Detailpagina</p>
-                      {Object.entries(result.detailSelectors).filter(([, v]) => v).map(([key, value]) => (
-                        <div key={key} className="flex items-center gap-2 text-xs">
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono bg-green-50 border-green-200">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-blue-700 flex items-center gap-1">
+                      <List className="w-3 h-3" /> Overzichtspagina
+                    </p>
+                    {Object.entries(result.overviewSelectors).map(([key, value]) => {
+                      const iconMap: Record<string, any> = { eventCard: <Eye className="w-3 h-3" />, title: <Type className="w-3 h-3" />, date: <Calendar className="w-3 h-3" />, link: <ExternalLink className="w-3 h-3" />, image: <ImageIcon className="w-3 h-3" />, venue: <Building2 className="w-3 h-3" />, address: <MapPin className="w-3 h-3" /> };
+                      return (
+                        <div key={key} className="flex items-center gap-1.5 text-xs">
+                          <span className="text-blue-500 flex-shrink-0">{iconMap[key] || <Eye className="w-3 h-3" />}</span>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono bg-blue-50 border-blue-200">
                             {key}
                           </Badge>
-                          <code className="text-[10px] text-muted-foreground truncate max-w-[200px]">{value}</code>
+                          <code className="text-[10px] text-muted-foreground truncate max-w-[180px]">{value}</code>
                         </div>
-                      ))}
+                      );
+                    })}
+                  </div>
+                  {result.detailSelectors && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-green-700 flex items-center gap-1">
+                        <FileText className="w-3 h-3" /> Detailpagina
+                      </p>
+                      {Object.entries(result.detailSelectors).filter(([, v]) => v).map(([key, value]) => {
+                        const iconMap: Record<string, any> = { title: <Type className="w-3 h-3" />, date: <Calendar className="w-3 h-3" />, time: <Clock className="w-3 h-3" />, description: <FileText className="w-3 h-3" />, image: <ImageIcon className="w-3 h-3" />, location: <MapPin className="w-3 h-3" />, venue: <Building2 className="w-3 h-3" />, address: <Map className="w-3 h-3" />, category: <Tag className="w-3 h-3" />, price: <DollarSign className="w-3 h-3" /> };
+                        return (
+                          <div key={key} className="flex items-center gap-1.5 text-xs">
+                            <span className="text-green-500 flex-shrink-0">{iconMap[key] || <Eye className="w-3 h-3" />}</span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono bg-green-50 border-green-200">
+                              {key}
+                            </Badge>
+                            <code className="text-[10px] text-muted-foreground truncate max-w-[180px]">{value}</code>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2277,12 +2314,25 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
         </div>
       )}
 
-      {result?.isComplete && (result.chosenMethod?.id === 'scraper' || !result.chosenMethod) && (
+      {result?.isComplete && (result.chosenMethod?.id === 'scraper' || !result.chosenMethod) && !result.steps?.some(s => s.status === 'success' && s.id !== 'scraper') && (
+        <div className="space-y-3">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <h4 className="font-semibold text-purple-800 flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Geen feed gevonden. AI gaat automatisch analyseren...
+            </h4>
+            <p className="text-sm text-purple-700 mt-1">
+              Er is geen RSS, Atom, iCal of JSON-LD feed gevonden. De AI Scraper Builder wordt automatisch gestart.
+            </p>
+          </div>
+        </div>
+      )}
+      {result?.isComplete && (result.chosenMethod?.id === 'scraper' || !result.chosenMethod) && result.steps?.some(s => s.status === 'success' && s.id !== 'scraper') && (
         <div className="space-y-3">
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
             <h4 className="font-semibold text-purple-800 flex items-center gap-2">
               <Brain className="w-5 h-5" />
-              Geen feed gevonden — AI Scraper Builder
+              AI Scraper Builder beschikbaar
             </h4>
             <p className="text-sm text-purple-700 mt-1">
               AI kan automatisch de pagina analyseren en een scraper configureren. Dit analyseert zowel de overzichts- als detailpagina's.
@@ -2398,6 +2448,9 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                       <Eye className="h-4 w-4" />
                       <span className="font-medium text-xs">Event Card</span>
                       <Badge variant="destructive" className="text-[10px] h-4">Verplicht</Badge>
+                      {aiFilledFields.has('eventCard') && (
+                        <Badge className="text-[9px] h-4 px-1 bg-purple-100 text-purple-700 border-purple-300">AI</Badge>
+                      )}
                     </div>
                     {selectors.eventCard ? (
                       <Check className="h-4 w-4 text-green-600" />
@@ -2414,6 +2467,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                       onChange={(e) => {
                         setSelectors(prev => ({ ...prev, eventCard: e.target.value }));
                         setHighlightedSelector(e.target.value);
+                        setAiFilledFields(prev => { const next = new Set(prev); next.delete('eventCard'); return next; });
                       }}
                     />
                   ) : selectors.eventCard && (
@@ -2452,6 +2506,9 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                           {field.icon}
                           <span className="font-medium text-xs">{field.name}</span>
                           {field.required && <Badge variant="destructive" className="text-[10px] h-4">!</Badge>}
+                          {aiFilledFields.has(field.id) && (
+                            <Badge className="text-[9px] h-4 px-1 bg-purple-100 text-purple-700 border-purple-300">AI</Badge>
+                          )}
                         </div>
                         {hasValue ? (
                           <Check className="h-3 w-3 text-green-600" />
@@ -2468,6 +2525,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                           onChange={(e) => {
                             setSelectors(prev => ({ ...prev, [field.id]: e.target.value }));
                             setHighlightedSelector(e.target.value);
+                            setAiFilledFields(prev => { const next = new Set(prev); next.delete(field.id); return next; });
                           }}
                         />
                       )}
@@ -2956,8 +3014,16 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
                 {aiScraperResult && aiScraperResult.confidence >= 70 && (
                   <Check className="w-3 h-3 text-green-300" />
                 )}
-                {aiScraperResult && aiScraperResult.confidence > 0 && aiScraperResult.confidence < 70 && (
-                  <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1 border-current">
+                {aiScraperResult && aiScraperResult.confidence >= 50 && aiScraperResult.confidence < 70 && (
+                  <AlertTriangle className="w-3 h-3 text-amber-300" />
+                )}
+                {aiScraperResult && aiScraperResult.confidence > 0 && aiScraperResult.confidence < 50 && (
+                  <X className="w-3 h-3 text-red-300" />
+                )}
+                {aiScraperResult && aiScraperResult.confidence > 0 && (
+                  <Badge variant="outline" className={`text-[9px] px-1 py-0 ml-0.5 ${
+                    currentStep === 'ai-scraper' ? 'border-white/50 text-white/80' : 'border-current'
+                  }`}>
                     {aiScraperResult.confidence}%
                   </Badge>
                 )}
@@ -3106,22 +3172,34 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           )}
 
           {currentStep === 'configure' && (
-            <Button 
-              onClick={() => testEventsMutation.mutate()}
-              disabled={hasErrors || testEventsMutation.isPending}
-            >
-              {testEventsMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Testen...
-                </>
-              ) : (
-                <>
-                  <Eye className="w-4 h-4 mr-2" />
-                  Test & Valideer
-                </>
+            <div className="flex items-center gap-2">
+              {aiScraperResult && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentStep('ai-scraper')}
+                >
+                  <Brain className="w-4 h-4 mr-1 text-purple-500" />
+                  Terug naar AI
+                </Button>
               )}
-            </Button>
+              <Button 
+                onClick={() => testEventsMutation.mutate()}
+                disabled={hasErrors || testEventsMutation.isPending}
+              >
+                {testEventsMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Testen...
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Test & Valideer
+                  </>
+                )}
+              </Button>
+            </div>
           )}
 
           {currentStep === 'direct-detail' && pageHtml && (

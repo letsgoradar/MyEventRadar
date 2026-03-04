@@ -66,6 +66,8 @@ export interface AiScraperAnalysisResult {
   detailSelectors?: AiDetailSelectors;
   hasJsonLd: boolean;
   pagination?: AiPaginationInfo;
+  eventsOnPage: number;
+  estimatedTotalEvents: number;
   sampleEvents: Array<{
     title?: string;
     date?: string;
@@ -228,13 +230,13 @@ export class AiHtmlAnalyzer {
     $('[style]').removeAttr('style');
     $('header, footer, nav, aside').remove();
     $('[class*="cookie"], [class*="popup"], [class*="modal"], [id*="cookie"]').remove();
-    $('[class*="menu"], [class*="nav-"], [class*="header"], [class*="footer"]').remove();
+    $('[class*="menu"], [class*="nav-"]').remove();
     
     $('*').each((_, el) => {
       const $el = $(el);
       const attrs = (el as any).attribs || {};
       for (const attr of Object.keys(attrs)) {
-        if (!['class', 'id', 'href', 'src', 'alt', 'datetime', 'data-date', 'data-time'].includes(attr)) {
+        if (!['class', 'id', 'href', 'src', 'alt', 'datetime', 'data-date', 'data-time', 'itemscope', 'itemtype', 'data-item-id'].includes(attr)) {
           $el.removeAttr(attr);
         }
       }
@@ -261,32 +263,50 @@ export class AiHtmlAnalyzer {
     const candidates: Array<{ selector: string; count: number; sample: string }> = [];
 
     const cardPatterns = [
-      'li:has(a):has(img)',
-      'article',
-      'div:has(> a):has(img)',
-      '[class*="item"]:has(a)',
-      '[class*="card"]:has(a)',
-      '[class*="tile"]:has(a)',
-      '[class*="event"]:has(a)',
-      'a:has(img):has(h1, h2, h3, h4)',
-      'a[href*="/event"], a[href*="/agenda"], a[href*="/uitagenda"], a[href*="/activiteit"]',
+      { selector: 'li[itemtype*="schema.org/Event"]', priority: 10 },
+      { selector: '[itemtype*="schema.org/Event"]', priority: 9 },
+      { selector: 'li[class*="tile"]:has(a)', priority: 8 },
+      { selector: 'li[class*="event"]:has(a)', priority: 8 },
+      { selector: 'li[class*="item"]:has(a):has(img)', priority: 7 },
+      { selector: 'article:has(a):has(h1, h2, h3, h4)', priority: 7 },
+      { selector: 'li:has(a):has(img)', priority: 6 },
+      { selector: 'article', priority: 6 },
+      { selector: 'div[class*="card"]:has(a)', priority: 5 },
+      { selector: 'div[class*="tile"]:has(a)', priority: 5 },
+      { selector: 'div[class*="event"]:has(a)', priority: 5 },
+      { selector: 'div[class*="item"]:has(a):has(img)', priority: 4 },
+      { selector: 'div:has(> a):has(img)', priority: 3 },
+      { selector: 'a:has(img):has(h1, h2, h3, h4)', priority: 1 },
     ];
 
-    for (const pattern of cardPatterns) {
+    for (const { selector: pattern, priority } of cardPatterns) {
       try {
         const elements = $(pattern);
         if (elements.length >= 3) {
-          const sample = elements.first().html()?.substring(0, 500) || '';
+          const first = elements.first();
+          const sample = first.html()?.substring(0, 500) || '';
+          const hasTitle = first.find('h1, h2, h3, h4, [class*="title"], [class*="naam"]').length > 0;
+          const hasLink = first.find('a[href]').length > 0 || first.is('a[href]');
+          const hasImage = first.find('img, picture').length > 0;
+
+          const tag = (first.get(0) as any)?.tagName || '';
+          const classes = (first.attr('class') || '').trim();
+          const exactSelector = classes
+            ? `${tag}.${classes.split(/\s+/).join('.')}`
+            : tag;
+
           candidates.push({
             selector: pattern,
             count: elements.length,
             sample,
-          });
+            priority: priority + (hasTitle ? 3 : 0) + (hasLink ? 2 : 0) + (hasImage ? 1 : 0),
+            exactSelector,
+          } as any);
         }
       } catch {}
     }
 
-    candidates.sort((a, b) => b.count - a.count);
+    candidates.sort((a, b) => ((b as any).priority || 0) - ((a as any).priority || 0));
     return candidates.slice(0, 5);
   }
 
@@ -393,12 +413,15 @@ Antwoord in JSON formaat:
       if (selectors.title) {
         event.title = $card.find(selectors.title).first().text().trim();
       }
-      if (!event.title && $card.is('a')) {
-        event.title = $card.find('h1, h2, h3, h4').first().text().trim();
+      if (!event.title) {
+        event.title = $card.find('h1, h2, h3, h4, [class*="title"], [class*="naam"]').first().text().trim();
       }
 
       if (selectors.date) {
         event.date = $card.find(selectors.date).first().text().trim();
+      }
+      if (!event.date) {
+        event.date = $card.find('[class*="date"], [class*="datum"], time, [datetime]').first().text().trim();
       }
 
       if (selectors.link === 'self' && $card.is('a')) {
@@ -410,18 +433,25 @@ Antwoord in JSON formaat:
         event.link = $card.attr('href');
       }
       if (!event.link) {
-        event.link = $card.find('a').first().attr('href');
+        const linkEl = $card.find('a[href*="/event"], a[href*="/agenda"], a[href*="/uitagenda"], a[href*="/activiteit"], a.link-overlay, a[href]').first();
+        event.link = linkEl.attr('href');
       }
 
       if (selectors.image) {
-        event.image = $card.find(selectors.image).first().attr('src');
+        const imgEl = $card.find(selectors.image).first();
+        event.image = imgEl.attr('src') || imgEl.attr('data-src') || imgEl.attr('data-lazy-src');
       }
       if (!event.image) {
-        event.image = $card.find('img').first().attr('src');
+        const imgEl = $card.find('img').first();
+        event.image = imgEl.attr('src') || imgEl.attr('data-src') || imgEl.attr('data-lazy-src');
       }
 
       if (selectors.category) {
         event.category = $card.find(selectors.category).first().text().trim();
+      }
+      if (!event.category) {
+        const catEl = $card.find('[class*="tag"], [class*="categor"], [class*="type"]').first();
+        if (catEl.length) event.category = catEl.text().trim();
       }
 
       if (selectors.venue) {
@@ -429,19 +459,11 @@ Antwoord in JSON formaat:
       }
       if (!event.venue) {
         const venueEl = $card.find('[class*="locatie"], [class*="location"], [class*="venue"], [class*="waar"]').first();
-        if (venueEl.length) {
-          event.venue = venueEl.text().trim();
-        }
+        if (venueEl.length) event.venue = venueEl.text().trim();
       }
 
       if (selectors.address) {
         event.address = $card.find(selectors.address).first().text().trim();
-      }
-      if (!event.address) {
-        const addressEl = $card.find('[class*="adres"], [class*="address"]').first();
-        if (addressEl.length) {
-          event.address = addressEl.text().trim();
-        }
       }
 
       if (event.title || event.link) {
@@ -601,6 +623,7 @@ Antwoord in JSON formaat:
         steps[0].message = 'Kon de pagina niet ophalen';
         return {
           success: false, hasJsonLd: false, sampleEvents: [], confidence: 0,
+          eventsOnPage: 0, estimatedTotalEvents: 0,
           reasoning: 'Kon de overzichtspagina niet ophalen', requiresJsRendering: false,
           error: 'Pagina niet bereikbaar', steps,
         };
@@ -617,58 +640,62 @@ Antwoord in JSON formaat:
         steps[1].message = 'Geen herhalende kaart-structuren gevonden';
         return {
           success: false, hasJsonLd: false, sampleEvents: [], confidence: 0,
+          eventsOnPage: 0, estimatedTotalEvents: 0,
           reasoning: 'Geen herhalende event-kaarten gevonden op de overzichtspagina', requiresJsRendering,
           error: 'Geen event-kaarten gevonden', steps,
         };
       }
 
-      const candidateInfo = candidateCards.map(c =>
-        `- Selector: "${c.selector}" (${c.count} items)\n  Sample: ${c.sample.substring(0, 300)}...`
-      ).join('\n\n');
+      const candidateInfo = candidateCards.map(c => {
+        const exact = (c as any).exactSelector ? ` → exact CSS: "${(c as any).exactSelector}"` : '';
+        return `- Pattern: "${c.selector}" (${c.count} items)${exact}\n  Sample HTML: ${c.sample.substring(0, 300)}...`;
+      }).join('\n\n');
 
       const overviewAiResult = await AiProvider.complete({
-        systemPrompt: `Je bent een senior web scraping expert gespecialiseerd in Nederlandse evenementen-websites. Analyseer de HTML structuur grondig en bepaal de meest betrouwbare CSS selectors. Wees precies en specifiek. Overweeg meerdere opties en kies de meest robuuste. Antwoord alleen in JSON.`,
+        systemPrompt: `Je bent een senior web scraping expert gespecialiseerd in Nederlandse evenementen-websites. Analyseer de HTML structuur grondig en bepaal de meest betrouwbare CSS selectors. Wees precies en specifiek. Antwoord alleen in JSON.`,
         userPrompt: `Analyseer deze Nederlandse evenementen-overzichtspagina en bepaal de CSS selectors.
 
 URL: ${url}
 
-Gevonden kandidaat-patronen:
+Gevonden kandidaat-patronen (gesorteerd op betrouwbaarheid):
 ${candidateInfo}
 
 HTML fragment (vereenvoudigd):
 ${simplifiedOverview.substring(0, 5000)}
 
 Bepaal de beste CSS selectors voor de OVERZICHTSPAGINA:
-1. eventCard: Hoofd-selector voor elk event kaartje (het herhalende element)
-2. title: Relatieve selector binnen de kaart voor de titel
-3. date: Relatieve selector voor datum/tijd info
-4. link: Relatieve selector voor de link naar de detailpagina (of "self" als de kaart een <a> tag is)
-5. image: Relatieve selector voor de event afbeelding
-6. category: Relatieve selector voor categorie (optioneel)
-7. venue: Relatieve selector voor locatie/venue naam
-8. address: Relatieve selector voor adres
+1. eventCard: Hoofd-selector voor elk event kaartje (het herhalende CONTAINER element, bijv. li, div, article — NOOIT een <a> tag als er een container-element beschikbaar is)
+2. title: Relatieve selector BINNEN de kaart voor de titel (bijv. "h3", ".title", "span.title-txt")
+3. date: Relatieve selector BINNEN de kaart voor datum/tijd info (bijv. "p.date", ".datum", "time")
+4. link: Relatieve selector BINNEN de kaart voor de link naar de detailpagina (bijv. "a", "a.link-overlay"). Gebruik "self" ALLEEN als de kaart zelf een <a> element is
+5. image: Relatieve selector BINNEN de kaart voor de event afbeelding (bijv. "img", "picture img")
+6. category: Relatieve selector BINNEN de kaart voor categorie (bijv. ".tag", ".category")
+7. venue: Relatieve selector BINNEN de kaart voor locatie/venue naam (of null als niet aanwezig)
+8. address: Relatieve selector BINNEN de kaart voor adres (of null als niet aanwezig)
 
-BELANGRIJK:
-- Kies de meest SPECIFIEKE selectors die uniek matchen
-- Test mentaal of de selectors werken voor ALLE kaarten, niet alleen de eerste
-- Bij twijfel, gebruik class-based selectors boven tag-only selectors
-- "self" voor link betekent dat de eventCard zelf een <a> element is
+KRITISCHE REGELS:
+- eventCard MOET een container-element zijn (li, div, article, section) — NOOIT een <a> tag als er een container beschikbaar is
+- Alle andere selectors zijn RELATIEF binnen de eventCard container
+- Een goede eventCard selector matcht precies het aantal echte events op de pagina (niet meer, niet minder)
+- Gebruik specifieke class-selectors boven generieke tag-selectors
+- Als een veld niet op de overzichtspagina staat, gebruik null
+- Controleer dat de eventCard geen navigatie-elementen of niet-event items bevat
 
 Antwoord in JSON:
 {
   "success": true,
   "selectors": {
-    "eventCard": "...",
-    "title": "...",
-    "date": "...",
-    "link": "...",
-    "image": "...",
-    "category": "...",
-    "venue": "...",
-    "address": "..."
+    "eventCard": "li.tiles__tile (voorbeeld)",
+    "title": "span.title-txt (voorbeeld)",
+    "date": "p.date (voorbeeld)",
+    "link": "a.link-overlay (voorbeeld)",
+    "image": "img (voorbeeld)",
+    "category": ".tag of null",
+    "venue": "null als niet beschikbaar",
+    "address": "null als niet beschikbaar"
   },
   "confidence": 0-100,
-  "reasoning": "Uitleg van de gekozen strategie en waarom deze selectors betrouwbaar zijn"
+  "reasoning": "Uitleg van de gekozen strategie"
 }`,
         maxTokens: 1500,
         temperature: 0.1,
@@ -692,6 +719,7 @@ Antwoord in JSON:
         steps[1].message = 'AI kon geen bruikbare selectors vinden';
         return {
           success: false, hasJsonLd: false, sampleEvents: [], confidence: 0,
+          eventsOnPage: 0, estimatedTotalEvents: 0,
           reasoning: overviewParsed.reasoning || 'Geen selectors gevonden', requiresJsRendering,
           error: 'Geen bruikbare selectors', steps,
         };
@@ -700,14 +728,22 @@ Antwoord in JSON:
       overviewSelectors = overviewParsed.selectors as AiExtractionSelectors;
       let validationResult = await this.extractWithSelectors(overviewHtml, overviewSelectors);
 
-      if (validationResult.eventCount < 2) {
+      if (validationResult.eventCount < 3) {
         console.log(`[AI Scraper Builder] AI selector "${overviewSelectors.eventCard}" found ${validationResult.eventCount} events, trying candidate fallbacks...`);
+        const fallbackSelectors: string[] = [];
         for (const candidate of candidateCards) {
-          const fallbackSelectors = { ...overviewSelectors, eventCard: candidate.selector };
-          const fallbackResult = await this.extractWithSelectors(overviewHtml, fallbackSelectors);
+          fallbackSelectors.push(candidate.selector);
+          const exact = (candidate as any).exactSelector;
+          if (exact && exact !== candidate.selector) {
+            fallbackSelectors.push(exact);
+          }
+        }
+        for (const fallbackSel of fallbackSelectors) {
+          const testSelectors = { ...overviewSelectors, eventCard: fallbackSel };
+          const fallbackResult = await this.extractWithSelectors(overviewHtml, testSelectors);
           if (fallbackResult.eventCount >= 3) {
-            console.log(`[AI Scraper Builder] Fallback selector "${candidate.selector}" found ${fallbackResult.eventCount} events`);
-            overviewSelectors = fallbackSelectors;
+            console.log(`[AI Scraper Builder] Fallback selector "${fallbackSel}" found ${fallbackResult.eventCount} events`);
+            overviewSelectors = testSelectors;
             validationResult = fallbackResult;
             break;
           }
@@ -719,37 +755,54 @@ Antwoord in JSON:
         steps[1].message = `Selectors vonden slechts ${validationResult.eventCount} events`;
         return {
           success: false, overviewSelectors, hasJsonLd: false,
+          eventsOnPage: validationResult.eventCount, estimatedTotalEvents: validationResult.eventCount,
           sampleEvents: validationResult.sampleEvents, confidence: 15,
           reasoning: `Selectors vonden te weinig events (${validationResult.eventCount})`, requiresJsRendering,
           error: `Slechts ${validationResult.eventCount} events gevonden`, steps,
         };
       }
 
+      const pagination = this.detectPagination(overviewHtml, url);
+      const estimatedTotal = pagination.type !== 'none' && pagination.maxPages
+        ? validationResult.eventCount * pagination.maxPages
+        : validationResult.eventCount;
+
       steps[1].status = 'success';
-      steps[1].message = `${validationResult.eventCount} events gevonden met AI selectors (confidence: ${overviewParsed.confidence}%)`;
+      steps[1].message = `${validationResult.eventCount} events op pagina 1${pagination.type !== 'none' ? ` (geschat totaal: ~${estimatedTotal} over ${pagination.maxPages} pagina's)` : ''} (confidence: ${overviewParsed.confidence}%)`;
       reasoningParts.push(`Overzicht: ${overviewParsed.reasoning}`);
       confidence = Math.min(overviewParsed.confidence || 50, 60);
 
       const eventLinks: string[] = [];
-      for (const sample of validationResult.sampleEvents) {
-        if (sample.link) {
+      const $overview = cheerio.load(overviewHtml);
+      $overview(overviewSelectors.eventCard).each((_, card) => {
+        const $card = $overview(card);
+        let link = '';
+        if (overviewSelectors.link && overviewSelectors.link !== 'self') {
+          link = $card.find(overviewSelectors.link).first().attr('href') || '';
+        }
+        if (!link) {
+          link = $card.find('a[href*="/event"], a[href*="/agenda"], a[href*="/uitagenda"], a[href*="/activiteit"], a.link-overlay, a[href]').first().attr('href') || '';
+        }
+        if (link && !link.startsWith('#') && !link.startsWith('javascript:')) {
           try {
-            const absoluteLink = sample.link.startsWith('http')
-              ? sample.link
-              : new URL(sample.link, baseUrl.origin).href;
-            eventLinks.push(absoluteLink);
+            const absoluteLink = link.startsWith('http')
+              ? link
+              : new URL(link, baseUrl.origin).href;
+            if (!eventLinks.includes(absoluteLink) && absoluteLink !== url) {
+              eventLinks.push(absoluteLink);
+            }
           } catch {}
         }
-      }
+      });
 
       steps.push({ name: 'Detailpagina\'s ophalen', status: 'success', message: 'Bezig...' });
 
       if (eventLinks.length === 0) {
         steps[2].status = 'failed';
         steps[2].message = 'Geen event-links gevonden op overzichtspagina';
-        const pagination = this.detectPagination(overviewHtml, url);
         return {
           success: true, overviewSelectors, hasJsonLd: false, pagination,
+          eventsOnPage: validationResult.eventCount, estimatedTotalEvents: estimatedTotal,
           sampleEvents: validationResult.sampleEvents, confidence: Math.max(confidence - 10, 20),
           reasoning: reasoningParts.join('\n'), requiresJsRendering,
           suggestedFeedConfig: this.buildFeedConfig(url, overviewSelectors, undefined, false, pagination, requiresJsRendering),
@@ -784,9 +837,9 @@ Antwoord in JSON:
       if (detailPages.length === 0) {
         steps[2].status = 'failed';
         steps[2].message = 'Kon geen detailpagina\'s ophalen';
-        const pagination = this.detectPagination(overviewHtml, url);
         return {
           success: true, overviewSelectors, hasJsonLd: false, pagination,
+          eventsOnPage: validationResult.eventCount, estimatedTotalEvents: estimatedTotal,
           sampleEvents: validationResult.sampleEvents, confidence: Math.max(confidence - 10, 25),
           reasoning: reasoningParts.join('\n') + '\nDetailpagina\'s niet bereikbaar.',
           requiresJsRendering,
@@ -915,12 +968,11 @@ Antwoord in JSON:
       }
 
       steps.push({ name: 'Configuratie valideren', status: 'success', message: 'Bezig...' });
-      const pagination = this.detectPagination(overviewHtml, url);
 
       const feedConfig = this.buildFeedConfig(url, overviewSelectors, detailSelectors, hasJsonLd, pagination, requiresJsRendering);
 
       steps[4].status = 'success';
-      steps[4].message = `Configuratie aangemaakt (totaal confidence: ${confidence}%)`;
+      steps[4].message = `Configuratie aangemaakt — ${validationResult.eventCount} events/pagina${pagination.type !== 'none' ? `, ~${estimatedTotal} totaal over ${pagination.maxPages} pagina's` : ''} (confidence: ${confidence}%)`;
 
       const domain = baseUrl.hostname.replace('www.', '');
       if (confidence >= 40) {
@@ -933,6 +985,8 @@ Antwoord in JSON:
         detailSelectors,
         hasJsonLd,
         pagination,
+        eventsOnPage: validationResult.eventCount,
+        estimatedTotalEvents: estimatedTotal,
         sampleEvents: validationResult.sampleEvents,
         confidence,
         reasoning: reasoningParts.join('\n'),
@@ -945,6 +999,7 @@ Antwoord in JSON:
       console.error('[AI Scraper Builder] Error:', error);
       return {
         success: false, hasJsonLd: false, sampleEvents: [], confidence: 0,
+        eventsOnPage: 0, estimatedTotalEvents: 0,
         reasoning: `Fout: ${error.message}`, requiresJsRendering: false,
         error: error.message, steps,
       };
@@ -990,6 +1045,30 @@ Antwoord in JSON:
       const $ = cheerio.load(page.html);
       const extracted: Record<string, string> = {};
 
+      const jsonLdEvent = this.extractJsonLdEvent($);
+      if (jsonLdEvent) {
+        if (jsonLdEvent.name) extracted.title = jsonLdEvent.name;
+        if (jsonLdEvent.description) extracted.description = jsonLdEvent.description.substring(0, 200);
+        if (jsonLdEvent.location?.name) extracted.venue = jsonLdEvent.location.name;
+        if (jsonLdEvent.location?.address) {
+          const addr = jsonLdEvent.location.address;
+          if (typeof addr === 'string') {
+            extracted.address = addr;
+          } else if (addr.streetAddress) {
+            const parts = [addr.streetAddress, addr.postalCode, addr.addressLocality].filter(Boolean);
+            extracted.address = parts.join(', ');
+          }
+        }
+        if (jsonLdEvent.startDate) {
+          extracted.date = jsonLdEvent.startDate;
+        } else if (jsonLdEvent.eventSchedule?.[0]?.startDate) {
+          extracted.date = jsonLdEvent.eventSchedule[0].startDate;
+        }
+        if (jsonLdEvent.image) {
+          extracted.image = Array.isArray(jsonLdEvent.image) ? jsonLdEvent.image[0] : jsonLdEvent.image;
+        }
+      }
+
       const fieldMap: Array<[keyof AiDetailSelectors, string]> = [
         ['title', 'title'], ['date', 'date'], ['time', 'time'],
         ['description', 'description'], ['venue', 'venue'],
@@ -997,6 +1076,7 @@ Antwoord in JSON:
       ];
 
       for (const [key, name] of fieldMap) {
+        if (extracted[name]) continue;
         const sel = selectors[key];
         if (sel) {
           const el = $(sel).first();
@@ -1008,14 +1088,14 @@ Antwoord in JSON:
         }
       }
 
-      if (selectors.image) {
+      if (!extracted.image && selectors.image) {
         const imgEl = $(selectors.image).first();
         if (imgEl.length) {
           extracted.image = imgEl.attr('src') || imgEl.attr('data-src') || '';
         }
       }
 
-      if (selectors.location) {
+      if (!extracted.location && selectors.location) {
         const locEl = $(selectors.location).first();
         if (locEl.length) {
           extracted.location = locEl.text().trim();
@@ -1027,6 +1107,22 @@ Antwoord in JSON:
     }
 
     return results;
+  }
+
+  private static extractJsonLdEvent($: cheerio.CheerioAPI): any {
+    let event: any = null;
+    $('script[type="application/ld+json"]').each((_, el) => {
+      if (event) return;
+      try {
+        const data = JSON.parse($(el).text());
+        if (data['@type'] === 'Event') {
+          event = data;
+        } else if (Array.isArray(data['@graph'])) {
+          event = data['@graph'].find((g: any) => g['@type'] === 'Event');
+        }
+      } catch {}
+    });
+    return event;
   }
 
   private static buildFeedConfig(

@@ -68,7 +68,9 @@ interface AiScraperResult {
   overviewSelectors?: Record<string, string>;
   detailSelectors?: Record<string, string>;
   hasJsonLd: boolean;
-  pagination?: { type: string; selector?: string; paramName?: string };
+  pagination?: { type: string; selector?: string; paramName?: string; maxPages?: number };
+  eventsOnPage: number;
+  estimatedTotalEvents: number;
   sampleEvents: Array<Record<string, string>>;
   confidence: number;
   reasoning: string;
@@ -1906,7 +1908,15 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
               )}
               {result.pagination && result.pagination.type !== 'none' && (
                 <Badge variant="secondary" className="text-xs">
-                  <List className="w-3 h-3 mr-1" /> Paginatie: {result.pagination.type}
+                  <List className="w-3 h-3 mr-1" /> Paginatie: {result.pagination.maxPages} pagina's
+                </Badge>
+              )}
+              {result.eventsOnPage > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {result.eventsOnPage} events/pagina
+                  {result.estimatedTotalEvents > result.eventsOnPage && (
+                    <span className="ml-1 font-semibold">({result.estimatedTotalEvents} totaal)</span>
+                  )}
                 </Badge>
               )}
             </div>

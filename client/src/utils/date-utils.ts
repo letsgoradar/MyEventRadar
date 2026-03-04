@@ -33,7 +33,7 @@ export function formatEventTimeRange(
   const formattedEnd = formatEventTime(endTime);
   
   if (!formattedStart && !formattedEnd) {
-    return null;
+    return 'Tijd onbekend';
   }
   
   if (formattedStart && formattedEnd) {
@@ -44,7 +44,7 @@ export function formatEventTimeRange(
     return `vanaf ${formattedStart}`;
   }
   
-  return null;
+  return 'Tijd onbekend';
 }
 
 export function hasValidTime(date: string | Date | null | undefined): boolean {

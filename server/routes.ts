@@ -11,7 +11,6 @@ import * as cheerio from "cheerio";
 
 import { setupAuth } from "./auth";
 import { AiProvider } from "./services/ai-provider";
-import { setupVite, serveStatic } from "./vite";
 import { storage } from "./storage";
 import { insertEventSchema, insertUserSchema, insertActivityLogSchema, insertSavedSearchSchema, insertEventTagSchema, insertTargetAudienceSchema, insertSeasonalThemeSchema } from "@shared/schema";
 import { isAdmin, isAuthenticated, attachUser } from "./middleware/auth";
@@ -160,13 +159,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
   const httpServer = createServer(app);
   
-  // Serve static files (fix for build directory issue)
-  try {
-    serveStatic(app);
-  } catch (error) {
-    console.warn("Warning: Could not serve static files:", error.message);
-    console.warn("This is expected in development mode.");
-  }
   
   const MAX_WS_CONNECTIONS = 200;
   const WS_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
@@ -4497,8 +4489,5 @@ Antwoord in dit JSON formaat:
     }
   });
 
-  // Setup VITE server
-  await setupVite(app, httpServer);
-  
   return httpServer;
 }

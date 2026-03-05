@@ -18,6 +18,7 @@ import { startRssScheduler, rssSyncMiddleware } from "./rss-scheduler";
 import { expirePromotions } from "./routes/advertiser-routes";
 import { randomBytes } from "crypto";
 import { closePool } from "./db";
+import { seedFeeds } from "./migrations/seed-feeds";
 
 let lastPromotionCheck: number | null = null;
 
@@ -128,7 +129,6 @@ const HOST = '0.0.0.0';
     }
 
     try {
-      const { seedFeeds } = await import('./migrations/seed-feeds');
       await seedFeeds();
     } catch (e: any) {
       console.error('[Migration] Feed seeding failed:', e.message);

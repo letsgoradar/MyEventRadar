@@ -2105,6 +2105,18 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  app.post("/api/admin/rss-feeds/seed", isAdmin, async (req, res) => {
+    try {
+      const { seedFeeds } = await import('./migrations/seed-feeds');
+      await seedFeeds();
+      const feeds = await storage.getAllRssFeeds();
+      res.json({ message: `Seed complete. ${feeds.length} feeds in database.`, count: feeds.length });
+    } catch (error) {
+      console.error('Error in POST /api/admin/rss-feeds/seed:', error);
+      res.status(500).json({ message: "Seed failed" });
+    }
+  });
+
   app.post("/api/admin/rss-feeds", isAdmin, async (req, res) => {
     try {
       const { name, url, feedType, defaultCategory, defaultLatitude, defaultLongitude, defaultAddress, updateFrequencyMinutes, autoCreateEvents, municipality, fieldMappings } = req.body;

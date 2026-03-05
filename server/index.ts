@@ -13,11 +13,13 @@ import { attachUser } from "./middleware/auth";
 import { autoLoginTestUser } from "./middleware/auto-login";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { startNotificationScheduler } from "./notification-scheduler";
-import { startRssScheduler } from "./rss-scheduler";
+import { startNotificationScheduler, notificationSyncMiddleware } from "./notification-scheduler";
+import { startRssScheduler, rssSyncMiddleware } from "./rss-scheduler";
 import { expirePromotions } from "./routes/advertiser-routes";
 import { randomBytes } from "crypto";
 import { closePool } from "./db";
+
+let lastPromotionCheck: number | null = null;
 
 function getSessionSecret(): string {
   if (process.env.SESSION_SECRET) {
@@ -107,19 +109,21 @@ const HOST = '0.0.0.0';
     const server = await registerRoutes(app);
     console.log('Routes registered successfully');
 
-    // Start notification scheduler for upcoming events
     startNotificationScheduler();
-    console.log('Notification scheduler started');
-
-    // Start RSS feed scheduler
     startRssScheduler();
-    console.log('RSS feed scheduler started');
-
-    setInterval(() => {
-      expirePromotions().catch(console.error);
-    }, 5 * 60 * 1000);
     expirePromotions().catch(console.error);
-    console.log('Promotion expiration scheduler started');
+
+    app.use(rssSyncMiddleware);
+    app.use(notificationSyncMiddleware);
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      next();
+      const now = Date.now();
+      if (!lastPromotionCheck || (now - lastPromotionCheck) >= 5 * 60 * 1000) {
+        lastPromotionCheck = now;
+        expirePromotions().catch(console.error);
+      }
+    });
+    console.log('Request-triggered schedulers registered (RSS 24h, notifications 1h, promotions 5min)');
 
     // Add error handling middleware
     app.use(errorHandler);

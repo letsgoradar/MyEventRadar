@@ -1,15 +1,18 @@
 import { db } from "./db";
 import { notifications, favorites, participants, events, users } from "@shared/schema";
 import { eq, and, gte, lte, isNull, or, sql, inArray } from "drizzle-orm";
+import type { Request, Response, NextFunction } from "express";
 
-// Herinneringstijden in uren
 const REMINDER_HOURS = [48, 24, 1] as const;
 type ReminderHour = typeof REMINDER_HOURS[number];
 
-/**
- * Generates notifications for upcoming events at 48h, 24h and 1h intervals
- * Only creates notifications for users who favorited or are participating in events
- */
+let lastNotificationCheck: Date | null = null;
+let lastCleanup: Date | null = null;
+let isChecking = false;
+
+const NOTIFICATION_CHECK_INTERVAL_HOURS = 1;
+const CLEANUP_INTERVAL_HOURS = 24;
+
 export async function generateUpcomingEventNotifications() {
   try {
     const now = new Date();
@@ -20,7 +23,6 @@ export async function generateUpcomingEventNotifications() {
       totalNotificationsCreated += notificationsCreated;
     }
     
-    // Alleen loggen als er iets gebeurd is of bij debug
     if (totalNotificationsCreated > 0) {
       console.log(`[Notifications] ${totalNotificationsCreated} herinneringen aangemaakt`);
     }
@@ -33,12 +35,10 @@ export async function generateUpcomingEventNotifications() {
 }
 
 async function generateNotificationsForTimeWindow(now: Date, hoursAhead: ReminderHour): Promise<number> {
-  // Calculate time window: events starting in hoursAhead hours (+/- 30 min tolerance)
   const targetTime = new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
   const windowStart = new Date(targetTime.getTime() - 30 * 60 * 1000);
   const windowEnd = new Date(targetTime.getTime() + 30 * 60 * 1000);
   
-  // Find events in this window
   const upcomingEvents = await db
     .select()
     .from(events)
@@ -57,19 +57,16 @@ async function generateNotificationsForTimeWindow(now: Date, hoursAhead: Reminde
   const reminderType = `event_reminder_${hoursAhead}h`;
   
   for (const event of upcomingEvents) {
-    // Find all users who favorited this event
     const favoriteUsers = await db
       .select({ userId: favorites.userId })
       .from(favorites)
       .where(eq(favorites.eventId, event.id));
 
-    // Find all users who are participating in this event
     const participantUsers = await db
       .select({ userId: participants.userId })
       .from(participants)
       .where(eq(participants.eventId, event.id));
 
-    // Combine unique user IDs
     const allUserIds = new Set([
       ...favoriteUsers.map((f: { userId: number }) => f.userId),
       ...participantUsers.map((p: { userId: number }) => p.userId)
@@ -79,9 +76,7 @@ async function generateNotificationsForTimeWindow(now: Date, hoursAhead: Reminde
       continue;
     }
 
-    // Create notifications for each user (skip if already exists for this reminder type)
     for (const userId of Array.from(allUserIds)) {
-      // Check if notification already exists for this specific reminder
       const existingNotifications = await db
         .select()
         .from(notifications)
@@ -97,7 +92,6 @@ async function generateNotificationsForTimeWindow(now: Date, hoursAhead: Reminde
         continue;
       }
 
-      // Create appropriate message based on time
       const { title, message } = getReminderMessage(event, hoursAhead);
 
       await db.insert(notifications).values({
@@ -140,9 +134,6 @@ function getReminderMessage(event: typeof events.$inferSelect, hoursAhead: Remin
   }
 }
 
-/**
- * Cleans up old read notifications (older than 30 days)
- */
 export async function cleanupOldNotifications() {
   try {
     const thirtyDaysAgo = new Date();
@@ -164,35 +155,44 @@ export async function cleanupOldNotifications() {
   }
 }
 
-// Run the scheduler every hour
-let schedulerInterval: NodeJS.Timeout | null = null;
+function shouldCheckNotifications(): boolean {
+  if (isChecking) return false;
+  if (!lastNotificationCheck) return true;
+  const hoursSinceLastCheck = (Date.now() - lastNotificationCheck.getTime()) / (1000 * 60 * 60);
+  return hoursSinceLastCheck >= NOTIFICATION_CHECK_INTERVAL_HOURS;
+}
+
+function shouldCleanup(): boolean {
+  if (!lastCleanup) return true;
+  const hoursSinceLastCleanup = (Date.now() - lastCleanup.getTime()) / (1000 * 60 * 60);
+  return hoursSinceLastCleanup >= CLEANUP_INTERVAL_HOURS;
+}
+
+export function notificationSyncMiddleware(req: Request, res: Response, next: NextFunction): void {
+  next();
+  
+  if (shouldCheckNotifications()) {
+    isChecking = true;
+    lastNotificationCheck = new Date();
+    
+    generateUpcomingEventNotifications()
+      .then(() => {
+        if (shouldCleanup()) {
+          lastCleanup = new Date();
+          return cleanupOldNotifications();
+        }
+      })
+      .catch((err) => console.error('[Notifications] Background check error:', err))
+      .finally(() => { isChecking = false; });
+  }
+}
 
 export function startNotificationScheduler() {
-  if (schedulerInterval) {
-    return;
-  }
-
-  console.log('[Notification Scheduler] Gestart');
-  
-  // Run immediately on start (silent unless there are notifications)
-  generateUpcomingEventNotifications();
-  
-  // Then run every hour
-  schedulerInterval = setInterval(() => {
-    generateUpcomingEventNotifications();
-    
-    // Clean up old notifications once a day (at 3 AM)
-    const now = new Date();
-    if (now.getHours() === 3) {
-      cleanupOldNotifications();
-    }
-  }, 60 * 60 * 1000); // Every hour
+  console.log('[Notification Scheduler] Request-triggered mode enabled (check every 1h on traffic)');
+  generateUpcomingEventNotifications().catch(console.error);
+  lastNotificationCheck = new Date();
 }
 
 export function stopNotificationScheduler() {
-  if (schedulerInterval) {
-    clearInterval(schedulerInterval);
-    schedulerInterval = null;
-    console.log('[Notification Scheduler] Gestopt');
-  }
+  console.log('[Notification Scheduler] Gestopt');
 }

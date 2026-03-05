@@ -1,35 +1,11 @@
 import { RssFeedService } from "./services/rss-feed-service";
+import type { Request, Response, NextFunction } from "express";
 
-let schedulerInterval: NodeJS.Timeout | null = null;
 let isProcessing = false;
+let lastSyncTime: Date | null = null;
+let initialized = false;
 
-const SCHEDULE_HOURS = [3, 15];
-
-function getNextScheduledTime(): Date {
-  const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinutes = now.getMinutes();
-  
-  let nextHour = SCHEDULE_HOURS.find(h => h > currentHour || (h === currentHour && currentMinutes < 0));
-  
-  if (nextHour === undefined) {
-    nextHour = SCHEDULE_HOURS[0];
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(nextHour, 0, 0, 0);
-    return tomorrow;
-  }
-  
-  const next = new Date(now);
-  next.setHours(nextHour, 0, 0, 0);
-  return next;
-}
-
-function getMillisecondsUntilNext(): number {
-  const next = getNextScheduledTime();
-  const now = new Date();
-  return next.getTime() - now.getTime();
-}
+const SYNC_INTERVAL_HOURS = 24;
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('nl-NL', { 
@@ -48,18 +24,51 @@ function formatDate(date: Date): string {
   });
 }
 
-async function runScheduledScrape(): Promise<void> {
-  if (isProcessing) {
-    console.log("[RSS Scheduler] Skipping - previous run still in progress");
-    return;
+async function initializeLastSyncTime(): Promise<void> {
+  if (initialized) return;
+  initialized = true;
+  
+  try {
+    const { db } = await import("./db");
+    const { rssFeeds } = await import("@shared/schema");
+    const { desc, isNotNull } = await import("drizzle-orm");
+    
+    const [mostRecent] = await db
+      .select({ lastFetchedAt: rssFeeds.lastFetchedAt })
+      .from(rssFeeds)
+      .where(isNotNull(rssFeeds.lastFetchedAt))
+      .orderBy(desc(rssFeeds.lastFetchedAt))
+      .limit(1);
+    
+    if (mostRecent?.lastFetchedAt) {
+      lastSyncTime = new Date(mostRecent.lastFetchedAt);
+      console.log(`[RSS Scheduler] Last sync was at ${formatTime(lastSyncTime)} on ${formatDate(lastSyncTime)}`);
+    } else {
+      console.log(`[RSS Scheduler] No previous sync found, will sync on first request`);
+    }
+  } catch (error: any) {
+    console.error("[RSS Scheduler] Error reading last sync time:", error.message);
   }
+}
+
+function shouldSync(): boolean {
+  if (isProcessing) return false;
+  if (!lastSyncTime) return true;
+  
+  const hoursSinceLastSync = (Date.now() - lastSyncTime.getTime()) / (1000 * 60 * 60);
+  return hoursSinceLastSync >= SYNC_INTERVAL_HOURS;
+}
+
+async function runBackgroundSync(): Promise<void> {
+  if (isProcessing) return;
   
   const startTime = new Date();
-  console.log(`[RSS Scheduler] ===== Starting scheduled scrape at ${formatTime(startTime)} on ${formatDate(startTime)} =====`);
+  console.log(`[RSS Scheduler] ===== Starting request-triggered scrape at ${formatTime(startTime)} on ${formatDate(startTime)} =====`);
   
   isProcessing = true;
   try {
     const result = await RssFeedService.processFeeds();
+    lastSyncTime = new Date();
     const endTime = new Date();
     const durationMinutes = ((endTime.getTime() - startTime.getTime()) / 1000 / 60).toFixed(1);
     
@@ -67,48 +76,34 @@ async function runScheduledScrape(): Promise<void> {
     console.log(`[RSS Scheduler] Duration: ${durationMinutes} minutes`);
     console.log(`[RSS Scheduler] Feeds processed: ${result.processed}`);
     console.log(`[RSS Scheduler] Errors: ${result.errors}`);
-    
-    const nextRun = getNextScheduledTime();
-    console.log(`[RSS Scheduler] Next scheduled run: ${formatTime(nextRun)} on ${formatDate(nextRun)}`);
   } catch (error: any) {
-    console.error("[RSS Scheduler] Error during scheduled scrape:", error.message);
+    console.error("[RSS Scheduler] Error during scrape:", error.message);
   } finally {
     isProcessing = false;
   }
 }
 
-function scheduleNextRun(): void {
-  const msUntilNext = getMillisecondsUntilNext();
-  const nextTime = getNextScheduledTime();
+export function rssSyncMiddleware(req: Request, res: Response, next: NextFunction): void {
+  next();
   
-  console.log(`[RSS Scheduler] Next run scheduled for ${formatTime(nextTime)} on ${formatDate(nextTime)} (in ${(msUntilNext / 1000 / 60 / 60).toFixed(1)} hours)`);
-  
-  schedulerInterval = setTimeout(async () => {
-    await runScheduledScrape();
-    scheduleNextRun();
-  }, msUntilNext);
+  if (!initialized) {
+    initializeLastSyncTime().then(() => {
+      if (shouldSync()) {
+        runBackgroundSync();
+      }
+    });
+  } else if (shouldSync()) {
+    runBackgroundSync();
+  }
 }
 
 export function startRssScheduler(): void {
-  if (schedulerInterval) {
-    console.log("[RSS Scheduler] Scheduler already running");
-    return;
-  }
-
-  console.log("[RSS Scheduler] Starting RSS feed scheduler...");
-  console.log(`[RSS Scheduler] Configured to run at: ${SCHEDULE_HOURS.map(h => `${h.toString().padStart(2, '0')}:00`).join(' and ')}`);
-  
-  scheduleNextRun();
-  
-  console.log("[RSS Scheduler] Scheduler started successfully");
+  console.log("[RSS Scheduler] Request-triggered mode enabled (sync every 24h on traffic)");
+  initializeLastSyncTime();
 }
 
 export function stopRssScheduler(): void {
-  if (schedulerInterval) {
-    clearTimeout(schedulerInterval);
-    schedulerInterval = null;
-    console.log("[RSS Scheduler] Scheduler stopped");
-  }
+  console.log("[RSS Scheduler] Stopped");
 }
 
 export async function runManualFeedCheck(): Promise<{ processed: number; errors: number }> {
@@ -123,6 +118,7 @@ export async function runManualFeedCheck(): Promise<{ processed: number; errors:
   isProcessing = true;
   try {
     const result = await RssFeedService.processFeeds();
+    lastSyncTime = new Date();
     const endTime = new Date();
     const durationMinutes = ((endTime.getTime() - startTime.getTime()) / 1000 / 60).toFixed(1);
     
@@ -145,11 +141,15 @@ export function getSchedulerStatus(): {
   isProcessing: boolean; 
   nextRun: Date | null;
   scheduleHours: number[];
+  lastSyncTime: Date | null;
+  mode: string;
 } {
   return {
-    isRunning: schedulerInterval !== null,
+    isRunning: true,
     isProcessing,
-    nextRun: schedulerInterval ? getNextScheduledTime() : null,
-    scheduleHours: SCHEDULE_HOURS
+    nextRun: null,
+    scheduleHours: [],
+    lastSyncTime,
+    mode: 'request-triggered'
   };
 }

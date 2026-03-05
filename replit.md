@@ -200,9 +200,13 @@ Twee-producten advertentiesysteem:
 - **AI Safeguards**: AI-created venues are validated for NL bounds (lat 50.7-53.6, lng 3.3-7.2). AI extraction profiles require minimum 40% confidence. RSS batch imports are limited to 500 items per feed.
 
 ### Deployment Configuration
-- **Type**: Reserved VM (`vm`) — always running, required for scheduled tasks and WebSocket connections
+- **Type**: Autoscale — scales up/down based on traffic, cost-effective for variable usage
 - **Build**: `npm run build` (Vite frontend + esbuild backend)
 - **Run**: `npm run start` (`NODE_ENV=production node dist/index.js`)
+- **Schedulers**: All schedulers are request-triggered (no setInterval/setTimeout):
+  - RSS feed sync: runs on first request if last sync > 24h ago (fire-and-forget background task)
+  - Notification check: runs on first request if last check > 1h ago
+  - Promotion expiration: runs on first request if last check > 5min ago
 - **Graceful Shutdown**: `SIGTERM`/`SIGINT` handlers close the database pool cleanly before exit. 10s forced timeout.
 - **Unhandled Errors**: Global `unhandledRejection` and `uncaughtException` handlers log errors and trigger graceful shutdown.
 - **Health Check**: `GET /api/health` returns database status, uptime, memory usage. Returns 503 if database is unreachable.

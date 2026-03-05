@@ -541,17 +541,10 @@ export function WebMyEventsPage() {
     );
   }
 
-  // Sidebar component met sidebar
-  const Sidebar = React.lazy(() => import("@/components/Web/Sidebar"));
-
   return (
     <>
       <div className="h-screen flex overflow-hidden">
-        <React.Suspense fallback={<div className="w-[260px] bg-background border-r" />}>
-          <Sidebar />
-        </React.Suspense>
-        
-        <div className="flex-1 flex flex-col relative w-[calc(100vw-260px)]">
+        <div className="flex-1 flex flex-col relative">
           {/* Header met zoekbalk - consistent met homepagina */}
           <div className="sticky top-0 left-0 right-0 z-[100]">
             <Header 

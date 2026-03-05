@@ -127,6 +127,13 @@ const HOST = '0.0.0.0';
       console.error('[Migration] Admin update failed:', e.message);
     }
 
+    try {
+      const { seedFeeds } = await import('./migrations/seed-feeds');
+      await seedFeeds();
+    } catch (e: any) {
+      console.error('[Migration] Feed seeding failed:', e.message);
+    }
+
     // Register routes first for faster API availability
     const server = await registerRoutes(app);
     console.log('Routes registered successfully');

@@ -6,7 +6,7 @@ async function seedAdminUser() {
   try {
     // Check if admin user already exists
     const existingAdmin = await db.query.users.findFirst({
-      where: (users, { eq }) => eq(users.email, 'admin@example.com')
+      where: (users, { eq }) => eq(users.email, 'info@letsgoradar.com')
     });
 
     if (existingAdmin) {
@@ -14,13 +14,11 @@ async function seedAdminUser() {
       return;
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash('adminadmin', 10);
+    const passwordHash = await bcrypt.hash('HRmYfh76cX1tubDp', 10);
 
-    // Create admin user
     const adminUser = await db.insert(users).values({
       username: 'admin',
-      email: 'admin@example.com',
+      email: 'info@letsgoradar.com',
       password: passwordHash,
       role: 'admin'
     }).returning();

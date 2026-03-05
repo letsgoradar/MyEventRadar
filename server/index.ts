@@ -105,6 +105,22 @@ const HOST = '0.0.0.0';
   try {
     console.log('Initializing server configuration...');
 
+    try {
+      const bcrypt = await import('bcryptjs');
+      const { db: migrateDb } = await import('./db');
+      const { users: usersTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      const [adminUser] = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, 1));
+      if (adminUser && adminUser.email !== 'info@letsgoradar.com') {
+        const hash = await bcrypt.default.hash('HRmYfh76cX1tubDp', 10);
+        await migrateDb.update(usersTable).set({ email: 'info@letsgoradar.com', password: hash }).where(eq(usersTable.id, 1));
+        console.log('[Migration] Admin credentials updated');
+      }
+    } catch (e: any) {
+      console.error('[Migration] Admin update failed:', e.message);
+    }
+
     // Register routes first for faster API availability
     const server = await registerRoutes(app);
     console.log('Routes registered successfully');

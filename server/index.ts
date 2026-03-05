@@ -111,11 +111,17 @@ const HOST = '0.0.0.0';
       const { users: usersTable } = await import('@shared/schema');
       const { eq } = await import('drizzle-orm');
       
-      const [adminUser] = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, 1));
-      if (adminUser && adminUser.email !== 'info@letsgoradar.com') {
+      const [adminUser] = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, 'info@letsgoradar.com'));
+      if (!adminUser) {
+        const existingAdmin = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.username, 'admin'));
         const hash = await bcrypt.default.hash('HRmYfh76cX1tubDp', 10);
-        await migrateDb.update(usersTable).set({ email: 'info@letsgoradar.com', password: hash }).where(eq(usersTable.id, 1));
-        console.log('[Migration] Admin credentials updated');
+        if (existingAdmin.length > 0) {
+          await migrateDb.update(usersTable).set({ email: 'info@letsgoradar.com', password: hash }).where(eq(usersTable.id, existingAdmin[0].id));
+          console.log('[Migration] Admin credentials updated');
+        } else {
+          await migrateDb.insert(usersTable).values({ username: 'admin', email: 'info@letsgoradar.com', password: hash, role: 'admin' });
+          console.log('[Migration] Admin user created');
+        }
       }
     } catch (e: any) {
       console.error('[Migration] Admin update failed:', e.message);

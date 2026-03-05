@@ -570,6 +570,26 @@ export default function RssFeedsPage() {
     },
   });
 
+  const seedFeedsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/admin/rss-feeds/seed', { credentials: 'include' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ message: 'Onbekende fout' }));
+        throw new Error(data.message || 'Seed mislukt');
+      }
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/overview'] });
+      toast({ title: 'Feeds geïmporteerd', description: data.message });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Fout', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const addEindhovenFeeds = async () => {
     try {
       await apiRequest('/api/admin/rss-feeds', {
@@ -1072,24 +1092,15 @@ export default function RssFeedsPage() {
                   Importeer alle standaard feeds of voeg handmatig een feed toe.
                 </p>
                 <div className="flex gap-3 justify-center">
-                  <Button onClick={async () => {
-                    try {
-                      const res = await fetch('/api/admin/rss-feeds/seed', { credentials: 'include' });
-                      const data = await res.json();
-                      if (res.ok) {
-                        queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
-                        queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
-                        queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/overview'] });
-                        toast({ title: 'Feeds geïmporteerd', description: data.message });
-                      } else {
-                        toast({ title: 'Fout', description: data.message, variant: 'destructive' });
-                      }
-                    } catch (e: any) {
-                      toast({ title: 'Fout', description: e.message, variant: 'destructive' });
-                    }
-                  }} data-testid="button-seed-feeds">
-                    <Download className="w-4 h-4 mr-2" />
-                    Alle standaard feeds importeren
+                  <Button onClick={() => {
+                    seedFeedsMutation.mutate();
+                  }} disabled={seedFeedsMutation.isPending} data-testid="button-seed-feeds">
+                    {seedFeedsMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-2" />
+                    )}
+                    {seedFeedsMutation.isPending ? 'Bezig met importeren...' : 'Alle standaard feeds importeren'}
                   </Button>
                   <Button variant="outline" onClick={addEindhovenFeeds} data-testid="button-add-eindhoven">
                     <Plus className="w-4 h-4 mr-2" />

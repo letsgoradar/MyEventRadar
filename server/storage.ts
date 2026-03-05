@@ -96,6 +96,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   getUserCount(): Promise<number>;
@@ -430,6 +431,13 @@ export class PgStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     return this.withRetry(async () => {
       const [result] = await db.select().from(users).where(eq(users.email, email));
+      return result;
+    });
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    return this.withRetry(async () => {
+      const [result] = await db.select().from(users).where(eq(users.googleId, googleId));
       return result;
     });
   }

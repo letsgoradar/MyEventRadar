@@ -72,13 +72,11 @@ export function WelcomeScreen() {
   }, [navigateTo, startAnimation, setLocation]);
 
   const handleGoogleLogin = () => {
-    // TODO: Implementeer Google login
-    console.log("Google login");
+    window.location.href = '/api/auth/google?returnTo=/app';
   };
 
   const handleAppleLogin = () => {
-    // TODO: Implementeer Apple login
-    console.log("Apple login");
+    console.log("Apple login komt binnenkort");
   };
 
   const goToLogin = () => {

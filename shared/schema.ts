@@ -543,6 +543,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   photoUrl: true,
   googleId: true,
   role: true,
+  name: true,
 });
 
 const locationSchema = z.object({

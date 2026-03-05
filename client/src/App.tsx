@@ -86,6 +86,8 @@ const AdminVenueDetail = React.lazy(() => import("@/pages/admin/VenueDetail"));
 const AdminFeedback = React.lazy(() => import("@/pages/admin/Feedback"));
 
 const WebPage = React.lazy(() => import("@/pages/Web.tsx"));
+const WebLoginPage = React.lazy(() => import("@/pages/Web/login"));
+const WebRegisterPage = React.lazy(() => import("@/pages/Web/register"));
 const WebProfilePage = React.lazy(() => import("@/pages/Web/ProfilePage"));
 const CreateEvent = React.lazy(() => import("@/pages/Web/create-event"));
 const EventDetail = React.lazy(() => import("@/pages/Web/event-detail"));
@@ -262,6 +264,14 @@ export default function App() {
             </Route>
           </>
         )}
+
+        {/* Web Login/Register - beschikbaar op alle apparaten */}
+        <Route path="/web/login">
+          <LazyLoad><WebLoginPage /></LazyLoad>
+        </Route>
+        <Route path="/web/register">
+          <LazyLoad><WebRegisterPage /></LazyLoad>
+        </Route>
 
         {/* Desktop Web Routes */}
         {!isMobile && (

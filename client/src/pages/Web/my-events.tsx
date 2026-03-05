@@ -7,7 +7,7 @@ import { EventInterface } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bookmark, UserCheck, Calendar, MapPin, Clock, Users, Edit, Trash2, Eye, ChevronRight, CalendarPlus, Map } from "lucide-react";
+import { Bookmark, UserCheck, Calendar, MapPin, Clock, Users, Edit, Trash2, Eye, ChevronRight, CalendarPlus, Map, LogIn } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,7 +45,7 @@ interface ParticipantInfo {
 }
 
 export function WebMyEventsPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = React.useState<string>("organized");
@@ -512,6 +512,34 @@ export function WebMyEventsPage() {
       </div>
     );
   };
+
+  if (!authLoading && !user) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header isMapView={false} toggleView={() => {}} hideViewToggle />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4 max-w-md p-8">
+            <Calendar className="h-16 w-16 text-muted-foreground mx-auto" />
+            <h2 className="text-2xl font-bold">Log in om je evenementen te beheren</h2>
+            <p className="text-muted-foreground">
+              Bekijk je georganiseerde evenementen, deelnames en opgeslagen favorieten door in te loggen.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Link href="/web/login?returnTo=/web/my-events">
+                <Button className="gap-2">
+                  <LogIn className="h-4 w-4" />
+                  Inloggen
+                </Button>
+              </Link>
+              <Link href="/web/register?returnTo=/web/my-events">
+                <Button variant="outline">Registreren</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Sidebar component met sidebar
   const Sidebar = React.lazy(() => import("@/components/Web/Sidebar"));

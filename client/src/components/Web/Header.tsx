@@ -38,6 +38,8 @@ import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
 import { EventFilters, ActiveFilterBadges, type EventFilterState } from "@/components/Filters/EventFilters";
 import { RadarLogoWithText } from "@/components/RadarLogo";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
+import { useAuth } from "@/hooks/use-auth";
+import { LogIn } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
@@ -83,6 +85,7 @@ export function Header({
   isFilterSidebarOpen,
   onFilterSidebarOpenChange,
 }: HeaderProps) {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
@@ -470,25 +473,34 @@ export function Header({
         {/* Language Switcher */}
         <LanguageSwitcher />
 
-        {/* User profile */}
-        <Link href="/web/profile" className="relative">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="h-10 w-10 rounded-full overflow-hidden border border-border hover:border-primary/50 transition-colors">
-                  <img 
-                    src="/images/default-user.svg" 
-                    alt="Profielfoto" 
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Mijn Profiel</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </Link>
+        {/* User profile / Login */}
+        {user ? (
+          <Link href="/web/profile" className="relative">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="h-10 w-10 rounded-full overflow-hidden border border-border hover:border-primary/50 transition-colors">
+                    <img 
+                      src={user.photoUrl || user.avatar || "/images/default-user.svg"} 
+                      alt="Profielfoto" 
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Mijn Profiel</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </Link>
+        ) : (
+          <Link href="/web/login">
+            <Button variant="default" size="sm" className="h-10 px-4 rounded-full flex items-center gap-2">
+              <LogIn className="h-4 w-4" />
+              <span className="hidden sm:inline">Inloggen</span>
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );

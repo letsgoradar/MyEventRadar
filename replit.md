@@ -16,7 +16,12 @@ Preferred communication style: Simple, everyday language.
 - **UI**: Radix UI with Tailwind CSS
 - **Maps**: React Leaflet
 - **Forms**: React Hook Form with Zod validation
-- **Authentication**: Session-based with Passport.js
+- **Authentication**: Session-based with Passport.js (Local + Google OAuth20)
+  - Web login: `/web/login`, `/web/register`
+  - App login: `/app/login`, `/app/register`
+  - Admin login: `/login`, `/admin/login`
+  - Google OAuth: requires `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` env vars
+  - Test user: `demo@letsgo.nl` / `demo1234`
 
 ### Backend
 - **Runtime**: Node.js with Express.js

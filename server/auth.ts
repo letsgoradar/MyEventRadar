@@ -1,5 +1,6 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Express } from "express";
 import session from "express-session";
 import bcrypt from "bcryptjs";
@@ -365,13 +366,88 @@ export function setupAuth(app: Express) {
     }
   });
   
-  // OAuth routes - placeholders voor sociale login
-  // In een echte applicatie zou hier de integratie met Google/Apple zijn
-  app.get("/api/auth/google", (req, res) => {
-    res.status(501).json({ message: "Google login nog niet geïmplementeerd" });
+  // Google OAuth setup
+  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (googleClientId && googleClientSecret) {
+    const callbackURL = process.env.NODE_ENV === 'production'
+      ? `${process.env.REPLIT_DOMAINS ? 'https://' + process.env.REPLIT_DOMAINS.split(',')[0] : ''}/api/auth/google/callback`
+      : '/api/auth/google/callback';
+
+    passport.use(new GoogleStrategy({
+      clientID: googleClientId,
+      clientSecret: googleClientSecret,
+      callbackURL,
+    }, async (_accessToken, _refreshToken, profile, done) => {
+      try {
+        const googleId = profile.id;
+        const email = profile.emails?.[0]?.value;
+        const name = profile.displayName || '';
+        const photoUrl = profile.photos?.[0]?.value || '';
+
+        let user = await storage.getUserByGoogleId(googleId);
+
+        if (!user && email) {
+          user = await storage.getUserByEmail(email);
+          if (user) {
+            user = await storage.updateUser(user.id, { googleId, photoUrl: photoUrl || user.photoUrl });
+          }
+        }
+
+        if (!user) {
+          const username = email
+            ? email.split('@')[0] + '_' + randomBytes(3).toString('hex')
+            : 'google_' + randomBytes(6).toString('hex');
+          const hashedPassword = await hashPassword(randomBytes(32).toString('hex'));
+
+          user = await storage.createUser({
+            username,
+            email: email || `${googleId}@google.oauth`,
+            password: hashedPassword,
+            role: 'user',
+            googleId,
+            name,
+            photoUrl,
+          });
+        }
+
+        return done(null, user);
+      } catch (error) {
+        console.error('Google OAuth error:', error);
+        return done(error as Error);
+      }
+    }));
+
+    app.get("/api/auth/google", (req, res, next) => {
+      const returnTo = req.query.returnTo as string || '/web';
+      (req.session as any).returnTo = returnTo;
+      passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+    });
+
+    app.get("/api/auth/google/callback",
+      passport.authenticate("google", { failureRedirect: "/web/login?error=google_failed" }),
+      (req, res) => {
+        const returnTo = (req.session as any).returnTo || '/web';
+        delete (req.session as any).returnTo;
+        res.redirect(returnTo);
+      }
+    );
+
+    console.log('[Auth] Google OAuth configured');
+  } else {
+    console.log('[Auth] Google OAuth not configured (missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET)');
+
+    app.get("/api/auth/google", (_req, res) => {
+      res.status(503).json({ message: "Google login is niet geconfigureerd. Stel GOOGLE_CLIENT_ID en GOOGLE_CLIENT_SECRET in." });
+    });
+  }
+
+  app.get("/api/auth/google/status", (_req, res) => {
+    res.json({ enabled: !!(googleClientId && googleClientSecret) });
   });
-  
-  app.get("/api/auth/apple", (req, res) => {
-    res.status(501).json({ message: "Apple login nog niet geïmplementeerd" });
+
+  app.get("/api/auth/apple", (_req, res) => {
+    res.status(501).json({ message: "Apple login komt binnenkort" });
   });
 }

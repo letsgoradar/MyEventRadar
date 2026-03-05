@@ -13,8 +13,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { BetaBanner } from "@/components/BetaBanner"
 import { FeedbackWidget } from "@/components/FeedbackWidget"
 import { useLocation } from "wouter"
+import { Button } from "@/components/ui/button"
+import { AlertTriangle, RefreshCw } from "lucide-react"
 
-// Lazy loading wrapper voor betere code splitting
 const LazyLoad = ({ children }: { children: React.ReactNode }) => (
   <React.Suspense fallback={
     <div className="flex items-center justify-center min-h-screen">
@@ -29,7 +30,47 @@ const LazyLoad = ({ children }: { children: React.ReactNode }) => (
   </React.Suspense>
 );
 
-// Admin componenten (lazy loaded)
+class RouteErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4 max-w-md p-8">
+            <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto" />
+            <h2 className="text-xl font-semibold">Er ging iets mis</h2>
+            <p className="text-muted-foreground">
+              De pagina kon niet geladen worden. Probeer het opnieuw.
+            </p>
+            <Button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.reload();
+              }}
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Pagina herladen
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const AdminLogin = React.lazy(() => import("@/pages/admin/Login"));
 const AdminDashboard = React.lazy(() => import("@/pages/admin/Dashboard"));
 const AdminEvents = React.lazy(() => import("@/pages/admin/Events"));
@@ -44,7 +85,6 @@ const AdminVenues = React.lazy(() => import("@/pages/admin/Venues"));
 const AdminVenueDetail = React.lazy(() => import("@/pages/admin/VenueDetail"));
 const AdminFeedback = React.lazy(() => import("@/pages/admin/Feedback"));
 
-// Web componenten (lazy loaded) - Let op: Web.tsx is direct in pages, niet in Web/
 const WebPage = React.lazy(() => import("@/pages/Web.tsx"));
 const WebProfilePage = React.lazy(() => import("@/pages/Web/ProfilePage"));
 const CreateEvent = React.lazy(() => import("@/pages/Web/create-event"));
@@ -53,7 +93,6 @@ const WebMyEventsPage = React.lazy(() => import("@/pages/Web/my-events"));
 const VenuePage = React.lazy(() => import("@/pages/Web/VenuePage"));
 const VenueDashboard = React.lazy(() => import("@/pages/Web/VenueDashboard"));
 
-// App componenten (lazy loaded)
 const AppHomePage = React.lazy(() => import("@/pages/App/index"));
 const AppLoginPage = React.lazy(() => import("@/pages/App/login"));
 const AppRegisterPage = React.lazy(() => import("@/pages/App/register"));
@@ -64,17 +103,13 @@ const AppProfilePage = React.lazy(() => import("@/pages/App/profile"));
 const AppWelcomePage = React.lazy(() => import("@/pages/App/welcome"));
 const AppForgotPasswordPage = React.lazy(() => import("@/pages/App/forgot-password"));
 
-// Public SEO pagina's (lazy loaded)
 const CityPage = React.lazy(() => import("@/pages/public/CityPage"));
 
-// PWA install scherm (lazy loaded)
 const InstallPWA = React.lazy(() => import("@/components/App/InstallPWA").then(m => ({ default: m.InstallPWA })));
 
-// Error pagina's (lazy loaded)
 const NotFound = React.lazy(() => import("@/pages/not-found"));
 const ErrorPage = React.lazy(() => import("@/pages/error"));
 
-// Advertiser componenten (lazy loaded)
 const AdvertiserAuthGuard = React.lazy(() => import("@/components/Advertiser/AuthGuard"));
 const AdvertiserLanding = React.lazy(() => import("@/pages/Advertiser/Landing"));
 const AdvertiserRegister = React.lazy(() => import("@/pages/Advertiser/Register"));
@@ -84,10 +119,8 @@ const AdvertiserPromotions = React.lazy(() => import("@/pages/Advertiser/Promoti
 const AdvertiserBilling = React.lazy(() => import("@/pages/Advertiser/Billing"));
 const AdvertiserVerify = React.lazy(() => import("@/pages/Advertiser/Verify"));
 
-// Layout componenten
 const WebLayout = React.lazy(() => import("@/components/Web/WebLayout").then(m => ({ default: m.WebLayout })));
 
-// Helper component voor redirects
 function AppRedirect({ to }: { to: string }) {
   React.useEffect(() => {
     window.location.href = to;
@@ -107,127 +140,125 @@ export default function App() {
       <LanguageProvider>
         <AuthProvider>
           <ThemeInjector />
-          <LazyLoad>
+          <RouteErrorBoundary>
           <Switch>
-        {/* Admin Routes - beschikbaar op alle apparaten */}
+        {/* Admin Routes */}
         <Route path="/login">
-          <AdminLogin />
+          <LazyLoad><AdminLogin /></LazyLoad>
         </Route>
         <Route path="/admin/login">
-          <AdminLogin />
+          <LazyLoad><AdminLogin /></LazyLoad>
         </Route>
         <Route path="/admin">
-          <AuthGuard>
-            <AdminDashboard />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/events">
-          <AuthGuard>
-            <AdminEvents />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/users">
-          <AuthGuard>
-            <AdminUsers />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/activity-logs">
-          <AuthGuard>
-            <ActivityLogs />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/rss-feeds">
-          <AuthGuard>
-            <AdminRssFeeds />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/tags">
-          <AuthGuard>
-            <TagManager />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/promotions">
-          <AuthGuard>
-            <AdminPromotions />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/feedback">
-          <AuthGuard>
-            <AdminFeedback />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/events/:id">
-          <AuthGuard>
-            <AdminEventDetail />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/events/new">
-          <AuthGuard>
-            <AdminEventForm />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/events/edit/:id">
-          <AuthGuard>
-            <AdminEventForm />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/venues">
-          <AuthGuard>
-            <AdminVenues />
-          </AuthGuard>
-        </Route>
-        <Route path="/admin/venues/:id">
-          <AuthGuard>
-            <AdminVenueDetail />
-          </AuthGuard>
-        </Route>
-        
-        {/* Advertiser Routes - publieke landing + beschermde dashboard */}
-        <Route path="/adverteren">
-          <AdvertiserLanding />
-        </Route>
-        <Route path="/advertiser/register">
-          <AdvertiserAuthGuard>
-            <AdvertiserRegister />
-          </AdvertiserAuthGuard>
-        </Route>
-        <Route path="/advertiser/dashboard">
-          <AdvertiserAuthGuard>
-            <AdvertiserDashboard />
-          </AdvertiserAuthGuard>
-        </Route>
-        <Route path="/advertiser/ads">
-          <AdvertiserAuthGuard>
-            <AdvertiserAds />
-          </AdvertiserAuthGuard>
-        </Route>
-        <Route path="/advertiser/promotions">
-          <AdvertiserAuthGuard>
-            <AdvertiserPromotions />
-          </AdvertiserAuthGuard>
-        </Route>
-        <Route path="/advertiser/billing">
-          <AdvertiserAuthGuard>
-            <AdvertiserBilling />
-          </AdvertiserAuthGuard>
-        </Route>
-        <Route path="/advertiser/verify">
           <LazyLoad>
-            <AdvertiserVerify />
+            <AuthGuard><AdminDashboard /></AuthGuard>
           </LazyLoad>
         </Route>
+        <Route path="/admin/events">
+          <LazyLoad>
+            <AuthGuard><AdminEvents /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/users">
+          <LazyLoad>
+            <AuthGuard><AdminUsers /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/activity-logs">
+          <LazyLoad>
+            <AuthGuard><ActivityLogs /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/rss-feeds">
+          <LazyLoad>
+            <AuthGuard><AdminRssFeeds /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/tags">
+          <LazyLoad>
+            <AuthGuard><TagManager /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/promotions">
+          <LazyLoad>
+            <AuthGuard><AdminPromotions /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/feedback">
+          <LazyLoad>
+            <AuthGuard><AdminFeedback /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/events/:id">
+          <LazyLoad>
+            <AuthGuard><AdminEventDetail /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/events/new">
+          <LazyLoad>
+            <AuthGuard><AdminEventForm /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/events/edit/:id">
+          <LazyLoad>
+            <AuthGuard><AdminEventForm /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/venues">
+          <LazyLoad>
+            <AuthGuard><AdminVenues /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/venues/:id">
+          <LazyLoad>
+            <AuthGuard><AdminVenueDetail /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        
+        {/* Advertiser Routes */}
+        <Route path="/adverteren">
+          <LazyLoad><AdvertiserLanding /></LazyLoad>
+        </Route>
+        <Route path="/advertiser/register">
+          <LazyLoad>
+            <AdvertiserAuthGuard><AdvertiserRegister /></AdvertiserAuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/advertiser/dashboard">
+          <LazyLoad>
+            <AdvertiserAuthGuard><AdvertiserDashboard /></AdvertiserAuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/advertiser/ads">
+          <LazyLoad>
+            <AdvertiserAuthGuard><AdvertiserAds /></AdvertiserAuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/advertiser/promotions">
+          <LazyLoad>
+            <AdvertiserAuthGuard><AdvertiserPromotions /></AdvertiserAuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/advertiser/billing">
+          <LazyLoad>
+            <AdvertiserAuthGuard><AdvertiserBilling /></AdvertiserAuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/advertiser/verify">
+          <LazyLoad><AdvertiserVerify /></LazyLoad>
+        </Route>
 
-        {/* Mobiel browser guard: toon install scherm voor alle niet-admin routes */}
+        {/* Mobiel browser guard */}
         {showInstallScreen && (
           <>
             <Route path="/:province/:city/evenementen">
-              <CityPage />
+              <LazyLoad><CityPage /></LazyLoad>
             </Route>
             <Route path="/:province/:city">
-              <CityPage />
+              <LazyLoad><CityPage /></LazyLoad>
             </Route>
             <Route>
-              <InstallPWA />
+              <LazyLoad><InstallPWA /></LazyLoad>
             </Route>
           </>
         )}
@@ -236,97 +267,101 @@ export default function App() {
         {!isMobile && (
           <>
             <Route path="/web/create-event">
-              <CreateEvent />
+              <LazyLoad><CreateEvent /></LazyLoad>
             </Route>
             <Route path="/web/edit-event/:id">
-              <CreateEvent />
+              <LazyLoad><CreateEvent /></LazyLoad>
             </Route>
             <Route path="/web/event/:id">
-              <EventDetail />
+              <LazyLoad><EventDetail /></LazyLoad>
             </Route>
             <Route path="/web/events">
-              <WebLayout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
-                  <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
-                </div>
-              </WebLayout>
+              <LazyLoad>
+                <WebLayout>
+                  <div className="p-6">
+                    <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
+                    <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
+                  </div>
+                </WebLayout>
+              </LazyLoad>
             </Route>
             <Route path="/web/my-events">
-              <WebMyEventsPage />
+              <LazyLoad><WebMyEventsPage /></LazyLoad>
             </Route>
             <Route path="/web/saved">
-              <WebMyEventsPage />
+              <LazyLoad><WebMyEventsPage /></LazyLoad>
             </Route>
             <Route path="/web/favorites">
-              <WebMyEventsPage />
+              <LazyLoad><WebMyEventsPage /></LazyLoad>
             </Route>
             <Route path="/web/profile">
-              <WebProfilePage />
+              <LazyLoad><WebProfilePage /></LazyLoad>
             </Route>
             <Route path="/web">
-              <WebPage />
+              <LazyLoad><WebPage /></LazyLoad>
             </Route>
             
-            {/* Backwards compatibility: reguliere routes verwijzen naar web versie voor desktop */}
+            {/* Backwards compatibility */}
             <Route path="/create-event">
-              <CreateEvent />
+              <LazyLoad><CreateEvent /></LazyLoad>
             </Route>
             <Route path="/event/:id">
-              <EventDetail />
+              <LazyLoad><EventDetail /></LazyLoad>
             </Route>
             <Route path="/events">
-              <WebLayout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
-                  <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
-                </div>
-              </WebLayout>
+              <LazyLoad>
+                <WebLayout>
+                  <div className="p-6">
+                    <h1 className="text-2xl font-bold mb-6">Mijn Evenementen</h1>
+                    <p className="text-center py-12 text-muted-foreground">Hier vind je jouw evenementen.</p>
+                  </div>
+                </WebLayout>
+              </LazyLoad>
             </Route>
             <Route path="/saved">
-              <WebMyEventsPage />
+              <LazyLoad><WebMyEventsPage /></LazyLoad>
             </Route>
             <Route path="/favorites">
-              <WebMyEventsPage />
+              <LazyLoad><WebMyEventsPage /></LazyLoad>
             </Route>
             <Route path="/my-events">
-              <WebMyEventsPage />
+              <LazyLoad><WebMyEventsPage /></LazyLoad>
             </Route>
             <Route path="/profile">
-              <WebProfilePage />
+              <LazyLoad><WebProfilePage /></LazyLoad>
             </Route>
             <Route path="/venue/:id">
-              <VenuePage />
+              <LazyLoad><VenuePage /></LazyLoad>
             </Route>
             <Route path="/venue/:id/dashboard">
-              <VenueDashboard />
+              <LazyLoad><VenueDashboard /></LazyLoad>
             </Route>
             
             {/* Default routes voor desktop */}
             <Route path="/">
-              <WebPage />
+              <LazyLoad><WebPage /></LazyLoad>
             </Route>
           </>
         )}
         
-        {/* App Routes - alleen beschikbaar in PWA modus of op desktop */}
+        {/* App Routes */}
         <Route path="/app/welcome">
-          <AppWelcomePage />
+          <LazyLoad><AppWelcomePage /></LazyLoad>
         </Route>
         <Route path="/app/login">
-          <AppLoginPage />
+          <LazyLoad><AppLoginPage /></LazyLoad>
         </Route>
         <Route path="/app/register">
-          <AppRegisterPage />
+          <LazyLoad><AppRegisterPage /></LazyLoad>
         </Route>
         <Route path="/app/forgot-password">
-          <AppForgotPasswordPage />
+          <LazyLoad><AppForgotPasswordPage /></LazyLoad>
         </Route>
         <Route path="/app/create-event">
-          <AppCreateEvent />
+          <LazyLoad><AppCreateEvent /></LazyLoad>
         </Route>
         <Route path="/app/edit-event/:id">
-          <AppCreateEvent />
+          <LazyLoad><AppCreateEvent /></LazyLoad>
         </Route>
         <Route path="/app/event/:id">
           {() => {
@@ -335,30 +370,30 @@ export default function App() {
           }}
         </Route>
         <Route path="/app/my-events">
-          <AppMyEventsPage />
+          <LazyLoad><AppMyEventsPage /></LazyLoad>
         </Route>
         <Route path="/app/saved">
-          <AppMyEventsPage />
+          <LazyLoad><AppMyEventsPage /></LazyLoad>
         </Route>
         <Route path="/app/favorites">
-          <AppMyEventsPage />
+          <LazyLoad><AppMyEventsPage /></LazyLoad>
         </Route>
         <Route path="/app/events">
-          <AppEventsPage />
+          <LazyLoad><AppEventsPage /></LazyLoad>
         </Route>
         <Route path="/app/profile">
-          <AppProfilePage />
+          <LazyLoad><AppProfilePage /></LazyLoad>
         </Route>
         <Route path="/app">
-          <AppHomePage />
+          <LazyLoad><AppHomePage /></LazyLoad>
         </Route>
 
-        {/* Public SEO Routes - stadspagina's */}
+        {/* Public SEO Routes */}
         <Route path="/:province/:city/evenementen">
-          <CityPage />
+          <LazyLoad><CityPage /></LazyLoad>
         </Route>
         <Route path="/:province/:city">
-          <CityPage />
+          <LazyLoad><CityPage /></LazyLoad>
         </Route>
 
         {/* Theme preview route */}
@@ -375,20 +410,22 @@ export default function App() {
 
         {/* Default route */}
         <Route path="/">
-          {isMobile ? <AppHomePage /> : <WebPage />}
+          <LazyLoad>
+            {isMobile ? <AppHomePage /> : <WebPage />}
+          </LazyLoad>
         </Route>
         
-        {/* Error route voor server errors */}
+        {/* Error route */}
         <Route path="/error">
-          <ErrorPage />
+          <LazyLoad><ErrorPage /></LazyLoad>
         </Route>
         
-        {/* Fallback route voor onbekende routes - 404 */}
+        {/* 404 fallback */}
         <Route>
-          <NotFound />
+          <LazyLoad><NotFound /></LazyLoad>
         </Route>
           </Switch>
-          </LazyLoad>
+          </RouteErrorBoundary>
           <BetaOverlay />
           <Toaster />
         </AuthProvider>

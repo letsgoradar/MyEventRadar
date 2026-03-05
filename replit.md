@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 - **Framework**: React 18 with TypeScript
 - **Build**: Vite
 - **State Management**: TanStack Query
-- **Routing**: Wouter
+- **Routing**: Wouter (per-route Suspense boundaries + Error Boundary in App.tsx)
 - **UI**: Radix UI with Tailwind CSS
 - **Maps**: React Leaflet
 - **Forms**: React Hook Form with Zod validation

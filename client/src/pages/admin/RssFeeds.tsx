@@ -46,7 +46,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles, Crosshair, FileCode, Clock } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles, Crosshair, FileCode, Clock, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
@@ -1069,12 +1069,33 @@ export default function RssFeedsPage() {
                 <Rss className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">Nog geen RSS feeds</h3>
                 <p className="text-muted-foreground mb-4">
-                  Voeg je eerste feed toe om evenementen automatisch te laden.
+                  Importeer alle standaard feeds of voeg handmatig een feed toe.
                 </p>
-                <Button onClick={addEindhovenFeeds} data-testid="button-add-eindhoven">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Eindhoven feeds toevoegen
-                </Button>
+                <div className="flex gap-3 justify-center">
+                  <Button onClick={async () => {
+                    try {
+                      const res = await fetch('/api/admin/rss-feeds/seed', { credentials: 'include' });
+                      const data = await res.json();
+                      if (res.ok) {
+                        queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/overview'] });
+                        toast({ title: 'Feeds geïmporteerd', description: data.message });
+                      } else {
+                        toast({ title: 'Fout', description: data.message, variant: 'destructive' });
+                      }
+                    } catch (e: any) {
+                      toast({ title: 'Fout', description: e.message, variant: 'destructive' });
+                    }
+                  }} data-testid="button-seed-feeds">
+                    <Download className="w-4 h-4 mr-2" />
+                    Alle standaard feeds importeren
+                  </Button>
+                  <Button variant="outline" onClick={addEindhovenFeeds} data-testid="button-add-eindhoven">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Eindhoven feeds toevoegen
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}

@@ -2088,6 +2088,20 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  app.get("/api/admin/rss-feeds/seed", isAdmin, async (req, res) => {
+    try {
+      console.log('[Seed API] Starting feed seed...');
+      const { seedFeeds } = await import('./migrations/seed-feeds');
+      await seedFeeds();
+      const feeds = await storage.getAllRssFeeds();
+      console.log(`[Seed API] Complete. ${feeds.length} feeds in database.`);
+      res.json({ message: `Seed complete. ${feeds.length} feeds in database.`, count: feeds.length });
+    } catch (error: any) {
+      console.error('[Seed API] Error:', error.message, error.stack);
+      res.status(500).json({ message: `Seed failed: ${error.message}` });
+    }
+  });
+
   app.get("/api/admin/rss-feeds/:id", isAdmin, async (req, res) => {
     try {
       const feedId = parseInt(req.params.id);
@@ -2107,13 +2121,15 @@ Respond with ONLY the search term, nothing else.`,
 
   app.post("/api/admin/rss-feeds/seed", isAdmin, async (req, res) => {
     try {
+      console.log('[Seed API] Starting feed seed (POST)...');
       const { seedFeeds } = await import('./migrations/seed-feeds');
       await seedFeeds();
       const feeds = await storage.getAllRssFeeds();
+      console.log(`[Seed API] Complete. ${feeds.length} feeds in database.`);
       res.json({ message: `Seed complete. ${feeds.length} feeds in database.`, count: feeds.length });
-    } catch (error) {
-      console.error('Error in POST /api/admin/rss-feeds/seed:', error);
-      res.status(500).json({ message: "Seed failed" });
+    } catch (error: any) {
+      console.error('[Seed API] Error:', error.message, error.stack);
+      res.status(500).json({ message: `Seed failed: ${error.message}` });
     }
   });
 

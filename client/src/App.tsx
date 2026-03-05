@@ -250,7 +250,7 @@ export default function App() {
           <LazyLoad><AdvertiserVerify /></LazyLoad>
         </Route>
 
-        {/* Mobiel browser guard */}
+        {/* Mobiel browser: toon install modal als overlay */}
         {showInstallScreen && (
           <>
             <Route path="/:province/:city/evenementen">
@@ -258,9 +258,6 @@ export default function App() {
             </Route>
             <Route path="/:province/:city">
               <LazyLoad><CityPage /></LazyLoad>
-            </Route>
-            <Route>
-              <LazyLoad><InstallPWA /></LazyLoad>
             </Route>
           </>
         )}
@@ -436,6 +433,9 @@ export default function App() {
         </Route>
           </Switch>
           </RouteErrorBoundary>
+          {showInstallScreen && (
+            <LazyLoad><InstallPWA /></LazyLoad>
+          )}
           <BetaOverlay />
           <Toaster />
         </AuthProvider>

@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import ProfilePhotoUpload from "@/components/App/ProfilePhotoUpload";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
+import { Link } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -46,19 +47,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-// Dummy gebruikersgegevens (normaal gesproken zou dit uit een API komen)
-const dummyUser = {
-  id: 1,
-  name: "Jan Jansen",
-  email: "jan.jansen@example.com",
-  phone: "+31 6 12345678",
-  avatar: null,
-  photoUrl: null,
-  joinedAt: "2022-05-15T10:30:00Z",
-  location: "Eindhoven",
-  bio: "Enthousiaste evenementenbezoeker en organisator van lokale community activiteiten. Ik ben geïnteresseerd in muziek, technologie en lokale initiatieven.",
-};
 
 // Type definitie voor de gebruiker
 interface UserProfile {
@@ -88,11 +76,9 @@ export function AppProfilePage() {
     bio: '',
   });
 
-  // Haal gebruikersgegevens op van de API
-  const { data: user = dummyUser as UserProfile, isLoading } = useQuery<UserProfile>({
+  const { data: user, isLoading } = useQuery<UserProfile>({
     queryKey: ['/api/user'],
-    enabled: true, 
-    placeholderData: dummyUser as UserProfile
+    enabled: !!authUser,
   });
   
   const updateProfileMutation = useMutation({
@@ -128,10 +114,10 @@ export function AppProfilePage() {
   
   const handleOpenEditDialog = () => {
     setEditForm({
-      name: user.name || '',
-      phone: user.phone || '',
-      location: user.location || '',
-      bio: user.bio || '',
+      name: user?.name || authUser?.name || '',
+      phone: user?.phone || '',
+      location: user?.location || '',
+      bio: user?.bio || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -152,9 +138,38 @@ export function AppProfilePage() {
     });
   };
 
+  if (!authUser) {
+    return (
+      <AppLayout title="Profiel" header={<div className="hidden"></div>}>
+        <div className="pb-20 h-full overflow-auto flex flex-col items-center justify-center px-6">
+          <div className="flex flex-col items-center max-w-sm w-full py-12">
+            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
+              <User className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h2 className="text-xl font-bold mb-2">Geen profiel</h2>
+            <p className="text-muted-foreground text-center text-sm mb-6">
+              Log in of maak een account aan om je profiel te bekijken en evenementen te beheren.
+            </p>
+            <div className="flex flex-col gap-3 w-full">
+              <Link href="/app/login">
+                <Button className="w-full" size="lg">
+                  Inloggen
+                </Button>
+              </Link>
+              <Link href="/app/register">
+                <Button variant="outline" className="w-full" size="lg">
+                  Account aanmaken
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout title="Profiel" header={
-      // Dummy header component om AppLayout re-rendering te triggeren bij profielfoto update
       <div className="hidden"></div>
     }>
       <div className="pb-20 h-full overflow-auto">
@@ -169,7 +184,7 @@ export function AppProfilePage() {
             <Card className="mb-4">
               <CardContent className="pt-6 flex flex-col items-center">
                 <ProfilePhotoUpload 
-                  currentPhotoUrl={user?.photoUrl || user?.avatar}
+                  currentPhotoUrl={user?.photoUrl || user?.avatar || undefined}
                   onPhotoUploaded={(photoUrl) => {
                     console.log("Profile page received photo URL:", photoUrl);
                     
@@ -194,24 +209,28 @@ export function AppProfilePage() {
                   size="lg"
                   showUploadButton={true}
                 />
-                <h2 className="text-xl font-bold">{user.name}</h2>
-                <p className="text-muted-foreground">{user.location}</p>
+                <h2 className="text-xl font-bold">{user?.name || authUser?.name || ''}</h2>
+                <p className="text-muted-foreground">{user?.location || ''}</p>
                 
                 <Separator className="my-4" />
                 
                 <div className="space-y-3 w-full">
                   <div className="flex items-center gap-3">
                     <Mail className="h-5 w-5 text-muted-foreground" />
-                    <span>{user.email}</span>
+                    <span>{user?.email || authUser?.email || ''}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-5 w-5 text-muted-foreground" />
-                    <span>{user.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-5 w-5 text-muted-foreground" />
-                    <span>Lid sinds {new Date(user.joinedAt).toLocaleDateString('nl-NL')}</span>
-                  </div>
+                  {user?.phone && (
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-5 w-5 text-muted-foreground" />
+                      <span>{user.phone}</span>
+                    </div>
+                  )}
+                  {user?.joinedAt && (
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-5 w-5 text-muted-foreground" />
+                      <span>Lid sinds {new Date(user.joinedAt).toLocaleDateString('nl-NL')}</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
               <CardFooter>
@@ -308,7 +327,7 @@ export function AppProfilePage() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  {user.bio}
+                  {user?.bio || 'Nog geen bio ingevuld.'}
                 </p>
               </CardContent>
             </Card>

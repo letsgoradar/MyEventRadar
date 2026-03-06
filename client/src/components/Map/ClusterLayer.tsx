@@ -197,7 +197,7 @@ export function ClusterLayer({
     if (!clusterGroupRef.current) {
       clusterGroupRef.current = L.markerClusterGroup({
         chunkedLoading: true,
-        maxClusterRadius: 60,
+        maxClusterRadius: 30,
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,

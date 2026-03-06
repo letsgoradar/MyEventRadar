@@ -72,7 +72,7 @@ export async function fetchAllEvents(centerLat: number = 52.1326, centerLng: num
   const params = new URLSearchParams({
     lat: centerLat.toString(),
     lng: centerLng.toString(),
-    radius: '500', // 500km covers all of Netherlands + surrounding areas
+    radius: '1000', // 1000km covers all of Netherlands + surrounding areas
   });
   if (windowDays !== undefined && windowDays !== null) {
     params.append('windowDays', windowDays.toString());

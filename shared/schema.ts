@@ -147,6 +147,7 @@ export const users = pgTable("users", {
   phone: text("phone"),
   location: text("user_location"),
   bio: text("bio"),
+  preferences: jsonb("preferences"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

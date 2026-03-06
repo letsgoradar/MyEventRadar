@@ -37,8 +37,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import ProfilePhotoUpload from "@/components/App/ProfilePhotoUpload";
 import { useAuth } from "@/hooks/use-auth";
+import { useUserPreferences, type MapStyle } from "@/hooks/use-user-preferences";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
+import { Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +67,7 @@ export function AppProfilePage() {
   const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const { user: authUser, logoutMutation } = useAuth();
+  const { preferences, updatePreferences, isAuthenticated: isLoggedIn } = useUserPreferences();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   
@@ -427,6 +430,86 @@ export function AppProfilePage() {
               </CardContent>
             </Card>
             
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Voorkeuren</CardTitle>
+                <CardDescription>
+                  Standaardinstellingen voor zoeken en de kaart
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {!isLoggedIn && (
+                  <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <Lock className="h-4 w-4 flex-shrink-0" />
+                    <span>Log in om je voorkeuren op te slaan</span>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Standaard zoekradius</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[5, 10, 15, 20, 30, 50].map(km => (
+                      <button
+                        key={km}
+                        disabled={!isLoggedIn}
+                        onClick={() => updatePreferences({ defaultRadius: km })}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                          preferences.defaultRadius === km
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background border-border hover:border-primary/50'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {km} km
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Standaard tijdvenster</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[7, 14, 30, 60, 100].map(days => (
+                      <button
+                        key={days}
+                        disabled={!isLoggedIn}
+                        onClick={() => updatePreferences({ defaultWindowDays: days })}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                          preferences.defaultWindowDays === days
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background border-border hover:border-primary/50'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {days} dagen
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Standaard kaartsoort</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { value: 'default', label: 'Standaard' },
+                      { value: 'minimal', label: 'Minimaal' },
+                      { value: 'satellite', label: 'Satelliet' },
+                      { value: 'dark', label: 'Donker' },
+                      { value: 'colorful', label: 'Kleurrijk' },
+                    ] as { value: MapStyle; label: string }[]).map(({ value, label }) => (
+                      <button
+                        key={value}
+                        disabled={!isLoggedIn}
+                        onClick={() => updatePreferences({ mapStyle: value })}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                          preferences.mapStyle === value
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background border-border hover:border-primary/50'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Account</CardTitle>

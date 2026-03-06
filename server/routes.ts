@@ -1599,6 +1599,27 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
   
+  // Gebruikersvoorkeuren opslaan
+  app.patch("/api/user/preferences", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ message: "Je moet ingelogd zijn" });
+
+      const { defaultRadius, defaultWindowDays, mapStyle } = req.body;
+      const preferences: Record<string, unknown> = {};
+      if (typeof defaultRadius === 'number') preferences.defaultRadius = defaultRadius;
+      if (typeof defaultWindowDays === 'number') preferences.defaultWindowDays = defaultWindowDays;
+      if (typeof mapStyle === 'string') preferences.mapStyle = mapStyle;
+
+      const updatedUser = await storage.updateUser(userId, { preferences });
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error in PATCH /api/user/preferences:', error);
+      res.status(500).json({ message: "Er is iets misgegaan bij het opslaan van je voorkeuren" });
+    }
+  });
+
   // Gebruikersprofiel bijwerken (via ID)
   app.patch("/api/users/:id", isAuthenticated, async (req, res) => {
     try {

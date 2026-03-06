@@ -5,12 +5,23 @@ import type { EventInterface as Event } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllEvents } from "@/lib/api"; 
 import { useDebouncedValue } from "@/hooks/use-debounce";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 export default function Web() {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [radius, setRadius] = React.useState(20); // 20km default
-  const [windowDays, setWindowDays] = React.useState<number | null>(100); // Default 100 dagen
+  const [radius, setRadius] = React.useState(20);
+  const [windowDays, setWindowDays] = React.useState<number | null>(100);
+  const { preferences, isAuthenticated: hasPrefs } = useUserPreferences();
+  const prefsAppliedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (hasPrefs && !prefsAppliedRef.current) {
+      setWindowDays(preferences.defaultWindowDays);
+      setRadius(preferences.defaultRadius);
+      prefsAppliedRef.current = true;
+    }
+  }, [hasPrefs, preferences]);
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
   
   // Debounce only windowDays for API calls (radius is now client-side)

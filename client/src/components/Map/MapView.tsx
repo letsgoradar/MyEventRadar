@@ -15,6 +15,7 @@ import "./map-styles.css";
 import { useOutsideClick } from "@/hooks/use-outside-click";
 import { getLocationName } from "@/utils/location-utils";
 import { ClusterLayer, shouldUseCluster } from "./ClusterLayer";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 // Fix voor Leaflet iconen in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -598,6 +599,14 @@ export default function MapView({
   const [eventsData, setEventsData] = React.useState<EventInterface[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<EventInterface | null>(null);
   const [mapStyle, setMapStyle] = React.useState<'default' | 'satellite' | 'dark' | 'minimal' | 'colorful'>('default');
+  const { preferences, isAuthenticated: hasPrefs } = useUserPreferences();
+  const mapPrefAppliedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (hasPrefs && !mapPrefAppliedRef.current) {
+      setMapStyle(preferences.mapStyle);
+      mapPrefAppliedRef.current = true;
+    }
+  }, [hasPrefs, preferences]);
   const [showLayerOptions, setShowLayerOptions] = React.useState(false);
   const [currentBounds, setCurrentBounds] = React.useState<L.LatLngBounds | null>(null);
   const [currentZoom, setCurrentZoom] = React.useState<number>(13);

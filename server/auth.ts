@@ -228,11 +228,11 @@ export function setupAuth(app: Express) {
       const user = await storage.getUserByVerificationToken(token);
 
       if (!user) {
-        return res.redirect("/web/login?error=invalid_token");
+        return res.redirect("/web?verify_error=invalid_token");
       }
 
       if (user.emailVerificationExpiry && new Date() > user.emailVerificationExpiry) {
-        return res.redirect("/web/login?error=token_expired");
+        return res.redirect("/web?verify_error=token_expired");
       }
 
       await storage.updateUser(user.id, {
@@ -241,15 +241,39 @@ export function setupAuth(app: Express) {
         emailVerificationExpiry: null as any,
       });
 
-      // Stuur welkomstmail (fire-and-forget)
       sendWelcomeEmail(user.email, user.username).catch(e =>
         console.error("Welcome email error:", e)
       );
 
-      return res.redirect("/web/login?verified=true");
+      req.login(user, (err) => {
+        if (err) {
+          console.error("Auto-login after verification failed:", err);
+          return res.redirect("/web?verified=true");
+        }
+        return res.redirect("/web?verified=true");
+      });
     } catch (error) {
       console.error("Email verification error:", error);
-      return res.redirect("/web/login?error=verify_failed");
+      return res.redirect("/web?verify_error=verify_failed");
+    }
+  });
+
+  app.post("/api/auth/check-verification", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ verified: false });
+      const user = await storage.getUserByEmail(email);
+      if (!user) return res.json({ verified: false });
+      if (user.emailVerified) {
+        req.login(user, (err) => {
+          if (err) return res.json({ verified: true, loggedIn: false });
+          return res.json({ verified: true, loggedIn: true });
+        });
+      } else {
+        return res.json({ verified: false });
+      }
+    } catch {
+      return res.json({ verified: false });
     }
   });
 

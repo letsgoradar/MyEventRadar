@@ -212,7 +212,10 @@ export function AppProfilePage() {
                   size="lg"
                   showUploadButton={true}
                 />
-                <h2 className="text-xl font-bold">{user?.name || authUser?.name || ''}</h2>
+                <h2 className="text-xl font-bold">{user?.name || authUser?.username || authUser?.name || ''}</h2>
+                {authUser?.username && user?.name !== authUser.username && (
+                  <p className="text-sm text-muted-foreground">@{authUser.username}</p>
+                )}
                 <p className="text-muted-foreground">{user?.location || ''}</p>
                 
                 <Separator className="my-4" />

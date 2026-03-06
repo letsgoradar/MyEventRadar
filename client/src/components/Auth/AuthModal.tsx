@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,16 +9,16 @@ import { Separator } from "@/components/ui/separator";
 import { FaGoogle, FaApple } from "react-icons/fa";
 import {
   Mail, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2,
-  Check, X, ArrowLeft, Info,
+  Check, X, ArrowLeft, MailCheck, PartyPopper,
 } from "lucide-react";
 
-type AuthView = "welcome" | "login" | "register";
+type AuthView = "welcome" | "login" | "register" | "verification_pending" | "verified";
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  initialView?: AuthView;
+  initialView?: "welcome" | "login" | "register";
 }
 
 function PasswordReq({ met, label }: { met: boolean; label: string }) {
@@ -53,7 +53,8 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
   const [emailNotVerified, setEmailNotVerified] = useState(false);
   const [resendEmail, setResendEmail] = useState("");
   const [resendStatus, setResendStatus] = useState<"idle" | "sending" | "sent">("idle");
-  const [pendingMessage, setPendingMessage] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: googleStatus } = useQuery<{ enabled: boolean }>({
     queryKey: ["/api/auth/google/status"],
@@ -64,9 +65,48 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
       setView(initialView);
       setValidationError("");
       setEmailNotVerified(false);
-      setPendingMessage(false);
     }
   }, [isOpen, initialView]);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (view === "verification_pending" && pendingEmail) {
+      stopPolling();
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await apiRequest("/api/auth/check-verification", {
+            method: "POST",
+            data: { email: pendingEmail },
+          });
+          if (res.verified) {
+            stopPolling();
+            if (res.loggedIn) {
+              await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+            }
+            setView("verified");
+          }
+        } catch {}
+      }, 3000);
+    } else {
+      stopPolling();
+    }
+    return stopPolling;
+  }, [view, pendingEmail, stopPolling]);
+
+  useEffect(() => {
+    if (view === "verified") {
+      const timer = setTimeout(() => {
+        onSuccess();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [view, onSuccess]);
 
   if (!isOpen) return null;
 
@@ -82,7 +122,6 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
     setShowPwHints(false);
     setEmailNotVerified(false);
     setResendStatus("idle");
-    setPendingMessage(false);
     setShowPassword(false);
   };
 
@@ -125,20 +164,19 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
       { username, email, password, role: "user" },
       {
         onSuccess: () => {
-          setPendingMessage(true);
-          setView("login");
-          setPassword("");
+          setPendingEmail(email);
+          setView("verification_pending");
         },
       }
     );
   };
 
-  const handleResend = async () => {
+  const handleResend = async (targetEmail?: string) => {
     setResendStatus("sending");
     try {
       await apiRequest("/api/auth/resend-verification", {
         method: "POST",
-        data: { email: resendEmail },
+        data: { email: targetEmail || resendEmail },
       });
       setResendStatus("sent");
     } catch {
@@ -152,7 +190,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={view === "verification_pending" || view === "verified" ? undefined : onClose} />
       <div className="relative w-full max-w-sm bg-background/95 backdrop-blur-sm rounded-2xl shadow-xl border border-border p-6 animate-in fade-in zoom-in-95 duration-200">
 
         {/* ========== WELCOME VIEW ========== */}
@@ -240,16 +278,6 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
               <p className="text-muted-foreground text-sm">Log in om evenementen te ontdekken</p>
             </div>
 
-            {pendingMessage && (
-              <div className="flex items-start gap-2 p-3 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-200">
-                <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                <span>
-                  Je hebt een mail ontvangen waarmee je het account kunt bevestigen.
-                  Bevestig je account en log dan in bij letsgo radar.
-                </span>
-              </div>
-            )}
-
             {loginMutation.error && !emailNotVerified && (
               <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -271,7 +299,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
                 ) : (
                   <button
                     type="button"
-                    onClick={handleResend}
+                    onClick={() => handleResend()}
                     disabled={resendStatus === "sending"}
                     className="text-amber-700 underline underline-offset-2 hover:text-amber-900 disabled:opacity-50"
                   >
@@ -428,6 +456,93 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
               <button onClick={() => switchView("login")} className="text-primary hover:underline font-medium">
                 Inloggen
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========== VERIFICATION PENDING VIEW ========== */}
+        {view === "verification_pending" && (
+          <div className="space-y-6 py-2">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MailCheck className="h-10 w-10 text-primary" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-background border-2 border-primary/30 flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold">Check je e-mail</h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  We hebben een verificatiemail gestuurd naar
+                </p>
+                <p className="font-medium text-sm bg-muted/50 rounded-lg py-2 px-3 break-all">
+                  {pendingEmail}
+                </p>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Klik op de link in de mail om je account te bevestigen. We wachten hier op je!
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+                <span>Wachten op bevestiging...</span>
+              </div>
+            </div>
+            <Separator />
+            <div className="text-center space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Geen mail ontvangen? Check je spam-map of verstuur opnieuw.
+              </p>
+              {resendStatus === "sent" ? (
+                <div className="flex items-center justify-center gap-2 text-teal-700 text-sm">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Nieuwe verificatiemail verzonden!</span>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleResend(pendingEmail)}
+                  disabled={resendStatus === "sending"}
+                  className="mx-auto"
+                >
+                  {resendStatus === "sending" ? (
+                    <><Loader2 className="h-3 w-3 animate-spin mr-2" />Versturen...</>
+                  ) : (
+                    <><Mail className="h-3 w-3 mr-2" />Opnieuw versturen</>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ========== VERIFIED VIEW ========== */}
+        {view === "verified" && (
+          <div className="space-y-6 py-4">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-20 h-20 rounded-full bg-teal-50 flex items-center justify-center animate-in zoom-in-50 duration-500">
+                <CheckCircle2 className="h-12 w-12 text-teal-600" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-center gap-2">
+                  <PartyPopper className="h-5 w-5 text-primary" />
+                  <h2 className="text-xl font-bold text-teal-700">Account bevestigd!</h2>
+                  <PartyPopper className="h-5 w-5 text-primary" />
+                </div>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Je account is succesvol geverifieerd. Je wordt nu ingelogd en gaat terug naar waar je was gebleven.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-primary">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Even geduld...</span>
+              </div>
             </div>
           </div>
         )}

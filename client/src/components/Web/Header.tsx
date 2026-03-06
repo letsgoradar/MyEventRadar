@@ -473,16 +473,21 @@ export function Header({
         
         {/* User profile / Login */}
         {user ? (
-          <Link href="/web/profile" className="relative">
+          <Link href="/web/profile" className="relative flex items-center gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="h-10 w-10 rounded-full overflow-hidden border border-border hover:border-primary/50 transition-colors">
-                    <img 
-                      src={user.photoUrl || user.avatar || "/images/default-user.svg"} 
-                      alt="Profielfoto" 
-                      className="h-full w-full object-cover"
-                    />
+                  <div className="flex items-center gap-2">
+                    <div className="h-10 w-10 rounded-full overflow-hidden border border-border hover:border-primary/50 transition-colors flex-shrink-0">
+                      <img 
+                        src={user.photoUrl || user.avatar || "/images/default-user.svg"} 
+                        alt="Profielfoto" 
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <span className="hidden md:inline text-sm font-medium max-w-[120px] truncate">
+                      {user.username || user.name || ''}
+                    </span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>

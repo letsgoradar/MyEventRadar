@@ -10,7 +10,7 @@ import { User as SelectUser } from "@shared/schema";
 import createMemoryStore from "memorystore";
 import { z } from "zod";
 import { sanitizeUserInput } from "./utils/sanitize";
-import { sendUserVerificationEmail } from "./services/email-service";
+import { sendUserVerificationEmail, sendWelcomeEmail } from "./services/email-service";
 
 function getSessionSecret(): string {
   if (process.env.SESSION_SECRET) {
@@ -166,7 +166,12 @@ export function setupAuth(app: Express) {
   const registerSchema = z.object({
     username: z.string().min(2).max(50).regex(/^[a-zA-Z0-9_\-. ]+$/, "Gebruikersnaam bevat ongeldige tekens"),
     email: z.string().email("Ongeldig e-mailadres").max(255),
-    password: z.string().min(6, "Wachtwoord moet minimaal 6 tekens zijn").max(128),
+    password: z.string()
+      .min(8, "Wachtwoord moet minimaal 8 tekens zijn")
+      .max(128)
+      .regex(/[A-Z]/, "Wachtwoord moet minimaal 1 hoofdletter bevatten")
+      .regex(/[a-z]/, "Wachtwoord moet minimaal 1 kleine letter bevatten")
+      .regex(/[0-9]/, "Wachtwoord moet minimaal 1 cijfer bevatten"),
     role: z.enum(["user", "host"]).default("user"),
   });
 
@@ -236,7 +241,18 @@ export function setupAuth(app: Express) {
         emailVerificationExpiry: null as any,
       });
 
-      return res.redirect("/web/login?verified=true");
+      // Log de gebruiker in na bevestiging
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Auto-login after verification error:", loginErr);
+          return res.redirect("/web/login?verified=true");
+        }
+        // Stuur welkomstmail (fire-and-forget)
+        sendWelcomeEmail(user.email, user.username).catch(e =>
+          console.error("Welcome email error:", e)
+        );
+        return res.redirect("/web?welcome=true");
+      });
     } catch (error) {
       console.error("Email verification error:", error);
       return res.redirect("/web/login?error=verify_failed");

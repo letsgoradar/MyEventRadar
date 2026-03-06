@@ -128,7 +128,7 @@ export async function sendUserVerificationEmail(
       <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
         <div style="text-align: center; margin-bottom: 24px;">
           <div style="background: #14B8A6; display: inline-block; padding: 12px 24px; border-radius: 8px;">
-            <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">letsgo! radar.nl</span>
+            <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">letsgo&#33; radar&#46;nl</span>
           </div>
         </div>
         <h2 style="color: #111; font-size: 22px; margin: 0 0 12px;">Bijna klaar, ${username}!</h2>
@@ -242,6 +242,105 @@ export async function sendVerificationEmail(
     return true;
   } catch (error) {
     console.error(`[Email] Fout bij verzenden naar ${email}:`, error);
+    return false;
+  }
+}
+
+export async function sendWelcomeEmail(
+  email: string,
+  username: string
+): Promise<boolean> {
+  const baseUrl = getBaseUrl();
+  const appUrl = `${baseUrl}/web`;
+
+  const subject = "Welkom bij letsgo radar! 🎉";
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
+      <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="background: #14B8A6; display: inline-block; padding: 12px 24px; border-radius: 8px;">
+            <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">letsgo&#33; radar&#46;nl</span>
+          </div>
+        </div>
+        <h2 style="color: #111; font-size: 24px; margin: 0 0 8px;">Welkom, ${username}!</h2>
+        <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+          Je account is actief. Fijn dat je erbij bent! Dit is wat je kunt doen met je account:
+        </p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <tr>
+            <td style="padding: 12px 0; border-bottom: 1px solid #f0f0f0; vertical-align: top;">
+              <div style="background: #f0fdfa; border-radius: 8px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px;">
+                <span style="font-size: 22px; line-height: 1;">🗺️</span>
+                <div>
+                  <strong style="color: #111; font-size: 14px;">Evenementen ontdekken</strong>
+                  <p style="color: #666; font-size: 13px; margin: 4px 0 0;">Bekijk honderden lokale evenementen op de interactieve kaart en filter op categorie, datum of afstand.</p>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; border-bottom: 1px solid #f0f0f0; vertical-align: top;">
+              <div style="background: #f0fdfa; border-radius: 8px; padding: 12px 16px;">
+                <span style="font-size: 22px; line-height: 1;">❤️</span>
+                <strong style="color: #111; font-size: 14px; margin-left: 8px;">Favorieten bewaren</strong>
+                <p style="color: #666; font-size: 13px; margin: 4px 0 0;">Sla interessante evenementen op als favoriet zodat je ze makkelijk terugvindt.</p>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; border-bottom: 1px solid #f0f0f0; vertical-align: top;">
+              <div style="background: #f0fdfa; border-radius: 8px; padding: 12px 16px;">
+                <span style="font-size: 22px; line-height: 1;">🎟️</span>
+                <strong style="color: #111; font-size: 14px; margin-left: 8px;">Aanmelden voor evenementen</strong>
+                <p style="color: #666; font-size: 13px; margin: 4px 0 0;">Geef aan dat je aanwezig bent en zie wie er nog meer naartoe gaan.</p>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; vertical-align: top;">
+              <div style="background: #f0fdfa; border-radius: 8px; padding: 12px 16px;">
+                <span style="font-size: 22px; line-height: 1;">📅</span>
+                <strong style="color: #111; font-size: 14px; margin-left: 8px;">Eigen evenementen aanmaken</strong>
+                <p style="color: #666; font-size: 13px; margin: 4px 0 0;">Organiseer je eigen evenement en bereik mensen in de buurt via de kaart.</p>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <div style="text-align: center; margin: 28px 0 20px;">
+          <a href="${appUrl}" style="display: inline-block; background-color: #14B8A6; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 16px; font-weight: bold;">
+            Ga naar de kaart
+          </a>
+        </div>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #bbb; font-size: 12px; text-align: center; margin: 0;">
+          letsgo radar — Ontdek evenementen in je buurt
+        </p>
+      </div>
+    </div>
+  `;
+
+  const transport = getTransporter();
+
+  if (!transport) {
+    console.log("\n========================================");
+    console.log("[Email] WELKOMST E-MAIL (dev mode)");
+    console.log(`Aan: ${email}`);
+    console.log(`Gebruiker: ${username}`);
+    console.log("========================================\n");
+    return true;
+  }
+
+  try {
+    await transport.sendMail({
+      from: `letsgo radar <${getFromAddress()}>`,
+      to: email,
+      subject,
+      html,
+    });
+    console.log(`[Email] Welkomst-e-mail verzonden naar ${email}`);
+    return true;
+  } catch (error) {
+    console.error(`[Email] Fout bij verzenden welkomst naar ${email}:`, error);
     return false;
   }
 }

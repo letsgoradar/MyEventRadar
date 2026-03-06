@@ -39,16 +39,13 @@ export function Sidebar() {
       )}>
         {isExpanded ? (
           <>
-            <div className="flex flex-col items-center mb-2">
-              <img 
-                src="/images/letsgo-radar-logo.png" 
-                alt="letsgo radar" 
-                className="w-12 h-12 object-contain" 
+            <div className="flex flex-col items-center mb-2 w-full">
+              <img
+                src="/images/letsgo-radar-brand.jpg"
+                alt="letsgo radar"
+                className="w-full object-contain rounded-lg drop-shadow-sm"
+                style={{ maxHeight: '44px', width: 'auto', maxWidth: '148px' }}
               />
-              <h1 className="text-lg font-bold mt-2 text-center leading-tight">
-                <span className="block">letsgo</span>
-                <span className="block">radar</span>
-              </h1>
             </div>
             <Button variant="ghost" size="sm" className="p-1 w-full" onClick={toggleExpanded}>
               <MdChevronLeft className="h-5 w-5" />
@@ -60,10 +57,10 @@ export function Sidebar() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <img 
-                      src="/images/letsgo-radar-logo.png" 
-                      alt="letsgo radar" 
-                      className="w-10 h-10 object-contain" 
+                    <img
+                      src="/images/letsgo-radar-logo.png"
+                      alt="letsgo radar"
+                      className="w-10 h-10 object-contain"
                     />
                   </TooltipTrigger>
                   <TooltipContent side="right">

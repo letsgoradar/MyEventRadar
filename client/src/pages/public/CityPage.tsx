@@ -190,13 +190,13 @@ export default function CityPage() {
                   <span className="hidden sm:inline">Terug</span>
                 </Button>
               </Link>
-              <div className="flex items-center gap-2">
-                <img 
-                  src="/images/letsgo-radar-logo.png" 
-                  alt="letsgo radar" 
-                  className="h-8 w-8 object-contain"
+              <div className="flex items-center">
+                <img
+                  src="/images/letsgo-radar-brand.jpg"
+                  alt="letsgo radar"
+                  className="object-contain rounded-lg drop-shadow-sm"
+                  style={{ height: '34px', width: 'auto' }}
                 />
-                <span className="font-semibold text-lg hidden sm:inline">letsgo radar</span>
               </div>
             </div>
             <Link href="/app">
@@ -320,13 +320,13 @@ export default function CityPage() {
       <footer className="bg-white dark:bg-gray-800 border-t mt-12 py-8">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <img 
-                src="/images/letsgo-radar-logo.png" 
-                alt="letsgo radar" 
-                className="h-6 w-6 object-contain"
+            <div className="flex items-center">
+              <img
+                src="/images/letsgo-radar-brand.jpg"
+                alt="letsgo radar"
+                className="object-contain rounded-md drop-shadow-sm"
+                style={{ height: '28px', width: 'auto' }}
               />
-              <span className="font-semibold">letsgo radar</span>
             </div>
             <p className="text-sm text-gray-500">
               &copy; {new Date().getFullYear()} letsgo radar. Alle rechten voorbehouden.

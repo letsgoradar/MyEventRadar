@@ -69,12 +69,12 @@ export function InstallPWA() {
         </button>
 
         <img
-          src="/images/letsgo-radar-icon-192.png"
-          alt="let's go Radar"
-          className="w-16 h-16 rounded-xl shadow-md mb-4 mx-auto"
+          src="/images/letsgo-radar-brand.jpg"
+          alt="letsgo radar"
+          className="rounded-xl shadow-md mb-5 mx-auto"
+          style={{ width: '220px', height: 'auto' }}
         />
 
-        <h2 className="text-lg font-bold text-gray-900 mb-1">let's go Radar</h2>
         <p className="text-gray-500 text-sm mb-5">
           Voeg de app toe aan je beginscherm voor de beste ervaring
         </p>

@@ -6,6 +6,8 @@ import { EventDetailPanel } from "./EventDetailPanel";
 import { addDays, startOfDay, endOfDay, eachDayOfInterval, differenceInDays } from "date-fns";
 import { type EventFilterState, FilterSidebar } from "@/components/Filters/EventFilters";
 import { Loader2, MapPin } from "lucide-react";
+import { AuthModal } from "@/components/Auth/AuthModal";
+import { useAuth } from "@/hooks/use-auth";
 
 type ExtendedEvent = EventInterface & {
   eventTagIds?: number[];
@@ -40,7 +42,36 @@ export function WebLayout({
   isLoading = false,
   isRefetching = false
 }: WebLayoutProps) {
-  // In de web-omgeving gebruiken we altijd de split view (geen toggle)
+  const { user } = useAuth();
+  const [showAuthModal, setShowAuthModal] = React.useState(false);
+  const authTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    if (user) {
+      setShowAuthModal(false);
+      if (authTimerRef.current) clearTimeout(authTimerRef.current);
+      return;
+    }
+    authTimerRef.current = setTimeout(() => setShowAuthModal(true), 15000);
+    return () => { if (authTimerRef.current) clearTimeout(authTimerRef.current); };
+  }, [user]);
+
+  const handleAuthClose = React.useCallback(() => {
+    setShowAuthModal(false);
+    if (!user) {
+      authTimerRef.current = setTimeout(() => setShowAuthModal(true), 60000);
+    }
+  }, [user]);
+
+  const handleAuthSuccess = React.useCallback(() => {
+    setShowAuthModal(false);
+    if (authTimerRef.current) clearTimeout(authTimerRef.current);
+  }, []);
+
+  const handleLoginClick = React.useCallback(() => {
+    setShowAuthModal(true);
+  }, []);
+
   const [searchQuery, setSearchQuery] = React.useState(propSearchQuery || "");
   const [radius, setRadius] = React.useState(propRadius || 20);
   const [filteredEvents, setFilteredEvents] = React.useState<ExtendedEvent[]>(propFilteredEvents || []);
@@ -178,19 +209,20 @@ export function WebLayout({
         {/* Header in een eigen fixed container */}
         <div className="sticky top-0 left-0 right-0 z-[100]">
           <Header 
-            isMapView={true} // Always true in web view since we're using SplitView
-            toggleView={() => {}} // Empty function since we don't need this in web view
+            isMapView={true}
+            toggleView={() => {}}
             onSearch={handleSearch}
             radius={radius}
             onRadiusChange={handleRadiusChange}
             onCategoriesChange={handleCategoriesChange}
-            hideViewToggle={true} // Hide the toggle button in web view
+            hideViewToggle={true}
             onEventClick={handleEventClick}
             eventFilters={eventFilters}
             onEventFiltersChange={setEventFilters}
             resultCount={filteredEvents.length}
             isFilterSidebarOpen={isFilterSidebarOpen}
             onFilterSidebarOpenChange={setIsFilterSidebarOpen}
+            onLoginClick={handleLoginClick}
           />
         </div>
         
@@ -245,6 +277,11 @@ export function WebLayout({
           />
         </div>
       </div>
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={handleAuthClose}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 }

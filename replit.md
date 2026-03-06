@@ -17,10 +17,13 @@ Preferred communication style: Simple, everyday language.
 - **Maps**: React Leaflet
 - **Forms**: React Hook Form with Zod validation
 - **Authentication**: Session-based with Passport.js (Local + Google OAuth20)
-  - Web login: `/web/login`, `/web/register`
-  - App login: `/app/login`, `/app/register`
+  - **AuthModal** (`client/src/components/Auth/AuthModal.tsx`): Single modal overlay with 3 views (welcome/login/register) rendered over the live map. Used in both WebLayout and App homepage.
+  - Auth flow: anonymous browsing → AuthModal appears after 15 sec → login/register → on close, re-opens after 60 sec if still not logged in
+  - Old routes (`/web/login`, `/web/register`, `/web/welcome`, `/app/login`, `/app/register`, `/app/welcome`) redirect to `/web` or `/app` respectively
   - Admin login: `/login`, `/admin/login`
   - Google OAuth: requires `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` env vars
+  - Password requirements: min 8 chars + 1 uppercase + 1 lowercase + 1 digit (Zod backend + real-time frontend)
+  - Email verification: register → check email → click link → login
   - Test user: `demo@letsgo.nl` / `demo1234`
 
 ### Backend

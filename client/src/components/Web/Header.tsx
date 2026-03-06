@@ -62,6 +62,7 @@ interface HeaderProps {
   resultCount?: number;
   isFilterSidebarOpen?: boolean;
   onFilterSidebarOpenChange?: (open: boolean) => void;
+  onLoginClick?: () => void;
 }
 
 export function Header({
@@ -83,6 +84,7 @@ export function Header({
   resultCount,
   isFilterSidebarOpen,
   onFilterSidebarOpenChange,
+  onLoginClick,
 }: HeaderProps) {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -490,12 +492,15 @@ export function Header({
             </TooltipProvider>
           </Link>
         ) : (
-          <Link href="/web/welcome">
-            <Button variant="default" size="sm" className="h-10 px-4 rounded-full flex items-center gap-2">
-              <LogIn className="h-4 w-4" />
-              <span className="hidden sm:inline">Inloggen</span>
-            </Button>
-          </Link>
+          <Button
+            variant="default"
+            size="sm"
+            className="h-10 px-4 rounded-full flex items-center gap-2"
+            onClick={() => onLoginClick?.()}
+          >
+            <LogIn className="h-4 w-4" />
+            <span className="hidden sm:inline">Inloggen</span>
+          </Button>
         )}
       </div>
     </div>

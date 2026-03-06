@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { LayoutGrid, List } from "lucide-react";
 import { addDays, startOfDay } from "date-fns";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
+import { AuthModal } from "@/components/Auth/AuthModal";
+import { useAuth } from "@/hooks/use-auth";
 
 // Uitgebreide Event interface met distance property
 interface EventWithDistance extends EventInterface {
@@ -29,6 +31,32 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 export function AppHomePage() {
+  const { user } = useAuth();
+  const [showAuthModal, setShowAuthModal] = React.useState(false);
+  const authTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    if (user) {
+      setShowAuthModal(false);
+      if (authTimerRef.current) clearTimeout(authTimerRef.current);
+      return;
+    }
+    authTimerRef.current = setTimeout(() => setShowAuthModal(true), 15000);
+    return () => { if (authTimerRef.current) clearTimeout(authTimerRef.current); };
+  }, [user]);
+
+  const handleAuthClose = React.useCallback(() => {
+    setShowAuthModal(false);
+    if (!user) {
+      authTimerRef.current = setTimeout(() => setShowAuthModal(true), 60000);
+    }
+  }, [user]);
+
+  const handleAuthSuccess = React.useCallback(() => {
+    setShowAuthModal(false);
+    if (authTimerRef.current) clearTimeout(authTimerRef.current);
+  }, []);
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [filteredEvents, setFilteredEvents] = React.useState<EventWithDistance[]>([]);
   const { location } = useLocation();
@@ -172,6 +200,12 @@ export function AppHomePage() {
       
       {/* AI Assistant temporarily hidden */}
       {/* <AssistantButton /> */}
+      
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={handleAuthClose}
+        onSuccess={handleAuthSuccess}
+      />
     </>
   );
 }

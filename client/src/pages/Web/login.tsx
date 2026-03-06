@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FaGoogle, FaApple } from "react-icons/fa";
-import { Mail, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Mail, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { RadarLogoWithText } from "@/components/RadarLogo";
 import { Link } from "wouter";
 
@@ -31,6 +31,7 @@ export default function WebLoginPage() {
   const urlParams = new URLSearchParams(window.location.search);
   const errorParam = urlParams.get("error");
   const verifiedParam = urlParams.get("verified");
+  const pendingParam = urlParams.get("pending");
   const returnTo = urlParams.get("returnTo") || "/web";
 
   if (user) {
@@ -87,6 +88,16 @@ export default function WebLoginPage() {
 
         <Card>
           <CardContent className="pt-6 space-y-4">
+            {pendingParam === "true" && (
+              <div className="flex items-start gap-2 p-3 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-200">
+                <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>
+                  Je hebt een mail ontvangen waarmee je het account kunt bevestigen.
+                  Bevestig je account en log dan in bij letsgo radar.
+                </span>
+              </div>
+            )}
+
             {verifiedParam === "true" && (
               <div className="flex items-center gap-2 p-3 bg-teal-50 text-teal-700 rounded-lg text-sm border border-teal-200">
                 <CheckCircle2 className="h-4 w-4 flex-shrink-0" />

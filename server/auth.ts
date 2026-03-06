@@ -241,18 +241,12 @@ export function setupAuth(app: Express) {
         emailVerificationExpiry: null as any,
       });
 
-      // Log de gebruiker in na bevestiging
-      req.login(user, (loginErr) => {
-        if (loginErr) {
-          console.error("Auto-login after verification error:", loginErr);
-          return res.redirect("/web/login?verified=true");
-        }
-        // Stuur welkomstmail (fire-and-forget)
-        sendWelcomeEmail(user.email, user.username).catch(e =>
-          console.error("Welcome email error:", e)
-        );
-        return res.redirect("/web?welcome=true");
-      });
+      // Stuur welkomstmail (fire-and-forget)
+      sendWelcomeEmail(user.email, user.username).catch(e =>
+        console.error("Welcome email error:", e)
+      );
+
+      return res.redirect("/web/login?verified=true");
     } catch (error) {
       console.error("Email verification error:", error);
       return res.redirect("/web/login?error=verify_failed");

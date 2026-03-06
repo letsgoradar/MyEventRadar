@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FaGoogle, FaApple } from "react-icons/fa";
-import { Loader2, AlertCircle, Mail, CheckCircle2, Check, X } from "lucide-react";
+import { Loader2, AlertCircle, Check, X } from "lucide-react";
 import { RadarLogoWithText } from "@/components/RadarLogo";
 import { Link } from "wouter";
 
@@ -38,7 +38,6 @@ export default function WebRegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [validationError, setValidationError] = useState("");
-  const [registered, setRegistered] = useState(false);
   const [showPasswordHints, setShowPasswordHints] = useState(false);
 
   const { data: googleStatus } = useQuery<{ enabled: boolean }>({
@@ -73,12 +72,8 @@ export default function WebRegisterPage() {
     registerMutation.mutate(
       { username, email, password, role: "user" },
       {
-        onSuccess: (data: any) => {
-          if (data?.requiresVerification) {
-            setRegistered(true);
-          } else {
-            setLocation(returnTo);
-          }
+        onSuccess: () => {
+          setLocation(`/web/login?pending=true&returnTo=${encodeURIComponent(returnTo)}`);
         }
       }
     );
@@ -87,46 +82,6 @@ export default function WebRegisterPage() {
   const handleGoogleLogin = () => {
     window.location.href = `/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`;
   };
-
-  if (registered) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 flex items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-6">
-          <div className="text-center">
-            <Link href="/">
-              <RadarLogoWithText height={52} className="mx-auto mb-4 cursor-pointer" />
-            </Link>
-          </div>
-          <Card>
-            <CardContent className="pt-8 pb-8 space-y-5 text-center">
-              <div className="flex justify-center">
-                <div className="h-16 w-16 rounded-full bg-teal-50 flex items-center justify-center">
-                  <Mail className="h-8 w-8 text-teal-600" />
-                </div>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold mb-2">Check je e-mail</h2>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  We hebben een bevestigingsmail gestuurd naar <strong>{email}</strong>.
-                  Klik op de link in de mail om je account te activeren en direct in te loggen.
-                </p>
-              </div>
-              <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-3 text-left">
-                <CheckCircle2 className="h-4 w-4 text-teal-500 flex-shrink-0 mt-0.5" />
-                <span>Geen mail ontvangen? Check je spam-map of vraag een nieuwe mail aan via de loginpagina.</span>
-              </div>
-              <Link href={`/web/login?returnTo=${encodeURIComponent(returnTo)}`}>
-                <Button variant="outline" className="w-full">Naar inloggen</Button>
-              </Link>
-            </CardContent>
-          </Card>
-          <p className="text-center text-xs text-muted-foreground">
-            <Link href="/" className="hover:underline">← Terug naar de kaart</Link>
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 flex items-center justify-center p-4">

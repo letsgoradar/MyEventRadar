@@ -502,7 +502,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           setCurrentStep('ai-scraper');
           setAiScraperFromAnalyze(true);
           setAiScraperResult(null);
-          aiScraperMutation.mutate(overviewUrl);
+          // Don't auto-launch — show detail URL input screen first
         }, 1500);
       }
     },
@@ -516,10 +516,10 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
   });
 
   const aiScraperMutation = useMutation({
-    mutationFn: async (urlToAnalyze: string): Promise<AiScraperResult> => {
+    mutationFn: async ({ url: urlToAnalyze, sampleDetailUrl }: { url: string; sampleDetailUrl?: string }): Promise<AiScraperResult> => {
       return apiRequest('/api/admin/rss-feeds/ai-scraper-analyze', {
         method: 'POST',
-        data: { url: urlToAnalyze },
+        data: { url: urlToAnalyze, sampleDetailUrl: sampleDetailUrl || undefined },
       });
     },
     onSuccess: (data) => {
@@ -557,7 +557,11 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
     setCurrentStep('ai-scraper');
     setAiScraperResult(null);
     setAiScraperFromAnalyze(true);
-    aiScraperMutation.mutate(overviewUrl);
+    // Don't auto-launch — show the detail URL input screen first
+  };
+
+  const handleLaunchAiScraper = () => {
+    aiScraperMutation.mutate({ url: overviewUrl, sampleDetailUrl: detailUrl || undefined });
   };
 
   const handleAiScraperToVisual = () => {
@@ -1668,33 +1672,67 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           <Card className="flex-shrink-0">
             <CardHeader className="py-2 px-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <List className="h-4 w-4" />
-                Overzichtspagina
+                <Globe className="h-4 w-4" />
+                Pagina's
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <div className="flex gap-1">
-                <Input
-                  value={overviewUrl}
-                  onChange={(e) => setOverviewUrl(e.target.value)}
-                  placeholder="URL van overzicht"
-                  className="h-7 text-xs"
-                />
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  className="h-7 px-2"
+            <CardContent className="p-3 pt-0 space-y-2">
+              <div className="space-y-2">
+                <Button
+                  size="sm"
+                  variant={pageContext === 'overview' ? 'default' : 'outline'}
+                  className="w-full text-xs justify-start"
                   onClick={() => {
                     if (overviewUrl) {
                       setIframeLoading(true);
+                      setPageContext('overview');
                       fetchPageMutation.mutate(overviewUrl);
                     }
                   }}
                   disabled={!overviewUrl || fetchPageMutation.isPending}
+                  title={overviewUrl}
                 >
-                  <RefreshCw className={`h-3 w-3 ${fetchPageMutation.isPending ? 'animate-spin' : ''}`} />
+                  <List className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="truncate">
+                    {overviewUrl ? overviewUrl.replace(/^https?:\/\//, '').substring(0, 35) + (overviewUrl.replace(/^https?:\/\//, '').length > 35 ? '…' : '') : 'Overzicht'}
+                  </span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant={pageContext === 'detail' ? 'default' : 'outline'}
+                  className="w-full text-xs justify-start"
+                  onClick={() => {
+                    if (detailUrl) {
+                      setIframeLoading(true);
+                      setPageContext('detail');
+                      fetchPageMutation.mutate(detailUrl);
+                    }
+                  }}
+                  disabled={!detailUrl || fetchPageMutation.isPending}
+                  title={detailUrl || 'Geen detail URL ingevuld'}
+                >
+                  <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="truncate">
+                    {detailUrl ? detailUrl.replace(/^https?:\/\//, '').substring(0, 35) + (detailUrl.replace(/^https?:\/\//, '').length > 35 ? '…' : '') : 'Detail (geen URL)'}
+                  </span>
                 </Button>
               </div>
+              {!detailUrl && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Detail URL toevoegen</Label>
+                  <div className="flex gap-1">
+                    <Input
+                      value={detailUrl}
+                      onChange={(e) => setDetailUrl(e.target.value)}
+                      placeholder="URL van voorbeeld event"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground">
+                Bekijkt: <span className="font-medium">{pageContext === 'overview' ? 'Overzicht' : 'Detail'}</span>
+              </p>
             </CardContent>
           </Card>
 
@@ -1893,6 +1931,51 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
 
     return (
       <div className="space-y-4 py-2">
+        {!isAnalyzing && !result && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Brain className="w-5 h-5 text-purple-500" />
+              <div>
+                <p className="font-medium text-sm">AI Scraper Builder</p>
+                <p className="text-xs text-muted-foreground">Gemini Pro analyseert automatisch de pagina-structuur</p>
+              </div>
+            </div>
+            <div className="bg-muted/40 rounded-lg p-3 space-y-1">
+              <p className="text-xs text-muted-foreground">Overzichtspagina die wordt geanalyseerd:</p>
+              <p className="text-xs font-mono truncate text-foreground">{overviewUrl}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ai-detail-url" className="text-sm font-medium">
+                Voorbeeld detailpagina URL
+                <span className="text-muted-foreground font-normal ml-1">(aanbevolen)</span>
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Voer de URL van een specifiek evenement in. De AI gebruikt deze pagina om velden als beschrijving, locatie en tijdstip te leren herkennen.
+              </p>
+              <Input
+                id="ai-detail-url"
+                value={detailUrl}
+                onChange={(e) => setDetailUrl(e.target.value)}
+                placeholder="https://example.com/events/naam-van-evenement"
+                className="text-sm"
+              />
+            </div>
+            <Alert className="border-purple-200 bg-purple-50">
+              <Info className="h-4 w-4 text-purple-600" />
+              <AlertDescription className="text-xs text-purple-800">
+                Zonder detailpagina vindt de AI alleen basisinfo (titel, datum) van de overzichtspagina. Met een detailpagina URL kan hij ook beschrijving, exacte tijd en locatieadres vinden.
+              </AlertDescription>
+            </Alert>
+            <Button
+              onClick={handleLaunchAiScraper}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <Brain className="w-4 h-4 mr-2" />
+              Start AI analyse
+            </Button>
+          </div>
+        )}
+
         {isAnalyzing && !result && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -2373,26 +2456,31 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 space-y-2">
-            <div className="flex gap-2">
+            <div className="space-y-2">
               <Button
                 size="sm"
                 variant={pageContext === 'overview' ? 'default' : 'outline'}
-                className="flex-1 text-xs"
+                className="w-full text-xs justify-start"
                 onClick={handleLoadOverviewPage}
                 disabled={fetchPageMutation.isPending}
               >
-                <List className="h-3 w-3 mr-1" />
-                Overzicht
+                <List className="h-3 w-3 mr-1 flex-shrink-0" />
+                <span className="truncate">
+                  {overviewUrl ? overviewUrl.replace(/^https?:\/\//, '').substring(0, 35) + (overviewUrl.replace(/^https?:\/\//, '').length > 35 ? '…' : '') : 'Overzicht'}
+                </span>
               </Button>
               <Button
                 size="sm"
                 variant={pageContext === 'detail' ? 'default' : 'outline'}
-                className="flex-1 text-xs"
-                onClick={() => setPageContext('detail')}
-                disabled={!detailUrl}
+                className="w-full text-xs justify-start"
+                onClick={handleLoadDetailPage}
+                disabled={!detailUrl || fetchPageMutation.isPending}
+                title={detailUrl || 'Geen detail URL ingevuld'}
               >
-                <FileText className="h-3 w-3 mr-1" />
-                Detail
+                <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
+                <span className="truncate">
+                  {detailUrl ? detailUrl.replace(/^https?:\/\//, '').substring(0, 35) + (detailUrl.replace(/^https?:\/\//, '').length > 35 ? '…' : '') : 'Detail (geen URL)'}
+                </span>
               </Button>
             </div>
             <div className="space-y-1">

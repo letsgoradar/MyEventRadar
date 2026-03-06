@@ -594,7 +594,7 @@ Antwoord in JSON formaat:
     }
   }
 
-  static async analyzeForScraper(url: string): Promise<AiScraperAnalysisResult> {
+  static async analyzeForScraper(url: string, sampleDetailUrl?: string): Promise<AiScraperAnalysisResult> {
     const steps: AiScraperAnalysisResult['steps'] = [];
     let overviewSelectors: AiExtractionSelectors | undefined;
     let detailSelectors: AiDetailSelectors | undefined;
@@ -833,6 +833,15 @@ Antwoord in JSON:
       }
 
       const detailPages: Array<{ url: string; html: string }> = [];
+      // Prioritize sampleDetailUrl if provided by the user
+      if (sampleDetailUrl) {
+        if (!eventLinks.includes(sampleDetailUrl)) {
+          eventLinks.unshift(sampleDetailUrl);
+        } else {
+          eventLinks.splice(eventLinks.indexOf(sampleDetailUrl), 1);
+          eventLinks.unshift(sampleDetailUrl);
+        }
+      }
       const linksToFetch = eventLinks.slice(0, 3);
       for (const link of linksToFetch) {
         try {

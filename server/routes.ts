@@ -2292,7 +2292,7 @@ Respond with ONLY the search term, nothing else.`,
   app.post("/api/admin/rss-feeds/ai-scraper-analyze", isAdmin, async (req, res) => {
     req.setTimeout(180000);
     try {
-      const { url } = req.body;
+      const { url, sampleDetailUrl } = req.body;
       if (!url || typeof url !== 'string') {
         return res.status(400).json({ message: "URL is verplicht" });
       }
@@ -2303,9 +2303,15 @@ Respond with ONLY the search term, nothing else.`,
         return res.status(400).json({ message: "Ongeldige URL" });
       }
 
-      console.log(`[API] Starting AI Scraper Builder analysis for: ${url}`);
+      if (sampleDetailUrl && typeof sampleDetailUrl === 'string') {
+        try { new URL(sampleDetailUrl); } catch {
+          return res.status(400).json({ message: "Ongeldige detail pagina URL" });
+        }
+      }
+
+      console.log(`[API] Starting AI Scraper Builder analysis for: ${url}${sampleDetailUrl ? ` (detail: ${sampleDetailUrl})` : ''}`);
       const { AiHtmlAnalyzer } = await import('./services/ai-html-analyzer');
-      const result = await AiHtmlAnalyzer.analyzeForScraper(url);
+      const result = await AiHtmlAnalyzer.analyzeForScraper(url, sampleDetailUrl || undefined);
       res.json(result);
     } catch (error: any) {
       console.error('Error in POST /api/admin/rss-feeds/ai-scraper-analyze:', error);

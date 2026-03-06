@@ -65,14 +65,14 @@ export async function fetchEventsByRadius(lat: number, lng: number, radius: numb
   return apiRequest(`/api/events/nearby?${params.toString()}`);
 }
 
-// Fetch ALL future events at once (for web version - enables instant zoom/pan)
-// Uses large radius (500km) to get all Netherlands events in one call
+// Fetch events for web version based on user location
+// Uses 200km radius to cover all of Netherlands while being much faster than 1000km
 export async function fetchAllEvents(centerLat: number = 52.1326, centerLng: number = 5.2913, windowDays?: number | null) {
-  console.log('Fetching ALL events for Netherlands region');
+  console.log('Fetching events for region:', { centerLat, centerLng });
   const params = new URLSearchParams({
     lat: centerLat.toString(),
     lng: centerLng.toString(),
-    radius: '1000', // 1000km covers all of Netherlands + surrounding areas
+    radius: '200', // 200km covers all of Netherlands
   });
   if (windowDays !== undefined && windowDays !== null) {
     params.append('windowDays', windowDays.toString());

@@ -148,6 +148,9 @@ export const users = pgTable("users", {
   location: text("user_location"),
   bio: text("bio"),
   preferences: jsonb("preferences"),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  emailVerificationToken: text("email_verification_token"),
+  emailVerificationExpiry: timestamp("email_verification_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

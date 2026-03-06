@@ -944,21 +944,10 @@ export default function MapView({
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           />
         )}
-        {mapStyle === 'dark' && (
-          <TileLayer
-            url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}{r}.png"
-            subdomains="abcd"
-          />
-        )}
         {mapStyle === 'minimal' && (
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
             subdomains="abcd"
-          />
-        )}
-        {mapStyle === 'colorful' && (
-          <TileLayer
-            url="https://tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"
           />
         )}
         

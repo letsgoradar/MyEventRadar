@@ -489,8 +489,6 @@ export function AppProfilePage() {
                       { value: 'default', label: 'Standaard' },
                       { value: 'minimal', label: 'Minimaal' },
                       { value: 'satellite', label: 'Satelliet' },
-                      { value: 'dark', label: 'Donker' },
-                      { value: 'colorful', label: 'Kleurrijk' },
                     ] as { value: MapStyle; label: string }[]).map(({ value, label }) => (
                       <button
                         key={value}

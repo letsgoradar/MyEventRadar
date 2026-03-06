@@ -10,6 +10,7 @@ import { User as SelectUser } from "@shared/schema";
 import createMemoryStore from "memorystore";
 import { z } from "zod";
 import { sanitizeUserInput } from "./utils/sanitize";
+import { sendUserVerificationEmail } from "./services/email-service";
 
 function getSessionSecret(): string {
   if (process.env.SESSION_SECRET) {
@@ -131,6 +132,10 @@ export function setupAuth(app: Express) {
           recordFailedAttempt(username);
           return done(null, false);
         }
+
+        if (!user.emailVerified) {
+          return done(null, false, { message: "email_not_verified" });
+        }
         
         clearFailedAttempts(username);
         return done(null, user);
@@ -192,16 +197,73 @@ export function setupAuth(app: Express) {
         role,
       });
 
-      // Log de gebruiker in
-      req.login(user, (err) => {
-        if (err) return next(err);
-        // Verwijder wachtwoord uit de response
-        const { password, ...userWithoutPassword } = user;
-        res.status(201).json(userWithoutPassword);
+      const verificationToken = randomBytes(32).toString('hex');
+      const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await storage.updateUser(user.id, {
+        emailVerificationToken: verificationToken,
+        emailVerificationExpiry: verificationExpiry,
+        emailVerified: false,
+      });
+
+      await sendUserVerificationEmail(email, user.username, verificationToken);
+
+      res.status(201).json({ 
+        message: "Account aangemaakt. Check je e-mail om je account te activeren.",
+        requiresVerification: true
       });
     } catch (error) {
       console.error("Registration error:", error);
       res.status(500).json({ message: "Er is een fout opgetreden bij het registreren" });
+    }
+  });
+
+  app.get("/api/auth/verify-email/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const user = await storage.getUserByVerificationToken(token);
+
+      if (!user) {
+        return res.redirect("/web/login?error=invalid_token");
+      }
+
+      if (user.emailVerificationExpiry && new Date() > user.emailVerificationExpiry) {
+        return res.redirect("/web/login?error=token_expired");
+      }
+
+      await storage.updateUser(user.id, {
+        emailVerified: true,
+        emailVerificationToken: null as any,
+        emailVerificationExpiry: null as any,
+      });
+
+      return res.redirect("/web/login?verified=true");
+    } catch (error) {
+      console.error("Email verification error:", error);
+      return res.redirect("/web/login?error=verify_failed");
+    }
+  });
+
+  app.post("/api/auth/resend-verification", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: "E-mailadres vereist" });
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) return res.status(200).json({ message: "Als dit e-mailadres bekend is, ontvang je een nieuwe verificatiemail." });
+      if (user.emailVerified) return res.status(400).json({ message: "Dit account is al geverifieerd." });
+
+      const verificationToken = randomBytes(32).toString('hex');
+      const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await storage.updateUser(user.id, {
+        emailVerificationToken: verificationToken,
+        emailVerificationExpiry: verificationExpiry,
+      });
+
+      await sendUserVerificationEmail(email, user.username, verificationToken);
+      res.status(200).json({ message: "Verificatiemail opnieuw verzonden." });
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ message: "Er is een fout opgetreden." });
     }
   });
 
@@ -215,6 +277,9 @@ export function setupAuth(app: Express) {
       if (!user) {
         if (info?.message?.includes('vergrendeld')) {
           return res.status(423).json({ message: info.message });
+        }
+        if (info?.message === 'email_not_verified') {
+          return res.status(403).json({ message: "email_not_verified" });
         }
         return res.status(401).json({ message: "Ongeldige gebruikersnaam of wachtwoord" });
       }

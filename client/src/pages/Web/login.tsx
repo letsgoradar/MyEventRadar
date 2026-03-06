@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FaGoogle, FaApple } from "react-icons/fa";
-import { Mail, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { RadarLogoWithText } from "@/components/RadarLogo";
 import { Link } from "wouter";
 
@@ -19,6 +20,9 @@ export default function WebLoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendStatus, setResendStatus] = useState<"idle" | "sending" | "sent">("idle");
 
   const { data: googleStatus } = useQuery<{ enabled: boolean }>({
     queryKey: ["/api/auth/google/status"],
@@ -26,6 +30,7 @@ export default function WebLoginPage() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const errorParam = urlParams.get("error");
+  const verifiedParam = urlParams.get("verified");
   const returnTo = urlParams.get("returnTo") || "/web";
 
   if (user) {
@@ -35,10 +40,32 @@ export default function WebLoginPage() {
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEmailNotVerified(false);
     loginMutation.mutate(
       { email, password },
-      { onSuccess: () => setLocation(returnTo) }
+      {
+        onSuccess: () => setLocation(returnTo),
+        onError: (err: any) => {
+          if (err?.message === "email_not_verified") {
+            setEmailNotVerified(true);
+            setResendEmail(email);
+          }
+        }
+      }
     );
+  };
+
+  const handleResendVerification = async () => {
+    setResendStatus("sending");
+    try {
+      await apiRequest("/api/auth/resend-verification", {
+        method: "POST",
+        data: { email: resendEmail },
+      });
+      setResendStatus("sent");
+    } catch {
+      setResendStatus("idle");
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -60,12 +87,23 @@ export default function WebLoginPage() {
 
         <Card>
           <CardContent className="pt-6 space-y-4">
+            {verifiedParam === "true" && (
+              <div className="flex items-center gap-2 p-3 bg-teal-50 text-teal-700 rounded-lg text-sm border border-teal-200">
+                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                <span>Je e-mailadres is bevestigd. Je kunt nu inloggen.</span>
+              </div>
+            )}
+
             {errorParam && (
               <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span>
                   {errorParam === "google_failed"
                     ? "Google login is mislukt. Probeer het opnieuw."
+                    : errorParam === "invalid_token"
+                    ? "De verificatielink is ongeldig."
+                    : errorParam === "token_expired"
+                    ? "De verificatielink is verlopen. Vraag een nieuwe aan."
                     : "Er is een fout opgetreden bij het inloggen."}
                 </span>
               </div>
@@ -112,6 +150,37 @@ export default function WebLoginPage() {
               </Button>
             ) : (
               <form onSubmit={handleEmailLogin} className="space-y-4">
+                {loginMutation.error && !emailNotVerified && (
+                  <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    <span>{loginMutation.error.message}</span>
+                  </div>
+                )}
+
+                {emailNotVerified && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm space-y-2">
+                    <div className="flex items-start gap-2 text-amber-800">
+                      <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                      <span>Je e-mailadres is nog niet bevestigd. Check je inbox (en spam-map).</span>
+                    </div>
+                    {resendStatus === "sent" ? (
+                      <div className="flex items-center gap-2 text-teal-700">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>Nieuwe verificatiemail verzonden.</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResendVerification}
+                        disabled={resendStatus === "sending"}
+                        className="text-amber-700 underline underline-offset-2 hover:text-amber-900 disabled:opacity-50"
+                      >
+                        {resendStatus === "sending" ? "Versturen..." : "Verificatiemail opnieuw sturen"}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="email">E-mail of gebruikersnaam</Label>
                   <Input

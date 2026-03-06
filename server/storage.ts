@@ -97,6 +97,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
+  getUserByVerificationToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   getUserCount(): Promise<number>;
@@ -442,6 +443,13 @@ export class PgStorage implements IStorage {
     });
   }
 
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    return this.withRetry(async () => {
+      const [result] = await db.select().from(users).where(eq(users.emailVerificationToken, token));
+      return result;
+    });
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     return this.withRetry(async () => {
       const [result] = await db.insert(users).values(insertUser).returning();
@@ -475,16 +483,27 @@ export class PgStorage implements IStorage {
           })
         : result;
 
-      // Convert coordinates to numbers consistently
-      const formattedEvents = filteredByTime.map(event => {
-        const formattedEvent = {
+      // Convert coordinates to numbers and apply Haversine radius filter
+      const R = 6371; // km
+      const latRad = (lat * Math.PI) / 180;
+
+      const formattedEvents = filteredByTime
+        .map(event => ({
           ...event,
           latitude: parseFloat(event.latitude),
           longitude: parseFloat(event.longitude),
-          notificationReach: parseFloat(event.notificationReach)
-        };
-        return formattedEvent;
-      });
+          notificationReach: parseFloat(event.notificationReach),
+        }))
+        .filter(event => {
+          if (radius >= 1000) return true; // skip filter for broad fetches
+          const eLat = (event.latitude * Math.PI) / 180;
+          const eLng = (event.longitude * Math.PI) / 180;
+          const dLat = eLat - latRad;
+          const dLng = eLng - (lng * Math.PI) / 180;
+          const a = Math.sin(dLat / 2) ** 2 + Math.cos(latRad) * Math.cos(eLat) * Math.sin(dLng / 2) ** 2;
+          const dist = 2 * R * Math.asin(Math.sqrt(a));
+          return dist <= radius;
+        });
 
       console.log(`Found ${formattedEvents.length} events within ${windowDays ?? 'all'} days window`);
       return formattedEvents;

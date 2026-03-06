@@ -7,11 +7,14 @@ import { fetchAllEvents } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/use-debounce";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 
+const NL_CENTER: [number, number] = [52.1326, 5.2913];
+
 export default function Web() {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [radius, setRadius] = React.useState(20);
   const [windowDays, setWindowDays] = React.useState<number | null>(100);
+  const [fetchCenter, setFetchCenter] = React.useState<[number, number]>(NL_CENTER);
   const { preferences, isAuthenticated: hasPrefs } = useUserPreferences();
   const prefsAppliedRef = React.useRef(false);
 
@@ -21,6 +24,15 @@ export default function Web() {
       prefsAppliedRef.current = true;
     }
   }, [hasPrefs, preferences]);
+
+  React.useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setFetchCenter([pos.coords.latitude, pos.coords.longitude]),
+      () => {} // fallback to NL center on denial
+    );
+  }, []);
+
   const [filteredEvents, setFilteredEvents] = React.useState<Event[]>([]);
   
   // Debounce only windowDays for API calls (radius is now client-side)
@@ -34,16 +46,15 @@ export default function Web() {
     }
   }, [location, setLocation]);
   
-  // Fetch ALL events once at startup - enables instant zoom/pan
-  // Only refetches when windowDays changes
+  // Fetch events based on user location — refetches when location or windowDays changes
   const { data: allEvents, isLoading, isFetching } = useQuery({
-    queryKey: ["all-events", debouncedWindowDays],
+    queryKey: ["events-nearby", fetchCenter[0].toFixed(2), fetchCenter[1].toFixed(2), debouncedWindowDays],
     queryFn: async () => {
-      const result = await fetchAllEvents(52.1326, 5.2913, debouncedWindowDays);
+      const result = await fetchAllEvents(fetchCenter[0], fetchCenter[1], debouncedWindowDays);
       return result as Event[];
     },
-    staleTime: 1000 * 60 * 15, // 15 minutes - events don't change often
-    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
+    staleTime: 1000 * 60 * 30, // 30 minutes
+    gcTime: 1000 * 60 * 120, // 2 hours
   });
   
   // Client-side filtering based on search query only

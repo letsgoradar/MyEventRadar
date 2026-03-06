@@ -71,8 +71,8 @@ export function InstallPWA() {
         <img
           src="/images/letsgo-radar-brand.jpg"
           alt="letsgo radar"
-          className="rounded-xl shadow-md mb-5 mx-auto"
-          style={{ width: '220px', height: 'auto' }}
+          className="rounded shadow-md mb-5 mx-auto"
+          style={{ width: '260px', height: 'auto' }}
         />
 
         <p className="text-gray-500 text-sm mb-5">

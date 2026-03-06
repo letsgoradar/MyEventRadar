@@ -427,7 +427,7 @@ export function AppLayout({
               </Link>
             ) : (
               title === "Evenementen" ? (
-                <RadarLogoWithText height={28} textColor="hsl(var(--foreground))" />
+                <RadarLogoWithText height={38} textColor="hsl(var(--foreground))" />
               ) : null
             )}
             <h1 className="text-xl font-semibold">

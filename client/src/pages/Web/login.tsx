@@ -50,7 +50,7 @@ export default function WebLoginPage() {
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <Link href="/">
-            <RadarLogoWithText className="h-10 mx-auto mb-4 cursor-pointer" />
+            <RadarLogoWithText height={52} className="mx-auto mb-4 cursor-pointer" />
           </Link>
           <h1 className="text-2xl font-bold">Welkom terug</h1>
           <p className="text-muted-foreground mt-1">

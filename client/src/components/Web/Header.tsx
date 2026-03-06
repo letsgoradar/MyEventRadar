@@ -282,7 +282,7 @@ export function Header({
     <div className="h-20 border-b border-border bg-background flex items-center px-4 justify-between pointer-events-auto shadow-sm">
       {/* Left side area - logo */}
       <Link href="/" className="flex items-center w-32 md:w-48">
-        <RadarLogoWithText height={32} textColor="hsl(var(--foreground))" />
+        <RadarLogoWithText height={44} textColor="hsl(var(--foreground))" />
       </Link>
       
       {/* Center area with AI assistant, search and date filters */}

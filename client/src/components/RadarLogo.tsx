@@ -24,10 +24,10 @@ interface RadarLogoWithTextProps {
 }
 
 export function RadarLogoWithText({
-  height = 32,
+  height = 40,
   className = "",
 }: RadarLogoWithTextProps) {
-  const aspectRatio = 832 / 247;
+  const aspectRatio = 832 / 359;
   const width = Math.round(height * aspectRatio);
 
   return (
@@ -35,7 +35,7 @@ export function RadarLogoWithText({
       src="/images/letsgo-radar-brand.jpg"
       alt="letsgo radar"
       style={{ height: `${height}px`, width: `${width}px` }}
-      className={`object-contain rounded-lg drop-shadow-sm ${className}`}
+      className={`object-contain rounded drop-shadow-sm ${className}`}
     />
   );
 }

@@ -75,7 +75,7 @@ export function ExternalLinkInterstitial({
           <span>Terug naar letsgo radar</span>
         </Button>
         
-        <RadarLogoWithText height={24} textColor="#0D9488" />
+        <RadarLogoWithText height={32} textColor="#0D9488" />
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">

@@ -61,9 +61,9 @@ export function AppHeader({
   const [showOnlyFree, setShowOnlyFree] = React.useState(false);
   const [sortBy, setSortBy] = React.useState<'distance' | 'startTime'>('distance');
   
-  // Default: vandaag + 14 dagen
+  // Default: vandaag + 99 dagen = 100 dagen totaal
   const [startDate, setStartDate] = React.useState<Date | null>(() => startOfDay(new Date()));
-  const [endDate, setEndDate] = React.useState<Date | null>(() => addDays(startOfDay(new Date()), 14));
+  const [endDate, setEndDate] = React.useState<Date | null>(() => addDays(startOfDay(new Date()), 99));
   
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
   
@@ -179,7 +179,7 @@ export function AppHeader({
                       }}
                       onReset={() => {
                         const today = startOfDay(new Date());
-                        const defaultEnd = addDays(today, 14);
+                        const defaultEnd = addDays(today, 99);
                         setStartDate(today);
                         setEndDate(defaultEnd);
                         onDateRangeChange?.(today, defaultEnd);

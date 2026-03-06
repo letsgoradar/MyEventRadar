@@ -17,7 +17,6 @@ export default function Web() {
 
   React.useEffect(() => {
     if (hasPrefs && !prefsAppliedRef.current) {
-      setWindowDays(preferences.defaultWindowDays);
       setRadius(preferences.defaultRadius);
       prefsAppliedRef.current = true;
     }

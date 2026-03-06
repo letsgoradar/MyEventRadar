@@ -111,10 +111,9 @@ export function AppLayout({
   onEndDateChange,
   selectedEventId,
 }: AppLayoutProps) {
-  // Date range state - default vandaag + 14 dagen (inclusief vandaag)
-  // addDays(today, 13) = vandaag + 13 dagen = 14 dagen totaal
+  // Date range state - default vandaag + 99 dagen = 100 dagen totaal
   const today = startOfDay(new Date());
-  const defaultEndDate = addDays(today, 13);
+  const defaultEndDate = addDays(today, 99);
   
   const [localStartDate, setLocalStartDate] = React.useState<Date | null>(today);
   const [localEndDate, setLocalEndDate] = React.useState<Date | null>(defaultEndDate);

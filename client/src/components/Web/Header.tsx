@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Link } from "wouter";
 import { MdSearch, MdTune, MdMap, MdViewList, MdCalendarToday } from "react-icons/md";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -470,9 +469,6 @@ export function Header({
           </Button>
         )}
         
-        {/* Language Switcher */}
-        <LanguageSwitcher />
-
         {/* User profile / Login */}
         {user ? (
           <Link href="/web/profile" className="relative">

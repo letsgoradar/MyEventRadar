@@ -12,10 +12,32 @@ import { addDays, startOfDay } from "date-fns";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { AuthModal } from "@/components/Auth/AuthModal";
 import { useAuth } from "@/hooks/use-auth";
+import type L from "leaflet";
 
-// Uitgebreide Event interface met distance property
 interface EventWithDistance extends EventInterface {
   distance?: number;
+}
+
+const RADIUS_STEPS = [15, 30, 60, 100, 200];
+
+function boundsToRadius(bounds: L.LatLngBounds): number {
+  const center = bounds.getCenter();
+  const ne = bounds.getNorthEast();
+  const R = 6371;
+  const dLat = (ne.lat - center.lat) * Math.PI / 180;
+  const dLng = (ne.lng - center.lng) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(center.lat * Math.PI / 180) * Math.cos(ne.lat * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+  const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return dist;
+}
+
+function snapToStep(needed: number): number {
+  for (const step of RADIUS_STEPS) {
+    if (step >= needed) return step;
+  }
+  return RADIUS_STEPS[RADIUS_STEPS.length - 1];
 }
 
 // Functie om afstand te berekenen (Haversine formule)
@@ -63,18 +85,29 @@ export function AppHomePage() {
   const [filteredEvents, setFilteredEvents] = React.useState<EventWithDistance[]>([]);
   const { location } = useLocation();
   
-  // Standaard: geen datumfilter actief (lege array = alle toekomstige evenementen)
   const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
 
-  // Fetch events based on user location (optimized radius for faster loading)
+  const [fetchRadius, setFetchRadius] = React.useState(15);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMapBoundsChange = React.useCallback((bounds: L.LatLngBounds) => {
+    const needed = boundsToRadius(bounds);
+    const step = snapToStep(needed);
+    if (step > fetchRadius) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => setFetchRadius(step), 400);
+    }
+  }, [fetchRadius]);
+
   const { data: events = [], isLoading: eventsLoading, isFetching: eventsRefetching } = useQuery({
-    queryKey: ["events", location?.lat, location?.lng],
+    queryKey: ["events", location?.lat, location?.lng, fetchRadius],
     queryFn: async () => {
       if (!location) return [];
-      return fetchEventsByRadius(location.lat, location.lng, 15);
+      return fetchEventsByRadius(location.lat, location.lng, fetchRadius);
     },
     enabled: !!location,
     staleTime: 5 * 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 
   // Filter events based on search query and selected days, then sort by distance
@@ -165,6 +198,7 @@ export function AppHomePage() {
   }, [selectedEvent, visibleEvents, filteredEvents]);
 
   const isFirstLoad = eventsLoading && events.length === 0;
+  const isExpandingRadius = eventsRefetching && !eventsLoading;
 
   return (
     <>
@@ -178,6 +212,7 @@ export function AppHomePage() {
         defaultView="map"
         onEventClick={handleEventClick}
         onBoundsFilteredEventsChange={setVisibleEvents}
+        onMapBoundsChange={handleMapBoundsChange}
         selectedEventId={selectedEvent?.id ?? null}
       >
         {isFirstLoad && (

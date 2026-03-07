@@ -26,7 +26,7 @@ export function BetaBanner() {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[100] bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+    <div className="fixed top-0 left-0 right-0 z-[100] bg-primary text-primary-foreground">
       <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs sm:text-sm">
         <span className="font-bold bg-white/20 rounded px-1.5 py-0.5 text-[10px] tracking-wider">BETA</span>
         <span className="hidden sm:inline">Dit is een beta-versie — we werken hard aan verbeteringen. Je feedback is welkom!</span>

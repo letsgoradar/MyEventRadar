@@ -70,6 +70,7 @@ interface AppLayoutProps {
   onRadiusChange?: React.Dispatch<React.SetStateAction<number>>;
   onFilteredEventsChange?: React.Dispatch<React.SetStateAction<Event[]>>;
   onBoundsFilteredEventsChange?: (events: Event[]) => void;
+  onMapBoundsChange?: (bounds: L.LatLngBounds) => void;
   hideBottomNav?: boolean;
   hideBackButton?: boolean;
   showBackButton?: boolean;
@@ -98,6 +99,7 @@ export function AppLayout({
   onRadiusChange,
   onFilteredEventsChange,
   onBoundsFilteredEventsChange,
+  onMapBoundsChange,
   hideBottomNav = false,
   hideBackButton = false,
   showBackButton = false,
@@ -155,6 +157,11 @@ export function AppLayout({
   
   // Kaart bounds state voor zoom-based filtering
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
+  
+  const handleMapBoundsChange = React.useCallback((bounds: L.LatLngBounds) => {
+    setMapBounds(bounds);
+    if (onMapBoundsChange) onMapBoundsChange(bounds);
+  }, [onMapBoundsChange]);
   
   // Close search dropdown when clicking outside
   React.useEffect(() => {
@@ -693,7 +700,7 @@ export function AppLayout({
               hideZoomControls={true}
               onEventClick={onEventClick}
               selectedEventId={selectedEventId}
-              onBoundsChange={setMapBounds}
+              onBoundsChange={handleMapBoundsChange}
               startDate={startDate}
               endDate={endDate}
             />

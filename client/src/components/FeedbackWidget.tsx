@@ -90,9 +90,9 @@ export function FeedbackWidget() {
             </div>
           ) : (
             <>
-              <div className="p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+              <div className="p-4 bg-primary text-primary-foreground">
                 <h3 className="font-semibold text-sm">Geef feedback</h3>
-                <p className="text-xs text-white/80 mt-0.5">Wat wil je ons laten weten?</p>
+                <p className="text-xs opacity-80 mt-0.5">Wat wil je ons laten weten?</p>
               </div>
 
               <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
@@ -180,7 +180,7 @@ export function FeedbackWidget() {
           "fixed bottom-20 lg:bottom-6 right-4 z-[85] w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110",
           isOpen
             ? "bg-muted text-muted-foreground rotate-45"
-            : "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+            : "bg-primary text-primary-foreground"
         )}
         aria-label="Feedback geven"
       >

@@ -37,6 +37,7 @@ const app = express();
 // Serve static files from public folder (for logo and other assets)
 app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
 app.use('/assets', express.static(path.join(process.cwd(), 'public', 'assets')));
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
 // Security: Essential security headers
 app.use(helmet({

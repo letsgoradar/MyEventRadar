@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock, LogOut, SortAsc } from "lucide-react";
+import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, CircleUserRound, Clock, LogOut, SortAsc } from "lucide-react";
 import "./app-styles.css";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
@@ -410,11 +410,12 @@ export function AppLayout({
     <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
       {/* Header met titel */}
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b">
-        <div className="container py-3 px-4 flex justify-between items-center">
-          <div className="flex items-center">
+        <div className="container py-3 px-4 flex items-center">
+          {/* Links: profiel avatar */}
+          <div className="flex items-center w-10">
             {(showBackButton && !hideBackButton) ? (
               <Link href={backTo}>
-                <Button variant="ghost" size="sm" className="mr-1 p-1">
+                <Button variant="ghost" size="sm" className="p-1">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="24"
@@ -432,29 +433,32 @@ export function AppLayout({
                 </Button>
               </Link>
             ) : (
-              title === "Evenementen" ? (
-                <RadarLogoWithText height={38} textColor="hsl(var(--foreground))" />
-              ) : null
+              <Link href="/app/profile" className="cursor-pointer">
+                <Avatar className="h-8 w-8 border-2 border-primary">
+                  {savedPhotoUrl ? (
+                    <AvatarImage src={savedPhotoUrl} alt="Profielfoto" />
+                  ) : user?.photoUrl ? (
+                    <AvatarImage src={user.photoUrl} alt="Profielfoto" />
+                  ) : (
+                    <AvatarFallback>
+                      <CircleUserRound className="h-5 w-5" />
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+              </Link>
             )}
-            <h1 className="text-xl font-semibold">
-              {title !== "Evenementen" ? title : null}
-            </h1>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Midden: logo of titel */}
+          <div className="flex-1 flex justify-center">
+            {title === "Evenementen" ? (
+              <RadarLogoWithText height={44} textColor="hsl(var(--foreground))" />
+            ) : (
+              <h1 className="text-xl font-semibold">{title}</h1>
+            )}
+          </div>
+          {/* Rechts: notificaties */}
+          <div className="flex items-center w-10 justify-end">
             <NotificationCenter />
-            <Link href="/app/profile" className="cursor-pointer">
-              <Avatar className="h-8 w-8 border-2 border-primary">
-                {savedPhotoUrl ? (
-                  <AvatarImage src={savedPhotoUrl} alt="Profielfoto" />
-                ) : user?.photoUrl ? (
-                  <AvatarImage src={user.photoUrl} alt="Profielfoto" />
-                ) : (
-                  <AvatarFallback>
-                    <User className="h-4 w-4" />
-                  </AvatarFallback>
-                )}
-              </Avatar>
-            </Link>
           </div>
           {header}
         </div>

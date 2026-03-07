@@ -16,7 +16,7 @@ export async function apiRequest<T>(
       : `/api${path}`;
 
     try {
-      console.log(`Making API request to: ${url}`);
+      
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -44,7 +44,6 @@ export async function apiRequest<T>(
         throw new Error('Invalid response format: Expected JSON');
       }
       
-      console.log(`API response data:`, data);
       return data;
     } catch (error) {
       console.error('API request error:', error);
@@ -52,8 +51,7 @@ export async function apiRequest<T>(
     }
 }
 
-export async function fetchEventsByRadius(lat: number, lng: number, radius: number, windowDays?: number | null) {
-  console.log('Fetching events with params:', { lat, lng, radius, windowDays });
+export async function fetchEventsByRadius(lat: number, lng: number, radius: number, windowDays?: number | null, limit?: number) {
   const params = new URLSearchParams({
     lat: lat.toString(),
     lng: lng.toString(),
@@ -62,13 +60,15 @@ export async function fetchEventsByRadius(lat: number, lng: number, radius: numb
   if (windowDays !== undefined && windowDays !== null) {
     params.append('windowDays', windowDays.toString());
   }
+  if (limit) {
+    params.append('limit', limit.toString());
+  }
   return apiRequest(`/api/events/nearby?${params.toString()}`);
 }
 
 // Fetch events for web version based on user location
 // Uses 200km radius to cover all of Netherlands while being much faster than 1000km
 export async function fetchAllEvents(centerLat: number = 52.1326, centerLng: number = 5.2913, windowDays?: number | null) {
-  console.log('Fetching events for region:', { centerLat, centerLng });
   const params = new URLSearchParams({
     lat: centerLat.toString(),
     lng: centerLng.toString(),

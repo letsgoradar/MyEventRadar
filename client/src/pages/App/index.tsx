@@ -103,11 +103,11 @@ export function AppHomePage() {
     queryKey: ["events", location?.lat, location?.lng, fetchRadius],
     queryFn: async () => {
       if (!location) return [];
-      return fetchEventsByRadius(location.lat, location.lng, fetchRadius);
+      return fetchEventsByRadius(location.lat, location.lng, fetchRadius, 100, 500);
     },
     enabled: !!location,
     staleTime: 5 * 60 * 1000,
-    placeholderData: (prev) => prev,
+    placeholderData: (previousData) => previousData,
   });
 
   // Filter events based on search query and selected days, then sort by distance

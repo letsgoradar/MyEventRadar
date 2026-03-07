@@ -622,6 +622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lng: z.coerce.number(),
         radius: z.coerce.number().default(10),
         windowDays: z.union([z.coerce.number(), z.literal('all')]).optional(),
+        limit: z.coerce.number().optional(),
       });
 
       const parsed = schema.parse({
@@ -629,17 +630,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lng: req.query.lng,
         radius: req.query.radius,
         windowDays: req.query.windowDays,
+        limit: req.query.limit,
       });
       
       const { lat, lng, radius } = parsed;
-      // windowDays: geen default (null = alle events), 'all' betekent ook geen filter
       const windowDays = parsed.windowDays === 'all' || parsed.windowDays === undefined ? null : parsed.windowDays;
+      const maxEvents = parsed.limit || null;
 
-      console.log('GET /api/events/nearby params:', { lat, lng, radius, windowDays });
-      
       const events = await storage.getEventsByRadius(lat, lng, radius, windowDays);
       
-      // Sorteer events: highlights eerst, dan korte events, langlopende events (> 1 week) onderaan
       const sortedEvents = events.sort((a, b) => {
         const now = new Date();
         
@@ -681,7 +680,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return 0;
       });
       
-      res.json(sortedEvents);
+      const result = maxEvents ? sortedEvents.slice(0, maxEvents) : sortedEvents;
+      res.json(result);
     } catch (error) {
       console.error('Error in /api/events/nearby:', error);
       if (error instanceof z.ZodError) {

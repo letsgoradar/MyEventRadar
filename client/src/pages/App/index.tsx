@@ -18,7 +18,7 @@ interface EventWithDistance extends EventInterface {
   distance?: number;
 }
 
-const RADIUS_STEPS = [15, 30, 60, 100, 200];
+const RADIUS_STEPS = [15, 30, 60, 100, 200, 350, 500];
 
 function boundsToRadius(bounds: L.LatLngBounds): number {
   const center = bounds.getCenter();
@@ -215,7 +215,7 @@ export function AppHomePage() {
         onMapBoundsChange={handleMapBoundsChange}
         selectedEventId={selectedEvent?.id ?? null}
       >
-        {isFirstLoad && (
+        {(isFirstLoad || isExpandingRadius) && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[200]">
             <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-xl shadow-lg border">
               <div className="relative flex items-center justify-center w-16 h-16">
@@ -223,16 +223,11 @@ export function AppHomePage() {
               </div>
               <div className="text-center">
                 <h3 className="font-semibold text-lg">Events laden...</h3>
-                <p className="text-sm text-muted-foreground">We zoeken naar activiteiten in jouw buurt</p>
+                <p className="text-sm text-muted-foreground">
+                  {isFirstLoad ? "We zoeken naar activiteiten in jouw buurt" : "Meer evenementen ophalen voor dit gebied"}
+                </p>
               </div>
             </div>
-          </div>
-        )}
-
-        {eventsRefetching && !eventsLoading && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[200] bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-full text-sm flex items-center gap-2 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span>Bijwerken...</span>
           </div>
         )}
 

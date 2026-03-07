@@ -191,7 +191,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={view === "verification_pending" || view === "verified" ? undefined : onClose} />
-      <div className="relative w-full max-w-sm bg-background/95 backdrop-blur-sm rounded-2xl shadow-xl border border-border p-6 animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative z-10 w-full max-w-sm bg-background/95 backdrop-blur-sm rounded-2xl shadow-xl border border-border p-6 animate-in fade-in zoom-in-95 duration-200">
 
         {/* ========== WELCOME VIEW ========== */}
         {view === "welcome" && (

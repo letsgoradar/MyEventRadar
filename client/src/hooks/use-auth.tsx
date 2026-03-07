@@ -62,11 +62,10 @@ function AuthProvider({ children }: { children: ReactNode }) {
         data: credentials
       });
     },
-    onSuccess: (user: SelectUser) => {
-      queryClient.setQueryData(["/api/auth/me"], user);
+    onSuccess: () => {
       toast({
         title: "Account aangemaakt!",
-        description: "Je bent succesvol geregistreerd.",
+        description: "Check je e-mail om je account te bevestigen.",
       });
     },
     onError: (error: Error) => {

@@ -36,13 +36,15 @@ export function AppHomePage() {
   const authTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    if (user) {
+    if (user && user.emailVerified !== false) {
       setShowAuthModal(false);
       if (authTimerRef.current) clearTimeout(authTimerRef.current);
       return;
     }
-    authTimerRef.current = setTimeout(() => setShowAuthModal(true), 15000);
-    return () => { if (authTimerRef.current) clearTimeout(authTimerRef.current); };
+    if (!user) {
+      authTimerRef.current = setTimeout(() => setShowAuthModal(true), 15000);
+      return () => { if (authTimerRef.current) clearTimeout(authTimerRef.current); };
+    }
   }, [user]);
 
   const handleAuthClose = React.useCallback(() => {

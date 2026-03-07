@@ -488,7 +488,9 @@ router.post("/register", isAuthenticated, async (req: Request, res: Response) =>
       verificationToken: token,
       tokenExpiresAt: tokenExpires,
     }).returning();
-    await sendVerificationEmail(data.verificationEmail, token, data.companyName);
+    const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+    const requestBaseUrl = `${proto}://${req.get('host')}`;
+    await sendVerificationEmail(data.verificationEmail, token, data.companyName, requestBaseUrl);
     res.json({ profile, verificationSent: true });
   } catch (error: any) {
     res.status(400).json({ error: error.message || "Registratie mislukt" });
@@ -544,7 +546,9 @@ router.post("/resend-verification", isAuthenticated, async (req: Request, res: R
     await db.update(advertiserProfiles)
       .set({ verificationToken: token, tokenExpiresAt: tokenExpires, updatedAt: new Date() })
       .where(eq(advertiserProfiles.id, profile.id));
-    await sendVerificationEmail(profile.verificationEmail, token, profile.companyName);
+    const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+    const requestBaseUrl = `${proto}://${req.get('host')}`;
+    await sendVerificationEmail(profile.verificationEmail, token, profile.companyName, requestBaseUrl);
     res.json({ success: true, message: "Verificatie-e-mail opnieuw verzonden" });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Kon verificatie niet opnieuw verzenden" });

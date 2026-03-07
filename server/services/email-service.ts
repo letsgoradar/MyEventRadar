@@ -117,9 +117,10 @@ export async function sendFeedbackNotification(feedback: {
 export async function sendUserVerificationEmail(
   email: string,
   username: string,
-  token: string
+  token: string,
+  requestBaseUrl?: string
 ): Promise<boolean> {
-  const baseUrl = getBaseUrl();
+  const baseUrl = requestBaseUrl || getBaseUrl();
   const verifyUrl = `${baseUrl}/api/auth/verify-email/${token}`;
 
   const subject = "Bevestig je e-mailadres — letsgo radar";
@@ -185,9 +186,10 @@ export async function sendUserVerificationEmail(
 export async function sendVerificationEmail(
   email: string,
   token: string,
-  companyName: string
+  companyName: string,
+  requestBaseUrl?: string
 ): Promise<boolean> {
-  const baseUrl = getBaseUrl();
+  const baseUrl = requestBaseUrl || getBaseUrl();
   const verifyUrl = `${baseUrl}/api/advertiser/verify/${token}`;
 
   const subject = "Verifieer je bedrijfsaccount — letsgo radar";

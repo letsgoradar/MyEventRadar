@@ -210,7 +210,9 @@ export function setupAuth(app: Express) {
         emailVerified: false,
       });
 
-      await sendUserVerificationEmail(email, user.username, verificationToken);
+      const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+      const requestBaseUrl = `${proto}://${req.get('host')}`;
+      await sendUserVerificationEmail(email, user.username, verificationToken, requestBaseUrl);
 
       res.status(201).json({ 
         message: "Account aangemaakt. Check je e-mail om je account te activeren.",
@@ -293,7 +295,9 @@ export function setupAuth(app: Express) {
         emailVerificationExpiry: verificationExpiry,
       });
 
-      await sendUserVerificationEmail(email, user.username, verificationToken);
+      const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+      const requestBaseUrl = `${proto}://${req.get('host')}`;
+      await sendUserVerificationEmail(email, user.username, verificationToken, requestBaseUrl);
       res.status(200).json({ message: "Verificatiemail opnieuw verzonden." });
     } catch (error) {
       console.error("Resend verification error:", error);

@@ -7,7 +7,7 @@ import { EventInterface } from "@shared/schema";
 import { EventList } from "@/components/EventList";
 import { EventDetailPanel } from "@/components/App/EventDetailPanel";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, List } from "lucide-react";
+import { LayoutGrid, List, Loader2, MapPin } from "lucide-react";
 import { addDays, startOfDay } from "date-fns";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { AuthModal } from "@/components/Auth/AuthModal";
@@ -67,14 +67,14 @@ export function AppHomePage() {
   const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
 
   // Fetch events based on user location (optimized radius for faster loading)
-  const { data: events = [] } = useQuery({
+  const { data: events = [], isLoading: eventsLoading, isFetching: eventsRefetching } = useQuery({
     queryKey: ["events", location?.lat, location?.lng],
     queryFn: async () => {
       if (!location) return [];
-      return fetchEventsByRadius(location.lat, location.lng, 15); // Optimized radius for performance
+      return fetchEventsByRadius(location.lat, location.lng, 15);
     },
     enabled: !!location,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   // Filter events based on search query and selected days, then sort by distance
@@ -164,6 +164,8 @@ export function AppHomePage() {
     }
   }, [selectedEvent, visibleEvents, filteredEvents]);
 
+  const isFirstLoad = eventsLoading && events.length === 0;
+
   return (
     <>
       <AppLayout
@@ -178,7 +180,28 @@ export function AppHomePage() {
         onBoundsFilteredEventsChange={setVisibleEvents}
         selectedEventId={selectedEvent?.id ?? null}
       >
-        {/* Toon EventList component - altijd in tegelweergave */}
+        {isFirstLoad && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[200]">
+            <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-xl shadow-lg border">
+              <div className="relative flex items-center justify-center w-16 h-16">
+                <MapPin className="h-12 w-12 text-primary animate-bounce absolute" />
+                <Loader2 className="h-5 w-5 text-primary/70 animate-spin absolute" style={{ marginTop: '2px' }} />
+              </div>
+              <div className="text-center">
+                <h3 className="font-semibold text-lg">Events laden...</h3>
+                <p className="text-sm text-muted-foreground">We zoeken naar activiteiten in jouw buurt</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {eventsRefetching && !eventsLoading && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[200] bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-full text-sm flex items-center gap-2 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span>Bijwerken...</span>
+          </div>
+        )}
+
         <EventList 
           searchQuery={searchQuery}
           radius={10}

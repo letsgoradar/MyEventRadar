@@ -62,6 +62,15 @@
 }
 
 @layer base {
+  :root {
+    --theme-color-1: #f5fcfa;
+    --theme-color-2: #e5f8f2;
+    --theme-color-3: #60d0b8;
+    --theme-color-4: #e5f8f2;
+    --theme-color-5: #f5fcfa;
+    --theme-text-color: #1a4a40;
+  }
+
   * {
     @apply border-border;
   }

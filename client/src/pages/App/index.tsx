@@ -12,6 +12,7 @@ import { addDays, startOfDay } from "date-fns";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { AuthModal } from "@/components/Auth/AuthModal";
 import { useAuth } from "@/hooks/use-auth";
+import { useSearch } from "wouter";
 import type L from "leaflet";
 
 interface EventWithDistance extends EventInterface {
@@ -44,8 +45,16 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
 export function AppHomePage() {
   const { user } = useAuth();
+  const searchString = useSearch();
+  const authFromQuery = new URLSearchParams(searchString).get("auth");
   const [showAuthModal, setShowAuthModal] = React.useState(false);
   const authTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    if (authFromQuery === "create" && !user) {
+      setShowAuthModal(true);
+    }
+  }, [authFromQuery, user]);
 
   React.useEffect(() => {
     if (user && user.emailVerified !== false) {
@@ -69,7 +78,11 @@ export function AppHomePage() {
   const handleAuthSuccess = React.useCallback(() => {
     setShowAuthModal(false);
     if (authTimerRef.current) clearTimeout(authTimerRef.current);
-  }, []);
+    if (authFromQuery === "create") {
+      window.history.replaceState({}, "", "/app/create");
+      window.location.href = "/app/create";
+    }
+  }, [authFromQuery]);
 
   const [searchQuery, setSearchQuery] = React.useState("");
   const [filteredEvents, setFilteredEvents] = React.useState<EventWithDistance[]>([]);

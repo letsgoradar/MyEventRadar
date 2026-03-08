@@ -358,17 +358,8 @@ export function AppCreateEvent() {
   });
 
   if (!authLoading && !user) {
-    return (
-      <div className="flex flex-col min-h-screen bg-background">
-        <div className="flex-1" />
-        <AppBottomNav />
-        <AuthModal
-          isOpen={true}
-          onClose={() => navigate("/app")}
-          onSuccess={() => {}}
-        />
-      </div>
-    );
+    navigate("/app?auth=create");
+    return null;
   }
   
   // Laadstatus tonen tijdens authenticatie check of event laden

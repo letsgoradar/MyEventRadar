@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { MapPin, Clock } from "lucide-react";
+import { MapPin, Loader2 } from "lucide-react";
 
 function extractCity(address: string | null | undefined): string | null {
   if (!address) return null;
@@ -31,6 +31,7 @@ interface BottomSheetProps {
 const COLLAPSED_HEIGHT = 50;
 const EXPANDED_HEIGHT_RATIO = 0.55;
 const BOTTOM_NAV_HEIGHT = 70;
+const PAGE_SIZE = 20;
 
 export function BottomSheet({ 
   events, 
@@ -40,6 +41,9 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const [isExpanded, setIsExpanded] = React.useState(isOpen);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const sentinelRef = React.useRef<HTMLDivElement>(null);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [displayCount, setDisplayCount] = React.useState(PAGE_SIZE);
   
   const expandedHeight = typeof window !== 'undefined' 
     ? window.innerHeight * EXPANDED_HEIGHT_RATIO 
@@ -48,6 +52,29 @@ export function BottomSheet({
   React.useEffect(() => {
     setIsExpanded(isOpen);
   }, [isOpen]);
+
+  React.useEffect(() => {
+    setDisplayCount(PAGE_SIZE);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [events]);
+
+  React.useEffect(() => {
+    if (!isExpanded || !sentinelRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && displayCount < events.length) {
+          setDisplayCount(prev => Math.min(prev + PAGE_SIZE, events.length));
+        }
+      },
+      { root: scrollRef.current, rootMargin: "200px" }
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [isExpanded, displayCount, events.length]);
 
   const handleDragEnd = (_: any, info: PanInfo) => {
     if (info.velocity.y < -300 || info.offset.y < -50) {
@@ -70,22 +97,22 @@ export function BottomSheet({
     const start = new Date(event.startTime);
     const end = event.endTime ? new Date(event.endTime) : start;
     
-    // Reset naar middernacht voor dag-vergelijking
     const eventStartDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
     const eventEndDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
     
-    // Check of event multi-dag is en al begonnen
     const isMultiDay = eventEndDay.getTime() > eventStartDay.getTime();
     const isAlreadyStarted = start < now;
     const isStillOngoing = end > now;
     
-    // Multi-dag event dat al begonnen is: toon "vandaag" of huidige datum
     if (isMultiDay && isAlreadyStarted && isStillOngoing) {
       return format(now, "d MMM", { locale: nl });
     }
     
     return format(start, "d MMM", { locale: nl });
   };
+
+  const visibleEvents = isExpanded ? events.slice(0, displayCount) : events.slice(0, 4);
+  const hasMore = isExpanded && displayCount < events.length;
 
   return (
     <motion.div
@@ -122,12 +149,15 @@ export function BottomSheet({
           </p>
         </div>
         
-        <div className={cn(
-          "flex-1 overflow-y-auto px-3 pb-6",
-          !isExpanded && "overflow-hidden"
-        )}>
+        <div
+          ref={scrollRef}
+          className={cn(
+            "flex-1 overflow-y-auto px-3 pb-6",
+            !isExpanded && "overflow-hidden"
+          )}
+        >
           <div className="grid grid-cols-2 gap-3 pb-4">
-            {events.slice(0, isExpanded ? undefined : 4).map((event) => (
+            {visibleEvents.map((event) => (
               <div
                 key={event.id}
                 onClick={() => onEventClick?.(event)}
@@ -139,6 +169,7 @@ export function BottomSheet({
                       src={event.imageUrl} 
                       alt={event.title}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/40">
@@ -166,6 +197,11 @@ export function BottomSheet({
               </div>
             ))}
           </div>
+          {hasMore && (
+            <div ref={sentinelRef} className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
       </div>
     </motion.div>

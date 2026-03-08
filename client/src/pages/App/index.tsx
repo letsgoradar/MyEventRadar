@@ -18,8 +18,6 @@ interface EventWithDistance extends EventInterface {
   distance?: number;
 }
 
-const RADIUS_STEPS = [15, 30, 60, 100, 200, 350, 500];
-
 function boundsToRadius(bounds: L.LatLngBounds): number {
   const center = bounds.getCenter();
   const ne = bounds.getNorthEast();
@@ -33,14 +31,6 @@ function boundsToRadius(bounds: L.LatLngBounds): number {
   return dist;
 }
 
-function snapToStep(needed: number): number {
-  for (const step of RADIUS_STEPS) {
-    if (step >= needed) return step;
-  }
-  return RADIUS_STEPS[RADIUS_STEPS.length - 1];
-}
-
-// Functie om afstand te berekenen (Haversine formule)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -87,38 +77,66 @@ export function AppHomePage() {
   
   const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
 
-  const [fetchRadius, setFetchRadius] = React.useState(15);
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mapRadius, setMapRadius] = React.useState<number | null>(null);
 
   const handleMapBoundsChange = React.useCallback((bounds: L.LatLngBounds) => {
-    const needed = boundsToRadius(bounds);
-    const step = snapToStep(needed);
-    if (step > fetchRadius) {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => setFetchRadius(step), 400);
+    const needed = Math.ceil(boundsToRadius(bounds));
+    const clamped = Math.max(10, Math.min(needed, 500));
+    if (mapRadius === null) {
+      setMapRadius(clamped);
     }
-  }, [fetchRadius]);
+  }, [mapRadius]);
 
-  const { data: events = [], isLoading: eventsLoading, isFetching: eventsRefetching } = useQuery({
-    queryKey: ["events", location?.lat, location?.lng, fetchRadius],
+  const {
+    data: mapEvents = [],
+    isLoading: mapLoading,
+  } = useQuery({
+    queryKey: ["events-map", location?.lat, location?.lng, mapRadius],
     queryFn: async () => {
-      if (!location) return [];
-      return fetchEventsByRadius(location.lat, location.lng, fetchRadius, 100, 500);
+      if (!location || !mapRadius) return [];
+      return fetchEventsByRadius(location.lat, location.lng, mapRadius, 100);
     },
-    enabled: !!location,
+    enabled: !!location && mapRadius !== null,
     staleTime: 5 * 60 * 1000,
-    placeholderData: (previousData) => previousData,
   });
 
-  // Filter events based on search query and selected days, then sort by distance
+  const {
+    data: bgEvents = [],
+    isLoading: bgLoading,
+  } = useQuery({
+    queryKey: ["events-bg", location?.lat, location?.lng],
+    queryFn: async () => {
+      if (!location) return [];
+      return fetchEventsByRadius(location.lat, location.lng, 200, 100);
+    },
+    enabled: !!location && mapEvents.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const allEvents = React.useMemo(() => {
+    if (bgEvents.length > 0) {
+      const seen = new Set<number>();
+      const merged: EventInterface[] = [];
+      for (const e of mapEvents) {
+        if (!seen.has(e.id)) { seen.add(e.id); merged.push(e); }
+      }
+      for (const e of bgEvents) {
+        if (!seen.has(e.id)) { seen.add(e.id); merged.push(e); }
+      }
+      return merged;
+    }
+    return mapEvents;
+  }, [mapEvents, bgEvents]);
+
   React.useEffect(() => {
-    if (!events || !Array.isArray(events)) {
+    if (!allEvents || !Array.isArray(allEvents)) {
       setFilteredEvents([]);
       return;
     }
 
     const lowercaseQuery = searchQuery.toLowerCase();
-    let filtered = events.filter((event: EventInterface) => {
+    let filtered = allEvents.filter((event: EventInterface) => {
+      if (!lowercaseQuery) return true;
       return (
         event.title.toLowerCase().includes(lowercaseQuery) ||
         (event.description && event.description.toLowerCase().includes(lowercaseQuery)) ||
@@ -127,13 +145,11 @@ export function AppHomePage() {
       );
     }) as EventWithDistance[];
     
-    // Filter op geselecteerde dagen (als er dagen zijn geselecteerd)
     if (selectedDays.length > 0) {
       filtered = filtered.filter(event => {
         const eventStart = startOfDay(new Date(event.startTime));
         const eventEnd = startOfDay(new Date(event.endTime || event.startTime));
         
-        // Check of het event op een van de geselecteerde dagen valt
         return selectedDays.some(selectedDay => {
           const selected = startOfDay(selectedDay);
           return (eventStart <= selected && eventEnd >= selected) || 
@@ -142,7 +158,6 @@ export function AppHomePage() {
       });
     }
     
-    // Bereken afstand en sorteer op afstand (dichtst bij eerst)
     const eventsWithDistance: EventWithDistance[] = filtered.map(event => {
       const distance = location 
         ? calculateDistance(location.lat, location.lng, Number(event.latitude), Number(event.longitude))
@@ -150,7 +165,6 @@ export function AppHomePage() {
       return { ...event, distance };
     });
     
-    // Sorteer op afstand (dichtst bij eerst)
     eventsWithDistance.sort((a, b) => {
       if (a.distance === undefined && b.distance === undefined) return 0;
       if (a.distance === undefined) return 1;
@@ -159,21 +173,15 @@ export function AppHomePage() {
     });
 
     setFilteredEvents(prev => {
-      // Only update if the filtered results are different
       if (JSON.stringify(prev.map(e => e.id)) === JSON.stringify(eventsWithDistance.map(e => e.id))) {
         return prev;
       }
       return eventsWithDistance;
     });
-  }, [events, searchQuery, selectedDays, location]);
+  }, [allEvents, searchQuery, selectedDays, location]);
 
-  // Gebruik state om bij te houden of de tegelweergave actief is
   const [gridView, setGridView] = React.useState(true);
-  
-  // State voor event detail overlay
   const [selectedEvent, setSelectedEvent] = React.useState<EventWithDistance | null>(null);
-  
-  // State voor bounds-filtered events (voor navigatie)
   const [visibleEvents, setVisibleEvents] = React.useState<EventWithDistance[]>([]);
 
   const handleEventClick = React.useCallback((event: EventWithDistance) => {
@@ -187,7 +195,6 @@ export function AppHomePage() {
   const handleNavigateEvent = React.useCallback((direction: 'previous' | 'next') => {
     if (!selectedEvent) return;
     
-    // Gebruik visibleEvents (bounds-filtered) voor navigatie
     const eventsToNavigate = visibleEvents.length > 0 ? visibleEvents : filteredEvents;
     const currentIndex = eventsToNavigate.findIndex(e => e.id === selectedEvent.id);
     if (direction === 'previous' && currentIndex > 0) {
@@ -197,8 +204,7 @@ export function AppHomePage() {
     }
   }, [selectedEvent, visibleEvents, filteredEvents]);
 
-  const isFirstLoad = eventsLoading && events.length === 0;
-  const isExpandingRadius = eventsRefetching && !eventsLoading;
+  const isFirstLoad = mapLoading || (!!location && mapRadius === null);
 
   return (
     <>
@@ -215,7 +221,7 @@ export function AppHomePage() {
         onMapBoundsChange={handleMapBoundsChange}
         selectedEventId={selectedEvent?.id ?? null}
       >
-        {(isFirstLoad || isExpandingRadius) && (
+        {isFirstLoad && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[200]">
             <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-xl shadow-lg border">
               <div className="relative flex items-center justify-center w-16 h-16">
@@ -224,7 +230,7 @@ export function AppHomePage() {
               <div className="text-center">
                 <h3 className="font-semibold text-lg">Events laden...</h3>
                 <p className="text-sm text-muted-foreground">
-                  {isFirstLoad ? "We zoeken naar activiteiten in jouw buurt" : "Meer evenementen ophalen voor dit gebied"}
+                  We zoeken naar activiteiten in jouw buurt
                 </p>
               </div>
             </div>
@@ -240,7 +246,6 @@ export function AppHomePage() {
         />
       </AppLayout>
       
-      {/* Event Detail Overlay - BUITEN AppLayout zodat het altijd wordt gerenderd */}
       {selectedEvent && (
         <EventDetailPanel
           event={selectedEvent}

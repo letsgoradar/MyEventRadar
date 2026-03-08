@@ -279,3 +279,11 @@ Twee-producten advertentiesysteem:
 - **Pagination Auto-detect**: When AI profile has no stored pagination config, `tryAiProfileSelectors()` now auto-detects `?page=N` or `/page/N` patterns from the overview page HTML. Falls back to this when `scraperConfig.pagination` and `profile.pagination` are both empty.
 - **Save-config Route**: Now passes `pagination` data from `scraperConfig.pagination` or `req.body.pagination` to the saved AI extraction profile.
 - **Files**: `server/services/ai-provider.ts`, `server/services/ai-html-analyzer.ts`, `server/routes.ts`
+
+### App Event Loading (Two-Phase Strategy)
+- **Phase 1** (immediate): When the map first renders, calculates the visible area radius and fetches events for that radius with `windowDays=100`. Shows bouncing MapPin loading animation.
+- **Phase 2** (background): After Phase 1 completes, silently fetches events for 200km radius (covers all of NL) with `windowDays=100`. No loading overlay shown.
+- **Merged pool**: Both data sets are merged (deduplicated by event ID) into `allEvents`. Search/filters run on the full pool so search results include events outside the visible map.
+- **No step-by-step radius expansion**: Previous approach (15→30→60→100→200→350→500km steps) was removed. Only 2 API calls per session.
+- **AppLayout simplified**: Removed `originalEvents` state cache that caused stale data bugs. `displayedEvents` now works directly on `filteredEvents` prop.
+- **Files**: `client/src/pages/App/index.tsx`, `client/src/components/App/AppLayout.tsx`, `client/src/lib/api.ts`

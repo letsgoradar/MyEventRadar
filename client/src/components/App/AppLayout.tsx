@@ -152,9 +152,6 @@ export function AppLayout({
   const [isSearchFocused, setIsSearchFocused] = React.useState<boolean>(false);
   const searchContainerRef = React.useRef<HTMLDivElement>(null);
   
-  // Bewaar de oorspronkelijke evenementen
-  const [originalEvents, setOriginalEvents] = React.useState<Event[]>([]);
-  
   // Kaart bounds state voor zoom-based filtering
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
   
@@ -177,19 +174,8 @@ export function AppLayout({
     };
   }, []);
   
-  // Sla de originele evenementen op wanneer ze voor het eerst binnenkomen
-  React.useEffect(() => {
-    if (filteredEvents.length > 0) {
-      setOriginalEvents(filteredEvents);
-    }
-  }, [filteredEvents]);
-  
-  // Filter events gebaseerd op geselecteerde categorieën en verlopen evenementen
   const displayedEvents = React.useMemo(() => {
-    // Als er geen originele events zijn, gebruik de gefilterde events direct
-    if (originalEvents.length === 0) return filteredEvents;
-    
-    let filtered = originalEvents;
+    let filtered = filteredEvents as Event[];
     
     // Filter op basis van categorieën als er categorieën geselecteerd zijn
     if (selectedCategories.length > 0) {
@@ -265,7 +251,7 @@ export function AppLayout({
     });
     
     return filtered;
-  }, [selectedCategories, originalEvents, showExpiredEvents, sortDirection, eventFilters, startDate, endDate]);
+  }, [selectedCategories, filteredEvents, showExpiredEvents, sortDirection, eventFilters, startDate, endDate]);
   
   // Events gefilterd op kaart bounds (voor bottom sheet)
   const boundsFilteredEvents = React.useMemo(() => {

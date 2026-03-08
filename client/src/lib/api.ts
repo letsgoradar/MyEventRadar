@@ -51,7 +51,7 @@ export async function apiRequest<T>(
     }
 }
 
-export async function fetchEventsByRadius(lat: number, lng: number, radius: number, windowDays?: number | null, limit?: number) {
+export async function fetchEventsByRadius(lat: number, lng: number, radius: number, windowDays?: number | null) {
   const params = new URLSearchParams({
     lat: lat.toString(),
     lng: lng.toString(),
@@ -59,9 +59,6 @@ export async function fetchEventsByRadius(lat: number, lng: number, radius: numb
   });
   if (windowDays !== undefined && windowDays !== null) {
     params.append('windowDays', windowDays.toString());
-  }
-  if (limit) {
-    params.append('limit', limit.toString());
   }
   return apiRequest(`/api/events/nearby?${params.toString()}`);
 }

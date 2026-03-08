@@ -622,7 +622,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lng: z.coerce.number(),
         radius: z.coerce.number().default(10),
         windowDays: z.union([z.coerce.number(), z.literal('all')]).optional(),
-        limit: z.coerce.number().optional(),
       });
 
       const parsed = schema.parse({
@@ -630,12 +629,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lng: req.query.lng,
         radius: req.query.radius,
         windowDays: req.query.windowDays,
-        limit: req.query.limit,
       });
       
       const { lat, lng, radius } = parsed;
       const windowDays = parsed.windowDays === 'all' || parsed.windowDays === undefined ? null : parsed.windowDays;
-      const maxEvents = parsed.limit || null;
 
       const events = await storage.getEventsByRadius(lat, lng, radius, windowDays);
       
@@ -680,8 +677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return 0;
       });
       
-      const result = maxEvents ? sortedEvents.slice(0, maxEvents) : sortedEvents;
-      res.json(result);
+      res.json(sortedEvents);
     } catch (error) {
       console.error('Error in /api/events/nearby:', error);
       if (error instanceof z.ZodError) {

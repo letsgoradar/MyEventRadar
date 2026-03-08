@@ -254,6 +254,7 @@ export function AppHomePage() {
           onPrevious={() => handleNavigateEvent('previous')}
           onNext={() => handleNavigateEvent('next')}
           userLocation={location || undefined}
+          onAuthRequired={() => setShowAuthModal(true)}
         />
       )}
       

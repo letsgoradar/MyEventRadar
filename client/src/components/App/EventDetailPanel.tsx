@@ -80,6 +80,7 @@ interface EventDetailPanelProps {
   onPrevious?: () => void;
   onNext?: () => void;
   userLocation?: UserLocation;
+  onAuthRequired?: () => void;
 }
 
 export function EventDetailPanel({ 
@@ -88,7 +89,8 @@ export function EventDetailPanel({
   onClose,
   onPrevious,
   onNext,
-  userLocation 
+  userLocation,
+  onAuthRequired 
 }: EventDetailPanelProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -218,11 +220,9 @@ export function EventDetailPanel({
 
   const handleToggleFavorite = () => {
     if (!user) {
-      toast({
-        title: "Inloggen vereist",
-        description: "Log in om evenementen op te slaan.",
-        variant: "destructive",
-      });
+      if (onAuthRequired) {
+        onAuthRequired();
+      }
       return;
     }
     toggleFavoriteMutation.mutate();
@@ -230,11 +230,9 @@ export function EventDetailPanel({
 
   const handleToggleParticipant = () => {
     if (!user) {
-      toast({
-        title: "Inloggen vereist",
-        description: "Log in om je aan te melden voor evenementen.",
-        variant: "destructive",
-      });
+      if (onAuthRequired) {
+        onAuthRequired();
+      }
       return;
     }
     toggleParticipantMutation.mutate();

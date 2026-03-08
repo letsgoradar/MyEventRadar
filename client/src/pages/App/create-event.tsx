@@ -46,6 +46,7 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import AppBottomNav from "@/components/App/AppBottomNav";
+import { AuthModal } from "@/components/Auth/AuthModal";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -356,39 +357,16 @@ export function AppCreateEvent() {
     },
   });
 
-  // Conditionele returns NA alle hooks
-  // Redirect naar login als niet ingelogd
   if (!authLoading && !user) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
-        <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="w-full max-w-sm">
-            <CardContent className="pt-6 space-y-4">
-              <div className="text-center space-y-2">
-                <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
-                <CardTitle className="text-xl">Inloggen Vereist</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Je moet ingelogd zijn om een evenement aan te maken.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Button asChild className="w-full">
-                  <Link href="/app/login">Inloggen</Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/app/register">Account aanmaken</Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full">
-                  <Link href="/app">
-                    <ChevronLeft className="mr-2 h-4 w-4" />
-                    Terug naar kaart
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <div className="flex-1" />
         <AppBottomNav />
+        <AuthModal
+          isOpen={true}
+          onClose={() => navigate("/app")}
+          onSuccess={() => {}}
+        />
       </div>
     );
   }

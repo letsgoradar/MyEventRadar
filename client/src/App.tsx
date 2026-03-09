@@ -401,14 +401,6 @@ export default function App() {
           <LazyLoad><AppHomePage /></LazyLoad>
         </Route>
 
-        {/* Public SEO Routes */}
-        <Route path="/:province/:city/evenementen">
-          <LazyLoad><CityPage /></LazyLoad>
-        </Route>
-        <Route path="/:province/:city">
-          <LazyLoad><CityPage /></LazyLoad>
-        </Route>
-
         {/* Privacy Policy */}
         <Route path="/privacy">
           <LazyLoad><PrivacyPolicy /></LazyLoad>
@@ -417,6 +409,14 @@ export default function App() {
         {/* Password Reset */}
         <Route path="/reset-password/:token">
           <LazyLoad><ResetPassword /></LazyLoad>
+        </Route>
+
+        {/* Public SEO Routes — must come after specific routes */}
+        <Route path="/:province/:city/evenementen">
+          <LazyLoad><CityPage /></LazyLoad>
+        </Route>
+        <Route path="/:province/:city">
+          <LazyLoad><CityPage /></LazyLoad>
         </Route>
 
         {/* Theme preview route */}

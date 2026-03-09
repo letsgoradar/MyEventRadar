@@ -35,7 +35,7 @@ export function ForgotPasswordForm() {
     setIsSubmitting(true);
     try {
       // API aanroep implementeren voor wachtwoord reset
-      const response = await fetch("/api/request-password-reset", {
+      const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

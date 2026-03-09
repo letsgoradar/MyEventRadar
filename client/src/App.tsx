@@ -111,6 +111,7 @@ const CityPage = React.lazy(() => import("@/pages/public/CityPage"));
 const InstallPWA = React.lazy(() => import("@/components/App/InstallPWA").then(m => ({ default: m.InstallPWA })));
 
 const PrivacyPolicy = React.lazy(() => import("@/pages/PrivacyPolicy"));
+const ResetPassword = React.lazy(() => import("@/pages/ResetPassword"));
 const NotFound = React.lazy(() => import("@/pages/not-found"));
 const ErrorPage = React.lazy(() => import("@/pages/error"));
 
@@ -411,6 +412,11 @@ export default function App() {
         {/* Privacy Policy */}
         <Route path="/privacy">
           <LazyLoad><PrivacyPolicy /></LazyLoad>
+        </Route>
+
+        {/* Password Reset */}
+        <Route path="/reset-password/:token">
+          <LazyLoad><ResetPassword /></LazyLoad>
         </Route>
 
         {/* Theme preview route */}

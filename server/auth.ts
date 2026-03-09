@@ -412,10 +412,17 @@ export function setupAuth(app: Express) {
         expiresAt
       });
       
-      // In een echte applicatie zou hier een email worden verzonden
-      // met een link zoals /reset-password?token=123abc
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`[Dev] Reset token voor gebruiker ${user.id}: ${token}`);
+      // Determine base URL for the reset link
+      const baseUrl = process.env.REPLIT_DEPLOYMENT_URL
+        ? `https://${process.env.REPLIT_DEPLOYMENT_URL}`
+        : `${req.protocol}://${req.get('host')}`;
+      const resetUrl = `${baseUrl}/reset-password/${token}`;
+
+      // Send password reset email
+      const { sendPasswordResetEmail } = await import("./services/email-service");
+      const emailSent = await sendPasswordResetEmail(user.email, user.username || user.email, resetUrl);
+      if (!emailSent) {
+        console.log(`[Auth] Password reset email could not be sent for user ${user.id}`);
       }
       
       res.status(200).json({

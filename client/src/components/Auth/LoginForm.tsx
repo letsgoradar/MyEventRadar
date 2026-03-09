@@ -160,7 +160,7 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
             )}
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex flex-col gap-3">
           <Button
             type="submit"
             className="w-full"
@@ -175,6 +175,12 @@ export function LoginForm({ redirectPath = '/admin', onSuccess }: LoginFormProps
               'Inloggen'
             )}
           </Button>
+          <a
+            href="/app/forgot-password"
+            className="text-sm text-muted-foreground hover:text-primary transition-colors"
+          >
+            Wachtwoord vergeten?
+          </a>
         </CardFooter>
       </form>
     </Card>

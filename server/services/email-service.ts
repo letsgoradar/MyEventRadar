@@ -114,6 +114,72 @@ export async function sendFeedbackNotification(feedback: {
   }
 }
 
+export async function sendPasswordResetEmail(
+  email: string,
+  username: string,
+  resetUrl: string
+): Promise<boolean> {
+  const subject = "Wachtwoord resetten — letsgo radar";
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
+      <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="background: #14B8A6; display: inline-block; padding: 12px 24px; border-radius: 8px;">
+            <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">letsgo&#33; radar&#46;nl</span>
+          </div>
+        </div>
+        <h2 style="color: #111; font-size: 22px; margin: 0 0 12px;">Wachtwoord resetten</h2>
+        <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 8px;">
+          Hoi ${username}, je hebt een verzoek ingediend om je wachtwoord te resetten.
+          Klik op de knop hieronder om een nieuw wachtwoord in te stellen.
+        </p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${resetUrl}" style="display: inline-block; background-color: #14B8A6; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 16px; font-weight: bold;">
+            Nieuw wachtwoord instellen
+          </a>
+        </div>
+        <p style="color: #888; font-size: 13px; line-height: 1.5;">
+          Of kopieer deze link in je browser:<br>
+          <a href="${resetUrl}" style="color: #14B8A6; word-break: break-all;">${resetUrl}</a>
+        </p>
+        <p style="color: #888; font-size: 13px; line-height: 1.5; margin-top: 16px;">
+          Deze link is 30 minuten geldig. Als je geen wachtwoord-reset hebt aangevraagd, kun je deze e-mail negeren.
+        </p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #bbb; font-size: 12px; text-align: center; margin: 0;">
+          letsgo radar — Ontdek evenementen in je buurt
+        </p>
+      </div>
+    </div>
+  `;
+
+  const transport = getTransporter();
+
+  if (!transport) {
+    console.log("\n========================================");
+    console.log("[Email] WACHTWOORD RESET E-MAIL (dev mode)");
+    console.log(`Aan: ${email}`);
+    console.log(`Gebruiker: ${username}`);
+    console.log(`Reset URL: ${resetUrl}`);
+    console.log("========================================\n");
+    return true;
+  }
+
+  try {
+    await transport.sendMail({
+      from: `letsgo radar <${getFromAddress()}>`,
+      to: email,
+      subject,
+      html,
+    });
+    console.log(`[Email] Wachtwoord reset e-mail verzonden naar ${email}`);
+    return true;
+  } catch (error) {
+    console.error(`[Email] Fout bij verzenden wachtwoord reset e-mail:`, error);
+    return false;
+  }
+}
+
 export async function sendUserVerificationEmail(
   email: string,
   username: string,

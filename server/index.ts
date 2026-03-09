@@ -39,6 +39,10 @@ app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')))
 app.use('/assets', express.static(path.join(process.cwd(), 'public', 'assets')));
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
+// Traffic monitoring with email alerts and circuit breaker
+import { trafficMonitor } from "./middleware/traffic-monitor";
+app.use(trafficMonitor);
+
 // CORS: Allow Capacitor native app origins
 import cors from "cors";
 app.use(cors({

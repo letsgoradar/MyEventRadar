@@ -218,6 +218,17 @@ Twee-producten advertentiesysteem:
 - **Data Backup**: Admin can export events and users as JSON via `POST /api/admin/backup/events` and `POST /api/admin/backup/users`.
 - **AI Safeguards**: AI-created venues are validated for NL bounds (lat 50.7-53.6, lng 3.3-7.2). AI extraction profiles require minimum 40% confidence. RSS batch imports are limited to 500 items per feed.
 
+### Traffic Monitoring & Circuit Breaker
+- **Middleware**: `server/middleware/traffic-monitor.ts` tracks requests/min and unique IPs
+- **Thresholds**: Warning at 500 req/min, Critical at 2000 req/min
+- **Email alerts**: Sent to info@letsgoradar.com when thresholds are crossed (max 1 alert/hour)
+- **Circuit breaker**: Auto-activates at CRITICAL threshold, blocks non-essential API requests for 5 minutes
+  - Allowed during pause: `/api/health`, `/api/auth/login`, `/api/auth/me`, admin endpoints
+  - Auto-recovers after 5 min cooldown
+- **Admin control**: `POST /api/admin/circuit-breaker` with `{enabled: true/false/null}` for manual override
+- **Admin status**: `GET /api/admin/traffic-status` returns current traffic, circuit breaker state, alert history
+- **Email templates**: Warning (amber), Critical (red), Circuit breaker on/off notifications
+
 ### Deployment Configuration
 - **Type**: Autoscale — scales up/down based on traffic, cost-effective for variable usage
 - **Build**: `npm run build` (Vite frontend + esbuild backend)

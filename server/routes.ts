@@ -405,6 +405,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // API Usage statistieken voor monitoring en spike detectie
+  app.get("/api/admin/traffic-status", isAdmin, (req, res) => {
+    const { getTrafficStatus } = require("./middleware/traffic-monitor");
+    res.json(getTrafficStatus());
+  });
+
+  app.post("/api/admin/circuit-breaker", isAdmin, (req, res) => {
+    const { setCircuitBreakerManualOverride } = require("./middleware/traffic-monitor");
+    const { enabled } = req.body;
+    if (enabled === true) {
+      setCircuitBreakerManualOverride(true);
+      res.json({ message: "Circuit breaker handmatig geactiveerd", active: true });
+    } else if (enabled === false) {
+      setCircuitBreakerManualOverride(false);
+      res.json({ message: "Circuit breaker handmatig gedeactiveerd", active: false });
+    } else {
+      setCircuitBreakerManualOverride(null);
+      res.json({ message: "Circuit breaker op automatisch gezet", active: null });
+    }
+  });
+
   app.get("/api/admin/api-usage", isAdmin, async (req, res) => {
     try {
       const summary = await storage.getApiUsageSummary();

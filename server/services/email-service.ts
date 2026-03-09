@@ -114,6 +114,94 @@ export async function sendFeedbackNotification(feedback: {
   }
 }
 
+export async function sendTrafficAlertEmail(
+  level: "warning" | "critical" | "circuit_breaker_on" | "circuit_breaker_off",
+  stats: { requestsPerMin: number; uniqueIps: number; topEndpoints: { endpoint: string; count: number }[] }
+): Promise<boolean> {
+  const levelLabels: Record<string, { label: string; color: string; icon: string }> = {
+    warning: { label: "Waarschuwing — Hoog verkeer", color: "#f59e0b", icon: "⚠️" },
+    critical: { label: "KRITIEK — Zeer hoog verkeer", color: "#ef4444", icon: "🚨" },
+    circuit_breaker_on: { label: "CIRCUIT BREAKER GEACTIVEERD", color: "#ef4444", icon: "🛑" },
+    circuit_breaker_off: { label: "Circuit breaker gedeactiveerd", color: "#22c55e", icon: "✅" },
+  };
+
+  const info = levelLabels[level] || levelLabels.warning;
+  const subject = `${info.icon} letsgo radar — ${info.label}`;
+
+  const endpointsHtml = stats.topEndpoints
+    .map(e => `<tr><td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${e.endpoint}</td><td style="padding: 4px 8px; border-bottom: 1px solid #eee; text-align: right;">${e.count}</td></tr>`)
+    .join("");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
+      <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+        <div style="background: ${info.color}; color: white; padding: 16px; border-radius: 8px; text-align: center; margin-bottom: 24px;">
+          <h2 style="margin: 0; font-size: 20px;">${info.icon} ${info.label}</h2>
+        </div>
+        <table style="width: 100%; font-size: 15px; margin-bottom: 20px;">
+          <tr><td style="padding: 6px 0; color: #555;"><strong>Requests/minuut:</strong></td><td style="text-align: right; font-size: 18px; font-weight: bold; color: ${info.color};">${stats.requestsPerMin}</td></tr>
+          <tr><td style="padding: 6px 0; color: #555;"><strong>Unieke IP-adressen:</strong></td><td style="text-align: right;">${stats.uniqueIps}</td></tr>
+          <tr><td style="padding: 6px 0; color: #555;"><strong>Tijdstip:</strong></td><td style="text-align: right;">${new Date().toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</td></tr>
+        </table>
+        ${stats.topEndpoints.length > 0 ? `
+          <h3 style="font-size: 14px; color: #333; margin-bottom: 8px;">Meest bezochte endpoints:</h3>
+          <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+            <tr style="background: #f3f4f6;"><th style="padding: 6px 8px; text-align: left;">Endpoint</th><th style="padding: 6px 8px; text-align: right;">Aantal</th></tr>
+            ${endpointsHtml}
+          </table>
+        ` : ""}
+        ${level === "circuit_breaker_on" ? `
+          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-top: 20px;">
+            <p style="color: #991b1b; margin: 0; font-size: 14px;">
+              <strong>De app is automatisch gepauzeerd</strong> om kosten te beperken. 
+              Alleen inloggen en health-checks zijn nog bereikbaar. 
+              De app hervat automatisch na 5 minuten, of je kunt het handmatig beheren via het admin-paneel.
+            </p>
+          </div>
+        ` : ""}
+        ${level === "circuit_breaker_off" ? `
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-top: 20px;">
+            <p style="color: #166534; margin: 0; font-size: 14px;">
+              <strong>De app is weer normaal bereikbaar.</strong> Het verkeer is teruggekeerd naar een veilig niveau.
+            </p>
+          </div>
+        ` : ""}
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #bbb; font-size: 12px; text-align: center; margin: 0;">
+          letsgo radar — Verkeersmonitor
+        </p>
+      </div>
+    </div>
+  `;
+
+  const transport = getTransporter();
+  const adminEmail = "info@letsgoradar.com";
+
+  if (!transport) {
+    console.log("\n========================================");
+    console.log(`[Email] TRAFFIC ALERT (dev mode): ${info.label}`);
+    console.log(`Requests/min: ${stats.requestsPerMin}`);
+    console.log(`Unique IPs: ${stats.uniqueIps}`);
+    console.log(`Top endpoints:`, stats.topEndpoints);
+    console.log("========================================\n");
+    return true;
+  }
+
+  try {
+    await transport.sendMail({
+      from: `letsgo radar <${getFromAddress()}>`,
+      to: adminEmail,
+      subject,
+      html,
+    });
+    console.log(`[Email] Traffic alert verzonden: ${info.label}`);
+    return true;
+  } catch (error) {
+    console.error(`[Email] Fout bij verzenden traffic alert:`, error);
+    return false;
+  }
+}
+
 export async function sendPasswordResetEmail(
   email: string,
   username: string,

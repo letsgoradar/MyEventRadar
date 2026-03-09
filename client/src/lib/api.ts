@@ -1,19 +1,14 @@
 import { QueryClient } from "@tanstack/react-query";
-
-// Define baseUrl based on environment
-// In Replit environment, we need to use the same origin for development to avoid CORS issues
-const baseUrl = window.location.origin.includes('replit.dev') 
-  ? window.location.origin
-  : `${window.location.protocol}//${window.location.hostname}:5000`;
+import { getApiBaseUrl } from "./capacitor";
 
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-    // Don't add '/api' prefix if path already starts with it
-    const url = path.startsWith('http') || path.startsWith('/api') 
-      ? path 
-      : `/api${path}`;
+    const baseUrl = getApiBaseUrl();
+    const url = path.startsWith('http')
+      ? path
+      : `${baseUrl}${path.startsWith('/api') ? path : `/api${path}`}`;
 
     try {
       

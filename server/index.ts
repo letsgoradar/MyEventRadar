@@ -39,6 +39,21 @@ app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')))
 app.use('/assets', express.static(path.join(process.cwd(), 'public', 'assets')));
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
+// CORS: Allow Capacitor native app origins
+import cors from "cors";
+app.use(cors({
+  origin: [
+    /\.replit\.dev$/,
+    /\.replit\.app$/,
+    'capacitor://localhost',
+    'https://localhost',
+    'http://localhost',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+}));
+
 // Security: Essential security headers
 app.use(helmet({
   contentSecurityPolicy: {
@@ -51,7 +66,7 @@ app.use(helmet({
       connectSrc: ["'self'", "ws:", "wss:", "https:"],
     },
   },
-  crossOriginEmbedderPolicy: false // Voor compatibiliteit
+  crossOriginEmbedderPolicy: false
 }));
 
 // Enhanced error handling middleware

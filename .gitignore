@@ -4,3 +4,7 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Android (Capacitor) - keep in git for team builds
+# android/app/build/
+# android/.gradle/

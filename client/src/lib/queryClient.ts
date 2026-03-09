@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getApiBaseUrl } from "./capacitor";
 
 class ApiError extends Error {
   status: number;
@@ -95,7 +96,10 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
+    const baseUrl = getApiBaseUrl();
+    const key = queryKey[0] as string;
+    const url = key.startsWith('http') ? key : `${baseUrl}${key}`;
+    const res = await fetch(url, {
       credentials: "include",
       headers: {
         'Accept': 'application/json',

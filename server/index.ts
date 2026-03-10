@@ -125,13 +125,21 @@ const HOST = '0.0.0.0';
     try {
       const bcrypt = await import('bcryptjs');
       const { db: migrateDb } = await import('./db');
-      const { users: usersTable } = await import('@shared/schema');
-      const { eq } = await import('drizzle-orm');
+      const { users: usersTable, passwordResetTokens: prtTable } = await import('@shared/schema');
+      const { eq, sql } = await import('drizzle-orm');
+      
+      await migrateDb.execute(sql`CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )`);
       
       const [adminUser] = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, 'info@letsgoradar.com'));
       if (!adminUser) {
         const existingAdmin = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.username, 'admin'));
-        const hash = await bcrypt.default.hash('HRmYfh76cX1tubDp', 10);
+        const hash = await bcrypt.default.hash('LetsGo1234', 10);
         if (existingAdmin.length > 0) {
           await migrateDb.update(usersTable).set({ email: 'info@letsgoradar.com', password: hash }).where(eq(usersTable.id, existingAdmin[0].id));
           console.log('[Migration] Admin credentials updated');

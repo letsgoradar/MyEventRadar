@@ -6,7 +6,9 @@ import session from "express-session";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { storage } from "./storage";
-import { User as SelectUser } from "@shared/schema";
+import { User as SelectUser, passwordResetTokens } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, gt } from "drizzle-orm";
 import createMemoryStore from "memorystore";
 import { z } from "zod";
 import { sanitizeUserInput } from "./utils/sanitize";
@@ -23,14 +25,6 @@ function getSessionSecret(): string {
   console.warn('[Dev] No SESSION_SECRET set, using randomly generated secret. Sessions will not persist across restarts.');
   return devSecret;
 }
-
-interface PasswordResetToken {
-  userId: number;
-  token: string;
-  expiresAt: Date;
-}
-
-const resetTokens = new Map<string, PasswordResetToken>();
 
 const MAX_FAILED_ATTEMPTS = 10;
 const LOCKOUT_DURATION_MS = 30 * 60 * 1000;
@@ -400,16 +394,15 @@ export function setupAuth(app: Express) {
         });
       }
       
-      // Token genereren
       const token = randomBytes(32).toString("hex");
       const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + 30); // Token is 30 minuten geldig
+      expiresAt.setMinutes(expiresAt.getMinutes() + 30);
       
-      // Token opslaan
-      resetTokens.set(token, {
+      await db.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id));
+      await db.insert(passwordResetTokens).values({
         userId: user.id,
         token,
-        expiresAt
+        expiresAt,
       });
       
       // Determine base URL for the reset link
@@ -434,40 +427,37 @@ export function setupAuth(app: Express) {
     }
   });
   
-  // Valideer reset token
-  app.get("/api/auth/reset-password/:token", (req, res) => {
+  app.get("/api/auth/reset-password/:token", async (req, res) => {
     const { token } = req.params;
-    const resetToken = resetTokens.get(token);
+    const [resetToken] = await db.select().from(passwordResetTokens)
+      .where(and(eq(passwordResetTokens.token, token), gt(passwordResetTokens.expiresAt, new Date())));
     
-    if (!resetToken || resetToken.expiresAt < new Date()) {
+    if (!resetToken) {
       return res.status(400).json({ valid: false, message: "Ongeldige of verlopen token" });
     }
     
     res.json({ valid: true });
   });
   
-  // Reset wachtwoord
   app.post("/api/auth/reset-password/:token", async (req, res) => {
     try {
       const { token } = req.params;
       const { password } = req.body;
       
-      const resetToken = resetTokens.get(token);
+      const [resetToken] = await db.select().from(passwordResetTokens)
+        .where(and(eq(passwordResetTokens.token, token), gt(passwordResetTokens.expiresAt, new Date())));
       
-      if (!resetToken || resetToken.expiresAt < new Date()) {
+      if (!resetToken) {
         return res.status(400).json({ message: "Ongeldige of verlopen token" });
       }
       
-      // Hash nieuw wachtwoord
       const hashedPassword = await hashPassword(password);
       
-      // Update gebruiker
-      const user = await storage.updateUser(resetToken.userId, {
+      await storage.updateUser(resetToken.userId, {
         password: hashedPassword
       });
       
-      // Token verwijderen
-      resetTokens.delete(token);
+      await db.delete(passwordResetTokens).where(eq(passwordResetTokens.token, token));
       
       res.json({ message: "Wachtwoord succesvol gewijzigd" });
     } catch (error) {

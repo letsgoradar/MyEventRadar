@@ -6,6 +6,7 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import type { EventInterface } from "@shared/schema";
 import { getCategoryColor } from "../CategoryIcon";
+import { isImageFailed, markImageFailed } from "@/lib/imageCache";
 
 interface FormattedEvent {
   id: number;
@@ -38,12 +39,15 @@ const CATEGORY_SVG_PATHS: Record<string, string> = {
   'Vrijwilligerswerk en hulp': 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'
 };
 
+let markerIdCounter = 0;
+
 function createImageMarkerIcon(
   imageUrl: string | null | undefined, 
   category: string, 
   isExpired: boolean = false, 
   isSelected: boolean = false,
-  isPromoted: boolean = false
+  isPromoted: boolean = false,
+  eventId?: number
 ) {
   const size = isPromoted ? 52 : (isSelected ? 52 : 44);
   const borderWidth = 3;
@@ -52,8 +56,9 @@ function createImageMarkerIcon(
   const primaryColor = isExpired ? "#9CA3AF" : fallbackColor;
   const iconPath = CATEGORY_SVG_PATHS[category] || CATEGORY_SVG_PATHS['Gezellig en Sociaal'];
   
-  if (imageUrl) {
-    return L.divIcon({
+  if (imageUrl && !isImageFailed(imageUrl)) {
+    const markerId = `marker-img-${markerIdCounter++}`;
+    const icon = L.divIcon({
       className: "image-marker",
       html: `
         <div class="img-marker-wrapper" style="
@@ -72,8 +77,10 @@ function createImageMarkerIcon(
             ${isSelected && !isPromoted ? 'box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);' : ''}
           ">
             <img 
+              id="${markerId}"
               src="${imageUrl}" 
               alt="" 
+              loading="lazy"
               style="
                 width: ${innerSize}px;
                 height: ${innerSize}px;
@@ -81,9 +88,8 @@ function createImageMarkerIcon(
                 object-fit: cover;
                 display: block;
               "
-              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
             />
-            <div style="
+            <div id="${markerId}-fallback" style="
               display: none;
               width: ${innerSize}px;
               height: ${innerSize}px;
@@ -102,6 +108,24 @@ function createImageMarkerIcon(
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],
     });
+
+    requestAnimationFrame(() => {
+      const img = document.getElementById(markerId) as HTMLImageElement | null;
+      if (!img) return;
+      const handleError = () => {
+        img.style.display = 'none';
+        const fb = document.getElementById(`${markerId}-fallback`);
+        if (fb) fb.style.display = 'flex';
+        markImageFailed(imageUrl, eventId);
+      };
+      if (img.complete && img.naturalWidth === 0) {
+        handleError();
+      } else {
+        img.addEventListener('error', handleError, { once: true });
+      }
+    });
+
+    return icon;
   }
   
   return L.divIcon({
@@ -238,10 +262,10 @@ export function ClusterLayer({
       
       if (currentMarkers.has(event.id)) {
         const existingMarker = currentMarkers.get(event.id)!;
-        existingMarker.setIcon(createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected, event.isPromoted));
+        existingMarker.setIcon(createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected, event.isPromoted, event.id));
       } else {
         const marker = L.marker(event.coords, {
-          icon: createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected, event.isPromoted),
+          icon: createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected, event.isPromoted, event.id),
         });
         
         const createPopupElement = () => {
@@ -250,11 +274,15 @@ export function ClusterLayer({
           container.className = 'cluster-popup-content';
           container.dataset.eventId = String(event.id);
           
-          if (event.event.imageUrl) {
+          if (event.event.imageUrl && !isImageFailed(event.event.imageUrl)) {
             const img = document.createElement('img');
             img.src = event.event.imageUrl;
             img.alt = event.title;
             img.style.cssText = 'width: 100%; height: 100px; object-fit: cover; border-radius: 4px 4px 0 0;';
+            img.addEventListener('error', () => {
+              img.style.display = 'none';
+              markImageFailed(event.event.imageUrl, event.id);
+            }, { once: true });
             container.appendChild(img);
           }
           

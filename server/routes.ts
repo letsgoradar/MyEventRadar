@@ -474,6 +474,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  const KNOWN_PROBLEMATIC_DOMAINS = [
+    'assets.plaece.nl',
+    'storage.pubble.nl',
+  ];
+
+  app.post("/api/report-broken-images", async (req, res) => {
+    try {
+      const { eventIds } = req.body;
+      if (!Array.isArray(eventIds) || eventIds.length === 0) {
+        return res.status(400).json({ error: "eventIds array required" });
+      }
+
+      const limitedIds = eventIds.slice(0, 50);
+      let fixed = 0;
+
+      for (const id of limitedIds) {
+        try {
+          const event = await storage.getEvent(id);
+          if (event && event.imageUrl) {
+            await storage.updateEvent(id, { imageUrl: null } as any);
+            fixed++;
+          }
+        } catch {}
+      }
+
+      res.json({ reported: limitedIds.length, fixed });
+    } catch (error) {
+      console.error('Error in /api/report-broken-images:', error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/image-health", isAdmin, async (req, res) => {
+    try {
+      const allEvents = await storage.getAllEvents();
+      const now = new Date();
+
+      const activeEvents = allEvents.filter(e => {
+        const end = e.endTime ? new Date(e.endTime) : new Date(e.startTime);
+        return end >= now && !e.deletedAt;
+      });
+
+      const withImage = activeEvents.filter(e => !!e.imageUrl);
+      const withoutImage = activeEvents.filter(e => !e.imageUrl);
+
+      const problematicDomainEvents: { id: number; title: string; imageUrl: string; domain: string }[] = [];
+      for (const event of withImage) {
+        try {
+          const url = new URL(event.imageUrl!);
+          if (KNOWN_PROBLEMATIC_DOMAINS.some(d => url.hostname.includes(d))) {
+            problematicDomainEvents.push({
+              id: event.id,
+              title: event.title,
+              imageUrl: event.imageUrl!,
+              domain: url.hostname,
+            });
+          }
+        } catch {}
+      }
+
+      const domainCounts: Record<string, number> = {};
+      for (const event of withImage) {
+        try {
+          const url = new URL(event.imageUrl!);
+          domainCounts[url.hostname] = (domainCounts[url.hostname] || 0) + 1;
+        } catch {
+          domainCounts['invalid-url'] = (domainCounts['invalid-url'] || 0) + 1;
+        }
+      }
+
+      const topDomains = Object.entries(domainCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15)
+        .map(([domain, count]) => ({ domain, count }));
+
+      res.json({
+        total: activeEvents.length,
+        withImage: withImage.length,
+        withoutImage: withoutImage.length,
+        imagePercentage: activeEvents.length > 0 ? Math.round((withImage.length / activeEvents.length) * 100) : 0,
+        problematicDomainEvents: problematicDomainEvents.length,
+        problematicSample: problematicDomainEvents.slice(0, 20),
+        topDomains,
+        knownProblematicDomains: KNOWN_PROBLEMATIC_DOMAINS,
+      });
+    } catch (error) {
+      console.error('Error in /api/admin/image-health:', error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/admin/fix-broken-images", isAdmin, async (req, res) => {
+    try {
+      const { domains, eventIds } = req.body;
+      let fixed = 0;
+
+      if (Array.isArray(eventIds) && eventIds.length > 0) {
+        for (const id of eventIds.slice(0, 200)) {
+          try {
+            await storage.updateEvent(id, { imageUrl: null } as any);
+            fixed++;
+          } catch {}
+        }
+      } else if (Array.isArray(domains) && domains.length > 0) {
+        const allEvents = await storage.getAllEvents();
+        for (const event of allEvents) {
+          if (!event.imageUrl) continue;
+          try {
+            const url = new URL(event.imageUrl);
+            if (domains.some((d: string) => url.hostname.includes(d))) {
+              await storage.updateEvent(event.id, { imageUrl: null } as any);
+              fixed++;
+            }
+          } catch {}
+        }
+      } else {
+        return res.status(400).json({ error: "Provide 'domains' array or 'eventIds' array" });
+      }
+
+      res.json({ fixed, message: `${fixed} events bijgewerkt — afbeelding URL verwijderd` });
+    } catch (error) {
+      console.error('Error in /api/admin/fix-broken-images:', error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // Alle gebruikers ophalen - alleen admin
   app.get("/api/admin/users", isAdmin, async (req, res) => {
     try {

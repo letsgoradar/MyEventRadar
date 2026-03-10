@@ -218,6 +218,15 @@ Twee-producten advertentiesysteem:
 - **Data Backup**: Admin can export events and users as JSON via `POST /api/admin/backup/events` and `POST /api/admin/backup/users`.
 - **AI Safeguards**: AI-created venues are validated for NL bounds (lat 50.7-53.6, lng 3.3-7.2). AI extraction profiles require minimum 40% confidence. RSS batch imports are limited to 500 items per feed.
 
+### Broken Image Detection & Auto-Repair
+- **Shared cache**: `client/src/lib/imageCache.ts` — `failedImageUrls` Set shared between EventCard and ClusterLayer map markers
+- **Auto-reporting**: When images fail to load, event IDs are batched and sent to `POST /api/report-broken-images` every 30 seconds; server nullifies the broken imageUrl
+- **CSP-compatible map markers**: ClusterLayer uses `addEventListener` instead of inline `onerror` (fixes CSP violations)
+- **Admin endpoints**:
+  - `GET /api/admin/image-health` — overview of image coverage, problematic domains, top image sources
+  - `POST /api/admin/fix-broken-images` — bulk-fix by domain (`{domains: [...]}`) or event IDs (`{eventIds: [...]}`)
+- **Known problematic domains**: `assets.plaece.nl`, `storage.pubble.nl` — flagged in image health reports
+
 ### Traffic Monitoring & Circuit Breaker
 - **Middleware**: `server/middleware/traffic-monitor.ts` tracks requests/min and unique IPs
 - **Thresholds**: Warning at 500 req/min, Critical at 2000 req/min

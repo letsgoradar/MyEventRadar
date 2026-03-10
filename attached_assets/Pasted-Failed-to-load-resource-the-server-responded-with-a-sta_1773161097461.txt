@@ -1,0 +1,115 @@
+Failed to load resource: the server responded with a status of 401 ()Understand this error
+index-CdoPr8zI.js:129 Authentication required for /api/auth/me
+(anonymous) @ index-CdoPr8zI.js:129Understand this warning
+index-CdoPr8zI.js:129 Authentication required, but continuing without redirect for most endpoints
+WebLayout-DF1bEhvN.js:1 Event filters changed, new windowDays: 100 startDate: null endDate: Wed Jun 17 2026 00:00:00 GMT+0200 (Midden-Europese zomertijd)
+Web-BYFDS0vJ.js:1 Window days changed to: 100
+MapView-CYwlTAjY.js:100 Initiële map bounds en zoom ingesteld
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+EventCard-DsKPQXkD.js:1 Got user location: 51.77700360252639 5.533091380775221
+MapView-CYwlTAjY.js:199 Got user location: 51.77700360252639 5.533091380775221
+25EventCard-DsKPQXkD.js:1 Got user location: 51.77700360252639 5.533091380775221
+storage.pubble.nl/b1fe368d/content/2026/3/dfd35bb0-cc82-443e-a781-8e60f534c380_thumb1440.jpg:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+VM5:12 Error getting location: GeolocationPositionError
+console.error @ VM5:12Understand this error
+68EventCard-DsKPQXkD.js:1 Got user location: 51.7406 5.625
+102EventCard-DsKPQXkD.js:1 Got user location: 51.77700415301738 5.533085806156293

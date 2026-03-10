@@ -1,0 +1,62 @@
+Ik ging naar hoofdpagina, console geplakt in X:
+ 
+Ja, er zijn meerdere problemen zichtbaar in deze browser console. Ik vat de belangrijkste issues kort en duidelijk samen, gesorteerd op ernst en type:1. Authenticatie probleem (meest kritiek voor functionaliteit)
+/api/auth/me → 401 Unauthorized Dit betekent dat de gebruiker niet (meer) is ingelogd of de sessie/token is verlopen. → Veel sites tonen dan een login-scherm, beperken content of tonen een foutmelding. Dit is waarschijnlijk waarom delen van de site niet (goed) laden.
+2. Rate limiting / te veel requests (429 Too Many Requests)
+letsgo-radar-brand.jpg → 429
+/api/seasonal-themes → 429
+De server blokkeert tijdelijk verzoeken omdat er te snel/te veel requests komen (vaak anti-DDoS of fair-use beperking). → Dit kan komen door:
+Veel afbeeldingen tegelijk laden
+Oneindige loop in code
+Meerdere tabs / apparaten tegelijk open
+Adblocker / extensie die rare requests stuurt
+Meestal tijdelijk (30 sec – paar minuten), maar als het vaak voorkomt wijst het op een probleem aan de client-kant.3. Veel 404 Not Found (ontbrekende afbeeldingen)Een groot aantal afbeeldingen geeft 404, o.a.:
+storage.pubble.nl/.../dfd35bb0-cc82-443e-a781-8e60f534c380_thumb1440.jpg
+Heel veel assets.plaece.nl/odp-eindhoven-region/... en odp-kan/... en odp-oss/...
+Diverse thumb/... URLs met base64-achtige parameters
+Dit betekent dat:
+Ofwel de afbeeldingen daadwerkelijk verwijderd/verplaatst zijn op de server
+Ofwel de URLs in de frontend-code niet meer kloppen (bijv. na een deploy, CDN-wijziging, verkeerde omgeving)
+Of de events/activiteiten zijn verlopen en hun afbeeldingen opgeruimd
+Voor de bezoeker betekent dit veel placeholders, gebroken cards of lelijke lege vlakken op de site (vooral agenda- en evenementenpagina's).4. Content Security Policy (CSP) blokkades – inline event handlersHeel veel meldingen van het type:
+Executing inline event handler violates the following Content Security Policy directive 'script-src-attr 'none''...
+Dit komt doordat de website probeert inline JavaScript te gebruiken via bijv. onclick="...", onmouseover="..." etc. in HTML, maar de CSP header van de site staat dit expliciet niet toe (script-src-attr 'none').Oplossing voor de ontwikkelaars:
+Alle inline event handlers omzetten naar addEventListener in losse JS-files
+Ofwel 'unsafe-inline' toestaan (niet aanbevolen)
+Ofwel hashes/nonces gebruiken (beter, maar meer werk)
+Dit blokkeert waarschijnlijk interactieve elementen (knoppen, hover-effecten, sliders, accordeons, etc.).5. Geolocation geblokkeerd
+Geolocation permission has been blocked as the user has dismissed the permission prompt several times.
+De site vraagt herhaaldelijk om locatie, jij (of de gebruiker) heeft dit meerdere keren geweigerd → browser blokkeert het nu volledig. → Kan gereset worden via het slotje naast de URL → Site settings → Permissions → Location.Samenvatting – Hoe erg is dit?
+Probleem
+Ernst
+Impact op gebruiker
+Waarschijnlijk oorzaak
+401 op /api/auth/me
+Hoog
+Ingelogde features werken niet
+Token verlopen / niet ingelogd
+429 rate limit
+Middel
+Site traag / tijdelijk stuk
+Te veel requests (frontend-bug?)
+Veel 404 afbeeldingen
+Middel
+Lelijke / incomplete pagina's
+Verwijderde content of verkeerde URLs
+CSP blokkeert inline JS
+Hoog
+Veel interactie stuk (knoppen, menus, etc.)
+Slechte CSP + oude code
+Geolocation geblokkeerd
+Laag
+Alleen relevant als site locatie nodig heeft
+Meermaals geweigerd
+Conclusie voor een bezoeker/eigenaar: De site is op dit moment waarschijnlijk gedeeltelijk kapot:
+Niet ingelogd → beperkte toegang
+Veel missende plaatjes → rommelig uiterlijk
+Inline JavaScript geblokkeerd → knoppen en interactie werken mogelijk niet
+Als dit jouw eigen site is: prioriteit geven aan
+Inloggen fixen (token / auth flow checken)
+CSP probleem oplossen (inline events eruit)
+404-afbeeldingen opsporen en corrigeren of verwijderen
+Als je meer details hebt (bijv. welke pagina dit is, of je ingelogd bent), kan ik specifieker adviseren.

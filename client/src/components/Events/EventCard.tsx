@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import type { EventInterface } from '@shared/schema';
 import { MapPin, Calendar, Euro, Eye, Image, Clock, Bookmark, ExternalLink } from 'lucide-react';
+
+const failedImageUrls = new Set<string>();
+
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,7 +56,9 @@ interface EventCardProps {
 
 export default function EventCard({ event, distance, gridView = false, onEventClick, isHighlighted = false, isPromoted = false }: EventCardProps) {
   const [showStreetView, setShowStreetView] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [imageError, setImageError] = useState(() => {
+    return !!event.imageUrl && failedImageUrls.has(event.imageUrl);
+  });
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
   
   // Haal de huidige locatie op
@@ -100,8 +105,6 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
   // Het imageUrl veld kan null of undefined zijn, dus we moeten controleren of het bestaat
   const hasEventImage = !!event.imageUrl;
   
-  // Debug logging voor imageUrl
-  console.log(`Event ${event.id} - imageUrl:`, event.imageUrl);
 
   // Bepaal de juiste routering op basis van de huidige URL
   const isApp = window.location.pathname.includes('/app');
@@ -190,7 +193,8 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 src={event.imageUrl || ''} 
                 alt={event.title} 
                 className="h-full w-full object-cover"
-                onError={() => setImageError(true)}
+                onError={() => { if (event.imageUrl) failedImageUrls.add(event.imageUrl); setImageError(true); }}
+                loading="lazy"
               />
             )}
             
@@ -335,7 +339,8 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                   src={event.imageUrl || ''} 
                   alt={event.title} 
                   className="h-full w-full object-cover"
-                  onError={() => setImageError(true)}
+                  onError={() => { if (event.imageUrl) failedImageUrls.add(event.imageUrl); setImageError(true); }}
+                  loading="lazy"
                 />
               )}
               
@@ -429,7 +434,8 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 src={event.imageUrl || ''} 
                 alt={event.title} 
                 className="h-full w-full object-cover"
-                onError={() => setImageError(true)}
+                onError={() => { if (event.imageUrl) failedImageUrls.add(event.imageUrl); setImageError(true); }}
+                loading="lazy"
               />
             )}
             

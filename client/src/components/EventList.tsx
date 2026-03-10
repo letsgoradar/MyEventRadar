@@ -32,22 +32,39 @@ interface EventListProps {
   hoveredEventId?: number | null;
 }
 
+const INITIAL_DISPLAY_COUNT = 24;
+const LOAD_MORE_COUNT = 24;
+
 export function EventList({ filteredEvents, gridView = false, onEventClick, onEventHover, hoveredEventId }: EventListProps) {
   const isMobile = useIsMobile();
+  const [displayCount, setDisplayCount] = React.useState(INITIAL_DISPLAY_COUNT);
+  const sentinelRef = React.useRef<HTMLDivElement>(null);
   
-  // Check of we op de App pagina zijn
+  React.useEffect(() => {
+    setDisplayCount(INITIAL_DISPLAY_COUNT);
+  }, [filteredEvents]);
+
+  React.useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setDisplayCount(prev => Math.min(prev + LOAD_MORE_COUNT, filteredEvents.length));
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filteredEvents.length]);
+  
   const isAppView = window.location.pathname.includes('/app');
-  
-  // In App altijd tegels gebruiken, anders volg de gridView prop
-  // Gebruik gridView in desktop, en ook in mobiel als gridView=true is meegegeven of in App
   const useGridLayout = isAppView || (!isMobile && gridView) || (isMobile && gridView);
   
-  // BELANGRIJK: Alle filter- en sorteerfunctionaliteit is nu verplaatst naar AppLayout
-  // EventList is alleen verantwoordelijk voor het weergeven van de gebeurtenissen
-  
-  // We gebruiken direct de filteredEvents die als prop worden doorgegeven
-  // Sortering en filtering gebeurt nu in de parent component
   const processedEvents = filteredEvents;
+  const displayedEvents = processedEvents.slice(0, displayCount);
+  const hasMore = displayCount < processedEvents.length;
   
   if (!processedEvents.length) {
     return (
@@ -68,7 +85,7 @@ export function EventList({ filteredEvents, gridView = false, onEventClick, onEv
           hoveredEventId={hoveredEventId}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr event-list-bg">
-          {processedEvents.map((event) => (
+          {displayedEvents.map((event) => (
             <div
               key={event.id}
               onMouseEnter={() => onEventHover?.(event.id)}
@@ -84,6 +101,7 @@ export function EventList({ filteredEvents, gridView = false, onEventClick, onEv
             </div>
           ))}
         </div>
+        {hasMore && <div ref={sentinelRef} className="h-8" />}
       </div>
     );
   }
@@ -97,7 +115,7 @@ export function EventList({ filteredEvents, gridView = false, onEventClick, onEv
         hoveredEventId={hoveredEventId}
       />
       <div className="space-y-3 event-list-bg">
-        {processedEvents.map((event) => (
+        {displayedEvents.map((event) => (
           <div
             key={event.id}
             onMouseEnter={() => onEventHover?.(event.id)}
@@ -113,6 +131,7 @@ export function EventList({ filteredEvents, gridView = false, onEventClick, onEv
           </div>
         ))}
       </div>
+      {hasMore && <div ref={sentinelRef} className="h-8" />}
     </div>
   );
 }

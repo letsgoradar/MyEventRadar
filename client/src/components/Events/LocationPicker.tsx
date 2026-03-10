@@ -77,9 +77,7 @@ export function LocationPicker({ defaultPosition = [51.7767, 5.5345], onChange }
             onChange(lat, lng);
           }
         },
-        (error) => {
-          console.error("Error getting location:", error);
-        }
+        () => {}
       );
     }
   }, [onChange]);

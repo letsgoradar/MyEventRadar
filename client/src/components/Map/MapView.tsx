@@ -644,11 +644,8 @@ export default function MapView({
         (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation([latitude, longitude]);
-          console.log("Got user location:", latitude, longitude);
         },
-        (error) => {
-          console.error("Error getting location:", error);
-        }
+        () => {}
       );
     }
   }, []);

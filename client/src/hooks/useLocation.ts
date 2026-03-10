@@ -12,47 +12,80 @@ interface LocationHook {
   isLoadingLocation: boolean;
 }
 
+const DEFAULT_COORDINATES: Coordinates = { lat: 51.7656, lng: 5.5314 };
+
+let cachedLocation: Coordinates | null = null;
+let cachedError: GeolocationPositionError | null = null;
+let locationResolved = false;
+let locationListeners: Array<() => void> = [];
+let locationRequested = false;
+
+function requestLocation() {
+  if (locationRequested) return;
+  locationRequested = true;
+
+  if (!navigator.geolocation) {
+    cachedLocation = DEFAULT_COORDINATES;
+    locationResolved = true;
+    notifyListeners();
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      cachedLocation = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
+      cachedError = null;
+      locationResolved = true;
+      notifyListeners();
+    },
+    (error) => {
+      cachedError = error;
+      cachedLocation = DEFAULT_COORDINATES;
+      locationResolved = true;
+      notifyListeners();
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: 300000,
+    }
+  );
+}
+
+function notifyListeners() {
+  locationListeners.forEach((fn) => fn());
+  locationListeners = [];
+}
+
 export function useLocation(): LocationHook {
-  const [location, setLocation] = useState<Coordinates | null>(null);
-  const [locationError, setLocationError] = useState<GeolocationPositionError | null>(null);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
-  
-  // Default to Oss coordinates
-  const DEFAULT_COORDINATES: Coordinates = { lat: 51.7656, lng: 5.5314 };
+  const [location, setLocation] = useState<Coordinates | null>(cachedLocation);
+  const [locationError, setLocationError] = useState<GeolocationPositionError | null>(cachedError);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(!locationResolved);
 
   useEffect(() => {
-    // Check if geolocation is supported
-    if (!navigator.geolocation) {
-      console.log("Geolocation is not supported by your browser");
-      setLocation(DEFAULT_COORDINATES);
+    if (locationResolved) {
+      setLocation(cachedLocation);
+      setLocationError(cachedError);
       setIsLoadingLocation(false);
       return;
     }
 
-    // Get user's location
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        console.log("Got user location:", position.coords.latitude, position.coords.longitude);
-        setLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        });
-        setIsLoadingLocation(false);
-        setLocationError(null);
-      },
-      (error) => {
-        console.error("Error getting location:", error);
-        setLocationError(error);
-        // Fall back to default location
-        setLocation(DEFAULT_COORDINATES);
-        setIsLoadingLocation(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
-      }
-    );
+    const listener = () => {
+      setLocation(cachedLocation);
+      setLocationError(cachedError);
+      setIsLoadingLocation(false);
+    };
+
+    locationListeners.push(listener);
+    requestLocation();
+
+    return () => {
+      const idx = locationListeners.indexOf(listener);
+      if (idx >= 0) locationListeners.splice(idx, 1);
+    };
   }, []);
 
   return { location, locationError, isLoadingLocation };

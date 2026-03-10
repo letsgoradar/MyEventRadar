@@ -104,11 +104,9 @@ export function WelcomeScreen() {
           const { latitude, longitude } = position.coords;
           setUserLocation([latitude, longitude]);
           setLocationStep('loaded');
-          console.log("Got user location:", latitude, longitude);
-          setShowLoginForm(true); // Toon inlogformulier na het laden van de locatie
+          setShowLoginForm(true);
         },
         (error) => {
-          console.error("Error getting location:", error);
           setLocationStep('error');
           // Toon alsnog het inlogformulier bij een fout
           setShowLoginForm(true);

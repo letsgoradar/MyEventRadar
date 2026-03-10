@@ -136,15 +136,21 @@ const HOST = '0.0.0.0';
         created_at TIMESTAMP DEFAULT NOW()
       )`);
       
-      const [adminUser] = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, 'info@letsgoradar.com'));
-      if (!adminUser) {
-        const existingAdmin = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.username, 'admin'));
-        const hash = await bcrypt.default.hash('LetsGo1234', 10);
+      const adminEmail = 'info@letsgoradar.com';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'LetsGo1234';
+      const hash = await bcrypt.default.hash(adminPassword, 10);
+      
+      const [adminUser] = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, adminEmail));
+      if (adminUser) {
+        await migrateDb.update(usersTable).set({ password: hash }).where(eq(usersTable.id, adminUser.id));
+        console.log('[Migration] Admin password synced');
+      } else {
+        const existingAdmin = await migrateDb.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.username, 'admin'));
         if (existingAdmin.length > 0) {
-          await migrateDb.update(usersTable).set({ email: 'info@letsgoradar.com', password: hash }).where(eq(usersTable.id, existingAdmin[0].id));
+          await migrateDb.update(usersTable).set({ email: adminEmail, password: hash }).where(eq(usersTable.id, existingAdmin[0].id));
           console.log('[Migration] Admin credentials updated');
         } else {
-          await migrateDb.insert(usersTable).values({ username: 'admin', email: 'info@letsgoradar.com', password: hash, role: 'admin' });
+          await migrateDb.insert(usersTable).values({ username: 'admin', email: adminEmail, password: hash, role: 'admin' });
           console.log('[Migration] Admin user created');
         }
       }

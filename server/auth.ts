@@ -10,6 +10,8 @@ import { User as SelectUser, passwordResetTokens } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gt } from "drizzle-orm";
 import createMemoryStore from "memorystore";
+import pgSession from "connect-pg-simple";
+import { pool } from "./db";
 import { z } from "zod";
 import { sanitizeUserInput } from "./utils/sanitize";
 import { sendUserVerificationEmail, sendWelcomeEmail } from "./services/email-service";
@@ -59,6 +61,7 @@ function clearFailedAttempts(identifier: string): void {
 }
 
 const MemoryStore = createMemoryStore(session);
+const PgSessionStore = pgSession(session);
 
 declare global {
   namespace Express {
@@ -67,27 +70,36 @@ declare global {
 }
 
 async function hashPassword(password: string) {
-  // Gebruik bcrypt om het wachtwoord te hashen
   return bcrypt.hash(password, 10);
 }
 
 async function comparePasswords(supplied: string, stored: string) {
-  // Gebruik bcrypt voor vergelijking
   return await bcrypt.compare(supplied, stored);
 }
 
 export function setupAuth(app: Express) {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  const store = isProduction
+    ? new PgSessionStore({
+        pool,
+        tableName: 'user_sessions',
+        createTableIfMissing: true,
+        pruneSessionInterval: 60 * 15,
+      })
+    : new MemoryStore({
+        checkPeriod: 86400000,
+      });
+
   const sessionSettings: session.SessionOptions = {
     secret: getSessionSecret(),
     resave: false,
     saveUninitialized: false,
-    store: new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
-    }),
+    store,
     cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 24 uur
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
-      secure: false, // Voor development
+      secure: isProduction,
       sameSite: 'lax'
     }
   };

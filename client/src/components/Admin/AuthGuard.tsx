@@ -89,8 +89,11 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
     );
   }
   
-  // Show error
-  if (authError || !user) {
+  if (!user && !authError) {
+    return <Redirect to="/admin/login" />;
+  }
+
+  if (authError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-muted/40">
         <div className="w-full max-w-md p-8 space-y-6 bg-background rounded-xl shadow-lg">
@@ -103,7 +106,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
             Toegang geweigerd
           </h1>
           <p className="text-center text-muted-foreground">
-            {authError || 'Je moet ingelogd zijn met admin rechten om toegang te krijgen tot dit gedeelte.'}
+            {authError}
           </p>
           <div className="flex justify-center pt-4">
             <Button asChild>

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { MdHome, MdEvent, MdBookmark, MdAccountCircle, MdAdd, MdChevronRight, MdChevronLeft, MdLogin, MdLogout } from "react-icons/md";
+import { MdHome, MdEvent, MdFavorite, MdAccountCircle, MdAdd, MdChevronRight, MdChevronLeft, MdLogin, MdLogout } from "react-icons/md";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";

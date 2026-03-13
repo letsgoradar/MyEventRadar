@@ -1,10 +1,10 @@
 import { Link, useLocation } from "wouter";
-import { Search, Bookmark, Calendar, User } from "lucide-react";
+import { Search, Heart, Calendar, User } from "lucide-react";
 import { useTranslation } from 'react-i18next';
 
 const NAV_ITEMS = [
   { icon: Search, label: "Zoeken", href: "/" },
-  { icon: Bookmark, label: "Opgeslagen", href: "/saved" },
+  { icon: Heart, label: "Opgeslagen", href: "/saved" },
   { icon: Calendar, label: "Mijn Events", href: "/my-events" },
   { icon: User, label: "Profiel", href: "/profile" },
 ];

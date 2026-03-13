@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { EventInterface } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bookmark, UserCheck } from "lucide-react";
+import { Heart, UserCheck } from "lucide-react";
 import { Link } from "wouter";
 import EventCard from "@/components/Events/EventCard";
 import { useAuth } from "@/hooks/use-auth";
@@ -75,7 +75,7 @@ export function AppSavedPage() {
   const EmptyState = () => (
     <Card className="mx-4 mt-4">
       <CardContent className="flex flex-col items-center justify-center py-12">
-        <Bookmark className="h-12 w-12 text-muted-foreground mb-4" />
+        <Heart className="h-12 w-12 text-muted-foreground mb-4" />
         <h2 className="text-xl font-bold mb-2">Geen opgeslagen events</h2>
         <p className="text-muted-foreground mb-4 text-center text-sm px-4">
           Sla events op of meld je aan om ze hier terug te vinden.
@@ -101,7 +101,7 @@ export function AppSavedPage() {
                   Alle ({allEvents.length})
                 </TabsTrigger>
                 <TabsTrigger value="saved" className="text-xs">
-                  <Bookmark className="h-3.5 w-3.5 mr-1" />
+                  <Heart className="h-3.5 w-3.5 mr-1" />
                   Opgeslagen ({favoriteEvents.length})
                 </TabsTrigger>
                 <TabsTrigger value="participating" className="text-xs">

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { EventInterface } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bookmark, UserCheck, Calendar, MapPin, Clock } from "lucide-react";
+import { Heart, UserCheck, Calendar, MapPin, Clock } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -85,7 +85,7 @@ export function WebSavedPage() {
   const EmptyState = () => (
     <Card className="mt-8">
       <CardContent className="flex flex-col items-center justify-center py-16">
-        <Bookmark className="h-16 w-16 text-muted-foreground mb-4" />
+        <Heart className="h-16 w-16 text-muted-foreground mb-4" />
         <h2 className="text-2xl font-bold mb-2">Geen opgeslagen evenementen</h2>
         <p className="text-muted-foreground mb-6 text-center max-w-md">
           Je hebt nog geen evenementen opgeslagen of je bent nog niet aangemeld voor evenementen.
@@ -121,7 +121,7 @@ export function WebSavedPage() {
           <div className="absolute top-2 right-2 flex gap-1">
             {saved && (
               <div className="bg-primary text-primary-foreground rounded-full p-1.5" title="Opgeslagen">
-                <Bookmark className="h-4 w-4 fill-current" />
+                <Heart className="h-4 w-4 fill-current" />
               </div>
             )}
             {participating && (
@@ -183,7 +183,7 @@ export function WebSavedPage() {
                     Alle ({allEvents.length})
                   </TabsTrigger>
                   <TabsTrigger value="saved" className="gap-2">
-                    <Bookmark className="h-4 w-4" />
+                    <Heart className="h-4 w-4" />
                     Opgeslagen ({favoriteEvents.length})
                   </TabsTrigger>
                   <TabsTrigger value="participating" className="gap-2">

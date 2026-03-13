@@ -375,15 +375,22 @@ export function SplitView({
                       {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowHiddenEvents(!showHiddenEvents)}
-                        className={cn("flex items-center gap-1 text-sm", showHiddenEvents ? "text-muted-foreground" : "text-primary")}
-                        title={showHiddenEvents ? "Verborgen events verbergen" : "Verborgen events tonen"}
-                      >
-                        {showHiddenEvents ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                      </Button>
+                      {(() => {
+                        const hiddenCount = visibleEvents.filter(e => isHidden(e.id)).length;
+                        if (hiddenCount <= 0 && !showHiddenEvents) return null;
+                        return (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowHiddenEvents(!showHiddenEvents)}
+                            className={cn("flex items-center gap-1 text-sm", showHiddenEvents ? "text-primary" : "text-muted-foreground")}
+                            title={showHiddenEvents ? "Verborgen events verbergen" : "Verborgen events tonen"}
+                          >
+                            {showHiddenEvents ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                            {hiddenCount > 0 && <span className="text-xs">{hiddenCount}</span>}
+                          </Button>
+                        );
+                      })()}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="flex items-center gap-1 text-sm text-primary font-medium">

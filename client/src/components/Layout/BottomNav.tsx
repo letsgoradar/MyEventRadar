@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, PlusCircle, Calendar, Bookmark, User } from 'lucide-react';
+import { Home, PlusCircle, Calendar, Heart, User } from 'lucide-react';
 import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 
@@ -51,7 +51,7 @@ export default function BottomNav() {
           data-active={location === '/app/saved' || location === '/saved'}
         >
           <div className="flex flex-col items-center">
-            <Bookmark className="w-6 h-6 mb-1" />
+            <Heart className="w-6 h-6 mb-1" />
             <span className="text-xs">Opgeslagen</span>
           </div>
         </Button>

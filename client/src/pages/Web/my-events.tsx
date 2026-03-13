@@ -7,7 +7,7 @@ import { EventInterface } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bookmark, UserCheck, Calendar, MapPin, Clock, Users, Edit, Trash2, Eye, ChevronRight, CalendarPlus, Map, LogIn } from "lucide-react";
+import { Heart, UserCheck, Calendar, MapPin, Clock, Users, Edit, Trash2, Eye, ChevronRight, CalendarPlus, Map, LogIn } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -249,7 +249,7 @@ export function WebMyEventsPage() {
         buttonLink: "/web",
       },
       saved: {
-        icon: <Bookmark className="h-12 w-12 text-muted-foreground mb-3" />,
+        icon: <Heart className="h-12 w-12 text-muted-foreground mb-3" />,
         title: "Nog niets bewaard",
         description: "Je hebt nog geen evenementen bewaard.",
         buttonText: "Ontdek evenementen",
@@ -601,7 +601,7 @@ export function WebMyEventsPage() {
                         <span className="hidden sm:inline">Aangemeld</span> ({participatingEvents.length})
                       </TabsTrigger>
                       <TabsTrigger value="saved" className="gap-1.5 text-xs sm:text-sm">
-                        <Bookmark className="h-3.5 w-3.5" />
+                        <Heart className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Bewaard</span> ({favoriteEvents.length})
                       </TabsTrigger>
                     </TabsList>

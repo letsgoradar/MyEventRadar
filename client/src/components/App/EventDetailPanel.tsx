@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Heart, UserPlus, Navigation, Bookmark, BookmarkCheck, ExternalLink, Eye, ChevronDown, Globe, Link } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Heart, UserPlus, Navigation, ExternalLink, Eye, ChevronDown, Globe, Link } from "lucide-react";
 import { ShareMenu } from "@/components/ShareMenu";
 import { ExternalLinkInterstitial } from "@/components/Ads/ExternalLinkInterstitial";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import CategoryIcon from "@/components/Events/CategoryIcon";
@@ -473,10 +474,7 @@ export function EventDetailPanel({
                 className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
                 onClick={handleToggleFavorite}
               >
-                {isFavorited ? 
-                  <BookmarkCheck className="h-4 w-4 text-blue-600" /> : 
-                  <Bookmark className="h-4 w-4" />
-                }
+                <Heart className={cn("h-4 w-4", isFavorited ? "fill-primary text-primary" : "text-primary")} />
               </Button>
             </div>
           </div>
@@ -663,10 +661,7 @@ export function EventDetailPanel({
             onClick={handleToggleFavorite}
             disabled={toggleFavoriteMutation.isPending}
           >
-            {isFavorited ? 
-              <BookmarkCheck className="h-5 w-5 text-blue-600" /> : 
-              <Bookmark className="h-5 w-5" />
-            }
+            <Heart className={cn("h-5 w-5", isFavorited ? "fill-primary text-primary" : "text-primary")} />
           </Button>
           
           

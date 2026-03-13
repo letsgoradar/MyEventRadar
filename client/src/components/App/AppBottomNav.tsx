@@ -5,7 +5,7 @@ import {
   HomeIcon,
   Map,
   Search,
-  Bookmark,
+  Heart,
   PlusCircle,
   User,
   UserCheck,
@@ -59,7 +59,7 @@ export function AppBottomNav() {
     {
       label: "Mijn Events",
       href: "/app/my-events",
-      icon: Bookmark,
+      icon: Heart,
       isActive: location.includes("/app/saved") || location.includes("/app/favorites") || location.includes("/app/my-events"),
     },
   ], [location]);

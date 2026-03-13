@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { X, Send, Loader2, Sparkles, Crown, MessageCircle, Eye, Bookmark, ExternalLink, MapPin, Calendar } from "lucide-react";
+import { X, Send, Loader2, Sparkles, Crown, MessageCircle, Eye, Heart, ExternalLink, MapPin, Calendar } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation as useGeoLocation } from "@/hooks/useLocation";
 import { useLocation } from "wouter";
@@ -280,7 +280,7 @@ export function AssistantChat({ isOpen, onClose }: AssistantChatProps) {
                                   className="flex-1 rounded-none h-8 text-xs"
                                   onClick={() => handleSaveEvent(event.id)}
                                 >
-                                  <Bookmark className="h-3 w-3 mr-1" />
+                                  <Heart className="h-3 w-3 mr-1" />
                                   Opslaan
                                 </Button>
                               </div>

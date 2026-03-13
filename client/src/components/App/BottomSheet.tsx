@@ -155,6 +155,19 @@ export function BottomSheet({
           <p className="text-sm text-muted-foreground font-medium">
             {filteredByHidden.length} {filteredByHidden.length === 1 ? 'evenement' : 'evenementen'}
           </p>
+          {isHidden && !showHidden && (() => {
+            const hiddenCount = events.length - filteredByHidden.length;
+            if (hiddenCount <= 0) return null;
+            return (
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenChange?.(true); setIsExpanded(true); }}
+                className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 hover:text-foreground transition-colors"
+              >
+                <EyeOff className="h-3 w-3" />
+                <span>{hiddenCount} verborgen</span>
+              </button>
+            );
+          })()}
         </div>
         
         <div

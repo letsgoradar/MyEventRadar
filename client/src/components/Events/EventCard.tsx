@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { EventInterface } from '@shared/schema';
-import { MapPin, Calendar, Euro, Eye, EyeOff, Image, Clock, Bookmark, ExternalLink } from 'lucide-react';
+import { MapPin, Calendar, Euro, Eye, EyeOff, Image, Clock, Heart, ExternalLink } from 'lucide-react';
 import { isImageFailed, markImageFailed } from '@/lib/imageCache';
 
 import { Badge } from '@/components/ui/badge';

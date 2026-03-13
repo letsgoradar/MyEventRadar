@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Bookmark, BookmarkCheck, UserPlus, UserCheck, Navigation, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Heart, UserPlus, UserCheck, Navigation, ExternalLink } from "lucide-react";
 import { ShareMenu } from "@/components/ShareMenu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import CategoryIcon from "@/components/Events/CategoryIcon";
 import { EventInterface as Event } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -440,11 +441,7 @@ export function EventDetailPanel({
               onClick={handleToggleFavorite}
               disabled={toggleFavoriteMutation.isPending}
             >
-              {isFavorited ? (
-                <BookmarkCheck className="h-4 w-4 mr-2" />
-              ) : (
-                <Bookmark className="h-4 w-4 mr-2" />
-              )}
+              <Heart className={cn("h-4 w-4 mr-2", isFavorited ? "fill-primary text-primary" : "text-primary")} />
               {isFavorited ? "Opgeslagen" : "Opslaan"}
             </Button>
             

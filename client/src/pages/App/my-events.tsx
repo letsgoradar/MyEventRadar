@@ -5,7 +5,7 @@ import { EventInterface } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bookmark, CalendarPlus, Calendar, MapPin, Users, Edit, Trash2, X, Clock } from "lucide-react";
+import { Heart, CalendarPlus, Calendar, MapPin, Users, Edit, Trash2, X, Clock } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -162,7 +162,7 @@ export function AppMyEventsPage() {
         buttonLink: "/app/create-event",
       },
       saved: {
-        icon: <Bookmark className="h-12 w-12 text-muted-foreground mb-3" />,
+        icon: <Heart className="h-12 w-12 text-muted-foreground mb-3" />,
         title: "Nog niets bewaard",
         description: "Bewaar evenementen voor later.",
         buttonText: "Ontdek",
@@ -444,7 +444,7 @@ export function AppMyEventsPage() {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="w-full grid grid-cols-2 h-11 rounded-none">
                 <TabsTrigger value="saved" className="text-xs px-1 gap-1">
-                  <Bookmark className="h-3 w-3" />
+                  <Heart className="h-3 w-3" />
                   Opgeslagen
                   ({favoriteEvents.length})
                 </TabsTrigger>

@@ -280,7 +280,7 @@ export function AssistantChat({ isOpen, onClose }: AssistantChatProps) {
                                   className="flex-1 rounded-none h-8 text-xs"
                                   onClick={() => handleSaveEvent(event.id)}
                                 >
-                                  <Heart className="h-3 w-3 mr-1" />
+                                  <Heart className="h-3 w-3 mr-1 text-primary" />
                                   Opslaan
                                 </Button>
                               </div>

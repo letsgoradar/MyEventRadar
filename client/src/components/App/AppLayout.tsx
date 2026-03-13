@@ -115,6 +115,7 @@ export function AppLayout({
   selectedEventId,
 }: AppLayoutProps) {
   const { isHidden, hideEvent, unhideEvent } = useHiddenEvents();
+  const [showHiddenInSheet, setShowHiddenInSheet] = React.useState(false);
 
   const handleHideToggle = React.useCallback((eventId: number) => {
     if (isHidden(eventId)) {
@@ -755,6 +756,8 @@ export function AppLayout({
           isOpen={true}
           isHidden={isHidden}
           onHideToggle={handleHideToggle}
+          showHidden={showHiddenInSheet}
+          onShowHiddenChange={setShowHiddenInSheet}
         />
       )}
       

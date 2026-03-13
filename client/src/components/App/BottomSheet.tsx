@@ -28,6 +28,7 @@ interface BottomSheetProps {
   isHidden?: (eventId: number) => boolean;
   onHideToggle?: (eventId: number) => void;
   showHidden?: boolean;
+  onShowHiddenChange?: (show: boolean) => void;
 }
 
 const COLLAPSED_HEIGHT = 50;
@@ -43,6 +44,7 @@ export function BottomSheet({
   isHidden,
   onHideToggle,
   showHidden = false,
+  onShowHiddenChange,
 }: BottomSheetProps) {
   const [isExpanded, setIsExpanded] = React.useState(isOpen);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -155,16 +157,21 @@ export function BottomSheet({
           <p className="text-sm text-muted-foreground font-medium">
             {filteredByHidden.length} {filteredByHidden.length === 1 ? 'evenement' : 'evenementen'}
           </p>
-          {isHidden && !showHidden && (() => {
-            const hiddenCount = events.length - filteredByHidden.length;
+          {isHidden && (() => {
+            const hiddenCount = events.filter(e => isHidden(e.id)).length;
             if (hiddenCount <= 0) return null;
             return (
               <button
-                onClick={(e) => { e.stopPropagation(); onOpenChange?.(true); setIsExpanded(true); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newVal = !showHidden;
+                  onShowHiddenChange?.(newVal);
+                  if (newVal) { onOpenChange?.(true); setIsExpanded(true); }
+                }}
                 className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 hover:text-foreground transition-colors"
               >
-                <EyeOff className="h-3 w-3" />
-                <span>{hiddenCount} verborgen</span>
+                {showHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                <span>{showHidden ? 'Verberg verborgen' : `${hiddenCount} verborgen – toon`}</span>
               </button>
             );
           })()}

@@ -36,9 +36,10 @@ Preferred communication style: Simple, everyday language.
 - **Security**: Helmet, rate limiting
 
 ### Database Schema
-PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Logs, and Saved Searches.
+PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Logs, Saved Searches, Hidden Events, and Password Reset Tokens.
 
 ### Key Features
+- **Hidden Events**: Users can hide events (eye icon on cards). Stored in `hidden_events` table for logged-in users, sessionStorage for guests. Hook: `useHiddenEvents` (`client/src/hooks/useHiddenEvents.ts`). API: GET `/api/hidden-events`, POST/DELETE `/api/events/:id/hide`. Filter toggle in SplitView header. Hidden events filtered from map and list.
 - **Map Integration**: Interactive Leaflet map with event markers, location-based discovery, street view, and geocoding.
 - **Event Management**: Multi-category system, rich event creation (with optional AI image generation), scheduling, participant management, and pricing.
 - **User Authentication & Authorization**: Session-based, role-based access control (user/admin), and profile management.

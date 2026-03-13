@@ -12,8 +12,10 @@ import * as cheerio from "cheerio";
 import { setupAuth } from "./auth";
 import { AiProvider } from "./services/ai-provider";
 import { storage } from "./storage";
-import { insertEventSchema, insertUserSchema, insertActivityLogSchema, insertSavedSearchSchema, insertEventTagSchema, insertTargetAudienceSchema, insertSeasonalThemeSchema } from "@shared/schema";
+import { insertEventSchema, insertUserSchema, insertActivityLogSchema, insertSavedSearchSchema, insertEventTagSchema, insertTargetAudienceSchema, insertSeasonalThemeSchema, hiddenEvents } from "@shared/schema";
 import { isAdmin, isAuthenticated, attachUser } from "./middleware/auth";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 // Routes voor profielfoto uploads
 import profilePhotoRoutes from "./routes/profile-photo";
@@ -502,6 +504,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ reported: limitedIds.length, fixed });
     } catch (error) {
       console.error('Error in /api/report-broken-images:', error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/hidden-events", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const rows = await db.select({ eventId: hiddenEvents.eventId })
+        .from(hiddenEvents)
+        .where(eq(hiddenEvents.userId, userId));
+      res.json(rows.map(r => r.eventId));
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/events/:id/hide", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const eventId = parseInt(req.params.id);
+      await db.insert(hiddenEvents).values({ userId, eventId })
+        .onConflictDoNothing();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/events/:id/hide", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const eventId = parseInt(req.params.id);
+      await db.delete(hiddenEvents)
+        .where(and(eq(hiddenEvents.userId, userId), eq(hiddenEvents.eventId, eventId)));
+      res.json({ success: true });
+    } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
   });

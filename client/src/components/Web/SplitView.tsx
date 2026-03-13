@@ -13,7 +13,9 @@ import { startOfDay } from "date-fns";
 import L from "leaflet";
 import { useLocation as useRouterLocation } from "wouter";
 import { useLocation } from "@/hooks/useLocation";
-import { MapPin, Clock, ChevronDown, Plus, SlidersHorizontal } from "lucide-react";
+import { MapPin, Clock, ChevronDown, Plus, SlidersHorizontal, Eye, EyeOff } from "lucide-react";
+import { useHiddenEvents } from "@/hooks/useHiddenEvents";
+import { cn } from "@/lib/utils";
 import { PromotedEventsCarousel } from "@/components/Ads/PromotedEventsCarousel";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,6 +67,8 @@ export function SplitView({
   onFilterSidebarOpen
 }: SplitViewProps) {
   const [, setRouterLocation] = useRouterLocation();
+  const { isHidden, hideEvent, unhideEvent } = useHiddenEvents();
+  const [showHiddenEvents, setShowHiddenEvents] = React.useState(false);
   const [activeEventId, setActiveEventId] = React.useState<number | null>(null);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
@@ -267,6 +271,14 @@ export function SplitView({
     }
   }, [selectedEvent, visibleEvents]);
 
+  const handleHideToggle = React.useCallback((eventId: number) => {
+    if (isHidden(eventId)) {
+      unhideEvent(eventId);
+    } else {
+      hideEvent(eventId);
+    }
+  }, [isHidden, hideEvent, unhideEvent]);
+
   const handleBoundsChange = React.useCallback((bounds: L.LatLngBounds) => {
     setMapBounds(bounds);
   }, []);
@@ -289,7 +301,7 @@ export function SplitView({
               <MapView 
                 searchQuery={searchQuery} 
                 radius={50}
-                filteredEvents={visibleEvents}
+                filteredEvents={showHiddenEvents ? visibleEvents : visibleEvents.filter(e => !isHidden(e.id))}
                 onEventClick={handleMapEventClick}
                 onBoundsChange={handleBoundsChange}
                 onZoomChange={handleZoomChange}
@@ -362,6 +374,16 @@ export function SplitView({
                     <div className="text-lg font-medium">
                       {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'}
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowHiddenEvents(!showHiddenEvents)}
+                        className={cn("flex items-center gap-1 text-sm", showHiddenEvents ? "text-muted-foreground" : "text-primary")}
+                        title={showHiddenEvents ? "Verborgen events verbergen" : "Verborgen events tonen"}
+                      >
+                        {showHiddenEvents ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="flex items-center gap-1 text-sm text-primary font-medium">
@@ -396,6 +418,7 @@ export function SplitView({
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    </div>
                   </div>
                 </div>
                 
@@ -407,11 +430,13 @@ export function SplitView({
                 <EventList 
                   searchQuery={searchQuery} 
                   radius={50} 
-                  filteredEvents={visibleEvents} 
+                  filteredEvents={showHiddenEvents ? visibleEvents : visibleEvents.filter(e => !isHidden(e.id))} 
                   gridView={true}
                   onEventClick={handleTileEventClick}
                   onEventHover={setHoveredEventId}
                   hoveredEventId={hoveredEventId}
+                  isHidden={isHidden}
+                  onHideToggle={handleHideToggle}
                 />
                 
 

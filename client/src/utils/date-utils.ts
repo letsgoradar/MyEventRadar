@@ -65,11 +65,16 @@ export function hasValidTime(date: string | Date | null | undefined): boolean {
   return true;
 }
 
-/**
- * Slimme datumweergave voor events
- * - Multi-dag events die al begonnen zijn: "Nu t/m [einddatum]"
- * - Toekomstige events: normale startdatum
- */
+const NL_DAYS_SHORT = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+const NL_MONTHS_SHORT = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+
+export function formatDutchShortDate(date: Date): string {
+  const day = NL_DAYS_SHORT[date.getDay()];
+  const dayNum = String(date.getDate()).padStart(2, '0');
+  const month = NL_MONTHS_SHORT[date.getMonth()];
+  return `${day} ${dayNum} ${month}`;
+}
+
 export function formatSmartEventDate(
   startTime: string | Date,
   endTime: string | Date | null | undefined
@@ -78,31 +83,18 @@ export function formatSmartEventDate(
   const start = new Date(startTime);
   const end = endTime ? new Date(endTime) : start;
   
-  // Reset naar middernacht voor dag-vergelijking
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const eventStartDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   const eventEndDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
   
-  // Check of event multi-dag is (eindigt op andere dag dan start)
   const isMultiDay = eventEndDay.getTime() > eventStartDay.getTime();
-  
-  // Event is al begonnen (startTime < now) en nog bezig (end > now)
   const isAlreadyStarted = start < now;
   const isStillOngoing = end > now;
   
-  // Multi-dag event dat al begonnen is en nog bezig
   if (isMultiDay && isAlreadyStarted && isStillOngoing) {
-    return `Nu t/m ${end.toLocaleDateString('nl-NL', {
-      day: 'numeric',
-      month: 'short'
-    })}`;
+    return `Nu t/m ${formatDutchShortDate(end)}`;
   }
   
-  // Event dat nog niet begonnen is: toon startdatum
-  return start.toLocaleDateString('nl-NL', {
-    day: 'numeric',
-    month: 'short'
-  });
+  return formatDutchShortDate(start);
 }
 
 /**
@@ -124,16 +116,8 @@ export function formatSmartEventDateLong(
   const isStillOngoing = end > now;
   
   if (isMultiDay && isAlreadyStarted && isStillOngoing) {
-    return `Nu t/m ${end.toLocaleDateString('nl-NL', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long'
-    })}`;
+    return `Nu t/m ${formatDutchShortDate(end)}`;
   }
   
-  return start.toLocaleDateString('nl-NL', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long'
-  });
+  return formatDutchShortDate(start);
 }

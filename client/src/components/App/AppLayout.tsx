@@ -54,6 +54,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { RadarLogoWithText } from "@/components/RadarLogo";
+import { useHiddenEvents } from "@/hooks/useHiddenEvents";
 
 
 interface AppLayoutProps {
@@ -113,6 +114,16 @@ export function AppLayout({
   onEndDateChange,
   selectedEventId,
 }: AppLayoutProps) {
+  const { isHidden, hideEvent, unhideEvent } = useHiddenEvents();
+
+  const handleHideToggle = React.useCallback((eventId: number) => {
+    if (isHidden(eventId)) {
+      unhideEvent(eventId);
+    } else {
+      hideEvent(eventId);
+    }
+  }, [isHidden, hideEvent, unhideEvent]);
+
   // Date range state - default vandaag + 99 dagen = 100 dagen totaal
   const today = startOfDay(new Date());
   const defaultEndDate = addDays(today, 99);
@@ -741,6 +752,9 @@ export function AppLayout({
         <BottomSheet 
           events={boundsFilteredEvents}
           onEventClick={onEventClick}
+          isOpen={true}
+          isHidden={isHidden}
+          onHideToggle={handleHideToggle}
         />
       )}
       

@@ -162,6 +162,15 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const hiddenEvents = pgTable("hidden_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  eventId: integer("event_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique("hidden_events_user_event").on(table.userId, table.eventId),
+]);
+
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),

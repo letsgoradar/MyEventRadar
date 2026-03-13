@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { EventInterface } from '@shared/schema';
-import { MapPin, Calendar, Euro, Eye, Image, Clock, Bookmark, ExternalLink } from 'lucide-react';
+import { MapPin, Calendar, Euro, Eye, EyeOff, Image, Clock, Bookmark, ExternalLink } from 'lucide-react';
 import { isImageFailed, markImageFailed } from '@/lib/imageCache';
 
 import { Badge } from '@/components/ui/badge';
@@ -51,9 +51,11 @@ interface EventCardProps {
   onEventClick?: (event: EventInterface) => void;
   isHighlighted?: boolean;
   isPromoted?: boolean;
+  isHidden?: boolean;
+  onHideToggle?: (eventId: number) => void;
 }
 
-export default function EventCard({ event, distance, gridView = false, onEventClick, isHighlighted = false, isPromoted = false }: EventCardProps) {
+export default function EventCard({ event, distance, gridView = false, onEventClick, isHighlighted = false, isPromoted = false, isHidden = false, onHideToggle }: EventCardProps) {
   const [showStreetView, setShowStreetView] = useState(false);
   const [imageError, setImageError] = useState(() => isImageFailed(event.imageUrl));
   const eventCoords: [number, number] = [Number(event.latitude), Number(event.longitude)];
@@ -179,6 +181,15 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 Gepromoot
               </div>
             )}
+            {onHideToggle && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
+                className="absolute top-2 right-2 z-30 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition-colors"
+                title={isHidden ? "Evenement tonen" : "Evenement verbergen"}
+              >
+                {isHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            )}
             {showPlaceholder ? (
               <img 
                 src={placeholderImage} 
@@ -195,15 +206,12 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
               />
             )}
             
-            {/* Links onder: views + event status overlay */}
             <div className="absolute bottom-2 left-2 flex items-center gap-2 z-20">
-              {/* Views counter - altijd zichtbaar */}
               <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs text-white">
                 <Eye className="h-3 w-3 mr-1" />
                 <span>{event.detailViews || 0}</span>
               </div>
               
-              {/* Event status badge */}
               {isOngoing && (
                 <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium inline-flex items-center">
                   <span className="w-1.5 h-1.5 bg-white rounded-full mr-1 animate-pulse"></span>
@@ -325,6 +333,15 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                   Gepromoot
                 </div>
               )}
+              {onHideToggle && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
+                  className="absolute top-2 right-2 z-30 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition-colors"
+                  title={isHidden ? "Evenement tonen" : "Evenement verbergen"}
+                >
+                  {isHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              )}
               {appShowPlaceholder ? (
                 <img 
                   src={placeholderImage} 
@@ -341,15 +358,12 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 />
               )}
               
-              {/* Links onder: views + event status overlay */}
               <div className="absolute bottom-2 left-2 flex items-center gap-2 z-20">
-                {/* Views counter - altijd zichtbaar */}
                 <div className="bg-black/60 px-2 py-1 rounded-full flex items-center text-xs text-white">
                   <Eye className="h-3 w-3 mr-1" />
                   <span>{event.detailViews || 0}</span>
                 </div>
                 
-                {/* Event status badge */}
                 {isOngoing && (
                   <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium inline-flex items-center">
                     <span className="w-1.5 h-1.5 bg-white rounded-full mr-1 animate-pulse"></span>

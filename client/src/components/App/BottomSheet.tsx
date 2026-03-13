@@ -2,10 +2,9 @@ import * as React from "react";
 import { motion, PanInfo } from "framer-motion";
 import { EventInterface as Event } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { nl } from "date-fns/locale";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, Eye, EyeOff } from "lucide-react";
+import { formatDutchShortDate } from "@/utils/date-utils";
 
 function extractCity(address: string | null | undefined): string | null {
   if (!address) return null;
@@ -26,6 +25,9 @@ interface BottomSheetProps {
   onEventClick?: (event: Event) => void;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  isHidden?: (eventId: number) => boolean;
+  onHideToggle?: (eventId: number) => void;
+  showHidden?: boolean;
 }
 
 const COLLAPSED_HEIGHT = 50;
@@ -37,7 +39,10 @@ export function BottomSheet({
   events, 
   onEventClick,
   isOpen = false,
-  onOpenChange
+  onOpenChange,
+  isHidden,
+  onHideToggle,
+  showHidden = false,
 }: BottomSheetProps) {
   const [isExpanded, setIsExpanded] = React.useState(isOpen);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -105,14 +110,17 @@ export function BottomSheet({
     const isStillOngoing = end > now;
     
     if (isMultiDay && isAlreadyStarted && isStillOngoing) {
-      return format(now, "d MMM", { locale: nl });
+      return formatDutchShortDate(now);
     }
     
-    return format(start, "d MMM", { locale: nl });
+    return formatDutchShortDate(start);
   };
 
-  const visibleEvents = isExpanded ? events.slice(0, displayCount) : events.slice(0, 4);
-  const hasMore = isExpanded && displayCount < events.length;
+  const filteredByHidden = isHidden && !showHidden
+    ? events.filter(e => !isHidden(e.id))
+    : events;
+  const visibleEvents = isExpanded ? filteredByHidden.slice(0, displayCount) : filteredByHidden.slice(0, 4);
+  const hasMore = isExpanded && displayCount < filteredByHidden.length;
 
   return (
     <motion.div
@@ -145,7 +153,7 @@ export function BottomSheet({
         
         <div className="px-4 pb-2">
           <p className="text-sm text-muted-foreground font-medium">
-            {events.length} {events.length === 1 ? 'evenement' : 'evenementen'}
+            {filteredByHidden.length} {filteredByHidden.length === 1 ? 'evenement' : 'evenementen'}
           </p>
         </div>
         
@@ -181,6 +189,14 @@ export function BottomSheet({
                       {formatEventTime(event)}
                     </div>
                   </div>
+                  {onHideToggle && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
+                      className="absolute top-1 right-1 z-10 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors"
+                    >
+                      {isHidden?.(event.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    </button>
+                  )}
                 </div>
                 
                 <div className="p-2">

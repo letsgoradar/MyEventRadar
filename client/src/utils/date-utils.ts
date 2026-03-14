@@ -68,7 +68,15 @@ export function hasValidTime(date: string | Date | null | undefined): boolean {
 const NL_DAYS_SHORT = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
 const NL_MONTHS_SHORT = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
 export function formatDutchShortDate(date: Date): string {
+  const now = new Date();
+  if (isSameDay(date, now)) return 'Vandaag';
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  if (isSameDay(date, tomorrow)) return 'Morgen';
   const day = NL_DAYS_SHORT[date.getDay()];
   const dayNum = String(date.getDate()).padStart(2, '0');
   const month = NL_MONTHS_SHORT[date.getMonth()];

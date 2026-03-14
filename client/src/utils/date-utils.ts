@@ -99,7 +99,8 @@ export function formatSmartEventDate(
   const isStillOngoing = end > now;
   
   if (isMultiDay && isAlreadyStarted && isStillOngoing) {
-    return `Nu t/m ${formatDutchShortDate(end)}`;
+    const endLabel = formatDutchShortDate(end);
+    return `Nu t/m ${endLabel.charAt(0).toLowerCase() + endLabel.slice(1)}`;
   }
   
   return formatDutchShortDate(start);
@@ -124,7 +125,8 @@ export function formatSmartEventDateLong(
   const isStillOngoing = end > now;
   
   if (isMultiDay && isAlreadyStarted && isStillOngoing) {
-    return `Nu t/m ${formatDutchShortDate(end)}`;
+    const endLabel = formatDutchShortDate(end);
+    return `Nu t/m ${endLabel.charAt(0).toLowerCase() + endLabel.slice(1)}`;
   }
   
   return formatDutchShortDate(start);

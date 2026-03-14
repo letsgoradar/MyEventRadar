@@ -174,18 +174,23 @@ Twee-producten advertentiesysteem:
 **Promotie-flow**: Gebruikers met geverifieerd bedrijfsaccount zoeken events via een zoekbalk (niet handmatig ID invoeren), selecteren een event, kiezen periode + radius, en kopen de promotie. Je hoeft het event NIET te bezitten om het te promoten.
 
 ### Native App (Capacitor)
-- **Framework**: Capacitor 7 wraps the React web app as a native Android/iOS app
+- **Framework**: Capacitor 8 wraps the React web app as a native Android/iOS app
 - **App ID**: `nl.letsgoradar.app`
 - **Web Dir**: `dist/public` (Vite build output)
 - **Android**: Project in `android/` directory, open with Android Studio
+  - Version: versionCode 1, versionName "1.0.0" (in `android/app/build.gradle`)
+  - Signing: Configured via gradle properties (RELEASE_STORE_FILE, etc.)
+  - ProGuard/R8: Enabled for release builds with Capacitor keep rules
+  - Permissions: INTERNET, ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, CAMERA, READ_MEDIA_IMAGES
+  - Play Store guide: `PLAY_STORE_GUIDE.md`
 - **iOS**: Not yet added (run `npx cap add ios` on a Mac with Xcode)
 - **API URL**: Native apps need `VITE_API_URL` env var pointing to the deployed backend (e.g. `https://letsgoradar.replit.app`)
 - **CORS**: Backend accepts requests from `capacitor://localhost` and `https://localhost`
 - **Build workflow**:
   1. `npm run build` — builds frontend to `dist/public`
-  2. `npx cap sync` — copies web assets to native projects
+  2. `npx cap sync android` — copies web assets to Android project
   3. Open in Android Studio (`npx cap open android`) or Xcode (`npx cap open ios`)
-  4. Build and run from the IDE
+  4. Build signed AAB for Play Store (see `PLAY_STORE_GUIDE.md`)
 - **Store requirements**: Privacy policy at `/privacy`, app icons in `client/public/images/`
 - **Accounts**: Google Play (€25 one-time), Apple Developer (€99/year)
 

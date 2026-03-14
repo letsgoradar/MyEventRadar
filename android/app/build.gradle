@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace "nl.letsgoradar.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -18,11 +24,11 @@ android {
     }
     signingConfigs {
         release {
-            if (project.hasProperty('RELEASE_STORE_FILE')) {
-                storeFile file(RELEASE_STORE_FILE)
-                storePassword RELEASE_STORE_PASSWORD
-                keyAlias RELEASE_KEY_ALIAS
-                keyPassword RELEASE_KEY_PASSWORD
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['RELEASE_STORE_FILE'])
+                storePassword keystoreProperties['RELEASE_STORE_PASSWORD']
+                keyAlias keystoreProperties['RELEASE_KEY_ALIAS']
+                keyPassword keystoreProperties['RELEASE_KEY_PASSWORD']
             }
         }
     }
@@ -31,7 +37,7 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            if (project.hasProperty('RELEASE_STORE_FILE')) {
+            if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
         }

@@ -10,12 +10,14 @@
 ## Stap 1: Web app bouwen en synchroniseren
 
 ```bash
-# Bouw de web app
+# Bouw de web app (frontend naar dist/public)
 npm run build
 
-# Synchroniseer met Android project
+# Synchroniseer web assets met het Android project
 npx cap sync android
 ```
+
+> **Tip**: Voer deze twee commando's altijd samen uit voordat je een nieuwe build maakt. Het eerste commando bouwt de React-app, het tweede kopieert de bestanden naar het Android-project.
 
 ## Stap 2: Upload Keystore aanmaken
 
@@ -37,7 +39,7 @@ Bewaar het wachtwoord op een veilige plek (bijv. wachtwoordmanager).
 
 ## Stap 3: Signing configureren
 
-Maak het bestand `android/keystore.properties` aan (NIET in Git opnemen):
+Maak het bestand `android/keystore.properties` aan (staat al in `.gitignore`, wordt NIET meegecommit):
 
 ```properties
 RELEASE_STORE_FILE=../letsgoradar-upload.keystore
@@ -46,7 +48,7 @@ RELEASE_KEY_ALIAS=letsgoradar
 RELEASE_KEY_PASSWORD=jouw_wachtwoord
 ```
 
-Of bouw met command line parameters (zie Stap 4).
+Het `build.gradle` bestand laadt dit bestand automatisch. Zodra `keystore.properties` bestaat, wordt de release build automatisch gesigned.
 
 ## Stap 4: Release AAB bouwen
 
@@ -64,13 +66,11 @@ Het AAB-bestand verschijnt in `android/app/build/outputs/bundle/release/`
 ```bash
 cd android
 
-# Met gradle properties
-./gradlew bundleRelease \
-  -PRELEASE_STORE_FILE=../letsgoradar-upload.keystore \
-  -PRELEASE_STORE_PASSWORD=jouw_wachtwoord \
-  -PRELEASE_KEY_ALIAS=letsgoradar \
-  -PRELEASE_KEY_PASSWORD=jouw_wachtwoord
+# Zorg dat keystore.properties is aangemaakt (zie Stap 3)
+./gradlew bundleRelease
 ```
+
+Het AAB-bestand verschijnt in `android/app/build/outputs/bundle/release/app-release.aab`
 
 ## Stap 5: Testen voor publicatie
 

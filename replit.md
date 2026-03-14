@@ -189,8 +189,10 @@ Twee-producten advertentiesysteem:
 - **Build workflow**:
   1. `npm run build` — builds frontend to `dist/public`
   2. `npx cap sync android` — copies web assets to Android project
-  3. Open in Android Studio (`npx cap open android`) or Xcode (`npx cap open ios`)
-  4. Build signed AAB for Play Store (see `PLAY_STORE_GUIDE.md`)
+  3. Open in Android Studio (`npx cap open android`)
+  4. Build signed AAB via Android Studio or `cd android && ./gradlew bundleRelease`
+  5. Signing: create `android/keystore.properties` (auto-loaded by build.gradle)
+  6. Full guide: `PLAY_STORE_GUIDE.md`
 - **Store requirements**: Privacy policy at `/privacy`, app icons in `client/public/images/`
 - **Accounts**: Google Play (€25 one-time), Apple Developer (€99/year)
 

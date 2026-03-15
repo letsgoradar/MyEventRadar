@@ -46,6 +46,7 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
 - **Search & Discovery**: Text, category, location-radius, and date range filtering with saved search functionality.
 - **Public SEO Architecture**: Dual-architecture with React SPA for authenticated users and SEO-optimized public city landing pages. Features include JSON-LD, dynamic content, event listings, lead capture, and sitemap generation.
 - **RSS Feed Import Principles**: Standardized rules for importing events (see detailed rules below).
+- **Google Analytics 4**: GA4 integration with GDPR cookie consent. Set `VITE_GA_MEASUREMENT_ID` env var to enable. Tracks page views, event detail views, external clicks, favorites, sign-ups, and searches. Cookie consent stored in localStorage. Analytics module: `client/src/lib/analytics.ts`, hook: `client/src/hooks/useAnalytics.ts`, consent banner: `client/src/components/CookieConsent.tsx`.
 
 ### RSS Feed Import Richtlijnen
 

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Heart, UserPlus, UserCheck, Navigation, ExternalLink } from "lucide-react";
 import { ShareMenu } from "@/components/ShareMenu";
+import { trackEventView, trackExternalClick, trackAddFavorite } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -75,6 +76,7 @@ export function EventDetailPanel({
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
         });
+        trackEventView(event.title, event.id, event.category);
       } catch (error) {
         // Silently fail - tracking is not critical
       }
@@ -104,6 +106,7 @@ export function EventDetailPanel({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/favorites/${user?.id}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/events/favorites'] });
+      if (!isFavorited) trackAddFavorite(event.title, event.id);
       toast({
         title: isFavorited ? "Verwijderd uit opgeslagen" : "Toegevoegd aan opgeslagen",
         description: isFavorited ? "Het evenement is verwijderd uit je opgeslagen events." : "Je ontvangt notificaties voor wijzigingen.",
@@ -171,6 +174,7 @@ export function EventDetailPanel({
   const handleOpenExternalPage = () => {
     if (event.externalUrl) {
       openExternalPageMutation.mutate();
+      trackExternalClick(event.externalUrl, event.title);
       setShowInterstitial(true);
     }
   };

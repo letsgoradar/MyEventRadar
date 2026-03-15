@@ -1,4 +1,5 @@
 import * as React from "react";
+import { trackSearch } from "@/lib/analytics";
 import { Search, Filter, Map, List, CalendarIcon, Euro, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -86,10 +87,15 @@ export function AppHeader({
   useOutsideClick(priceFilterRef, () => setShowPriceFilter(false));
   useOutsideClick(searchResultsRef, () => setShowResults(false));
 
+  const searchDebounceRef = React.useRef<ReturnType<typeof setTimeout>>();
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
     onSearch?.(value);
+    clearTimeout(searchDebounceRef.current);
+    if (value.length >= 3) {
+      searchDebounceRef.current = setTimeout(() => trackSearch(value), 1000);
+    }
   };
 
   const handleRadiusChange = (value: number[]) => {

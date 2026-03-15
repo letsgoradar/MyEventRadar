@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Link } from "wouter";
+import { trackSearch } from "@/lib/analytics";
 import { MdSearch, MdTune, MdMap, MdViewList, MdCalendarToday } from "react-icons/md";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -251,9 +252,10 @@ export function Header({
   
   const handleSearchSubmit = (value: string) => {
     setShowSearchResults(false);
-    onSearch?.(value || searchQuery);
-    // Laat de zoekopdracht in de zoekbalk staan
-    setSearchQuery(value || searchQuery);
+    const term = value || searchQuery;
+    onSearch?.(term);
+    setSearchQuery(term);
+    if (term.length >= 2) trackSearch(term);
   };
   
   // Functie om de zoekopdracht te wissen en terug te gaan naar alle evenementen

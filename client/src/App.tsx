@@ -12,6 +12,8 @@ import { ThemeInjector } from "@/components/ThemeInjector"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BetaBanner } from "@/components/BetaBanner"
 import { FeedbackWidget } from "@/components/FeedbackWidget"
+import { CookieConsent } from "@/components/CookieConsent"
+import { useAnalytics } from "@/hooks/useAnalytics"
 import { useLocation } from "wouter"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, RefreshCw } from "lucide-react"
@@ -144,6 +146,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <AuthProvider>
+          <AnalyticsProvider>
           <ThemeInjector />
           <RouteErrorBoundary>
           <Switch>
@@ -454,10 +457,16 @@ export default function App() {
           )}
           <BetaOverlay />
           <Toaster />
+          </AnalyticsProvider>
         </AuthProvider>
       </LanguageProvider>
     </QueryClientProvider>
   );
+}
+
+function AnalyticsProvider({ children }: { children: React.ReactNode }) {
+  useAnalytics();
+  return <>{children}</>;
 }
 
 function BetaOverlay() {
@@ -468,6 +477,7 @@ function BetaOverlay() {
     <>
       <BetaBanner />
       <FeedbackWidget />
+      <CookieConsent />
     </>
   );
 }

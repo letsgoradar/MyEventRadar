@@ -7,6 +7,7 @@ import {
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { trackSignUp } from "@/lib/analytics";
 
 type LoginData = Pick<InsertUser, "email" | "password">;
 
@@ -63,6 +64,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     onSuccess: () => {
+      trackSignUp("email");
       toast({
         title: "Account aangemaakt!",
         description: "Check je e-mail om je account te bevestigen.",

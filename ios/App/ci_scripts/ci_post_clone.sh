@@ -7,7 +7,7 @@ echo "Installing Node.js and building web assets for Capacitor..."
 export HOMEBREW_NO_INSTALL_CLEANUP=TRUE
 
 brew install node@22
-export PATH="/usr/local/opt/node@22/bin:$PATH"
+export PATH="$(brew --prefix node@22)/bin:$PATH"
 
 echo "Node version: $(node --version)"
 echo "npm version: $(npm --version)"

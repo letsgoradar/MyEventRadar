@@ -19,25 +19,23 @@ export function initGA() {
 
   if (document.querySelector(`script[src*="googletagmanager"]`)) return;
 
+  window.gtag("consent", "update", {
+    analytics_storage: "granted",
+  });
+
   const script = document.createElement("script");
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
   document.head.appendChild(script);
 
-  window.dataLayer = window.dataLayer || [];
-  window.gtag = function (...args: unknown[]) {
-    window.dataLayer.push(args);
-  };
   window.gtag("js", new Date());
   window.gtag("config", GA_ID, {
     send_page_view: false,
   });
-
-  trackPageView(window.location.pathname + window.location.search);
 }
 
 export function trackPageView(path: string) {
-  if (!isEnabled()) return;
+  if (!isEnabled() || !document.querySelector(`script[src*="googletagmanager"]`)) return;
   window.gtag("event", "page_view", {
     page_path: path,
     page_location: window.location.origin + path,
@@ -45,7 +43,7 @@ export function trackPageView(path: string) {
 }
 
 export function trackEvent(eventName: string, params?: Record<string, unknown>) {
-  if (!isEnabled()) return;
+  if (!isEnabled() || !document.querySelector(`script[src*="googletagmanager"]`)) return;
   window.gtag("event", eventName, params);
 }
 

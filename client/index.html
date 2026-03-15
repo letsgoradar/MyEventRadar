@@ -21,6 +21,14 @@
     <meta property="og:description" content="Ontdek lokale evenementen in jouw buurt met letsgo radar" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/images/letsgo-radar-logo.png" />
+    <!-- Google Analytics 4 — consent-gated: gtag.js loads dynamically after cookie consent via initGA() -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function(){ window.dataLayer.push(arguments); };
+      window.gtag('consent', 'default', {
+        'analytics_storage': 'denied'
+      });
+    </script>
     <!-- WebSocket fix voor Vite HMR -->
     <script>
       (function() {

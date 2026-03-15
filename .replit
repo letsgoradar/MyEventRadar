@@ -52,3 +52,6 @@ integrations = ["javascript_websocket:1.0.0", "javascript_openai:1.0.0", "javasc
 SMTP_HOST = "smtp.hostnet.nl"
 SMTP_PORT = "587"
 SMTP_FROM = "info@letsgoradar.com"
+
+[userenv.production]
+VITE_GA_MEASUREMENT_ID = "G-2MG3LB59TT"

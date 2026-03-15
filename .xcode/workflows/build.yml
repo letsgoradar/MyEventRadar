@@ -1,0 +1,60 @@
+name: Build & Deploy Let's Go Radar iOS
+description: >
+  Xcode Cloud workflow configuratie voor Let's Go Radar.
+  Dit bestand documenteert de gewenste Xcode Cloud workflow.
+  De workflow wordt geconfigureerd in App Store Connect (web).
+
+trigger:
+  branch:
+    name: main
+    event: push
+
+environment:
+  xcode_version: latest_release
+  macos_version: latest
+
+build:
+  scheme: App
+  platform: ios
+  configuration: Release
+  destination: generic/platform=iOS
+
+  pre_build:
+    script: ios/App/ci_scripts/ci_post_clone.sh
+    description: >
+      Installeert Node.js 22, draait npm ci, bouwt de web-app,
+      en synchroniseert Capacitor iOS assets.
+
+  archive:
+    enabled: true
+    method: app-store
+
+post_actions:
+  testflight:
+    enabled: true
+    internal_testing: true
+    groups:
+      - Internal Testers
+
+  app_store:
+    enabled: false
+    auto_submit: false
+
+signing:
+  automatic: true
+  team_id: "${APPLE_TEAM_ID}"
+  bundle_id: nl.letsgoradar.app
+  provisioning: automatic
+
+environment_variables:
+  VITE_API_URL:
+    value: "https://letsgoradar.nl"
+    secret: false
+  VITE_GA_MEASUREMENT_ID:
+    value: "G-2MG3LB59TT"
+    secret: false
+
+notifications:
+  email:
+    on_success: true
+    on_failure: true

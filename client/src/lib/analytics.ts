@@ -32,6 +32,8 @@ export function initGA() {
   window.gtag("config", GA_ID, {
     send_page_view: false,
   });
+
+  trackPageView(window.location.pathname + window.location.search);
 }
 
 export function trackPageView(path: string) {

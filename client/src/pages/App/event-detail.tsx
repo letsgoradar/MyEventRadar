@@ -2,6 +2,7 @@ import * as React from "react";
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
+import { trackEventView, trackAddFavorite, trackExternalClick } from "@/lib/analytics";
 import AppLayout from "@/components/App/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,6 +59,12 @@ export function AppEventDetail() {
     enabled: !isNaN(eventId) && eventId > 0,
   });
 
+  useEffect(() => {
+    if (event) {
+      trackEventView(event.title, event.id, event.category);
+    }
+  }, [event?.id]);
+
   // Check if event is favorited
   const { data: favorites = [] } = useQuery<EventInterface[]>({
     queryKey: [`/api/favorites/${user?.id}`],
@@ -88,6 +95,7 @@ export function AppEventDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/favorites/${user?.id}`] });
+      if (!isFavorite && event) trackAddFavorite(event.title, event.id);
       toast({
         title: isFavorite ? "Evenement verwijderd uit favorieten" : "Evenement toegevoegd aan favorieten",
         description: isFavorite ? "Het evenement is verwijderd uit je favorieten." : "Je ontvangt notificaties voor wijzigingen en herinneringen.",

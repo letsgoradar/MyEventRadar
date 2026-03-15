@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
+import { trackEventView } from '@/lib/analytics';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
@@ -86,9 +87,14 @@ const EventDetail = () => {
       }
       return response.json();
     },
-    // Verbetering: stelt de query-caching in voor betere prestaties
-    staleTime: 5 * 60 * 1000, // 5 minuten
+    staleTime: 5 * 60 * 1000,
   });
+
+  useEffect(() => {
+    if (event) {
+      trackEventView(event.title, event.id, event.category);
+    }
+  }, [event?.id]);
 
   if (isLoading) {
     return (

@@ -184,7 +184,13 @@ Twee-producten advertentiesysteem:
   - ProGuard/R8: Enabled for release builds with Capacitor keep rules
   - Permissions: INTERNET, ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, CAMERA, READ_MEDIA_IMAGES
   - Play Store guide: `PLAY_STORE_GUIDE.md`
-- **iOS**: Not yet added (run `npx cap add ios` on a Mac with Xcode)
+- **iOS**: Project in `ios/` directory, built via Xcode Cloud (no Mac required)
+  - Version: MARKETING_VERSION 1.0, CURRENT_PROJECT_VERSION 1 (in `ios/App/App.xcodeproj/project.pbxproj`)
+  - Deployment target: iOS 15.0
+  - Permissions: NSLocationWhenInUseUsageDescription, NSCameraUsageDescription, NSPhotoLibraryUsageDescription
+  - ITSAppUsesNonExemptEncryption: NO (avoids export compliance review)
+  - Xcode Cloud: `ios/App/ci_scripts/ci_post_clone.sh` installs Node.js, builds web app, syncs Capacitor
+  - Xcode Cloud guide: `XCODE_CLOUD_GUIDE.md`
 - **API URL**: Native apps need `VITE_API_URL` env var pointing to the deployed backend (e.g. `https://letsgoradar.replit.app`)
 - **CORS**: Backend accepts requests from `capacitor://localhost` and `https://localhost`
 - **Build workflow**:

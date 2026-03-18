@@ -200,7 +200,7 @@ export default function CityPage() {
               </div>
             </div>
             <Link href="/app">
-              <Button size="sm" className="bg-[#60d0b8] hover:bg-[#4db8a0]">
+              <Button size="sm" className="bg-[#00A9C5] hover:bg-[#0096B3]">
                 Open App
               </Button>
             </Link>
@@ -210,16 +210,16 @@ export default function CityPage() {
 
       <main className="container mx-auto px-4 py-8">
         <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6" data-testid="breadcrumb">
-          <Link href="/" className="hover:text-[#60d0b8]">Home</Link>
+          <Link href="/" className="hover:text-[#00A9C5]">Home</Link>
           <ChevronRight className="w-4 h-4" />
-          <Link href={`/${city.provinceSlug}`} className="hover:text-[#60d0b8]">{city.province}</Link>
+          <Link href={`/${city.provinceSlug}`} className="hover:text-[#00A9C5]">{city.province}</Link>
           <ChevronRight className="w-4 h-4" />
           <span className="text-gray-900 dark:text-white font-medium">{city.name}</span>
         </nav>
 
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <MapPin className="w-8 h-8 text-[#60d0b8]" />
+            <MapPin className="w-8 h-8 text-[#00A9C5]" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white" data-testid="text-city-name">
                 Evenementen in {city.name}

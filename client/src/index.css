@@ -63,12 +63,12 @@
 
 @layer base {
   :root {
-    --theme-color-1: #f5fcfa;
-    --theme-color-2: #e5f8f2;
-    --theme-color-3: #60d0b8;
-    --theme-color-4: #e5f8f2;
-    --theme-color-5: #f5fcfa;
-    --theme-text-color: #1a4a40;
+    --theme-color-1: #f0fafc;
+    --theme-color-2: #e0f5f9;
+    --theme-color-3: #00A9C5;
+    --theme-color-4: #1A2B3C;
+    --theme-color-5: #ffffff;
+    --theme-text-color: #1A2B3C;
   }
 
   * {

@@ -375,7 +375,7 @@ function createEventIcon(
   eventAngle: number = 0
 ) {
   // App primary kleur (teal/groen)
-  const primaryColor = isExpired ? "#9CA3AF" : "#14B8A6"; // teal-500 als app primary
+  const primaryColor = isExpired ? "#9CA3AF" : "#00A9C5"; // teal-500 als app primary
   const iconPath = CATEGORY_SVG_PATHS[category] || CATEGORY_SVG_PATHS['Gezellig en Sociaal'];
   const size = isSelected ? 32 : 28;
   const wrapperSize = size + 20;

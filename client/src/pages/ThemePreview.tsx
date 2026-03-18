@@ -42,8 +42,8 @@ const themes: Theme[] = [
     name: "Vrolijk",
     base: "#f5fcfa",
     surface: "#e5f8f2",
-    accent: "#60d0b8",
-    textColor: "#1a4a40",
+    accent: "#00A9C5",
+    textColor: "#1A2B3C",
   },
   {
     id: "calm",

@@ -79,9 +79,9 @@ export function LeadForm({ citySlug, cityName, ctaText }: LeadFormProps) {
   }
 
   return (
-    <div className="bg-gradient-to-br from-[#60d0b8]/10 to-[#60d0b8]/5 rounded-xl p-6" data-testid="lead-form">
+    <div className="bg-gradient-to-br from-[#00A9C5]/10 to-[#00A9C5]/5 rounded-xl p-6" data-testid="lead-form">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-[#60d0b8] rounded-full flex items-center justify-center">
+        <div className="w-10 h-10 bg-[#00A9C5] rounded-full flex items-center justify-center">
           <Mail className="w-5 h-5 text-white" />
         </div>
         <div>
@@ -107,7 +107,7 @@ export function LeadForm({ citySlug, cityName, ctaText }: LeadFormProps) {
         <Button
           type="submit"
           disabled={isLoading}
-          className="bg-[#60d0b8] hover:bg-[#4db8a0] text-white"
+          className="bg-[#00A9C5] hover:bg-[#0096B3] text-white"
           data-testid="button-lead-submit"
         >
           {isLoading ? (

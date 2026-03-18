@@ -78,7 +78,7 @@ export function InstallPrompt() {
       </button>
       
       <div className="flex items-center gap-4">
-        <div className="flex-shrink-0 w-12 h-12 bg-[#60d0b8] rounded-xl flex items-center justify-center">
+        <div className="flex-shrink-0 w-12 h-12 bg-[#00A9C5] rounded-xl flex items-center justify-center">
           <Download className="text-white" size={24} />
         </div>
         
@@ -94,7 +94,7 @@ export function InstallPrompt() {
         <Button
           onClick={handleInstall}
           size="sm"
-          className="bg-[#60d0b8] hover:bg-[#4db8a0] text-white flex-shrink-0"
+          className="bg-[#00A9C5] hover:bg-[#0096B3] text-white flex-shrink-0"
           data-testid="button-install-pwa"
         >
           Installeren

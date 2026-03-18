@@ -82,26 +82,26 @@ export function InstallPWA() {
         {isIOS ? (
           <div className="space-y-3 text-left">
             <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#5AB2A4] text-white flex items-center justify-center text-sm font-bold">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#00A9C5] text-white flex items-center justify-center text-sm font-bold">
                 1
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <span>Tik op het</span>
-                <span className="inline-flex items-center justify-center w-7 h-7 bg-[#5AB2A4]/10 rounded-lg">
-                  <Share className="w-3.5 h-3.5 text-[#5AB2A4]" />
+                <span className="inline-flex items-center justify-center w-7 h-7 bg-[#00A9C5]/10 rounded-lg">
+                  <Share className="w-3.5 h-3.5 text-[#00A9C5]" />
                 </span>
                 <span>icoon</span>
               </div>
             </div>
 
             <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#5AB2A4] text-white flex items-center justify-center text-sm font-bold">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#00A9C5] text-white flex items-center justify-center text-sm font-bold">
                 2
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <span>Kies</span>
-                <span className="inline-flex items-center justify-center w-7 h-7 bg-[#5AB2A4]/10 rounded-lg">
-                  <Plus className="w-3.5 h-3.5 text-[#5AB2A4]" />
+                <span className="inline-flex items-center justify-center w-7 h-7 bg-[#00A9C5]/10 rounded-lg">
+                  <Plus className="w-3.5 h-3.5 text-[#00A9C5]" />
                 </span>
                 <span className="font-medium">"Zet op beginscherm"</span>
               </div>
@@ -111,7 +111,7 @@ export function InstallPWA() {
           <button
             onClick={handleInstallClick}
             disabled={installing}
-            className="w-full py-3 px-5 bg-[#5AB2A4] text-white font-semibold rounded-xl text-base shadow-md active:scale-95 transition-transform disabled:opacity-70 flex items-center justify-center gap-2"
+            className="w-full py-3 px-5 bg-[#00A9C5] text-white font-semibold rounded-xl text-base shadow-md active:scale-95 transition-transform disabled:opacity-70 flex items-center justify-center gap-2"
           >
             <Download className="w-4 h-4" />
             {installing ? "Installeren..." : "Installeer App"}
@@ -119,16 +119,16 @@ export function InstallPWA() {
         ) : (
           <div className="space-y-3 text-left">
             <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#5AB2A4] text-white flex items-center justify-center text-sm font-bold">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#00A9C5] text-white flex items-center justify-center text-sm font-bold">
                 1
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <span>Tik op het menu</span>
-                <span className="inline-flex items-center justify-center w-6 h-6 bg-[#5AB2A4]/10 rounded text-xs font-bold text-[#5AB2A4]">⋮</span>
+                <span className="inline-flex items-center justify-center w-6 h-6 bg-[#00A9C5]/10 rounded text-xs font-bold text-[#00A9C5]">⋮</span>
               </div>
             </div>
             <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#5AB2A4] text-white flex items-center justify-center text-sm font-bold">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#00A9C5] text-white flex items-center justify-center text-sm font-bold">
                 2
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-700">

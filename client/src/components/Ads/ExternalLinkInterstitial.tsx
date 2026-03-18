@@ -72,7 +72,7 @@ export function ExternalLinkInterstitial({
           className="flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Terug naar letsgo radar</span>
+          <span>Terug naar MyEventRadar.com</span>
         </Button>
         
         <RadarLogoWithText height={32} textColor="#0D9488" />
@@ -127,7 +127,7 @@ export function ExternalLinkInterstitial({
 
       <div className="p-4 border-t bg-white/80 backdrop-blur-sm">
         <p className="text-center text-xs text-gray-400">
-          Je verlaat nu de letsgo radar app. De externe website is niet onderdeel van onze dienst.
+          Je verlaat nu de MyEventRadar.com app. De externe website is niet onderdeel van onze dienst.
         </p>
       </div>
     </div>

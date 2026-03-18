@@ -50,7 +50,7 @@ const errorConfigs: Record<number, ErrorConfig> = {
     code: 503,
     title: "Even geduld...",
     message: "We zijn druk bezig met onderhoud",
-    subMessage: "We maken letsgo radar nog beter voor je! Over een paar minuten zijn we weer terug.",
+    subMessage: "We maken MyEventRadar.com nog beter voor je! Over een paar minuten zijn we weer terug.",
     icon: "loading",
     showRefresh: true,
   },

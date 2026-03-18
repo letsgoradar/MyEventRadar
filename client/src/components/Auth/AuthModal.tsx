@@ -197,7 +197,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
         {view === "welcome" && (
           <div className="space-y-4">
             <div className="text-center space-y-1">
-              <h1 className="text-2xl font-bold text-primary">Welkom bij letsgo radar</h1>
+              <h1 className="text-2xl font-bold text-primary">Welkom bij MyEventRadar.com</h1>
               <p className="text-muted-foreground text-sm">Ontdek evenementen in jouw buurt</p>
               <p className="text-xs text-muted-foreground">Registreer of log in om alle details te bekijken</p>
             </div>

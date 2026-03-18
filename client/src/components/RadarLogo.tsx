@@ -8,7 +8,7 @@ export function RadarLogo({ size = 32, className = "" }: RadarLogoProps) {
   return (
     <img
       src="/images/letsgo-radar-logo.png"
-      alt="letsgo radar"
+      alt="MyEventRadar"
       width={size}
       height={size}
       className={`object-contain ${className}`}
@@ -27,15 +27,15 @@ export function RadarLogoWithText({
   height = 40,
   className = "",
 }: RadarLogoWithTextProps) {
-  const aspectRatio = 832 / 359;
+  const aspectRatio = 930 / 230;
   const width = Math.round(height * aspectRatio);
 
   return (
     <img
-      src="/images/letsgo-radar-brand.jpg"
-      alt="letsgo radar"
+      src="/images/myeventradar-logo.jpg"
+      alt="MyEventRadar.com"
       style={{ height: `${height}px`, width: `${width}px` }}
-      className={`object-contain rounded drop-shadow-sm ${className}`}
+      className={`object-contain drop-shadow-sm ${className}`}
     />
   );
 }
@@ -44,7 +44,7 @@ export function RadarLogoAnimated({ size = 32, className = "" }: RadarLogoProps)
   return (
     <img
       src="/images/letsgo-radar-logo.png"
-      alt="letsgo radar"
+      alt="MyEventRadar"
       width={size}
       height={size}
       className={`object-contain ${className}`}

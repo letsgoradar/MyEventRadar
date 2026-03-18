@@ -41,10 +41,10 @@ export function Sidebar() {
           <>
             <div className="flex flex-col items-center mb-2 w-full">
               <img
-                src="/images/letsgo-radar-brand.jpg"
-                alt="letsgo radar"
-                className="w-full object-contain rounded-lg drop-shadow-sm"
-                style={{ maxHeight: '44px', width: 'auto', maxWidth: '148px' }}
+                src="/images/myeventradar-logo.jpg"
+                alt="MyEventRadar.com"
+                className="w-full object-contain drop-shadow-sm"
+                style={{ maxHeight: '44px', width: 'auto', maxWidth: '180px' }}
               />
             </div>
             <Button variant="ghost" size="sm" className="p-1 w-full" onClick={toggleExpanded}>
@@ -59,12 +59,12 @@ export function Sidebar() {
                   <TooltipTrigger asChild>
                     <img
                       src="/images/letsgo-radar-logo.png"
-                      alt="letsgo radar"
+                      alt="MyEventRadar"
                       className="w-10 h-10 object-contain"
                     />
                   </TooltipTrigger>
                   <TooltipContent side="right">
-                    <p>letsgo radar</p>
+                    <p>MyEventRadar.com</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

@@ -69,9 +69,9 @@ export function InstallPWA() {
         </button>
 
         <img
-          src="/images/letsgo-radar-brand.jpg"
-          alt="letsgo radar"
-          className="rounded shadow-md mb-5 mx-auto"
+          src="/images/myeventradar-logo.jpg"
+          alt="MyEventRadar.com"
+          className="mb-5 mx-auto"
           style={{ width: '260px', height: 'auto' }}
         />
 

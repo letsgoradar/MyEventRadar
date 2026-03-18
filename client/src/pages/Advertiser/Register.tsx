@@ -192,7 +192,7 @@ export default function AdvertiserRegister() {
           <Building2 className="h-12 w-12 mx-auto text-primary mb-4" />
           <h1 className="text-3xl font-bold">Adverteerder worden</h1>
           <p className="text-muted-foreground mt-2">
-            Vul je bedrijfsgegevens in om te starten met adverteren op letsgo radar.
+            Vul je bedrijfsgegevens in om te starten met adverteren op MyEventRadar.com.
           </p>
         </div>
 

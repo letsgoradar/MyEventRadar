@@ -128,7 +128,7 @@ export default function CityPage() {
 
   useEffect(() => {
     if (cityData?.city) {
-      document.title = `Evenementen in ${cityData.city.name} - letsgo radar`;
+      document.title = `Evenementen in ${cityData.city.name} - MyEventRadar.com`;
       
       const metaDesc = document.querySelector('meta[name="description"]');
       if (metaDesc) {
@@ -192,8 +192,8 @@ export default function CityPage() {
               </Link>
               <div className="flex items-center">
                 <img
-                  src="/images/letsgo-radar-brand.jpg"
-                  alt="letsgo radar"
+                  src="/images/myeventradar-logo.jpg"
+                  alt="MyEventRadar.com"
                   className="object-contain rounded-lg drop-shadow-sm"
                   style={{ height: '34px', width: 'auto' }}
                 />
@@ -322,14 +322,14 @@ export default function CityPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center">
               <img
-                src="/images/letsgo-radar-brand.jpg"
-                alt="letsgo radar"
+                src="/images/myeventradar-logo.jpg"
+                alt="MyEventRadar.com"
                 className="object-contain rounded-md drop-shadow-sm"
                 style={{ height: '28px', width: 'auto' }}
               />
             </div>
             <p className="text-sm text-gray-500">
-              &copy; {new Date().getFullYear()} letsgo radar. Alle rechten voorbehouden.
+              &copy; {new Date().getFullYear()} MyEventRadar.com. Alle rechten voorbehouden.
             </p>
           </div>
         </div>

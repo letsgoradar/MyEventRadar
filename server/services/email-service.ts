@@ -212,7 +212,7 @@ export async function sendPasswordResetEmail(
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
       <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
         <div style="text-align: center; margin-bottom: 24px;">
-          <div style="background: #14B8A6; display: inline-block; padding: 12px 24px; border-radius: 8px;">
+          <div style="background: #00A9C5; display: inline-block; padding: 12px 24px; border-radius: 8px;">
             <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">letsgo&#33; radar&#46;nl</span>
           </div>
         </div>
@@ -222,13 +222,13 @@ export async function sendPasswordResetEmail(
           Klik op de knop hieronder om een nieuw wachtwoord in te stellen.
         </p>
         <div style="text-align: center; margin: 32px 0;">
-          <a href="${resetUrl}" style="display: inline-block; background-color: #14B8A6; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 16px; font-weight: bold;">
+          <a href="${resetUrl}" style="display: inline-block; background-color: #00A9C5; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 16px; font-weight: bold;">
             Nieuw wachtwoord instellen
           </a>
         </div>
         <p style="color: #888; font-size: 13px; line-height: 1.5;">
           Of kopieer deze link in je browser:<br>
-          <a href="${resetUrl}" style="color: #14B8A6; word-break: break-all;">${resetUrl}</a>
+          <a href="${resetUrl}" style="color: #00A9C5; word-break: break-all;">${resetUrl}</a>
         </p>
         <p style="color: #888; font-size: 13px; line-height: 1.5; margin-top: 16px;">
           Deze link is 30 minuten geldig. Als je geen wachtwoord-reset hebt aangevraagd, kun je deze e-mail negeren.
@@ -282,7 +282,7 @@ export async function sendUserVerificationEmail(
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
       <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
         <div style="text-align: center; margin-bottom: 24px;">
-          <div style="background: #14B8A6; display: inline-block; padding: 12px 24px; border-radius: 8px;">
+          <div style="background: #00A9C5; display: inline-block; padding: 12px 24px; border-radius: 8px;">
             <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">letsgo&#33; radar&#46;nl</span>
           </div>
         </div>
@@ -291,13 +291,13 @@ export async function sendUserVerificationEmail(
           Bedankt voor je registratie. Klik op de knop hieronder om je e-mailadres te bevestigen en je account te activeren.
         </p>
         <div style="text-align: center; margin: 32px 0;">
-          <a href="${verifyUrl}" style="display: inline-block; background-color: #14B8A6; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 16px; font-weight: bold;">
+          <a href="${verifyUrl}" style="display: inline-block; background-color: #00A9C5; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 16px; font-weight: bold;">
             E-mailadres bevestigen
           </a>
         </div>
         <p style="color: #888; font-size: 13px; line-height: 1.5;">
           Of kopieer deze link in je browser:<br>
-          <a href="${verifyUrl}" style="color: #14B8A6; word-break: break-all;">${verifyUrl}</a>
+          <a href="${verifyUrl}" style="color: #00A9C5; word-break: break-all;">${verifyUrl}</a>
         </p>
         <p style="color: #888; font-size: 13px; line-height: 1.5; margin-top: 16px;">
           Deze link is 24 uur geldig. Als je je niet hebt geregistreerd, kun je deze e-mail negeren.
@@ -414,7 +414,7 @@ export async function sendWelcomeEmail(
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
       <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
         <div style="text-align: center; margin-bottom: 24px;">
-          <div style="background: #14B8A6; display: inline-block; padding: 12px 24px; border-radius: 8px;">
+          <div style="background: #00A9C5; display: inline-block; padding: 12px 24px; border-radius: 8px;">
             <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">letsgo&#33; radar&#46;nl</span>
           </div>
         </div>
@@ -463,7 +463,7 @@ export async function sendWelcomeEmail(
           </tr>
         </table>
         <div style="text-align: center; margin: 28px 0 20px;">
-          <a href="${appUrl}" style="display: inline-block; background-color: #14B8A6; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 16px; font-weight: bold;">
+          <a href="${appUrl}" style="display: inline-block; background-color: #00A9C5; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 16px; font-weight: bold;">
             Ga naar de kaart
           </a>
         </div>

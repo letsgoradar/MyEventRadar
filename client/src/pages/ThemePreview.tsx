@@ -63,7 +63,7 @@ export default function ThemePreview() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        variant: "tint",
+        variant: "professional",
         primary: theme.accent,
         appearance: "light",
         radius: 0.75,

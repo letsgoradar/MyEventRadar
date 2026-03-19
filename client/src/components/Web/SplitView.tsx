@@ -369,7 +369,7 @@ export function SplitView({
               /* Event List/Grid View with optional preview */
               <div ref={listContainerRef} className="h-full overflow-y-auto pb-20 px-4 relative">
                 {/* Toon het aantal resultaten en sorteeroptie */}
-                <div className="sticky top-0 pt-4 pb-3 bg-background z-10 mb-2">
+                <div className="sticky top-0 pt-4 pb-3 bg-background z-20 mb-2">
                   <div className="flex justify-between items-center">
                     <div className="text-lg font-medium">
                       {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'}

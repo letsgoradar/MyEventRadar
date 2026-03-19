@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   MessageSquare,
   Clock,
+  Archive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +64,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
   nieuw: { label: "Nieuw", color: "bg-blue-100 text-blue-700", icon: Clock },
   gelezen: { label: "Gelezen", color: "bg-yellow-100 text-yellow-700", icon: Eye },
   verwerkt: { label: "Verwerkt", color: "bg-green-100 text-green-700", icon: CheckCircle2 },
+  gearchiveerd: { label: "Gearchiveerd", color: "bg-gray-100 text-gray-500", icon: Archive },
 };
 
 export default function AdminFeedback() {
@@ -82,25 +84,27 @@ export default function AdminFeedback() {
 
   const { data: feedbackItems, isLoading } = useQuery<FeedbackItem[]>({
     queryKey: ["/api/admin/feedback", queryString],
-    queryFn: () => fetch(`/api/admin/feedback${queryString ? `?${queryString}` : ""}`).then((r) => r.json()),
+    queryFn: () => fetch(`/api/admin/feedback${queryString ? `?${queryString}` : ""}`, { credentials: "include" }).then((r) => r.json()),
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: { id: number; status?: string; adminNotes?: string }) => {
       return apiRequest(`/api/admin/feedback/${id}`, {
         method: "PATCH",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
+        data,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/feedback"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/feedback/stats"] });
     },
+    onError: (err: any) => {
+      console.error("[Feedback] Update fout:", err);
+    },
   });
 
   const newCount = stats?.statusCounts?.find((s) => s.status === "nieuw")?.count || 0;
-  const totalCount = stats?.statusCounts?.reduce((sum, s) => sum + s.count, 0) || 0;
+  const totalCount = stats?.statusCounts?.reduce((sum, s) => sum + Number(s.count), 0) || 0;
 
   const handleOpenDetail = (item: FeedbackItem) => {
     setSelectedItem(item);
@@ -119,6 +123,18 @@ export default function AdminFeedback() {
     if (!selectedItem) return;
     updateMutation.mutate({ id: selectedItem.id, status: "verwerkt", adminNotes });
     setSelectedItem(null);
+  };
+
+  const handleArchive = () => {
+    if (!selectedItem) return;
+    updateMutation.mutate({ id: selectedItem.id, status: "gearchiveerd", adminNotes });
+    setSelectedItem(null);
+  };
+
+  // Inline quick action (from table row directly, without opening dialog)
+  const handleQuickStatus = (e: React.MouseEvent, item: FeedbackItem, status: string) => {
+    e.stopPropagation();
+    updateMutation.mutate({ id: item.id, status });
   };
 
   return (
@@ -155,7 +171,7 @@ export default function AdminFeedback() {
 
           <div className="flex flex-wrap gap-3">
             <div className="flex gap-1 bg-muted rounded-lg p-1">
-              {["alle", "nieuw", "gelezen", "verwerkt"].map((s) => (
+              {["alle", "nieuw", "gelezen", "verwerkt", "gearchiveerd"].map((s) => (
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
@@ -207,6 +223,7 @@ export default function AdminFeedback() {
                     <th className="text-left p-3 font-medium hidden lg:table-cell">Gebruiker</th>
                     <th className="text-left p-3 font-medium hidden lg:table-cell">Rating</th>
                     <th className="text-left p-3 font-medium">Status</th>
+                    <th className="text-left p-3 font-medium">Acties</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -220,7 +237,8 @@ export default function AdminFeedback() {
                         onClick={() => handleOpenDetail(item)}
                         className={cn(
                           "border-t cursor-pointer hover:bg-muted/30 transition-colors",
-                          item.status === "nieuw" && "bg-blue-50/50"
+                          item.status === "nieuw" && "bg-blue-50/50",
+                          item.status === "gearchiveerd" && "opacity-60"
                         )}
                       >
                         <td className="p-3 whitespace-nowrap text-muted-foreground">
@@ -261,6 +279,30 @@ export default function AdminFeedback() {
                           <Badge variant="secondary" className={statusConf?.color}>
                             {statusConf?.label || item.status}
                           </Badge>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                            {item.status !== "verwerkt" && item.status !== "gearchiveerd" && (
+                              <button
+                                onClick={(e) => handleQuickStatus(e, item, "verwerkt")}
+                                className="p-1 rounded hover:bg-green-100 text-green-700 transition-colors"
+                                title="Markeer als verwerkt"
+                                disabled={updateMutation.isPending}
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {item.status !== "gearchiveerd" && (
+                              <button
+                                onClick={(e) => handleQuickStatus(e, item, "gearchiveerd")}
+                                className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"
+                                title="Archiveer (niet relevant)"
+                                disabled={updateMutation.isPending}
+                              >
+                                <Archive className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -331,10 +373,16 @@ export default function AdminFeedback() {
                   />
                 </div>
 
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-2 justify-end flex-wrap">
                   <Button variant="outline" size="sm" onClick={handleSaveNotes} disabled={updateMutation.isPending}>
                     Notities opslaan
                   </Button>
+                  {selectedItem.status !== "gearchiveerd" && (
+                    <Button variant="outline" size="sm" onClick={handleArchive} disabled={updateMutation.isPending} className="gap-1 text-gray-600">
+                      <Archive className="w-4 h-4" />
+                      Archiveer
+                    </Button>
+                  )}
                   {selectedItem.status !== "verwerkt" && (
                     <Button size="sm" onClick={handleMarkProcessed} disabled={updateMutation.isPending} className="gap-1">
                       <CheckCircle2 className="w-4 h-4" />

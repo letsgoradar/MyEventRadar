@@ -1080,7 +1080,7 @@ export type InsertPricingConfig = z.infer<typeof insertPricingConfigSchema>;
 
 // Beta Feedback
 export const FEEDBACK_TYPES = ['bug', 'idee', 'vraag', 'anders'] as const;
-export const FEEDBACK_STATUS = ['nieuw', 'gelezen', 'verwerkt'] as const;
+export const FEEDBACK_STATUS = ['nieuw', 'gelezen', 'verwerkt', 'gearchiveerd'] as const;
 
 export const betaFeedback = pgTable("beta_feedback", {
   id: serial("id").primaryKey(),

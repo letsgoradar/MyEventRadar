@@ -163,6 +163,14 @@ export function AppLayout({
   // Search dropdown visibility
   const [isSearchFocused, setIsSearchFocused] = React.useState<boolean>(false);
   const searchContainerRef = React.useRef<HTMLDivElement>(null);
+
+  // Zoeksuggesties die roteren als placeholder
+  const SEARCH_SUGGESTIONS = ['pubquiz', 'kermis', 'circus', 'festival', 'comedy', 'theater', 'concert', 'markt', 'sport', 'muziek'];
+  const [suggestionIndex, setSuggestionIndex] = React.useState(0);
+  React.useEffect(() => {
+    const timer = setInterval(() => setSuggestionIndex(i => (i + 1) % SEARCH_SUGGESTIONS.length), 3000);
+    return () => clearInterval(timer);
+  }, []);
   
   // Kaart bounds state voor zoom-based filtering
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
@@ -469,14 +477,20 @@ export function AppLayout({
             <div className="relative flex-1" ref={searchContainerRef}>
               <div className="relative">
                 <Input
-                  placeholder="Zoek evenementen..."
+                  placeholder={searchQuery ? "" : `Zoek op ${SEARCH_SUGGESTIONS[suggestionIndex]}...`}
                   value={searchQuery}
                   onChange={handleSearchChange}
-                  className="pl-9 pr-4 h-10 w-full border-gray-300"
+                  className="pl-9 pr-16 h-10 w-full border-gray-300"
                   onKeyDown={(e) => e.key === "Enter" && onSearch && onSearch(searchQuery)}
                   onFocus={() => setIsSearchFocused(true)}
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <button
+                  onClick={() => { onSearch && onSearch(searchQuery); setIsSearchFocused(false); }}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary text-white text-xs font-medium px-2.5 py-1 rounded-full hover:bg-primary/90 transition-colors"
+                >
+                  Zoek
+                </button>
                 
                 {/* Live zoekresultaten dropdown */}
                 {searchQuery.trim() !== "" && isSearchFocused && (

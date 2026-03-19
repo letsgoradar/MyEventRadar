@@ -93,6 +93,14 @@ export function Header({
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = React.useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = React.useState(false);
+
+  // Zoeksuggesties die roteren als placeholder
+  const SEARCH_SUGGESTIONS = ['pubquiz', 'kermis', 'circus', 'festival', 'comedy', 'theater', 'concert', 'markt', 'sport', 'muziek'];
+  const [suggestionIndex, setSuggestionIndex] = React.useState(0);
+  React.useEffect(() => {
+    const timer = setInterval(() => setSuggestionIndex(i => (i + 1) % SEARCH_SUGGESTIONS.length), 3000);
+    return () => clearInterval(timer);
+  }, []);
   
   // Date range state - geen default, toont alle events
   const today = startOfDay(new Date());
@@ -298,8 +306,8 @@ export function Header({
           <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
           <div className="relative">
             <Input
-              placeholder="Zoek op kaart"
-              className="pl-10 pr-10 h-10 text-base rounded-full shadow-sm border-slate-200"
+              placeholder={searchQuery ? "" : `Zoek op ${SEARCH_SUGGESTIONS[suggestionIndex]}...`}
+              className="pl-10 pr-24 h-10 text-base rounded-full shadow-sm border-slate-200"
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit("")}
@@ -308,15 +316,21 @@ export function Header({
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 rounded-full"
+                className="absolute right-16 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 rounded-full text-gray-400 hover:text-gray-600"
                 onClick={clearSearch}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6 6 18"></path>
                   <path d="m6 6 12 12"></path>
                 </svg>
               </Button>
             )}
+            <button
+              onClick={() => handleSearchSubmit("")}
+              className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary text-white text-sm font-medium px-4 py-1.5 rounded-full hover:bg-primary/90 transition-colors"
+            >
+              Zoek
+            </button>
             
             {/* Live zoekresultaten dropdown */}
             {showSearchResults && searchResults.length > 0 && (

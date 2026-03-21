@@ -4137,10 +4137,34 @@ export class RssFeedService {
       console.log(`[RSS] Rivierengebied: ${events.length} events fetched from API`);
 
       // Step 2: For each event, fetch the event page and extract JSON-LD
+      // Helper: parse EventON date string "2026-3-13T15:00+1:00"
+      const parseEventDate = (dateStr: string): Date | undefined => {
+        if (!dateStr) return undefined;
+        try {
+          const normalized = dateStr.replace(
+            /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}:\d{2})(\+\d{1,2}:\d{2})$/,
+            (_, y, m, d, t, tz) =>
+              `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T${t}:00${tz.replace(/\+(\d):/, '+0$1:')}`
+          );
+          const date = new Date(normalized);
+          return isNaN(date.getTime()) ? undefined : date;
+        } catch { return undefined; }
+      };
+
+      // Helper: convert event_location slug to readable name
+      const slugToName = (slug: string): string =>
+        slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
       for (const event of events) {
         try {
           const eventUrl: string = event.link;
           const eventId: string = String(event.id);
+
+          // Extract location slug from API class_list as early fallback
+          const classList: string[] = event.class_list || [];
+          const locationClass = classList.find((c: string) => c.startsWith('event_location-'));
+          const locationSlug = locationClass ? locationClass.replace('event_location-', '') : '';
+          const locationFromClass = locationSlug ? slugToName(locationSlug) : '';
 
           await new Promise(resolve => setTimeout(resolve, 200));
 
@@ -4151,59 +4175,57 @@ export class RssFeedService {
 
           const $ = cheerio.load(pageResponse.data);
 
-          // Extract JSON-LD structured data (EventON always generates this)
+          // Extract JSON-LD structured data
           let jsonLd: any = null;
           $('script[type="application/ld+json"]').each((_, el) => {
             try {
               const parsed = JSON.parse($(el).html() || '');
-              if (parsed['@type'] === 'Event') {
-                jsonLd = parsed;
-              }
+              if (parsed['@type'] === 'Event') jsonLd = parsed;
             } catch {}
           });
 
-          if (!jsonLd) continue;
+          // Dates: JSON-LD first, fallback to data-time Unix timestamps in HTML
+          let startTime: Date | undefined;
+          let endTime: Date | undefined;
 
-          // Parse dates from JSON-LD (format: "2026-3-13T15:00+1:00")
-          const parseEventDate = (dateStr: string): Date | undefined => {
-            if (!dateStr) return undefined;
-            try {
-              // Normalize: "2026-3-13T15:00+1:00" → "2026-03-13T15:00:00+01:00"
-              const normalized = dateStr.replace(
-                /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}:\d{2})(\+\d{1,2}:\d{2})$/,
-                (_, y, m, d, t, tz) =>
-                  `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T${t}:00${tz.replace(/\+(\d):/, '+0$1:')}`
-              );
-              const date = new Date(normalized);
-              return isNaN(date.getTime()) ? undefined : date;
-            } catch {
-              return undefined;
+          if (jsonLd?.startDate) {
+            startTime = parseEventDate(jsonLd.startDate);
+            endTime = parseEventDate(jsonLd.endDate);
+          } else {
+            // Try data-time="unixStart-unixEnd" attribute from EventON HTML
+            const dataTime = $('[data-time]').attr('data-time');
+            if (dataTime) {
+              const [tsStart, tsEnd] = dataTime.split('-').map(Number);
+              if (tsStart && tsStart > 0) startTime = new Date(tsStart * 1000);
+              if (tsEnd && tsEnd > 0) endTime = new Date(tsEnd * 1000);
             }
-          };
-
-          const startTime = parseEventDate(jsonLd.startDate);
-          const endTime = parseEventDate(jsonLd.endDate);
+          }
 
           // Skip past events (more than 1 day ago)
           if (startTime && startTime < new Date(Date.now() - 24 * 60 * 60 * 1000)) continue;
+          // Skip if no date at all could be found
+          if (!startTime) continue;
 
           // Title
           const title = event.title?.rendered
-            ? event.title.rendered.replace(/&#8211;/g, '–').replace(/&#038;/g, '&').replace(/&amp;/g, '&').trim()
+            ? event.title.rendered.replace(/&#8211;/g, '–').replace(/&#038;/g, '&').replace(/&amp;/g, '&')
+                .replace(/&#8216;/g, "'").replace(/&#8217;/g, "'").replace(/&#8220;/g, '"').replace(/&#8221;/g, '"').trim()
             : '';
           if (!title) continue;
 
-          // Description from JSON-LD (strip HTML tags)
-          const rawDesc: string = jsonLd.description || event.content?.rendered || '';
+          // Description: JSON-LD → WordPress content
+          const rawDesc: string = jsonLd?.description || event.content?.rendered || '';
           const description = rawDesc.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 
-          // Location
-          const locationData = Array.isArray(jsonLd.location) ? jsonLd.location[0] : jsonLd.location;
-          const venueName: string = locationData?.name || '';
+          // Location: JSON-LD → class_list slug → 'Rivierengebied'
+          const locationData = jsonLd?.location
+            ? (Array.isArray(jsonLd.location) ? jsonLd.location[0] : jsonLd.location)
+            : null;
+          const venueName: string = locationData?.name || locationFromClass || '';
           const streetAddress: string = locationData?.address?.streetAddress || '';
-          const location = [venueName, streetAddress].filter(Boolean).join(', ') || 'Land van Maas en Waal';
+          const location = [venueName, streetAddress].filter(Boolean).join(', ') || 'Rivierengebied';
 
-          // Image from featured media or JSON-LD
+          // Image from og:image or WordPress featured media meta
           let imageUrl = '';
           const ogImage = $('meta[property="og:image"]').attr('content');
           if (ogImage) imageUrl = ogImage;
@@ -4212,8 +4234,6 @@ export class RssFeedService {
             if (imgMeta) imageUrl = imgMeta;
           }
 
-          // GPS: try geocoding based on address, fall back to region center
-          // (geocoding handled downstream by createOrUpdateFeedItem)
           const address = streetAddress || venueName || 'Rivierengebied, Gelderland';
 
           items.push({

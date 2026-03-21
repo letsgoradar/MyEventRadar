@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { rssFeeds } from "@shared/schema";
-import { sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const FEEDS = [
   { name: "This Is Eindhoven Events", url: "https://www.thisiseindhoven.com/en/events", feedType: "scraper", province: "Noord-Brabant", municipality: "Eindhoven", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "51.4416", defaultLongitude: "5.4697", defaultAddress: "Eindhoven Centrum", updateFrequencyMinutes: 120 },
@@ -38,31 +38,53 @@ const FEEDS = [
 
 export async function seedFeeds(): Promise<void> {
   try {
-    const existing = await db.select({ id: rssFeeds.id }).from(rssFeeds);
-    if (existing.length > 0) {
-      console.log(`[Seed Feeds] ${existing.length} feeds already exist, skipping`);
-      return;
-    }
+    let inserted = 0;
+    let updated = 0;
 
     for (const feed of FEEDS) {
-      await db.insert(rssFeeds).values({
-        name: feed.name,
-        url: feed.url,
-        feedType: feed.feedType,
-        status: "active",
-        province: feed.province,
-        municipality: feed.municipality,
-        defaultCategory: feed.defaultCategory,
-        defaultLatitude: feed.defaultLatitude || null,
-        defaultLongitude: feed.defaultLongitude || null,
-        defaultAddress: feed.defaultAddress || null,
-        updateFrequencyMinutes: feed.updateFrequencyMinutes,
-        autoCreateEvents: true,
-        scraperConfig: (feed as any).scraperConfig || null,
-      });
+      const [existing] = await db
+        .select({ id: rssFeeds.id })
+        .from(rssFeeds)
+        .where(eq(rssFeeds.url, feed.url));
+
+      if (existing) {
+        await db
+          .update(rssFeeds)
+          .set({
+            name: feed.name,
+            feedType: feed.feedType,
+            province: feed.province,
+            municipality: feed.municipality,
+            defaultCategory: feed.defaultCategory,
+            defaultLatitude: feed.defaultLatitude || null,
+            defaultLongitude: feed.defaultLongitude || null,
+            defaultAddress: feed.defaultAddress || null,
+            updateFrequencyMinutes: feed.updateFrequencyMinutes,
+            scraperConfig: (feed as any).scraperConfig || null,
+          })
+          .where(eq(rssFeeds.id, existing.id));
+        updated++;
+      } else {
+        await db.insert(rssFeeds).values({
+          name: feed.name,
+          url: feed.url,
+          feedType: feed.feedType,
+          status: "active",
+          province: feed.province,
+          municipality: feed.municipality,
+          defaultCategory: feed.defaultCategory,
+          defaultLatitude: feed.defaultLatitude || null,
+          defaultLongitude: feed.defaultLongitude || null,
+          defaultAddress: feed.defaultAddress || null,
+          updateFrequencyMinutes: feed.updateFrequencyMinutes,
+          autoCreateEvents: true,
+          scraperConfig: (feed as any).scraperConfig || null,
+        });
+        inserted++;
+      }
     }
 
-    console.log(`[Seed Feeds] ${FEEDS.length} feeds created`);
+    console.log(`[Seed Feeds] Done: ${inserted} added, ${updated} updated (${FEEDS.length} total in manifest)`);
   } catch (error: any) {
     console.error('[Seed Feeds] Error:', error.message);
   }

@@ -4094,30 +4094,47 @@ export class RssFeedService {
   }
 
   /**
-   * UIT IN DE REGIO - LAND VAN MAAS EN WAAL SCRAPER
-   * Uses WordPress REST API (ajde_events, event_type=26) + JSON-LD on event pages
-   * Municipality: Land van Maas en Waal, Province: Gelderland
+   * UIT IN DE REGIO - RIVIERENGEBIED SCRAPER
+   * Uses WordPress REST API (ajde_events, event_type=28) + JSON-LD on event pages
+   * Covers the entire Rivierengebied: Land van Maas en Waal, Bommelerwaard, West Betuwe, Betuwe
+   * Province: Gelderland / Zuid-Holland
    */
   static async scrapeUitInDeRegioLandVanMaasEnWaal(): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
       const baseUrl = 'https://evenementen.uitinderegio.nl';
-      const apiUrl = `${baseUrl}/wp-json/wp/v2/ajde_events?event_type=26&per_page=100&status=publish`;
+      const apiUrl = `${baseUrl}/wp-json/wp/v2/ajde_events?event_type=28&per_page=100&status=publish`;
 
-      console.log(`[RSS] Scraping Uit in de Regio - Land van Maas en Waal...`);
+      console.log(`[RSS] Scraping Uit in de Regio - Rivierengebied (event_type=28, ~1630 events)...`);
 
-      // Step 1: Fetch event list via WP REST API
-      const listResponse = await axios.get(apiUrl, {
-        headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'application/json' },
-        timeout: 30000
-      });
+      // Step 1: Fetch all pages of events via WP REST API (paginated)
+      const events: any[] = [];
+      let page = 1;
+      let totalPages = 1;
 
-      const events: any[] = listResponse.data;
-      if (!Array.isArray(events) || events.length === 0) {
+      do {
+        const listResponse = await axios.get(`${apiUrl}&page=${page}`, {
+          headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'application/json' },
+          timeout: 30000
+        });
+
+        if (page === 1) {
+          totalPages = parseInt(listResponse.headers['x-wp-totalpages'] || '1', 10);
+          const total = listResponse.headers['x-wp-total'] || '?';
+          console.log(`[RSS] Rivierengebied: ${total} events across ${totalPages} pages`);
+        }
+
+        const pageEvents: any[] = listResponse.data;
+        if (!Array.isArray(pageEvents) || pageEvents.length === 0) break;
+        events.push(...pageEvents);
+        page++;
+      } while (page <= totalPages);
+
+      if (events.length === 0) {
         return { success: true, items: [], error: 'Geen events gevonden via REST API' };
       }
 
-      console.log(`[RSS] Land van Maas en Waal: ${events.length} events found via API`);
+      console.log(`[RSS] Rivierengebied: ${events.length} events fetched from API`);
 
       // Step 2: For each event, fetch the event page and extract JSON-LD
       for (const event of events) {
@@ -4197,10 +4214,10 @@ export class RssFeedService {
 
           // GPS: try geocoding based on address, fall back to region center
           // (geocoding handled downstream by createOrUpdateFeedItem)
-          const address = streetAddress || venueName || 'Land van Maas en Waal, Gelderland';
+          const address = streetAddress || venueName || 'Rivierengebied, Gelderland';
 
           items.push({
-            externalId: `uitinderegio-landvanmaasenwaal-${eventId}`,
+            externalId: `uitinderegio-rivierengebied-${eventId}`,
             title,
             description,
             link: eventUrl,
@@ -4211,17 +4228,17 @@ export class RssFeedService {
             location,
             address,
             venueName: venueName || undefined,
-            rawData: { source: 'uitinderegio-landvanmaasenwaal', jsonLd }
+            rawData: { source: 'uitinderegio-rivierengebied', jsonLd }
           });
         } catch (err: any) {
-          console.log(`[RSS] Land van Maas en Waal: skipping event ${event.id} - ${err.message}`);
+          console.log(`[RSS] Rivierengebied: skipping event ${event.id} - ${err.message}`);
         }
       }
 
-      console.log(`[RSS] Land van Maas en Waal: ${items.length} events successfully parsed`);
+      console.log(`[RSS] Rivierengebied: ${items.length} events successfully parsed`);
       return { success: true, items };
     } catch (error: any) {
-      console.error(`[RSS] Land van Maas en Waal scrape error:`, error.message);
+      console.error(`[RSS] Rivierengebied scrape error:`, error.message);
       return { success: false, items: [], error: error.message };
     }
   }

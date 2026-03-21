@@ -4094,6 +4094,139 @@ export class RssFeedService {
   }
 
   /**
+   * UIT IN DE REGIO - LAND VAN MAAS EN WAAL SCRAPER
+   * Uses WordPress REST API (ajde_events, event_type=26) + JSON-LD on event pages
+   * Municipality: Land van Maas en Waal, Province: Gelderland
+   */
+  static async scrapeUitInDeRegioLandVanMaasEnWaal(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const baseUrl = 'https://evenementen.uitinderegio.nl';
+      const apiUrl = `${baseUrl}/wp-json/wp/v2/ajde_events?event_type=26&per_page=100&status=publish`;
+
+      console.log(`[RSS] Scraping Uit in de Regio - Land van Maas en Waal...`);
+
+      // Step 1: Fetch event list via WP REST API
+      const listResponse = await axios.get(apiUrl, {
+        headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'application/json' },
+        timeout: 30000
+      });
+
+      const events: any[] = listResponse.data;
+      if (!Array.isArray(events) || events.length === 0) {
+        return { success: true, items: [], error: 'Geen events gevonden via REST API' };
+      }
+
+      console.log(`[RSS] Land van Maas en Waal: ${events.length} events found via API`);
+
+      // Step 2: For each event, fetch the event page and extract JSON-LD
+      for (const event of events) {
+        try {
+          const eventUrl: string = event.link;
+          const eventId: string = String(event.id);
+
+          await new Promise(resolve => setTimeout(resolve, 200));
+
+          const pageResponse = await axios.get(eventUrl, {
+            headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'text/html,application/xhtml+xml' },
+            timeout: 15000
+          });
+
+          const $ = cheerio.load(pageResponse.data);
+
+          // Extract JSON-LD structured data (EventON always generates this)
+          let jsonLd: any = null;
+          $('script[type="application/ld+json"]').each((_, el) => {
+            try {
+              const parsed = JSON.parse($(el).html() || '');
+              if (parsed['@type'] === 'Event') {
+                jsonLd = parsed;
+              }
+            } catch {}
+          });
+
+          if (!jsonLd) continue;
+
+          // Parse dates from JSON-LD (format: "2026-3-13T15:00+1:00")
+          const parseEventDate = (dateStr: string): Date | undefined => {
+            if (!dateStr) return undefined;
+            try {
+              // Normalize: "2026-3-13T15:00+1:00" → "2026-03-13T15:00:00+01:00"
+              const normalized = dateStr.replace(
+                /^(\d{4})-(\d{1,2})-(\d{1,2})T(\d{2}:\d{2})(\+\d{1,2}:\d{2})$/,
+                (_, y, m, d, t, tz) =>
+                  `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T${t}:00${tz.replace(/\+(\d):/, '+0$1:')}`
+              );
+              const date = new Date(normalized);
+              return isNaN(date.getTime()) ? undefined : date;
+            } catch {
+              return undefined;
+            }
+          };
+
+          const startTime = parseEventDate(jsonLd.startDate);
+          const endTime = parseEventDate(jsonLd.endDate);
+
+          // Skip past events (more than 1 day ago)
+          if (startTime && startTime < new Date(Date.now() - 24 * 60 * 60 * 1000)) continue;
+
+          // Title
+          const title = event.title?.rendered
+            ? event.title.rendered.replace(/&#8211;/g, '–').replace(/&#038;/g, '&').replace(/&amp;/g, '&').trim()
+            : '';
+          if (!title) continue;
+
+          // Description from JSON-LD (strip HTML tags)
+          const rawDesc: string = jsonLd.description || event.content?.rendered || '';
+          const description = rawDesc.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+
+          // Location
+          const locationData = Array.isArray(jsonLd.location) ? jsonLd.location[0] : jsonLd.location;
+          const venueName: string = locationData?.name || '';
+          const streetAddress: string = locationData?.address?.streetAddress || '';
+          const location = [venueName, streetAddress].filter(Boolean).join(', ') || 'Land van Maas en Waal';
+
+          // Image from featured media or JSON-LD
+          let imageUrl = '';
+          const ogImage = $('meta[property="og:image"]').attr('content');
+          if (ogImage) imageUrl = ogImage;
+          if (!imageUrl) {
+            const imgMeta = $('meta[itemprop="image"]').attr('content');
+            if (imgMeta) imageUrl = imgMeta;
+          }
+
+          // GPS: try geocoding based on address, fall back to region center
+          // (geocoding handled downstream by createOrUpdateFeedItem)
+          const address = streetAddress || venueName || 'Land van Maas en Waal, Gelderland';
+
+          items.push({
+            externalId: `uitinderegio-landvanmaasenwaal-${eventId}`,
+            title,
+            description,
+            link: eventUrl,
+            imageUrl,
+            publishedAt: startTime || new Date(),
+            startTime,
+            endTime,
+            location,
+            address,
+            venueName: venueName || undefined,
+            rawData: { source: 'uitinderegio-landvanmaasenwaal', jsonLd }
+          });
+        } catch (err: any) {
+          console.log(`[RSS] Land van Maas en Waal: skipping event ${event.id} - ${err.message}`);
+        }
+      }
+
+      console.log(`[RSS] Land van Maas en Waal: ${items.length} events successfully parsed`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Land van Maas en Waal scrape error:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  /**
    * BOMMELERWAARD SCRAPER - Scrapes events from bommelerwaard.net
    * Regional news/events site for Bommelerwaard area (Zaltbommel, Maasdriel)
    */
@@ -7492,6 +7625,8 @@ export class RssFeedService {
         result = await this.scrapeTilburg();
       } else if (feed.feedType === "scraper" && feed.url.includes("bommelerwaard.net")) {
         result = await this.scrapeBommelerwaard();
+      } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/landvanmaasenwaal")) {
+        result = await this.scrapeUitInDeRegioLandVanMaasEnWaal();
       } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
         result = await this.scrapeIntoNijmegen();
       } else if (feed.feedType === "scraper") {
@@ -7833,6 +7968,8 @@ export class RssFeedService {
           result = await this.scrapeTilburg();
         } else if (feed.feedType === "scraper" && feed.url.includes("bommelerwaard.net")) {
           result = await this.scrapeBommelerwaard();
+        } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/landvanmaasenwaal")) {
+          result = await this.scrapeUitInDeRegioLandVanMaasEnWaal();
         } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
           result = await this.scrapeIntoNijmegen();
         } else if (feed.feedType === "scraper") {

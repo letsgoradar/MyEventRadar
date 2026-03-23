@@ -55,3 +55,6 @@ SMTP_FROM = "info@letsgoradar.com"
 
 [userenv.production]
 VITE_GA_MEASUREMENT_ID = "G-2MG3LB59TT"
+
+[userenv.development]
+DEV_MAX_FEEDS = "10"

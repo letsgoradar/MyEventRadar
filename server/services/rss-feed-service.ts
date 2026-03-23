@@ -7950,7 +7950,17 @@ export class RssFeedService {
     let errors = 0;
     const totalStartTime = Date.now();
 
-    const activeFeeds = await db.select().from(rssFeeds).where(eq(rssFeeds.status, "active"));
+    let activeFeeds = await db.select().from(rssFeeds).where(eq(rssFeeds.status, "active"));
+    
+    if (process.env.NODE_ENV !== 'production' && process.env.DEV_MAX_FEEDS) {
+      const devMaxFeeds = parseInt(process.env.DEV_MAX_FEEDS, 10);
+      if (!isNaN(devMaxFeeds) && devMaxFeeds > 0) {
+        console.log(`[RSS] ⚠️  DEV_MAX_FEEDS=${devMaxFeeds} is set — limiting bulk sync to first ${devMaxFeeds} of ${activeFeeds.length} active feeds`);
+        activeFeeds = activeFeeds.slice(0, devMaxFeeds);
+      } else {
+        console.warn(`[RSS] DEV_MAX_FEEDS="${process.env.DEV_MAX_FEEDS}" is invalid (must be a positive integer) — ignoring`);
+      }
+    }
     
     console.log(`[RSS] ========================================`);
     console.log(`[RSS] Starting feed processing: ${activeFeeds.length} active feeds`);

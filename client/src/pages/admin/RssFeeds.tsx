@@ -88,6 +88,7 @@ interface RssFeedStats {
   errorFeeds: number;
   totalItems: number;
   totalImported: number;
+  devMaxFeeds: number | null;
 }
 
 export default function RssFeedsPage() {
@@ -672,6 +673,16 @@ export default function RssFeedsPage() {
       
       <main className="flex-1 overflow-auto">
         <div className="p-6">
+          {stats?.devMaxFeeds != null && (
+            <div className="mb-4 flex items-center gap-3 rounded-md border border-yellow-400 bg-yellow-50 px-4 py-3 text-yellow-800">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-yellow-500" />
+              <p className="text-sm font-medium">
+                Dev-limiet actief: automatische bulk sync verwerkt maximaal{' '}
+                <strong>{stats.devMaxFeeds}</strong> feeds (DEV_MAX_FEEDS={stats.devMaxFeeds}).
+                Individuele feed-syncs zijn niet beperkt.
+              </p>
+            </div>
+          )}
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold" data-testid="text-page-title">RSS Feeds</h1>

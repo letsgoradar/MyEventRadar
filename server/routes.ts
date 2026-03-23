@@ -2212,12 +2212,18 @@ Respond with ONLY the search term, nothing else.`,
       const errorFeeds = feeds.filter(f => f.status === 'error').length;
       const totalImported = feeds.reduce((sum, f) => sum + (f.itemsImported || 0), 0);
 
+      const devMaxFeedsEnv = process.env.NODE_ENV !== 'production' && process.env.DEV_MAX_FEEDS
+        ? parseInt(process.env.DEV_MAX_FEEDS, 10)
+        : NaN;
+      const devMaxFeeds = !isNaN(devMaxFeedsEnv) && devMaxFeedsEnv > 0 ? devMaxFeedsEnv : null;
+
       res.json({
         totalFeeds: feeds.length,
         activeFeeds,
         errorFeeds,
         totalItems: itemsCount,
-        totalImported
+        totalImported,
+        devMaxFeeds
       });
     } catch (error) {
       console.error('Error in GET /api/admin/rss-feeds/stats:', error);

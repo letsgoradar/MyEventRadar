@@ -66,7 +66,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://www.googletagmanager.com", "https://www.google-analytics.com"],
       connectSrc: ["'self'", "ws:", "wss:", "https:"],
     },
   },

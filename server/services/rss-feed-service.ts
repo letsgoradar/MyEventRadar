@@ -1105,13 +1105,16 @@ export class RssFeedService {
           // Check for structured event data in RSS extensions
           // Standard: events:start, geo:lat, georss:point
           // VisitZwolle/TouristServer: data:calendar, data:lat, data:lng, data:location, data:address
+          // Dordrecht.net: agenda:start, agenda:end, agenda:organizer_street_and_number, agenda:organizer_city
           const hasStandardDate = !!(item['events:start'] || item['ev:startdate'] || item['dc:date']);
           const hasDataDate = !!(item['data:calendar']);
-          const hasStructuredDate = hasStandardDate || hasDataDate;
+          const hasAgendaDate = !!(item['agenda:start']);
+          const hasStructuredDate = hasStandardDate || hasDataDate || hasAgendaDate;
           
           const hasStandardLocation = !!(item['geo:lat'] || item['georss:point']);
           const hasDataLocation = !!(item['data:lat'] || item['data:location'] || item['data:address']);
-          const hasStructuredLocation = hasStandardLocation || hasDataLocation;
+          const hasAgendaLocation = !!(item['agenda:organizer_street_and_number'] || item['agenda:organizer_city'] || item['agenda:organizer']);
+          const hasStructuredLocation = hasStandardLocation || hasDataLocation || hasAgendaLocation;
           
           // Parse standard date fields
           if (hasStandardDate) {
@@ -1152,6 +1155,35 @@ export class RssFeedService {
             }
           }
           
+          // Parse agenda: date fields (Dordrecht.net format - RFC 2822 date strings)
+          if (hasAgendaDate && item['agenda:start']) {
+            const agendaStart = item['agenda:start'];
+            const parsed = new Date(agendaStart);
+            if (!isNaN(parsed.getTime())) startTime = parsed;
+          }
+          if (item['agenda:end']) {
+            const parsed = new Date(item['agenda:end']);
+            if (!isNaN(parsed.getTime())) endTime = parsed;
+          }
+
+          // Parse agenda: location fields (Dordrecht.net format)
+          if (hasAgendaLocation) {
+            const streetNum = (item['agenda:organizer_street_and_number'] || '').trim();
+            const agendaCity = (item['agenda:organizer_city'] || '').trim();
+            const zip = (item['agenda:organizer_zip_code'] || '').trim();
+            const organizer = (item['agenda:organizer'] || '').trim();
+
+            if (organizer) venueName = organizer;
+            if (streetNum) {
+              address = [streetNum, zip, agendaCity].filter(Boolean).join(', ');
+            } else if (agendaCity) {
+              address = agendaCity;
+            }
+            if (!location && (streetNum || agendaCity)) {
+              location = streetNum || agendaCity;
+            }
+          }
+
           // Parse data: location fields (VisitZwolle/TouristServer format)
           if (hasDataLocation) {
             // GPS coordinates
@@ -4234,7 +4266,17 @@ export class RssFeedService {
             : null;
           const venueName: string = locationData?.name || locationFromClass || '';
           const streetAddress: string = locationData?.address?.streetAddress || '';
+          const addressLocality: string = locationData?.address?.addressLocality || '';
+          const addressPostalCode: string = locationData?.address?.postalCode || '';
           const location = [venueName, streetAddress].filter(Boolean).join(', ') || 'Rivierengebied';
+
+          // Extract GPS from JSON-LD location.geo
+          let gpsLat: number | undefined;
+          let gpsLng: number | undefined;
+          if (locationData?.geo?.latitude && locationData?.geo?.longitude) {
+            gpsLat = parseFloat(String(locationData.geo.latitude));
+            gpsLng = parseFloat(String(locationData.geo.longitude));
+          }
 
           // Image from og:image or WordPress featured media meta
           let imageUrl = '';
@@ -4245,7 +4287,11 @@ export class RssFeedService {
             if (imgMeta) imageUrl = imgMeta;
           }
 
-          const address = streetAddress || venueName || 'Rivierengebied, Gelderland';
+          // Build full address from components
+          const addressParts = [streetAddress, addressPostalCode, addressLocality].filter(Boolean);
+          const address = addressParts.length > 0
+            ? addressParts.join(', ')
+            : (venueName || 'Rivierengebied, Gelderland');
 
           items.push({
             externalId: `uitinderegio-rivierengebied-${eventId}`,
@@ -4259,6 +4305,8 @@ export class RssFeedService {
             location,
             address,
             venueName: venueName || undefined,
+            latitude: gpsLat,
+            longitude: gpsLng,
             rawData: { source: 'uitinderegio-rivierengebied', jsonLd }
           });
         } catch (err: any) {
@@ -8344,7 +8392,9 @@ export class RssFeedService {
       let geocodeSuccess = false;
       let actualMunicipality = feed.municipality || "";
       const expectedMunicipality = feed.municipality || "";
-      const MAX_DISTANCE_KM = 20; // Accept events within 20km of feed municipality
+      // Regional/tourism platform feeds cover a wider area than a single municipality
+      const isRegionalFeed = feed.url.includes('visitutrechtregion') || feed.url.includes('uitinderegio');
+      const MAX_DISTANCE_KM = isRegionalFeed ? 60 : 20;
 
       // STEP 1: If we have GPS coordinates from the source, validate with regional limit
       if (parsedItem.latitude && parsedItem.longitude) {

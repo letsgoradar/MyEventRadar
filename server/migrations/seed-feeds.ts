@@ -29,7 +29,7 @@ const FEEDS = [
   { name: "Goedgestel", url: "https://www.goedgestel.nl/agenda", feedType: "scraper", province: "Noord-Brabant", municipality: "Sint-Michielsgestel", defaultCategory: "community", updateFrequencyMinutes: 360 },
   { name: "Bommelerwaard - BommelerwaardNet", url: "https://www.bommelerwaard.net/agenda", feedType: "scraper", province: "Gelderland", municipality: "Zaltbommel", defaultCategory: "community", updateFrequencyMinutes: 60 },
   { name: "Bezoek De Langstraat - Waalwijk", url: "https://www.bezoekdelangstraat.nl/agenda/", feedType: "umbraco_api", province: "Noord-Brabant", municipality: "Waalwijk", defaultCategory: "community", updateFrequencyMinutes: 360, scraperConfig: {"type": "umbraco_api", "apiPath": "/umbraco/surface/agenda/filter", "agendaPath": "/agenda/"} },
-  { name: "Dordrecht", url: "https://www.dordrecht.net/agenda", feedType: "scraper", province: "Zuid-Holland", municipality: "Dordrecht", defaultCategory: "community", updateFrequencyMinutes: 360 },
+  { name: "Dordrecht", url: "https://www.dordrecht.net/rss/agenda", feedType: "rss", province: "Zuid-Holland", municipality: "Dordrecht", defaultCategory: "community", updateFrequencyMinutes: 360 },
   { name: "visitmaastricht.com - Maastricht", url: "https://www.visitmaastricht.com/nl/uitagenda", feedType: "scraper", province: "Limburg", municipality: "Maastricht", defaultCategory: "community", updateFrequencyMinutes: 360, scraperConfig: {"hasJsonLd": true, "pagination": {"type": "query", "maxPages": 6, "paramName": "page"}, "aiGenerated": true, "cardSelector": "li.tiles__tile[itemtype*=\"schema.org/Event\"]", "preferJsonLd": true, "detailSelectors": {"date": "p.item__date", "title": "h1.item__title", "description": ".item-details__intro"}, "overviewSelectors": {"title": "span.tiles__title-txt", "eventCard": "li.tiles__tile[itemtype*=\"schema.org/Event\"]"}, "requiresJsRendering": false} },
   { name: "Heerlen Mijn Stad - Uitagenda", url: "https://heerlenmijnstad.nl/uitagenda", feedType: "scraper", province: "Limburg", municipality: "Heerlen", defaultCategory: "community", updateFrequencyMinutes: 360, scraperConfig: {"hasJsonLd": false, "aiGenerated": true, "cardSelector": "div:has(> a):has(img)", "detailSelectors": {"date": "figure.relative span.text-white/80", "title": "figure.relative h2", "description": "article div.prose"}, "overviewSelectors": {"date": "h6", "link": "a", "image": "img", "title": "h4", "eventCard": "div:has(> a):has(img)"}, "requiresJsRendering": true} },
   { name: "Assen", url: "https://www.ditisassen.nl/nl/agenda/agenda-overzicht", feedType: "scraper", province: "Drenthe", municipality: "Assen", defaultCategory: "community", updateFrequencyMinutes: 360 },
@@ -38,6 +38,18 @@ const FEEDS = [
 
 export async function seedFeeds(): Promise<void> {
   try {
+    // One-time URL migrations: update old URLs to new ones before upsert loop
+    const URL_RENAMES: Array<{ from: string; to: string }> = [
+      { from: 'https://www.dordrecht.net/agenda', to: 'https://www.dordrecht.net/rss/agenda' },
+    ];
+    for (const rename of URL_RENAMES) {
+      const [existing] = await db.select({ id: rssFeeds.id }).from(rssFeeds).where(eq(rssFeeds.url, rename.from));
+      if (existing) {
+        await db.update(rssFeeds).set({ url: rename.to }).where(eq(rssFeeds.id, existing.id));
+        console.log(`[Seed Feeds] Migrated URL: ${rename.from} → ${rename.to}`);
+      }
+    }
+
     let inserted = 0;
     let updated = 0;
 

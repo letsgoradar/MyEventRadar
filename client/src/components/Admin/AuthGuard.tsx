@@ -63,7 +63,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
       
       // Set error message if there's a problem
       if (isError) {
-        setAuthError('Er is een fout opgetreden bij het controleren van je authenticatie. Probeer opnieuw in te loggen.');
+        // Not logged in → just redirect, no error screen needed
       } else if (user && user.role !== requiredRole && !(requiredRole === 'moderator' && user.role === 'admin')) {
         setAuthError(`Je hebt geen toegang tot dit gedeelte. Je huidige rol is "${user.role}" maar "${requiredRole}" is vereist.`);
       }
@@ -89,8 +89,8 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
     );
   }
   
-  if (!user && !authError) {
-    return <Redirect to="/admin/login" />;
+  if (!user || isError) {
+    if (!authError) return <Redirect to="/admin/login" />;
   }
 
   if (authError) {

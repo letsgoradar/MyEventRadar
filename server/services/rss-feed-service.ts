@@ -7604,8 +7604,8 @@ export class RssFeedService {
   static async processFeed(
     feed: RssFeed, 
     storage?: any,
-    onProgress?: (progress: { status?: string; totalItems?: number; processedItems?: number; eventsCreated?: number; eventsUpdated?: number; message?: string; logMessage?: string }) => void
-  ): Promise<{ success: boolean; itemsProcessed: number; eventsCreated: number; eventsUpdated: number; error?: string }> {
+    onProgress?: (progress: { status?: string; totalItems?: number; processedItems?: number; eventsCreated?: number; eventsUpdated?: number; eventsSkipped?: number; message?: string; logMessage?: string }) => void
+  ): Promise<{ success: boolean; itemsProcessed: number; eventsCreated: number; eventsUpdated: number; eventsSkipped?: number; eventsRejected?: number; error?: string }> {
     const feedStartTime = Date.now();
     
     try {

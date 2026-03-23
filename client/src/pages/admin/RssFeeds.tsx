@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -256,7 +256,8 @@ export default function RssFeedsPage() {
     logs?: string[];
   } | null>(null);
   
-  const pollIntervalRef = { current: null as NodeJS.Timeout | null };
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const logScrollRef = useRef<HTMLDivElement | null>(null);
   
   const pollProgress = async (feedId: number) => {
     try {
@@ -303,11 +304,9 @@ export default function RssFeedsPage() {
         ]
       });
       
-      // Helper to start polling for progress updates
+      // Helper to start polling for progress updates at 300ms
       const startPolling = () => {
-        let pollCount = 0;
         pollIntervalRef.current = setInterval(async () => {
-          pollCount++;
           const progress = await pollProgress(id);
           if (progress?.status === 'completed' || progress?.status === 'error') {
             if (pollIntervalRef.current) {
@@ -315,20 +314,7 @@ export default function RssFeedsPage() {
               pollIntervalRef.current = null;
             }
           }
-          // Slow down polling after initial rapid checks
-          if (pollCount === 5 && pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = setInterval(async () => {
-              const p = await pollProgress(id);
-              if (p?.status === 'completed' || p?.status === 'error') {
-                if (pollIntervalRef.current) {
-                  clearInterval(pollIntervalRef.current);
-                  pollIntervalRef.current = null;
-                }
-              }
-            }, 500);
-          }
-        }, 200);
+        }, 300);
       };
 
       // Make request using a streaming approach - fetch starts, then we poll
@@ -465,10 +451,13 @@ export default function RssFeedsPage() {
       itemsFound?: number;
       itemsProcessed?: number;
       eventsCreated?: number;
+      eventsUpdated?: number;
+      eventsSkipped?: number;
       currentPage?: number;
       totalPages?: number;
       startedAt: number;
     } | null;
+    recentEvents?: string[];
     percentComplete: number;
     feedResults: Array<{
       feedId: number;
@@ -489,7 +478,7 @@ export default function RssFeedsPage() {
     totalEventsRejected?: number;
   } | null>(null);
   
-  const syncAllPollRef = { current: null as NodeJS.Timeout | null };
+  const syncAllPollRef = useRef<NodeJS.Timeout | null>(null);
   
   const pollSyncAllProgress = async () => {
     try {
@@ -516,7 +505,7 @@ export default function RssFeedsPage() {
         feedResults: []
       });
       
-      // Start polling for progress
+      // Start polling for progress at 300ms for responsive updates
       syncAllPollRef.current = setInterval(async () => {
         const progress = await pollSyncAllProgress();
         if (progress && !progress.isRunning) {
@@ -525,7 +514,7 @@ export default function RssFeedsPage() {
             syncAllPollRef.current = null;
           }
         }
-      }, 1000);
+      }, 300);
       
       try {
         const result = await apiRequest('/api/admin/rss-feeds/sync-all', {
@@ -644,6 +633,13 @@ export default function RssFeedsPage() {
       });
     }
   };
+
+  // Auto-scroll log to bottom when new entries appear
+  useEffect(() => {
+    if (logScrollRef.current) {
+      logScrollRef.current.scrollTop = logScrollRef.current.scrollHeight;
+    }
+  }, [syncProgress?.logs]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -930,15 +926,42 @@ export default function RssFeedsPage() {
                       style={{ width: `${syncAllProgress.percentComplete || 0}%` }}
                     />
                   </div>
+                  {/* Prominent live counters across all feeds */}
+                  {syncAllProgress.isRunning && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-center">
+                        <div className="text-2xl font-bold text-green-700">
+                          {(syncAllProgress.feedResults.reduce((s, r) => s + (r.eventsCreated || 0), 0) || 0) +
+                            (syncAllProgress.currentFeedProgress?.eventsCreated || 0)}
+                        </div>
+                        <div className="text-xs text-green-600 font-medium">[NIEUW]</div>
+                      </div>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
+                        <div className="text-2xl font-bold text-blue-700">
+                          {(syncAllProgress.feedResults.reduce((s, r) => s + (r.eventsUpdated || 0), 0) || 0) +
+                            (syncAllProgress.currentFeedProgress?.eventsUpdated || 0)}
+                        </div>
+                        <div className="text-xs text-blue-600 font-medium">[UPDATE]</div>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 text-center">
+                        <div className="text-2xl font-bold text-gray-600">
+                          {(syncAllProgress.feedResults.reduce((s, r) => s + (r.eventsSkipped || 0), 0) || 0) +
+                            (syncAllProgress.currentFeedProgress?.eventsSkipped || 0)}
+                        </div>
+                        <div className="text-xs text-gray-500 font-medium">[SKIP]</div>
+                      </div>
+                    </div>
+                  )}
+
                   {syncAllProgress.currentFeedName && syncAllProgress.isRunning && (
                     <div className="p-3 bg-white/70 rounded-lg border border-blue-100">
-                      <p className="text-sm font-medium mb-1">
+                      <p className="text-sm font-medium mb-2">
                         Bezig met: <strong>{syncAllProgress.currentFeedName}</strong>
                       </p>
                       {syncAllProgress.currentFeedProgress && (
-                        <div className="text-xs text-muted-foreground space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className={`px-2 py-0.5 rounded font-medium ${
                               syncAllProgress.currentFeedProgress.phase === 'fetching' ? 'bg-blue-100 text-blue-700' :
                               syncAllProgress.currentFeedProgress.phase === 'parsing' ? 'bg-purple-100 text-purple-700' :
                               syncAllProgress.currentFeedProgress.phase === 'processing' ? 'bg-amber-100 text-amber-700' :
@@ -955,17 +978,22 @@ export default function RssFeedsPage() {
                               {syncAllProgress.currentFeedProgress.phase === 'completed' && 'Voltooid'}
                               {syncAllProgress.currentFeedProgress.phase === 'error' && 'Fout'}
                             </span>
-                            <span>{syncAllProgress.currentFeedProgress.message}</span>
+                            {/* Fetch-phase animated indicator with elapsed time */}
+                            {(syncAllProgress.currentFeedProgress.phase === 'fetching' || syncAllProgress.currentFeedProgress.phase === 'starting') ? (
+                              <span className="flex items-center gap-1 text-blue-600">
+                                <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                                Ophalen... {Math.round((Date.now() - syncAllProgress.currentFeedProgress.startedAt) / 1000)}s
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">{syncAllProgress.currentFeedProgress.message}</span>
+                            )}
                           </div>
-                          <div className="flex gap-4">
+                          <div className="flex gap-3 text-xs text-muted-foreground flex-wrap">
                             {syncAllProgress.currentFeedProgress.itemsFound !== undefined && (
                               <span>Items gevonden: {syncAllProgress.currentFeedProgress.itemsFound}</span>
                             )}
                             {syncAllProgress.currentFeedProgress.itemsProcessed !== undefined && (
                               <span>Verwerkt: {syncAllProgress.currentFeedProgress.itemsProcessed}</span>
-                            )}
-                            {syncAllProgress.currentFeedProgress.eventsCreated !== undefined && (
-                              <span className="text-green-600">Events: +{syncAllProgress.currentFeedProgress.eventsCreated}</span>
                             )}
                             {syncAllProgress.currentFeedProgress.currentPage !== undefined && (
                               <span>Pagina: {syncAllProgress.currentFeedProgress.currentPage}{syncAllProgress.currentFeedProgress.totalPages ? `/${syncAllProgress.currentFeedProgress.totalPages}` : ''}</span>
@@ -973,8 +1001,25 @@ export default function RssFeedsPage() {
                           </div>
                         </div>
                       )}
+
+                      {/* Live event ticker */}
+                      {syncAllProgress.recentEvents && syncAllProgress.recentEvents.length > 0 && (
+                        <div className="mt-2 bg-slate-900 rounded text-[11px] font-mono p-2 space-y-0.5">
+                          {syncAllProgress.recentEvents.map((event, idx) => (
+                            <div key={idx} className={`py-0.5 leading-tight ${
+                              event.includes('[NIEUW]') ? 'text-green-400' :
+                              event.includes('[UPDATE]') ? 'text-blue-400' :
+                              event.includes('[SKIP]') ? 'text-slate-500' :
+                              'text-slate-300'
+                            }`}>
+                              {event}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       {syncAllProgress.nextFeedIn && syncAllProgress.nextFeedIn > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-2">
                           Wacht {Math.round(syncAllProgress.nextFeedIn / 1000)}s tot volgende feed...
                         </p>
                       )}
@@ -1334,10 +1379,10 @@ export default function RssFeedsPage() {
                                 )}
                               </div>
                               
-                              {/* Realtime log venster */}
-                              {syncProgress.logs && syncProgress.logs.length > 0 && (
-                                <div className="bg-slate-900 text-slate-100 rounded text-[11px] font-mono p-2 max-h-[180px] overflow-y-auto">
-                                  {syncProgress.logs.slice(-20).map((log, idx) => (
+                              {/* Realtime log venster - always visible when logs exist or processing */}
+                              {(syncProgress.logs && syncProgress.logs.length > 0) && (
+                                <div ref={logScrollRef} className="bg-slate-900 text-slate-100 rounded text-[11px] font-mono p-2 max-h-[200px] overflow-y-auto scroll-smooth">
+                                  {syncProgress.logs.map((log, idx) => (
                                     <div 
                                       key={idx} 
                                       className={`py-0.5 ${

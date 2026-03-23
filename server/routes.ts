@@ -57,6 +57,8 @@ interface CurrentFeedProgress {
   itemsFound?: number;
   itemsProcessed?: number;
   eventsCreated?: number;
+  eventsUpdated?: number;
+  eventsSkipped?: number;
   currentPage?: number;
   totalPages?: number;
   startedAt: number;
@@ -70,11 +72,13 @@ interface SyncAllProgress {
   currentFeedId: number | null;
   currentFeedName: string | null;
   currentFeedProgress: CurrentFeedProgress | null;
+  recentEvents?: string[];
   feedResults: Array<{
     feedId: number;
     feedName: string;
     status: 'success' | 'error' | 'skipped';
     eventsCreated: number;
+    eventsUpdated?: number;
     eventsSkipped?: number;
     eventsRejected?: number;
     rejectionReasons?: Record<string, number>;
@@ -2892,6 +2896,7 @@ Respond with ONLY the search term, nothing else.`,
         currentFeedId: null,
         currentFeedName: null,
         currentFeedProgress: null,
+        recentEvents: [],
         feedResults: [],
         startTime: Date.now(),
         delayBetweenFeeds: delayBetweenFeeds * 1000
@@ -2971,7 +2976,17 @@ Respond with ONLY the search term, nothing else.`,
                   itemsFound: progressUpdate.totalItems ?? SYNC_ALL_PROGRESS.currentFeedProgress.itemsFound,
                   itemsProcessed: progressUpdate.processedItems ?? SYNC_ALL_PROGRESS.currentFeedProgress.itemsProcessed,
                   eventsCreated: progressUpdate.eventsCreated ?? SYNC_ALL_PROGRESS.currentFeedProgress.eventsCreated,
+                  eventsUpdated: progressUpdate.eventsUpdated ?? SYNC_ALL_PROGRESS.currentFeedProgress.eventsUpdated,
+                  eventsSkipped: progressUpdate.eventsSkipped ?? SYNC_ALL_PROGRESS.currentFeedProgress.eventsSkipped,
                 };
+
+                // Collect logMessage into recentEvents (max 8)
+                if (progressUpdate.logMessage && SYNC_ALL_PROGRESS.recentEvents !== undefined) {
+                  SYNC_ALL_PROGRESS.recentEvents = [
+                    progressUpdate.logMessage,
+                    ...SYNC_ALL_PROGRESS.recentEvents
+                  ].slice(0, 8);
+                }
               }
             });
             
@@ -2991,6 +3006,7 @@ Respond with ONLY the search term, nothing else.`,
               feedName: feed.name,
               status: 'success',
               eventsCreated: result.eventsCreated || 0,
+              eventsUpdated: result.eventsUpdated || 0,
               eventsSkipped: result.eventsSkipped || 0,
               eventsRejected: result.eventsRejected || 0,
               lastFetchedAt: feed.lastFetchedAt,

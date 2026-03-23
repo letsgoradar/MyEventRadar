@@ -4099,7 +4099,9 @@ export class RssFeedService {
    * Covers the entire Rivierengebied: Land van Maas en Waal, Bommelerwaard, West Betuwe, Betuwe
    * Province: Gelderland / Zuid-Holland
    */
-  static async scrapeUitInDeRegioLandVanMaasEnWaal(): Promise<FeedParseResult> {
+  static async scrapeUitInDeRegioLandVanMaasEnWaal(
+    onProgress?: (progress: { status?: string; message?: string; logMessage?: string }) => void
+  ): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
       const baseUrl = 'https://evenementen.uitinderegio.nl';
@@ -4155,7 +4157,8 @@ export class RssFeedService {
       const slugToName = (slug: string): string =>
         slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
-      for (const event of events) {
+      for (let evIdx = 0; evIdx < events.length; evIdx++) {
+        const event = events[evIdx];
         try {
           const eventUrl: string = event.link;
           const eventId: string = String(event.id);
@@ -4165,6 +4168,14 @@ export class RssFeedService {
           const locationClass = classList.find((c: string) => c.startsWith('event_location-'));
           const locationSlug = locationClass ? locationClass.replace('event_location-', '') : '';
           const locationFromClass = locationSlug ? slugToName(locationSlug) : '';
+
+          // Emit live progress before fetching each event page
+          const rawTitle = event.title?.rendered?.replace(/<[^>]+>/g, '').substring(0, 40) || String(event.id);
+          onProgress?.({
+            status: 'fetching',
+            message: `Event ${evIdx + 1}/${events.length} ophalen...`,
+            logMessage: `[FETCH ${evIdx + 1}/${events.length}] ${rawTitle}`
+          });
 
           await new Promise(resolve => setTimeout(resolve, 200));
 
@@ -7623,10 +7634,16 @@ export class RssFeedService {
         console.log(`[RSS] Deleted ${deleteCount} stale incomplete items - will be re-fetched`);
       }
       
-      // Report fetching status
+      // Report fetching status + start a heartbeat timer so the UI stays alive during long scrapes
       onProgress?.({ status: 'fetching', message: 'Feed ophalen...', logMessage: `Ophalen ${feed.url}` });
+      const _fetchStart = Date.now();
+      const _heartbeat = setInterval(() => {
+        const secs = Math.round((Date.now() - _fetchStart) / 1000);
+        onProgress?.({ status: 'fetching', message: `Ophalen... ${secs}s`, logMessage: `Ophalen ${feed.url} (${secs}s verstreken)` });
+      }, 2000);
 
       let result: FeedParseResult;
+      try {
 
       if (feed.feedType === "scraper" && feed.url.includes("thisiseindhoven")) {
         result = await this.scrapeThisIsEindhoven();
@@ -7663,7 +7680,7 @@ export class RssFeedService {
       } else if (feed.feedType === "scraper" && feed.url.includes("bommelerwaard.net")) {
         result = await this.scrapeBommelerwaard();
       } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/landvanmaasenwaal")) {
-        result = await this.scrapeUitInDeRegioLandVanMaasEnWaal();
+        result = await this.scrapeUitInDeRegioLandVanMaasEnWaal(onProgress);
       } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
         result = await this.scrapeIntoNijmegen();
       } else if (feed.feedType === "scraper") {
@@ -7678,6 +7695,10 @@ export class RssFeedService {
         result = await this.tryUmbracoApi(feed.url, feed.municipality || '', feed);
       } else {
         result = await this.fetchAndParseRssFeed(feed.url, feed.municipality || undefined);
+      }
+
+      } finally {
+        clearInterval(_heartbeat);
       }
 
       const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);

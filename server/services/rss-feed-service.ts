@@ -5046,7 +5046,7 @@ export class RssFeedService {
           const futureDates = parsedDates.filter(d =>
             d.hasTime ? d.start >= now : d.start >= todayUTCMidnight
           );
-          for (const { start, end } of futureDates) {
+          for (const { start, end, hasTime } of futureDates) {
             items.push({
               externalId: futureDates.length > 1 ? `${externalId}-${start.getTime()}` : externalId,
               title,
@@ -5061,7 +5061,7 @@ export class RssFeedService {
               latitude,
               longitude,
               detectedCategory,
-              rawData: { url: eventUrl, slug, venue: venueName },
+              rawData: { url: eventUrl, slug, venue: venueName, isAllDay: !hasTime },
             });
           }
 

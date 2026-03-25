@@ -4127,8 +4127,10 @@ export class RssFeedService {
 
   /**
    * UIT IN DE REGIO - RIVIERENGEBIED SCRAPER
-   * Uses WordPress REST API (ajde_events, event_type=28) + JSON-LD on event pages
-   * Covers the entire Rivierengebied: Land van Maas en Waal, Bommelerwaard, West Betuwe, Betuwe
+   * Uses WordPress REST API (ajde_events) + JSON-LD on event pages
+   * Dynamically discovers all Rivierengebied municipalities via event_type taxonomy
+   * (Land van Maas en Waal, Bommelerwaard, West Betuwe, Betuwe, Tiel, etc.)
+   * Pre-filters past events using evcal_srow meta field to avoid fetching old pages
    * Province: Gelderland / Zuid-Holland
    */
   static async scrapeUitInDeRegioLandVanMaasEnWaal(
@@ -4137,17 +4139,61 @@ export class RssFeedService {
     try {
       const items: ParsedFeedItem[] = [];
       const baseUrl = 'https://evenementen.uitinderegio.nl';
-      const apiUrl = `${baseUrl}/wp-json/wp/v2/ajde_events?event_type=28&per_page=100&status=publish`;
+      const apiBase = `${baseUrl}/wp-json/wp/v2`;
 
-      console.log(`[RSS] Scraping Uit in de Regio - Rivierengebied (event_type=28, ~1630 events)...`);
+      // Rivierengebied municipality slugs (all municipalities in the region)
+      const RIVIERENGEBIED_SLUGS = [
+        'landvanmaasenwaal', 'land-van-maas-en-waal',
+        'bommelerwaard', 'bommeler-waard',
+        'tiel',
+        'betuwe', 'west-betuwe', 'westbetuwe',
+        'neder-betuwe', 'nederbetuwe',
+        'buren', 'culemborg', 'zaltbommel', 'maasdriel',
+        'rivierengebied',
+      ];
 
-      // Step 1: Fetch all pages of events via WP REST API (paginated)
+      // Step 1: Discover all event_type taxonomy terms and find Rivierengebied IDs
+      onProgress?.({ status: 'fetching', message: 'Gemeenten ophalen...', logMessage: 'Gemeenten (event_type taxonomy) ophalen...' });
+
+      let eventTypeIds: number[] = [];
+      try {
+        const taxResponse = await axios.get(`${apiBase}/event_type?per_page=100`, {
+          headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'application/json' },
+          timeout: 15000
+        });
+        const terms: any[] = taxResponse.data || [];
+        eventTypeIds = terms
+          .filter((t: any) => RIVIERENGEBIED_SLUGS.some(s => t.slug?.toLowerCase().includes(s) || s.includes(t.slug?.toLowerCase())))
+          .map((t: any) => t.id);
+        console.log(`[RSS] Rivierengebied: found ${eventTypeIds.length} event_type terms: ${eventTypeIds.join(',')}`);
+        onProgress?.({ logMessage: `${eventTypeIds.length} gemeenten gevonden: ${eventTypeIds.join(', ')}` });
+      } catch (err: any) {
+        console.warn(`[RSS] Rivierengebied: taxonomy fetch failed, falling back to event_type=28`, err.message);
+        eventTypeIds = [28];
+      }
+
+      if (eventTypeIds.length === 0) {
+        console.warn('[RSS] Rivierengebied: no matching event_type IDs found, using default 28');
+        eventTypeIds = [28];
+      }
+
+      // Yesterday's ISO timestamp for the WP `after` filter (post published date)
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      // Don't use after= for WP date as it filters by publish date, not event date
+      // Instead we request meta fields to pre-filter by event start date
+
+      // Step 2: Fetch event list with meta fields for pre-filtering (no page fetches yet)
+      const eventTypeParam = eventTypeIds.join(',');
+      const listApiUrl = `${apiBase}/ajde_events?event_type=${eventTypeParam}&per_page=100&status=publish&_fields=id,link,title,class_list,content,meta`;
+
+      onProgress?.({ status: 'fetching', message: 'Evenementenlijst ophalen...', logMessage: `Eventlijst ophalen (event_type=${eventTypeParam})...` });
+
       const events: any[] = [];
       let page = 1;
       let totalPages = 1;
 
       do {
-        const listResponse = await axios.get(`${apiUrl}&page=${page}`, {
+        const listResponse = await axios.get(`${listApiUrl}&page=${page}`, {
           headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'application/json' },
           timeout: 30000
         });
@@ -4156,6 +4202,7 @@ export class RssFeedService {
           totalPages = parseInt(listResponse.headers['x-wp-totalpages'] || '1', 10);
           const total = listResponse.headers['x-wp-total'] || '?';
           console.log(`[RSS] Rivierengebied: ${total} events across ${totalPages} pages`);
+          onProgress?.({ logMessage: `${total} evenementen gevonden op ${totalPages} pagina's` });
         }
 
         const pageEvents: any[] = listResponse.data;
@@ -4168,9 +4215,30 @@ export class RssFeedService {
         return { success: true, items: [], error: 'Geen events gevonden via REST API' };
       }
 
-      console.log(`[RSS] Rivierengebied: ${events.length} events fetched from API`);
+      console.log(`[RSS] Rivierengebied: ${events.length} events in list`);
 
-      // Step 2: For each event, fetch the event page and extract JSON-LD
+      // Step 3: Pre-filter past events using meta fields (EventON stores start date in evcal_srow)
+      // evcal_srow = Unix timestamp of event start
+      const cutoff = yesterday.getTime() / 1000; // Unix seconds
+
+      const futureEvents = events.filter(event => {
+        const meta = event.meta || {};
+        // EventON uses evcal_srow (start row) as Unix timestamp
+        const srow = meta.evcal_srow ?? meta['evcal_srow'];
+        if (srow !== undefined && srow !== null && srow !== '') {
+          const ts = Number(srow);
+          if (!isNaN(ts) && ts > 0) {
+            return ts >= cutoff; // Keep only future events
+          }
+        }
+        // No meta date available → include event (will filter after page fetch)
+        return true;
+      });
+
+      const skippedByMeta = events.length - futureEvents.length;
+      console.log(`[RSS] Rivierengebied: ${futureEvents.length} future events after meta pre-filter (skipped ${skippedByMeta} past)`);
+      onProgress?.({ logMessage: `${futureEvents.length} toekomstige evenementen na voorselectie (${skippedByMeta} verleden overgeslagen)` });
+
       // Helper: parse EventON date string "2026-3-13T15:00+1:00"
       const parseEventDate = (dateStr: string): Date | undefined => {
         if (!dateStr) return undefined;
@@ -4189,8 +4257,9 @@ export class RssFeedService {
       const slugToName = (slug: string): string =>
         slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
-      for (let evIdx = 0; evIdx < events.length; evIdx++) {
-        const event = events[evIdx];
+      // Step 4: Fetch individual event pages only for future events
+      for (let evIdx = 0; evIdx < futureEvents.length; evIdx++) {
+        const event = futureEvents[evIdx];
         try {
           const eventUrl: string = event.link;
           const eventId: string = String(event.id);
@@ -4201,15 +4270,15 @@ export class RssFeedService {
           const locationSlug = locationClass ? locationClass.replace('event_location-', '') : '';
           const locationFromClass = locationSlug ? slugToName(locationSlug) : '';
 
-          // Emit live progress before fetching each event page
+          // Emit live progress
           const rawTitle = event.title?.rendered?.replace(/<[^>]+>/g, '').substring(0, 40) || String(event.id);
           onProgress?.({
             status: 'fetching',
-            message: `Event ${evIdx + 1}/${events.length} ophalen...`,
-            logMessage: `[FETCH ${evIdx + 1}/${events.length}] ${rawTitle}`
+            message: `Event ${evIdx + 1}/${futureEvents.length} ophalen...`,
+            logMessage: `[FETCH ${evIdx + 1}/${futureEvents.length}] ${rawTitle}`
           });
 
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 150));
 
           const pageResponse = await axios.get(eventUrl, {
             headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'text/html,application/xhtml+xml' },
@@ -4227,7 +4296,7 @@ export class RssFeedService {
             } catch {}
           });
 
-          // Dates: JSON-LD first, fallback to data-time Unix timestamps in HTML
+          // Dates: JSON-LD first, then meta evcal_srow, fallback to data-time
           let startTime: Date | undefined;
           let endTime: Date | undefined;
 
@@ -4235,17 +4304,26 @@ export class RssFeedService {
             startTime = parseEventDate(jsonLd.startDate);
             endTime = parseEventDate(jsonLd.endDate);
           } else {
-            // Try data-time="unixStart-unixEnd" attribute from EventON HTML
-            const dataTime = $('[data-time]').attr('data-time');
-            if (dataTime) {
-              const [tsStart, tsEnd] = dataTime.split('-').map(Number);
-              if (tsStart && tsStart > 0) startTime = new Date(tsStart * 1000);
-              if (tsEnd && tsEnd > 0) endTime = new Date(tsEnd * 1000);
+            // Try evcal_srow from meta (already fetched in list)
+            const meta = event.meta || {};
+            const srow = Number(meta.evcal_srow ?? meta['evcal_srow'] ?? 0);
+            const erow = Number(meta.evcal_erow ?? meta['evcal_erow'] ?? 0);
+            if (srow > 0) startTime = new Date(srow * 1000);
+            if (erow > 0) endTime = new Date(erow * 1000);
+
+            if (!startTime) {
+              // Try data-time="unixStart-unixEnd" attribute from EventON HTML
+              const dataTime = $('[data-time]').attr('data-time');
+              if (dataTime) {
+                const [tsStart, tsEnd] = dataTime.split('-').map(Number);
+                if (tsStart && tsStart > 0) startTime = new Date(tsStart * 1000);
+                if (tsEnd && tsEnd > 0) endTime = new Date(tsEnd * 1000);
+              }
             }
           }
 
           // Skip past events (more than 1 day ago)
-          if (startTime && startTime < new Date(Date.now() - 24 * 60 * 60 * 1000)) continue;
+          if (startTime && startTime < yesterday) continue;
           // Skip if no date at all could be found
           if (!startTime) continue;
 

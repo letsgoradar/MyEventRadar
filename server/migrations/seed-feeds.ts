@@ -34,6 +34,7 @@ const FEEDS = [
   { name: "Heerlen Mijn Stad - Uitagenda", url: "https://heerlenmijnstad.nl/uitagenda", feedType: "scraper", province: "Limburg", municipality: "Heerlen", defaultCategory: "community", updateFrequencyMinutes: 360, scraperConfig: {"hasJsonLd": false, "aiGenerated": true, "cardSelector": "div:has(> a):has(img)", "detailSelectors": {"date": "figure.relative span.text-white/80", "title": "figure.relative h2", "description": "article div.prose"}, "overviewSelectors": {"date": "h6", "link": "a", "image": "img", "title": "h4", "eventCard": "div:has(> a):has(img)"}, "requiresJsRendering": true} },
   { name: "Assen", url: "https://www.ditisassen.nl/nl/agenda/agenda-overzicht", feedType: "scraper", province: "Drenthe", municipality: "Assen", defaultCategory: "community", updateFrequencyMinutes: 360 },
   { name: "Uit in de Regio - Rivierengebied", url: "https://evenementen.uitinderegio.nl/landvanmaasenwaal/", feedType: "scraper", province: "Gelderland", municipality: "Rivierengebied", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "51.8700", defaultLongitude: "5.3500", defaultAddress: "Rivierengebied, Gelderland", updateFrequencyMinutes: 360 },
+  { name: "I Amsterdam - Uitagenda", url: "https://www.iamsterdam.com/uit/agenda", feedType: "scraper", province: "Noord-Holland", municipality: "Amsterdam", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "52.3676", defaultLongitude: "4.9041", defaultAddress: "Amsterdam", updateFrequencyMinutes: 360 },
 ];
 
 export async function seedFeeds(): Promise<void> {

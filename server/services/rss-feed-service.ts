@@ -5142,7 +5142,7 @@ export class RssFeedService {
         `Events gescrapet          -         ${successCount} (${skippedCount} overgeslagen)`,
         `Items opgeslagen          -         ${totalItems}`,
         `Met startdatum            >98%      ${pct(withStart)}`,
-        `Met tijden (start+eind)   >0%       ${pct(withTime)}`,
+        `Met starttijd             >0%       ${pct(withTime)}`,
         `Met volledig adres        >90%      ${pct(withAddress)}`,
         `Met GPS-coördinaten       >85%      ${pct(withGps)}`,
         `Met afbeelding            >80%      ${pct(withImage)}`,

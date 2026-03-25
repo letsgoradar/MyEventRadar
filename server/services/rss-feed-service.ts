@@ -4651,11 +4651,9 @@ export class RssFeedService {
    * Dates parsed from JSON-LD or Dutch date table ("zaterdag 5 juli | 10:00 - 17:00").
    *
    * @param onProgress  Progress callback for admin sync log
-   * @param maxEvents   Max events to fetch; default 300 for full sync
    */
   static async scrapeIAmsterdam(
-    onProgress?: (progress: { status?: string; message?: string; logMessage?: string }) => void,
-    maxEvents = 300
+    onProgress?: (progress: { status?: string; message?: string; logMessage?: string }) => void
   ): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
@@ -4750,11 +4748,11 @@ export class RssFeedService {
       // Date-only events are stored as UTC midnight; compare against UTC-day start, not current time.
       const todayUTCMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-      console.log(`[RSS] iAmsterdam: Starting scrape (max ${maxEvents} events)...`);
+      console.log(`[RSS] iAmsterdam: Starting scrape (all available events)...`);
       onProgress?.({
         status: 'fetching',
         message: 'Eventlijst ophalen...',
-        logMessage: `iAmsterdam: eventlijst ophalen (max ${maxEvents} events)`,
+        logMessage: `iAmsterdam: eventlijst ophalen...`,
       });
 
       // -----------------------------------------------------------------------
@@ -4766,7 +4764,6 @@ export class RssFeedService {
       const MAX_LISTING_PAGES = 25;
 
       for (let page = 1; page <= MAX_LISTING_PAGES; page++) {
-        if (eventUrls.length >= maxEvents) break;
         let listingError: string | undefined;
         try {
           const pageUrl = page === 1 ? agendaBase : `${agendaBase}?page=${page}`;
@@ -4836,7 +4833,7 @@ export class RssFeedService {
         }
       }
 
-      const urlsToFetch = eventUrls.slice(0, maxEvents);
+      const urlsToFetch = eventUrls; // no cap — scrape everything found
       console.log(`[RSS] iAmsterdam: ${urlsToFetch.length} event URLs collected, fetching details...`);
       onProgress?.({ logMessage: `${urlsToFetch.length} event-URLs gevonden, details ophalen...` });
 
@@ -4953,8 +4950,36 @@ export class RssFeedService {
             return { date: d, hasTime: false };
           };
 
-          // JSON-LD first (most reliable)
-          $('script[type="application/ld+json"]').each((_, el) => {
+          // ── PRIMARY: iAmsterdam Next.js play_dates structure ──────────────
+          // Selector [class*="play_dates__"] (double-underscore) matches the
+          // container divs (EventDetails_play_dates__[hash]) but NOT the date
+          // span (EventDetails_play_dates_date__[hash] — single-underscore).
+          // Each container has two spans: [0]=Dutch date, [1]=time range.
+          // Example HTML:
+          //   <div class="EventDetails_play_dates__IJv9b">
+          //     <span class="EventDetails_play_dates_date__Xcpq3">do 16 apr</span>
+          //     <span>19:30<!-- --> - <!-- -->20:45</span>
+          //   </div>
+          $('[class*="play_dates__"]').each((_, row) => {
+            const spans = $(row).children('span');
+            if (spans.length < 1) return;
+            const dateText = spans.eq(0).text().trim();
+            const timeText = spans.eq(1).text().replace(/\s+/g, ' ').trim();
+            const baseDate = parseDutchDate(dateText);
+            if (!baseDate) return;
+            const times = parseTimeRange(timeText);
+            const hasTime = !!times;
+            const startDate = times ? applyTime(baseDate, times.sh, times.sm) : baseDate;
+            const endDate: Date | undefined = (times?.eh !== undefined && times?.em !== undefined)
+              ? applyTime(baseDate, times.eh, times.em) : undefined;
+            const compareDate = hasTime ? now : todayUTCMidnight;
+            if (startDate < compareDate) return;
+            parsedDates.push({ start: startDate, end: endDate, hasTime });
+          });
+
+          // ── FALLBACK 1: JSON-LD ───────────────────────────────────────────
+          // iAmsterdam JSON-LD has date-only (no time); useful if no play_dates
+          if (parsedDates.length === 0) $('script[type="application/ld+json"]').each((_, el) => {
             let jsonObj: unknown;
             try { jsonObj = JSON.parse($(el).html() ?? ''); } catch { return; }
             const entries: unknown[] = Array.isArray(jsonObj) ? jsonObj : [jsonObj];
@@ -5102,15 +5127,22 @@ export class RssFeedService {
         ? ((Date.now() - fetchStart) / 1000 / successCount).toFixed(1)
         : '?';
 
+      const withTime = items.filter(it => {
+        if (!it.startTime) return false;
+        const d = new Date(it.startTime);
+        return d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0 || d.getUTCSeconds() !== 0;
+      }).length;
+
       const qualityLines = [
         `╔══════════════════════════════════════════════════╗`,
-        `║  iAmsterdam Kwaliteitsrapport (max ${maxEvents})          ║`,
+        `║  iAmsterdam Kwaliteitsrapport                    ║`,
         `╚══════════════════════════════════════════════════╝`,
         `Metric                    Verwacht  Resultaat`,
         `─────────────────────────────────────────────────`,
         `Events gescrapet          -         ${successCount} (${skippedCount} overgeslagen)`,
         `Items opgeslagen          -         ${totalItems}`,
         `Met startdatum            >98%      ${pct(withStart)}`,
+        `Met tijden (start+eind)   >0%       ${pct(withTime)}`,
         `Met volledig adres        >90%      ${pct(withAddress)}`,
         `Met GPS-coördinaten       >85%      ${pct(withGps)}`,
         `Met afbeelding            >80%      ${pct(withImage)}`,
@@ -8260,7 +8292,7 @@ export class RssFeedService {
       try {
 
       if (feed.feedType === "scraper" && feed.url.includes("iamsterdam.com")) {
-        result = await this.scrapeIAmsterdam(onProgress, 300);
+        result = await this.scrapeIAmsterdam(onProgress);
       } else if (feed.feedType === "scraper" && feed.url.includes("thisiseindhoven")) {
         result = await this.scrapeThisIsEindhoven();
       } else if (feed.feedType === "scraper" && feed.url.includes("trefhetinoss")) {

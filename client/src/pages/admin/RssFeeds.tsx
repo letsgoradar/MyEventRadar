@@ -322,15 +322,35 @@ export default function RssFeedsPage() {
       
       const responseData = await response.json();
       
-      // Now poll until the background sync is done (600ms interval to stay under rate limit)
+      // Poll until the background sync is done (600ms interval to stay under rate limit).
+      // Abort after 20 consecutive null/failed polls (~12s) to prevent indefinite pending.
       return new Promise<any>((resolve, reject) => {
+        let nullStreak = 0;
+        const MAX_NULL_STREAK = 20;
+
+        const stopPolling = () => {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+        };
+
         pollIntervalRef.current = setInterval(async () => {
           const progress = await pollProgress(id);
-          if (progress?.status === 'completed') {
-            if (pollIntervalRef.current) {
-              clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
+
+          if (!progress) {
+            nullStreak++;
+            if (nullStreak >= MAX_NULL_STREAK) {
+              stopPolling();
+              reject(new Error('Kon geen verbinding maken met de sync-status. Controleer je verbinding.'));
             }
+            return;
+          }
+
+          nullStreak = 0;
+
+          if (progress.status === 'completed') {
+            stopPolling();
             resolve({
               feedName: responseData.feedName,
               eventsCreated: progress.eventsCreated || 0,
@@ -338,11 +358,8 @@ export default function RssFeedsPage() {
               itemsProcessed: progress.totalItems || 0,
               success: true,
             });
-          } else if (progress?.status === 'error') {
-            if (pollIntervalRef.current) {
-              clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-            }
+          } else if (progress.status === 'error') {
+            stopPolling();
             reject(new Error(progress.error || 'Sync mislukt'));
           }
         }, 600);

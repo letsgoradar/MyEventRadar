@@ -4651,11 +4651,11 @@ export class RssFeedService {
    * Dates parsed from JSON-LD or Dutch date table ("zaterdag 5 juli | 10:00 - 17:00").
    *
    * @param onProgress  Progress callback for admin sync log
-   * @param maxEvents   Max events to fetch; default 200 for full sync, use 50 for quality test
+   * @param maxEvents   Max events to fetch; default 300 for full sync
    */
   static async scrapeIAmsterdam(
     onProgress?: (progress: { status?: string; message?: string; logMessage?: string }) => void,
-    maxEvents = 200
+    maxEvents = 300
   ): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
@@ -4686,6 +4686,9 @@ export class RssFeedService {
         jan: 0, feb: 1, mrt: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, okt: 9, nov: 10, dec: 11,
       };
 
+      // parseDutchDate returns UTC midnight (00:00:00Z) for date-only events.
+      // This allows the frontend's utcHours===0 check in formatEventTime to detect
+      // date-only events and show "Tijd onbekend" instead of 00:00.
       const parseDutchDate = (raw: string): Date | undefined => {
         const cleaned = raw.toLowerCase().trim().replace(/[,;]/g, '');
         const match = cleaned.match(
@@ -4694,11 +4697,10 @@ export class RssFeedService {
         if (!match) return undefined;
         const day = parseInt(match[1]);
         const month = dutchMonths[match[2]];
-        const year = match[3] ? parseInt(match[3]) : now.getFullYear();
+        const year = match[3] ? parseInt(match[3]) : now.getUTCFullYear();
         if (isNaN(day) || month === undefined || isNaN(year)) return undefined;
-        return parseLocalDateTime(
-          `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00`
-        );
+        // Use UTC midnight so frontend's utcHours===0 sentinel fires correctly
+        return new Date(Date.UTC(year, month, day, 0, 0, 0));
       };
 
       const parseTimeRange = (raw: string): { sh: number; sm: number; eh?: number; em?: number } | undefined => {
@@ -4744,12 +4746,15 @@ export class RssFeedService {
         return categoryMap[m[1]];
       };
 
-      const isQualityRun = maxEvents <= 50;
-      console.log(`[RSS] iAmsterdam: Starting scrape (max ${maxEvents} events${isQualityRun ? ', quality-test mode' : ''})...`);
+      // todayUTCMidnight is used for date-only (no time) past-event filtering.
+      // Date-only events are stored as UTC midnight; compare against UTC-day start, not current time.
+      const todayUTCMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+      console.log(`[RSS] iAmsterdam: Starting scrape (max ${maxEvents} events)...`);
       onProgress?.({
         status: 'fetching',
         message: 'Eventlijst ophalen...',
-        logMessage: `iAmsterdam: eventlijst ophalen${isQualityRun ? ' (kwaliteitstest: max 50 events)' : ''}`,
+        logMessage: `iAmsterdam: eventlijst ophalen (max ${maxEvents} events)`,
       });
 
       // -----------------------------------------------------------------------
@@ -4792,12 +4797,14 @@ export class RssFeedService {
           });
 
           // Early-stop signal: check listing-page date chips for past-only pages
+          // parseDutchDate returns UTC midnight; compare with todayUTCMidnight (not now)
+          // so today's date-only events are not counted as "past"
           $('time,[class*="date"],[class*="datum"]').each((_, el) => {
             const text = $(el).text().trim();
             const d = parseDutchDate(text);
             if (d) {
               pageDatesFound++;
-              if (d < now) pagePastDates++;
+              if (d < todayUTCMidnight) pagePastDates++;
             }
           });
 
@@ -4927,7 +4934,24 @@ export class RssFeedService {
           if (!address) address = 'Amsterdam';
 
           // ---- Dates -------------------------------------------------------
-          const parsedDates: { start: Date; end?: Date }[] = [];
+          // hasTime: true  → explicit hh:mm found → startTime stores Amsterdam time (UTC offset)
+          // hasTime: false → date-only           → startTime stores UTC midnight (00:00:00Z)
+          //                  Frontend formatEventTime detects utcHours===0 → shows "Tijd onbekend"
+          const parsedDates: { start: Date; end?: Date; hasTime: boolean }[] = [];
+
+          // Helper: parse a date-string that may or may not have a time component
+          const parseDateStr = (str: string): { date: Date; hasTime: boolean } | undefined => {
+            const hasTimeComp = /T\d{2}:\d{2}/.test(str);
+            if (hasTimeComp) {
+              const d = parseLocalDateTime(str);
+              return d ? { date: d, hasTime: true } : undefined;
+            }
+            // Date-only: extract YYYY-MM-DD and create UTC midnight
+            const dm = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (!dm) return undefined;
+            const d = new Date(Date.UTC(parseInt(dm[1]), parseInt(dm[2]) - 1, parseInt(dm[3]), 0, 0, 0));
+            return { date: d, hasTime: false };
+          };
 
           // JSON-LD first (most reliable)
           $('script[type="application/ld+json"]').each((_, el) => {
@@ -4941,11 +4965,12 @@ export class RssFeedService {
                 typeof (entry as Record<string, unknown>)['startDate'] === 'string'
               ) {
                 const record = entry as Record<string, unknown>;
-                const s = parseLocalDateTime(record['startDate'] as string);
-                const e = typeof record['endDate'] === 'string'
-                  ? parseLocalDateTime(record['endDate'] as string)
+                const startParsed = parseDateStr(record['startDate'] as string);
+                if (!startParsed) continue;
+                const endParsed = typeof record['endDate'] === 'string'
+                  ? parseDateStr(record['endDate'] as string)
                   : undefined;
-                if (s) parsedDates.push({ start: s, end: e });
+                parsedDates.push({ start: startParsed.date, end: endParsed?.date, hasTime: startParsed.hasTime });
               }
             }
           });
@@ -4968,24 +4993,28 @@ export class RssFeedService {
               const parts = row.split('|').map(p => p.trim());
               const datePart = parts[0] ?? row;
               const timePart = parts[1] ?? '';
-              const baseDate = parseDutchDate(datePart);
+              const baseDate = parseDutchDate(datePart); // UTC midnight
               if (!baseDate) continue;
               const times = parseTimeRange(timePart);
+              const hasTime = !!times;
+              // If times found, apply to baseDate (getFullYear/Month/Date on UTC midnight = correct UTC date)
               const startDate = times ? applyTime(baseDate, times.sh, times.sm) : baseDate;
               const endDate: Date | undefined = (times?.eh !== undefined && times?.em !== undefined)
                 ? applyTime(baseDate, times.eh, times.em)
                 : undefined;
-              if (startDate < now) continue;
-              parsedDates.push({ start: startDate, end: endDate });
+              // For date-only events compare against todayUTCMidnight; for timed events compare against now
+              const compareDate = hasTime ? now : todayUTCMidnight;
+              if (startDate < compareDate) continue;
+              parsedDates.push({ start: startDate, end: endDate, hasTime });
             }
           }
 
           // Meta description fallback
           if (parsedDates.length === 0) {
             const metaDesc = $('meta[name="description"]').attr('content') ?? '';
-            const dateInMeta = parseDutchDate(metaDesc);
-            if (dateInMeta && dateInMeta >= now) {
-              parsedDates.push({ start: dateInMeta });
+            const dateInMeta = parseDutchDate(metaDesc); // UTC midnight
+            if (dateInMeta && dateInMeta >= todayUTCMidnight) {
+              parsedDates.push({ start: dateInMeta, hasTime: false });
             }
           }
 
@@ -5012,7 +5041,11 @@ export class RssFeedService {
           const detectedCategory = categoryFromUrl(eventUrl);
 
           // ---- Emit items (one per date; multi-day handled by consolidateMultiDayEvents) ---
-          const futureDates = parsedDates.filter(d => d.start >= now);
+          // Date-only events (hasTime=false): stored as UTC midnight; compare with todayUTCMidnight
+          // Timed events (hasTime=true): stored as Amsterdam offset; compare with now
+          const futureDates = parsedDates.filter(d =>
+            d.hasTime ? d.start >= now : d.start >= todayUTCMidnight
+          );
           for (const { start, end } of futureDates) {
             items.push({
               externalId: futureDates.length > 1 ? `${externalId}-${start.getTime()}` : externalId,
@@ -5071,7 +5104,7 @@ export class RssFeedService {
 
       const qualityLines = [
         `╔══════════════════════════════════════════════════╗`,
-        `║  iAmsterdam Kwaliteitsrapport${isQualityRun ? ' (50-event test)  ' : '                   '}║`,
+        `║  iAmsterdam Kwaliteitsrapport (max ${maxEvents})          ║`,
         `╚══════════════════════════════════════════════════╝`,
         `Metric                    Verwacht  Resultaat`,
         `─────────────────────────────────────────────────`,
@@ -8227,8 +8260,7 @@ export class RssFeedService {
       try {
 
       if (feed.feedType === "scraper" && feed.url.includes("iamsterdam.com")) {
-        // 50-event quality-test cap for single-feed sync; full 200 used in bulk processFeeds()
-        result = await this.scrapeIAmsterdam(onProgress, 50);
+        result = await this.scrapeIAmsterdam(onProgress, 300);
       } else if (feed.feedType === "scraper" && feed.url.includes("thisiseindhoven")) {
         result = await this.scrapeThisIsEindhoven();
       } else if (feed.feedType === "scraper" && feed.url.includes("trefhetinoss")) {

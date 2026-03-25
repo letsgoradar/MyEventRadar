@@ -133,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const adminLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 120,
+    max: 300,
     message: { error: "Te veel admin-verzoeken. Wacht even." },
     standardHeaders: true,
     legacyHeaders: false,
@@ -2760,59 +2760,77 @@ Respond with ONLY the search term, nothing else.`,
         logs: initialLogs
       });
 
-      const { RssFeedService } = await import('./services/rss-feed-service');
-      
-      // Use progress callback with log collection
-      const result = await RssFeedService.processFeed(feed, storage, (progress) => {
-        const current = SYNC_PROGRESS.get(feedId);
-        if (current) {
-          const newLogs = current.logs || [];
-          if (progress.logMessage) {
-            newLogs.push(`[${new Date().toLocaleTimeString('nl-NL')}] ${progress.logMessage}`);
-            if (newLogs.length > 100) newLogs.shift();
-          }
-          SYNC_PROGRESS.set(feedId, {
-            ...current,
-            ...progress,
-            status: (progress.status as SyncProgress['status']) || current.status,
-            logs: newLogs
-          });
-        }
-      });
-      
-      // Mark as completed
-      const resultAny = result as any;
-      const currentProgress = SYNC_PROGRESS.get(feedId);
-      const completedLogs = currentProgress?.logs || [];
-      completedLogs.push(`[${new Date().toLocaleTimeString('nl-NL')}] ✓ Synchronisatie voltooid: ${result.eventsCreated} nieuw, ${result.eventsUpdated} bijgewerkt`);
-      
-      SYNC_PROGRESS.set(feedId, {
+      // Return 202 immediately — sync runs in background (avoids 504 gateway timeout)
+      res.status(202).json({ 
+        message: "Feed sync gestart",
         feedId,
-        feedName: feed.name,
-        status: 'completed',
-        totalItems: result.itemsProcessed || 0,
-        processedItems: result.itemsProcessed || 0,
-        eventsCreated: result.eventsCreated || 0,
-        eventsUpdated: result.eventsUpdated || 0,
-        eventsSkipped: resultAny.eventsSkipped || 0,
-        eventsRejected: resultAny.eventsRejected || 0,
-        rejectionReasons: resultAny.rejectionReasons || {},
-        startTime: currentProgress?.startTime || Date.now(),
-        message: 'Synchronisatie voltooid',
-        logs: completedLogs
+        feedName: feed.name
       });
-      
-      // Clean up after 30 seconds
-      setTimeout(() => SYNC_PROGRESS.delete(feedId), 30000);
-      
-      res.json({ 
-        message: "Feed sync completed",
-        feedName: feed.name,
-        itemsProcessed: result.itemsProcessed || 0,
-        eventsCreated: result.eventsCreated || 0,
-        eventsUpdated: result.eventsUpdated || 0,
-        success: result.success
+
+      // Fire-and-forget: import and run processFeed without blocking the response
+      import('./services/rss-feed-service').then(({ RssFeedService }) => {
+        return RssFeedService.processFeed(feed, storage, (progress) => {
+          const current = SYNC_PROGRESS.get(feedId);
+          if (current) {
+            const newLogs = current.logs || [];
+            if (progress.logMessage) {
+              newLogs.push(`[${new Date().toLocaleTimeString('nl-NL')}] ${progress.logMessage}`);
+              if (newLogs.length > 100) newLogs.shift();
+            }
+            SYNC_PROGRESS.set(feedId, {
+              ...current,
+              ...progress,
+              status: (progress.status as SyncProgress['status']) || current.status,
+              logs: newLogs
+            });
+          }
+        });
+      }).then((result) => {
+        // Mark as completed
+        const resultAny = result as any;
+        const currentProgress = SYNC_PROGRESS.get(feedId);
+        const completedLogs = currentProgress?.logs || [];
+        completedLogs.push(`[${new Date().toLocaleTimeString('nl-NL')}] ✓ Synchronisatie voltooid: ${result.eventsCreated} nieuw, ${result.eventsUpdated} bijgewerkt`);
+        
+        SYNC_PROGRESS.set(feedId, {
+          feedId,
+          feedName: feed.name,
+          status: 'completed',
+          totalItems: result.itemsProcessed || 0,
+          processedItems: result.itemsProcessed || 0,
+          eventsCreated: result.eventsCreated || 0,
+          eventsUpdated: result.eventsUpdated || 0,
+          eventsSkipped: resultAny.eventsSkipped || 0,
+          eventsRejected: resultAny.eventsRejected || 0,
+          rejectionReasons: resultAny.rejectionReasons || {},
+          startTime: currentProgress?.startTime || Date.now(),
+          message: 'Synchronisatie voltooid',
+          logs: completedLogs
+        });
+        
+        // Clean up after 30 seconds
+        setTimeout(() => SYNC_PROGRESS.delete(feedId), 30000);
+      }).catch((error: any) => {
+        console.error('Error in background feed sync:', error);
+        
+        const currentProgress = SYNC_PROGRESS.get(feedId);
+        SYNC_PROGRESS.set(feedId, {
+          feedId,
+          feedName: currentProgress?.feedName || feed.name,
+          status: 'error',
+          totalItems: currentProgress?.totalItems || 0,
+          processedItems: currentProgress?.processedItems || 0,
+          eventsCreated: currentProgress?.eventsCreated || 0,
+          eventsUpdated: currentProgress?.eventsUpdated || 0,
+          eventsSkipped: currentProgress?.eventsSkipped || 0,
+          eventsRejected: currentProgress?.eventsRejected || 0,
+          rejectionReasons: currentProgress?.rejectionReasons || {},
+          startTime: currentProgress?.startTime || Date.now(),
+          error: error.message
+        });
+        setTimeout(() => SYNC_PROGRESS.delete(feedId), 30000);
       });
+
     } catch (error: any) {
       console.error('Error in POST /api/admin/rss-feeds/:id/sync:', error);
       

@@ -4720,6 +4720,30 @@ export class RssFeedService {
         ) ?? base;
       };
 
+      // Map iAmsterdam URL category path segments to app categories
+      const categoryMap: Record<string, string> = {
+        'concerten-en-muziek': 'Kunst en Cultuur',
+        'festivals': 'Kunst en Cultuur',
+        'tentoonstellingen': 'Kunst en Cultuur',
+        'musea-en-galeries': 'Kunst en Cultuur',
+        'voorstellingen': 'Kunst en Cultuur',
+        'theater': 'Kunst en Cultuur',
+        'dance': 'Kunst en Cultuur',
+        'attracties-en-bezienswaardigheden': 'Gezellig en Sociaal',
+        'nachtleven': 'Gezellig en Sociaal',
+        'food-en-drink': 'Gezellig en Sociaal',
+        'sport': 'Sport en spel',
+        'kinderen': 'Leren en Ontdekken',
+        'workshops': 'Leren en Ontdekken',
+      };
+
+      /** Derive app category from iAmsterdam event URL (/uit/agenda/{cat}/...) */
+      const categoryFromUrl = (url: string): string | undefined => {
+        const m = url.match(/\/uit\/agenda\/([^/?#]+)/);
+        if (!m) return undefined;
+        return categoryMap[m[1]];
+      };
+
       const isQualityRun = maxEvents <= 50;
       console.log(`[RSS] iAmsterdam: Starting scrape (max ${maxEvents} events${isQualityRun ? ', quality-test mode' : ''})...`);
       onProgress?.({
@@ -4984,6 +5008,9 @@ export class RssFeedService {
           if (!imageUrl) imageUrl = $('img[src*="thefeedfactory"]').first().attr('src') ?? '';
           if (imageUrl && !imageUrl.startsWith('http')) imageUrl = `${baseUrl}${imageUrl}`;
 
+          // ---- Category from URL path --------------------------------------
+          const detectedCategory = categoryFromUrl(eventUrl);
+
           // ---- Emit items (one per date; multi-day handled by consolidateMultiDayEvents) ---
           const futureDates = parsedDates.filter(d => d.start >= now);
           for (const { start, end } of futureDates) {
@@ -5000,6 +5027,7 @@ export class RssFeedService {
               address,
               latitude,
               longitude,
+              detectedCategory,
               rawData: { url: eventUrl, slug, venue: venueName },
             });
           }

@@ -4648,19 +4648,37 @@ export class RssFeedService {
   /**
    * IAMSTERDAM SCRAPER - Scrapes events from iamsterdam.com/uit/agenda
    * Uses Next.js SSR HTML pages. GPS coordinates extracted directly from Google Maps links.
-   * Dates parsed from structured HTML table ("zaterdag 5 juli | 10:00 - 17:00").
+   * Dates parsed from JSON-LD or Dutch date table ("zaterdag 5 juli | 10:00 - 17:00").
+   *
+   * @param onProgress  Progress callback for admin sync log
+   * @param maxEvents   Max events to fetch; default 200 for full sync, use 50 for quality test
    */
   static async scrapeIAmsterdam(
-    onProgress?: (progress: { status?: string; message?: string; logMessage?: string }) => void
+    onProgress?: (progress: { status?: string; message?: string; logMessage?: string }) => void,
+    maxEvents = 200
   ): Promise<FeedParseResult> {
     try {
       const items: ParsedFeedItem[] = [];
       const baseUrl = 'https://www.iamsterdam.com';
       const agendaBase = `${baseUrl}/uit/agenda`;
-      const MAX_EVENTS = 200;
       const REQUEST_DELAY_MS = 300;
       const TIMEOUT_MS = 15000;
+      const MAX_RETRIES = 2;
       const now = new Date();
+
+      // Amsterdam city center for radius check
+      const AMS_LAT = 52.3676;
+      const AMS_LNG = 4.9041;
+      const AMS_RADIUS_KM = 30;
+
+      const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2
+          + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      };
 
       const dutchMonths: Record<string, number> = {
         januari: 0, februari: 1, maart: 2, april: 3, mei: 4, juni: 5,
@@ -4668,64 +4686,77 @@ export class RssFeedService {
         jan: 0, feb: 1, mrt: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, okt: 9, nov: 10, dec: 11,
       };
 
-      /** Parse "zaterdag 5 juli 2026" or "5 juli" → Date (midnight Dutch local time) */
-      const parseDutchDate = (raw: string, refYear?: number): Date | undefined => {
+      const parseDutchDate = (raw: string): Date | undefined => {
         const cleaned = raw.toLowerCase().trim().replace(/[,;]/g, '');
-        const m = cleaned.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december|jan|feb|mrt|apr|jun|jul|aug|sep|okt|nov|dec)(?:\s+(\d{4}))?/);
-        if (!m) return undefined;
-        const day = parseInt(m[1]);
-        const month = dutchMonths[m[2]];
-        const year = m[3] ? parseInt(m[3]) : (refYear ?? now.getFullYear());
+        const match = cleaned.match(
+          /(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december|jan|feb|mrt|apr|jun|jul|aug|sep|okt|nov|dec)(?:\s+(\d{4}))?/
+        );
+        if (!match) return undefined;
+        const day = parseInt(match[1]);
+        const month = dutchMonths[match[2]];
+        const year = match[3] ? parseInt(match[3]) : now.getFullYear();
         if (isNaN(day) || month === undefined || isNaN(year)) return undefined;
-        return parseLocalDateTime(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00`);
+        return parseLocalDateTime(
+          `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00`
+        );
       };
 
-      /** Parse "10:00" or "10:00 - 17:00" → { startHour, startMin, endHour?, endMin? } */
       const parseTimeRange = (raw: string): { sh: number; sm: number; eh?: number; em?: number } | undefined => {
-        const cleaned = raw.trim();
-        const m = cleaned.match(/(\d{1,2}):(\d{2})(?:\s*[-–]\s*(\d{1,2}):(\d{2}))?/);
-        if (!m) return undefined;
+        const match = raw.trim().match(/(\d{1,2}):(\d{2})(?:\s*[-–]\s*(\d{1,2}):(\d{2}))?/);
+        if (!match) return undefined;
         return {
-          sh: parseInt(m[1]), sm: parseInt(m[2]),
-          eh: m[3] ? parseInt(m[3]) : undefined,
-          em: m[4] ? parseInt(m[4]) : undefined,
+          sh: parseInt(match[1]), sm: parseInt(match[2]),
+          eh: match[3] !== undefined ? parseInt(match[3]) : undefined,
+          em: match[4] !== undefined ? parseInt(match[4]) : undefined,
         };
       };
 
-      /** Apply time (hour, min) to a date (returns new Date, Dutch local time) */
       const applyTime = (base: Date, h: number, m: number): Date => {
-        const year = base.getFullYear();
-        const month = base.getMonth() + 1;
-        const day = base.getDate();
+        const y = base.getFullYear();
+        const mo = base.getMonth() + 1;
+        const d = base.getDate();
         return parseLocalDateTime(
-          `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
+          `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
         ) ?? base;
       };
 
-      console.log(`[RSS] iAmsterdam: Starting scrape...`);
-      onProgress?.({ status: 'fetching', message: 'Eventlijst ophalen...', logMessage: 'iAmsterdam: eventlijst ophalen (pagina 1...)' });
+      const isQualityRun = maxEvents <= 50;
+      console.log(`[RSS] iAmsterdam: Starting scrape (max ${maxEvents} events${isQualityRun ? ', quality-test mode' : ''})...`);
+      onProgress?.({
+        status: 'fetching',
+        message: 'Eventlijst ophalen...',
+        logMessage: `iAmsterdam: eventlijst ophalen${isQualityRun ? ' (kwaliteitstest: max 50 events)' : ''}`,
+      });
 
       // -----------------------------------------------------------------------
       // Phase 1: Collect event URLs from listing pages
+      // Stop early if an entire listing page contains only past-dated events
       // -----------------------------------------------------------------------
       const eventUrls: string[] = [];
       const seenUrls = new Set<string>();
       const MAX_LISTING_PAGES = 25;
 
       for (let page = 1; page <= MAX_LISTING_PAGES; page++) {
-        if (eventUrls.length >= MAX_EVENTS) break;
+        if (eventUrls.length >= maxEvents) break;
+        let listingError: string | undefined;
         try {
           const pageUrl = page === 1 ? agendaBase : `${agendaBase}?page=${page}`;
-          const response = await axios.get(pageUrl, {
-            headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'nl-NL,nl;q=0.9' },
+          const response = await axios.get<string>(pageUrl, {
+            headers: {
+              'User-Agent': this.USER_AGENT,
+              'Accept': 'text/html,application/xhtml+xml',
+              'Accept-Language': 'nl-NL,nl;q=0.9',
+            },
             timeout: TIMEOUT_MS,
           });
           const $ = cheerio.load(response.data);
 
           let newOnPage = 0;
+          let pageDatesFound = 0;
+          let pagePastDates = 0;
+
           $('a[href]').each((_, el) => {
-            const href = $(el).attr('href') || '';
-            // Event URLs: /uit/agenda/{cat}/{subcat}/{slug} (at least 3 segments after /uit/agenda/)
+            const href = $(el).attr('href') ?? '';
             if (/^\/uit\/agenda\/[^?#/]+\/[^?#/]+\/[^?#/]+/.test(href)) {
               const full = href.startsWith('http') ? href : `${baseUrl}${href}`;
               if (!seenUrls.has(full)) {
@@ -4733,6 +4764,16 @@ export class RssFeedService {
                 eventUrls.push(full);
                 newOnPage++;
               }
+            }
+          });
+
+          // Early-stop signal: check listing-page date chips for past-only pages
+          $('time,[class*="date"],[class*="datum"]').each((_, el) => {
+            const text = $(el).text().trim();
+            const d = parseDutchDate(text);
+            if (d) {
+              pageDatesFound++;
+              if (d < now) pagePastDates++;
             }
           });
 
@@ -4744,27 +4785,62 @@ export class RssFeedService {
             break;
           }
 
-          await new Promise(r => setTimeout(r, REQUEST_DELAY_MS));
-        } catch (err: any) {
-          if (err.response?.status === 404) {
+          // If listing page shows only past dates, all remaining pages likely past too
+          if (pageDatesFound > 0 && pagePastDates === pageDatesFound) {
+            console.log(`[RSS] iAmsterdam: page ${page} has only past-dated listings, early stop`);
+            onProgress?.({ logMessage: `Pagina ${page}: alleen verleden events, vroeg gestopt` });
+            break;
+          }
+
+          await new Promise<void>(r => setTimeout(r, REQUEST_DELAY_MS));
+        } catch (err: unknown) {
+          const axiosErr = err as { response?: { status?: number }; message?: string };
+          if (axiosErr.response?.status === 404) {
             console.log(`[RSS] iAmsterdam: page ${page} returned 404, end of listing`);
           } else {
-            console.warn(`[RSS] iAmsterdam: listing page ${page} error: ${err.message}`);
+            listingError = axiosErr.message ?? 'unknown error';
+            console.warn(`[RSS] iAmsterdam: listing page ${page} error: ${listingError}`);
           }
           break;
         }
       }
 
-      const urlsToFetch = eventUrls.slice(0, MAX_EVENTS);
+      const urlsToFetch = eventUrls.slice(0, maxEvents);
       console.log(`[RSS] iAmsterdam: ${urlsToFetch.length} event URLs collected, fetching details...`);
       onProgress?.({ logMessage: `${urlsToFetch.length} event-URLs gevonden, details ophalen...` });
 
       // -----------------------------------------------------------------------
-      // Phase 2: Fetch individual event pages
+      // Phase 2: Fetch individual event pages with retry logic
       // -----------------------------------------------------------------------
       let successCount = 0;
       let skippedCount = 0;
       const fetchStart = Date.now();
+
+      const fetchEventPage = async (eventUrl: string): Promise<string | null> => {
+        for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+          try {
+            const response = await axios.get<string>(eventUrl, {
+              headers: {
+                'User-Agent': this.USER_AGENT,
+                'Accept': 'text/html,application/xhtml+xml',
+                'Accept-Language': 'nl-NL,nl;q=0.9',
+              },
+              timeout: TIMEOUT_MS,
+            });
+            return response.data;
+          } catch (err: unknown) {
+            const axiosErr = err as { code?: string; message?: string };
+            const isTimeout = axiosErr.code === 'ECONNABORTED' || (axiosErr.message ?? '').includes('timeout');
+            if (isTimeout && attempt <= MAX_RETRIES) {
+              console.warn(`[RSS] iAmsterdam: timeout on ${eventUrl}, retry ${attempt}/${MAX_RETRIES}`);
+              await new Promise<void>(r => setTimeout(r, REQUEST_DELAY_MS * attempt));
+              continue;
+            }
+            throw err;
+          }
+        }
+        return null;
+      };
 
       for (let i = 0; i < urlsToFetch.length; i++) {
         const eventUrl = urlsToFetch[i];
@@ -4776,22 +4852,20 @@ export class RssFeedService {
         });
 
         try {
-          await new Promise(r => setTimeout(r, REQUEST_DELAY_MS));
+          await new Promise<void>(r => setTimeout(r, REQUEST_DELAY_MS));
 
-          const response = await axios.get(eventUrl, {
-            headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'nl-NL,nl;q=0.9' },
-            timeout: TIMEOUT_MS,
-          });
-          const $ = cheerio.load(response.data);
+          const html = await fetchEventPage(eventUrl);
+          if (!html) { skippedCount++; continue; }
+          const $ = cheerio.load(html);
 
           // ---- Title --------------------------------------------------------
           let title = $('h1').first().text().trim();
-          if (!title) title = $('meta[property="og:title"]').attr('content')?.trim() || '';
+          if (!title) title = $('meta[property="og:title"]').attr('content')?.trim() ?? '';
           if (!title) { skippedCount++; continue; }
           title = this.cleanText(title);
 
-          // ---- ExternalId from URL slug ------------------------------------
-          const slug = eventUrl.split('/').filter(Boolean).pop() || `iamsterdam-${Date.now()}`;
+          // ---- ExternalId ---------------------------------------------------
+          const slug = eventUrl.split('/').filter(s => s.length > 0).pop() ?? `iamsterdam-${i}`;
           const externalId = `iamsterdam-${slug}`;
 
           // ---- GPS from Google Maps link -----------------------------------
@@ -4799,11 +4873,11 @@ export class RssFeedService {
           let longitude: number | undefined;
           $('a[href*="google.com/maps"]').each((_, el) => {
             if (latitude !== undefined) return;
-            const href = $(el).attr('href') || '';
-            const m = href.match(/[?&]query=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-            if (m) {
-              latitude = parseFloat(m[1]);
-              longitude = parseFloat(m[2]);
+            const href = $(el).attr('href') ?? '';
+            const gpsMatch = href.match(/[?&]query=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+            if (gpsMatch) {
+              latitude = parseFloat(gpsMatch[1]);
+              longitude = parseFloat(gpsMatch[2]);
             }
           });
 
@@ -4811,44 +4885,45 @@ export class RssFeedService {
           let venueName = '';
           let address = '';
 
-          // iAmsterdam renders a "Locatie" section — find it by heading text
-          const locatieHeadings = $('h2, h3, h4, strong, dt').filter((_, el) => {
+          $('h2, h3, h4, strong, dt').filter((_, el) => {
             return $(el).text().trim().toLowerCase().startsWith('locatie');
-          });
-          if (locatieHeadings.length > 0) {
-            const section = locatieHeadings.first().parent();
-            const text = section.text().replace(/^locatie\s*/i, '').trim();
-            const lines = text.split(/\n|\r/).map(l => l.trim()).filter(Boolean);
+          }).first().parent().each((_, section) => {
+            const text = $(section).text().replace(/^locatie\s*/i, '').trim();
+            const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 0);
             if (lines.length >= 1) venueName = lines[0];
             if (lines.length >= 2) address = lines.slice(1).join(', ');
-          }
-          // Fallback: look for address-like patterns
+          });
+
           if (!address) {
-            $('[class*="address"],[class*="locatie"],[class*="location"],[itemprop="address"]').each((_, el) => {
-              if (address) return;
+            $('[class*="address"],[class*="locatie"],[class*="location"],[itemprop="address"]').first().each((_, el) => {
               address = $(el).text().trim().replace(/\s+/g, ' ');
             });
           }
           if (!address && venueName) address = `${venueName}, Amsterdam`;
           if (!address) address = 'Amsterdam';
 
-          // ---- Dates from structured table ---------------------------------
-          // Pattern: "zaterdag 5 juli | 10:00 - 17:00" or similar rows
+          // ---- Dates -------------------------------------------------------
           const parsedDates: { start: Date; end?: Date }[] = [];
 
-          // Try JSON-LD first
+          // JSON-LD first (most reliable)
           $('script[type="application/ld+json"]').each((_, el) => {
-            try {
-              const json = JSON.parse($(el).html() || '');
-              const entries = Array.isArray(json) ? json : [json];
-              for (const entry of entries) {
-                if (entry['@type'] === 'Event' && entry.startDate) {
-                  const s = parseLocalDateTime(entry.startDate);
-                  const e = entry.endDate ? parseLocalDateTime(entry.endDate) : undefined;
-                  if (s) parsedDates.push({ start: s, end: e });
-                }
+            let jsonObj: unknown;
+            try { jsonObj = JSON.parse($(el).html() ?? ''); } catch { return; }
+            const entries: unknown[] = Array.isArray(jsonObj) ? jsonObj : [jsonObj];
+            for (const entry of entries) {
+              if (
+                typeof entry === 'object' && entry !== null &&
+                (entry as Record<string, unknown>)['@type'] === 'Event' &&
+                typeof (entry as Record<string, unknown>)['startDate'] === 'string'
+              ) {
+                const record = entry as Record<string, unknown>;
+                const s = parseLocalDateTime(record['startDate'] as string);
+                const e = typeof record['endDate'] === 'string'
+                  ? parseLocalDateTime(record['endDate'] as string)
+                  : undefined;
+                if (s) parsedDates.push({ start: s, end: e });
               }
-            } catch {}
+            }
           });
 
           // HTML date table fallback
@@ -4857,9 +4932,9 @@ export class RssFeedService {
             $('table tr, [class*="date"] li, [class*="datum"] li').each((_, el) => {
               dateRows.push($(el).text().trim());
             });
-            // Also check for pipe-separated "dag datum | tijd" patterns in any element
-            $('*').contents().filter((_, node) => node.type === 'text').each((_, node) => {
-              const text = (node as any).data?.trim() || '';
+            // Also check plain text nodes containing Dutch month names
+            $('p, span, div').each((_, el) => {
+              const text = $(el).clone().children().remove().end().text().trim();
               if (/\d{1,2}\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)/i.test(text)) {
                 dateRows.push(text);
               }
@@ -4867,58 +4942,53 @@ export class RssFeedService {
 
             for (const row of dateRows) {
               const parts = row.split('|').map(p => p.trim());
-              const datePart = parts[0] || row;
-              const timePart = parts[1] || '';
+              const datePart = parts[0] ?? row;
+              const timePart = parts[1] ?? '';
               const baseDate = parseDutchDate(datePart);
               if (!baseDate) continue;
               const times = parseTimeRange(timePart);
-              let startDate = times ? applyTime(baseDate, times.sh, times.sm) : baseDate;
-              let endDate: Date | undefined;
-              if (times?.eh !== undefined && times?.em !== undefined) {
-                endDate = applyTime(baseDate, times.eh, times.em);
-              }
-              // Skip past dates
+              const startDate = times ? applyTime(baseDate, times.sh, times.sm) : baseDate;
+              const endDate: Date | undefined = (times?.eh !== undefined && times?.em !== undefined)
+                ? applyTime(baseDate, times.eh, times.em)
+                : undefined;
               if (startDate < now) continue;
               parsedDates.push({ start: startDate, end: endDate });
             }
           }
 
-          // Fallback: check og:description or meta for date hints
+          // Meta description fallback
           if (parsedDates.length === 0) {
-            const metaDesc = $('meta[name="description"]').attr('content') || '';
+            const metaDesc = $('meta[name="description"]').attr('content') ?? '';
             const dateInMeta = parseDutchDate(metaDesc);
             if (dateInMeta && dateInMeta >= now) {
               parsedDates.push({ start: dateInMeta });
             }
           }
 
-          // Skip events with no parseable future date
           if (parsedDates.length === 0) {
             skippedCount++;
             continue;
           }
 
           // ---- Description -------------------------------------------------
-          let description = $('meta[name="description"]').attr('content')?.trim() || '';
+          let description = $('meta[name="description"]').attr('content')?.trim() ?? '';
           if (!description) {
-            description = $('[class*="description"],[class*="intro"],[class*="body"]').first().text().trim().substring(0, 500);
+            description = $('[class*="description"],[class*="intro"],[class*="body"]')
+              .first().text().trim().substring(0, 500);
           }
           if (!description) description = title;
           description = this.cleanText(description);
 
           // ---- Image -------------------------------------------------------
-          let imageUrl = $('meta[property="og:image"]').attr('content') || '';
-          if (!imageUrl) {
-            imageUrl = $('img[src*="thefeedfactory"]').first().attr('src') || '';
-          }
-          if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = `${baseUrl}${imageUrl}`;
-          }
+          let imageUrl = $('meta[property="og:image"]').attr('content') ?? '';
+          if (!imageUrl) imageUrl = $('img[src*="thefeedfactory"]').first().attr('src') ?? '';
+          if (imageUrl && !imageUrl.startsWith('http')) imageUrl = `${baseUrl}${imageUrl}`;
 
-          // ---- Emit one item per future date (multi-day → consolidation) ---
-          for (const { start, end } of parsedDates) {
+          // ---- Emit items (one per date; multi-day handled by consolidateMultiDayEvents) ---
+          const futureDates = parsedDates.filter(d => d.start >= now);
+          for (const { start, end } of futureDates) {
             items.push({
-              externalId: parsedDates.length > 1 ? `${externalId}-${start.getTime()}` : externalId,
+              externalId: futureDates.length > 1 ? `${externalId}-${start.getTime()}` : externalId,
               title,
               description,
               link: eventUrl,
@@ -4935,34 +5005,58 @@ export class RssFeedService {
           }
 
           successCount++;
-        } catch (err: any) {
-          console.warn(`[RSS] iAmsterdam: error fetching ${eventUrl}: ${err.message}`);
+        } catch (err: unknown) {
+          const fetchErr = err as { message?: string };
+          console.warn(`[RSS] iAmsterdam: error fetching ${eventUrl}: ${fetchErr.message ?? 'unknown error'}`);
           skippedCount++;
         }
       }
 
       // -----------------------------------------------------------------------
-      // Quality report
+      // Quality report — includes Amsterdam radius check + category-match
       // -----------------------------------------------------------------------
       const totalItems = items.length;
-      const withStart = items.filter(i => i.startTime).length;
-      const withAddress = items.filter(i => i.address && i.address !== 'Amsterdam').length;
-      const withGps = items.filter(i => i.latitude !== undefined && i.longitude !== undefined).length;
-      const withImage = items.filter(i => i.imageUrl).length;
+      const pct = (n: number): string =>
+        totalItems > 0 ? `${n}/${totalItems} (${Math.round(n / totalItems * 100)}%)` : '0/0 (n/a)';
+
+      const withStart = items.filter(it => it.startTime !== undefined).length;
+      const withAddress = items.filter(it => it.address && it.address !== 'Amsterdam').length;
+      const withGps = items.filter(it => it.latitude !== undefined && it.longitude !== undefined).length;
+      const withImage = items.filter(it => Boolean(it.imageUrl)).length;
+
+      // Amsterdam radius: count items whose GPS is within 30km of city center
+      const inAmsterdamRadius = items.filter(it => {
+        if (it.latitude === undefined || it.longitude === undefined) return false;
+        return haversineKm(AMS_LAT, AMS_LNG, it.latitude, it.longitude) <= AMS_RADIUS_KM;
+      }).length;
+
+      // Category match: count items where detectedCategory is one of the known CATEGORIES
+      const knownCategorySet = new Set<string>(CATEGORIES as readonly string[]);
+      const withCategoryMatch = items.filter(it =>
+        it.detectedCategory !== undefined && knownCategorySet.has(it.detectedCategory)
+      ).length;
+
       const syncSecs = ((Date.now() - fetchStart) / 1000).toFixed(1);
-      const perEvent = successCount > 0 ? ((Date.now() - fetchStart) / 1000 / successCount).toFixed(1) : '?';
+      const perEvent = successCount > 0
+        ? ((Date.now() - fetchStart) / 1000 / successCount).toFixed(1)
+        : '?';
 
       const qualityLines = [
-        `╔═══════════════════════════════════════╗`,
-        `║   iAmsterdam Kwaliteitsrapport         ║`,
-        `╚═══════════════════════════════════════╝`,
-        `Events gescrapet : ${successCount} (${skippedCount} overgeslagen)`,
-        `Items opgeslagen : ${totalItems}`,
-        `Met startdatum   : ${withStart}/${totalItems} (${totalItems > 0 ? Math.round(withStart / totalItems * 100) : 0}%)`,
-        `Met volledig adres: ${withAddress}/${totalItems} (${totalItems > 0 ? Math.round(withAddress / totalItems * 100) : 0}%)`,
-        `Met GPS-coords   : ${withGps}/${totalItems} (${totalItems > 0 ? Math.round(withGps / totalItems * 100) : 0}%)`,
-        `Met afbeelding   : ${withImage}/${totalItems} (${totalItems > 0 ? Math.round(withImage / totalItems * 100) : 0}%)`,
-        `Totale sync-tijd : ${syncSecs}s (~${perEvent}s/event)`,
+        `╔══════════════════════════════════════════════════╗`,
+        `║  iAmsterdam Kwaliteitsrapport${isQualityRun ? ' (50-event test)  ' : '                   '}║`,
+        `╚══════════════════════════════════════════════════╝`,
+        `Metric                    Verwacht  Resultaat`,
+        `─────────────────────────────────────────────────`,
+        `Events gescrapet          -         ${successCount} (${skippedCount} overgeslagen)`,
+        `Items opgeslagen          -         ${totalItems}`,
+        `Met startdatum            >98%      ${pct(withStart)}`,
+        `Met volledig adres        >90%      ${pct(withAddress)}`,
+        `Met GPS-coördinaten       >85%      ${pct(withGps)}`,
+        `Met afbeelding            >80%      ${pct(withImage)}`,
+        `In Amsterdam (<${AMS_RADIUS_KM}km)     >99%      ${pct(inAmsterdamRadius)}`,
+        `Met categorie-match       >70%      ${pct(withCategoryMatch)}`,
+        `Gem. sync-tijd/event      <2s       ${perEvent}s`,
+        `Totale sync-tijd          -         ${syncSecs}s`,
       ];
 
       for (const line of qualityLines) {
@@ -4971,9 +5065,10 @@ export class RssFeedService {
       }
 
       return { success: true, items };
-    } catch (error: any) {
-      console.error(`[RSS] iAmsterdam scraper error:`, error.message);
-      return { success: false, items: [], error: error.message };
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      console.error(`[RSS] iAmsterdam scraper error:`, err.message ?? error);
+      return { success: false, items: [], error: err.message ?? 'Unknown error' };
     }
   }
 
@@ -8104,7 +8199,8 @@ export class RssFeedService {
       try {
 
       if (feed.feedType === "scraper" && feed.url.includes("iamsterdam.com")) {
-        result = await this.scrapeIAmsterdam(onProgress);
+        // 50-event quality-test cap for single-feed sync; full 200 used in bulk processFeeds()
+        result = await this.scrapeIAmsterdam(onProgress, 50);
       } else if (feed.feedType === "scraper" && feed.url.includes("thisiseindhoven")) {
         result = await this.scrapeThisIsEindhoven();
       } else if (feed.feedType === "scraper" && feed.url.includes("trefhetinoss")) {

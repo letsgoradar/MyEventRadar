@@ -2305,17 +2305,6 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
-  app.get("/api/admin/rss-feeds/unlinked", isAdmin, async (req, res) => {
-    try {
-      const feeds = await storage.getAllRssFeeds();
-      const unlinked = feeds.filter(f => !f.municipality || f.municipality.trim() === '');
-      res.json(unlinked);
-    } catch (error) {
-      console.error('Error in GET /api/admin/rss-feeds/unlinked:', error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
   app.get("/api/admin/rss-feeds/:id", isAdmin, async (req, res) => {
     try {
       const feedId = parseInt(req.params.id);

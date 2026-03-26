@@ -4126,20 +4126,15 @@ export class RssFeedService {
   }
 
   /**
-   * UIT IN DE REGIO - RIVIERENGEBIED SCRAPER (API-only, no individual page fetches)
+   * UIT IN DE REGIO - LAND VAN MAAS EN WAAL SCRAPER
    *
-   * Strategy: API-first + selective page fetches as fallback.
-   *   1. Discover relevant event_type taxonomy IDs for Rivierengebied municipalities
-   *   2. Prefetch all ajde_locations (EventON's location post type) to build a lookup map
-   *      with venue names, addresses, and GPS — no per-event location request needed
-   *   3. Fetch paginated event list with &_embed=true (inline featured images)
-   *   4. First pass: extract dates from evcal_srow meta (fast, no HTTP) — build items directly
-   *   5. Second pass: selective HTML page fetches (max 150) for events missing meta dates,
-   *      parse JSON-LD for startDate/endDate and supplement location if needed
-   *   6. Emit quality log: total / imported / skipped / from-meta / from-page / with-GPS
-   *
-   * Avoids the old 2000-page-per-sync problem while remaining robust when evcal_srow
-   * is not exposed via the WordPress REST API (which varies per EventON install).
+   * Strategy: API event list + selective HTML page fetches for missing dates.
+   *   1. Discover event_type taxonomy ID for "Land van Maas en Waal"
+   *   2. Fetch paginated event list (no _embed, no ajde_locations — both caused socket hangs)
+   *   3. Log meta keys from first event so we can see what the API actually returns
+   *   4. First pass  (fast): events with evcal_srow in meta → build item immediately
+   *   5. Second pass (fallback): events without srow → fetch HTML page, parse JSON-LD
+   *   6. Emit quality log with date-source breakdown and GPS counts
    */
   static async scrapeUitInDeRegioLandVanMaasEnWaal(
     onProgress?: (progress: { status?: string; message?: string; logMessage?: string }) => void
@@ -4150,15 +4145,9 @@ export class RssFeedService {
       const baseUrl = 'https://evenementen.uitinderegio.nl';
       const apiBase = `${baseUrl}/wp-json/wp/v2`;
 
-      // Rivierengebied municipality slugs matched against event_type taxonomy
-      const RIVIERENGEBIED_SLUGS = [
-        'landvanmaasenwaal', 'land-van-maas-en-waal',
-        'bommelerwaard', 'bommeler-waard',
-        'tiel',
-        'betuwe', 'west-betuwe', 'westbetuwe',
-        'neder-betuwe', 'nederbetuwe',
-        'buren', 'culemborg', 'zaltbommel', 'maasdriel',
-        'rivierengebied',
+      // Only Land van Maas en Waal — other municipalities get their own feed entries
+      const MUNICIPALITY_SLUGS = [
+        'landvanmaasenwaal', 'land-van-maas-en-waal', 'maas-en-waal',
       ];
 
       // ── Helper: clean WordPress HTML entities ─────────────────────────────
@@ -4187,138 +4176,84 @@ export class RssFeedService {
         } catch { return undefined; }
       };
 
-      // ── Helper: get inline image from _embedded wp:featuredmedia ─────────
-      const getEmbeddedImage = (event: any): string => {
-        try {
-          const media = event._embedded?.['wp:featuredmedia'];
-          if (Array.isArray(media) && media.length > 0) {
-            return media[0].media_details?.sizes?.large?.source_url
-              || media[0].media_details?.sizes?.full?.source_url
-              || media[0].source_url || '';
-          }
-        } catch { /* no image */ }
-        return '';
+      const AX_JSON = {
+        headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'application/json' },
+        timeout: 20000,
+      };
+      const AX_HTML = {
+        headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'text/html,application/xhtml+xml' },
+        timeout: 15000,
       };
 
-      // ── Step 1: Discover taxonomy IDs ────────────────────────────────────
-      onProgress?.({ status: 'fetching', message: 'Gemeenten ophalen...', logMessage: 'Gemeenten (event_type taxonomy) ophalen...' });
+      // ── Step 1: Discover taxonomy ID for Land van Maas en Waal ────────────
+      onProgress?.({ status: 'fetching', message: 'Taxonomy ophalen...', logMessage: 'event_type taxonomy ophalen voor Land van Maas en Waal...' });
 
       let eventTypeIds: number[] = [];
       try {
-        const taxResponse = await axios.get(`${apiBase}/event_type?per_page=100`, {
-          headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'application/json' },
-          timeout: 15000
-        });
-        const terms: any[] = taxResponse.data || [];
+        const taxResp = await axios.get(`${apiBase}/event_type?per_page=100`, AX_JSON);
+        const terms: any[] = Array.isArray(taxResp.data) ? taxResp.data : [];
+        // Log all terms so we know what's available
+        console.log(`[RSS] LvMW: all event_type terms: ${terms.map((t: any) => `${t.id}:${t.slug}`).join(', ')}`);
         eventTypeIds = terms
-          .filter((t: any) => RIVIERENGEBIED_SLUGS.some(s =>
-            t.slug?.toLowerCase().includes(s) || s.includes(t.slug?.toLowerCase())))
+          .filter((t: any) => MUNICIPALITY_SLUGS.some(s =>
+            t.slug?.toLowerCase().replace(/-/g, '') === s.replace(/-/g, '') ||
+            t.name?.toLowerCase().includes('maas') && t.name?.toLowerCase().includes('waal')
+          ))
           .map((t: any) => t.id);
-        console.log(`[RSS] Rivierengebied: found ${eventTypeIds.length} event_type terms: ${eventTypeIds.join(',')}`);
-        onProgress?.({ logMessage: `${eventTypeIds.length} gemeenten gevonden: ${eventTypeIds.join(', ')}` });
+        onProgress?.({ logMessage: `Taxonomy: ${eventTypeIds.length} termen gevonden → IDs: ${eventTypeIds.join(', ')}` });
       } catch (err: any) {
-        console.warn(`[RSS] Rivierengebied: taxonomy fetch failed, falling back to event_type=28`, err.message);
-        eventTypeIds = [28];
+        console.warn(`[RSS] LvMW: taxonomy fetch failed: ${err.message}`);
+        onProgress?.({ logMessage: `Taxonomy ophalen mislukt: ${err.message} — doorgaan zonder filter` });
       }
+
       if (eventTypeIds.length === 0) {
-        console.warn('[RSS] Rivierengebied: no matching event_type IDs found, using default 28');
-        eventTypeIds = [28];
+        console.warn('[RSS] LvMW: no matching event_type ID found — fetching all events (unfiltered)');
+        onProgress?.({ logMessage: 'Geen taxonomy-match — alle events ophalen (ongefilterd)' });
       }
 
-      // ── Step 2: Prefetch all ajde_locations (EventON location post type) ──
-      // EventON stores venue data (name, address, GPS) in a separate custom post
-      // type rather than in the event's meta. We prefetch all locations once,
-      // build a locationId→data map, and use it during event processing without
-      // extra HTTP requests per event.
-      type LocData = { name: string; address: string; city: string; lat?: number; lng?: number };
-      const locationMap = new Map<number, LocData>();
+      // ── Step 2: Fetch paginated event list ───────────────────────────────
+      const typeParam = eventTypeIds.length > 0
+        ? `&event_type=${eventTypeIds.join(',')}`
+        : '';
+      const listBase = `${apiBase}/ajde_events?per_page=100&status=publish${typeParam}`;
 
-      onProgress?.({ logMessage: 'Locaties ophalen (ajde_locations)...' });
-      try {
-        let locPage = 1;
-        let locTotalPages = 1;
-        do {
-          const locResponse = await axios.get(
-            `${apiBase}/ajde_locations?per_page=100&page=${locPage}`,
-            { headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'application/json' }, timeout: 15000 }
-          );
-          if (locPage === 1) {
-            locTotalPages = parseInt(locResponse.headers['x-wp-totalpages'] || '1', 10);
-          }
-          const locations: any[] = Array.isArray(locResponse.data) ? locResponse.data : [];
-          for (const loc of locations) {
-            const lm = loc.meta || {};
-            // EventON stores location meta under various key conventions:
-            const rawLat = lm._location_lat ?? lm.location_lat ?? lm.evcal_location_lat ?? lm._evcal_lat ?? '';
-            const rawLng = lm._location_lng ?? lm.location_lng ?? lm.evcal_location_lng ?? lm._evcal_lng ?? '';
-            const lat = rawLat !== '' ? parseFloat(String(rawLat)) : NaN;
-            const lng = rawLng !== '' ? parseFloat(String(rawLng)) : NaN;
-            locationMap.set(loc.id, {
-              name: loc.title?.rendered ? decodeWpText(loc.title.rendered) : '',
-              address: lm._location_address ?? lm.location_address ?? lm.evcal_location_address ?? '',
-              city:    lm._location_city   ?? lm.location_city   ?? lm.evcal_location_city   ?? '',
-              lat:     !isNaN(lat) && lat !== 0 ? lat : undefined,
-              lng:     !isNaN(lng) && lng !== 0 ? lng : undefined,
-            });
-          }
-          locPage++;
-        } while (locPage <= locTotalPages);
-        console.log(`[RSS] Rivierengebied: prefetched ${locationMap.size} locations`);
-        onProgress?.({ logMessage: `${locationMap.size} locaties opgehaald uit locatiedatabase` });
-      } catch (locErr: any) {
-        console.warn(`[RSS] Rivierengebied: ajde_locations fetch failed (${locErr.message}) — will rely on class_list slugs`);
-      }
-
-      // ── Step 3: Fetch all events via REST API with _embed for images ──────
-      const eventTypeParam = eventTypeIds.join(',');
-      const listApiUrl =
-        `${apiBase}/ajde_events` +
-        `?event_type=${eventTypeParam}` +
-        `&per_page=100` +
-        `&status=publish` +
-        `&_embed=true`;
-
-      onProgress?.({ status: 'fetching', message: 'Evenementenlijst ophalen...', logMessage: `Eventlijst ophalen via API (event_type=${eventTypeParam})...` });
+      onProgress?.({ status: 'fetching', message: 'Evenementenlijst ophalen...', logMessage: `Eventlijst ophalen: ${listBase}` });
 
       const rawEvents: any[] = [];
       let page = 1;
       let totalPages = 1;
 
       do {
-        const listResponse = await axios.get(`${listApiUrl}&page=${page}`, {
-          headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'application/json' },
-          timeout: 30000
-        });
-
+        const listResp = await axios.get(`${listBase}&page=${page}`, AX_JSON);
         if (page === 1) {
-          totalPages = parseInt(listResponse.headers['x-wp-totalpages'] || '1', 10);
-          const total = listResponse.headers['x-wp-total'] || '?';
-          console.log(`[RSS] Rivierengebied: ${total} events across ${totalPages} API pages`);
-          onProgress?.({ logMessage: `${total} evenementen gevonden op ${totalPages} API-pagina's` });
+          totalPages = parseInt(listResp.headers['x-wp-totalpages'] || '1', 10);
+          const total = listResp.headers['x-wp-total'] || '?';
+          console.log(`[RSS] LvMW: ${total} events, ${totalPages} pagina's`);
+          onProgress?.({ logMessage: `${total} evenementen gevonden (${totalPages} API-pagina's)` });
 
-          // ── DIAGNOSTIC: log meta keys of first event so we know what's available ──
-          const firstEvent = Array.isArray(listResponse.data) ? listResponse.data[0] : null;
-          if (firstEvent) {
-            const metaKeys = Object.keys(firstEvent.meta || {});
-            console.log(`[RSS] Rivierengebied DIAG: first event id=${firstEvent.id}, meta keys=[${metaKeys.join(',')}], evcal_srow=${firstEvent.meta?.evcal_srow}, evcal_location_id=${firstEvent.meta?.evcal_location_id}`);
+          // Diagnostic: what meta keys does the API actually return?
+          const first = Array.isArray(listResp.data) ? listResp.data[0] : null;
+          if (first) {
+            const metaKeys = Object.keys(first.meta || {});
+            const srow = first.meta?.evcal_srow;
+            const locName = first.meta?.evcal_location_name || first.meta?.evcal_location;
+            console.log(`[RSS] LvMW DIAG: event id=${first.id} meta keys=[${metaKeys.join(',')}] evcal_srow=${srow} evcal_location_name=${locName}`);
+            onProgress?.({ logMessage: `DIAG: meta keys=[${metaKeys.slice(0, 8).join(',')}${metaKeys.length > 8 ? '…' : ''}] srow=${srow}` });
           }
         }
-
-        const pageEvents: any[] = listResponse.data;
-        if (!Array.isArray(pageEvents) || pageEvents.length === 0) break;
+        const pageEvents: any[] = Array.isArray(listResp.data) ? listResp.data : [];
+        if (pageEvents.length === 0) break;
         rawEvents.push(...pageEvents);
         page++;
       } while (page <= totalPages);
+
+      console.log(`[RSS] LvMW: ${rawEvents.length} events opgehaald via API`);
 
       if (rawEvents.length === 0) {
         return { success: true, items: [], error: 'Geen events gevonden via REST API' };
       }
 
-      console.log(`[RSS] Rivierengebied: ${rawEvents.length} total events from API`);
-
-      // ── Step 4: First pass — build items from API data ─────────────────────
-      // Events with evcal_srow in meta get processed immediately (fast path).
-      // Events without are queued for a selective HTML page fetch (slow path).
+      // ── Step 3: First pass — events with evcal_srow in meta (fast path) ──
       const now = Date.now();
       const cutoffMs = now - 24 * 60 * 60 * 1000; // yesterday
 
@@ -4333,7 +4268,6 @@ export class RssFeedService {
         const erow = Number(meta.evcal_erow ?? 0);
 
         if (!srow || isNaN(srow) || srow <= 0) {
-          // No date in meta → defer to page fetch
           needsPageFetch.push(event);
           continue;
         }
@@ -4347,52 +4281,50 @@ export class RssFeedService {
         const rawDesc: string = event.content?.rendered || event.excerpt?.rendered || '';
         const description = rawDesc.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 
-        // Location: from prefetched locationMap via evcal_location_id, else class_list slug
-        const locId = Number(meta.evcal_location_id ?? meta._evcal_location_id ?? 0);
-        const locData: LocData | undefined = locId > 0 ? locationMap.get(locId) : undefined;
-
+        // Location from event meta (EventON copies location data onto the event)
+        const venueName = decodeWpText(
+          meta.evcal_location_name || meta.evcal_location || meta._evcal_location || ''
+        );
+        const streetAddress = meta.evcal_location_addr || meta.evcal_location_address || '';
+        const city = meta.evcal_location_city || '';
         const classList: string[] = event.class_list || [];
-        const locationClass = classList.find((c: string) => c.startsWith('event_location-'));
-        const locationSlug = locationClass ? locationClass.replace('event_location-', '') : '';
-        const locationFromClass = locationSlug ? slugToName(locationSlug) : '';
-
-        const venueName = locData?.name || locationFromClass || '';
-        const streetAddress = locData?.address || '';
-        const addressLocality = locData?.city || '';
-        const addressParts = [streetAddress, addressLocality].filter(Boolean);
+        const locClass = classList.find((c: string) => c.startsWith('event_location-'));
+        const locFromClass = locClass ? slugToName(locClass.replace('event_location-', '')) : '';
+        const resolvedVenue = venueName || locFromClass || '';
+        const addressParts = [streetAddress, city].filter(Boolean);
         const address = addressParts.length > 0
           ? addressParts.join(', ')
-          : (venueName || 'Rivierengebied, Gelderland');
-        const location = venueName || locationFromClass || 'Rivierengebied';
+          : (resolvedVenue || 'Land van Maas en Waal, Gelderland');
+        const location = resolvedVenue || 'Land van Maas en Waal';
 
-        const gpsLat = locData?.lat;
-        const gpsLng = locData?.lng;
-
-        const imageUrl = getEmbeddedImage(event);
+        const rawLat = meta.evcal_location_lat || meta.evcal_loc_lat || '';
+        const rawLng = meta.evcal_location_lng || meta.evcal_loc_lng || '';
+        const latitude  = rawLat !== '' && !isNaN(parseFloat(String(rawLat))) ? parseFloat(String(rawLat)) : undefined;
+        const longitude = rawLng !== '' && !isNaN(parseFloat(String(rawLng))) ? parseFloat(String(rawLng)) : undefined;
 
         items.push({
-          externalId: `uitinderegio-rivierengebied-${event.id}`,
+          externalId: `uitinderegio-maasenwaal-${event.id}`,
           title,
           description,
           link: event.link,
-          imageUrl,
+          imageUrl: '',
           publishedAt: startTime,
           startTime,
           endTime: erow > 0 ? new Date(erow * 1000) : undefined,
           location,
           address,
-          venueName: venueName || undefined,
-          latitude: gpsLat && !isNaN(gpsLat) ? gpsLat : undefined,
-          longitude: gpsLng && !isNaN(gpsLng) ? gpsLng : undefined,
-          rawData: { source: 'uitinderegio-rivierengebied', dateSource: 'meta' }
+          venueName: resolvedVenue || undefined,
+          latitude,
+          longitude,
+          rawData: { source: 'uitinderegio-maasenwaal', dateSource: 'meta' }
         });
         dateFromMeta++;
       }
 
-      // ── Step 5: Selective HTML page fetches for events without meta dates ──
-      // Cap at MAX_PAGE_FETCHES to avoid 45-minute syncs while still being useful.
-      // Past-event filtering happens after we parse the date from the page.
-      const MAX_PAGE_FETCHES = 150;
+      onProgress?.({ logMessage: `Eerste pass: ${dateFromMeta} met meta-datum, ${needsPageFetch.length} zonder → pagina ophalen` });
+
+      // ── Step 4: Selective page fetches for events without meta dates ───────
+      const MAX_PAGE_FETCHES = 200;
       const toFetch = needsPageFetch.slice(0, MAX_PAGE_FETCHES);
       let dateFromPage = 0;
       let skippedNoDate = 0;
@@ -4400,27 +4332,21 @@ export class RssFeedService {
       if (toFetch.length > 0) {
         onProgress?.({
           status: 'fetching',
-          message: `${toFetch.length} events nader ophalen...`,
-          logMessage: `${toFetch.length} events zonder datum-meta → pagina ophalen (max ${MAX_PAGE_FETCHES})`
+          message: `${toFetch.length} evenementenpagina's ophalen...`,
+          logMessage: `${toFetch.length} events zonder srow → JSON-LD parse (max ${MAX_PAGE_FETCHES})`
         });
 
         for (let i = 0; i < toFetch.length; i++) {
           const event = toFetch[i];
+          if (i > 0 && i % 20 === 0) {
+            onProgress?.({ logMessage: `Pagina's ophalen: ${i}/${toFetch.length}...` });
+          }
           try {
-            if (i > 0 && i % 10 === 0) {
-              onProgress?.({ logMessage: `Pagina's ophalen: ${i}/${toFetch.length}...` });
-            }
+            await new Promise(r => setTimeout(r, 80)); // polite delay
 
-            await new Promise(r => setTimeout(r, 100)); // polite delay
+            const pageResp = await axios.get(event.link, AX_HTML);
+            const $ = cheerio.load(pageResp.data);
 
-            const pageResponse = await axios.get(event.link, {
-              headers: { 'User-Agent': this.USER_AGENT, 'Accept': 'text/html,application/xhtml+xml' },
-              timeout: 12000
-            });
-
-            const $ = cheerio.load(pageResponse.data);
-
-            // Parse JSON-LD for dates and location
             let startTime: Date | undefined;
             let endTime: Date | undefined;
             let jsonLdVenue = '';
@@ -4431,21 +4357,22 @@ export class RssFeedService {
             $('script[type="application/ld+json"]').each((_, el) => {
               try {
                 const raw = JSON.parse($(el).html() || '');
-                // Normalise: handle plain object, array, or @graph wrapper
+                // Support plain object, array, and @graph wrapper
                 const candidates: any[] = Array.isArray(raw)
                   ? raw
-                  : (raw['@graph'] ? (Array.isArray(raw['@graph']) ? raw['@graph'] : [raw['@graph']]) : [raw]);
-                const eventNode = candidates.find((n: any) => n['@type'] === 'Event');
-                if (eventNode) {
-                  if (!startTime && eventNode.startDate) startTime = parseEventDate(eventNode.startDate);
-                  if (!endTime && eventNode.endDate) endTime = parseEventDate(eventNode.endDate);
-                  const loc = eventNode.location;
-                  const locObj = Array.isArray(loc) ? loc[0] : loc;
-                  if (locObj) {
-                    jsonLdVenue = locObj.name || '';
-                    jsonLdAddress = locObj.address?.streetAddress || '';
-                    jsonLdLat = locObj.geo?.latitude ? parseFloat(String(locObj.geo.latitude)) : undefined;
-                    jsonLdLng = locObj.geo?.longitude ? parseFloat(String(locObj.geo.longitude)) : undefined;
+                  : raw['@graph']
+                    ? (Array.isArray(raw['@graph']) ? raw['@graph'] : [raw['@graph']])
+                    : [raw];
+                const node = candidates.find((n: any) => n['@type'] === 'Event');
+                if (node) {
+                  if (!startTime && node.startDate) startTime = parseEventDate(node.startDate);
+                  if (!endTime   && node.endDate)   endTime   = parseEventDate(node.endDate);
+                  const loc = Array.isArray(node.location) ? node.location[0] : node.location;
+                  if (loc) {
+                    jsonLdVenue   = loc.name || '';
+                    jsonLdAddress = loc.address?.streetAddress || '';
+                    jsonLdLat = loc.geo?.latitude  ? parseFloat(String(loc.geo.latitude))  : undefined;
+                    jsonLdLng = loc.geo?.longitude ? parseFloat(String(loc.geo.longitude)) : undefined;
                   }
                 }
               } catch { /* malformed JSON-LD */ }
@@ -4453,42 +4380,40 @@ export class RssFeedService {
 
             if (!startTime || startTime.getTime() < cutoffMs) { skippedNoDate++; continue; }
 
-            const meta = event.meta || {};
             const title = event.title?.rendered ? decodeWpText(event.title.rendered) : '';
             if (!title) { skippedNoTitle++; continue; }
 
             const rawDesc: string = event.content?.rendered || event.excerpt?.rendered || '';
             const description = rawDesc.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 
-            // Location: locationMap → JSON-LD → class_list
-            const locId = Number(meta.evcal_location_id ?? meta._evcal_location_id ?? 0);
-            const locData: LocData | undefined = locId > 0 ? locationMap.get(locId) : undefined;
-
+            const meta = event.meta || {};
+            const venueFromMeta = decodeWpText(
+              meta.evcal_location_name || meta.evcal_location || meta._evcal_location || ''
+            );
             const classList: string[] = event.class_list || [];
-            const locationClass = classList.find((c: string) => c.startsWith('event_location-'));
-            const locationSlug = locationClass ? locationClass.replace('event_location-', '') : '';
-            const locationFromClass = locationSlug ? slugToName(locationSlug) : '';
+            const locClass = classList.find((c: string) => c.startsWith('event_location-'));
+            const locFromClass = locClass ? slugToName(locClass.replace('event_location-', '')) : '';
+            const resolvedVenue = venueFromMeta || jsonLdVenue || locFromClass || '';
 
-            const venueName = locData?.name || jsonLdVenue || locationFromClass || '';
-            const streetAddress = locData?.address || jsonLdAddress || '';
-            const addressLocality = locData?.city || '';
-            const addressParts = [streetAddress, addressLocality].filter(Boolean);
+            const streetAddress = meta.evcal_location_addr || meta.evcal_location_address || jsonLdAddress || '';
+            const city = meta.evcal_location_city || '';
+            const addressParts = [streetAddress, city].filter(Boolean);
             const address = addressParts.length > 0
               ? addressParts.join(', ')
-              : (venueName || 'Rivierengebied, Gelderland');
-            const location = venueName || locationFromClass || 'Rivierengebied';
+              : (resolvedVenue || 'Land van Maas en Waal, Gelderland');
+            const location = resolvedVenue || 'Land van Maas en Waal';
 
-            const gpsLat = locData?.lat ?? (jsonLdLat && !isNaN(jsonLdLat) ? jsonLdLat : undefined);
-            const gpsLng = locData?.lng ?? (jsonLdLng && !isNaN(jsonLdLng) ? jsonLdLng : undefined);
+            const rawLat = meta.evcal_location_lat || meta.evcal_loc_lat;
+            const rawLng = meta.evcal_location_lng || meta.evcal_loc_lng;
+            const latitude  = rawLat && !isNaN(parseFloat(String(rawLat))) ? parseFloat(String(rawLat))
+              : (jsonLdLat && !isNaN(jsonLdLat) ? jsonLdLat : undefined);
+            const longitude = rawLng && !isNaN(parseFloat(String(rawLng))) ? parseFloat(String(rawLng))
+              : (jsonLdLng && !isNaN(jsonLdLng) ? jsonLdLng : undefined);
 
-            // Image: embedded first, then og:image from page
-            let imageUrl = getEmbeddedImage(event);
-            if (!imageUrl) {
-              imageUrl = $('meta[property="og:image"]').attr('content') || '';
-            }
+            const imageUrl = $('meta[property="og:image"]').attr('content') || '';
 
             items.push({
-              externalId: `uitinderegio-rivierengebied-${event.id}`,
+              externalId: `uitinderegio-maasenwaal-${event.id}`,
               title,
               description,
               link: event.link,
@@ -4498,48 +4423,38 @@ export class RssFeedService {
               endTime,
               location,
               address,
-              venueName: venueName || undefined,
-              latitude: gpsLat && !isNaN(gpsLat) ? gpsLat : undefined,
-              longitude: gpsLng && !isNaN(gpsLng) ? gpsLng : undefined,
-              rawData: { source: 'uitinderegio-rivierengebied', dateSource: 'page' }
+              venueName: resolvedVenue || undefined,
+              latitude,
+              longitude,
+              rawData: { source: 'uitinderegio-maasenwaal', dateSource: 'page' }
             });
             dateFromPage++;
           } catch (err: any) {
-            console.log(`[RSS] Rivierengebied: page fetch failed for event ${event.id}: ${err.message}`);
+            console.log(`[RSS] LvMW: pagina mislukt event ${event.id}: ${err.message}`);
             skippedNoDate++;
           }
         }
 
-        // Events beyond MAX_PAGE_FETCHES are silently dropped (past + future unknown)
         skippedNoDate += needsPageFetch.length - toFetch.length;
       }
 
-      // ── Step 6: Quality log ───────────────────────────────────────────────
+      // ── Step 5: Quality log ───────────────────────────────────────────────
       const syncSecs = ((Date.now() - fetchStart) / 1000).toFixed(1);
-      // GPS from location-map: items from the meta-fast-path (no page fetch) with coordinates.
-      // These coordinates always come from the prefetched ajde_locations map.
-      const withGpsFromMap  = items.filter(it =>
-        it.latitude && it.longitude && it.rawData?.dateSource === 'meta'
-      ).length;
-      // GPS from page fallback: items from the page-fetch path (JSON-LD) with coordinates.
-      const withGpsFromPage = items.filter(it =>
-        it.latitude && it.longitude && it.rawData?.dateSource === 'page'
-      ).length;
-      const withGpsAny = withGpsFromMap + withGpsFromPage;
+      const withGpsFromMeta = items.filter(it => it.latitude && it.rawData?.dateSource === 'meta').length;
+      const withGpsFromPage = items.filter(it => it.latitude && it.rawData?.dateSource === 'page').length;
       const qualityLines = [
         `╔══════════════════════════════════════════════════╗`,
-        `║  Rivierengebied sync-rapport                     ║`,
+        `║  Land van Maas en Waal sync-rapport              ║`,
         `╚══════════════════════════════════════════════════╝`,
-        `API events gevonden:      ${rawEvents.length}`,
-        `Datum uit meta (snel):    ${dateFromMeta}`,
-        `Datum via pagina (JSON-LD): ${dateFromPage} (van ${toFetch.length} geprobeerd)`,
+        `API events gevonden:        ${rawEvents.length}`,
+        `Datum uit meta (snel):      ${dateFromMeta}`,
+        `Datum via JSON-LD (pagina): ${dateFromPage} (van ${toFetch.length} geprobeerd)`,
         `Overgeslagen (verleden/geen datum): ${skippedPast + skippedNoDate}`,
-        `Locaties in database map: ${locationMap.size}`,
-        `Met GPS (locmap):           ${withGpsFromMap}`,
-        `Met GPS (JSON-LD pagina):   ${withGpsFromPage}`,
-        `Met GPS totaal:             ${withGpsAny}/${items.length}`,
-        `Totaal geïmporteerd:      ${items.length}`,
-        `Sync-tijd:                ${syncSecs}s`,
+        `Met GPS (meta):             ${withGpsFromMeta}`,
+        `Met GPS (JSON-LD):          ${withGpsFromPage}`,
+        `Met GPS totaal:             ${withGpsFromMeta + withGpsFromPage}/${items.length}`,
+        `Totaal geïmporteerd:        ${items.length}`,
+        `Sync-tijd:                  ${syncSecs}s`,
       ];
       for (const line of qualityLines) {
         console.log(`[RSS] ${line}`);
@@ -4548,7 +4463,7 @@ export class RssFeedService {
 
       return { success: true, items };
     } catch (error: any) {
-      console.error(`[RSS] Rivierengebied scrape error:`, error.message);
+      console.error(`[RSS] LvMW scrape error:`, error.message);
       return { success: false, items: [], error: error.message };
     }
   }

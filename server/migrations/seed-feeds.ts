@@ -147,6 +147,7 @@ export async function seedFeeds(): Promise<void> {
             defaultAddress: feed.defaultAddress || null,
             updateFrequencyMinutes: feed.updateFrequencyMinutes,
             scraperConfig: feed.scraperConfig || null,
+            fieldMappings: feed.fieldMappings || null,
           })
           .where(eq(rssFeeds.id, existing.id));
         updated++;
@@ -165,6 +166,7 @@ export async function seedFeeds(): Promise<void> {
           updateFrequencyMinutes: feed.updateFrequencyMinutes,
           autoCreateEvents: true,
           scraperConfig: feed.scraperConfig || null,
+          fieldMappings: feed.fieldMappings || null,
         });
         inserted++;
       }

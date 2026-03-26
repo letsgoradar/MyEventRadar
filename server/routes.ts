@@ -2393,7 +2393,11 @@ Respond with ONLY the search term, nothing else.`,
       // Sync config changes to feeds-config.json for future deployments
       if (updatedFeed) {
         try {
-          const { upsertFeedInConfig } = await import('./migrations/seed-feeds');
+          const { upsertFeedInConfig, removeFeedFromConfig } = await import('./migrations/seed-feeds');
+          // If URL changed, remove old entry first to avoid stale duplicates
+          if (existingFeed.url !== updatedFeed.url) {
+            removeFeedFromConfig(existingFeed.url);
+          }
           upsertFeedInConfig({
             name: updatedFeed.name,
             url: updatedFeed.url,

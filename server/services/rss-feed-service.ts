@@ -4430,11 +4430,16 @@ export class RssFeedService {
 
             $('script[type="application/ld+json"]').each((_, el) => {
               try {
-                const parsed = JSON.parse($(el).html() || '');
-                if (parsed['@type'] === 'Event') {
-                  if (!startTime && parsed.startDate) startTime = parseEventDate(parsed.startDate);
-                  if (!endTime && parsed.endDate) endTime = parseEventDate(parsed.endDate);
-                  const loc = parsed.location;
+                const raw = JSON.parse($(el).html() || '');
+                // Normalise: handle plain object, array, or @graph wrapper
+                const candidates: any[] = Array.isArray(raw)
+                  ? raw
+                  : (raw['@graph'] ? (Array.isArray(raw['@graph']) ? raw['@graph'] : [raw['@graph']]) : [raw]);
+                const eventNode = candidates.find((n: any) => n['@type'] === 'Event');
+                if (eventNode) {
+                  if (!startTime && eventNode.startDate) startTime = parseEventDate(eventNode.startDate);
+                  if (!endTime && eventNode.endDate) endTime = parseEventDate(eventNode.endDate);
+                  const loc = eventNode.location;
                   const locObj = Array.isArray(loc) ? loc[0] : loc;
                   if (locObj) {
                     jsonLdVenue = locObj.name || '';
@@ -4511,19 +4516,30 @@ export class RssFeedService {
 
       // ── Step 6: Quality log ───────────────────────────────────────────────
       const syncSecs = ((Date.now() - fetchStart) / 1000).toFixed(1);
-      const withGps = items.filter(it => it.latitude && it.longitude).length;
+      // GPS from location-map: items from the meta-fast-path (no page fetch) with coordinates.
+      // These coordinates always come from the prefetched ajde_locations map.
+      const withGpsFromMap  = items.filter(it =>
+        it.latitude && it.longitude && it.rawData?.dateSource === 'meta'
+      ).length;
+      // GPS from page fallback: items from the page-fetch path (JSON-LD) with coordinates.
+      const withGpsFromPage = items.filter(it =>
+        it.latitude && it.longitude && it.rawData?.dateSource === 'page'
+      ).length;
+      const withGpsAny = withGpsFromMap + withGpsFromPage;
       const qualityLines = [
         `╔══════════════════════════════════════════════════╗`,
         `║  Rivierengebied sync-rapport                     ║`,
         `╚══════════════════════════════════════════════════╝`,
-        `API events gevonden:  ${rawEvents.length}`,
-        `Datum uit meta:       ${dateFromMeta}`,
-        `Datum via pagina:     ${dateFromPage} (van ${toFetch.length} geprobeerd)`,
+        `API events gevonden:      ${rawEvents.length}`,
+        `Datum uit meta (snel):    ${dateFromMeta}`,
+        `Datum via pagina (JSON-LD): ${dateFromPage} (van ${toFetch.length} geprobeerd)`,
         `Overgeslagen (verleden/geen datum): ${skippedPast + skippedNoDate}`,
-        `Locaties in map:      ${locationMap.size}`,
-        `Met GPS:              ${withGps}/${items.length}`,
-        `Totaal geïmporteerd:  ${items.length}`,
-        `Sync-tijd:            ${syncSecs}s`,
+        `Locaties in database map: ${locationMap.size}`,
+        `Met GPS (locmap):           ${withGpsFromMap}`,
+        `Met GPS (JSON-LD pagina):   ${withGpsFromPage}`,
+        `Met GPS totaal:             ${withGpsAny}/${items.length}`,
+        `Totaal geïmporteerd:      ${items.length}`,
+        `Sync-tijd:                ${syncSecs}s`,
       ];
       for (const line of qualityLines) {
         console.log(`[RSS] ${line}`);

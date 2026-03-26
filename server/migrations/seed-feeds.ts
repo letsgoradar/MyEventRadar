@@ -102,10 +102,8 @@ export async function seedFeeds(): Promise<void> {
     // One-time URL migrations: update old URLs to new ones before upsert loop
     const URL_RENAMES: Array<{ from: string; to: string }> = [
       { from: 'https://www.dordrecht.net/agenda', to: 'https://www.dordrecht.net/rss/agenda' },
-      { from: 'https://evenementen.uitinderegio.nl/landvanmaasenwaal/', to: 'https://evenementen.uitinderegio.nl/landvanmaasenwaal/' },
     ];
     for (const rename of URL_RENAMES) {
-      if (rename.from === rename.to) continue;
       const [existing] = await db.select({ id: rssFeeds.id }).from(rssFeeds).where(eq(rssFeeds.url, rename.from));
       if (existing) {
         await db.update(rssFeeds).set({ url: rename.to }).where(eq(rssFeeds.id, existing.id));
@@ -113,15 +111,20 @@ export async function seedFeeds(): Promise<void> {
       }
     }
 
-    // Merge hardcoded FEEDS with user-created feeds from feeds-config.json
-    // URL is the unique key — hardcoded FEEDS take priority over config file for duplicates
+    // Merge hardcoded FEEDS (baseline) with feeds-config.json (admin overrides).
+    // Config wins for duplicate URLs so that admin edits to bundled feeds persist
+    // across deployments. New entries in config are appended after the baseline.
     const configFeeds = readFeedsConfig();
-    const hardcodedUrls = new Set(FEEDS.map(f => f.url));
-    const extraFeeds = configFeeds.filter(f => !hardcodedUrls.has(f.url));
-    const allFeeds = [...FEEDS, ...extraFeeds];
+    const feedMap = new Map<string, FeedConfig>();
+    for (const f of FEEDS) feedMap.set(f.url, f);
+    for (const f of configFeeds) feedMap.set(f.url, f); // config overrides bundled
 
-    if (extraFeeds.length > 0) {
-      console.log(`[Seed Feeds] Loading ${extraFeeds.length} extra feed(s) from feeds-config.json`);
+    const allFeeds = Array.from(feedMap.values());
+    const overrideCount = configFeeds.filter(f => FEEDS.some(b => b.url === f.url)).length;
+    const newCount = configFeeds.length - overrideCount;
+
+    if (configFeeds.length > 0) {
+      console.log(`[Seed Feeds] feeds-config.json: ${overrideCount} override(s), ${newCount} new feed(s)`);
     }
 
     let inserted = 0;
@@ -172,7 +175,7 @@ export async function seedFeeds(): Promise<void> {
       }
     }
 
-    console.log(`[Seed Feeds] Done: ${inserted} added, ${updated} updated (${allFeeds.length} total: ${FEEDS.length} bundled + ${extraFeeds.length} from config)`);
+    console.log(`[Seed Feeds] Done: ${inserted} added, ${updated} updated (${allFeeds.length} total: ${FEEDS.length} bundled, ${configFeeds.length} from config)`);
   } catch (error: any) {
     console.error('[Seed Feeds] Error:', error.message);
   }

@@ -1,8 +1,27 @@
 import { db } from "../db";
 import { rssFeeds } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import * as fs from "fs";
+import * as path from "path";
 
-const FEEDS = [
+const FEEDS_CONFIG_PATH = path.join(process.cwd(), "server", "migrations", "feeds-config.json");
+
+type FeedConfig = {
+  name: string;
+  url: string;
+  feedType: string;
+  province?: string;
+  municipality?: string;
+  defaultCategory: string;
+  defaultLatitude?: string;
+  defaultLongitude?: string;
+  defaultAddress?: string;
+  updateFrequencyMinutes: number;
+  scraperConfig?: any;
+  fieldMappings?: any;
+};
+
+const FEEDS: FeedConfig[] = [
   { name: "This Is Eindhoven Events", url: "https://www.thisiseindhoven.com/en/events", feedType: "scraper", province: "Noord-Brabant", municipality: "Eindhoven", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "51.4416", defaultLongitude: "5.4697", defaultAddress: "Eindhoven Centrum", updateFrequencyMinutes: 120 },
   { name: "Visit Helmond", url: "https://www.visithelmond.nl/nl/agenda", feedType: "scraper", province: "Noord-Brabant", municipality: "Helmond", defaultCategory: "Gezellig en Sociaal", defaultAddress: "Helmond, Netherlands", updateFrequencyMinutes: 1440 },
   { name: "Bezoek Meierijstad", url: "https://www.bezoekmeierijstad.nl/agenda", feedType: "scraper", province: "Noord-Brabant", municipality: "Meierijstad", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "51.6167", defaultLongitude: "5.5500", defaultAddress: "Veghel, Meierijstad", updateFrequencyMinutes: 720 },
@@ -33,17 +52,60 @@ const FEEDS = [
   { name: "visitmaastricht.com - Maastricht", url: "https://www.visitmaastricht.com/nl/uitagenda", feedType: "scraper", province: "Limburg", municipality: "Maastricht", defaultCategory: "community", updateFrequencyMinutes: 360, scraperConfig: {"hasJsonLd": true, "pagination": {"type": "query", "maxPages": 6, "paramName": "page"}, "aiGenerated": true, "cardSelector": "li.tiles__tile[itemtype*=\"schema.org/Event\"]", "preferJsonLd": true, "detailSelectors": {"date": "p.item__date", "title": "h1.item__title", "description": ".item-details__intro"}, "overviewSelectors": {"title": "span.tiles__title-txt", "eventCard": "li.tiles__tile[itemtype*=\"schema.org/Event\"]"}, "requiresJsRendering": false} },
   { name: "Heerlen Mijn Stad - Uitagenda", url: "https://heerlenmijnstad.nl/uitagenda", feedType: "scraper", province: "Limburg", municipality: "Heerlen", defaultCategory: "community", updateFrequencyMinutes: 360, scraperConfig: {"hasJsonLd": false, "aiGenerated": true, "cardSelector": "div:has(> a):has(img)", "detailSelectors": {"date": "figure.relative span.text-white/80", "title": "figure.relative h2", "description": "article div.prose"}, "overviewSelectors": {"date": "h6", "link": "a", "image": "img", "title": "h4", "eventCard": "div:has(> a):has(img)"}, "requiresJsRendering": true} },
   { name: "Assen", url: "https://www.ditisassen.nl/nl/agenda/agenda-overzicht", feedType: "scraper", province: "Drenthe", municipality: "Assen", defaultCategory: "community", updateFrequencyMinutes: 360 },
-  { name: "Uit in de Regio - Rivierengebied", url: "https://evenementen.uitinderegio.nl/landvanmaasenwaal/", feedType: "scraper", province: "Gelderland", municipality: "Rivierengebied", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "51.8700", defaultLongitude: "5.3500", defaultAddress: "Rivierengebied, Gelderland", updateFrequencyMinutes: 360 },
+  { name: "Uit in de Regio - Land van Maas en Waal", url: "https://evenementen.uitinderegio.nl/landvanmaasenwaal/", feedType: "scraper", province: "Gelderland", municipality: "Rivierengebied", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "51.8700", defaultLongitude: "5.3500", defaultAddress: "Rivierengebied, Gelderland", updateFrequencyMinutes: 360 },
+  { name: "Uit in de Regio - Bommelerwaard", url: "https://evenementen.uitinderegio.nl/bommelerwaard/", feedType: "scraper", province: "Gelderland", municipality: "Bommelerwaard", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "51.7700", defaultLongitude: "5.2000", defaultAddress: "Bommelerwaard, Gelderland", updateFrequencyMinutes: 360 },
+  { name: "Uit in de Regio - Betuwe", url: "https://evenementen.uitinderegio.nl/betuwe/", feedType: "scraper", province: "Gelderland", municipality: "Betuwe", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "51.8800", defaultLongitude: "5.4300", defaultAddress: "Betuwe, Gelderland", updateFrequencyMinutes: 360 },
+  { name: "Uit in de Regio - West Betuwe", url: "https://evenementen.uitinderegio.nl/beleef-west-betuwe/", feedType: "scraper", province: "Gelderland", municipality: "West Betuwe", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "51.8900", defaultLongitude: "5.1100", defaultAddress: "West Betuwe, Gelderland", updateFrequencyMinutes: 360 },
   { name: "I Amsterdam - Uitagenda", url: "https://www.iamsterdam.com/uit/agenda", feedType: "scraper", province: "Noord-Holland", municipality: "Amsterdam", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "52.3676", defaultLongitude: "4.9041", defaultAddress: "Amsterdam", updateFrequencyMinutes: 360 },
 ];
+
+function readFeedsConfig(): FeedConfig[] {
+  try {
+    if (fs.existsSync(FEEDS_CONFIG_PATH)) {
+      const raw = fs.readFileSync(FEEDS_CONFIG_PATH, "utf8");
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return [];
+}
+
+export function writeFeedsConfig(feeds: FeedConfig[]): void {
+  try {
+    fs.writeFileSync(FEEDS_CONFIG_PATH, JSON.stringify(feeds, null, 2), "utf8");
+  } catch (err: any) {
+    console.error("[Seed Feeds] Could not write feeds-config.json:", err.message);
+  }
+}
+
+export function upsertFeedInConfig(feed: FeedConfig): void {
+  const existing = readFeedsConfig();
+  const idx = existing.findIndex(f => f.url === feed.url);
+  if (idx >= 0) {
+    existing[idx] = feed;
+  } else {
+    existing.push(feed);
+  }
+  writeFeedsConfig(existing);
+}
+
+export function removeFeedFromConfig(url: string): void {
+  const existing = readFeedsConfig();
+  const updated = existing.filter(f => f.url !== url);
+  writeFeedsConfig(updated);
+}
 
 export async function seedFeeds(): Promise<void> {
   try {
     // One-time URL migrations: update old URLs to new ones before upsert loop
     const URL_RENAMES: Array<{ from: string; to: string }> = [
       { from: 'https://www.dordrecht.net/agenda', to: 'https://www.dordrecht.net/rss/agenda' },
+      { from: 'https://evenementen.uitinderegio.nl/landvanmaasenwaal/', to: 'https://evenementen.uitinderegio.nl/landvanmaasenwaal/' },
     ];
     for (const rename of URL_RENAMES) {
+      if (rename.from === rename.to) continue;
       const [existing] = await db.select({ id: rssFeeds.id }).from(rssFeeds).where(eq(rssFeeds.url, rename.from));
       if (existing) {
         await db.update(rssFeeds).set({ url: rename.to }).where(eq(rssFeeds.id, existing.id));
@@ -51,10 +113,21 @@ export async function seedFeeds(): Promise<void> {
       }
     }
 
+    // Merge hardcoded FEEDS with user-created feeds from feeds-config.json
+    // URL is the unique key — hardcoded FEEDS take priority over config file for duplicates
+    const configFeeds = readFeedsConfig();
+    const hardcodedUrls = new Set(FEEDS.map(f => f.url));
+    const extraFeeds = configFeeds.filter(f => !hardcodedUrls.has(f.url));
+    const allFeeds = [...FEEDS, ...extraFeeds];
+
+    if (extraFeeds.length > 0) {
+      console.log(`[Seed Feeds] Loading ${extraFeeds.length} extra feed(s) from feeds-config.json`);
+    }
+
     let inserted = 0;
     let updated = 0;
 
-    for (const feed of FEEDS) {
+    for (const feed of allFeeds) {
       const [existing] = await db
         .select({ id: rssFeeds.id })
         .from(rssFeeds)
@@ -73,7 +146,7 @@ export async function seedFeeds(): Promise<void> {
             defaultLongitude: feed.defaultLongitude || null,
             defaultAddress: feed.defaultAddress || null,
             updateFrequencyMinutes: feed.updateFrequencyMinutes,
-            scraperConfig: (feed as any).scraperConfig || null,
+            scraperConfig: feed.scraperConfig || null,
           })
           .where(eq(rssFeeds.id, existing.id));
         updated++;
@@ -91,13 +164,13 @@ export async function seedFeeds(): Promise<void> {
           defaultAddress: feed.defaultAddress || null,
           updateFrequencyMinutes: feed.updateFrequencyMinutes,
           autoCreateEvents: true,
-          scraperConfig: (feed as any).scraperConfig || null,
+          scraperConfig: feed.scraperConfig || null,
         });
         inserted++;
       }
     }
 
-    console.log(`[Seed Feeds] Done: ${inserted} added, ${updated} updated (${FEEDS.length} total in manifest)`);
+    console.log(`[Seed Feeds] Done: ${inserted} added, ${updated} updated (${allFeeds.length} total: ${FEEDS.length} bundled + ${extraFeeds.length} from config)`);
   } catch (error: any) {
     console.error('[Seed Feeds] Error:', error.message);
   }

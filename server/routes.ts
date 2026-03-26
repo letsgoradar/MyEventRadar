@@ -2338,7 +2338,7 @@ Respond with ONLY the search term, nothing else.`,
 
   app.post("/api/admin/rss-feeds", isAdmin, async (req, res) => {
     try {
-      const { name, url, feedType, defaultCategory, defaultLatitude, defaultLongitude, defaultAddress, updateFrequencyMinutes, autoCreateEvents, municipality, fieldMappings } = req.body;
+      const { name, url, feedType, defaultCategory, defaultLatitude, defaultLongitude, defaultAddress, updateFrequencyMinutes, autoCreateEvents, municipality, province, fieldMappings, scraperConfig } = req.body;
       
       if (!name || !url || !defaultCategory) {
         return res.status(400).json({ message: "Name, URL, and default category are required" });
@@ -2356,8 +2356,18 @@ Respond with ONLY the search term, nothing else.`,
         updateFrequencyMinutes: updateFrequencyMinutes || 60,
         autoCreateEvents: autoCreateEvents !== false,
         municipality: municipality || null,
-        fieldMappings: fieldMappings || null
+        province: province || null,
+        fieldMappings: fieldMappings || null,
+        scraperConfig: scraperConfig || null,
       });
+
+      // Persist to feeds-config.json so this feed is included in future deployments
+      try {
+        const { upsertFeedInConfig } = await import('./migrations/seed-feeds');
+        upsertFeedInConfig({ name, url, feedType: feedType || 'rss', defaultCategory, municipality: municipality || undefined, province: province || undefined, defaultLatitude: defaultLatitude || undefined, defaultLongitude: defaultLongitude || undefined, defaultAddress: defaultAddress || undefined, updateFrequencyMinutes: updateFrequencyMinutes || 60, scraperConfig: scraperConfig || undefined, fieldMappings: fieldMappings || undefined });
+      } catch (cfgErr: any) {
+        console.warn('[Feeds] Could not write to feeds-config.json:', cfgErr.message);
+      }
 
       res.status(201).json(feed);
     } catch (error) {
@@ -2379,6 +2389,30 @@ Respond with ONLY the search term, nothing else.`,
       }
 
       const updatedFeed = await storage.updateRssFeed(feedId, req.body);
+
+      // Sync config changes to feeds-config.json for future deployments
+      if (updatedFeed) {
+        try {
+          const { upsertFeedInConfig } = await import('./migrations/seed-feeds');
+          upsertFeedInConfig({
+            name: updatedFeed.name,
+            url: updatedFeed.url,
+            feedType: updatedFeed.feedType,
+            defaultCategory: updatedFeed.defaultCategory,
+            municipality: updatedFeed.municipality || undefined,
+            province: updatedFeed.province || undefined,
+            defaultLatitude: updatedFeed.defaultLatitude || undefined,
+            defaultLongitude: updatedFeed.defaultLongitude || undefined,
+            defaultAddress: updatedFeed.defaultAddress || undefined,
+            updateFrequencyMinutes: updatedFeed.updateFrequencyMinutes,
+            scraperConfig: updatedFeed.scraperConfig || undefined,
+            fieldMappings: updatedFeed.fieldMappings || undefined,
+          });
+        } catch (cfgErr: any) {
+          console.warn('[Feeds] Could not write to feeds-config.json:', cfgErr.message);
+        }
+      }
+
       res.json(updatedFeed);
     } catch (error) {
       console.error('Error in PATCH /api/admin/rss-feeds/:id:', error);
@@ -2413,7 +2447,17 @@ Respond with ONLY the search term, nothing else.`,
 
       const feedToDelete = await storage.getRssFeed(feedId);
       await storage.deleteRssFeed(feedId);
-      
+
+      // Remove from feeds-config.json so it doesn't reappear after deployment
+      if (feedToDelete?.url) {
+        try {
+          const { removeFeedFromConfig } = await import('./migrations/seed-feeds');
+          removeFeedFromConfig(feedToDelete.url);
+        } catch (cfgErr: any) {
+          console.warn('[Feeds] Could not update feeds-config.json:', cfgErr.message);
+        }
+      }
+
       await storage.logActivity({
         userId: req.user!.id,
         activityType: 'admin_action',

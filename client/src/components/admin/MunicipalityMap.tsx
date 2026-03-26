@@ -83,7 +83,7 @@ export default function MunicipalityMap({ onSelectMunicipality, onAddFeed }: Mun
 
   const municipalityMutation = useMutation({
     mutationFn: ({ feedId, municipality }: { feedId: number; municipality: string | null }) =>
-      apiRequest('PATCH', `/api/admin/rss-feeds/${feedId}`, { municipality }),
+      apiRequest(`/api/admin/rss-feeds/${feedId}`, { method: 'PATCH', data: { municipality } }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/municipalities'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/unlinked'] });

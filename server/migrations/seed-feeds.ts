@@ -59,42 +59,61 @@ const FEEDS: FeedConfig[] = [
   { name: "I Amsterdam - Uitagenda", url: "https://www.iamsterdam.com/uit/agenda", feedType: "scraper", province: "Noord-Holland", municipality: "Amsterdam", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "52.3676", defaultLongitude: "4.9041", defaultAddress: "Amsterdam", updateFrequencyMinutes: 360 },
 ];
 
-function readFeedsConfig(): FeedConfig[] {
+type FeedsConfigFile = {
+  feeds: FeedConfig[];
+  deleted: string[]; // tombstones: URLs of admin-deleted feeds (prevents re-seeding bundled entries)
+};
+
+function readFeedsConfigFile(): FeedsConfigFile {
   try {
     if (fs.existsSync(FEEDS_CONFIG_PATH)) {
       const raw = fs.readFileSync(FEEDS_CONFIG_PATH, "utf8");
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      // Handle legacy format (plain array)
+      if (Array.isArray(parsed)) return { feeds: parsed, deleted: [] };
+      if (parsed && typeof parsed === "object") {
+        return {
+          feeds: Array.isArray(parsed.feeds) ? parsed.feeds : [],
+          deleted: Array.isArray(parsed.deleted) ? parsed.deleted : [],
+        };
+      }
     }
   } catch {
-    // ignore parse errors
+    // ignore parse/read errors
   }
-  return [];
+  return { feeds: [], deleted: [] };
 }
 
-export function writeFeedsConfig(feeds: FeedConfig[]): void {
+function writeFeedsConfigFile(data: FeedsConfigFile): void {
   try {
-    fs.writeFileSync(FEEDS_CONFIG_PATH, JSON.stringify(feeds, null, 2), "utf8");
+    fs.writeFileSync(FEEDS_CONFIG_PATH, JSON.stringify(data, null, 2), "utf8");
   } catch (err: any) {
     console.error("[Seed Feeds] Could not write feeds-config.json:", err.message);
   }
 }
 
 export function upsertFeedInConfig(feed: FeedConfig): void {
-  const existing = readFeedsConfig();
-  const idx = existing.findIndex(f => f.url === feed.url);
+  const data = readFeedsConfigFile();
+  // Remove from tombstones (admin re-created a previously deleted feed)
+  data.deleted = data.deleted.filter(u => u !== feed.url);
+  const idx = data.feeds.findIndex(f => f.url === feed.url);
   if (idx >= 0) {
-    existing[idx] = feed;
+    data.feeds[idx] = feed;
   } else {
-    existing.push(feed);
+    data.feeds.push(feed);
   }
-  writeFeedsConfig(existing);
+  writeFeedsConfigFile(data);
 }
 
 export function removeFeedFromConfig(url: string): void {
-  const existing = readFeedsConfig();
-  const updated = existing.filter(f => f.url !== url);
-  writeFeedsConfig(updated);
+  const data = readFeedsConfigFile();
+  // Remove from user-added feeds list
+  data.feeds = data.feeds.filter(f => f.url !== url);
+  // Add to tombstones so bundled feeds with this URL are also excluded on next seed
+  if (!data.deleted.includes(url)) {
+    data.deleted.push(url);
+  }
+  writeFeedsConfigFile(data);
 }
 
 export async function seedFeeds(): Promise<void> {
@@ -112,19 +131,21 @@ export async function seedFeeds(): Promise<void> {
     }
 
     // Merge hardcoded FEEDS (baseline) with feeds-config.json (admin overrides).
-    // Config wins for duplicate URLs so that admin edits to bundled feeds persist
-    // across deployments. New entries in config are appended after the baseline.
-    const configFeeds = readFeedsConfig();
+    // Config feeds win for duplicate URLs so admin edits persist across deployments.
+    // Tombstoned URLs (admin-deleted) are excluded even if present in hardcoded FEEDS.
+    const { feeds: configFeeds, deleted: tombstones } = readFeedsConfigFile();
     const feedMap = new Map<string, FeedConfig>();
     for (const f of FEEDS) feedMap.set(f.url, f);
     for (const f of configFeeds) feedMap.set(f.url, f); // config overrides bundled
+    // Remove tombstoned URLs from the merged map
+    for (const url of tombstones) feedMap.delete(url);
 
     const allFeeds = Array.from(feedMap.values());
     const overrideCount = configFeeds.filter(f => FEEDS.some(b => b.url === f.url)).length;
     const newCount = configFeeds.length - overrideCount;
 
-    if (configFeeds.length > 0) {
-      console.log(`[Seed Feeds] feeds-config.json: ${overrideCount} override(s), ${newCount} new feed(s)`);
+    if (configFeeds.length > 0 || tombstones.length > 0) {
+      console.log(`[Seed Feeds] feeds-config.json: ${overrideCount} override(s), ${newCount} new, ${tombstones.length} tombstone(s)`);
     }
 
     let inserted = 0;

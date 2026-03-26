@@ -4215,7 +4215,14 @@ export class RssFeedService {
       const typeParam = eventTypeIds.length > 0
         ? `&event_type=${eventTypeIds.join(',')}`
         : '';
-      const listBase = `${apiBase}/ajde_events?per_page=100&status=publish${typeParam}`;
+      // Only fetch events published in the last ~20 months.
+      // The WP REST `after` param filters by post publish date — old past events are
+      // excluded because they were published long before the scraper's cutoff.
+      // Events added more than 20 months ago are almost certainly already over.
+      const afterDate = new Date();
+      afterDate.setMonth(afterDate.getMonth() - 20);
+      const afterParam = `&after=${afterDate.toISOString().slice(0, 10)}T00:00:00`;
+      const listBase = `${apiBase}/ajde_events?per_page=100&status=publish${typeParam}${afterParam}`;
 
       onProgress?.({ status: 'fetching', message: 'Evenementenlijst ophalen...', logMessage: `Eventlijst ophalen: ${listBase}` });
 
@@ -4323,9 +4330,11 @@ export class RssFeedService {
 
       onProgress?.({ logMessage: `Eerste pass: ${dateFromMeta} met meta-datum, ${needsPageFetch.length} zonder → pagina ophalen` });
 
-      // ── Step 4: Selective page fetches for events without meta dates ───────
-      const MAX_PAGE_FETCHES = 200;
-      const toFetch = needsPageFetch.slice(0, MAX_PAGE_FETCHES);
+      // ── Step 4: Concurrent page fetches for events without meta dates ──────
+      // All events from the API have empty meta, so we fetch every event page.
+      // We use a concurrency pool of 5 to balance speed vs. server politeness.
+      const CONCURRENCY = 5;
+      const toFetch = needsPageFetch; // no cap — we already filtered by publish date
       let dateFromPage = 0;
       let skippedNoDate = 0;
 
@@ -4333,17 +4342,18 @@ export class RssFeedService {
         onProgress?.({
           status: 'fetching',
           message: `${toFetch.length} evenementenpagina's ophalen...`,
-          logMessage: `${toFetch.length} events zonder srow → JSON-LD parse (max ${MAX_PAGE_FETCHES})`
+          logMessage: `${toFetch.length} events → JSON-LD parse (${CONCURRENCY} gelijktijdig)`
         });
 
-        for (let i = 0; i < toFetch.length; i++) {
-          const event = toFetch[i];
-          if (i > 0 && i % 20 === 0) {
-            onProgress?.({ logMessage: `Pagina's ophalen: ${i}/${toFetch.length}...` });
+        // Process in batches of CONCURRENCY
+        for (let batchStart = 0; batchStart < toFetch.length; batchStart += CONCURRENCY) {
+          const batch = toFetch.slice(batchStart, batchStart + CONCURRENCY);
+          if (batchStart > 0 && batchStart % 20 === 0) {
+            onProgress?.({ logMessage: `Pagina's ophalen: ${batchStart}/${toFetch.length}...` });
           }
-          try {
-            await new Promise(r => setTimeout(r, 80)); // polite delay
 
+          await Promise.all(batch.map(async (event) => {
+          try {
             const pageResp = await axios.get(event.link, AX_HTML);
             const $ = cheerio.load(pageResp.data);
 
@@ -4378,15 +4388,15 @@ export class RssFeedService {
               } catch { /* malformed JSON-LD */ }
             });
 
-            if (!startTime || startTime.getTime() < cutoffMs) { skippedNoDate++; continue; }
+            if (!startTime || startTime.getTime() < cutoffMs) { skippedNoDate++; return; }
 
             const title = event.title?.rendered ? decodeWpText(event.title.rendered) : '';
-            if (!title) { skippedNoTitle++; continue; }
+            if (!title) { skippedNoTitle++; return; }
 
             const rawDesc: string = event.content?.rendered || event.excerpt?.rendered || '';
             const description = rawDesc.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 
-            const meta = event.meta || {};
+            const meta = Array.isArray(event.meta) ? {} : (event.meta || {});
             const venueFromMeta = decodeWpText(
               meta.evcal_location_name || meta.evcal_location || meta._evcal_location || ''
             );
@@ -4433,9 +4443,8 @@ export class RssFeedService {
             console.log(`[RSS] LvMW: pagina mislukt event ${event.id}: ${err.message}`);
             skippedNoDate++;
           }
-        }
-
-        skippedNoDate += needsPageFetch.length - toFetch.length;
+          })); // end Promise.all batch
+        } // end batch loop
       }
 
       // ── Step 5: Quality log ───────────────────────────────────────────────
@@ -4448,7 +4457,7 @@ export class RssFeedService {
         `╚══════════════════════════════════════════════════╝`,
         `API events gevonden:        ${rawEvents.length}`,
         `Datum uit meta (snel):      ${dateFromMeta}`,
-        `Datum via JSON-LD (pagina): ${dateFromPage} (van ${toFetch.length} geprobeerd)`,
+        `Datum via JSON-LD (pagina): ${dateFromPage} (van ${toFetch.length} geprobeerd, ${CONCURRENCY} gelijktijdig)`,
         `Overgeslagen (verleden/geen datum): ${skippedPast + skippedNoDate}`,
         `Met GPS (meta):             ${withGpsFromMeta}`,
         `Met GPS (JSON-LD):          ${withGpsFromPage}`,

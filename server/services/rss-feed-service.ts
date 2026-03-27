@@ -6686,6 +6686,194 @@ export class RssFeedService {
   }
 
   /**
+   * Scrape denhaag.com/nl/agenda via HTML pagination.
+   * Platform: Drupal 10 with ?page=N URL pagination (~41 events/page).
+   * Card selector: div.event-teaser-ag.event-teaser-ag-ag
+   */
+  private static async scrapeDenHaagAgenda(): Promise<FeedParseResult> {
+    const ORIGIN = 'https://denhaag.com';
+    const BASE_PATH = '/nl/agenda';
+    const MAX_PAGES = 20;
+
+    // Short Dutch month names → month numbers
+    const DUTCH_MONTHS_SHORT: Record<string, number> = {
+      jan: 1, feb: 2, mrt: 3, apr: 4, mei: 5, jun: 6,
+      jul: 7, aug: 8, sep: 9, okt: 10, nov: 11, dec: 12,
+    };
+
+    const parseDutchShortDate = (text: string): { startDate?: Date; endDate?: Date; startTime?: string; endTime?: string } => {
+      // Normalise whitespace
+      const s = text.replace(/\s+/g, ' ').trim();
+      const now = new Date();
+      const year = now.getFullYear();
+
+      // Extract time range e.g. "17:00 - 21:00" or "20:00 - 22:15"
+      const timeRangeMatch = s.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+      const startTime = timeRangeMatch
+        ? `${timeRangeMatch[1].padStart(2, '0')}:${timeRangeMatch[2]}:00`
+        : undefined;
+      const endTime = timeRangeMatch
+        ? `${timeRangeMatch[3].padStart(2, '0')}:${timeRangeMatch[4]}:00`
+        : undefined;
+
+      // Helper: parse "D mon" or "D mon YYYY" → Date
+      const parseDMon = (day: string, mon: string, yr?: string): Date | undefined => {
+        const m = DUTCH_MONTHS_SHORT[mon.toLowerCase()];
+        if (!m) return undefined;
+        const y = yr ? parseInt(yr) : year;
+        const d = new Date(y, m - 1, parseInt(day));
+        // If date is in the past by >60 days, assume next year
+        if (!yr && d < new Date(now.getTime() - 60 * 24 * 3600 * 1000)) {
+          d.setFullYear(year + 1);
+        }
+        return d;
+      };
+
+      // Pattern: range "28 mrt - 3 mei" or "28 mrt - 3 mei 2026"
+      const rangeMatch = s.match(/(\d{1,2})\s+([a-z]+)\s*[-–]\s*(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?/i);
+      if (rangeMatch) {
+        return {
+          startDate: parseDMon(rangeMatch[1], rangeMatch[2]),
+          endDate: parseDMon(rangeMatch[3], rangeMatch[4], rangeMatch[5]),
+          startTime,
+          endTime,
+        };
+      }
+
+      // Pattern: single day "28 mrt" or "zat 28 mrt" (optional day-of-week prefix)
+      const singleMatch = s.match(/(?:[a-z]{2,3}\s+)?(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?/i);
+      if (singleMatch) {
+        return {
+          startDate: parseDMon(singleMatch[1], singleMatch[2], singleMatch[3]),
+          startTime,
+          endTime,
+        };
+      }
+
+      return {};
+    };
+
+    console.log(`[RSS] Den Haag: scraping ${ORIGIN}${BASE_PATH}`);
+
+    const items: ParsedFeedItem[] = [];
+    const seenUrls = new Set<string>();
+
+    for (let page = 0; page <= MAX_PAGES; page++) {
+      const pageUrl = page === 0 ? `${ORIGIN}${BASE_PATH}` : `${ORIGIN}${BASE_PATH}?page=${page}`;
+
+      let response: any;
+      try {
+        response = await axios.get(pageUrl, {
+          headers: { 'User-Agent': this.USER_AGENT },
+          timeout: 15000,
+        });
+      } catch (e: any) {
+        console.log(`[RSS] Den Haag page ${page} failed: ${e.message}`);
+        break;
+      }
+
+      if (response.status !== 200 || !response.data) break;
+
+      const $ = cheerio.load(response.data);
+      const cards = $('div.event-teaser-ag.event-teaser-ag-ag').toArray();
+
+      if (cards.length === 0) break;
+
+      let newThisPage = 0;
+      for (const card of cards) {
+        const $card = $(card);
+
+        // Title + link
+        const titleAnchor = $card.find('h3.event-teaser-ag__title a').first();
+        const title = titleAnchor.text().trim();
+        const relHref = titleAnchor.attr('href') || '';
+        if (!title || !relHref) continue;
+
+        const fullUrl = relHref.startsWith('http') ? relHref : `${ORIGIN}${relHref}`;
+        if (seenUrls.has(fullUrl)) continue;
+        seenUrls.add(fullUrl);
+
+        // Date/time
+        const datetimeRaw = $card.find('div.event-teaser-ag__meta-item--event-datetime').first().text().trim();
+        const { startDate, endDate, startTime, endTime } = parseDutchShortDate(datetimeRaw);
+
+        let startTimeDate: Date | undefined;
+        let endTimeDate: Date | undefined;
+        if (startDate) {
+          startTimeDate = startTime
+            ? new Date(`${startDate.toISOString().slice(0, 10)}T${startTime}`)
+            : startDate;
+        }
+        if (endDate && endTime) {
+          endTimeDate = new Date(`${endDate.toISOString().slice(0, 10)}T${endTime}`);
+        } else if (startDate && endTime) {
+          endTimeDate = new Date(`${startDate.toISOString().slice(0, 10)}T${endTime}`);
+        }
+
+        // Venue — first meta-item that is NOT the datetime item
+        const venueMeta = $card.find('div.event-teaser-ag__meta-item')
+          .not('.event-teaser-ag__meta-item--event-datetime')
+          .first();
+        const venueRaw = venueMeta.text().trim();
+
+        // Parse Dutch postal-code address: "Naam, 2512 VR Den Haag" or "Straat 5, 2512 VR Den Haag"
+        let venueName = venueRaw;
+        let venueCity: string | undefined;
+        let venuePostalCode: string | undefined;
+        let address: string | undefined;
+        const addrMatch = venueRaw.match(/^(.*?),\s*(\d{4}\s*[A-Z]{2})\s+(.+)$/);
+        if (addrMatch) {
+          venueName = addrMatch[1].trim();
+          venuePostalCode = addrMatch[2].replace(/\s+/, ' ').trim();
+          venueCity = addrMatch[3].trim();
+          address = venueRaw;
+        }
+
+        // Image — first <source> srcset in picture element
+        let imageUrl: string | undefined;
+        const srcset = $card.find('picture source').first().attr('srcset');
+        if (srcset) {
+          const firstSrc = srcset.split(' ')[0];
+          imageUrl = firstSrc.startsWith('http') ? firstSrc : `${ORIGIN}${firstSrc}`;
+        }
+
+        items.push({
+          externalId: fullUrl,
+          title,
+          link: fullUrl,
+          description: venueRaw || '',
+          publishedAt: startTimeDate ?? new Date(),
+          startTime: startTimeDate,
+          endTime: endTimeDate,
+          imageUrl,
+          location: venueName || undefined,
+          venueName: venueName || undefined,
+          venueCity: venueCity || 'Den Haag',
+          venuePostalCode,
+          address,
+        });
+
+        newThisPage++;
+      }
+
+      console.log(`[RSS] Den Haag page ${page}: +${newThisPage} events (total ${items.length})`);
+
+      // Check if there is a next page link
+      const hasNextPage = $('a[rel="next"], li.pager__item--next a').length > 0;
+      if (!hasNextPage && page > 0) break;
+
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    if (items.length === 0) {
+      return { success: false, items: [], error: 'Den Haag: geen evenementen gevonden' };
+    }
+
+    console.log(`[RSS] Den Haag: ${items.length} evenementen opgehaald`);
+    return { success: true, items };
+  }
+
+  /**
    * Try Next.js __NEXT_DATA__ extraction
    */
   private static tryNextJsData($: cheerio.CheerioAPI, baseUrl: string, municipality: string): FeedParseResult {
@@ -8337,6 +8525,8 @@ export class RssFeedService {
         result = await this.scrapeUitInDeRegioBetuwe(onProgress);
       } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
         result = await this.scrapeIntoNijmegen();
+      } else if (feed.feedType === "scraper" && feed.url.includes("denhaag.com")) {
+        result = await this.scrapeDenHaagAgenda();
       } else if (feed.feedType === "scraper") {
         // Use intelligent universal scraper for unknown scraper feeds
         result = await this.scrapeUniversal(feed);

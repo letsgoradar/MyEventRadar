@@ -6573,7 +6573,7 @@ export class RssFeedService {
    */
   private static async scrapeUitAgendaRotterdam(origin: string, linkLimit?: number): Promise<FeedParseResult> {
     const PAGE_SIZE = 20;
-    const maxItems = linkLimit ?? 300;
+    const maxItems = linkLimit ?? 3000;
     const maxPages = Math.ceil(maxItems / PAGE_SIZE);
 
     console.log(`[RSS] Uitagenda Rotterdam: fetching up to ${maxItems} events (${maxPages} pages of ${PAGE_SIZE})`);

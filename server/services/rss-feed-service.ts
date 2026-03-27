@@ -7007,8 +7007,8 @@ export class RssFeedService {
       return { success: false, items: [], error: 'Delft: geen evenementen gevonden' };
     }
 
-    // Fetch descriptions from detail pages in batches of 5 (concurrent)
-    console.log(`[RSS] Delft: ophalen beschrijvingen voor ${items.length} events...`);
+    // Fetch descriptions and times from detail pages in batches of 5 (concurrent)
+    console.log(`[RSS] Delft: ophalen beschrijvingen en tijden voor ${items.length} events...`);
     for (let i = 0; i < items.length; i += BATCH) {
       const batch = items.slice(i, i + BATCH);
       await Promise.all(batch.map(async (item) => {
@@ -7019,10 +7019,36 @@ export class RssFeedService {
             timeout: 10000,
           });
           const $detail = cheerio.load(detailRes.data);
+
+          // Description
           const metaDesc = $detail('meta[name="description"]').attr('content') || '';
           item.description = metaDesc.trim();
+
+          // Time — "10.00 - 16.30 uur" or "10.00 uur" on detail page
+          // Only apply time when event has a startTime (i.e. a valid date from the listing)
+          const timeRaw = $detail('.calendar__time').first().text().trim();
+          if (timeRaw && item.startTime) {
+            // Parse dots-as-decimal Dutch time: "10.00 - 16.30 uur"
+            const timeMatch = timeRaw.match(/(\d{1,2})[.,](\d{2})(?:\s*[-–]\s*(\d{1,2})[.,](\d{2}))?/);
+            if (timeMatch) {
+              const startH = parseInt(timeMatch[1]);
+              const startM = parseInt(timeMatch[2]);
+              const startBase = new Date(item.startTime);
+              startBase.setHours(startH, startM, 0, 0);
+              item.startTime = startBase;
+
+              if (timeMatch[3] !== undefined && timeMatch[4] !== undefined) {
+                const endH = parseInt(timeMatch[3]);
+                const endM = parseInt(timeMatch[4]);
+                // End time is on the startTime date (events within one day)
+                const endBase = new Date(item.startTime);
+                endBase.setHours(endH, endM, 0, 0);
+                item.endTime = endBase;
+              }
+            }
+          }
         } catch {
-          // Leave description empty on failure — not a fatal error
+          // Leave description/time unchanged on failure — not a fatal error
         }
       }));
       if (i + BATCH < items.length) {

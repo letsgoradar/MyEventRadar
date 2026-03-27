@@ -7040,8 +7040,8 @@ export class RssFeedService {
               if (timeMatch[3] !== undefined && timeMatch[4] !== undefined) {
                 const endH = parseInt(timeMatch[3]);
                 const endM = parseInt(timeMatch[4]);
-                // End time is on the startTime date (events within one day)
-                const endBase = new Date(item.startTime);
+                // Use existing endTime date when available (multi-day events), else startTime date
+                const endBase = item.endTime ? new Date(item.endTime) : new Date(item.startTime);
                 endBase.setHours(endH, endM, 0, 0);
                 item.endTime = endBase;
               }

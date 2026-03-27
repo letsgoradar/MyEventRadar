@@ -6900,6 +6900,141 @@ export class RssFeedService {
   }
 
   /**
+   * Scrape indelft.nl/nl/uitagenda/uitagenda-delft via HTML pagination.
+   * Platform: ODP/Plaece-based Drupal — 21 events/page, ~13 pages.
+   * Uses schema.org structured data for dates and address fields.
+   * Card selector: li.tiles__tile
+   */
+  private static async scrapeInDelft(): Promise<FeedParseResult> {
+    const ORIGIN = 'https://www.indelft.nl';
+    const BASE_PATH = '/nl/uitagenda/uitagenda-delft';
+    const MAX_PAGES = 20;
+    const BATCH = 5;
+
+    console.log(`[RSS] Delft: scraping ${ORIGIN}${BASE_PATH}`);
+
+    const items: ParsedFeedItem[] = [];
+    const seenUrls = new Set<string>();
+
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const pageUrl = page === 1
+        ? `${ORIGIN}${BASE_PATH}`
+        : `${ORIGIN}${BASE_PATH}?page=${page}`;
+
+      let response: any;
+      try {
+        response = await axios.get(pageUrl, {
+          headers: { 'User-Agent': this.USER_AGENT },
+          timeout: 15000,
+        });
+      } catch (e: any) {
+        console.log(`[RSS] Delft page ${page} failed: ${e.message}`);
+        break;
+      }
+
+      if (response.status !== 200 || !response.data) break;
+
+      const $ = cheerio.load(response.data);
+      const tiles = $('li.tiles__tile').toArray();
+
+      if (tiles.length === 0) break;
+
+      let newThisPage = 0;
+      for (const tile of tiles) {
+        const $t = $(tile);
+
+        // Title
+        const title = $t.find('span.description__headtext').first().text().trim()
+          || $t.find('[itemprop="name"]').attr('content') || '';
+        if (!title) continue;
+
+        // Link
+        const relHref = $t.find('a.link-overlay').attr('href') || '';
+        if (!relHref) continue;
+        const fullUrl = relHref.startsWith('http') ? relHref : `${ORIGIN}${relHref}`;
+        if (seenUrls.has(fullUrl)) continue;
+        seenUrls.add(fullUrl);
+
+        // Dates — ISO 8601 from schema.org meta tags (e.g. "2026-03-07")
+        const startDateStr = $t.find('meta[itemprop="startDate"]').attr('content') || '';
+        const endDateStr = $t.find('meta[itemprop="endDate"]').attr('content') || '';
+        const startTime = startDateStr ? new Date(startDateStr) : undefined;
+        const endTime = endDateStr ? new Date(endDateStr) : undefined;
+
+        // Address from schema.org
+        const street = $t.find('meta[itemprop="streetAddress"]').attr('content') || '';
+        const postalCode = $t.find('meta[itemprop="postalCode"]').attr('content') || '';
+        const city = $t.find('meta[itemprop="addressLocality"]').attr('content') || 'Delft';
+        const address = [street, postalCode, city].filter(Boolean).join(', ') || undefined;
+
+        // Image
+        let imageUrl: string | undefined;
+        const imgSrc = $t.find('img.img__main').attr('src');
+        if (imgSrc) {
+          imageUrl = imgSrc.startsWith('http') ? imgSrc : `${ORIGIN}${imgSrc}`;
+        }
+
+        items.push({
+          externalId: fullUrl,
+          title,
+          link: fullUrl,
+          description: '',
+          publishedAt: startTime ?? new Date(),
+          startTime: startTime,
+          endTime: endTime,
+          imageUrl,
+          location: street || city || undefined,
+          venueName: street || undefined,
+          venueCity: city,
+          venuePostalCode: postalCode || undefined,
+          address,
+        });
+
+        newThisPage++;
+      }
+
+      console.log(`[RSS] Delft page ${page}: +${newThisPage} events (total ${items.length})`);
+
+      // Stop if no new events this page (duplicates) or no next-page link
+      if (newThisPage === 0) break;
+      const hasNextPage = $('.pager__item--next a, a[rel="next"]').length > 0;
+      if (!hasNextPage) break;
+
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    if (items.length === 0) {
+      return { success: false, items: [], error: 'Delft: geen evenementen gevonden' };
+    }
+
+    // Fetch descriptions from detail pages in batches of 5 (concurrent)
+    console.log(`[RSS] Delft: ophalen beschrijvingen voor ${items.length} events...`);
+    for (let i = 0; i < items.length; i += BATCH) {
+      const batch = items.slice(i, i + BATCH);
+      await Promise.all(batch.map(async (item) => {
+        if (!item.link.startsWith(ORIGIN)) return;
+        try {
+          const detailRes = await axios.get(item.link, {
+            headers: { 'User-Agent': this.USER_AGENT },
+            timeout: 10000,
+          });
+          const $detail = cheerio.load(detailRes.data);
+          const metaDesc = $detail('meta[name="description"]').attr('content') || '';
+          item.description = metaDesc.trim();
+        } catch {
+          // Leave description empty on failure — not a fatal error
+        }
+      }));
+      if (i + BATCH < items.length) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+    }
+
+    console.log(`[RSS] Delft: ${items.length} evenementen opgehaald`);
+    return { success: true, items };
+  }
+
+  /**
    * Try Next.js __NEXT_DATA__ extraction
    */
   private static tryNextJsData($: cheerio.CheerioAPI, baseUrl: string, municipality: string): FeedParseResult {
@@ -8553,6 +8688,8 @@ export class RssFeedService {
         result = await this.scrapeIntoNijmegen();
       } else if (feed.feedType === "scraper" && feed.url.includes("denhaag.com")) {
         result = await this.scrapeDenHaagAgenda();
+      } else if (feed.feedType === "scraper" && feed.url.includes("indelft.nl")) {
+        result = await this.scrapeInDelft();
       } else if (feed.feedType === "scraper") {
         // Use intelligent universal scraper for unknown scraper feeds
         result = await this.scrapeUniversal(feed);

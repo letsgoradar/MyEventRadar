@@ -6858,9 +6858,10 @@ export class RssFeedService {
 
       console.log(`[RSS] Den Haag page ${page}: +${newThisPage} events (total ${items.length})`);
 
-      // Check if there is a next page link
+      // Stop if this page produced no new events (all were duplicates) or no next-page link
+      if (newThisPage === 0) break;
       const hasNextPage = $('a[rel="next"], li.pager__item--next a').length > 0;
-      if (!hasNextPage && page > 0) break;
+      if (!hasNextPage) break;
 
       await new Promise(resolve => setTimeout(resolve, 300));
     }

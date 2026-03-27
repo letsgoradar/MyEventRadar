@@ -6308,6 +6308,11 @@ export class RssFeedService {
     try {
       const urlObj = new URL(baseUrl);
       const origin = urlObj.origin;
+
+      // === Rotterdam: Umbraco Entity JSON API ===
+      if (origin.includes('uitagendarotterdam.nl')) {
+        return await this.scrapeUitAgendaRotterdam(origin, linkLimit);
+      }
       
       // Known Umbraco patterns
       const umbracoPatterns = [
@@ -6558,6 +6563,126 @@ export class RssFeedService {
     } catch (error: any) {
       return { success: false, items: [], error: `Umbraco API failed: ${error.message}` };
     }
+  }
+
+  /**
+   * Scrape uitagendarotterdam.nl via its Umbraco Entity JSON API.
+   * Endpoint: GET /umbraco/api/Entity/GetProductions?id=1083&pageSize=N&isMobile=false&culture=nl-NL&p=PAGE
+   * Requires header: X-Requested-With: XMLHttpRequest
+   * Returns rich JSON — no detail-page fetching needed.
+   */
+  private static async scrapeUitAgendaRotterdam(origin: string, linkLimit?: number): Promise<FeedParseResult> {
+    const PAGE_SIZE = 20;
+    const maxItems = linkLimit ?? 300;
+    const maxPages = Math.ceil(maxItems / PAGE_SIZE);
+
+    console.log(`[RSS] Uitagenda Rotterdam: fetching up to ${maxItems} events (${maxPages} pages of ${PAGE_SIZE})`);
+
+    const items: ParsedFeedItem[] = [];
+    const seenIds = new Set<string>();
+
+    for (let page = 1; page <= maxPages; page++) {
+      const apiUrl = `${origin}/umbraco/api/Entity/GetProductions?id=1083&pageSize=${PAGE_SIZE}&isMobile=false&culture=nl-NL&p=${page}`;
+
+      let response: any;
+      try {
+        response = await axios.get(apiUrl, {
+          headers: {
+            "User-Agent": this.USER_AGENT,
+            "X-Requested-With": "XMLHttpRequest",
+            "Accept": "application/json",
+          },
+          timeout: 15000,
+        });
+      } catch (e: any) {
+        console.log(`[RSS] Uitagenda Rotterdam page ${page} request failed: ${e.message}`);
+        break;
+      }
+
+      if (response.status !== 200 || !response.data?.pagedList?.items) break;
+
+      const pageItems: any[] = response.data.pagedList.items;
+      if (pageItems.length === 0) break;
+
+      const paginator = response.data.pagedList.paginator;
+      const totalPages: number = paginator?.totalPages ?? page;
+
+      let addedThisPage = 0;
+      for (const ev of pageItems) {
+        const idKey = String(ev.id ?? ev.url ?? '');
+        if (!idKey || seenIds.has(idKey)) continue;
+        seenIds.add(idKey);
+
+        const relativeUrl: string = ev.url ?? '';
+        const fullUrl = relativeUrl.startsWith('http') ? relativeUrl : `${origin}${relativeUrl}`;
+
+        const relativeImage: string = ev.image ?? '';
+        const imageUrl = relativeImage
+          ? (relativeImage.startsWith('http') ? relativeImage : `${origin}${relativeImage}`)
+          : undefined;
+
+        const description = (ev.textShort || ev.shortText || ev.text || '').trim().substring(0, 2000);
+
+        // Dates — ISO strings with timezone offset supplied by the API
+        let startTime: Date | undefined;
+        let endTime: Date | undefined;
+        if (ev.date) {
+          const d = new Date(ev.date);
+          if (!isNaN(d.getTime())) startTime = d;
+        }
+        if (ev.dateEnd) {
+          const d = new Date(ev.dateEnd);
+          if (!isNaN(d.getTime())) endTime = d;
+        }
+
+        // Location
+        const loc = ev.location ?? {};
+        const venueName: string = loc.title ?? loc.shortTitle ?? '';
+        const venueCity: string = loc.city ?? '';
+        const venuePostalCode: string = loc.postalCode ?? '';
+
+        // Coordinates — supplied directly; skip 0,0 (placeholder for unknown location)
+        const geo = ev.geoLocation ?? {};
+        const hasValidGeo = typeof geo.latitude === 'number' && typeof geo.longitude === 'number'
+          && (geo.latitude !== 0 || geo.longitude !== 0);
+        const latitude: number | undefined = hasValidGeo ? geo.latitude : undefined;
+        const longitude: number | undefined = hasValidGeo ? geo.longitude : undefined;
+
+        items.push({
+          externalId: fullUrl,
+          title: (ev.title || ev.shortTitle || 'Untitled').trim(),
+          link: fullUrl,
+          description,
+          publishedAt: startTime ?? new Date(),
+          startTime,
+          endTime,
+          imageUrl,
+          location: venueName || venueCity || undefined,
+          venueName: venueName || undefined,
+          venueCity: venueCity || undefined,
+          venuePostalCode: venuePostalCode || undefined,
+          latitude,
+          longitude,
+        });
+
+        addedThisPage++;
+        if (items.length >= maxItems) break;
+      }
+
+      console.log(`[RSS] Uitagenda Rotterdam page ${page}/${Math.min(totalPages, maxPages)}: +${addedThisPage} events (total ${items.length})`);
+
+      if (items.length >= maxItems || page >= totalPages) break;
+
+      // Polite delay between pages
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    if (items.length === 0) {
+      return { success: false, items: [], error: "Uitagenda Rotterdam: geen evenementen gevonden" };
+    }
+
+    console.log(`[RSS] Uitagenda Rotterdam: ${items.length} evenementen opgehaald`);
+    return { success: true, items };
   }
 
   /**

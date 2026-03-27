@@ -6876,6 +6876,8 @@ export class RssFeedService {
     for (let i = 0; i < items.length; i += BATCH) {
       const batch = items.slice(i, i + BATCH);
       await Promise.all(batch.map(async (item) => {
+        // Only fetch same-origin detail pages to prevent unintended outbound requests
+        if (!item.link.startsWith(ORIGIN)) return;
         try {
           const detailRes = await axios.get(item.link, {
             headers: { 'User-Agent': this.USER_AGENT },

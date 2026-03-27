@@ -6908,7 +6908,7 @@ export class RssFeedService {
   private static async scrapeInDelft(): Promise<FeedParseResult> {
     const ORIGIN = 'https://www.indelft.nl';
     const BASE_PATH = '/nl/uitagenda/uitagenda-delft';
-    const MAX_PAGES = 20;
+    const MAX_PAGES = 13;
     const BATCH = 5;
 
     console.log(`[RSS] Delft: scraping ${ORIGIN}${BASE_PATH}`);

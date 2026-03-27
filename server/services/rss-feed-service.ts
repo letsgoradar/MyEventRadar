@@ -6841,7 +6841,7 @@ export class RssFeedService {
           externalId: fullUrl,
           title,
           link: fullUrl,
-          description: venueRaw || '',
+          description: '',
           publishedAt: startTimeDate ?? new Date(),
           startTime: startTimeDate,
           endTime: endTimeDate,
@@ -6868,6 +6868,29 @@ export class RssFeedService {
 
     if (items.length === 0) {
       return { success: false, items: [], error: 'Den Haag: geen evenementen gevonden' };
+    }
+
+    // Fetch descriptions from detail pages in batches of 5 (concurrent)
+    console.log(`[RSS] Den Haag: ophalen beschrijvingen voor ${items.length} events...`);
+    const BATCH = 5;
+    for (let i = 0; i < items.length; i += BATCH) {
+      const batch = items.slice(i, i + BATCH);
+      await Promise.all(batch.map(async (item) => {
+        try {
+          const detailRes = await axios.get(item.link, {
+            headers: { 'User-Agent': this.USER_AGENT },
+            timeout: 10000,
+          });
+          const $detail = cheerio.load(detailRes.data);
+          const metaDesc = $detail('meta[name="description"]').attr('content') || '';
+          item.description = metaDesc.trim();
+        } catch {
+          // Leave description empty on failure — not a fatal error
+        }
+      }));
+      if (i + BATCH < items.length) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
     }
 
     console.log(`[RSS] Den Haag: ${items.length} evenementen opgehaald`);

@@ -60,6 +60,7 @@ const FEEDS: FeedConfig[] = [
   { name: "Uitagenda Rotterdam", url: "https://www.uitagendarotterdam.nl/agenda/", feedType: "umbraco_api", province: "Zuid-Holland", municipality: "Rotterdam", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "51.9225", defaultLongitude: "4.47917", defaultAddress: "Rotterdam", updateFrequencyMinutes: 360 },
   { name: "Uitagenda Den Haag", url: "https://denhaag.com/nl/agenda", feedType: "scraper", province: "Zuid-Holland", municipality: "Den Haag", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "52.0705", defaultLongitude: "4.3007", defaultAddress: "Den Haag", updateFrequencyMinutes: 360 },
   { name: "Uitagenda Delft", url: "https://www.indelft.nl/nl/uitagenda/uitagenda-delft", feedType: "scraper", province: "Zuid-Holland", municipality: "Delft", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "52.0116", defaultLongitude: "4.3571", defaultAddress: "Delft", updateFrequencyMinutes: 360 },
+  { name: "Visit Leiden", url: "https://www.visitleiden.nl/nl/agenda", feedType: "scraper", province: "Zuid-Holland", municipality: "Leiden", defaultCategory: "Cultuur & Kunst", defaultLatitude: "52.1601", defaultLongitude: "4.4970", defaultAddress: "Leiden, Netherlands", updateFrequencyMinutes: 1440 },
 ];
 
 type FeedsConfigFile = {

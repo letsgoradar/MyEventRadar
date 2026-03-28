@@ -1924,7 +1924,12 @@ export class RssFeedService {
       });
 
       const $ = cheerio.load(response.data);
-      const items: ParsedFeedItem[] = [];
+      const rawItems: ParsedFeedItem[] = [];
+
+      // Extract og:image from HTML — reliably sized Plaece thumbnail, used as fallback
+      const ogImage = $('meta[property="og:image"]').attr('content') || '';
+
+      const urlSlug = url.split('/')[5] || url.replace(/[^a-z0-9]/gi, "-");
       
       const jsonLdScripts = $('script[type="application/ld+json"]');
       
@@ -1942,7 +1947,20 @@ export class RssFeedService {
             const name = event.name || "";
             if (!name) continue;
             
-            const imageUrl = event.image || "";
+            // Handle event.image as string, array of strings, or ImageObject
+            let imageUrl = '';
+            const rawImage = event.image;
+            if (typeof rawImage === 'string') {
+              imageUrl = rawImage;
+            } else if (Array.isArray(rawImage) && rawImage.length > 0) {
+              const first = rawImage[0];
+              imageUrl = typeof first === 'string' ? first : (first?.url || first?.contentUrl || '');
+            } else if (rawImage && typeof rawImage === 'object') {
+              imageUrl = rawImage.url || rawImage.contentUrl || '';
+            }
+            // Fall back to og:image if JSON-LD has no image
+            if (!imageUrl) imageUrl = ogImage;
+
             const location = event.location;
             const venueName = location?.name || "";
             const address = location?.address;
@@ -1966,9 +1984,6 @@ export class RssFeedService {
             
             if (startDate && startDate < new Date()) continue;
             
-            const urlSlug = url.split('/')[5] || url.replace(/[^a-z0-9]/gi, "-");
-            const externalId = `helmond-${urlSlug}`;
-            
             let description = event.description || "";
             if (!description || description.length < 20) {
               description = `${name} in ${venueName || city}. ${fullAddress ? `Locatie: ${fullAddress}.` : ""} Ontdek dit evenement in Helmond!`;
@@ -1976,8 +1991,8 @@ export class RssFeedService {
             
             const formattedTitle = RssFeedService.formatTitle(name);
             
-            items.push({
-              externalId,
+            rawItems.push({
+              externalId: `helmond-${urlSlug}`, // refined during consolidation below
               title: formattedTitle,
               description: description,
               link: url,
@@ -1997,8 +2012,70 @@ export class RssFeedService {
         }
       }
       
-      // No fallback - only verified locations
-      return items;
+      // Consolidate multiple occurrences from the same detail page:
+      // - Consecutive days (gap < 2 days) → ONE event (first startDate, last endDate)
+      // - Non-consecutive (e.g. weekly market) → separate events with date-suffix externalId
+      const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+
+      // Group by title + GPS location (same event, same venue)
+      const groups = new Map<string, ParsedFeedItem[]>();
+      for (const item of rawItems) {
+        const key = `${item.title}|${item.latitude},${item.longitude}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(item);
+      }
+
+      const consolidated: ParsedFeedItem[] = [];
+
+      for (const [, group] of groups) {
+        const withDate = group.filter(item => item.startTime)
+          .sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime());
+        const noDate = group.filter(item => !item.startTime);
+
+        if (withDate.length === 0) {
+          consolidated.push(...noDate);
+          continue;
+        }
+
+        if (withDate.length === 1) {
+          // Single occurrence — keep externalId as-is (no date suffix)
+          consolidated.push(...withDate, ...noDate);
+          continue;
+        }
+
+        // Determine if all occurrences are consecutive (each ≤ 2 days after the previous)
+        let consecutive = true;
+        for (let i = 1; i < withDate.length; i++) {
+          if (withDate[i].startTime!.getTime() - withDate[i - 1].startTime!.getTime() > TWO_DAYS_MS) {
+            consecutive = false;
+            break;
+          }
+        }
+
+        if (consecutive) {
+          // Multi-day event: merge into one with full date span
+          const first = withDate[0];
+          const last = withDate[withDate.length - 1];
+          consolidated.push({
+            ...first,
+            externalId: `helmond-${urlSlug}`,
+            endTime: last.endTime || last.startTime,
+          });
+          console.log(`[RSS] Helmond: merged ${withDate.length} consecutive days → "${first.title}" (${first.startTime?.toISOString().slice(0,10)} – ${(last.endTime || last.startTime)?.toISOString().slice(0,10)})`);
+        } else {
+          // Recurring/non-consecutive: separate entry per occurrence with date suffix
+          for (const item of withDate) {
+            const dateSuffix = item.startTime!.toISOString().slice(0, 10).replace(/-/g, '');
+            consolidated.push({
+              ...item,
+              externalId: `helmond-${urlSlug}-${dateSuffix}`,
+            });
+          }
+        }
+        consolidated.push(...noDate);
+      }
+
+      return consolidated;
     } catch (error: any) {
       console.error(`[RSS] Error scraping Helmond event detail ${url}:`, error.message);
       return [];

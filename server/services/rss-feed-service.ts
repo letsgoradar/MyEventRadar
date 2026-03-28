@@ -2012,9 +2012,20 @@ export class RssFeedService {
         }
       }
       
-      // Consolidate multiple occurrences from the same detail page:
-      // - Consecutive days (gap < 2 days) → ONE event (first startDate, last endDate)
-      // - Non-consecutive (e.g. weekly market) → separate events with date-suffix externalId
+      // Helper: format a Date as YYYYMMDD using local calendar (not UTC)
+      const localDateStr = (d: Date): string => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}${m}${day}`;
+      };
+
+      // Consolidate multiple occurrences from the same detail page.
+      // Strategy: cluster occurrences by adjacency (gap ≤ 2 days between successive items).
+      // - Single cluster of all items → ONE event, externalId = helmond-{slug} (no date suffix)
+      // - Multiple clusters → each cluster is emitted separately with helmond-{slug}-YYYYMMDD
+      //   where YYYYMMDD is the local date of the cluster's first item.
+      //   Clusters with >1 item are merged (first startDate, last endDate).
       const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 
       // Group by title + GPS location (same event, same venue)
@@ -2038,22 +2049,28 @@ export class RssFeedService {
         }
 
         if (withDate.length === 1) {
-          // Single occurrence — keep externalId as-is (no date suffix)
+          // Single occurrence — no date suffix needed
           consolidated.push(...withDate, ...noDate);
           continue;
         }
 
-        // Determine if all occurrences are consecutive (each ≤ 2 days after the previous)
-        let consecutive = true;
+        // Build adjacency clusters: each cluster is a run of items where
+        // successive gaps are ≤ 2 days
+        const clusters: ParsedFeedItem[][] = [];
+        let currentCluster: ParsedFeedItem[] = [withDate[0]];
         for (let i = 1; i < withDate.length; i++) {
-          if (withDate[i].startTime!.getTime() - withDate[i - 1].startTime!.getTime() > TWO_DAYS_MS) {
-            consecutive = false;
-            break;
+          const gap = withDate[i].startTime!.getTime() - withDate[i - 1].startTime!.getTime();
+          if (gap <= TWO_DAYS_MS) {
+            currentCluster.push(withDate[i]);
+          } else {
+            clusters.push(currentCluster);
+            currentCluster = [withDate[i]];
           }
         }
+        clusters.push(currentCluster);
 
-        if (consecutive) {
-          // Multi-day event: merge into one with full date span
+        if (clusters.length === 1) {
+          // All items form one consecutive block → single merged event, no date suffix
           const first = withDate[0];
           const last = withDate[withDate.length - 1];
           consolidated.push({
@@ -2061,15 +2078,21 @@ export class RssFeedService {
             externalId: `helmond-${urlSlug}`,
             endTime: last.endTime || last.startTime,
           });
-          console.log(`[RSS] Helmond: merged ${withDate.length} consecutive days → "${first.title}" (${first.startTime?.toISOString().slice(0,10)} – ${(last.endTime || last.startTime)?.toISOString().slice(0,10)})`);
+          console.log(`[RSS] Helmond: merged ${withDate.length} consecutive days → "${first.title}" (${localDateStr(first.startTime!)} – ${localDateStr((last.endTime || last.startTime)!)})`);
         } else {
-          // Recurring/non-consecutive: separate entry per occurrence with date suffix
-          for (const item of withDate) {
-            const dateSuffix = item.startTime!.toISOString().slice(0, 10).replace(/-/g, '');
+          // Multiple clusters → each gets a date-suffixed externalId based on local start date
+          for (const cluster of clusters) {
+            const first = cluster[0];
+            const last = cluster[cluster.length - 1];
+            const suffix = localDateStr(first.startTime!);
             consolidated.push({
-              ...item,
-              externalId: `helmond-${urlSlug}-${dateSuffix}`,
+              ...first,
+              externalId: `helmond-${urlSlug}-${suffix}`,
+              endTime: cluster.length > 1 ? (last.endTime || last.startTime) : first.endTime,
             });
+            if (cluster.length > 1) {
+              console.log(`[RSS] Helmond: merged cluster of ${cluster.length} days → "${first.title}" (${suffix})`);
+            }
           }
         }
         consolidated.push(...noDate);

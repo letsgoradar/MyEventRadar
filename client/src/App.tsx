@@ -107,6 +107,7 @@ const AppMyEventsPage = React.lazy(() => import("@/pages/App/my-events"));
 const AppProfilePage = React.lazy(() => import("@/pages/App/profile"));
 const AppWelcomePage = React.lazy(() => import("@/pages/App/welcome"));
 const AppForgotPasswordPage = React.lazy(() => import("@/pages/App/forgot-password"));
+const AppEventDetailPage = React.lazy(() => import("@/pages/App/event-detail"));
 
 const CityPage = React.lazy(() => import("@/pages/public/CityPage"));
 
@@ -380,10 +381,7 @@ export default function App() {
           <LazyLoad><AppCreateEvent /></LazyLoad>
         </Route>
         <Route path="/app/event/:id">
-          {() => {
-            window.location.href = '/app';
-            return null;
-          }}
+          <LazyLoad><AppEventDetailPage /></LazyLoad>
         </Route>
         <Route path="/app/my-events">
           <LazyLoad><AppMyEventsPage /></LazyLoad>

@@ -4797,5 +4797,74 @@ Antwoord in dit JSON formaat:
     }
   });
 
+  // Social sharing OG tag injection for event detail pages
+  // Detects social media crawlers (WhatsApp, Facebook, Telegram, etc.) and returns
+  // event-specific Open Graph meta tags so previews show the event image and title.
+  // Regular browsers pass through to Vite/static SPA serving.
+  const SOCIAL_BOT_UA = /whatsapp|facebookexternalhit|facebot|twitterbot|telegrambot|linkedinbot|slackbot|discordbot|googlebot|bingbot|pinterest|snapchat|line-poker|vkshare|w3c_validator|curl|python-requests|axios/i;
+
+  const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const buildEventOgHtml = (event: any, shareUrl: string): string => {
+    const rawTitle = event.title ? `${event.title} | letsgo radar` : 'letsgo radar - Ontdek lokale evenementen';
+    const rawDesc = event.description
+      ? event.description.replace(/<[^>]+>/g, '').substring(0, 200)
+      : 'Ontdek lokale evenementen in jouw buurt met letsgo radar';
+    const title = escHtml(rawTitle);
+    const description = escHtml(rawDesc);
+    // Ensure image URL is absolute; fall back to app logo
+    let rawImage = event.imageUrl || '';
+    if (rawImage && !rawImage.startsWith('http')) rawImage = `https://www.letsgoradar.com${rawImage}`;
+    const image = escHtml(rawImage || 'https://www.letsgoradar.com/images/letsgo-radar-logo.png');
+    const canonicalUrl = escHtml(shareUrl);
+
+    return `<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <meta name="description" content="${description}" />
+  <meta property="og:title" content="${title}" />
+  <meta property="og:description" content="${description}" />
+  <meta property="og:type" content="event" />
+  <meta property="og:image" content="${image}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:url" content="${canonicalUrl}" />
+  <meta property="og:site_name" content="letsgo radar" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${title}" />
+  <meta name="twitter:description" content="${description}" />
+  <meta name="twitter:image" content="${image}" />
+  <meta http-equiv="refresh" content="0; url=${canonicalUrl}" />
+</head>
+<body>
+  <p>Wordt doorgestuurd naar het evenement... <a href="${canonicalUrl}">${title}</a></p>
+</body>
+</html>`;
+  };
+
+  const handleEventOgRequest = async (req: Request, res: Response, next: NextFunction) => {
+    const ua = req.headers['user-agent'] || '';
+    if (!SOCIAL_BOT_UA.test(ua)) {
+      return next();
+    }
+    try {
+      const eventId = parseInt(req.params.id);
+      if (isNaN(eventId)) return next();
+      const event = await storage.getEvent(eventId);
+      if (!event) return next();
+      const shareUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+      const html = buildEventOgHtml(event, shareUrl);
+      res.status(200).set({ 'Content-Type': 'text/html; charset=utf-8' }).end(html);
+    } catch {
+      next();
+    }
+  };
+
+  app.get('/app/event/:id', handleEventOgRequest);
+  app.get('/web/event/:id', handleEventOgRequest);
+
   return httpServer;
 }

@@ -4799,51 +4799,12 @@ Antwoord in dit JSON formaat:
 
   // Social sharing OG tag injection for event detail pages
   // Detects social media crawlers (WhatsApp, Facebook, Telegram, etc.) and returns
-  // event-specific Open Graph meta tags so previews show the event image and title.
-  // Regular browsers pass through to Vite/static SPA serving.
-  const SOCIAL_BOT_UA = /whatsapp|facebookexternalhit|facebot|twitterbot|telegrambot|linkedinbot|slackbot|discordbot|googlebot|bingbot|pinterest|snapchat|line-poker|vkshare|w3c_validator|curl|python-requests|axios/i;
+  // a modified copy of index.html with event-specific Open Graph meta tags so
+  // previews show the event image and title. Regular browsers pass through to
+  // Vite/static SPA serving so the React app loads normally.
+  const SOCIAL_BOT_UA = /whatsapp|facebookexternalhit|facebot|twitterbot|telegrambot|linkedinbot|slackbot|discordbot|googlebot|bingbot|pinterest|snapchat|vkshare/i;
 
-  const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-  const buildEventOgHtml = (event: any, shareUrl: string): string => {
-    const rawTitle = event.title ? `${event.title} | letsgo radar` : 'letsgo radar - Ontdek lokale evenementen';
-    const rawDesc = event.description
-      ? event.description.replace(/<[^>]+>/g, '').substring(0, 200)
-      : 'Ontdek lokale evenementen in jouw buurt met letsgo radar';
-    const title = escHtml(rawTitle);
-    const description = escHtml(rawDesc);
-    // Ensure image URL is absolute; fall back to app logo
-    let rawImage = event.imageUrl || '';
-    if (rawImage && !rawImage.startsWith('http')) rawImage = `https://www.letsgoradar.com${rawImage}`;
-    const image = escHtml(rawImage || 'https://www.letsgoradar.com/images/letsgo-radar-logo.png');
-    const canonicalUrl = escHtml(shareUrl);
-
-    return `<!DOCTYPE html>
-<html lang="nl">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${title}</title>
-  <meta name="description" content="${description}" />
-  <meta property="og:title" content="${title}" />
-  <meta property="og:description" content="${description}" />
-  <meta property="og:type" content="event" />
-  <meta property="og:image" content="${image}" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:url" content="${canonicalUrl}" />
-  <meta property="og:site_name" content="letsgo radar" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${title}" />
-  <meta name="twitter:description" content="${description}" />
-  <meta name="twitter:image" content="${image}" />
-  <meta http-equiv="refresh" content="0; url=${canonicalUrl}" />
-</head>
-<body>
-  <p>Wordt doorgestuurd naar het evenement... <a href="${canonicalUrl}">${title}</a></p>
-</body>
-</html>`;
-  };
+  const escAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
   const handleEventOgRequest = async (req: Request, res: Response, next: NextFunction) => {
     const ua = req.headers['user-agent'] || '';
@@ -4855,8 +4816,43 @@ Antwoord in dit JSON formaat:
       if (isNaN(eventId)) return next();
       const event = await storage.getEvent(eventId);
       if (!event) return next();
-      const shareUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
-      const html = buildEventOgHtml(event, shareUrl);
+
+      // Load the appropriate index.html template (dev: source, prod: built file)
+      const isDev = process.env.NODE_ENV === 'development';
+      const templatePath = isDev
+        ? path.resolve(__dirname, '..', 'client', 'index.html')
+        : path.resolve(__dirname, 'public', 'index.html');
+      if (!fs.existsSync(templatePath)) return next();
+      let html = fs.readFileSync(templatePath, 'utf-8');
+
+      // Build event-specific OG values
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const rawTitle = event.title ? `${event.title} | letsgo radar` : 'letsgo radar - Ontdek lokale evenementen';
+      const rawDesc = event.description
+        ? event.description.replace(/<[^>]+>/g, '').substring(0, 200).trim()
+        : 'Ontdek lokale evenementen in jouw buurt met letsgo radar';
+      const title = escAttr(rawTitle);
+      const description = escAttr(rawDesc);
+      let rawImage = event.imageUrl || '';
+      if (rawImage && !rawImage.startsWith('http')) rawImage = `${baseUrl}${rawImage}`;
+      const image = escAttr(rawImage || `${baseUrl}/images/letsgo-radar-logo.png`);
+      const canonicalUrl = escAttr(`${baseUrl}${req.originalUrl}`);
+
+      // Replace/inject OG meta tags in the template
+      html = html
+        .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+        .replace(/<meta name="description"[^>]*>/g, `<meta name="description" content="${description}" />`)
+        .replace(/<meta property="og:title"[^>]*>/g, `<meta property="og:title" content="${title}" />`)
+        .replace(/<meta property="og:description"[^>]*>/g, `<meta property="og:description" content="${description}" />`)
+        .replace(/<meta property="og:image"[^>]*>/g, `<meta property="og:image" content="${image}" />`)
+        .replace(/<meta property="og:type"[^>]*>/g, `<meta property="og:type" content="event" />`);
+      // Add og:url (template does not have it by default)
+      if (/<meta property="og:url"[^>]*>/.test(html)) {
+        html = html.replace(/<meta property="og:url"[^>]*>/g, `<meta property="og:url" content="${canonicalUrl}" />`);
+      } else {
+        html = html.replace('</head>', `  <meta property="og:url" content="${canonicalUrl}" />\n  <meta name="twitter:card" content="summary_large_image" />\n  <meta name="twitter:title" content="${title}" />\n  <meta name="twitter:description" content="${description}" />\n  <meta name="twitter:image" content="${image}" />\n</head>`);
+      }
+
       res.status(200).set({ 'Content-Type': 'text/html; charset=utf-8' }).end(html);
     } catch {
       next();

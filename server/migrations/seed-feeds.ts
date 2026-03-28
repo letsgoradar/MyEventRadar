@@ -61,6 +61,7 @@ const FEEDS: FeedConfig[] = [
   { name: "Uitagenda Den Haag", url: "https://denhaag.com/nl/agenda", feedType: "scraper", province: "Zuid-Holland", municipality: "Den Haag", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "52.0705", defaultLongitude: "4.3007", defaultAddress: "Den Haag", updateFrequencyMinutes: 360 },
   { name: "Uitagenda Delft", url: "https://www.indelft.nl/nl/uitagenda/uitagenda-delft", feedType: "scraper", province: "Zuid-Holland", municipality: "Delft", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "52.0116", defaultLongitude: "4.3571", defaultAddress: "Delft", updateFrequencyMinutes: 360 },
   { name: "Visit Leiden", url: "https://www.visitleiden.nl/nl/agenda", feedType: "scraper", province: "Zuid-Holland", municipality: "Leiden", defaultCategory: "Cultuur & Kunst", defaultLatitude: "52.1601", defaultLongitude: "4.4970", defaultAddress: "Leiden, Netherlands", updateFrequencyMinutes: 1440 },
+  { name: "Groene Hart Agenda", url: "https://www.groenehart.nl/agenda/overzicht", feedType: "scraper", province: "Zuid-Holland", municipality: "Groene Hart", defaultCategory: "Gezellig en Sociaal", defaultLatitude: "52.1100", defaultLongitude: "4.7300", defaultAddress: "Groene Hart, Nederland", updateFrequencyMinutes: 1440 },
 ];
 
 type FeedsConfigFile = {

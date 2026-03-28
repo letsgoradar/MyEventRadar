@@ -2427,6 +2427,317 @@ export class RssFeedService {
     }
   }
 
+  // ─── Groene Hart ─────────────────────────────────────────────────────────────
+
+  static async scrapeGroeneHart(): Promise<FeedParseResult> {
+    try {
+      const items: ParsedFeedItem[] = [];
+      const eventLinks: string[] = [];
+      const maxPages = 10;
+
+      for (let page = 1; page <= maxPages; page++) {
+        const url = page === 1
+          ? "https://www.groenehart.nl/agenda/overzicht"
+          : `https://www.groenehart.nl/agenda/overzicht?page=${page}`;
+
+        console.log(`[RSS] Scraping Groene Hart page ${page}...`);
+
+        const response = await axios.get(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+          },
+          timeout: 30000
+        });
+
+        const $ = cheerio.load(response.data);
+        const linksBeforeThisPage = eventLinks.length;
+
+        $('a[href*="/agenda/overzicht/"]').each((_, element) => {
+          const href = $(element).attr("href");
+          if (!href || href === "/agenda/overzicht" || href.includes("?page=")) return;
+
+          // Only follow links with a numeric segment (event detail pages)
+          const match = href.match(/\/agenda\/overzicht\/\d+\//);
+          if (!match) return;
+
+          const fullLink = href.startsWith("http")
+            ? href
+            : `https://www.groenehart.nl${href}`;
+
+          if (!eventLinks.includes(fullLink)) {
+            eventLinks.push(fullLink);
+          }
+        });
+
+        const newLinksOnPage = eventLinks.length - linksBeforeThisPage;
+        console.log(`[RSS] Page ${page}: found ${newLinksOnPage} new event links (total: ${eventLinks.length})`);
+
+        if (newLinksOnPage === 0) {
+          console.log(`[RSS] No new events on page ${page}, stopping pagination`);
+          break;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      console.log(`[RSS] Found ${eventLinks.length} Groene Hart event links, fetching details...`);
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < eventLinks.length; i++) {
+        const link = eventLinks[i];
+        try {
+          console.log(`[RSS] Fetching Groene Hart event ${i + 1}/${eventLinks.length}: ${link.split('/').pop()}`);
+          const eventItems = await this.scrapeGroeneHartEventDetail(link);
+          if (eventItems.length > 0) {
+            items.push(...eventItems);
+            successCount++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 150));
+        } catch (error: any) {
+          errorCount++;
+          console.error(`[RSS] Error fetching Groene Hart event ${link}:`, error.message);
+        }
+
+        if ((i + 1) % 20 === 0) {
+          console.log(`[RSS] Progress: ${i + 1}/${eventLinks.length} events processed (${successCount} success, ${errorCount} errors)`);
+        }
+      }
+
+      console.log(`[RSS] Scraped ${items.length} events from Groene Hart (${errorCount} errors)`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Groene Hart:`, error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
+  static async scrapeGroeneHartEventDetail(url: string): Promise<ParsedFeedItem[]> {
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "text/html,application/xhtml+xml"
+        },
+        timeout: 15000
+      });
+
+      const $ = cheerio.load(response.data);
+      const rawItems: ParsedFeedItem[] = [];
+
+      const ogImage = $('meta[property="og:image"]').attr('content') || '';
+      const urlSlug = url.split('/').slice(-2, -1)[0] || url.replace(/[^a-z0-9]/gi, "-");
+
+      // ── 1. JSON-LD extraction (preferred — plaece.nl sites include Event schema) ──
+      const jsonLdScripts = $('script[type="application/ld+json"]');
+
+      for (let i = 0; i < jsonLdScripts.length; i++) {
+        const scriptContent = $(jsonLdScripts[i]).html();
+        if (!scriptContent) continue;
+
+        try {
+          const jsonData = JSON.parse(scriptContent);
+          const events = Array.isArray(jsonData) ? jsonData : [jsonData];
+
+          for (const event of events) {
+            if (event["@type"] !== "Event") continue;
+
+            const name = event.name || "";
+            if (!name) continue;
+
+            let imageUrl = '';
+            const rawImage = event.image;
+            if (typeof rawImage === 'string') {
+              imageUrl = rawImage;
+            } else if (Array.isArray(rawImage) && rawImage.length > 0) {
+              const first = rawImage[0];
+              imageUrl = typeof first === 'string' ? first : (first?.url || first?.contentUrl || '');
+            } else if (rawImage && typeof rawImage === 'object') {
+              imageUrl = rawImage.url || rawImage.contentUrl || '';
+            }
+            if (!imageUrl) imageUrl = ogImage;
+
+            const location = event.location;
+            const venueName = location?.name || "";
+            const address = location?.address;
+            const streetAddress = address?.streetAddress || "";
+            const postalCode = address?.postalCode || "";
+            const city = address?.addressLocality || "Groene Hart";
+            const fullAddress = [streetAddress, postalCode, city].filter(Boolean).join(", ");
+
+            const geo = location?.geo;
+            const latitude = geo?.latitude;
+            const longitude = geo?.longitude;
+
+            if (!latitude || !longitude) {
+              console.log(`[RSS] SKIPPED Groene Hart event (no GPS): ${name}`);
+              continue;
+            }
+
+            const startDate = event.startDate ? parseLocalDateTime(event.startDate) : undefined;
+            const endDate = event.endDate ? parseLocalDateTime(event.endDate) : undefined;
+
+            if (startDate && startDate < new Date()) continue;
+
+            let description = event.description || "";
+            if (!description || description.length < 20) {
+              description = `${name} in ${venueName || city}. ${fullAddress ? `Locatie: ${fullAddress}.` : ""} Ontdek dit evenement in het Groene Hart!`;
+            }
+
+            rawItems.push({
+              externalId: `groenehart-${urlSlug}`,
+              title: RssFeedService.formatTitle(name),
+              description,
+              link: url,
+              imageUrl: imageUrl || undefined,
+              publishedAt: new Date(),
+              startTime: startDate,
+              endTime: endDate,
+              location: venueName || city,
+              address: fullAddress || "Groene Hart, Nederland",
+              latitude,
+              longitude,
+              rawData: event
+            });
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      // ── 2. HTML fallback — if JSON-LD yielded nothing ─────────────────────────
+      if (rawItems.length === 0) {
+        const title = $('h1').first().text().trim();
+        if (!title) return [];
+
+        const mapsHref = $('a[href*="maps.google.com/maps/dir"], a[href*="google.com/maps/dir"]').first().attr('href') || '';
+        const coordMatch = mapsHref.match(/destination=([-\d.]+)%2C([-\d.]+)/) ||
+                           mapsHref.match(/destination=([-\d.]+),([-\d.]+)/);
+        const latitude = coordMatch ? parseFloat(coordMatch[1]) : undefined;
+        const longitude = coordMatch ? parseFloat(coordMatch[2]) : undefined;
+
+        if (!latitude || !longitude) {
+          console.log(`[RSS] SKIPPED Groene Hart event (no GPS, no JSON-LD): ${title}`);
+          return [];
+        }
+
+        const addressEl = $('address, [itemprop="address"], .address').first();
+        const fullAddress = addressEl.text().trim().replace(/\s+/g, ' ') || "Groene Hart, Nederland";
+
+        const description = $('meta[property="og:description"]').attr('content') ||
+          $('meta[name="description"]').attr('content') ||
+          `${title} in het Groene Hart.`;
+
+        let imageUrl = $('img[src*="plaece.nl"]').first().attr('src') || ogImage;
+        if (!imageUrl) imageUrl = $('meta[property="og:image"]').attr('content') || '';
+
+        const NL_MONTHS: Record<string, string> = {
+          januari:'01', februari:'02', maart:'03', april:'04', mei:'05', juni:'06',
+          juli:'07', augustus:'08', september:'09', oktober:'10', november:'11', december:'12'
+        };
+        const normaliseDutchDate = (raw: string): string => {
+          const s = raw.toLowerCase().replace(/^(maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag)\s+/,'').trim();
+          const m = s.match(/^(\d{1,2})\s+([\w]+?)(?:\s+(\d{4}))?(?:\s+(\d{2}:\d{2}))?/);
+          if (!m) return raw;
+          const [, dayStr, monthWord, yearStr, timeStr] = m;
+          const monthNum = NL_MONTHS[monthWord];
+          if (!monthNum) return raw;
+          const year = yearStr || new Date().getFullYear().toString();
+          const day = dayStr.padStart(2, '0');
+          return timeStr ? `${year}-${monthNum}-${day}T${timeStr}` : `${year}-${monthNum}-${day}`;
+        };
+        const rawDateText = $('[class*="date"], time, .datum, [itemprop="startDate"]').first().text().trim();
+        const dateText = rawDateText ? normaliseDutchDate(rawDateText) : '';
+        const startDate = dateText ? parseLocalDateTime(dateText) : undefined;
+        if (startDate && startDate < new Date()) return [];
+
+        rawItems.push({
+          externalId: `groenehart-${urlSlug}`,
+          title: RssFeedService.formatTitle(title),
+          description,
+          link: url,
+          imageUrl: imageUrl || undefined,
+          publishedAt: new Date(),
+          startTime: startDate,
+          location: "Groene Hart",
+          address: fullAddress,
+          latitude,
+          longitude,
+        });
+      }
+
+      // ── 3. Cluster-based multi-day consolidation ──────────────────────────────
+      const localDateStr = (d: Date): string => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}${m}${day}`;
+      };
+
+      const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+      const groups = new Map<string, ParsedFeedItem[]>();
+      for (const item of rawItems) {
+        const key = `${item.title}|${item.latitude},${item.longitude}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(item);
+      }
+
+      const consolidated: ParsedFeedItem[] = [];
+
+      for (const [, group] of groups) {
+        const withDate = group.filter(item => item.startTime)
+          .sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime());
+        const noDate = group.filter(item => !item.startTime);
+
+        if (withDate.length === 0) { consolidated.push(...noDate); continue; }
+        if (withDate.length === 1) { consolidated.push(...withDate, ...noDate); continue; }
+
+        const clusters: ParsedFeedItem[][] = [];
+        let currentCluster: ParsedFeedItem[] = [withDate[0]];
+        for (let i = 1; i < withDate.length; i++) {
+          const gap = withDate[i].startTime!.getTime() - withDate[i - 1].startTime!.getTime();
+          if (gap < TWO_DAYS_MS) {
+            currentCluster.push(withDate[i]);
+          } else {
+            clusters.push(currentCluster);
+            currentCluster = [withDate[i]];
+          }
+        }
+        clusters.push(currentCluster);
+
+        if (clusters.length === 1) {
+          const first = withDate[0];
+          const last = withDate[withDate.length - 1];
+          consolidated.push({
+            ...first,
+            externalId: `groenehart-${urlSlug}`,
+            endTime: last.endTime || last.startTime,
+          });
+          console.log(`[RSS] Groene Hart: merged ${withDate.length} consecutive days → "${first.title}"`);
+        } else {
+          for (const cluster of clusters) {
+            const first = cluster[0];
+            const last = cluster[cluster.length - 1];
+            const suffix = localDateStr(first.startTime!);
+            consolidated.push({
+              ...first,
+              externalId: `groenehart-${urlSlug}-${suffix}`,
+              endTime: cluster.length > 1 ? (last.endTime || last.startTime) : first.endTime,
+            });
+          }
+        }
+        consolidated.push(...noDate);
+      }
+
+      return consolidated;
+    } catch (error: any) {
+      console.error(`[RSS] Error scraping Groene Hart event detail ${url}:`, error.message);
+      return [];
+    }
+  }
+
   // ─── Oss (Tref het in Oss) ───────────────────────────────────────────────────
 
   static async scrapeOssEventDetail(url: string): Promise<ParsedFeedItem[]> {
@@ -9142,6 +9453,8 @@ export class RssFeedService {
         result = await this.scrapeInDelft();
       } else if (feed.feedType === "scraper" && feed.url.includes("visitleiden.nl")) {
         result = await this.scrapeVisitLeiden();
+      } else if (feed.feedType === "scraper" && feed.url.includes("groenehart.nl")) {
+        result = await this.scrapeGroeneHart();
       } else if (feed.feedType === "scraper") {
         // Use intelligent universal scraper for unknown scraper feeds
         result = await this.scrapeUniversal(feed);

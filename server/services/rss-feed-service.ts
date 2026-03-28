@@ -2060,7 +2060,7 @@ export class RssFeedService {
         let currentCluster: ParsedFeedItem[] = [withDate[0]];
         for (let i = 1; i < withDate.length; i++) {
           const gap = withDate[i].startTime!.getTime() - withDate[i - 1].startTime!.getTime();
-          if (gap <= TWO_DAYS_MS) {
+          if (gap < TWO_DAYS_MS) {
             currentCluster.push(withDate[i]);
           } else {
             clusters.push(currentCluster);

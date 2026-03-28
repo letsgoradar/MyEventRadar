@@ -2318,8 +2318,27 @@ export class RssFeedService {
         let imageUrl = $('img[src*="plaece.nl"]').first().attr('src') || ogImage;
         if (!imageUrl) imageUrl = $('meta[property="og:image"]').attr('content') || '';
 
-        // Date — try to find a date string on the page
-        const dateText = $('[class*="date"], time, .datum, [itemprop="startDate"]').first().text().trim();
+        // Date — try to find a date string on the page.
+        // Normalise Dutch text ("28 maart 2026", "zaterdag 28 maart 10:00") to ISO before
+        // passing to parseLocalDateTime which only accepts ISO-style date strings.
+        const NL_MONTHS: Record<string, string> = {
+          januari:'01', februari:'02', maart:'03', april:'04', mei:'05', juni:'06',
+          juli:'07', augustus:'08', september:'09', oktober:'10', november:'11', december:'12'
+        };
+        const normaliseDutchDate = (raw: string): string => {
+          const s = raw.toLowerCase().replace(/^(maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag)\s+/,'').trim();
+          // Pattern: "28 maart 2026 10:00" or "28 maart 10:00" or "28 maart 2026"
+          const m = s.match(/^(\d{1,2})\s+([\w]+?)(?:\s+(\d{4}))?(?:\s+(\d{2}:\d{2}))?/);
+          if (!m) return raw; // not recognisable — pass through (parseLocalDateTime will return undefined)
+          const [, dayStr, monthWord, yearStr, timeStr] = m;
+          const monthNum = NL_MONTHS[monthWord];
+          if (!monthNum) return raw;
+          const year = yearStr || new Date().getFullYear().toString();
+          const day = dayStr.padStart(2, '0');
+          return timeStr ? `${year}-${monthNum}-${day}T${timeStr}` : `${year}-${monthNum}-${day}`;
+        };
+        const rawDateText = $('[class*="date"], time, .datum, [itemprop="startDate"]').first().text().trim();
+        const dateText = rawDateText ? normaliseDutchDate(rawDateText) : '';
         const startDate = dateText ? parseLocalDateTime(dateText) : undefined;
         if (startDate && startDate < new Date()) return [];
 

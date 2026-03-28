@@ -4797,20 +4797,13 @@ Antwoord in dit JSON formaat:
     }
   });
 
-  // Social sharing OG tag injection for event detail pages
-  // Detects social media crawlers (WhatsApp, Facebook, Telegram, etc.) and returns
-  // a modified copy of index.html with event-specific Open Graph meta tags so
-  // previews show the event image and title. Regular browsers pass through to
-  // Vite/static SPA serving so the React app loads normally.
-  const SOCIAL_BOT_UA = /whatsapp|facebookexternalhit|facebot|twitterbot|telegrambot|linkedinbot|slackbot|discordbot|googlebot|bingbot|pinterest|snapchat|vkshare/i;
-
+  // OG tag injection for event detail pages — always inject for all requests so
+  // social media previews (WhatsApp, Facebook, Telegram, etc.) always show the
+  // event-specific image, title and description. React still boots normally because
+  // OG tags live in <head>, outside the React root div.
   const escAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
   const handleEventOgRequest = async (req: Request, res: Response, next: NextFunction) => {
-    const ua = req.headers['user-agent'] || '';
-    if (!SOCIAL_BOT_UA.test(ua)) {
-      return next();
-    }
     try {
       const eventId = parseInt(req.params.id);
       if (isNaN(eventId)) return next();

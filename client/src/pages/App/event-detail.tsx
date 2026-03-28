@@ -1,19 +1,16 @@
 import * as React from "react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams, useLocation } from "wouter";
-import { trackEventView, trackAddFavorite, trackExternalClick } from "@/lib/analytics";
-import AppLayout from "@/components/App/AppLayout";
+import { useParams, useLocation } from "wouter";
+import { trackEventView, trackAddFavorite } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CalendarDays,
   Clock,
   MapPin,
-  Users,
   ChevronLeft,
   Heart,
   Share2,
@@ -23,7 +20,6 @@ import {
   MessageCircle,
   Search,
   ChevronRight,
-  Bell,
 } from "lucide-react";
 import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
 import { formatDistanceToNow, format, differenceInHours } from "date-fns";
@@ -34,7 +30,7 @@ import { EventInterface } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import 'leaflet/dist/leaflet.css';
 import '@/components/Events/leaflet-fix.css';
 import { getLocationName } from "@/utils/location-utils";
@@ -148,7 +144,7 @@ export function AppEventDetail() {
   // Laad-toestand weergeven
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-background pb-16">
+      <div className="fixed inset-0 bg-background">
         <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b">
           <div className="px-4 py-3 flex items-center">
             <Button variant="ghost" size="icon" onClick={() => navigate('/app')}>
@@ -176,7 +172,7 @@ export function AppEventDetail() {
   // Fout of geen data weergeven
   if (error || !event) {
     return (
-      <div className="fixed inset-0 bg-background pb-16">
+      <div className="fixed inset-0 bg-background">
         <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b">
           <div className="px-4 py-3 flex items-center">
             <Button variant="ghost" size="icon" onClick={() => navigate('/app')}>
@@ -375,7 +371,7 @@ export function AppEventDetail() {
       </div>
 
       {/* Scrollable Content */}
-      <div className="pt-16 pb-16 overflow-y-auto h-full">
+      <div className="pt-16 pb-8 overflow-y-auto h-full">
         <div className="p-4">
           <ImageGallery imageUrls={eventImages} />
           
@@ -555,8 +551,14 @@ export function AppEventDetail() {
             
             <div className="pt-6">
               <div className="flex space-x-3">
-                <Button className="flex-1">
-                  <Heart className="mr-2 h-4 w-4" /> Bewaren
+                <Button
+                  className="flex-1"
+                  variant={isFavorite ? "default" : "outline"}
+                  onClick={handleToggleFavorite}
+                  disabled={toggleFavoriteMutation.isPending}
+                >
+                  <Heart className={cn("mr-2 h-4 w-4", isFavorite ? "fill-current" : "")} />
+                  {isFavorite ? "Bewaard" : "Bewaren"}
                 </Button>
                 <Button variant="outline" className="flex-1">
                   <Share2 className="mr-2 h-4 w-4" /> Delen
@@ -565,32 +567,8 @@ export function AppEventDetail() {
                   <MessageCircle className="mr-2 h-4 w-4" /> Contact
                 </Button>
               </div>
-              
-              <div className="mt-4">
-                <Button className="w-full" size="lg">
-                  Aanmelden
-                </Button>
-              </div>
             </div>
           </div>
-        </div>
-      </div>
-      
-      {/* Fixed bottom action bar */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 bg-background border-t z-40">
-        <div className="h-full flex items-center justify-around px-4">
-          <Button variant="ghost" size="sm" className="flex-1">
-            <MapIcon className="h-4 w-4 mr-2" />
-            Locatie
-          </Button>
-          <Button variant="ghost" size="sm" className="flex-1">
-            <Bell className="h-4 w-4 mr-2" />
-            Herinnering
-          </Button>
-          <Button variant="ghost" size="sm" className="flex-1">
-            <Users className="h-4 w-4 mr-2" />
-            Aanmelden
-          </Button>
         </div>
       </div>
     </div>

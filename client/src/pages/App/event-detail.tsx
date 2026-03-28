@@ -17,7 +17,6 @@ import {
   AlertCircle,
   Map as MapIcon,
   Euro,
-  MessageCircle,
   Search,
   ChevronRight,
 } from "lucide-react";
@@ -29,6 +28,7 @@ import { apiRequest } from "@/lib/api";
 import { EventInterface } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { AuthModal } from "@/components/Auth/AuthModal";
 import { cn } from "@/lib/utils";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import 'leaflet/dist/leaflet.css';
@@ -48,6 +48,7 @@ export function AppEventDetail() {
   // Alle state hooks samen definiëren (consistent)
   const [returnTo, setReturnTo] = useState('/app');
   const [hasSearchState, setHasSearchState] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   
   // Data fetching met React Query
   const { data: event, isLoading, error } = useQuery<EventInterface>({
@@ -108,14 +109,25 @@ export function AppEventDetail() {
 
   const handleToggleFavorite = () => {
     if (!user) {
-      toast({
-        title: "Inloggen vereist",
-        description: "Log in om evenementen op te slaan als favoriet.",
-        variant: "destructive",
-      });
+      setShowAuthModal(true);
       return;
     }
     toggleFavoriteMutation.mutate();
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = event?.title ?? 'Evenement';
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch {
+        // Dismissed by user — do nothing
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link gekopieerd!", description: "De link is naar je klembord gekopieerd." });
+    }
   };
 
   // Effect voor het ophalen van de returnTo parameter
@@ -560,17 +572,20 @@ export function AppEventDetail() {
                   <Heart className={cn("mr-2 h-4 w-4", isFavorite ? "fill-current" : "")} />
                   {isFavorite ? "Bewaard" : "Bewaren"}
                 </Button>
-                <Button variant="outline" className="flex-1">
+                <Button variant="outline" className="flex-1" onClick={handleShare}>
                   <Share2 className="mr-2 h-4 w-4" /> Delen
-                </Button>
-                <Button variant="outline" className="flex-1">
-                  <MessageCircle className="mr-2 h-4 w-4" /> Contact
                 </Button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => setShowAuthModal(false)}
+      />
     </div>
   );
 }

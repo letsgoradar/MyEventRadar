@@ -13,6 +13,14 @@
   font-family: inherit;
 }
 
+/* Contain Leaflet's internal z-indices (400, 600, etc.) within the map container
+   so they never appear above the fixed app header (z-50 = z-index 50). */
+.event-detail-map {
+  isolation: isolate;
+  position: relative;
+  z-index: 0;
+}
+
 /* Category icon styles */
 .category-icon {
   transition: transform 0.2s ease;

@@ -3987,17 +3987,27 @@ export class RssFeedService {
             // Handle ItemList wrapper (overview page format)
             const listItems: any[] = [];
             for (const data of topLevel) {
-              if (data["@type"] === "ItemList" && Array.isArray(data.itemListElement)) {
-                for (const entry of data.itemListElement) {
-                  if (entry?.item) listItems.push(entry.item);
+              // Expand @graph arrays into topLevel candidates
+              const candidates: any[] = Array.isArray(data["@graph"])
+                ? data["@graph"]
+                : [data];
+              for (const candidate of candidates) {
+                const types: string[] = Array.isArray(candidate["@type"])
+                  ? candidate["@type"]
+                  : [candidate["@type"] || ""];
+                if (types.includes("ItemList") && Array.isArray(candidate.itemListElement)) {
+                  for (const entry of candidate.itemListElement) {
+                    if (entry?.item) listItems.push(entry.item);
+                  }
+                } else if (types.includes("Event")) {
+                  listItems.push(candidate);
                 }
-              } else if (data["@type"] === "Event") {
-                listItems.push(data);
               }
             }
 
             for (const event of listItems) {
-              if (event["@type"] !== "Event") continue;
+              const eventTypes: string[] = Array.isArray(event["@type"]) ? event["@type"] : [event["@type"] || ""];
+              if (!eventTypes.includes("Event")) continue;
 
               const name = event.name || "";
               if (!name) continue;

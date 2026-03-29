@@ -4023,7 +4023,7 @@ export class RssFeedService {
               const longitude: number | undefined = geo?.longitude != null ? parseFloat(geo.longitude) : undefined;
 
               // Only accept events with verified GPS
-              if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+              if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) {
                 jsonLdSkippedNoGps++;
                 continue;
               }

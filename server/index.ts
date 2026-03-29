@@ -168,7 +168,8 @@ const HOST = '0.0.0.0';
     // Migrate old category names to new 8-category system
     try {
       const { db: migrateDb2 } = await import('./db');
-      const { sql: sqlRaw } = await import('drizzle-orm');
+      const { events: eventsTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
       const OLD_TO_NEW: Record<string, string> = {
         'Sport en spel':           'Activiteit',
         'Kunst en Cultuur':        'Voorstelling',
@@ -184,10 +185,12 @@ const HOST = '0.0.0.0';
       };
       let totalMigrated = 0;
       for (const [oldCat, newCat] of Object.entries(OLD_TO_NEW)) {
-        const result = await migrateDb2.execute(
-          sqlRaw`UPDATE events SET category = ${newCat} WHERE category = ${oldCat}`
-        );
-        const count = (result as any).rowCount ?? 0;
+        const updated = await migrateDb2
+          .update(eventsTable)
+          .set({ category: newCat })
+          .where(eq(eventsTable.category, oldCat))
+          .returning({ id: eventsTable.id });
+        const count = updated.length;
         if (count > 0) {
           console.log(`[Category Migration] "${oldCat}" → "${newCat}": ${count} events updated`);
           totalMigrated += count;

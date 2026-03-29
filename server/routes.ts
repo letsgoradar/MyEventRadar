@@ -4121,7 +4121,7 @@ Antwoord in dit JSON formaat:
       }
 
       const feed = await storage.getRssFeed(item.feedId);
-      const category = feed?.defaultCategory || 'Gezellig en Sociaal';
+      const category = feed?.defaultCategory || 'Stappen & Borrel';
 
       const eventData = {
         title: item.title.substring(0, 40),

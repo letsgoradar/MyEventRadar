@@ -4047,6 +4047,10 @@ export class RssFeedService {
                 if (upcoming) {
                   startDate = upcoming.start;
                   endDate = upcoming.end;
+                } else {
+                  // Schedule exists but no upcoming slot; fall back to event.startDate
+                  startDate = event.startDate ? parseLocalDateTime(event.startDate) : undefined;
+                  endDate = event.endDate ? parseLocalDateTime(event.endDate) : undefined;
                 }
               } else {
                 startDate = event.startDate ? parseLocalDateTime(event.startDate) : undefined;

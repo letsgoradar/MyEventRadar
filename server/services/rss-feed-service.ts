@@ -4014,8 +4014,8 @@ export class RssFeedService {
               if (!name) continue;
 
               const geo = event.location?.geo;
-              const latitude: number | undefined = geo?.latitude;
-              const longitude: number | undefined = geo?.longitude;
+              const latitude: number | undefined = geo?.latitude != null ? parseFloat(geo.latitude) : undefined;
+              const longitude: number | undefined = geo?.longitude != null ? parseFloat(geo.longitude) : undefined;
 
               // Only accept events with verified GPS
               if (!latitude || !longitude) {

@@ -1,55 +1,59 @@
-import { Trophy, Palette, Users, GraduationCap, Heart } from 'lucide-react';
+import { Frame, Mic2, Bike, PartyPopper, ShoppingBag, Gamepad2, BookOpen, UtensilsCrossed, type LucideIcon } from 'lucide-react';
 import { CATEGORIES } from '@shared/schema';
 
-export const CATEGORY_COLORS = {
-  'Sport en spel': '#3B82F6', // blue-500
-  'Kunst en Cultuur': '#FACC15', // yellow-400 (helderder geel)
-  'Gezellig en Sociaal': '#22C55E', // green-500
-  'Leren en Ontdekken': '#F97316', // orange-500
-  'Vrijwilligerswerk en hulp': '#EF4444', // red-500
-} as const;
+export const CATEGORY_COLORS: Record<string, string> = {
+  'Tentoonstelling':   '#8B5CF6',
+  'Voorstelling':      '#EC4899',
+  'Activiteit':        '#3B82F6',
+  'Stappen & Borrel':  '#F97316',
+  'Markt & Beurs':     '#F59E0B',
+  'Quiz & Spelletjes': '#14B8A6',
+  'Leren & Ontdekken': '#22C55E',
+  'Eten & Drinken':    '#EF4444',
+};
 
-// SVG paths for the icons
-export const CATEGORY_PATHS = {
-  'Sport en spel': 'M14.1 7.75l-.79-2.44a.5.5 0 01.48-.65h2.68a.5.5 0 01.29.91L14.1 7.75zm-.85-2.97L12.5 2.5l-.75 2.28a.5.5 0 01-.48.34H8.59a.5.5 0 00-.29.91l2.66 1.93a.5.5 0 01.18.56l-1.02 3.13a.5.5 0 00.77.56l2.71-1.97a.5.5 0 01.59 0l2.71 1.97a.5.5 0 00.77-.56l-1.02-3.13a.5.5 0 01.18-.56l2.66-1.93a.5.5 0 00-.29-.91h-2.68a.5.5 0 01-.48-.34L12.5 2.5z',
-  'Kunst en Cultuur': 'M12 4.5v15m7.5-7.5h-15',
-  'Gezellig en Sociaal': 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z',
-  'Leren en Ontdekken': 'M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5',
-  'Vrijwilligerswerk en hulp': 'M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z'
-} as const;
+export const CATEGORY_PATHS: Record<string, string> = {
+  'Tentoonstelling':   'M4 4h16v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm0 0l4 8m8-8l-4 8m-4 0h8',
+  'Voorstelling':      'M12 2a3 3 0 100 6 3 3 0 000-6zm-7 9h14M5 21l2-4h10l2 4M12 11v4',
+  'Activiteit':        'M12 2a10 10 0 110 20A10 10 0 0112 2zM6.5 8.5c0 1.5 2 4 5.5 4s5.5-2.5 5.5-4M12 12v5',
+  'Stappen & Borrel':  'M5.8 11.3a7 7 0 0112.4 0M12 8v1M8 10l-1.5 1M16 10l1.5 1M9 18h6M10 15l-1 3M14 15l1 3',
+  'Markt & Beurs':     'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',
+  'Quiz & Spelletjes': 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z',
+  'Leren & Ontdekken': 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+  'Eten & Drinken':    'M3 2l2.5 7H18l2-5L3 2zM5.5 9L4 22h16l-1.5-13M8 15h8M10 11v4M14 11v4',
+};
 
-export const CATEGORY_ICONS = {
-  'Sport en spel': Trophy,
-  'Kunst en Cultuur': Palette,
-  'Gezellig en Sociaal': Users,
-  'Leren en Ontdekken': GraduationCap,
-  'Vrijwilligerswerk en hulp': Heart,
-} as const;
+export const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  'Tentoonstelling':   Frame,
+  'Voorstelling':      Mic2,
+  'Activiteit':        Bike,
+  'Stappen & Borrel':  PartyPopper,
+  'Markt & Beurs':     ShoppingBag,
+  'Quiz & Spelletjes': Gamepad2,
+  'Leren & Ontdekken': BookOpen,
+  'Eten & Drinken':    UtensilsCrossed,
+};
 
 interface CategoryIconProps {
-  category: typeof CATEGORIES[number];
+  category: typeof CATEGORIES[number] | string;
   className?: string;
   size?: number;
 }
 
 export function CategoryIcon({ category, className = "", size = 20 }: CategoryIconProps) {
-  // Default to first category if the provided category is invalid
-  const validCategory = Object.keys(CATEGORY_ICONS).includes(category) 
-    ? category 
-    : 'Sport en spel' as typeof CATEGORIES[number];
-  
+  const validCategory = CATEGORY_ICONS[category] ? category : 'Activiteit';
   const Icon = CATEGORY_ICONS[validCategory];
-  
+
   return (
     <Icon
       size={size}
       className={`${className}`}
-      style={{ color: CATEGORY_COLORS[validCategory] }}
+      style={{ color: CATEGORY_COLORS[validCategory] || '#94A3B8' }}
     />
   );
 }
 
-export function getCategoryColor(category: typeof CATEGORIES[number] | undefined): string {
-  if (!category) return '#94A3B8'; // gray-400 for unknown categories
-  return CATEGORY_COLORS[category];
+export function getCategoryColor(category: string | undefined): string {
+  if (!category) return '#94A3B8';
+  return CATEGORY_COLORS[category] || '#94A3B8';
 }

@@ -181,7 +181,7 @@ const CreateEvent = () => {
     defaultValues: {
       title: '',
       description: '',
-      category: 'Gezellig en Sociaal',
+      category: 'Stappen & Borrel',
       isPaid: false,
       price: undefined,
       maxParticipants: undefined,
@@ -216,7 +216,7 @@ const CreateEvent = () => {
       form.reset({
         title: existingEvent.title || '',
         description: existingEvent.description || '',
-        category: existingEvent.category || 'Gezellig en Sociaal',
+        category: existingEvent.category || 'Stappen & Borrel',
         isPaid: existingEvent.price !== null && existingEvent.price > 0,
         price: existingEvent.price || undefined,
         maxParticipants: existingEvent.maxParticipants || undefined,

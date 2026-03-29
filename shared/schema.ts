@@ -3,11 +3,14 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const CATEGORIES = [
-  'Sport en spel',
-  'Kunst en Cultuur',
-  'Gezellig en Sociaal',
-  'Leren en Ontdekken',
-  'Vrijwilligerswerk en hulp'
+  'Tentoonstelling',
+  'Voorstelling',
+  'Activiteit',
+  'Stappen & Borrel',
+  'Markt & Beurs',
+  'Quiz & Spelletjes',
+  'Leren & Ontdekken',
+  'Eten & Drinken',
 ] as const;
 
 // Event Tags - specifieke beschrijvingen van wat voor evenement het is

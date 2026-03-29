@@ -674,7 +674,7 @@ export default function FeedAnalyzerModal({ open, onOpenChange, onFeedCreated, d
           url: method.url,
           feedType: getFeedType(method.id),
           municipality: selectedMunicipality || result?.suggestedMunicipality || '',
-          defaultCategory: 'Gezellig en Sociaal',
+          defaultCategory: 'Stappen & Borrel',
           autoCreateEvents: true,
           updateFrequencyMinutes: 60,
           fieldMappings: Object.keys(fieldMapping).length > 0 ? fieldMapping : undefined,

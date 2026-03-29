@@ -11,36 +11,42 @@ const EVENT_TEMPLATES = [
 ];
 
 // Uitgebreide woordenlijsten per categorie voor betere suggesties
-const CATEGORY_KEYWORDS = {
-  'Sport en spel': [
-    'sport', 'spel', 'toernooi', 'wedstrijd', 'marathon', 'race', 'tennis', 'voetbal', 
-    'hardlopen', 'zwemmen', 'fietsen', 'yoga', 'fitness', 'wandelen', 'gymnastiek', 
-    'schaak', 'dammen', 'bordspel', 'kaartspel', 'game', 'gaming', 'esports', 'clinic',
-    'training', 'competitie', 'match', 'atletiek', 'volleybal', 'basketbal', 'hockey'
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  'Tentoonstelling': [
+    'tentoonstelling', 'expositie', 'galerie', 'museum', 'kunst', 'schilderij', 'vernissage',
+    'kunstenaar', 'beeldhouw', 'fotografie', 'expo', 'collectie', 'design', 'installatie'
   ],
-  'Kunst en Cultuur': [
-    'kunst', 'muziek', 'theater', 'concert', 'voorstelling', 'expositie', 'museum', 'cultuur',
-    'film', 'bioscoop', 'tentoonstelling', 'schilderen', 'dans', 'ballet', 'opera', 'toneel',
-    'festival', 'literatuur', 'poëzie', 'fotografie', 'creatief', 'tekenen', 'kunstenaar',
-    'gitaar', 'piano', 'band', 'galerie', 'cultureel', 'boeken', 'schrijver', 'literair'
+  'Voorstelling': [
+    'concert', 'muziek', 'theater', 'toneel', 'musical', 'opera', 'ballet', 'dans',
+    'cabaret', 'comedy', 'standup', 'film', 'bioscoop', 'optreden', 'voorstelling', 'show',
+    'live', 'jazz', 'band', 'dj', 'koor', 'circus', 'acrobatiek', 'piano', 'gitaar'
   ],
-  'Gezellig en Sociaal': [
-    'borrel', 'feest', 'sociaal', 'ontmoeting', 'meeting', 'netwerken', 'café', 'pub',
-    'drinken', 'uitgaan', 'cocktail', 'receptie', 'bijeenkomst', 'samenzijn', 'barbecue', 'bbq',
-    'diner', 'lunch', 'brunch', 'tasting', 'proeverij', 'gezellig', 'vrienden', 'netwerk',
-    'bier', 'wijn', 'happy hour', 'café', 'terras', 'avond', 'samen', 'dating', 'ontmoet'
+  'Activiteit': [
+    'sport', 'spel', 'toernooi', 'wedstrijd', 'marathon', 'race', 'tennis', 'voetbal',
+    'hardlopen', 'zwemmen', 'fietsen', 'yoga', 'fitness', 'wandelen', 'speurtocht',
+    'kinderfeest', 'kinderactiviteit', 'atletiek', 'basketbal', 'hockey', 'schaatsen'
   ],
-  'Leren en Ontdekken': [
+  'Stappen & Borrel': [
+    'borrel', 'feest', 'party', 'festival', 'kermis', 'carnaval', 'dancing', 'rave',
+    'koningsdag', 'nieuwjaar', 'jubileum', 'verjaardag', 'stappen', 'uitgaan', 'netwerk',
+    'happy hour', 'terras', 'cocktail', 'dansen', 'openlucht'
+  ],
+  'Markt & Beurs': [
+    'markt', 'beurs', 'rommelmarkt', 'braderie', 'koopzondag', 'vlooienmarkt', 'kerstmarkt',
+    'weekmarkt', 'boerenmarkt', 'fair', 'antiek', 'vintage', 'tweedehands', 'kraampjes'
+  ],
+  'Quiz & Spelletjes': [
+    'pubquiz', 'quiz', 'bingo', 'bordspel', 'spelletjes', 'trivia', 'escape room',
+    'puzzel', 'kaartspel', 'speeddaten', 'kienen', 'gameavond'
+  ],
+  'Leren & Ontdekken': [
     'lezing', 'workshop', 'cursus', 'leren', 'educatie', 'kennis', 'seminar', 'conferentie',
-    'masterclass', 'studie', 'training', 'ontwikkeling', 'webinar', 'presentatie', 'college',
-    'informatief', 'educatief', 'technologie', 'wetenschap', 'meetup', 'tech', 'boek',
-    'innovatie', 'onderzoek', 'data', 'taal', 'geschiedenis', 'ontdekken', 'skills', 'vaardigheid'
+    'masterclass', 'training', 'presentatie', 'college', 'rondleiding', 'excursie',
+    'meditatie', 'mindfulness', 'natuur', 'ontdekken', 'innovatie', 'technologie'
   ],
-  'Vrijwilligerswerk en hulp': [
-    'vrijwilliger', 'hulp', 'inzameling', 'actie', 'donatie', 'ondersteuning', 'bijdragen',
-    'helpen', 'liefdadigheid', 'goed doel', 'collecte', 'goededoel', 'gemeenschap', 'bijstand',
-    'sociaal werk', 'maatschappelijk', 'assistentie', 'zorg', 'ouderen', 'milieu', 'natuur',
-    'schoonmaak', 'buurt', 'samenleving', 'gemeenschap', 'voedselbank', 'hulpbehoevend', 'samen'
+  'Eten & Drinken': [
+    'foodfestival', 'proeverij', 'diner', 'culinair', 'restaurant', 'tasting', 'koken', 'bakken',
+    'bbq', 'barbecue', 'food truck', 'streetfood', 'wijn', 'bier', 'brunch', 'lunch'
   ],
 };
 

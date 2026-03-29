@@ -22,46 +22,59 @@ const DUTCH_CITIES = [
 ];
 
 // Event titels per categorie
-const EVENT_TITLES = {
-  "Sport en spel": [
-    "Voetbaltoernooi",
-    "Tennis clinic",
-    "Schaaktoernooi",
-    "Game-avond",
-    "Sportdag",
-    "Spelletjesavond"
-  ],
-  "Kunst en Cultuur": [
+const EVENT_TITLES: Record<string, string[]> = {
+  "Tentoonstelling": [
     "Kunstexpositie",
+    "Fototentoonstelling",
+    "Galerie opening",
+    "Museum rondleiding"
+  ],
+  "Voorstelling": [
     "Theatervoorstelling",
-    "Filmfestival",
     "Muziekconcert",
     "Dansvoorstelling",
-    "Workshop fotografie"
+    "Filmfestival",
+    "Cabaretavond"
   ],
-  "Gezellig en Sociaal": [
+  "Activiteit": [
+    "Voetbaltoernooi",
+    "Tennis clinic",
+    "Sportdag",
+    "Yoga sessie",
+    "Fietstochtje"
+  ],
+  "Stappen & Borrel": [
     "Buurtborrel",
     "BBQ & Muziek",
     "Zomerfeest",
-    "Tech meetup",
-    "Buurtschoonmaak",
-    "Masterclass"
+    "Netwerkevent"
   ],
-  "Leren en Ontdekken": [
+  "Markt & Beurs": [
+    "Rommelmarkt",
+    "Boerenmarkt",
+    "Kerstmarkt",
+    "Antiekbeurs"
+  ],
+  "Quiz & Spelletjes": [
+    "Pubquiz",
+    "Bordspelenavond",
+    "Trivia night",
+    "Game-avond"
+  ],
+  "Leren & Ontdekken": [
     "Workshop fotografie",
     "Lezing geschiedenis",
     "Cursus koken",
     "Tech meetup",
     "Masterclass"
   ],
-  "Vrijwilligerswerk en hulp": [
-    "Buurtschoonmaak",
-    "Hulp ouderen",
-    "Voedselbank actie",
-    "Gemeenschapsproject",
-    "Vrijwilligersdag"
+  "Eten & Drinken": [
+    "Proeverij",
+    "Food festival",
+    "Wijnproeverij",
+    "Culinaire tour"
   ]
-} as const;
+};
 
 async function seedEvents() {
   const events = [];

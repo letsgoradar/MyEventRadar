@@ -5,8 +5,9 @@ import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import type { EventInterface } from "@shared/schema";
-import { getCategoryColor } from "../CategoryIcon";
+import { getCategoryColor, CATEGORY_PATHS } from "../CategoryIcon";
 import { isImageFailed, markImageFailed } from "@/lib/imageCache";
+import { getBestCategoryImage } from "@/lib/categoryImages";
 
 interface FormattedEvent {
   id: number;
@@ -31,13 +32,7 @@ interface ClusterLayerProps {
 const CLUSTER_THRESHOLD = 200;
 const CLUSTER_COLOR = "107, 114, 128";
 
-const CATEGORY_SVG_PATHS: Record<string, string> = {
-  'Sport en spel': 'M6.5 6.5h11M6.5 17.5h11M4.5 12h15M12 4.5v15M8 8l8 8M16 8l-8 8',
-  'Kunst en Cultuur': 'M12 4v16m-8-8h16',
-  'Gezellig en Sociaal': 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
-  'Leren en Ontdekken': 'M22 10v6M2 10l10-5 10 5-10 5z M6 12v5c3 3 9 3 12 0v-5',
-  'Vrijwilligerswerk en hulp': 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'
-};
+const DEFAULT_SVG_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z';
 
 let markerIdCounter = 0;
 
@@ -58,7 +53,7 @@ function createImageMarkerIcon(
 
   const categoryColor = getCategoryColor(category);
   const primaryColor  = isExpired ? "#9CA3AF" : categoryColor;
-  const iconPath = CATEGORY_SVG_PATHS[category] || CATEGORY_SVG_PATHS['Gezellig en Sociaal'];
+  const iconPath = CATEGORY_PATHS[category] || DEFAULT_SVG_PATH;
 
   const dropShadow = isPromoted
     ? 'filter:drop-shadow(0 3px 8px rgba(245,158,11,0.65));'
@@ -266,7 +261,11 @@ export function ClusterLayer({
     
     events.forEach((event) => {
       const isSelected = selectedEventId === event.id;
-      const imageUrl = event.event.imageUrl ?? null;
+      const rawImageUrl = event.event.imageUrl ?? null;
+      // Always show a photo: use event image, fall back to category stock photo
+      const imageUrl = (rawImageUrl && !isImageFailed(rawImageUrl))
+        ? rawImageUrl
+        : getBestCategoryImage(event.category, event.title, event.event.description || '');
       
       if (currentMarkers.has(event.id)) {
         const existingMarker = currentMarkers.get(event.id)!;

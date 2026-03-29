@@ -6,7 +6,7 @@ import { Link } from "wouter";
 import L from "leaflet";
 import { formatDistance, differenceInDays, startOfDay } from "date-fns";
 import { nl } from "date-fns/locale";
-import { CategoryIcon, getCategoryColor } from "../CategoryIcon";
+import { CategoryIcon, getCategoryColor, CATEGORY_PATHS } from "../CategoryIcon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, Clock, Euro } from "lucide-react";
@@ -357,14 +357,7 @@ function calculateAngleFromUser(userLat: number, userLng: number, eventLat: numb
   return angle;
 }
 
-// SVG paths voor categorie iconen (identiek aan CategoryIcon.tsx)
-const CATEGORY_SVG_PATHS: Record<string, string> = {
-  'Sport en spel': 'M6.5 6.5h11M6.5 17.5h11M4.5 12h15M12 4.5v15M8 8l8 8M16 8l-8 8', // Trophy
-  'Kunst en Cultuur': 'M12 4v16m-8-8h16', // Palette cross
-  'Gezellig en Sociaal': 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75', // Users
-  'Leren en Ontdekken': 'M22 10v6M2 10l10-5 10 5-10 5z M6 12v5c3 3 9 3 12 0v-5', // Graduation cap
-  'Vrijwilligerswerk en hulp': 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z' // Heart
-};
+const DEFAULT_RADAR_SVG_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z';
 
 // Functie om event markers te maken met app primary color en categorie icoon
 // Event markers pulseren nu onafhankelijk van de radar sweep voor betere performance
@@ -376,7 +369,7 @@ function createEventIcon(
 ) {
   // App primary kleur (teal/groen)
   const primaryColor = isExpired ? "#9CA3AF" : "#00A9C5"; // teal-500 als app primary
-  const iconPath = CATEGORY_SVG_PATHS[category] || CATEGORY_SVG_PATHS['Gezellig en Sociaal'];
+  const iconPath = CATEGORY_PATHS[category] || DEFAULT_RADAR_SVG_PATH;
   const size = isSelected ? 32 : 28;
   const wrapperSize = size + 20;
   const iconSize = isSelected ? 16 : 14;

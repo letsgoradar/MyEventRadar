@@ -296,11 +296,14 @@ interface GeocodingResult {
 }
 
 const UNSPLASH_CATEGORY_KEYWORDS: Record<string, string[]> = {
-  "Sport en spel": ["sports", "fitness", "running", "cycling", "gym", "football", "tennis"],
-  "Kunst en Cultuur": ["art", "museum", "culture", "painting", "sculpture", "concert", "music", "festival", "theater"],
-  "Gezellig en Sociaal": ["social", "community", "people", "gathering", "meetup", "party", "food", "restaurant", "market"],
-  "Leren en Ontdekken": ["workshop", "learning", "education", "class", "training", "nature", "outdoor"],
-  "Vrijwilligerswerk en hulp": ["volunteer", "charity", "helping", "community", "support"]
+  "Tentoonstelling": ["museum", "exhibition", "gallery", "art", "painting", "sculpture"],
+  "Voorstelling": ["concert", "music", "theater", "performance", "show", "festival", "dance"],
+  "Activiteit": ["sports", "fitness", "running", "cycling", "outdoor", "children", "play"],
+  "Stappen & Borrel": ["party", "festival", "celebration", "drinks", "nightlife", "social"],
+  "Markt & Beurs": ["market", "fair", "food market", "flea market", "stalls"],
+  "Quiz & Spelletjes": ["games", "quiz", "board games", "pub quiz", "fun"],
+  "Leren & Ontdekken": ["workshop", "learning", "education", "training", "classroom"],
+  "Eten & Drinken": ["food", "restaurant", "cooking", "dining", "culinary"],
 };
 
 interface FeedParseResult {
@@ -984,10 +987,13 @@ export class RssFeedService {
     const text = (title + " " + description).toLowerCase();
     
     const categoryKeywords: Record<string, string[]> = {
-      "Sport en spel": ["sport", "fitness", "hardlopen", "zwemmen", "voetbal", "tennis", "gym", "yoga", "run", "cycling", "fiets", "basketbal", "hockey", "toernooi"],
-      "Kunst en Cultuur": ["kunst", "museum", "tentoonstelling", "theater", "galerie", "expositie", "cultuur", "art", "concert", "muziek", "festival", "dj", "band", "optreden", "dans", "film", "comedy"],
-      "Leren en Ontdekken": ["workshop", "cursus", "lezing", "leren", "training", "presentatie", "educatie", "natuur", "wandelen", "outdoor"],
-      "Vrijwilligerswerk en hulp": ["vrijwilliger", "hulp", "voedselbank", "donatie", "goed doel", "charity", "steun", "helper"]
+      "Tentoonstelling": ["tentoonstelling", "expositie", "galerie", "museum", "vernissage", "kunstwerk", "expo"],
+      "Voorstelling": ["concert", "muziek", "theater", "toneel", "musical", "opera", "ballet", "dans", "cabaret", "film", "bioscoop", "optreden", "voorstelling", "show", "live", "jazz", "band", "dj", "koor", "circus"],
+      "Activiteit": ["sport", "fitness", "hardlopen", "zwemmen", "voetbal", "tennis", "gym", "yoga", "run", "fiets", "basketbal", "hockey", "toernooi", "wandeling", "speurtocht", "kinderfeest", "kinderactiviteit"],
+      "Markt & Beurs": ["markt", "beurs", "rommelmarkt", "braderie", "koopzondag", "vlooienmarkt", "kerstmarkt", "weekmarkt", "fair"],
+      "Quiz & Spelletjes": ["pubquiz", "quiz", "bingo", "bordspel", "spelletjes", "trivia", "escape room", "kienen"],
+      "Leren & Ontdekken": ["workshop", "cursus", "lezing", "training", "presentatie", "educatie", "rondleiding", "excursie", "seminar", "masterclass", "meditatie"],
+      "Eten & Drinken": ["foodfestival", "proeverij", "diner", "culinair", "restaurant", "tasting", "koken", "bakken", "bbq", "food truck"],
     };
 
     for (const [category, keywords] of Object.entries(categoryKeywords)) {
@@ -998,7 +1004,7 @@ export class RssFeedService {
       }
     }
     
-    return "Gezellig en Sociaal";
+    return "Stappen & Borrel";
   }
 
   // Format Breda address from Prepr CMS address object
@@ -5332,19 +5338,19 @@ export class RssFeedService {
 
       // Map iAmsterdam URL category path segments to app categories
       const categoryMap: Record<string, string> = {
-        'concerten-en-muziek': 'Kunst en Cultuur',
-        'festivals': 'Kunst en Cultuur',
-        'tentoonstellingen': 'Kunst en Cultuur',
-        'musea-en-galeries': 'Kunst en Cultuur',
-        'voorstellingen': 'Kunst en Cultuur',
-        'theater': 'Kunst en Cultuur',
-        'dance': 'Kunst en Cultuur',
-        'attracties-en-bezienswaardigheden': 'Gezellig en Sociaal',
-        'nachtleven': 'Gezellig en Sociaal',
-        'food-en-drink': 'Gezellig en Sociaal',
-        'sport': 'Sport en spel',
-        'kinderen': 'Leren en Ontdekken',
-        'workshops': 'Leren en Ontdekken',
+        'concerten-en-muziek': 'Voorstelling',
+        'festivals': 'Stappen & Borrel',
+        'tentoonstellingen': 'Tentoonstelling',
+        'musea-en-galeries': 'Tentoonstelling',
+        'voorstellingen': 'Voorstelling',
+        'theater': 'Voorstelling',
+        'dance': 'Voorstelling',
+        'attracties-en-bezienswaardigheden': 'Activiteit',
+        'nachtleven': 'Stappen & Borrel',
+        'food-en-drink': 'Eten & Drinken',
+        'sport': 'Activiteit',
+        'kinderen': 'Activiteit',
+        'workshops': 'Leren & Ontdekken',
       };
 
       /** Derive app category from iAmsterdam event URL (/uit/agenda/{cat}/...) */
@@ -9192,7 +9198,7 @@ export class RssFeedService {
         scraperConfig: feedConfig.scraperConfig,
         fieldMappings: feedConfig.fieldMappings || null,
         autoCreateEvents: false,
-        defaultCategory: 'Gezellig en Sociaal',
+        defaultCategory: 'Stappen & Borrel',
         status: 'active',
         updateFrequencyMinutes: 60,
         itemsImported: 0,
@@ -9978,7 +9984,7 @@ export class RssFeedService {
       const detectedCategory = parsedItem.detectedCategory || this.detectCategory(parsedItem.title, parsedItem.description);
       const category = validCategories.includes(detectedCategory) 
         ? detectedCategory 
-        : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Gezellig en Sociaal");
+        : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Stappen & Borrel");
 
       // Build update object - only include fields we have valid data for
       const updateData: Record<string, any> = {
@@ -10112,7 +10118,7 @@ export class RssFeedService {
       const detectedCategory = parsedItem.detectedCategory || this.detectCategory(parsedItem.title, parsedItem.description);
       const category = validCategories.includes(detectedCategory) 
         ? detectedCategory 
-        : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Gezellig en Sociaal");
+        : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Stappen & Borrel");
       
       if (parsedItem.detectedCategory) {
         console.log(`[RSS] Category detected: "${detectedCategory}" (confidence: ${((parsedItem.categoryConfidence || 0) * 100).toFixed(0)}%)`);

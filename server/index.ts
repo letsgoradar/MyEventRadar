@@ -165,6 +165,41 @@ const HOST = '0.0.0.0';
       console.error('[Seed Feeds] Startup sync failed:', e.message);
     }
 
+    // Migrate old category names to new 8-category system
+    try {
+      const { db: migrateDb2 } = await import('./db');
+      const { sql: sqlRaw } = await import('drizzle-orm');
+      const OLD_TO_NEW: Record<string, string> = {
+        'Sport en spel':           'Activiteit',
+        'Kunst en Cultuur':        'Voorstelling',
+        'Gezellig en Sociaal':     'Stappen & Borrel',
+        'Leren en Ontdekken':      'Leren & Ontdekken',
+        'Vrijwilligerswerk en hulp': 'Activiteit',
+        'Cultuur & Kunst':         'Voorstelling',
+        'Cultuur & Entertainment': 'Voorstelling',
+        'entertainment':           'Stappen & Borrel',
+        'community':               'Stappen & Borrel',
+        'Evenementen':             'Stappen & Borrel',
+        'Overig':                  'Stappen & Borrel',
+      };
+      let totalMigrated = 0;
+      for (const [oldCat, newCat] of Object.entries(OLD_TO_NEW)) {
+        const result = await migrateDb2.execute(
+          sqlRaw`UPDATE events SET category = ${newCat} WHERE category = ${oldCat}`
+        );
+        const count = (result as any).rowCount ?? 0;
+        if (count > 0) {
+          console.log(`[Category Migration] "${oldCat}" → "${newCat}": ${count} events updated`);
+          totalMigrated += count;
+        }
+      }
+      if (totalMigrated > 0) {
+        console.log(`[Category Migration] Done: ${totalMigrated} events re-categorized`);
+      }
+    } catch (e: any) {
+      console.error('[Category Migration] Failed:', e.message);
+    }
+
     // Register routes first for faster API availability
     const server = await registerRoutes(app);
     console.log('Routes registered successfully');

@@ -85,50 +85,58 @@ export interface ContentExtractionResult {
 }
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  'Sport en spel': [
+  'Tentoonstelling': [
+    'tentoonstelling', 'expositie', 'galerie', 'museum', 'opening', 'vernissage',
+    'kunstwerk', 'schilderij', 'beeldhouw', 'fotografie', 'installatie', 'design',
+    'erfgoed', 'kunstenaar', 'atelier', 'collectie', 'permanente', 'tijdelijke', 'expo'
+  ],
+  'Voorstelling': [
+    'concert', 'muziek', 'theater', 'toneel', 'musical', 'opera', 'ballet', 'dans',
+    'cabaret', 'comedy', 'standup', 'film', 'cinema', 'bioscoop', 'premiere',
+    'jazz', 'klassiek', 'pop', 'rock', 'orkest', 'koor', 'zang', 'band', 'dj',
+    'optreden', 'uitvoering', 'voorstelling', 'show', 'performance', 'live',
+    'tribute', 'coverband', 'circus', 'acrobatiek', 'illusionist', 'entertainer'
+  ],
+  'Activiteit': [
     'voetbal', 'tennis', 'hockey', 'zwemmen', 'fitness', 'sport', 'wedstrijd', 'toernooi',
     'hardlopen', 'marathon', 'atletiek', 'basketbal', 'volleybal', 'handbal', 'schaatsen',
-    'wielrennen', 'fietsen', 'golf', 'badminton', 'tafeltennis', 'judo', 'karate', 'boksen',
-    'yoga', 'pilates', 'crossfit', 'bootcamp', 'sportdag', 'olympisch', 'kampioenschap',
-    'spelen', 'bordspel', 'puzzel', 'quiz', 'bingo', 'escape room', 'speurtocht'
+    'wielrennen', 'fietsen', 'golf', 'badminton', 'yoga', 'pilates', 'bootcamp',
+    'sportdag', 'wandeling', 'speurtocht', 'survival', 'klimmen',
+    'kinderfeest', 'kinderactiviteit', 'kinderdag', 'kindermiddag', 'kinderprogramma',
+    'jeugd', 'kinderen', 'kids', 'voorlezen', 'peuterspeelzaal'
   ],
-  'Kunst en Cultuur': [
-    'concert', 'muziek', 'theater', 'toneel', 'musical', 'opera', 'ballet', 'dans',
-    'kunstenaar', 'tentoonstelling', 'museum', 'galerie', 'expositie', 'schilderij',
-    'beeldhouw', 'fotografie', 'film', 'cinema', 'bioscoop', 'cabaret', 'comedy',
-    'literatuur', 'lezing', 'dichter', 'poëzie', 'boek', 'schrijver', 'klassiek',
-    'jazz', 'pop', 'rock', 'orkest', 'koor', 'zang', 'band', 'dj', 'festival',
-    'performance', 'voorstelling', 'premiere', 'show', 'optreden', 'uitvoering',
-    'cultuur', 'erfgoed', 'historie', 'monument', 'rondleiding', 'excursie'
+  'Stappen & Borrel': [
+    'festival', 'feest', 'party', 'borrel', 'kermis', 'carnaval', 'braderie',
+    'dancing', 'rave', 'openlucht', 'zomerfestival', 'koningsdag', 'bevrijdingsdag',
+    'sinterklaas', 'kerst', 'nieuwjaar', 'jubileum', 'verjaardag', 'reünie',
+    'open dag', 'opendag', 'inloop', 'netwerk', 'gezelligheid', 'stappen', 'uitgaan',
+    'happy hour', 'afterparty', 'rooftop', 'terras', 'cocktail', 'dansen', 'liveband'
   ],
-  'Gezellig en Sociaal': [
-    'borrel', 'feest', 'party', 'festival', 'braderie', 'markt', 'kermis', 'fair',
-    'barbecue', 'bbq', 'picknick', 'diner', 'lunch', 'ontbijt', 'brunch', 'eten',
-    'cafe', 'bar', 'kroeg', 'terras', 'restaurant', 'proeverij', 'wijn', 'bier',
-    'buurt', 'wijk', 'straat', 'dorps', 'stads', 'gemeenschap', 'vereniging',
-    'club', 'sociëteit', 'ontmoeting', 'samen', 'gezellig', 'netwerkborrel',
-    'open dag', 'opendag', 'inloop', 'koffie', 'thee', 'happy hour', 'avond',
-    'carnaval', 'koningsdag', 'bevrijdingsdag', 'sinterklaas', 'kerst', 'nieuwjaar',
-    'pasen', 'pinkster', 'jubileum', 'verjaardag', 'reünie'
+  'Markt & Beurs': [
+    'markt', 'beurs', 'rommelmarkt', 'braderie', 'koopzondag', 'tweedehands',
+    'vlooienmarkt', 'kerstmarkt', 'weekmarkt', 'boerenmarkt', 'streekmarkt',
+    'fair', 'trade show', 'handelsmarkt', 'antiek', 'vintage', 'snuffelmarkt',
+    'boeken', 'collector', 'artisan', 'ambacht', 'kraampjes', 'stands'
   ],
-  'Leren en Ontdekken': [
+  'Quiz & Spelletjes': [
+    'pubquiz', 'quiz', 'bingo', 'bordspel', 'spelletjes', 'trivia', 'escape room',
+    'puzzel', 'kaartspel', 'speeddating', 'speeddaten', 'singles', 'singles event',
+    'ontmoeten', 'kennismaken', 'gameshow', 'kienen', 'klaverjassen'
+  ],
+  'Leren & Ontdekken': [
     'workshop', 'cursus', 'training', 'les', 'college', 'seminar', 'webinar',
     'lezing', 'presentatie', 'conferentie', 'congres', 'symposium', 'masterclass',
-    'educatie', 'onderwijs', 'school', 'universiteit', 'academie', 'leren',
-    'ontdekken', 'verkennen', 'excursie', 'rondleiding', 'tour', 'wandeling',
-    'natuur', 'wetenschap', 'technologie', 'innovatie', 'experiment', 'laboratorium',
-    'bibliotheek', 'leesclub', 'boekpresentatie', 'kinderen', 'jeugd', 'familie',
-    'creatief', 'knutsel', 'handwerk', 'tekenen', 'schilderen', 'koken', 'bakken'
+    'educatie', 'onderwijs', 'academie', 'rondleiding', 'excursie', 'tour',
+    'wetenschap', 'technologie', 'innovatie', 'experiment', 'bibliotheek',
+    'boekpresentatie', 'creatief', 'knutsel', 'handwerk', 'schilderen',
+    'meditatie', 'mindfulness', 'retraite', 'natuur'
   ],
-  'Vrijwilligerswerk en hulp': [
-    'vrijwilliger', 'vrijwilligerswerk', 'hulp', 'helpen', 'steun', 'ondersteuning',
-    'donatie', 'collecte', 'actie', 'goed doel', 'benefiet', 'charity', 'stichting',
-    'zorg', 'mantelzorg', 'ouderen', 'eenzaamheid', 'dementie', 'hospice',
-    'voedselbank', 'kledingbank', 'opvang', 'vluchtelingen', 'integratie',
-    'milieu', 'duurzaam', 'schoon', 'opruim', 'groen', 'natuur', 'dieren', 'asiel',
-    'sociaal', 'maatschappelijk', 'buurtwerk', 'wijkwerk', 'welzijn', 'preventie',
-    'voorlichting', 'lotgenoten', 'zelfhulp', 'buddy', 'maatje'
-  ]
+  'Eten & Drinken': [
+    'foodfestival', 'food festival', 'proeverij', 'diner', 'culinair', 'restaurant',
+    'tasting', 'koken', 'bakken', 'eten', 'lunch', 'brunch', 'ontbijt',
+    'wijn', 'bier', 'whisky', 'gin', 'koffie', 'thee', 'bbq', 'barbecue',
+    'food truck', 'streetfood', 'tapas', 'gastronomie', 'chef', 'pop-up restaurant'
+  ],
 };
 
 export class ContentExtractor {
@@ -671,9 +679,9 @@ export class ContentExtractor {
       };
     }
     
-    // Default to 'Gezellig en Sociaal' as fallback for social events
+    // Default to 'Stappen & Borrel' as fallback for general events
     return {
-      category: 'Gezellig en Sociaal',
+      category: 'Stappen & Borrel',
       confidence: 0.3,
       matchedKeywords: []
     };

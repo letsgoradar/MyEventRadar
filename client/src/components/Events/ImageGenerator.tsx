@@ -32,16 +32,22 @@ export function ImageGenerator({
       let categoryKeyword = "";
       
       // Bepaal de belangrijkste keywords per categorie
-      if (category === "Sport en spel") {
-        categoryKeyword = "sportactiviteit";
-      } else if (category === "Kunst en Cultuur") {
-        categoryKeyword = "kunstexpositie";
-      } else if (category === "Gezellig en Sociaal") {
-        categoryKeyword = "sociale bijeenkomst";
-      } else if (category === "Leren en Ontdekken") {
-        categoryKeyword = "educatieve workshop";
-      } else if (category === "Vrijwilligerswerk en hulp") {
-        categoryKeyword = "vrijwilligersactiviteit";
+      if (category === "Tentoonstelling") {
+        categoryKeyword = "kunstexpositie museum";
+      } else if (category === "Voorstelling") {
+        categoryKeyword = "concert optreden podium";
+      } else if (category === "Activiteit") {
+        categoryKeyword = "buitenactiviteit sport";
+      } else if (category === "Stappen & Borrel") {
+        categoryKeyword = "festival feest mensen";
+      } else if (category === "Markt & Beurs") {
+        categoryKeyword = "buitenmarkt kramen";
+      } else if (category === "Quiz & Spelletjes") {
+        categoryKeyword = "pubquiz spelletjes groep";
+      } else if (category === "Leren & Ontdekken") {
+        categoryKeyword = "workshop cursus leren";
+      } else if (category === "Eten & Drinken") {
+        categoryKeyword = "eten drinken culinair";
       } else {
         categoryKeyword = category.toLowerCase();
       }

@@ -4400,6 +4400,138 @@ export class RssFeedService {
     });
   }
 
+  // WijchenIs — WordPress custom post type prode_agenda (no GPS, no RSS)
+  // Scrapes .box cards from the overview page
+  static async scrapeWijchenIs(): Promise<FeedParseResult> {
+    const baseUrl = 'https://www.wijchenis.nl';
+    const agendaUrl = `${baseUrl}/agenda/`;
+    const defaultLat = 51.8069;
+    const defaultLon = 5.7381;
+
+    try {
+      const response = await axios.get(agendaUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "text/html,application/xhtml+xml"
+        },
+        timeout: 30000
+      });
+
+      const $ = cheerio.load(response.data);
+      const items: ParsedFeedItem[] = [];
+      const seenIds = new Set<string>();
+      const now = new Date();
+
+      // Parse Dutch day+date: "wo. 01-04-2026" or "zo. 26-04-2026 t/m ma. 27-04-2026"
+      const parseDutchDate = (text: string): Date | undefined => {
+        const m = text.match(/(\d{2})-(\d{2})-(\d{4})/);
+        if (!m) return undefined;
+        return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+      };
+
+      $('.box').each((_, el) => {
+        const $box = $(el);
+        const link = $box.find('a').first().attr('href') || '';
+        if (!link || !link.includes('/agenda/')) return;
+
+        const title = $box.find('h2').text().trim();
+        if (!title) return;
+
+        const imageUrl = $box.find('img.wp-post-image').attr('src') || undefined;
+
+        // Each .date span may contain a nested .date span (venue has price nested inside)
+        // Technique: clone and remove nested .date spans to isolate direct text
+        let dateText = '';
+        let timeText = '';
+        let venueText = '';
+
+        $box.find('span.date').each((_, span) => {
+          const $orig = $(span);
+          // Skip if this is a nested span (its parent is also span.date)
+          if ($orig.parent('span.date').length > 0) return;
+
+          const iconClass = $orig.find('> i').attr('class') || '';
+          const $clone = $orig.clone();
+          $clone.find('span.date').remove();
+          const text = $clone.text().replace(/\s+/g, ' ').trim();
+
+          if (iconClass.includes('fa-calendar') && !iconClass.includes('fa-calendar-week')) {
+            dateText = text;
+          } else if (iconClass.includes('fa-clock')) {
+            timeText = text;
+          } else if (iconClass.includes('fa-map-marker')) {
+            venueText = text;
+          }
+        });
+
+        if (!dateText) return;
+
+        const startDay = parseDutchDate(dateText);
+        if (!startDay) return;
+
+        // Parse time "13:00" or "13:00 - 17:00"
+        let startHour = 0, startMin = 0;
+        let endHour: number | undefined, endMin: number | undefined;
+        const timeMatch = timeText.match(/(\d{1,2}):(\d{2})(?:\s*[-–]\s*(\d{1,2}):(\d{2}))?/);
+        if (timeMatch) {
+          startHour = parseInt(timeMatch[1]);
+          startMin = parseInt(timeMatch[2]);
+          if (timeMatch[3]) {
+            endHour = parseInt(timeMatch[3]);
+            endMin = parseInt(timeMatch[4]);
+          }
+        }
+
+        const startDate = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate(), startHour, startMin);
+
+        // End date: either from time range (same day) or from "t/m DD-MM-YYYY"
+        let endDate: Date | undefined;
+        const endDayMatch = dateText.match(/t\/m.*?(\d{2})-(\d{2})-(\d{4})/);
+        if (endDayMatch) {
+          const ed = new Date(parseInt(endDayMatch[3]), parseInt(endDayMatch[2]) - 1, parseInt(endDayMatch[1]), 23, 59);
+          endDate = ed;
+        } else if (endHour !== undefined) {
+          endDate = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate(), endHour, endMin!);
+        }
+
+        // Skip past events
+        const checkEnd = endDate ?? startDate;
+        if (checkEnd < now) return;
+
+        const slug = link.split('/agenda/')[1]?.replace(/\/$/, '') || title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const externalId = `wijchenis-${slug}`;
+        if (seenIds.has(externalId)) return;
+        seenIds.add(externalId);
+
+        const description = venueText
+          ? `${title} bij ${venueText}.`
+          : `${title} in Wijchen.`;
+
+        items.push({
+          externalId,
+          title: this.formatTitle(title),
+          description,
+          link: link.startsWith('http') ? link : `${baseUrl}${link}`,
+          imageUrl,
+          publishedAt: new Date(),
+          startTime: startDate,
+          endTime: endDate,
+          location: venueText || 'Wijchen',
+          address: venueText ? `${venueText}, Wijchen` : 'Wijchen',
+          latitude: defaultLat,
+          longitude: defaultLon,
+          rawData: { venueText }
+        });
+      });
+
+      console.log(`[RSS] WijchenIs: scraped ${items.length} events from overview page`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error('[RSS] WijchenIs error:', error.message);
+      return { success: false, items: [], error: error.message };
+    }
+  }
+
   // Oosterhout scraper using Plaece CMS
   static async scrapeOosterhout(): Promise<FeedParseResult> {
     return this.scrapePlaeceSite({
@@ -9616,6 +9748,8 @@ export class RssFeedService {
         result = await this.scrapeUitInDeRegioWestBetuwe(onProgress);
       } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/betuwe")) {
         result = await this.scrapeUitInDeRegioBetuwe(onProgress);
+      } else if (feed.feedType === "scraper" && feed.url.includes("wijchenis")) {
+        result = await this.scrapeWijchenIs();
       } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
         result = await this.scrapeIntoNijmegen();
       } else if (feed.feedType === "scraper" && feed.url.includes("denhaag.com")) {

@@ -10256,6 +10256,9 @@ export class RssFeedService {
 
       // Match tags, audiences and themes based on keywords
       const tagMatchResult = await matchTags(formattedTitle, fullDescription, startTime);
+
+      // Prefer tag-derived parentCategory over keyword-based auto-assignment
+      const finalCategory = tagMatchResult.suggestedCategory || category;
       
       const [event] = await db.insert(events)
         .values({
@@ -10267,7 +10270,7 @@ export class RssFeedService {
           notificationReach: "2.5",
           startTime: startTime,
           endTime: endTime,
-          category: category,
+          category: finalCategory,
           isPaid: false,
           hostId: null,
           recurrence: recurrence,
@@ -10850,6 +10853,10 @@ export class RssFeedService {
           }
           if (hasNoThemes && tagMatchResult.seasonalThemeIds.length > 0) {
             updateData.seasonalThemeIds = tagMatchResult.seasonalThemeIds;
+          }
+          // Override category with tag-derived parentCategory if available
+          if (tagMatchResult.suggestedCategory) {
+            updateData.category = tagMatchResult.suggestedCategory;
           }
         }
       }

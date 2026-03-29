@@ -21,6 +21,7 @@ export const eventTags = pgTable("event_tags", {
   icon: text("icon").notNull(), // Lucide icon name (e.g., "Music", "Theater")
   group: text("group").notNull(), // Grouping for UI (e.g., "Muziek", "Podiumkunsten")
   keywords: text("keywords").array().notNull(), // Keywords for auto-matching
+  parentCategory: text("parent_category"), // Category override when this tag is matched
   isActive: boolean("is_active").default(true).notNull(),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),

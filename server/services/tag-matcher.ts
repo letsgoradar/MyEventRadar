@@ -7,9 +7,10 @@ export interface TagMatchResult {
   eventTagIds: number[];
   targetAudienceIds: number[];
   seasonalThemeIds: number[];
-  matchedTags: Array<{ id: number; name: string; group: string }>;
+  matchedTags: Array<{ id: number; name: string; group: string; parentCategory?: string | null }>;
   matchedAudiences: Array<{ id: number; name: string }>;
   matchedThemes: Array<{ id: number; name: string }>;
+  suggestedCategory?: string; // First parentCategory found from matched tags
 }
 
 let cachedTags: EventTag[] | null = null;
@@ -140,13 +141,17 @@ export async function matchTags(
     return false;
   });
 
+  // Derive suggested category from the first matched tag that has a parentCategory
+  const suggestedCategory = matchedTags.find((t) => t.parentCategory)?.parentCategory ?? undefined;
+
   return {
     eventTagIds: matchedTags.map((t) => t.id),
     targetAudienceIds: matchedAudiences.map((a) => a.id),
     seasonalThemeIds: matchedThemes.map((t) => t.id),
-    matchedTags: matchedTags.map((t) => ({ id: t.id, name: t.name, group: t.group })),
+    matchedTags: matchedTags.map((t) => ({ id: t.id, name: t.name, group: t.group, parentCategory: t.parentCategory })),
     matchedAudiences: matchedAudiences.map((a) => ({ id: a.id, name: a.name })),
     matchedThemes: matchedThemes.map((t) => ({ id: t.id, name: t.name })),
+    suggestedCategory: suggestedCategory || undefined,
   };
 }
 

@@ -7,7 +7,7 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import type { EventInterface } from "@shared/schema";
 import { getCategoryColor, CATEGORY_PATHS } from "../CategoryIcon";
 import { isImageFailed, markImageFailed } from "@/lib/imageCache";
-import { getBestCategoryImage } from "@/lib/categoryImages";
+import { getBestCategoryImage, CATEGORY_IMAGES } from "@/lib/categoryImages";
 
 interface FormattedEvent {
   id: number;
@@ -87,69 +87,48 @@ function createImageMarkerIcon(
     dropShadow,
   ].join('');
 
-  if (imageUrl && !isImageFailed(imageUrl)) {
-    const markerId = `marker-img-${markerIdCounter++}`;
-    const icon = L.divIcon({
+  // Always resolve to a photo URL — never show icon-only pins
+  const stockImages = CATEGORY_IMAGES[category] ?? CATEGORY_IMAGES["Stappen & Borrel"] ?? [];
+
+  // Resolve a non-failed stock photo URL for a given tried index
+  function pickStockPhoto(startIndex: number): string | null {
+    for (let i = startIndex; i < stockImages.length; i++) {
+      if (!isImageFailed(stockImages[i])) return stockImages[i];
+    }
+    // All failed — return the last one as last resort (will re-attempt load)
+    return stockImages.length > 0 ? stockImages[stockImages.length - 1] : null;
+  }
+
+  // Determine the actual URL to display
+  const resolvedUrl: string | null = (imageUrl && !isImageFailed(imageUrl))
+    ? imageUrl
+    : pickStockPhoto(0);
+
+  const displayUrl = resolvedUrl ?? stockImages[0] ?? null;
+
+  if (!displayUrl) {
+    // Absolute last resort — colored pin without photo (images list empty)
+    return L.divIcon({
       className: "pin-marker-container",
-      html: `
-        <div style="${wrapperStyle}">
-          <div style="${imgBoxStyle}">
-            <img
-              id="${markerId}"
-              src="${imageUrl}"
-              alt=""
-              loading="lazy"
-              style="width:100%;height:100%;object-fit:cover;display:block;"
-            />
-            <div id="${markerId}-fallback" style="
-              display:none;width:100%;height:100%;
-              align-items:center;justify-content:center;
-              background:${primaryColor};
-            ">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                   fill="none" stroke="white" stroke-width="2.5"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <path d="${iconPath}"/>
-              </svg>
-            </div>
-          </div>
-          <div style="${tipStyle}"></div>
-        </div>
-      `,
+      html: `<div style="${wrapperStyle}"><div style="${imgBoxStyle}display:flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="${iconPath}"/></svg></div><div style="${tipStyle}"></div></div>`,
       iconSize: [imgW, totalH],
       iconAnchor: [imgW / 2, totalH],
     });
-
-    requestAnimationFrame(() => {
-      const img = document.getElementById(markerId) as HTMLImageElement | null;
-      if (!img) return;
-      const handleError = () => {
-        img.style.display = 'none';
-        const fb = document.getElementById(`${markerId}-fallback`);
-        if (fb) fb.style.display = 'flex';
-        markImageFailed(imageUrl, eventId);
-      };
-      if (img.complete && img.naturalWidth === 0) {
-        handleError();
-      } else {
-        img.addEventListener('error', handleError, { once: true });
-      }
-    });
-
-    return icon;
   }
 
-  // Fallback (no image): solid-color pin with category icon
-  return L.divIcon({
+  const markerId = `marker-img-${markerIdCounter++}`;
+  const icon = L.divIcon({
     className: "pin-marker-container",
     html: `
       <div style="${wrapperStyle}">
-        <div style="${imgBoxStyle}display:flex;align-items:center;justify-content:center;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-               fill="none" stroke="white" stroke-width="2.5"
-               stroke-linecap="round" stroke-linejoin="round">
-            <path d="${iconPath}"/>
-          </svg>
+        <div style="${imgBoxStyle}">
+          <img
+            id="${markerId}"
+            src="${displayUrl}"
+            alt=""
+            loading="lazy"
+            style="width:100%;height:100%;object-fit:cover;display:block;"
+          />
         </div>
         <div style="${tipStyle}"></div>
       </div>
@@ -157,6 +136,31 @@ function createImageMarkerIcon(
     iconSize: [imgW, totalH],
     iconAnchor: [imgW / 2, totalH],
   });
+
+  requestAnimationFrame(() => {
+    const img = document.getElementById(markerId) as HTMLImageElement | null;
+    if (!img) return;
+
+    let retryIndex = 0;
+    const tryNextPhoto = () => {
+      const failedSrc = img.src;
+      markImageFailed(failedSrc, eventId);
+      retryIndex++;
+      const next = pickStockPhoto(retryIndex);
+      if (next && next !== failedSrc) {
+        img.src = next;
+      }
+      // If no next, img stays broken but no icon is shown
+    };
+
+    if (img.complete && img.naturalWidth === 0) {
+      tryNextPhoto();
+    } else {
+      img.addEventListener('error', tryNextPhoto);
+    }
+  });
+
+  return icon;
 }
 
 function createClusterIcon(cluster: L.MarkerCluster) {

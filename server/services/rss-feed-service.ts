@@ -3976,6 +3976,9 @@ export class RssFeedService {
         const jsonLdItems: ParsedFeedItem[] = [];
         const seenExternalIds = new Set<string>();
         const now = new Date();
+        let jsonLdCandidates = 0;
+        let jsonLdSkippedNoGps = 0;
+        let jsonLdSkippedNoDates = 0;
 
         $overview('script[type="application/ld+json"]').each((_, el) => {
           try {
@@ -4013,13 +4016,15 @@ export class RssFeedService {
               const name = event.name || "";
               if (!name) continue;
 
+              jsonLdCandidates++;
+
               const geo = event.location?.geo;
               const latitude: number | undefined = geo?.latitude != null ? parseFloat(geo.latitude) : undefined;
               const longitude: number | undefined = geo?.longitude != null ? parseFloat(geo.longitude) : undefined;
 
               // Only accept events with verified GPS
-              if (!latitude || !longitude) {
-                console.log(`[RSS] SKIPPED ${config.municipality} event (no GPS in ItemList): ${name}`);
+              if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+                jsonLdSkippedNoGps++;
                 continue;
               }
 
@@ -4074,8 +4079,8 @@ export class RssFeedService {
               }
 
               // Skip events with no upcoming date at all
-              if (!startDate) continue;
-              if (startDate < now && (!endDate || endDate < now)) continue;
+              if (!startDate) { jsonLdSkippedNoDates++; continue; }
+              if (startDate < now && (!endDate || endDate < now)) { jsonLdSkippedNoDates++; continue; }
 
               const description = event.description
                 ? this.cleanText(event.description.substring(0, 500))
@@ -4105,6 +4110,8 @@ export class RssFeedService {
             // skip malformed JSON-LD blocks
           }
         });
+
+        console.log(`[RSS] ${config.municipality}: JSON-LD candidates=${jsonLdCandidates} imported=${jsonLdItems.length} skipped_no_gps=${jsonLdSkippedNoGps} skipped_no_dates=${jsonLdSkippedNoDates}`);
 
         if (jsonLdItems.length > 0) {
           console.log(`[RSS] ${config.municipality}: Got ${jsonLdItems.length} events from JSON-LD ItemList (no detail pages needed)`);

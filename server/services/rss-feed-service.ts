@@ -10201,6 +10201,20 @@ export class RssFeedService {
           geocodeSuccess = true;
         }
       }
+
+      // STEP 5: Fall back to feed-level default coordinates when no item-level location found
+      if (!geocodeSuccess && feed.defaultLatitude && feed.defaultLongitude) {
+        const defLat = parseFloat(feed.defaultLatitude);
+        const defLon = parseFloat(feed.defaultLongitude);
+        if (!isNaN(defLat) && !isNaN(defLon)) {
+          latitude = feed.defaultLatitude;
+          longitude = feed.defaultLongitude;
+          address = feed.defaultAddress || `${expectedMunicipality}, Nederland`;
+          actualMunicipality = expectedMunicipality;
+          geocodeSuccess = true;
+          console.log(`[RSS] Using feed default coordinates for "${formattedTitle}" in ${expectedMunicipality}`);
+        }
+      }
       
       // QUALITY FILTER: Only create events with verified locations within distance limit
       if (!geocodeSuccess) {

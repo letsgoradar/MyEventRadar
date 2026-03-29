@@ -3974,6 +3974,7 @@ export class RssFeedService {
 
         const $overview = cheerio.load(overviewResponse.data);
         const jsonLdItems: ParsedFeedItem[] = [];
+        const seenExternalIds = new Set<string>();
         const now = new Date();
 
         $overview('script[type="application/ld+json"]').each((_, el) => {
@@ -4079,6 +4080,10 @@ export class RssFeedService {
               const description = event.description
                 ? this.cleanText(event.description.substring(0, 500))
                 : `${name}${venueName ? ` bij ${venueName}` : ""}${fullAddress ? `. Locatie: ${fullAddress}` : ""}.`;
+
+              // Deduplicate events that appear in multiple ld+json blocks
+              if (seenExternalIds.has(externalId)) continue;
+              seenExternalIds.add(externalId);
 
               jsonLdItems.push({
                 externalId,

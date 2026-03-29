@@ -50,14 +50,14 @@ function createImageMarkerIcon(
   eventId?: number
 ) {
   const isLarge = isPromoted || isSelected;
-  const imgW  = isLarge ? 46 : 38;
-  const imgH  = isLarge ? 46 : 38;
-  const tipW  = isLarge ? 10 : 8;   // half-width of the CSS triangle
-  const tipH  = isLarge ? 14 : 12;  // height of the CSS triangle
+  const imgW   = isLarge ? 48 : 40;
+  const tipH   = 12;
+  const imgH   = isLarge ? 48 : 38;  // totalH = imgH + tipH → 60 or 50
+  const tipW   = isLarge ? 11 : 9;   // half-width of the CSS triangle
   const totalH = imgH + tipH;
 
-  const fallbackColor = `rgb(${CLUSTER_COLOR})`;
-  const primaryColor  = isExpired ? "#9CA3AF" : fallbackColor;
+  const categoryColor = getCategoryColor(category);
+  const primaryColor  = isExpired ? "#9CA3AF" : categoryColor;
   const iconPath = CATEGORY_SVG_PATHS[category] || CATEGORY_SVG_PATHS['Gezellig en Sociaal'];
 
   const dropShadow = isPromoted

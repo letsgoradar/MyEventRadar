@@ -3959,6 +3959,140 @@ export class RssFeedService {
     maxPages?: number;
   }): Promise<FeedParseResult> {
     try {
+      // PHASE 1: Try JSON-LD ItemList on the overview page (single request, all events + GPS)
+      const overviewUrl = `${config.baseUrl}${config.agendaPath}`;
+      console.log(`[RSS] ${config.municipality}: Trying JSON-LD ItemList from overview page...`);
+
+      try {
+        const overviewResponse = await axios.get(overviewUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "text/html,application/xhtml+xml"
+          },
+          timeout: 30000
+        });
+
+        const $overview = cheerio.load(overviewResponse.data);
+        const jsonLdItems: ParsedFeedItem[] = [];
+        const now = new Date();
+
+        $overview('script[type="application/ld+json"]').each((_, el) => {
+          try {
+            const raw = $overview(el).html() || "";
+            const data = JSON.parse(raw);
+
+            // Handle ItemList wrapper (overview page format)
+            const listItems: any[] = [];
+            if (data["@type"] === "ItemList" && Array.isArray(data.itemListElement)) {
+              for (const entry of data.itemListElement) {
+                if (entry?.item) listItems.push(entry.item);
+              }
+            } else if (data["@type"] === "Event") {
+              listItems.push(data);
+            }
+
+            for (const event of listItems) {
+              if (event["@type"] !== "Event") continue;
+
+              const name = event.name || "";
+              if (!name) continue;
+
+              const geo = event.location?.geo;
+              const latitude: number | undefined = geo?.latitude;
+              const longitude: number | undefined = geo?.longitude;
+
+              // Only accept events with verified GPS
+              if (!latitude || !longitude) {
+                console.log(`[RSS] SKIPPED ${config.municipality} event (no GPS in ItemList): ${name}`);
+                continue;
+              }
+
+              const address = event.location?.address;
+              const streetAddress = address?.streetAddress || "";
+              const postalCode = address?.postalCode || "";
+              const city = address?.addressLocality || config.municipality;
+              const fullAddress = [streetAddress, postalCode, city].filter(Boolean).join(", ");
+              const venueName = event.location?.name || "";
+
+              // Resolve image: event.image is string or string[]
+              let imageUrl: string | undefined;
+              if (Array.isArray(event.image)) imageUrl = event.image[0] || undefined;
+              else if (typeof event.image === "string") imageUrl = event.image || undefined;
+
+              const eventUrl: string = event.URL || event.url || overviewUrl;
+              const urlSlug = eventUrl.split('/').pop() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+              const externalId = `${config.municipality.toLowerCase().replace(/\s+/g, '-')}-${urlSlug}`;
+
+              // Resolve start date:
+              // eventSchedule[] → pick first upcoming slot; fallback to event.startDate
+              let startDate: Date | undefined;
+              let endDate: Date | undefined;
+
+              if (Array.isArray(event.eventSchedule) && event.eventSchedule.length > 0) {
+                // Sort by startDate ascending and find first upcoming slot
+                const slots: Array<{start: Date; end?: Date}> = [];
+                for (const slot of event.eventSchedule) {
+                  const s = slot.startDate ? parseLocalDateTime(slot.startDate) : undefined;
+                  const e = slot.endDate ? parseLocalDateTime(slot.endDate) : undefined;
+                  if (s) slots.push({ start: s, end: e });
+                }
+                slots.sort((a, b) => a.start.getTime() - b.start.getTime());
+
+                // For recurring events spanning years, find the next upcoming occurrence
+                // whose endDate (or startDate if no endDate) is in the future
+                const upcoming = slots.find(s => {
+                  const checkDate = s.end ?? s.start;
+                  return checkDate >= now;
+                });
+                if (upcoming) {
+                  startDate = upcoming.start;
+                  endDate = upcoming.end;
+                }
+              } else {
+                startDate = event.startDate ? parseLocalDateTime(event.startDate) : undefined;
+                endDate = event.endDate ? parseLocalDateTime(event.endDate) : undefined;
+              }
+
+              // Skip events with no upcoming date at all
+              if (!startDate) continue;
+              if (startDate < now && (!endDate || endDate < now)) continue;
+
+              const description = event.description
+                ? this.cleanText(event.description.substring(0, 500))
+                : `${name}${venueName ? ` bij ${venueName}` : ""}${fullAddress ? `. Locatie: ${fullAddress}` : ""}.`;
+
+              jsonLdItems.push({
+                externalId,
+                title: this.formatTitle(name),
+                description,
+                link: eventUrl.startsWith("http") ? eventUrl : `${config.baseUrl}${eventUrl}`,
+                imageUrl,
+                publishedAt: new Date(),
+                startTime: startDate,
+                endTime: endDate,
+                location: venueName || city,
+                address: fullAddress,
+                latitude,
+                longitude,
+                rawData: { url: eventUrl, venueName, city }
+              });
+            }
+          } catch {
+            // skip malformed JSON-LD blocks
+          }
+        });
+
+        if (jsonLdItems.length > 0) {
+          console.log(`[RSS] ${config.municipality}: Got ${jsonLdItems.length} events from JSON-LD ItemList (no detail pages needed)`);
+          return { success: true, items: jsonLdItems };
+        }
+
+        console.log(`[RSS] ${config.municipality}: JSON-LD ItemList empty or no GPS, falling back to link crawl`);
+      } catch (overviewErr: any) {
+        console.log(`[RSS] ${config.municipality}: Overview fetch failed (${overviewErr.message}), falling back to link crawl`);
+      }
+
+      // PHASE 2: Fallback — crawl individual event links and visit detail pages
       const items: ParsedFeedItem[] = [];
       const eventLinks: string[] = [];
       const maxPages = config.maxPages || 10;
@@ -3966,7 +4100,7 @@ export class RssFeedService {
       
       for (let page = 1; page <= maxPages; page++) {
         const url = page === 1 
-          ? `${config.baseUrl}${config.agendaPath}`
+          ? overviewUrl
           : `${config.baseUrl}${config.agendaPath}?page=${page}`;
         
         console.log(`[RSS] Scraping ${config.municipality} page ${page}...`);

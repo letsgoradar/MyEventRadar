@@ -1,4 +1,4 @@
-import { Frame, Mic2, Bike, PartyPopper, ShoppingBag, Gamepad2, BookOpen, UtensilsCrossed, type LucideIcon } from 'lucide-react';
+import { Frame, Mic2, Bike, PartyPopper, ShoppingBag, Gamepad2, BookOpen, UtensilsCrossed, HelpCircle, type LucideIcon } from 'lucide-react';
 import { CATEGORIES } from '@shared/schema';
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -41,14 +41,14 @@ interface CategoryIconProps {
 }
 
 export function CategoryIcon({ category, className = "", size = 20 }: CategoryIconProps) {
-  const validCategory = CATEGORY_ICONS[category] ? category : 'Activiteit';
-  const Icon = CATEGORY_ICONS[validCategory];
+  const Icon = CATEGORY_ICONS[category] ?? HelpCircle;
+  const color = CATEGORY_COLORS[category] ?? '#94A3B8';
 
   return (
     <Icon
       size={size}
       className={`${className}`}
-      style={{ color: CATEGORY_COLORS[validCategory] || '#94A3B8' }}
+      style={{ color }}
     />
   );
 }

@@ -107,10 +107,13 @@ function createImageMarkerIcon(
   const displayUrl = resolvedUrl ?? stockImages[0] ?? null;
 
   if (!displayUrl) {
-    // Absolute last resort — colored pin without photo (images list empty)
+    // Absolute last resort: use getBestCategoryImage cross-category fallback
+    const emergencyUrl = getBestCategoryImage(category);
+    const fallbackUrl = emergencyUrl ?? "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=200&q=60";
+    const markerId2 = `marker-img-${markerIdCounter++}`;
     return L.divIcon({
       className: "pin-marker-container",
-      html: `<div style="${wrapperStyle}"><div style="${imgBoxStyle}display:flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="${iconPath}"/></svg></div><div style="${tipStyle}"></div></div>`,
+      html: `<div style="${wrapperStyle}"><div style="${imgBoxStyle}"><img id="${markerId2}" src="${fallbackUrl}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;"/></div><div style="${tipStyle}"></div></div>`,
       iconSize: [imgW, totalH],
       iconAnchor: [imgW / 2, totalH],
     });

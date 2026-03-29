@@ -962,7 +962,7 @@ export class RssFeedService {
   static formatTitle(title: string): string {
     let formatted = title
       .replace(/^(Event:|Evenement:|Activiteit:)\s*/i, "")
-      .replace(/\s*[-–|]\s*.+$/, "")
+      .replace(/\s+[-–|]\s+.+$/, "")
       .trim();
     
     if (formatted.length > 50) {
@@ -4398,6 +4398,106 @@ export class RssFeedService {
       linkPattern: /\/agenda\/\d+\/[a-z0-9-]+/,
       municipality: 'Vught'
     });
+  }
+
+  // Stad Wageningen — Pubble platform agenda (no GPS, no RSS)
+  // URL pattern: /agenda/YYYY/M/D/slug-eventid — date embedded in URL
+  static async scrapeStadWageningen(): Promise<FeedParseResult> {
+    const baseUrl = 'https://www.stadwageningen.nl';
+    const agendaUrl = `${baseUrl}/agenda`;
+    const defaultLat = 51.9644;
+    const defaultLon = 5.6647;
+
+    try {
+      const response = await axios.get(agendaUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "text/html,application/xhtml+xml"
+        },
+        timeout: 30000
+      });
+
+      const $ = cheerio.load(response.data);
+      const items: ParsedFeedItem[] = [];
+      const seenIds = new Set<string>();
+      const now = new Date();
+
+      $('a[href^="/agenda/20"]').each((_, el) => {
+        const $a = $(el);
+        const href = $a.attr('href') || '';
+
+        // URL: /agenda/YYYY/M/D/slug-eventid
+        const parts = href.split('/').filter(Boolean);
+        if (parts.length < 5) return;
+        const [, year, month, day, slugId] = parts;
+        const y = parseInt(year), m = parseInt(month), d = parseInt(day);
+        if (!y || !m || !d) return;
+
+        const title = $a.find('span.font-bold').first().text().trim();
+        if (!title) return;
+
+        // External ID: numeric suffix of slug (e.g. "slug-1260520" → "wageningen-1260520")
+        const idMatch = slugId?.match(/-(\d+)$/);
+        const externalId = idMatch ? `wageningen-${idMatch[1]}` : `wageningen-${slugId}`;
+        if (seenIds.has(externalId)) return;
+        seenIds.add(externalId);
+
+        // Time: extract HH:MM patterns from the date/time paragraph
+        const timePara = $a.find('p.font-light').first();
+        const timeText = timePara.text().replace(/\s+/g, ' ').trim();
+        const times = [...timeText.matchAll(/(\d{1,2}):(\d{2})/g)];
+        const startHour = times[0] ? parseInt(times[0][1]) : 0;
+        const startMin  = times[0] ? parseInt(times[0][2]) : 0;
+        const endHour   = times[1] ? parseInt(times[1][1]) : undefined;
+        const endMin    = times[1] ? parseInt(times[1][2]) : undefined;
+
+        const startDate = new Date(y, m - 1, d, startHour, startMin);
+        const endDate   = endHour !== undefined
+          ? new Date(y, m - 1, d, endHour, endMin!)
+          : undefined;
+
+        // Skip past events
+        const checkEnd = endDate ?? startDate;
+        if (checkEnd < now) return;
+
+        // Venue: second font-light span (first is time, second is venue)
+        const venueSpans = $a.find('span.font-light');
+        const venue = venueSpans.length > 0
+          ? venueSpans.last().text().trim().replace(/\s+/g, ' ')
+          : '';
+
+        // Image: src from picture > img inside the right-side div
+        const imgSrc = $a.find('img.img-absolute').attr('src')
+          || $a.find('img[src*="pubble"]').attr('src')
+          || undefined;
+
+        const description = venue
+          ? `${title} bij ${venue}.`
+          : `${title} in Wageningen.`;
+
+        items.push({
+          externalId,
+          title: this.formatTitle(title),
+          description,
+          link: `${baseUrl}${href}`,
+          imageUrl: imgSrc,
+          publishedAt: new Date(),
+          startTime: startDate,
+          endTime: endDate,
+          location: venue || 'Wageningen',
+          address: venue ? `${venue}, Wageningen` : 'Wageningen',
+          latitude: defaultLat,
+          longitude: defaultLon,
+          rawData: { venue }
+        });
+      });
+
+      console.log(`[RSS] StadWageningen: scraped ${items.length} events from overview page`);
+      return { success: true, items };
+    } catch (error: any) {
+      console.error('[RSS] StadWageningen error:', error.message);
+      return { success: false, items: [], error: error.message };
+    }
   }
 
   // WijchenIs — WordPress custom post type prode_agenda (no GPS, no RSS)
@@ -9748,6 +9848,8 @@ export class RssFeedService {
         result = await this.scrapeUitInDeRegioWestBetuwe(onProgress);
       } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/betuwe")) {
         result = await this.scrapeUitInDeRegioBetuwe(onProgress);
+      } else if (feed.feedType === "scraper" && feed.url.includes("stadwageningen")) {
+        result = await this.scrapeStadWageningen();
       } else if (feed.feedType === "scraper" && feed.url.includes("wijchenis")) {
         result = await this.scrapeWijchenIs();
       } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {

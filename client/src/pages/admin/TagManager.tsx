@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CATEGORIES } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
@@ -58,6 +60,7 @@ interface EventTag {
   icon: string;
   group: string;
   keywords: string[];
+  parentCategory?: string | null;
   isActive: boolean;
   sortOrder: number;
 }
@@ -228,6 +231,7 @@ function TagForm({
   const [icon, setIcon] = useState(tag?.icon || "Tags");
   const [group, setGroup] = useState(tag?.group || "");
   const [keywords, setKeywords] = useState<string[]>(tag?.keywords || []);
+  const [parentCategory, setParentCategory] = useState<string>(tag?.parentCategory || "none");
   const [isActive, setIsActive] = useState(tag?.isActive ?? true);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -238,6 +242,7 @@ function TagForm({
       icon,
       group,
       keywords,
+      parentCategory: parentCategory === "none" ? null : parentCategory,
       isActive,
     });
   };
@@ -257,6 +262,21 @@ function TagForm({
       <div className="space-y-2">
         <Label>Icoon</Label>
         <IconSelector value={icon} onChange={setIcon} />
+      </div>
+      <div className="space-y-2">
+        <Label>Categorie-override (parentCategory)</Label>
+        <Select value={parentCategory} onValueChange={setParentCategory}>
+          <SelectTrigger>
+            <SelectValue placeholder="Geen (gebruik keyword-detectie)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Geen (gebruik keyword-detectie)</SelectItem>
+            {CATEGORIES.map((cat) => (
+              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">Wanneer deze tag wordt gematcht, wordt de categorie van het evenement overschreven.</p>
       </div>
       <div className="space-y-2">
         <Label>Keywords (voor automatische matching)</Label>
@@ -616,6 +636,7 @@ export default function TagManager() {
                           <TableRow>
                             <TableHead className="w-12">Icoon</TableHead>
                             <TableHead>Naam</TableHead>
+                            <TableHead>Categorie-override</TableHead>
                             <TableHead>Keywords</TableHead>
                             <TableHead className="w-20">Status</TableHead>
                             <TableHead className="w-24">Acties</TableHead>
@@ -628,6 +649,13 @@ export default function TagManager() {
                                 <IconComponent iconName={tag.icon} className="h-5 w-5" />
                               </TableCell>
                               <TableCell className="font-medium">{tag.name}</TableCell>
+                              <TableCell>
+                                {tag.parentCategory ? (
+                                  <Badge variant="outline" className="text-xs font-medium">{tag.parentCategory}</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">—</span>
+                                )}
+                              </TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1 max-w-md">
                                   {tag.keywords.slice(0, 5).map(kw => (

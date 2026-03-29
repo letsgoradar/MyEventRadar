@@ -42,71 +42,87 @@ const CATEGORY_SVG_PATHS: Record<string, string> = {
 let markerIdCounter = 0;
 
 function createImageMarkerIcon(
-  imageUrl: string | null | undefined, 
-  category: string, 
-  isExpired: boolean = false, 
+  imageUrl: string | null | undefined,
+  category: string,
+  isExpired: boolean = false,
   isSelected: boolean = false,
   isPromoted: boolean = false,
   eventId?: number
 ) {
-  const size = isPromoted ? 52 : (isSelected ? 52 : 44);
-  const borderWidth = 3;
-  const innerSize = size - (borderWidth * 2);
+  const isLarge = isPromoted || isSelected;
+  const imgW  = isLarge ? 46 : 38;
+  const imgH  = isLarge ? 46 : 38;
+  const tipW  = isLarge ? 10 : 8;   // half-width of the CSS triangle
+  const tipH  = isLarge ? 14 : 12;  // height of the CSS triangle
+  const totalH = imgH + tipH;
+
   const fallbackColor = `rgb(${CLUSTER_COLOR})`;
-  const primaryColor = isExpired ? "#9CA3AF" : fallbackColor;
+  const primaryColor  = isExpired ? "#9CA3AF" : fallbackColor;
   const iconPath = CATEGORY_SVG_PATHS[category] || CATEGORY_SVG_PATHS['Gezellig en Sociaal'];
-  
+
+  const dropShadow = isPromoted
+    ? 'filter:drop-shadow(0 3px 8px rgba(245,158,11,0.65));'
+    : isSelected
+      ? 'filter:drop-shadow(0 3px 8px rgba(20,184,166,0.65));'
+      : 'filter:drop-shadow(0 2px 5px rgba(0,0,0,0.38));';
+
+  const borderColor = isPromoted ? '#f59e0b' : isSelected ? '#14b8a6' : 'white';
+
+  const imgBoxStyle = [
+    'position:absolute;top:0;left:0;right:0;',
+    `height:${imgH}px;`,
+    'border-radius:10px 10px 3px 3px;',
+    'overflow:hidden;',
+    `border:2.5px solid ${borderColor};`,
+    `background:${primaryColor};`,
+  ].join('');
+
+  const tipStyle = [
+    'position:absolute;bottom:0;left:50%;transform:translateX(-50%);',
+    'width:0;height:0;',
+    `border-left:${tipW}px solid transparent;`,
+    `border-right:${tipW}px solid transparent;`,
+    `border-top:${tipH}px solid ${borderColor};`,
+  ].join('');
+
+  const wrapperStyle = [
+    'position:relative;',
+    `width:${imgW}px;height:${totalH}px;`,
+    'cursor:pointer;',
+    dropShadow,
+  ].join('');
+
   if (imageUrl && !isImageFailed(imageUrl)) {
     const markerId = `marker-img-${markerIdCounter++}`;
     const icon = L.divIcon({
-      className: "image-marker",
+      className: "pin-marker-container",
       html: `
-        <div class="img-marker-wrapper" style="
-          width: ${size}px;
-          height: ${size}px;
-          position: relative;
-        ">
-          <div style="
-            width: ${size}px;
-            height: ${size}px;
-            background: white;
-            border-radius: 50%;
-            padding: ${borderWidth}px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            ${isPromoted ? 'box-shadow: 0 4px 12px rgba(245, 158, 11, 0.5); border: 2px solid #f59e0b;' : ''}
-            ${isSelected && !isPromoted ? 'box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);' : ''}
-          ">
-            <img 
+        <div style="${wrapperStyle}">
+          <div style="${imgBoxStyle}">
+            <img
               id="${markerId}"
-              src="${imageUrl}" 
-              alt="" 
+              src="${imageUrl}"
+              alt=""
               loading="lazy"
-              style="
-                width: ${innerSize}px;
-                height: ${innerSize}px;
-                border-radius: 50%;
-                object-fit: cover;
-                display: block;
-              "
+              style="width:100%;height:100%;object-fit:cover;display:block;"
             />
             <div id="${markerId}-fallback" style="
-              display: none;
-              width: ${innerSize}px;
-              height: ${innerSize}px;
-              border-radius: 50%;
-              background-color: ${primaryColor};
-              align-items: center;
-              justify-content: center;
+              display:none;width:100%;height:100%;
+              align-items:center;justify-content:center;
+              background:${primaryColor};
             ">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                   fill="none" stroke="white" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round">
                 <path d="${iconPath}"/>
               </svg>
             </div>
           </div>
+          <div style="${tipStyle}"></div>
         </div>
       `,
-      iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2],
+      iconSize: [imgW, totalH],
+      iconAnchor: [imgW / 2, totalH],
     });
 
     requestAnimationFrame(() => {
@@ -127,37 +143,24 @@ function createImageMarkerIcon(
 
     return icon;
   }
-  
+
+  // Fallback (no image): solid-color pin with category icon
   return L.divIcon({
-    className: "fallback-marker",
+    className: "pin-marker-container",
     html: `
-      <div style="
-        width: ${size}px;
-        height: ${size}px;
-        background: white;
-        border-radius: 50%;
-        padding: ${borderWidth}px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        ${isPromoted ? 'box-shadow: 0 4px 12px rgba(245, 158, 11, 0.5); border: 2px solid #f59e0b;' : ''}
-        ${isSelected && !isPromoted ? 'box-shadow: 0 4px 12px rgba(20, 184, 166, 0.5);' : ''}
-      ">
-        <div style="
-          width: ${innerSize}px;
-          height: ${innerSize}px;
-          border-radius: 50%;
-          background-color: ${primaryColor};
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        ">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <div style="${wrapperStyle}">
+        <div style="${imgBoxStyle}display:flex;align-items:center;justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+               fill="none" stroke="white" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
             <path d="${iconPath}"/>
           </svg>
         </div>
+        <div style="${tipStyle}"></div>
       </div>
     `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [imgW, totalH],
+    iconAnchor: [imgW / 2, totalH],
   });
 }
 
@@ -210,6 +213,10 @@ export function ClusterLayer({
   const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
   const markersRef = useRef<Map<number, L.Marker>>(new Map());
   const eventsRef = useRef(events);
+  // Tracks icon parameters per marker so we can skip setIcon when nothing changed
+  const markerIconStateRef = useRef<Map<number, {
+    imageUrl: string | null; isSelected: boolean; isPromoted: boolean; isExpired: boolean;
+  }>>(new Map());
   
   useEffect(() => {
     eventsRef.current = events;
@@ -221,7 +228,7 @@ export function ClusterLayer({
     if (!clusterGroupRef.current) {
       clusterGroupRef.current = L.markerClusterGroup({
         chunkedLoading: true,
-        maxClusterRadius: 30,
+        maxClusterRadius: 15,
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
@@ -253,20 +260,31 @@ export function ClusterLayer({
       if (!newEventIds.has(id)) {
         clusterGroup.removeLayer(marker);
         currentMarkers.delete(id);
+        markerIconStateRef.current.delete(id);
       }
     });
     
     events.forEach((event) => {
       const isSelected = selectedEventId === event.id;
-      const imageUrl = event.event.imageUrl;
+      const imageUrl = event.event.imageUrl ?? null;
       
       if (currentMarkers.has(event.id)) {
         const existingMarker = currentMarkers.get(event.id)!;
-        existingMarker.setIcon(createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected, event.isPromoted, event.id));
+        const prev = markerIconStateRef.current.get(event.id);
+        // Only rebuild the icon if something visible actually changed
+        if (!prev ||
+            prev.imageUrl !== imageUrl ||
+            prev.isSelected !== isSelected ||
+            prev.isPromoted !== !!event.isPromoted ||
+            prev.isExpired !== event.expired) {
+          existingMarker.setIcon(createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected, event.isPromoted, event.id));
+          markerIconStateRef.current.set(event.id, { imageUrl, isSelected, isPromoted: !!event.isPromoted, isExpired: event.expired });
+        }
       } else {
         const marker = L.marker(event.coords, {
           icon: createImageMarkerIcon(imageUrl, event.category, event.expired, isSelected, event.isPromoted, event.id),
         });
+        markerIconStateRef.current.set(event.id, { imageUrl, isSelected, isPromoted: !!event.isPromoted, isExpired: event.expired });
         
         const createPopupElement = () => {
           const container = document.createElement('div');

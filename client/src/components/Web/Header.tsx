@@ -66,6 +66,33 @@ interface HeaderProps {
   onLoginClick?: () => void;
 }
 
+// Isolated so its interval never triggers a re-render of Header
+const SEARCH_SUGGESTIONS_HEADER = ['pubquiz','kermis','circus','festival','comedy','theater','concert','markt','sport','muziek'];
+interface AnimatedHeaderInputProps {
+  searchQuery: string;
+  className?: string;
+  onChange: React.ChangeEventHandler<HTMLInputElement>;
+  onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
+}
+const AnimatedHeaderInput = React.memo(function AnimatedHeaderInput({
+  searchQuery, className, onChange, onKeyDown
+}: AnimatedHeaderInputProps) {
+  const [idx, setIdx] = React.useState(0);
+  React.useEffect(() => {
+    const t = setInterval(() => setIdx(i => (i + 1) % SEARCH_SUGGESTIONS_HEADER.length), 3000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <Input
+      placeholder={searchQuery ? '' : `Zoek op ${SEARCH_SUGGESTIONS_HEADER[idx]}...`}
+      className={className}
+      value={searchQuery}
+      onChange={onChange}
+      onKeyDown={onKeyDown}
+    />
+  );
+});
+
 export function Header({
   isMapView,
   toggleView,
@@ -94,14 +121,6 @@ export function Header({
   const [showSearchResults, setShowSearchResults] = React.useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = React.useState(false);
 
-  // Zoeksuggesties die roteren als placeholder
-  const SEARCH_SUGGESTIONS = ['pubquiz', 'kermis', 'circus', 'festival', 'comedy', 'theater', 'concert', 'markt', 'sport', 'muziek'];
-  const [suggestionIndex, setSuggestionIndex] = React.useState(0);
-  React.useEffect(() => {
-    const timer = setInterval(() => setSuggestionIndex(i => (i + 1) % SEARCH_SUGGESTIONS.length), 3000);
-    return () => clearInterval(timer);
-  }, []);
-  
   // Date range state - geen default, toont alle events
   const today = startOfDay(new Date());
   
@@ -305,10 +324,9 @@ export function Header({
         <div className="relative flex-1">
           <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
           <div className="relative">
-            <Input
-              placeholder={searchQuery ? "" : `Zoek op ${SEARCH_SUGGESTIONS[suggestionIndex]}...`}
+            <AnimatedHeaderInput
+              searchQuery={searchQuery}
               className="pl-10 pr-24 h-10 text-base rounded-full shadow-sm border-slate-200"
-              value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit("")}
             />

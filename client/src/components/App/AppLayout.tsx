@@ -26,6 +26,36 @@ interface Event extends BaseEvent {
   targetAudienceIds?: number[];
   seasonalThemeIds?: number[];
 }
+
+// Isolated component so its internal state never triggers a re-render of AppLayout
+const SEARCH_SUGGESTIONS = ['pubquiz','kermis','circus','festival','comedy','theater','concert','markt','sport','muziek'];
+
+interface AnimatedPlaceholderInputProps {
+  searchQuery: string;
+  className?: string;
+  onChange: React.ChangeEventHandler<HTMLInputElement>;
+  onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
+}
+const AnimatedPlaceholderInput = React.memo(function AnimatedPlaceholderInput({
+  searchQuery, className, onChange, onKeyDown, onFocus
+}: AnimatedPlaceholderInputProps) {
+  const [idx, setIdx] = React.useState(0);
+  React.useEffect(() => {
+    const t = setInterval(() => setIdx(i => (i + 1) % SEARCH_SUGGESTIONS.length), 3000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <Input
+      placeholder={searchQuery ? '' : `Zoek op ${SEARCH_SUGGESTIONS[idx]}...`}
+      value={searchQuery}
+      className={className}
+      onChange={onChange}
+      onKeyDown={onKeyDown}
+      onFocus={onFocus}
+    />
+  );
+});
 import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -164,14 +194,6 @@ export function AppLayout({
   const [isSearchFocused, setIsSearchFocused] = React.useState<boolean>(false);
   const searchContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Zoeksuggesties die roteren als placeholder
-  const SEARCH_SUGGESTIONS = ['pubquiz', 'kermis', 'circus', 'festival', 'comedy', 'theater', 'concert', 'markt', 'sport', 'muziek'];
-  const [suggestionIndex, setSuggestionIndex] = React.useState(0);
-  React.useEffect(() => {
-    const timer = setInterval(() => setSuggestionIndex(i => (i + 1) % SEARCH_SUGGESTIONS.length), 3000);
-    return () => clearInterval(timer);
-  }, []);
-  
   // Kaart bounds state voor zoom-based filtering
   const [mapBounds, setMapBounds] = React.useState<L.LatLngBounds | null>(null);
   
@@ -476,11 +498,10 @@ export function AppLayout({
           <div className="flex gap-2 mb-3">
             <div className="relative flex-1" ref={searchContainerRef}>
               <div className="relative">
-                <Input
-                  placeholder={searchQuery ? "" : `Zoek op ${SEARCH_SUGGESTIONS[suggestionIndex]}...`}
-                  value={searchQuery}
-                  onChange={handleSearchChange}
+                <AnimatedPlaceholderInput
+                  searchQuery={searchQuery}
                   className="pl-9 pr-16 h-10 w-full border-gray-300"
+                  onChange={handleSearchChange}
                   onKeyDown={(e) => e.key === "Enter" && onSearch && onSearch(searchQuery)}
                   onFocus={() => setIsSearchFocused(true)}
                 />

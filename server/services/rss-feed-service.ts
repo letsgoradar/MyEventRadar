@@ -3979,16 +3979,21 @@ export class RssFeedService {
         $overview('script[type="application/ld+json"]').each((_, el) => {
           try {
             const raw = $overview(el).html() || "";
-            const data = JSON.parse(raw);
+            const parsed = JSON.parse(raw);
+
+            // Normalize: top-level may be a single object or an array of objects
+            const topLevel: any[] = Array.isArray(parsed) ? parsed : [parsed];
 
             // Handle ItemList wrapper (overview page format)
             const listItems: any[] = [];
-            if (data["@type"] === "ItemList" && Array.isArray(data.itemListElement)) {
-              for (const entry of data.itemListElement) {
-                if (entry?.item) listItems.push(entry.item);
+            for (const data of topLevel) {
+              if (data["@type"] === "ItemList" && Array.isArray(data.itemListElement)) {
+                for (const entry of data.itemListElement) {
+                  if (entry?.item) listItems.push(entry.item);
+                }
+              } else if (data["@type"] === "Event") {
+                listItems.push(data);
               }
-            } else if (data["@type"] === "Event") {
-              listItems.push(data);
             }
 
             for (const event of listItems) {

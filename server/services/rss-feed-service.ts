@@ -17,6 +17,7 @@ import { AiHtmlAnalyzer, type AiExtractionSelectors, type AiPaginationInfo } fro
 import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
 import { matchTags } from "./tag-matcher";
 import { validateExternalUrl } from "../utils/url-validator";
+import { consolidateRecurringEvents } from "./scraper-manifest";
 
 /**
  * Determine if a given date/time is in Dutch Summer Time (CEST = UTC+2) or Winter Time (CET = UTC+1).
@@ -287,6 +288,8 @@ interface ParsedFeedItem {
   venueName?: string;
   venueCity?: string;
   venuePostalCode?: string;
+  /** Scraper manifest regel 2: herhalende events krijgen een recurrence-waarde mee */
+  recurrence?: "once" | "daily" | "weekly" | "monthly";
 }
 
 interface GeocodingResult {
@@ -3807,25 +3810,15 @@ export class RssFeedService {
 
       console.log(`[RSS] Scraped ${items.length} events from Bernheze (${successCount} with GPS, ${skippedCount} skipped)`);
 
-      // Deduplicate recurring events: for the same event title at the same location,
-      // keep at most 2 upcoming occurrences so weekly classes don't flood the map.
-      const sorted = items.sort((a, b) => (a.startTime?.getTime() ?? 0) - (b.startTime?.getTime() ?? 0));
-      const titleVenueCounts = new Map<string, number>();
-      const dedupedItems: ParsedFeedItem[] = [];
-      for (const item of sorted) {
-        const key = `${item.title.toLowerCase()}|${(item.location || '').toLowerCase()}`;
-        const count = titleVenueCounts.get(key) ?? 0;
-        if (count < 2) {
-          dedupedItems.push(item);
-          titleVenueCounts.set(key, count + 1);
-        }
-      }
-      const removedCount = items.length - dedupedItems.length;
+      // Scraper manifest regel 2: consolideer herhalende events naar één recurring event.
+      // Series worden gedetecteerd op basis van datumintervallen (weekly/monthly).
+      const consolidatedItems = consolidateRecurringEvents(items);
+      const removedCount = items.length - consolidatedItems.length;
       if (removedCount > 0) {
-        console.log(`[RSS] Bernheze: removed ${removedCount} recurring duplicates (kept max 2 per title)`);
+        console.log(`[RSS] Bernheze: consolidated ${removedCount} recurring events (series opgeslagen als recurrence)`);
       }
 
-      return { success: true, items: dedupedItems };
+      return { success: true, items: consolidatedItems };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Bernheze:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -10733,7 +10726,9 @@ export class RssFeedService {
       
       const fullDescription = cleanDescription || "Geen beschrijving beschikbaar.";
 
-      const recurrence = this.detectRecurrence(formattedTitle, fullDescription);
+      // Scraper manifest regel 2: gebruik scraper-gedetecteerde recurrence indien aanwezig,
+      // val anders terug op tekst-gebaseerde detectie uit beschrijving/titel.
+      const recurrence = parsedItem.recurrence ?? this.detectRecurrence(formattedTitle, fullDescription);
 
       // Match tags, audiences and themes based on keywords
       const tagMatchResult = await matchTags(formattedTitle, fullDescription, startTime);

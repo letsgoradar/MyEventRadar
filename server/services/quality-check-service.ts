@@ -4,6 +4,7 @@ import { db } from "../db";
 import { events, rssFeedItems, rssFeeds } from "@shared/schema";
 import { eq, and, isNotNull, desc, gte } from "drizzle-orm";
 import type { FeedQualityCheck, QualityCheckIssue, InsertQualityCheckIssue } from "@shared/schema";
+import { RULE_GPS_UNIQUENESS, RULE_RECURRING_EVENTS } from "./scraper-manifest";
 
 const NL_BOUNDS = {
   minLat: 50.75,
@@ -70,7 +71,72 @@ export class QualityCheckService {
           issues.push(...eventIssues);
         }
       }
-      
+
+      // -----------------------------------------------------------------------
+      // Feed-brede checks (Scraper Manifest regels)
+      // -----------------------------------------------------------------------
+
+      const validEvents = feedItems
+        .map(f => f.event)
+        .filter((e): e is NonNullable<typeof e> => e != null);
+
+      // MANIFEST REGEL 1: shared_gps_coordinates
+      // Als meer dan 50% van de events exact hetzelfde lat/lon deelt, is de
+      // scraper waarschijnlijk teruggevallen op een centraal gemeentepunt.
+      if (validEvents.length >= 4) {
+        const coordCounts = new Map<string, { lat: number; lng: number; count: number }>();
+        for (const ev of validEvents) {
+          const lat = parseFloat(String(ev.latitude ?? ""));
+          const lng = parseFloat(String(ev.longitude ?? ""));
+          if (!isNaN(lat) && !isNaN(lng)) {
+            const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+            const entry = coordCounts.get(key) ?? { lat, lng, count: 0 };
+            entry.count++;
+            coordCounts.set(key, entry);
+          }
+        }
+        for (const [, entry] of coordCounts) {
+          const fraction = entry.count / validEvents.length;
+          if (fraction >= RULE_GPS_UNIQUENESS.threshold) {
+            issues.push({
+              qualityCheckId: qualityCheck.id,
+              eventId: null,
+              feedItemId: null,
+              issueType: RULE_GPS_UNIQUENESS.qualityCheckType,
+              severity: RULE_GPS_UNIQUENESS.severity,
+              field: "location",
+              message: `${Math.round(fraction * 100)}% van de events (${entry.count}/${validEvents.length}) staat op exact hetzelfde coördinaat (${entry.lat.toFixed(4)}, ${entry.lng.toFixed(4)}). Scraper manifest regel: elk event moet op zijn eigen venue-locatie staan.`,
+              importedValue: `${entry.lat.toFixed(4)}, ${entry.lng.toFixed(4)}`,
+            });
+            break; // Één melding per feed volstaat
+          }
+        }
+      }
+
+      // MANIFEST REGEL 2: unmerged_recurring_events
+      // Als ≥3 events dezelfde (genormaliseerde) titel hebben, zijn het
+      // waarschijnlijk wekelijkse/maandelijkse sessies die als één recurring
+      // event opgeslagen hadden moeten worden.
+      const titleCounts = new Map<string, number>();
+      for (const ev of validEvents) {
+        const key = ev.title.toLowerCase().replace(/\s+/g, " ").trim();
+        titleCounts.set(key, (titleCounts.get(key) ?? 0) + 1);
+      }
+      for (const [title, count] of titleCounts) {
+        if (count >= RULE_RECURRING_EVENTS.minOccurrences) {
+          issues.push({
+            qualityCheckId: qualityCheck.id,
+            eventId: null,
+            feedItemId: null,
+            issueType: RULE_RECURRING_EVENTS.qualityCheckType,
+            severity: RULE_RECURRING_EVENTS.severity,
+            field: "recurrence",
+            message: `"${title}" komt ${count}x voor als los event. Scraper manifest regel: herhaaldelijke events moeten worden geconsolideerd naar één event met recurrence='weekly' of 'monthly'.`,
+            importedValue: `${count} losse events`,
+          });
+        }
+      }
+
       for (const issue of issues) {
         await storage.createQualityIssue(issue);
       }

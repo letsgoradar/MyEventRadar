@@ -117,7 +117,18 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
    - Logs tonen `[RSS] Page X: found Y new event links` - als Y=0, matcht de eventLinkPath niet
    - Test de website met curl: `curl -s "URL" | grep -oE 'href="[^"]*"' | head -50`
 
-5. **Venue geocoding zonder GPS** (Wageningen, Wijchen, etc.):
+5. **Scraper Manifest** — `server/services/scraper-manifest.ts`:
+   - Formeel bestand met twee bindende regels voor ALLE scrapers
+   - **Regel 1** `GPS_UNIQUENESS`: centraal gemeentepunt als GPS is VERBODEN. Elk event op eigen venue.
+     - Quality-check type: `shared_gps_coordinates` (severity: error)
+     - Triggert als >50% van events in een feed exact hetzelfde coördinaat deelt
+   - **Regel 2** `RECURRING_EVENTS`: herhalende series (≥2 toekomstige datums, zelfde titel+venue) MOETEN als één event met `recurrence: 'weekly'/'monthly'` worden opgeslagen
+     - Quality-check type: `unmerged_recurring_events` (severity: warning)
+     - Triggert als ≥3 events in een feed dezelfde genormaliseerde titel hebben
+   - Exporteert `consolidateRecurringEvents()` — helper voor scrapers om series automatisch te consolideren op basis van datumintervallen
+   - Exporteert `detectRecurrenceFromDates()` — bepaalt interval (daily/weekly/monthly) uit lijst datums
+
+6. **Venue geocoding zonder GPS** (Wageningen, Wijchen, etc.):
    - Scrapers zonder GPS in de HTML voegen een geocoding-pass toe na het parsen
    - Unieke venue-namen worden opgezocht via `geocodeWithMunicipalityValidation`
    - Bekende venues zijn hardgecodeerd in `KNOWN_VENUES` in `municipality-validator.ts` (geen Nominatim nodig, instant)

@@ -117,6 +117,22 @@ PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Lo
    - Logs tonen `[RSS] Page X: found Y new event links` - als Y=0, matcht de eventLinkPath niet
    - Test de website met curl: `curl -s "URL" | grep -oE 'href="[^"]*"' | head -50`
 
+5. **Venue geocoding zonder GPS** (Wageningen, Wijchen, etc.):
+   - Scrapers zonder GPS in de HTML voegen een geocoding-pass toe na het parsen
+   - Unieke venue-namen worden opgezocht via `geocodeWithMunicipalityValidation`
+   - Bekende venues zijn hardgecodeerd in `KNOWN_VENUES` in `municipality-validator.ts` (geen Nominatim nodig, instant)
+   - Wageningen (feed #84) en Wijchen (feed #83) hebben elk 15+ venues in het registry
+   - Bij het toevoegen van nieuwe venues: zet ze in `KNOWN_VENUES[gemeente]` met lowercase sleutel
+
+6. **Herhaalende evenementen deduplicatie** (Bernheze/Vorstenbosch):
+   - `scrapeBernheze()` voegt een dedup-stap toe: max 2 toekomstige sessies per titel+venue
+   - Voorkomt dat wekelijkse yoga/meditatie-lessen de kaart overstromen
+   - Bestaande duplicaten kunnen worden opgeschoond via SQL DELETE op `events` tabel
+
+7. **formatTitle regex** — strip alleen bij spaties rondom separator:
+   - `.replace(/\s+[-–|]\s+.+$/, "")` — vereist minimaal 1 spatie links EN rechts
+   - Voorkomt afkappen van afgekapte titels zoals "Ouder-" of "Johannes-Passion"
+
 ### Advertising System (nieuw)
 Twee-producten advertentiesysteem:
 

@@ -3806,7 +3806,26 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from Bernheze (${successCount} with GPS, ${skippedCount} skipped)`);
-      return { success: true, items };
+
+      // Deduplicate recurring events: for the same event title at the same location,
+      // keep at most 2 upcoming occurrences so weekly classes don't flood the map.
+      const sorted = items.sort((a, b) => (a.startTime?.getTime() ?? 0) - (b.startTime?.getTime() ?? 0));
+      const titleVenueCounts = new Map<string, number>();
+      const dedupedItems: ParsedFeedItem[] = [];
+      for (const item of sorted) {
+        const key = `${item.title.toLowerCase()}|${(item.location || '').toLowerCase()}`;
+        const count = titleVenueCounts.get(key) ?? 0;
+        if (count < 2) {
+          dedupedItems.push(item);
+          titleVenueCounts.set(key, count + 1);
+        }
+      }
+      const removedCount = items.length - dedupedItems.length;
+      if (removedCount > 0) {
+        console.log(`[RSS] Bernheze: removed ${removedCount} recurring duplicates (kept max 2 per title)`);
+      }
+
+      return { success: true, items: dedupedItems };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Bernheze:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -4493,6 +4512,30 @@ export class RssFeedService {
       });
 
       console.log(`[RSS] StadWageningen: scraped ${items.length} events from overview page`);
+
+      // Geocode unique venue names to get real GPS instead of municipality center
+      // Strip " | Wageningen" suffix before geocoding for cleaner Nominatim queries
+      const venueGps = new Map<string, { lat: number; lon: number }>();
+      const uniqueVenues = [...new Set(items.map(i => i.location).filter(Boolean))] as string[];
+      for (const venue of uniqueVenues) {
+        try {
+          const cleanVenue = venue.replace(/\s*\|\s*Wageningen\s*$/i, '').trim();
+          const geo = await this.geocodeWithMunicipalityValidation(cleanVenue, 'Wageningen');
+          if (geo) {
+            venueGps.set(venue, { lat: geo.lat, lon: geo.lon });
+            console.log(`[RSS] Wageningen geocoded: "${cleanVenue}" → ${geo.lat.toFixed(4)}, ${geo.lon.toFixed(4)}`);
+          }
+          await new Promise(r => setTimeout(r, 1100));
+        } catch { /* keep default */ }
+      }
+      for (const item of items) {
+        const gps = venueGps.get(item.location as string);
+        if (gps) {
+          item.latitude = gps.lat;
+          item.longitude = gps.lon;
+        }
+      }
+
       return { success: true, items };
     } catch (error: any) {
       console.error('[RSS] StadWageningen error:', error.message);
@@ -4625,6 +4668,29 @@ export class RssFeedService {
       });
 
       console.log(`[RSS] WijchenIs: scraped ${items.length} events from overview page`);
+
+      // Geocode unique venue names to get real GPS instead of municipality center
+      const venueGps = new Map<string, { lat: number; lon: number }>();
+      const uniqueVenues = [...new Set(items.map(i => i.location).filter(v => v && v !== 'Wijchen'))] as string[];
+      for (const venue of uniqueVenues) {
+        try {
+          const cleanVenue = venue.replace(/\s*,\s*Wijchen\s*$/i, '').trim();
+          const geo = await this.geocodeWithMunicipalityValidation(cleanVenue, 'Wijchen');
+          if (geo) {
+            venueGps.set(venue, { lat: geo.lat, lon: geo.lon });
+            console.log(`[RSS] Wijchen geocoded: "${cleanVenue}" → ${geo.lat.toFixed(4)}, ${geo.lon.toFixed(4)}`);
+          }
+          await new Promise(r => setTimeout(r, 1100));
+        } catch { /* keep default */ }
+      }
+      for (const item of items) {
+        const gps = venueGps.get(item.location as string);
+        if (gps) {
+          item.latitude = gps.lat;
+          item.longitude = gps.lon;
+        }
+      }
+
       return { success: true, items };
     } catch (error: any) {
       console.error('[RSS] WijchenIs error:', error.message);

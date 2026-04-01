@@ -153,6 +153,43 @@ export const KNOWN_VENUES: Record<string, Record<string, KnownVenue>> = {
     'kasteel hernen': { lat: 51.7922, lng: 5.7572, address: 'Kasteel Hernen, Hernen' },
     'hernen': { lat: 51.7922, lng: 5.7572, address: 'Hernen, Wijchen' },
   },
+  'dordrecht': {
+    // Dordrecht stad
+    'grote kerk': { lat: 51.8134, lng: 4.6688, address: 'Grote Kerk, Dordrecht' },
+    'de gravenhorst': { lat: 51.8003, lng: 4.6871, address: 'De Gravenhorst, Dordrecht' },
+    'gravenhorst': { lat: 51.8003, lng: 4.6871, address: 'De Gravenhorst, Dordrecht' },
+    'wantijpark': { lat: 51.8186, lng: 4.6846, address: 'Wantijpark, Dordrecht' },
+    'nieuwkerksplein': { lat: 51.8141, lng: 4.6702, address: 'Nieuwkerksplein, Dordrecht' },
+    'sikkelstraat': { lat: 51.8146, lng: 4.6595, address: 'Sikkelstraat, Dordrecht' },
+    'ontmoetingsplek dubbeldammers': { lat: 51.8216, lng: 4.6635, address: 'Ontmoetingsplek Dubbeldammers (De Kooi), Dordrecht' },
+    'dubbeldammers': { lat: 51.8216, lng: 4.6635, address: 'Ontmoetingsplek Dubbeldammers (De Kooi), Dordrecht' },
+    'de kooi': { lat: 51.8216, lng: 4.6635, address: 'De Kooi, Dordrecht' },
+    'de moestuin': { lat: 51.8083, lng: 4.6935, address: 'De Moestuin, Dordrecht' },
+    'van bearleplantsoen': { lat: 51.8083, lng: 4.6935, address: 'Van Bearleplantsoen, Dordrecht' },
+    'schouwburg': { lat: 51.8120, lng: 4.6672, address: 'Schouwburg Kunstmin, Dordrecht' },
+    'kunstmin': { lat: 51.8120, lng: 4.6672, address: 'Schouwburg Kunstmin, Dordrecht' },
+    'energiehuis': { lat: 51.8091, lng: 4.6692, address: 'Energiehuis, Dordrecht' },
+    'dordtse hout': { lat: 51.8255, lng: 4.6830, address: 'Dordtse Hout, Dordrecht' },
+    'bibelot': { lat: 51.8081, lng: 4.6738, address: 'Bibelot, Dordrecht' },
+    // Zwijndrecht venues die in de Dordrecht-feed verschijnen
+    'kubiek': { lat: 51.8214, lng: 4.6367, address: 'Kubiek, Zwijndrecht' },
+    'zwaluwstraat': { lat: 51.8214, lng: 4.6367, address: 'Kubiek, Zwijndrecht' },
+    // Papendrecht venues die in de Dordrecht-feed verschijnen
+    'de spil': { lat: 51.8374, lng: 4.6913, address: 'De Spil, Papendrecht' },
+    'stellingmolen': { lat: 51.8374, lng: 4.6913, address: 'De Spil, Papendrecht' },
+    'theater de spil': { lat: 51.8374, lng: 4.6913, address: 'De Spil, Papendrecht' },
+  },
+  'zwijndrecht': {
+    // Zwijndrecht (Drechtsteden) — verschijnt in de Dordrecht-feed
+    'kubiek': { lat: 51.8214, lng: 4.6367, address: 'Kubiek, Zwijndrecht' },
+    'zwaluwstraat': { lat: 51.8214, lng: 4.6367, address: 'Kubiek, Zwijndrecht' },
+  },
+  'papendrecht': {
+    // Papendrecht (Drechtsteden) — verschijnt in de Dordrecht-feed
+    'de spil': { lat: 51.8374, lng: 4.6913, address: 'De Spil, Papendrecht' },
+    'stellingmolen': { lat: 51.8374, lng: 4.6913, address: 'De Spil, Papendrecht' },
+    'theater de spil': { lat: 51.8374, lng: 4.6913, address: 'De Spil, Papendrecht' },
+  },
 };
 
 export function getKnownVenue(municipality: string, venueName: string): KnownVenue | null {

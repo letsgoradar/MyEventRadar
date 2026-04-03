@@ -11,13 +11,20 @@
 
 ```bash
 # Bouw de web app (frontend naar dist/public)
-npm run build
+# Vervang de URL door jouw Replit productie-URL (te vinden in Replit > Deploy)
+VITE_API_URL=https://jouw-app.replit.app npm run build
 
 # Synchroniseer web assets met het Android project
-npx cap sync android
+# PRODUCTION_URL zorgt dat de app de productie-server laadt (aanbevolen voor Google login)
+PRODUCTION_URL=https://jouw-app.replit.app npx cap sync android
 ```
 
-> **Tip**: Voer deze twee commando's altijd samen uit voordat je een nieuwe build maakt. Het eerste commando bouwt de React-app, het tweede kopieert de bestanden naar het Android-project.
+> **Tip**: Voer deze commando's altijd samen uit voordat je een nieuwe build maakt.
+>
+> - `VITE_API_URL` — backend URL voor API-calls vanuit de lokaal gebundelde app
+> - `PRODUCTION_URL` — laadt de volledige app van de productie-server (aanbevolen: Google login werkt dan automatisch)
+>
+> Als je `PRODUCTION_URL` instelt, laadt de app altijd de live versie van de server. Google OAuth werkt dan zonder extra configuratie.
 
 ## Stap 2: Upload Keystore aanmaken
 
@@ -166,8 +173,12 @@ cd android
 
 ## Veelgestelde vragen
 
-**Moet ik de API URL instellen voor de native app?**
-Ja! Zorg dat `VITE_API_URL` is ingesteld in je `.env` bestand voordat je bouwt. Dit moet de productie-URL van je backend zijn (bijv. `https://jouw-app.replit.app`).
+**Moet ik de productie-URL instellen voor de native app?**
+Ja! Stel twee omgevingsvariabelen in bij het bouwen:
+- `VITE_API_URL=https://jouw-app.replit.app` — voor de frontend build (API-calls)
+- `PRODUCTION_URL=https://jouw-app.replit.app` — voor `npx cap sync` (laadt de volledige app van de server)
+
+Met `PRODUCTION_URL` werkt Google login automatisch zonder extra configuratie.
 
 **Kan ik Google Play App Signing gebruiken?**
 Ja, dit wordt aanbevolen. Google beheert dan de release-sleutel en jij gebruikt alleen een upload-sleutel.

@@ -49,19 +49,18 @@ export async function apiRequest<T = any>(
   const method = options.method || 'GET';
   const responseType = options.responseType || 'json';
   
-  // FormData behandeling: verwijder de Content-Type header bij FormData requests
-  // zodat de browser deze automatisch kan instellen met de juiste boundary
+  const baseUrl = getApiBaseUrl();
+  const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+
   let headers = { ...options.headers };
   
   if (options.data instanceof FormData) {
-    // Bij FormData explixiet GEEN Content-Type instellen, zodat de browser dit automatisch doet
     delete headers['Content-Type'];
   } else if (options.data && !headers['Content-Type']) {
-    // Bij niet-FormData requests, standaard application/json gebruiken
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(url, {
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: options.data ? 

@@ -185,9 +185,15 @@ Ja, dit wordt aanbevolen. Google beheert dan de release-sleutel en jij gebruikt 
 
 **Hoe update ik de app?**
 1. Verhoog `versionCode` (met 1) en `versionName` in `android/app/build.gradle`
-2. Bouw opnieuw (`npm run build && npx cap sync android`)
+   - Huidige waarden: `versionCode 1`, `versionName "1.0.0"`
+   - Elke upload naar Play Store vereist een hogere versionCode dan de vorige
+   - Controleer in Play Console > App-releases of er al een eerdere upload is
+2. Bouw opnieuw (`PRODUCTION_URL=https://jouw-app.replit.app npx cap sync android`)
 3. Maak een nieuwe release AAB
 4. Upload naar Play Store Console
+
+**Hoe weet ik welke `versionCode` ik moet gebruiken?**
+Start met `versionCode 1` voor de eerste Play Store upload. Als je een foutmelding krijgt dat de versie al bestaat, verhoog je `versionCode` met 1 (`versionCode 2`) en probeer opnieuw.
 
 **Mijn keystore kwijt?**
 Met Google Play App Signing kun je een nieuwe upload-sleutel aanvragen. Zonder App Signing is je app verloren — maak altijd een backup!

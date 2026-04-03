@@ -55,5 +55,16 @@
         <string>Let's go Radar kan foto's uit je bibliotheek gebruiken.</string>
         <key>ITSAppUsesNonExemptEncryption</key>
         <false/>
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleURLName</key>
+                <string>nl.letsgoradar.app</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>nl.letsgoradar.app</string>
+                </array>
+            </dict>
+        </array>
 </dict>
 </plist>

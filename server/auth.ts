@@ -533,7 +533,9 @@ export function setupAuth(app: Express) {
 
     app.get("/api/auth/google", (req, res, next) => {
       const returnTo = req.query.returnTo as string || '/web';
+      const nativeApp = req.query.nativeApp === 'true';
       (req.session as any).returnTo = returnTo;
+      (req.session as any).nativeApp = nativeApp;
       passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
     });
 
@@ -541,8 +543,14 @@ export function setupAuth(app: Express) {
       passport.authenticate("google", { failureRedirect: "/web/login?error=google_failed" }),
       (req, res) => {
         const returnTo = (req.session as any).returnTo || '/web';
+        const nativeApp = (req.session as any).nativeApp === true;
         delete (req.session as any).returnTo;
-        res.redirect(returnTo);
+        delete (req.session as any).nativeApp;
+        if (nativeApp) {
+          res.redirect('nl.letsgoradar.app://callback');
+        } else {
+          res.redirect(returnTo);
+        }
       }
     );
 

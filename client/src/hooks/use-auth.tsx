@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useEffect } from "react";
 import {
   useQuery,
   useMutation,
@@ -8,6 +8,7 @@ import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { trackSignUp } from "@/lib/analytics";
+import { setupNativeAuthRefresh } from "@/lib/capacitor";
 
 type LoginData = Pick<InsertUser, "email" | "password">;
 
@@ -32,6 +33,12 @@ function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/auth/me"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
+
+  useEffect(() => {
+    setupNativeAuthRefresh(() => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    });
+  }, []);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {

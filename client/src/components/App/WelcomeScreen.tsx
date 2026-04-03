@@ -6,6 +6,7 @@ import { FaGoogle, FaApple } from "react-icons/fa";
 import { Mail, MapPin, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
+import { isNativeApp, getApiBaseUrl } from "@/lib/capacitor";
 import type { EventInterface } from "@shared/schema";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -72,7 +73,9 @@ export function WelcomeScreen() {
   }, [navigateTo, startAnimation, setLocation]);
 
   const handleGoogleLogin = () => {
-    window.location.href = '/api/auth/google?returnTo=/app';
+    const base = isNativeApp() ? getApiBaseUrl() : '';
+    const nativeParam = isNativeApp() ? '&nativeApp=true' : '';
+    window.location.href = `${base}/api/auth/google?returnTo=/app${nativeParam}`;
   };
 
   const handleAppleLogin = () => {

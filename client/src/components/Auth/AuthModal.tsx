@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { isNativeApp, getApiBaseUrl } from "@/lib/capacitor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -185,7 +186,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = `/api/auth/google?returnTo=${encodeURIComponent(window.location.pathname)}`;
+    const base = isNativeApp() ? getApiBaseUrl() : '';
+    const nativeParam = isNativeApp() ? '&nativeApp=true' : '';
+    window.location.href = `${base}/api/auth/google?returnTo=${encodeURIComponent(window.location.pathname)}${nativeParam}`;
   };
 
   return (

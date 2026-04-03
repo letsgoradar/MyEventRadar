@@ -19,3 +19,18 @@ export function getApiBaseUrl(): string {
 export function getPlatform(): 'ios' | 'android' | 'web' {
   return Capacitor.getPlatform() as 'ios' | 'android' | 'web';
 }
+
+let _authRefreshCallback: (() => void) | null = null;
+let _visibilityListenerAttached = false;
+
+export function setupNativeAuthRefresh(onAuthChange: () => void): void {
+  if (!isNativeApp()) return;
+  _authRefreshCallback = onAuthChange;
+  if (_visibilityListenerAttached) return;
+  _visibilityListenerAttached = true;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && _authRefreshCallback) {
+      _authRefreshCallback();
+    }
+  });
+}

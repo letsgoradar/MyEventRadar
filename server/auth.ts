@@ -555,6 +555,11 @@ export function setupAuth(app: Express) {
     );
 
     console.log('[Auth] Google OAuth configured');
+    console.log(`[Auth] Google callback URL: ${callbackURL}`);
+    if (process.env.NODE_ENV === 'production') {
+      console.log('[Auth] Ensure this URL is added as Authorized Redirect URI in Google Cloud Console:');
+      console.log(`[Auth]   ${callbackURL}`);
+    }
   } else {
     console.log('[Auth] Google OAuth not configured (missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET)');
 

@@ -34,6 +34,9 @@ function getSessionSecret(): string {
 
 const app = express();
 
+// Trust Replit's reverse proxy so secure cookies work correctly in production
+app.set('trust proxy', 1);
+
 // Serve static files from public folder (for logo and other assets)
 app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
 app.use('/assets', express.static(path.join(process.cwd(), 'public', 'assets')));

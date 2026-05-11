@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1778493337574,
+      "tag": "0000_add_is_school_holiday_to_seasonal_themes",
+      "breakpoints": true
+    }
+  ]
+}

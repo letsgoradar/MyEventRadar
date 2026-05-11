@@ -224,7 +224,7 @@ const HOST = '0.0.0.0';
         expirePromotions().catch(console.error);
       }
     });
-    console.log('Request-triggered schedulers registered (RSS 24h, notifications 1h, promotions 5min)');
+    console.log('Request-triggered schedulers registered (RSS 84h / ~2x per week, notifications 1h, promotions 5min)');
 
     // Add error handling middleware
     app.use(errorHandler);

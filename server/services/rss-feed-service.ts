@@ -4452,6 +4452,18 @@ export class RssFeedService {
     });
   }
 
+  // Bergeijk scraper using Plaece CMS
+  // Overview: /nl/uitagenda — event links: /nl/activiteiten/{id}/{slug}
+  static async scrapeBergeijk(): Promise<FeedParseResult> {
+    return this.scrapePlaeceSite({
+      baseUrl: 'https://www.visitbergeijk.nl',
+      agendaPath: '/nl/uitagenda',
+      eventLinkPath: '/nl/activiteiten',
+      linkPattern: /\/nl\/activiteiten\/\d+\/[a-z0-9-]+/,
+      municipality: 'Bergeijk'
+    });
+  }
+
   // Sint-Michielsgestel scraper using Plaece CMS
   // Note: agendaPath is the overview page, eventLinkPath is where event links point to
   static async scrapeSintMichielsgestel(): Promise<FeedParseResult> {
@@ -9945,6 +9957,8 @@ export class RssFeedService {
         result = await this.scrapeDenBosch();
       } else if (feed.feedType === "scraper" && feed.url.includes("beleefboxtel")) {
         result = await this.scrapeBoxtel();
+      } else if (feed.feedType === "scraper" && feed.url.includes("visitbergeijk")) {
+        result = await this.scrapeBergeijk();
       } else if (feed.feedType === "scraper" && feed.url.includes("goedgestel")) {
         result = await this.scrapeSintMichielsgestel();
       } else if (feed.feedType === "scraper" && feed.url.includes("visitvught")) {
@@ -10303,6 +10317,8 @@ export class RssFeedService {
           result = await this.scrapeDenBosch();
         } else if (feed.feedType === "scraper" && feed.url.includes("beleefboxtel")) {
           result = await this.scrapeBoxtel();
+        } else if (feed.feedType === "scraper" && feed.url.includes("visitbergeijk")) {
+          result = await this.scrapeBergeijk();
         } else if (feed.feedType === "scraper" && feed.url.includes("goedgestel")) {
           result = await this.scrapeSintMichielsgestel();
         } else if (feed.feedType === "scraper" && feed.url.includes("visitvught")) {

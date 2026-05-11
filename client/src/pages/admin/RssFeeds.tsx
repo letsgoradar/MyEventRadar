@@ -544,6 +544,58 @@ export default function RssFeedsPage() {
     },
   });
 
+  // Retry all error feeds: reset their status then run sync-all with a longer delay
+  const retryErrorFeedsMutation = useMutation({
+    mutationFn: async () => {
+      const resetResult: any = await apiRequest('/api/admin/rss-feeds/reset-error-feeds', { method: 'POST' });
+      if (resetResult.reset === 0) {
+        throw new Error('Geen feeds met foutmelding gevonden');
+      }
+      setSyncAllProgress({
+        isRunning: true,
+        totalFeeds: 0,
+        completedFeeds: 0,
+        currentFeedName: null,
+        percentComplete: 0,
+        feedResults: []
+      });
+      syncAllPollRef.current = setInterval(async () => {
+        const progress = await pollSyncAllProgress();
+        if (progress && !progress.isRunning) {
+          if (syncAllPollRef.current) {
+            clearInterval(syncAllPollRef.current);
+            syncAllPollRef.current = null;
+          }
+        }
+      }, 300);
+      try {
+        await apiRequest('/api/admin/rss-feeds/sync-all', {
+          method: 'POST',
+          data: { delaySeconds: 15 },
+        });
+        return resetResult;
+      } finally {}
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: `${data.reset} foutieve feeds worden opnieuw geprobeerd`,
+        description: 'Feeds worden een voor een gesynchroniseerd met 15 seconden tussenpauze.',
+      });
+    },
+    onError: (error: any) => {
+      if (syncAllPollRef.current) {
+        clearInterval(syncAllPollRef.current);
+        syncAllPollRef.current = null;
+      }
+      setSyncAllProgress(null);
+      toast({
+        title: 'Retry mislukt',
+        description: error.message || 'Er is een fout opgetreden.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const cancelSyncAllMutation = useMutation({
     mutationFn: async () => {
       return apiRequest('/api/admin/rss-feeds/sync-all/cancel', {
@@ -685,6 +737,25 @@ export default function RssFeedsPage() {
               </p>
             </div>
             <div className="flex gap-2">
+              {(stats?.errorFeeds || 0) > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => retryErrorFeedsMutation.mutate()}
+                  disabled={retryErrorFeedsMutation.isPending || syncAllFeedsMutation.isPending || syncAllProgress?.isRunning}
+                  className="border-red-200 text-red-700 hover:bg-red-50"
+                  title="Reset foutieve feeds naar actief en synchroniseer ze opnieuw (15s pauze tussen feeds)"
+                >
+                  {retryErrorFeedsMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  Retry fouten
+                  <span className="ml-1.5 bg-red-100 text-red-700 text-xs font-bold px-1.5 py-0.5 rounded-full">
+                    {stats?.errorFeeds}
+                  </span>
+                </Button>
+              )}
               <Button 
                 variant="outline" 
                 onClick={() => syncAllFeedsMutation.mutate()}

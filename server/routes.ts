@@ -2936,28 +2936,36 @@ Respond with ONLY the search term, nothing else.`,
 
       const delayBetweenFeeds = parseInt(req.body.delaySeconds as string) || 10;
       const skipRecentHours = parseInt(req.body.skipRecentHours as string) || 24;
+      // Error feeds: retry after 2h cooldown (stale errors should be re-attempted)
+      const errorRetryCooldownHours = 2;
       const feeds = await storage.getAllRssFeeds();
       const activeFeeds = feeds.filter(f => f.status === 'active');
+      // Include error feeds at the end of the queue — they're often stale network timeouts
+      const errorFeeds = feeds.filter(f => f.status === 'error');
 
-      if (activeFeeds.length === 0) {
+      if (activeFeeds.length === 0 && errorFeeds.length === 0) {
         return res.json({ message: "Geen actieve feeds gevonden", totalFeeds: 0, results: [] });
       }
 
-      // Sort feeds by lastFetchedAt: null first (never synced), then oldest first
-      const sortedFeeds = [...activeFeeds].sort((a, b) => {
+      const sortByLastFetched = (a: typeof feeds[0], b: typeof feeds[0]) => {
         if (!a.lastFetchedAt && !b.lastFetchedAt) return 0;
-        if (!a.lastFetchedAt) return -1; // a (null) comes first
-        if (!b.lastFetchedAt) return 1;  // b (null) comes first
+        if (!a.lastFetchedAt) return -1;
+        if (!b.lastFetchedAt) return 1;
         return new Date(a.lastFetchedAt).getTime() - new Date(b.lastFetchedAt).getTime();
-      });
+      };
 
-      // Determine which feeds to skip (synced within last N hours)
+      // Sort feeds by lastFetchedAt: null first (never synced), then oldest first
+      const sortedActive = [...activeFeeds].sort(sortByLastFetched);
+      const sortedError = [...errorFeeds].sort(sortByLastFetched);
+
+      // Determine which feeds to skip
       const now = Date.now();
       const skipThresholdMs = skipRecentHours * 60 * 60 * 1000;
-      const feedsToProcess: typeof sortedFeeds = [];
-      const feedsToSkip: typeof sortedFeeds = [];
+      const errorCooldownMs = errorRetryCooldownHours * 60 * 60 * 1000;
+      const feedsToProcess: typeof feeds = [];
+      const feedsToSkip: typeof feeds = [];
 
-      for (const feed of sortedFeeds) {
+      for (const feed of sortedActive) {
         if (feed.lastFetchedAt) {
           const timeSinceSync = now - new Date(feed.lastFetchedAt).getTime();
           if (timeSinceSync < skipThresholdMs) {
@@ -2968,12 +2976,26 @@ Respond with ONLY the search term, nothing else.`,
         feedsToProcess.push(feed);
       }
 
-      console.log(`[Sync-All] ${feedsToProcess.length} feeds to process, ${feedsToSkip.length} feeds skipped (synced in last ${skipRecentHours}h)`);
+      // Error feeds: include if last attempt was >2h ago (or never attempted)
+      for (const feed of sortedError) {
+        if (feed.lastFetchedAt) {
+          const timeSinceAttempt = now - new Date(feed.lastFetchedAt).getTime();
+          if (timeSinceAttempt < errorCooldownMs) {
+            feedsToSkip.push(feed);
+            continue;
+          }
+        }
+        // Reset error status before retrying so processFeed has a clean state
+        await storage.updateRssFeed(feed.id, { status: 'active' });
+        feedsToProcess.push({ ...feed, status: 'active' });
+      }
+
+      console.log(`[Sync-All] ${feedsToProcess.length} feeds to process (${activeFeeds.filter(f => feedsToProcess.find(p => p.id === f.id)).length} active + ${errorFeeds.filter(f => feedsToProcess.find(p => p.id === f.id)).length} error-retry), ${feedsToSkip.length} skipped`);
 
       // Initialize progress
       SYNC_ALL_PROGRESS = {
         isRunning: true,
-        totalFeeds: activeFeeds.length,
+        totalFeeds: activeFeeds.length + errorFeeds.length,
         completedFeeds: 0,
         skippedFeeds: feedsToSkip.length,
         currentFeedId: null,
@@ -2990,13 +3012,16 @@ Respond with ONLY the search term, nothing else.`,
         const hoursAgo = feed.lastFetchedAt 
           ? Math.round((now - new Date(feed.lastFetchedAt).getTime()) / (60 * 60 * 1000))
           : 0;
+        const isErrorFeed = feed.status === 'error';
         SYNC_ALL_PROGRESS.feedResults.push({
           feedId: feed.id,
           feedName: feed.name,
           status: 'skipped',
           eventsCreated: 0,
           lastFetchedAt: feed.lastFetchedAt,
-          skipReason: `Gesynchroniseerd ${hoursAgo} uur geleden (< ${skipRecentHours}u)`
+          skipReason: isErrorFeed
+            ? `Fout: minder dan ${errorRetryCooldownHours}u geleden geprobeerd`
+            : `Gesynchroniseerd ${hoursAgo} uur geleden (< ${skipRecentHours}u)`
         });
       }
 
@@ -3163,22 +3188,52 @@ Respond with ONLY the search term, nothing else.`,
         activityType: 'admin_action',
         entityId: null,
         entityType: 'rss_feed',
-        details: { action: 'sync_all_feeds', totalFeeds: activeFeeds.length, feedsToProcess: feedsToProcess.length, feedsSkipped: feedsToSkip.length },
+        details: { action: 'sync_all_feeds', totalFeeds: activeFeeds.length + errorFeeds.length, errorFeedsIncluded: errorFeeds.filter(f => feedsToProcess.find(p => p.id === f.id)).length, feedsToProcess: feedsToProcess.length, feedsSkipped: feedsToSkip.length },
         ipAddress: req.ip || null,
         userAgent: req.headers['user-agent'] || null,
       });
       
+      const errorFeedsQueued = errorFeeds.filter(f => feedsToProcess.find(p => p.id === f.id)).length;
       res.json({ 
         message: "Sync-all gestart",
-        totalFeeds: activeFeeds.length,
+        totalFeeds: activeFeeds.length + errorFeeds.length,
         feedsToProcess: feedsToProcess.length,
         feedsSkipped: feedsToSkip.length,
+        errorFeedsQueued,
         skipRecentHours,
         delayBetweenFeeds
       });
     } catch (error: any) {
       console.error('Error in POST /api/admin/rss-feeds/sync-all:', error);
       SYNC_ALL_PROGRESS = null;
+      res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+
+  // Reset all error feeds to active status so they get picked up by next sync
+  app.post("/api/admin/rss-feeds/reset-error-feeds", isAdmin, async (req, res) => {
+    try {
+      const feeds = await storage.getAllRssFeeds();
+      const errorFeeds = feeds.filter(f => f.status === 'error');
+      if (errorFeeds.length === 0) {
+        return res.json({ reset: 0, message: "Geen feeds met foutmelding gevonden" });
+      }
+      for (const feed of errorFeeds) {
+        await storage.updateRssFeed(feed.id, { status: 'active', lastErrorMessage: null });
+      }
+      console.log(`[Reset-Error-Feeds] Reset ${errorFeeds.length} feeds from error to active`);
+      await storage.logActivity({
+        userId: req.user!.id,
+        activityType: 'admin_action',
+        entityId: null,
+        entityType: 'rss_feed',
+        details: { action: 'reset_error_feeds', count: errorFeeds.length, feedNames: errorFeeds.map(f => f.name) },
+        ipAddress: req.ip || null,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      res.json({ reset: errorFeeds.length, message: `${errorFeeds.length} feeds teruggezet naar actief` });
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/rss-feeds/reset-error-feeds:', error);
       res.status(500).json({ message: error.message || "Internal server error" });
     }
   });

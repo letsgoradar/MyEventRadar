@@ -186,7 +186,7 @@ function FilterContent({
     ? [...tags]
         .sort((a, b) => (b.eventCount ?? 0) - (a.eventCount ?? 0))
         .filter((t) => !filters.tagIds.includes(t.id))
-        .slice(0, 6)
+        .slice(0, 5)
     : [];
 
   return (

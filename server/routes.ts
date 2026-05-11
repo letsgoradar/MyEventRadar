@@ -2218,6 +2218,7 @@ Respond with ONLY the search term, nothing else.`,
       
       const activeFeeds = feeds.filter(f => f.status === 'active').length;
       const errorFeeds = feeds.filter(f => f.status === 'error').length;
+      const pausedFeeds = feeds.filter(f => f.status === 'paused').length;
       const totalImported = feeds.reduce((sum, f) => sum + (f.itemsImported || 0), 0);
 
       const devMaxFeedsEnv = process.env.NODE_ENV !== 'production' && process.env.DEV_MAX_FEEDS
@@ -2229,6 +2230,7 @@ Respond with ONLY the search term, nothing else.`,
         totalFeeds: feeds.length,
         activeFeeds,
         errorFeeds,
+        pausedFeeds,
         totalItems: itemsCount,
         totalImported,
         devMaxFeeds
@@ -3214,14 +3216,14 @@ Respond with ONLY the search term, nothing else.`,
   app.post("/api/admin/rss-feeds/reset-error-feeds", isAdmin, async (req, res) => {
     try {
       const feeds = await storage.getAllRssFeeds();
-      const errorFeeds = feeds.filter(f => f.status === 'error');
+      const errorFeeds = feeds.filter(f => f.status === 'error' || f.status === 'paused');
       if (errorFeeds.length === 0) {
-        return res.json({ reset: 0, message: "Geen feeds met foutmelding gevonden" });
+        return res.json({ reset: 0, message: "Geen feeds met fout- of pauze-status gevonden" });
       }
       for (const feed of errorFeeds) {
-        await storage.updateRssFeed(feed.id, { status: 'active', lastErrorMessage: null });
+        await storage.updateRssFeed(feed.id, { status: 'active', lastErrorMessage: null, consecutiveFailures: 0 });
       }
-      console.log(`[Reset-Error-Feeds] Reset ${errorFeeds.length} feeds from error to active`);
+      console.log(`[Reset-Error-Feeds] Reset ${errorFeeds.length} feeds (error/paused) to active`);
       await storage.logActivity({
         userId: req.user!.id,
         activityType: 'admin_action',

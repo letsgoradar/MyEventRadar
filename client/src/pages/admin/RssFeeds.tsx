@@ -86,6 +86,7 @@ interface RssFeedStats {
   totalFeeds: number;
   activeFeeds: number;
   errorFeeds: number;
+  pausedFeeds: number;
   totalItems: number;
   totalImported: number;
   devMaxFeeds: number | null;
@@ -698,7 +699,7 @@ export default function RssFeedsPage() {
       case 'error':
         return <Badge variant="destructive"><AlertCircle className="w-3 h-3 mr-1" />Fout</Badge>;
       case 'paused':
-        return <Badge variant="secondary">Gepauzeerd</Badge>;
+        return <Badge className="bg-orange-100 text-orange-800 border border-orange-200"><AlertCircle className="w-3 h-3 mr-1" />Gepauzeerd</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -737,13 +738,13 @@ export default function RssFeedsPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              {(stats?.errorFeeds || 0) > 0 && (
+              {((stats?.errorFeeds || 0) + (stats?.pausedFeeds || 0)) > 0 && (
                 <Button
                   variant="outline"
                   onClick={() => retryErrorFeedsMutation.mutate()}
                   disabled={retryErrorFeedsMutation.isPending || syncAllFeedsMutation.isPending || syncAllProgress?.isRunning}
-                  className="border-red-200 text-red-700 hover:bg-red-50"
-                  title="Reset foutieve feeds naar actief en synchroniseer ze opnieuw (15s pauze tussen feeds)"
+                  className="border-orange-200 text-orange-700 hover:bg-orange-50"
+                  title="Reset foutieve en gepauzeerde feeds naar actief en synchroniseer ze opnieuw (15s pauze tussen feeds)"
                 >
                   {retryErrorFeedsMutation.isPending ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -751,8 +752,8 @@ export default function RssFeedsPage() {
                     <RefreshCw className="w-4 h-4 mr-2" />
                   )}
                   Retry fouten
-                  <span className="ml-1.5 bg-red-100 text-red-700 text-xs font-bold px-1.5 py-0.5 rounded-full">
-                    {stats?.errorFeeds}
+                  <span className="ml-1.5 bg-orange-100 text-orange-700 text-xs font-bold px-1.5 py-0.5 rounded-full">
+                    {(stats?.errorFeeds || 0) + (stats?.pausedFeeds || 0)}
                   </span>
                 </Button>
               )}
@@ -936,6 +937,16 @@ export default function RssFeedsPage() {
                 <div className="text-2xl font-bold text-red-600">{stats?.errorFeeds || 0}</div>
               </CardContent>
             </Card>
+            {(stats?.pausedFeeds || 0) > 0 && (
+              <Card className="border-orange-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-orange-700">Feeds gepauzeerd</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-600">{stats?.pausedFeeds}</div>
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Geïmporteerde items</CardTitle>

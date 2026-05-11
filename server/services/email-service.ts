@@ -500,3 +500,105 @@ export async function sendWelcomeEmail(
     return false;
   }
 }
+
+export async function sendFeedPausedNotification(feed: {
+  id: number;
+  name: string;
+  url: string;
+  municipality: string | null;
+  consecutiveFailures: number;
+  lastErrorMessage: string | null;
+}, failureHistory: Array<{ attemptedAt: Date; errorMessage: string }>): Promise<boolean> {
+  const adminEmail = "info@letsgoradar.com";
+  const subject = `[letsgo radar] Feed gepauzeerd na 3 mislukte pogingen: ${feed.name}`;
+  const baseUrl = getBaseUrl();
+
+  const attemptsHtml = failureHistory.map((attempt, i) => `
+    <tr style="background: ${i % 2 === 0 ? '#fff' : '#f8f9fa'};">
+      <td style="padding: 8px 12px; border: 1px solid #dee2e6; font-size: 13px; white-space: nowrap;">
+        ${attempt.attemptedAt.toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam' })}
+      </td>
+      <td style="padding: 8px 12px; border: 1px solid #dee2e6; font-size: 13px; font-family: monospace; color: #dc3545; word-break: break-all;">
+        ${attempt.errorMessage}
+      </td>
+    </tr>`).join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #dc3545; font-size: 20px; border-bottom: 2px solid #dc3545; padding-bottom: 10px; margin-top: 0;">
+        ⚠️ Feed gepauzeerd na 3 achtereenvolgende fouten
+      </h2>
+
+      <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+        <p style="margin: 0; font-size: 15px; color: #664d03;">
+          De feed <strong>${feed.name}</strong> is automatisch op <strong>pauze</strong> gezet omdat 3 opeenvolgende synchronisatiepogingen zijn mislukt.
+        </p>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <tr>
+          <td style="padding: 8px 12px; background: #f8f9fa; border: 1px solid #dee2e6; font-weight: bold; width: 30%;">Feed naam</td>
+          <td style="padding: 8px 12px; border: 1px solid #dee2e6;">${feed.name}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; background: #f8f9fa; border: 1px solid #dee2e6; font-weight: bold;">Gemeente</td>
+          <td style="padding: 8px 12px; border: 1px solid #dee2e6;">${feed.municipality || '—'}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; background: #f8f9fa; border: 1px solid #dee2e6; font-weight: bold;">URL</td>
+          <td style="padding: 8px 12px; border: 1px solid #dee2e6; word-break: break-all; font-family: monospace; font-size: 12px;">${feed.url}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; background: #f8f9fa; border: 1px solid #dee2e6; font-weight: bold;">Laatste fout</td>
+          <td style="padding: 8px 12px; border: 1px solid #dee2e6; color: #dc3545; font-family: monospace; font-size: 12px; word-break: break-all;">${feed.lastErrorMessage || '—'}</td>
+        </tr>
+      </table>
+
+      <h3 style="font-size: 16px; color: #333; margin-bottom: 10px;">Overzicht van de mislukte pogingen</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="background: #dc3545; color: white;">
+            <th style="padding: 8px 12px; border: 1px solid #c82333; text-align: left; font-size: 13px;">Tijdstip (Amsterdam)</th>
+            <th style="padding: 8px 12px; border: 1px solid #c82333; text-align: left; font-size: 13px;">Foutmelding</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${attemptsHtml}
+        </tbody>
+      </table>
+
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${baseUrl}/admin/rss-feeds"
+           style="display: inline-block; background: #00A9C5; color: white; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 15px;">
+          Beheer feeds in admin →
+        </a>
+      </div>
+
+      <p style="font-size: 13px; color: #6c757d; margin-top: 20px; border-top: 1px solid #dee2e6; padding-top: 12px;">
+        Je kunt de feed handmatig heractiveren in het admin paneel (RSS Feeds → bewerk → status terug naar actief),
+        of gebruik de knop "Retry fouten" om alle gepauzeerde feeds opnieuw te proberen.
+        <br><br>
+        letsgo radar — automatisch bericht
+      </p>
+    </div>
+  `;
+
+  const t = getTransporter();
+  if (!t) {
+    console.log(`[Email][FeedPaused] SMTP niet beschikbaar — feed gepauzeerd: ${feed.name} (${feed.url})\nFouten:\n${failureHistory.map(f => `  • ${f.attemptedAt.toISOString()} — ${f.errorMessage}`).join('\n')}`);
+    return false;
+  }
+  try {
+    await t.sendMail({
+      from: `letsgo radar <${getFromAddress()}>`,
+      to: adminEmail,
+      subject,
+      html,
+    });
+    console.log(`[Email] Feed-gepauzeerd melding verzonden voor ${feed.name}`);
+    return true;
+  } catch (error) {
+    console.error(`[Email] Fout bij verzenden feed-gepauzeerd melding:`, error);
+    return false;
+  }
+}

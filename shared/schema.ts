@@ -326,6 +326,7 @@ export const rssFeeds = pgTable("rss_feeds", {
   updateFrequencyMinutes: integer("update_frequency_minutes").notNull().default(60),
   lastFetchedAt: timestamp("last_fetched_at"),
   lastErrorMessage: text("last_error_message"),
+  consecutiveFailures: integer("consecutive_failures").default(0),
   itemsImported: integer("items_imported").default(0),
   autoCreateEvents: boolean("auto_create_events").default(true),
   aiExtractionProfileId: integer("ai_extraction_profile_id"),

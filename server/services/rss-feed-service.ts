@@ -2,9 +2,10 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import { parseStringPromise } from "xml2js";
 import { db } from "../db";
-import { rssFeeds, rssFeedItems, events, CATEGORIES, aiExtractionProfiles } from "@shared/schema";
-import { eq, and, sql, ilike } from "drizzle-orm";
+import { rssFeeds, rssFeedItems, feedSyncHistory, events, CATEGORIES, aiExtractionProfiles } from "@shared/schema";
+import { eq, and, sql, ilike, desc } from "drizzle-orm";
 import type { RssFeed, RssFeedItem, InsertRssFeedItem } from "@shared/schema";
+import { sendFeedPausedNotification } from "./email-service";
 import { AIHelper } from "./ai-helper";
 import { storage } from "../storage";
 import { DEFAULT_FEED_RULES, FEED_IMPORT_PRINCIPLES, createDuplicateKey, validateEventForImport } from "../config/rss-feed-rules";
@@ -356,7 +357,68 @@ async function parallelBatch<T, R>(
 export class RssFeedService {
   private static readonly USER_AGENT = "letsgo-radar/1.0 (+https://letsgo-radar.nl)";
   private static readonly MAX_BATCH_IMPORT_SIZE = 500;
+  private static readonly MAX_CONSECUTIVE_FAILURES = 3;
   private static geocodeCache: Map<string, GeocodingResult> = new Map();
+
+  /**
+   * Record a feed failure: increment consecutiveFailures.
+   * If it reaches MAX_CONSECUTIVE_FAILURES, pause the feed and send an alert email.
+   * Returns the updated consecutiveFailures count.
+   */
+  private static async recordFeedFailure(feed: RssFeed, errorMessage: string): Promise<void> {
+    const newCount = (feed.consecutiveFailures ?? 0) + 1;
+    const shouldPause = newCount >= RssFeedService.MAX_CONSECUTIVE_FAILURES;
+
+    await db.update(rssFeeds)
+      .set({
+        status: shouldPause ? "paused" : "error",
+        lastErrorMessage: errorMessage,
+        lastFetchedAt: new Date(),
+        consecutiveFailures: newCount,
+      })
+      .where(eq(rssFeeds.id, feed.id));
+
+    if (shouldPause) {
+      console.warn(`[RSS] ${feed.name}: PAUSED after ${newCount} consecutive failures. Sending alert email.`);
+      try {
+        const recentFailures = await db.select({
+          syncedAt: feedSyncHistory.syncedAt,
+          errorMessage: feedSyncHistory.errorMessage,
+        })
+          .from(feedSyncHistory)
+          .where(and(eq(feedSyncHistory.feedId, feed.id), eq(feedSyncHistory.success, false)))
+          .orderBy(desc(feedSyncHistory.syncedAt))
+          .limit(RssFeedService.MAX_CONSECUTIVE_FAILURES - 1);
+
+        const failureHistory = [
+          { attemptedAt: new Date(), errorMessage },
+          ...recentFailures.map(r => ({ attemptedAt: r.syncedAt, errorMessage: r.errorMessage || '(onbekend)' }))
+        ].slice(0, RssFeedService.MAX_CONSECUTIVE_FAILURES);
+
+        await sendFeedPausedNotification(
+          { ...feed, consecutiveFailures: newCount, lastErrorMessage: errorMessage },
+          failureHistory
+        );
+      } catch (emailErr: any) {
+        console.error(`[RSS] ${feed.name}: Failed to send pause notification email: ${emailErr.message}`);
+      }
+    }
+  }
+
+  /**
+   * Record a feed success: reset consecutiveFailures to 0.
+   */
+  private static async recordFeedSuccess(feed: RssFeed, newItemsCount: number): Promise<void> {
+    await db.update(rssFeeds)
+      .set({
+        status: "active",
+        lastFetchedAt: new Date(),
+        lastErrorMessage: null,
+        consecutiveFailures: 0,
+        itemsImported: (feed.itemsImported || 0) + newItemsCount,
+      })
+      .where(eq(rssFeeds.id, feed.id));
+  }
 
   /**
    * Extract fields from item using stored field mappings
@@ -9943,13 +10005,7 @@ export class RssFeedService {
 
       if (!result.success) {
         console.log(`[RSS] ${feed.name}: FAILED after ${feedDuration} min - ${result.error}`);
-        await db.update(rssFeeds)
-          .set({ 
-            status: "error", 
-            lastErrorMessage: result.error,
-            lastFetchedAt: new Date()
-          })
-          .where(eq(rssFeeds.id, feed.id));
+        await RssFeedService.recordFeedFailure(feed, result.error || 'Onbekende fout');
         return { success: false, itemsProcessed: 0, eventsCreated: 0, eventsUpdated: 0, error: result.error };
       }
 
@@ -9993,14 +10049,7 @@ export class RssFeedService {
         });
       }
 
-      await db.update(rssFeeds)
-        .set({
-          status: "active",
-          lastFetchedAt: new Date(),
-          lastErrorMessage: null,
-          itemsImported: (feed.itemsImported || 0) + newItemsCount
-        })
-        .where(eq(rssFeeds.id, feed.id));
+      await RssFeedService.recordFeedSuccess(feed, newItemsCount);
 
       const durationMs = Date.now() - feedStartTime;
       
@@ -10055,13 +10104,7 @@ export class RssFeedService {
       const durationMs = Date.now() - feedStartTime;
       const feedDuration = ((durationMs) / 1000 / 60).toFixed(1);
       console.error(`[RSS] ${feed.name}: ERROR after ${feedDuration} min - ${error.message}`);
-      await db.update(rssFeeds)
-        .set({ 
-          status: "error", 
-          lastErrorMessage: error.message,
-          lastFetchedAt: new Date()
-        })
-        .where(eq(rssFeeds.id, feed.id));
+      await RssFeedService.recordFeedFailure(feed, error.message);
       
       await storage.createSyncHistory({
         feedId: feed.id,
@@ -10304,13 +10347,7 @@ export class RssFeedService {
 
         if (!result.success) {
           console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: FAILED after ${feedDuration} min - ${result.error}`);
-          await db.update(rssFeeds)
-            .set({ 
-              status: "error", 
-              lastErrorMessage: result.error,
-              lastFetchedAt: new Date()
-            })
-            .where(eq(rssFeeds.id, feed.id));
+          await RssFeedService.recordFeedFailure(feed, result.error || 'Onbekende fout');
           errors++;
           continue;
         }
@@ -10337,27 +10374,14 @@ export class RssFeedService {
           if (itemResult.isUpdated) updatedItemsCount++;
         }
 
-        await db.update(rssFeeds)
-          .set({
-            status: "active",
-            lastFetchedAt: new Date(),
-            lastErrorMessage: null,
-            itemsImported: (feed.itemsImported || 0) + newItemsCount
-          })
-          .where(eq(rssFeeds.id, feed.id));
+        await RssFeedService.recordFeedSuccess(feed, newItemsCount);
 
         console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: SUCCESS - ${newItemsCount} new, ${updatedItemsCount} updated in ${feedDuration} min (consolidated: ${consolidatedItems.length} from ${result.items.length})`);
         processed++;
       } catch (error: any) {
         const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
         console.error(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: ERROR after ${feedDuration} min - ${error.message}`);
-        await db.update(rssFeeds)
-          .set({ 
-            status: "error", 
-            lastErrorMessage: error.message,
-            lastFetchedAt: new Date()
-          })
-          .where(eq(rssFeeds.id, feed.id));
+        await RssFeedService.recordFeedFailure(feed, error.message);
         errors++;
       }
     }

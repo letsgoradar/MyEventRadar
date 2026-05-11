@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetClose } from "@/components/ui/sheet";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { SlidersHorizontal, X, Check, Users, Snowflake, Tag, RotateCcw } from "lucide-react";
+import { SlidersHorizontal, X, Check, Users, Snowflake, Tag, RotateCcw, Flame, Search } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -17,6 +18,7 @@ interface EventTag {
   icon: string;
   group: string;
   isActive: boolean;
+  eventCount?: number;
 }
 
 interface TargetAudience {
@@ -49,6 +51,9 @@ interface EventFiltersProps {
   resultCount?: number;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  userLat?: number;
+  userLng?: number;
+  userRadius?: number;
 }
 
 function IconComponent({ iconName, className }: { iconName: string; className?: string }) {
@@ -112,6 +117,7 @@ function FilterContent({
   filters,
   onFiltersChange,
   tags,
+  popularTags,
   audiences,
   themes,
   onReset,
@@ -119,10 +125,13 @@ function FilterContent({
   filters: EventFilterState;
   onFiltersChange: (filters: EventFilterState) => void;
   tags: EventTag[];
+  popularTags: EventTag[];
   audiences: TargetAudience[];
   themes: SeasonalTheme[];
   onReset: () => void;
 }) {
+  const [tagSearch, setTagSearch] = useState("");
+
   const toggleTag = (id: number) => {
     const newTagIds = filters.tagIds.includes(id)
       ? filters.tagIds.filter((t) => t !== id)
@@ -153,13 +162,39 @@ function FilterContent({
     return acc;
   }, {} as Record<string, EventTag[]>);
 
-  const activeFilterCount = 
-    filters.tagIds.length + 
-    filters.audienceIds.length + 
-    filters.themeIds.length;
+  const searchResults = tagSearch.trim()
+    ? tags
+        .filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+        .slice(0, 6)
+    : [];
 
   return (
     <ScrollArea className="flex-1 px-4 max-h-[60vh] overflow-y-auto">
+
+      {/* Popular Tags */}
+      {popularTags.length > 0 && (
+        <>
+          <FilterSection title="Populaire filters" icon={Flame}>
+            <div className="flex flex-wrap gap-2">
+              {popularTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => toggleTag(tag.id)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-all ${
+                    filters.tagIds.includes(tag.id)
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted hover:bg-muted/80"
+                  }`}
+                >
+                  <IconComponent iconName={tag.icon} className="h-3.5 w-3.5" />
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+          </FilterSection>
+          <Separator />
+        </>
+      )}
 
       {/* Target Audiences */}
       <FilterSection title="Voor wie" icon={Users}>
@@ -196,7 +231,44 @@ function FilterContent({
         </>
       )}
 
-      {/* Event Tags by Group */}
+      {/* Tag autocomplete search */}
+      <FilterSection title="Zelf typen" icon={Search}>
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Zoek op tag, bijv. 'muziek'..."
+            value={tagSearch}
+            onChange={(e) => setTagSearch(e.target.value)}
+          />
+        </div>
+        {tagSearch.trim() && searchResults.length === 0 && (
+          <p className="text-sm text-muted-foreground">Geen tags gevonden</p>
+        )}
+        {searchResults.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {searchResults.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => { toggleTag(tag.id); setTagSearch(""); }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-all border ${
+                  filters.tagIds.includes(tag.id)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border hover:border-primary/50 hover:bg-muted"
+                }`}
+              >
+                <IconComponent iconName={tag.icon} className="h-3.5 w-3.5" />
+                {tag.name}
+                {filters.tagIds.includes(tag.id) && <Check className="h-3 w-3" />}
+              </button>
+            ))}
+          </div>
+        )}
+      </FilterSection>
+
+      <Separator />
+
+      {/* Event Tags by Group — always show full list */}
       <FilterSection title="Type evenement" icon={Tag}>
         {Object.entries(groupedTags).map(([group, groupTags]) => (
           <div key={group} className="mb-4">
@@ -224,7 +296,7 @@ function FilterContent({
   );
 }
 
-export function EventFilters({ filters, onFiltersChange, resultCount, isOpen, onOpenChange }: EventFiltersProps) {
+export function EventFilters({ filters, onFiltersChange, resultCount, isOpen, onOpenChange, userLat, userLng, userRadius }: EventFiltersProps) {
   const isMobile = useIsMobile();
   const [internalOpen, setInternalOpen] = useState(false);
   
@@ -241,6 +313,26 @@ export function EventFilters({ filters, onFiltersChange, resultCount, isOpen, on
 
   const { data: themes = [] } = useQuery<SeasonalTheme[]>({
     queryKey: ["/api/seasonal-themes"],
+  });
+
+  const popularTagsKey = userLat && userLng
+    ? [`/api/events/popular-tags`, userLat, userLng, userRadius ?? 25]
+    : ["/api/events/popular-tags"];
+
+  const { data: popularTags = [] } = useQuery<EventTag[]>({
+    queryKey: popularTagsKey,
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: "8" });
+      if (userLat && userLng) {
+        params.set("lat", String(userLat));
+        params.set("lng", String(userLng));
+        params.set("radius", String(userRadius ?? 25));
+      }
+      const res = await fetch(`/api/events/popular-tags?${params}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   const activeFilterCount = 
@@ -260,7 +352,7 @@ export function EventFilters({ filters, onFiltersChange, resultCount, isOpen, on
   const FilterButton = (
     <Button 
       variant="outline" 
-      className="gap-2 relative"
+      className="gap-2 relative h-10"
       onClick={() => setOpen(!open)}
     >
       <SlidersHorizontal className="h-4 w-4" />
@@ -299,6 +391,7 @@ export function EventFilters({ filters, onFiltersChange, resultCount, isOpen, on
             filters={filters}
             onFiltersChange={onFiltersChange}
             tags={tags}
+            popularTags={popularTags}
             audiences={audiences}
             themes={themes}
             onReset={resetFilters}
@@ -315,9 +408,29 @@ export function EventFilters({ filters, onFiltersChange, resultCount, isOpen, on
   }
 
   return (
-    <>
-      {FilterButton}
-    </>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>{FilterButton}</SheetTrigger>
+      <SheetContent side="right" className="w-[400px] flex flex-col p-0">
+        <SheetHeader className="px-6 py-4 border-b">
+          <SheetTitle className="text-xl">Filters</SheetTitle>
+        </SheetHeader>
+        <FilterContent
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+          tags={tags}
+          popularTags={popularTags}
+          audiences={audiences}
+          themes={themes}
+          onReset={resetFilters}
+        />
+        <SheetFooter className="px-6 py-4">
+          {FooterContent}
+          <SheetClose asChild>
+            <Button className="w-full mt-2">Toon resultaten</Button>
+          </SheetClose>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -326,13 +439,19 @@ export function FilterSidebar({
   onFiltersChange, 
   resultCount,
   isOpen,
-  onClose
+  onClose,
+  userLat,
+  userLng,
+  userRadius,
 }: { 
   filters: EventFilterState; 
   onFiltersChange: (filters: EventFilterState) => void;
   resultCount?: number;
   isOpen: boolean;
   onClose: () => void;
+  userLat?: number;
+  userLng?: number;
+  userRadius?: number;
 }) {
   const { data: tags = [] } = useQuery<EventTag[]>({
     queryKey: ["/api/event-tags"],
@@ -344,6 +463,11 @@ export function FilterSidebar({
 
   const { data: themes = [] } = useQuery<SeasonalTheme[]>({
     queryKey: ["/api/seasonal-themes"],
+  });
+
+  const { data: popularTags = [] } = useQuery<EventTag[]>({
+    queryKey: ["/api/events/popular-tags"],
+    staleTime: 5 * 60 * 1000,
   });
 
   const resetFilters = () => {
@@ -372,6 +496,7 @@ export function FilterSidebar({
         filters={filters}
         onFiltersChange={onFiltersChange}
         tags={tags}
+        popularTags={popularTags}
         audiences={audiences}
         themes={themes}
         onReset={resetFilters}
@@ -395,6 +520,12 @@ export function FilterSidebar({
       </div>
     </div>
   );
+}
+
+function IconComponentLocal({ iconName, className }: { iconName: string; className?: string }) {
+  const Icon = (LucideIcons as any)[iconName];
+  if (!Icon) return <Tag className={className} />;
+  return <Icon className={className} />;
 }
 
 export function ActiveFilterBadges({ 
@@ -428,7 +559,7 @@ export function ActiveFilterBadges({
     <div className="flex flex-wrap gap-1.5 py-2">
       {selectedAudiences.map((audience) => (
         <Badge key={audience.id} variant="secondary" className="gap-1 pr-1">
-          <IconComponent iconName={audience.icon} className="h-3 w-3" />
+          <IconComponentLocal iconName={audience.icon} className="h-3 w-3" />
           {audience.name}
           <button 
             onClick={() => onFiltersChange({ 
@@ -443,7 +574,7 @@ export function ActiveFilterBadges({
       ))}
       {selectedThemes.map((theme) => (
         <Badge key={theme.id} variant="secondary" className="gap-1 pr-1">
-          <IconComponent iconName={theme.icon} className="h-3 w-3" />
+          <IconComponentLocal iconName={theme.icon} className="h-3 w-3" />
           {theme.name}
           <button 
             onClick={() => onFiltersChange({ 
@@ -458,7 +589,7 @@ export function ActiveFilterBadges({
       ))}
       {selectedTags.map((tag) => (
         <Badge key={tag.id} variant="secondary" className="gap-1 pr-1">
-          <IconComponent iconName={tag.icon} className="h-3 w-3" />
+          <IconComponentLocal iconName={tag.icon} className="h-3 w-3" />
           {tag.name}
           <button 
             onClick={() => onFiltersChange({ 

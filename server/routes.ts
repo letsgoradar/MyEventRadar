@@ -1789,11 +1789,15 @@ Respond with ONLY the search term, nothing else.`,
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ message: "Je moet ingelogd zijn" });
 
-      const { defaultRadius, defaultWindowDays, mapStyle } = req.body;
-      const preferences: Record<string, unknown> = {};
+      const { defaultRadius, defaultWindowDays, mapStyle, preferredTagIds, preferredAudienceIds, onboardingCompleted } = req.body;
+      const existing = (req.user as any)?.preferences || {};
+      const preferences: Record<string, unknown> = { ...existing };
       if (typeof defaultRadius === 'number') preferences.defaultRadius = defaultRadius;
       if (typeof defaultWindowDays === 'number') preferences.defaultWindowDays = defaultWindowDays;
       if (typeof mapStyle === 'string') preferences.mapStyle = mapStyle;
+      if (Array.isArray(preferredTagIds)) preferences.preferredTagIds = preferredTagIds;
+      if (Array.isArray(preferredAudienceIds)) preferences.preferredAudienceIds = preferredAudienceIds;
+      if (typeof onboardingCompleted === 'boolean') preferences.onboardingCompleted = onboardingCompleted;
 
       const updatedUser = await storage.updateUser(userId, { preferences });
       const { password, ...userWithoutPassword } = updatedUser;
@@ -4546,6 +4550,53 @@ Antwoord in dit JSON formaat:
     } catch (error: any) {
       console.error('Error fetching event tags:', error);
       res.status(500).json({ message: error.message || "Failed to fetch event tags" });
+    }
+  });
+
+  // Get popular tags in a radius — aggregates eventTagIds frequencies from nearby events
+  app.get("/api/events/popular-tags", async (req, res) => {
+    try {
+      const lat = parseFloat(req.query.lat as string);
+      const lng = parseFloat(req.query.lng as string);
+      const radius = parseFloat(req.query.radius as string) || 25;
+      const limit = parseInt(req.query.limit as string) || 8;
+
+      let events: any[] = [];
+      if (!isNaN(lat) && !isNaN(lng)) {
+        events = await storage.getEventsByRadius(lat, lng, radius);
+      } else {
+        events = await storage.getAllEvents();
+      }
+
+      const tagFreq = new Map<number, number>();
+      for (const event of events) {
+        if (Array.isArray(event.eventTagIds)) {
+          for (const tagId of event.eventTagIds) {
+            tagFreq.set(tagId, (tagFreq.get(tagId) || 0) + 1);
+          }
+        }
+      }
+
+      const sorted = Array.from(tagFreq.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([tagId, count]) => ({ tagId, count }));
+
+      const allTags = await storage.getEventTags();
+      const tagMap = new Map(allTags.map(t => [t.id, t]));
+
+      const result = sorted
+        .map(({ tagId, count }) => {
+          const tag = tagMap.get(tagId);
+          if (!tag) return null;
+          return { ...tag, eventCount: count };
+        })
+        .filter(Boolean);
+
+      res.json(result);
+    } catch (error: any) {
+      console.error('Error fetching popular tags:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch popular tags" });
     }
   });
 

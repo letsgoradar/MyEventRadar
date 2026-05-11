@@ -12,8 +12,7 @@ async function seedSouthHollandEvents() {
       },
       startTime: new Date("2024-03-30T11:00:00"),
       endTime: new Date("2024-03-30T22:00:00"),
-      category: "festival",
-      subcategory: "food",
+      category: "Eten & Drinken",
       isPaid: true,
       price: 15,
       hostId: 1,
@@ -29,8 +28,7 @@ async function seedSouthHollandEvents() {
       },
       startTime: new Date("2024-04-05T10:00:00"),
       endTime: new Date("2024-04-07T18:00:00"),
-      category: "culture",
-      subcategory: "art",
+      category: "Tentoonstelling",
       isPaid: true,
       price: 20,
       hostId: 1,
@@ -46,8 +44,7 @@ async function seedSouthHollandEvents() {
       },
       startTime: new Date("2024-03-28T18:30:00"),
       endTime: new Date("2024-03-28T21:30:00"),
-      category: "technology",
-      subcategory: "networking",
+      category: "Leren & Ontdekken",
       isPaid: false,
       price: null,
       hostId: 1,
@@ -63,8 +60,7 @@ async function seedSouthHollandEvents() {
       },
       startTime: new Date("2024-04-15T09:00:00"),
       endTime: new Date("2024-04-15T17:00:00"),
-      category: "education",
-      subcategory: "open day",
+      category: "Leren & Ontdekken",
       isPaid: false,
       price: null,
       hostId: 1,
@@ -80,16 +76,14 @@ async function seedSouthHollandEvents() {
       },
       startTime: new Date("2024-07-20T12:00:00"),
       endTime: new Date("2024-07-20T23:00:00"),
-      category: "festival",
-      subcategory: "music",
+      category: "Voorstelling",
       isPaid: true,
       price: 25,
       hostId: 1,
       recurrence: "once"
     },
-    // Add more events here...
     {
-      title: "Gouda Cheese Market",
+      title: "Gouda Kaasmarkt",
       description: "Traditional cheese market and demonstrations",
       location: { 
         lat: 52.0115, 
@@ -98,17 +92,14 @@ async function seedSouthHollandEvents() {
       },
       startTime: new Date("2024-04-04T10:00:00"),
       endTime: new Date("2024-04-04T16:00:00"),
-      category: "market",
-      subcategory: "food",
+      category: "Markt & Beurs",
       isPaid: false,
       price: null,
       hostId: 1,
       recurrence: "weekly"
     },
-    // Adding more events to reach 25 total...
-    // Cities: Rotterdam, The Hague, Delft, Leiden, Gouda, Dordrecht, Schiedam, Zoetermeer
     {
-      title: "Dordrecht Historical Tour",
+      title: "Dordrecht Historische Rondleiding",
       description: "Guided walking tour through historic Dordrecht",
       location: { 
         lat: 51.8132, 
@@ -117,85 +108,77 @@ async function seedSouthHollandEvents() {
       },
       startTime: new Date("2024-04-10T14:00:00"),
       endTime: new Date("2024-04-10T16:00:00"),
-      category: "culture",
-      subcategory: "history",
+      category: "Activiteit",
       isPaid: true,
       price: 12,
       hostId: 1,
       recurrence: "weekly"
     },
-    // Continue with more events...
-  ];
-
-  // Add more events to reach 25
-  const additionalEvents = [
     {
-      city: "Rotterdam",
-      lat: 51.9244,
-      lng: 4.4777,
-      events: [
-        {
-          title: "Rotterdam Marathon",
-          category: "sports",
-          subcategory: "running",
-          isPaid: true,
-          price: 45
-        },
-        {
-          title: "Euromast Tower Run",
-          category: "sports",
-          subcategory: "running",
-          isPaid: true,
-          price: 30
-        }
-      ]
+      title: "Rotterdam Marathon",
+      description: "Jaarlijkse marathonloop door Rotterdam",
+      location: { 
+        lat: 51.9244, 
+        lng: 4.4777,
+        notificationReach: 5,
+      },
+      startTime: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000),
+      category: "Activiteit",
+      isPaid: true,
+      price: 45,
+      hostId: 1,
+      recurrence: "once"
     },
     {
-      city: "The Hague",
-      lat: 52.0705,
-      lng: 4.3007,
-      events: [
-        {
-          title: "Peace Palace Tour",
-          category: "culture",
-          subcategory: "history",
-          isPaid: true,
-          price: 15
-        },
-        {
-          title: "International Food Market",
-          category: "market",
-          subcategory: "food",
-          isPaid: false,
-          price: null
-        }
-      ]
+      title: "Euromast Tower Run",
+      description: "Trappenloop in de Euromast",
+      location: { 
+        lat: 51.9050, 
+        lng: 4.4664,
+        notificationReach: 3,
+      },
+      startTime: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000),
+      category: "Activiteit",
+      isPaid: true,
+      price: 30,
+      hostId: 1,
+      recurrence: "once"
     },
-    // Add more cities and events...
+    {
+      title: "Peace Palace Tour",
+      description: "Guided tour of the Peace Palace in The Hague",
+      location: { 
+        lat: 52.0880, 
+        lng: 4.2950,
+        notificationReach: 2,
+      },
+      startTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000),
+      category: "Tentoonstelling",
+      isPaid: true,
+      price: 15,
+      hostId: 1,
+      recurrence: "once"
+    },
+    {
+      title: "Internationale Voedselmarkt Den Haag",
+      description: "International food market in The Hague",
+      location: { 
+        lat: 52.0705, 
+        lng: 4.3007,
+        notificationReach: 4,
+      },
+      startTime: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000),
+      category: "Markt & Beurs",
+      isPaid: false,
+      price: null,
+      hostId: 1,
+      recurrence: "once"
+    },
   ];
-
-  // Generate events from the additional cities
-  additionalEvents.forEach(city => {
-    city.events.forEach(eventInfo => {
-      events.push({
-        title: eventInfo.title,
-        description: `Event in ${city.city}`,
-        location: {
-          lat: city.lat + (Math.random() - 0.5) * 0.01, // Small random offset
-          lng: city.lng + (Math.random() - 0.5) * 0.01,
-          notificationReach: 3,
-        },
-        startTime: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000), // Random date within next 30 days
-        endTime: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000), // 3 hours after start
-        category: eventInfo.category,
-        subcategory: eventInfo.subcategory,
-        isPaid: eventInfo.isPaid,
-        price: eventInfo.price,
-        hostId: 1,
-        recurrence: "once"
-      });
-    });
-  });
 
   for (const event of events) {
     try {

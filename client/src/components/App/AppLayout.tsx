@@ -12,9 +12,9 @@ import type L from "leaflet";
 import AppBottomNav from "./AppBottomNav";
 import { BottomSheet } from "./BottomSheet";
 import { SortMenu, SortDirection } from "./SortMenuComponent";
-import { EventInterface as BaseEvent, CATEGORIES } from "@shared/schema";
+import { EventInterface as BaseEvent } from "@shared/schema";
 import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
-import { EventFilters, type EventFilterState } from "@/components/Filters/EventFilters";
+import { EventFilters, ActiveFilterBadges, type EventFilterState } from "@/components/Filters/EventFilters";
 import { Calendar } from "lucide-react";
 import { format, addDays, startOfDay, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
@@ -76,7 +76,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { CategoryIcon, getCategoryColor } from "@/components/CategoryIcon";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import ProfilePhotoUpload from "./ProfilePhotoUpload";
 import { NotificationCenter } from "./NotificationCenter";
 import { InstallPrompt } from "@/components/PWA/InstallPrompt";
@@ -85,6 +85,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { RadarLogoWithText } from "@/components/RadarLogo";
 import { useHiddenEvents } from "@/hooks/useHiddenEvents";
+import { useLocation as useGeoLocation } from "@/hooks/useLocation";
+
+interface UserPreferences {
+  preferredTagIds?: number[];
+  preferredAudienceIds?: number[];
+  onboardingCompleted?: boolean;
+}
 
 
 interface AppLayoutProps {
@@ -175,10 +182,11 @@ export function AppLayout({
   // Popover state voor datum filter
   const [datePopoverOpen, setDatePopoverOpen] = React.useState(false);
   
+  // User geo location for nearby popular tags
+  const { location: geoLocation } = useGeoLocation();
+
   // Gebruik defaultView als initiële view
   const [view, setView] = React.useState<"list" | "map">(defaultView);
-  const [selectedCategories, setSelectedCategories] = React.useState<typeof CATEGORIES[number][]>([]);
-  // Event filters state (tags, doelgroepen, thema's)
   const [eventFilters, setEventFilters] = React.useState<EventFilterState>({
     tagIds: [],
     audienceIds: [],
@@ -186,6 +194,8 @@ export function AppLayout({
     startDate: null,
     endDate: null
   });
+
+  const prefsSeedRef = React.useRef(false);
   // Standaard geen verlopen evenementen tonen
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   // Sortering van evenementen (alleen tijd-based)
@@ -218,13 +228,6 @@ export function AppLayout({
   
   const displayedEvents = React.useMemo(() => {
     let filtered = filteredEvents as Event[];
-    
-    // Filter op basis van categorieën als er categorieën geselecteerd zijn
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter(event => 
-        selectedCategories.includes(event.category as typeof CATEGORIES[number])
-      );
-    }
     
     // Filter verlopen evenementen als ze niet getoond moeten worden
     if (!showExpiredEvents) {
@@ -293,7 +296,7 @@ export function AppLayout({
     });
     
     return filtered;
-  }, [selectedCategories, filteredEvents, showExpiredEvents, sortDirection, eventFilters, startDate, endDate]);
+  }, [filteredEvents, showExpiredEvents, sortDirection, eventFilters, startDate, endDate]);
   
   // Events gefilterd op kaart bounds (voor bottom sheet)
   const boundsFilteredEvents = React.useMemo(() => {
@@ -362,14 +365,6 @@ export function AppLayout({
     }
   };
   
-  // Functie voor het toevoegen/verwijderen van een categorie - gestabiliseerd met useCallback
-  const toggleCategory = React.useCallback((category: typeof CATEGORIES[number]) => {
-    setSelectedCategories(prev => {
-      return prev.includes(category)
-        ? prev.filter(c => c !== category) as typeof CATEGORIES[number][]
-        : [...prev, category] as typeof CATEGORIES[number][];
-    });
-  }, []);
   
   // Typedefinitie voor gebruiker
   interface UserData {
@@ -385,6 +380,22 @@ export function AppLayout({
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+
+  // Apply saved preferences to filters once when user data loads
+  React.useEffect(() => {
+    if (!user || prefsSeedRef.current) return;
+    const prefs = user.preferences as UserPreferences | null;
+    const tagIds = prefs?.preferredTagIds ?? [];
+    const audienceIds = prefs?.preferredAudienceIds ?? [];
+    if (tagIds.length > 0 || audienceIds.length > 0) {
+      prefsSeedRef.current = true;
+      setEventFilters(prev => ({
+        ...prev,
+        tagIds: tagIds.length > 0 ? tagIds : prev.tagIds,
+        audienceIds: audienceIds.length > 0 ? audienceIds : prev.audienceIds,
+      }));
+    }
+  }, [user]);
 
   // Laad de profielfoto uit localStorage (indien beschikbaar) in een state
   const [savedPhotoUrl, setSavedPhotoUrl] = React.useState<string | null>(null);
@@ -565,7 +576,7 @@ export function AppLayout({
                                   className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-50"
                                 >
                                   <div className="flex items-center gap-2">
-                                    <CategoryIcon category={event.category as typeof CATEGORIES[number]} className="h-5 w-5" />
+                                    <CategoryIcon category={event.category} className="h-5 w-5" />
                                     <div className="flex-1 flex flex-col">
                                       <span className="font-medium text-sm">{event.title}</span>
                                       <span className="text-xs text-muted-foreground truncate">
@@ -631,6 +642,16 @@ export function AppLayout({
               </div>
             </div>
             
+            {/* Filter knop - naast zoekveld */}
+            <EventFilters
+              filters={eventFilters}
+              onFiltersChange={setEventFilters}
+              resultCount={displayedEvents.length}
+              userLat={geoLocation?.lat}
+              userLng={geoLocation?.lng}
+              userRadius={radius}
+            />
+            
             {/* Datum filter - naast zoekveld */}
             <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
               <PopoverTrigger asChild>
@@ -691,25 +712,11 @@ export function AppLayout({
             )}
           </div>
           
-          {/* Filter tags - alleen categorieën tonen, geen zoekquery */}
-          {selectedCategories.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3 relative z-10">
-              {selectedCategories.map(category => (
-                <Badge 
-                  key={category}
-                  className="flex gap-1 items-center"
-                  style={{ backgroundColor: getCategoryColor(category), color: 'white' }}
-                >
-                  <CategoryIcon category={category} size={12} className="text-white" />
-                  <span>{category}</span>
-                  <X 
-                    className="h-3 w-3 cursor-pointer text-white" 
-                    onClick={() => toggleCategory(category)}
-                  />
-                </Badge>
-              ))}
-            </div>
-          )}
+          {/* Actieve filterbadges */}
+          <ActiveFilterBadges
+            filters={eventFilters}
+            onFiltersChange={setEventFilters}
+          />
           
           {/* Sorteer knoppen alleen tonen in lijstweergave */}
           {view === "list" && (
@@ -742,14 +749,6 @@ export function AppLayout({
               endDate={endDate}
             />
             
-            {/* Floating Filter knop - linksboven - Airbnb style EventFilters */}
-            <div className="absolute top-4 left-4 z-[1000]">
-              <EventFilters
-                filters={eventFilters}
-                onFiltersChange={setEventFilters}
-                resultCount={displayedEvents.length}
-              />
-            </div>
           </div>
         </div>
       )}

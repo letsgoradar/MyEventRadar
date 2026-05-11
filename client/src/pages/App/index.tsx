@@ -11,6 +11,7 @@ import { LayoutGrid, List, Loader2, MapPin } from "lucide-react";
 import { addDays, startOfDay } from "date-fns";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { AuthModal } from "@/components/Auth/AuthModal";
+import { OnboardingModal } from "@/components/Auth/OnboardingModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearch } from "wouter";
 import type L from "leaflet";
@@ -43,12 +44,20 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return parseFloat((R * c).toFixed(1));
 }
 
+interface UserPreferences {
+  preferredTagIds?: number[];
+  preferredAudienceIds?: number[];
+  onboardingCompleted?: boolean;
+}
+
 export function AppHomePage() {
   const { user } = useAuth();
   const searchString = useSearch();
   const authFromQuery = new URLSearchParams(searchString).get("auth");
   const [showAuthModal, setShowAuthModal] = React.useState(false);
+  const [showOnboarding, setShowOnboarding] = React.useState(false);
   const authTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onboardingShownRef = React.useRef(false);
 
   React.useEffect(() => {
     if (authFromQuery === "create" && !user) {
@@ -60,6 +69,13 @@ export function AppHomePage() {
     if (user && user.emailVerified !== false) {
       setShowAuthModal(false);
       if (authTimerRef.current) clearTimeout(authTimerRef.current);
+
+      const prefs = user.preferences as UserPreferences | null;
+      const hasPrefs = prefs?.onboardingCompleted || (Array.isArray(prefs?.preferredTagIds) && (prefs.preferredTagIds?.length ?? 0) > 0);
+      if (!hasPrefs && !onboardingShownRef.current) {
+        onboardingShownRef.current = true;
+        setShowOnboarding(true);
+      }
       return;
     }
     if (!user) {
@@ -278,6 +294,11 @@ export function AppHomePage() {
         isOpen={showAuthModal}
         onClose={handleAuthClose}
         onSuccess={handleAuthSuccess}
+      />
+      
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
       />
     </>
   );

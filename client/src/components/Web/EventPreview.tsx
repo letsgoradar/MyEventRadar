@@ -3,7 +3,7 @@ import { Calendar, MapPin, Users, Euro, Eye, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import CategoryIcon from "@/components/Events/CategoryIcon";
+import { CategoryIcon } from "@/components/CategoryIcon";
 
 // Define Event type inline for now
 interface Event {

@@ -5,7 +5,7 @@ import { trackEventView, trackExternalClick, trackAddFavorite } from "@/lib/anal
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import CategoryIcon from "@/components/Events/CategoryIcon";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import { EventInterface as Event } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";

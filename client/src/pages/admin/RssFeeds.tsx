@@ -876,7 +876,7 @@ export default function RssFeedsPage() {
                       <p className="text-xs text-muted-foreground">Leeg laten = categorie wordt per event bepaald</p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="frequency">Update frequentie (minuten)</Label>
+                      <Label htmlFor="frequency">Min. wachttijd tussen syncs (minuten)</Label>
                       <Input
                         id="frequency"
                         type="number"
@@ -884,6 +884,9 @@ export default function RssFeedsPage() {
                         onChange={(e) => setNewFeed({ ...newFeed, updateFrequencyMinutes: parseInt(e.target.value) || 60 })}
                         data-testid="input-feed-frequency"
                       />
+                      <p className="text-xs text-muted-foreground">
+                        De automatische sync draait ~2× per week voor alle feeds tegelijk. Dit veld bepaalt alleen de minimale wachttijd tussen twee handmatige syncs van dezelfde feed — het heeft geen effect op de automatische planning.
+                      </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Switch

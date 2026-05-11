@@ -4611,11 +4611,79 @@ Antwoord in dit JSON formaat:
     }
   });
 
-  // Get all seasonal themes
+  // Helper: calculate Easter Sunday for a given year (Anonymous Gregorian algorithm)
+  function calculateEaster(year: number): Date {
+    const a = year % 19;
+    const b = Math.floor(year / 100);
+    const c = year % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31);
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(year, month - 1, day);
+  }
+
+  // Helper: check if a seasonal theme is currently relevant (active or starting within 28 days)
+  function isThemeRelevantNow(theme: any): boolean {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000;
+    const windowEnd = new Date(today.getTime() + FOUR_WEEKS_MS);
+
+    // Floating: Pasen (Easter)
+    if (theme.floatingRule === 'easter-2-weeks') {
+      for (const year of [today.getFullYear(), today.getFullYear() + 1]) {
+        const easter = calculateEaster(year);
+        const start = new Date(easter.getTime() - 14 * 24 * 60 * 60 * 1000);
+        const end = new Date(easter.getTime() + 2 * 24 * 60 * 60 * 1000);
+        if (today <= end && windowEnd >= start) return true;
+      }
+      return false;
+    }
+
+    // Floating: Carnaval (ends Ash Wednesday = Easter - 46 days, starts 3 days before)
+    if (theme.floatingRule === 'carnival-period') {
+      for (const year of [today.getFullYear(), today.getFullYear() + 1]) {
+        const easter = calculateEaster(year);
+        const ashWed = new Date(easter.getTime() - 46 * 24 * 60 * 60 * 1000);
+        const start = new Date(ashWed.getTime() - 3 * 24 * 60 * 60 * 1000);
+        if (today <= ashWed && windowEnd >= start) return true;
+      }
+      return false;
+    }
+
+    // Fixed-date themes
+    if (!theme.startMonth || !theme.startDay) return false;
+    const endMonth: number = theme.endMonth ?? theme.startMonth;
+    const endDay: number = theme.endDay ?? theme.startDay;
+
+    // Check current year and adjacent years to handle year-wrap (e.g. Kerst: Dec–Jan)
+    for (const yearOffset of [0, 1, -1]) {
+      const year = today.getFullYear() + yearOffset;
+      const start = new Date(year, theme.startMonth - 1, theme.startDay);
+      // Handle year-wrap: end in a later month than start means same year; earlier month = next year
+      const end = endMonth < theme.startMonth
+        ? new Date(year + 1, endMonth - 1, endDay)
+        : new Date(year, endMonth - 1, endDay);
+      if (today <= end && windowEnd >= start) return true;
+    }
+
+    return false;
+  }
+
+  // Get seasonal themes — only return those active or starting within 4 weeks
   app.get("/api/seasonal-themes", async (req, res) => {
     try {
-      const themes = await storage.getSeasonalThemes();
-      res.json(themes);
+      const allThemes = await storage.getSeasonalThemes();
+      const relevantThemes = allThemes.filter(isThemeRelevantNow);
+      res.json(relevantThemes);
     } catch (error: any) {
       console.error('Error fetching seasonal themes:', error);
       res.status(500).json({ message: error.message || "Failed to fetch seasonal themes" });

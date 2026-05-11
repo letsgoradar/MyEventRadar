@@ -55,6 +55,7 @@ export const seasonalThemes = pgTable("seasonal_themes", {
   // For floating holidays like Easter, Carnival
   isFloating: boolean("is_floating").default(false),
   floatingRule: text("floating_rule"), // e.g., "easter-2-weeks", "carnival-period"
+  isSchoolHoliday: boolean("is_school_holiday").default(false),
   isActive: boolean("is_active").default(true).notNull(),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),

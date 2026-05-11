@@ -143,25 +143,25 @@ const SEASONAL_THEMES_DATA = [
     name: "Zomervakantie", 
     icon: "Sun", 
     keywords: ["zomervakantie", "zomer", "summer holiday", "vakantie"],
-    startMonth: 6, startDay: 19, endMonth: 8, endDay: 31, isFloating: false 
+    startMonth: 6, startDay: 19, endMonth: 8, endDay: 31, isFloating: false, isSchoolHoliday: true 
   },
   { 
     name: "Pride", 
     icon: "Rainbow", 
     keywords: ["pride", "gay pride", "canal parade", "regenboog"],
-    startMonth: 7, startDay: 15, endMonth: 8, endDay: 15, isFloating: false 
+    startMonth: 7, startDay: 15, endMonth: 8, endDay: 15, isFloating: false, isSchoolHoliday: false 
   },
   { 
     name: "Herfstvakantie", 
     icon: "Leaf", 
     keywords: ["herfst", "herfstvakantie", "autumn", "halloween"],
-    startMonth: 10, startDay: 15, endMonth: 10, endDay: 31, isFloating: false 
+    startMonth: 10, startDay: 15, endMonth: 10, endDay: 31, isFloating: false, isSchoolHoliday: true 
   },
   { 
     name: "Meivakantie", 
     icon: "Flower", 
     keywords: ["mei", "meivakantie", "lente", "spring"],
-    startMonth: 4, startDay: 25, endMonth: 5, endDay: 10, isFloating: false 
+    startMonth: 4, startDay: 25, endMonth: 5, endDay: 10, isFloating: false, isSchoolHoliday: true 
   },
 ];
 
@@ -232,9 +232,17 @@ export async function seedTagsAndAudiences() {
         endDay: theme.endDay,
         isFloating: theme.isFloating || false,
         floatingRule: theme.floatingRule,
+        isSchoolHoliday: theme.isSchoolHoliday || false,
         isActive: true,
         sortOrder: i,
-      }).onConflictDoNothing();
+      }).onConflictDoUpdate({
+        target: seasonalThemes.name,
+        set: {
+          isSchoolHoliday: theme.isSchoolHoliday || false,
+          keywords: theme.keywords,
+          sortOrder: i,
+        },
+      });
     } catch (e) {
       console.log(`Theme ${theme.name} already exists or error:`, e);
     }

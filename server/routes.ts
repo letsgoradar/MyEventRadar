@@ -4678,9 +4678,6 @@ Antwoord in dit JSON formaat:
     return false;
   }
 
-  // School holidays — grouped separately in the filter UI
-  const SCHOOL_HOLIDAY_NAMES = new Set(["Meivakantie", "Herfstvakantie", "Zomervakantie"]);
-
   // Helper: check if a theme is currently active (today falls within its date range)
   function isThemeActive(theme: any): boolean {
     const now = new Date();
@@ -4734,7 +4731,7 @@ Antwoord in dit JSON formaat:
             ...theme,
             isCurrentlyActive: active,
             isComingSoon: !active,
-            isSchoolHoliday: SCHOOL_HOLIDAY_NAMES.has(theme.name),
+            isSchoolHoliday: theme.isSchoolHoliday ?? false,
           };
         });
       res.json(relevantThemes);

@@ -63,15 +63,6 @@ function createImageMarkerIcon(
 
   const borderColor = isPromoted ? '#f59e0b' : isSelected ? '#14b8a6' : 'white';
 
-  const imgBoxStyle = [
-    'position:absolute;top:0;left:0;right:0;',
-    `height:${imgH}px;`,
-    'border-radius:10px 10px 3px 3px;',
-    'overflow:hidden;',
-    `border:2.5px solid ${borderColor};`,
-    `background:${primaryColor};`,
-  ].join('');
-
   const tipStyle = [
     'position:absolute;bottom:0;left:50%;transform:translateX(-50%);',
     'width:0;height:0;',
@@ -106,9 +97,20 @@ function createImageMarkerIcon(
 
   const displayUrl = resolvedUrl ?? stockImages[0] ?? null;
 
+  // Neutral gray placeholder while image loads; category color only when no image available at all
+  const placeholderBg = displayUrl ? '#E5E7EB' : primaryColor;
+  const imgBoxStyle = [
+    'position:absolute;top:0;left:0;right:0;',
+    `height:${imgH}px;`,
+    'border-radius:10px 10px 3px 3px;',
+    'overflow:hidden;',
+    `border:2.5px solid ${borderColor};`,
+    `background:${placeholderBg};`,
+  ].join('');
+
   if (!displayUrl) {
     // Absolute last resort: use getBestCategoryImage cross-category fallback
-    const emergencyUrl = getBestCategoryImage(category);
+    const emergencyUrl = getBestCategoryImage(category, "", "");
     const fallbackUrl = emergencyUrl ?? "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=200&q=60";
     const markerId2 = `marker-img-${markerIdCounter++}`;
     return L.divIcon({

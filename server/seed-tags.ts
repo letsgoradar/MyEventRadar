@@ -99,16 +99,11 @@ const EVENT_TAGS_DATA = [
   { name: "Nieuwjaarsfeest", icon: "Sparkles", group: "Seizoen", parentCategory: "Stappen & Borrel", keywords: ["oud en nieuw", "nieuwjaar", "oudjaarsavond", "nye", "new years"] },
 ];
 
-// Target Audiences data
+// Gezelschap data (replaces old "doelgroepen/voor wie")
 const TARGET_AUDIENCES_DATA = [
-  { name: "Iedereen", icon: "Users", keywords: ["voor iedereen", "alle leeftijden", "toegankelijk"] },
-  { name: "Gezinnen", icon: "Home", keywords: ["gezin", "familie", "familiedag", "gezinsactiviteit"] },
-  { name: "Kinderen (0-12)", icon: "Baby", keywords: ["kinderen", "kids", "kleuters", "peuters", "0-12", "basisschool"] },
-  { name: "Tieners (12-18)", icon: "Gamepad2", keywords: ["tieners", "jongeren", "12-18", "middelbare school", "pubers"] },
-  { name: "18+", icon: "Lock", keywords: ["18+", "volwassenen", "adults only", "achttien plus"] },
-  { name: "Senioren (55+)", icon: "Glasses", keywords: ["senioren", "55+", "ouderen", "gepensioneerden", "65+"] },
-  { name: "LGBTQ+", icon: "Rainbow", keywords: ["lgbtq", "pride", "gay", "queer", "transgender", "regenboog"] },
-  { name: "Singles", icon: "Heart", keywords: ["singles", "alleenstaanden", "vrijgezel"] },
+  { name: "Alleen", icon: "User", keywords: ["solo", "alleen", "individueel", "zelf"] },
+  { name: "Met het gezin / familie", icon: "Home", keywords: ["gezin", "familie", "familiedag", "gezinsactiviteit", "kinderen", "kids"] },
+  { name: "Met vrienden", icon: "Users", keywords: ["vrienden", "vriendengroep", "samen", "groep", "gezelschap"] },
 ];
 
 // Seasonal Themes data
@@ -200,7 +195,8 @@ export async function seedTagsAndAudiences() {
   }
   console.log(`Seeded ${EVENT_TAGS_DATA.length} event tags`);
   
-  // Seed Target Audiences
+  // Seed Gezelschap (target audiences) — replace all existing records with new set
+  await db.delete(targetAudiences);
   for (let i = 0; i < TARGET_AUDIENCES_DATA.length; i++) {
     const audience = TARGET_AUDIENCES_DATA[i];
     try {
@@ -211,12 +207,12 @@ export async function seedTagsAndAudiences() {
         keywords: audience.keywords,
         isActive: true,
         sortOrder: i,
-      }).onConflictDoNothing();
+      });
     } catch (e) {
-      console.log(`Audience ${audience.name} already exists or error:`, e);
+      console.log(`Audience ${audience.name} error:`, e);
     }
   }
-  console.log(`Seeded ${TARGET_AUDIENCES_DATA.length} target audiences`);
+  console.log(`Seeded ${TARGET_AUDIENCES_DATA.length} gezelschap options`);
   
   // Seed Seasonal Themes
   for (let i = 0; i < SEASONAL_THEMES_DATA.length; i++) {

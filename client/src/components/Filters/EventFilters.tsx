@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { SlidersHorizontal, X, Check, Users, Snowflake, Tag, RotateCcw, Flame, Search } from "lucide-react";
+import { SlidersHorizontal, X, Check, Users, Snowflake, Tag, RotateCcw, Flame, Search, PersonStanding } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -131,6 +131,7 @@ function FilterContent({
   onReset: () => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const toggleTag = (id: number) => {
     const newTagIds = filters.tagIds.includes(id)
@@ -140,13 +141,10 @@ function FilterContent({
   };
 
   const toggleAudience = (id: number) => {
-    if (filters.audienceIds.includes(id)) {
-      const newAudienceIds = filters.audienceIds.filter((a) => a !== id);
-      onFiltersChange({ ...filters, audienceIds: newAudienceIds });
-    } else if (filters.audienceIds.length < 3) {
-      const newAudienceIds = [...filters.audienceIds, id];
-      onFiltersChange({ ...filters, audienceIds: newAudienceIds });
-    }
+    const newAudienceIds = filters.audienceIds.includes(id)
+      ? filters.audienceIds.filter((a) => a !== id)
+      : [...filters.audienceIds, id];
+    onFiltersChange({ ...filters, audienceIds: newAudienceIds });
   };
 
   const toggleTheme = (id: number) => {
@@ -162,9 +160,32 @@ function FilterContent({
     return acc;
   }, {} as Record<string, EventTag[]>);
 
+  // Toggle all tags in a group: select all if not all selected, otherwise deselect all
+  const toggleGroup = (groupTags: EventTag[]) => {
+    const groupIds = groupTags.map((t) => t.id);
+    const allSelected = groupIds.every((id) => filters.tagIds.includes(id));
+    const newTagIds = allSelected
+      ? filters.tagIds.filter((id) => !groupIds.includes(id))
+      : Array.from(new Set([...filters.tagIds, ...groupIds]));
+    onFiltersChange({ ...filters, tagIds: newTagIds });
+  };
+
+  // Smarter search: match on tag name OR group name, sort by eventCount
   const searchResults = tagSearch.trim()
     ? tags
-        .filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+        .filter(t => {
+          const q = tagSearch.toLowerCase();
+          return t.name.toLowerCase().includes(q) || t.group.toLowerCase().includes(q);
+        })
+        .sort((a, b) => (b.eventCount ?? 0) - (a.eventCount ?? 0))
+        .slice(0, 8)
+    : [];
+
+  // Suggestions when search field is focused but empty: top popular tags not yet selected
+  const suggestions = !tagSearch.trim() && searchFocused
+    ? [...tags]
+        .sort((a, b) => (b.eventCount ?? 0) - (a.eventCount ?? 0))
+        .filter((t) => !filters.tagIds.includes(t.id))
         .slice(0, 6)
     : [];
 
@@ -196,8 +217,8 @@ function FilterContent({
         </>
       )}
 
-      {/* Target Audiences */}
-      <FilterSection title="Voor wie" icon={Users}>
+      {/* Gezelschap (replaces "Voor wie") */}
+      <FilterSection title="Gezelschap" icon={PersonStanding}>
         <div className="flex flex-wrap gap-2">
           {audiences.map((audience) => (
             <FilterChip
@@ -231,19 +252,30 @@ function FilterContent({
         </>
       )}
 
-      {/* Tag autocomplete search */}
-      <FilterSection title="Zelf typen" icon={Search}>
+      {/* Tag search with smart suggestions */}
+      <FilterSection title="Zoeken" icon={Search}>
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="Zoek op tag, bijv. 'muziek'..."
+            placeholder="Bijv. 'muziek', 'theater', 'wandelen'..."
             value={tagSearch}
             onChange={(e) => setTagSearch(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
           />
+          {tagSearch && (
+            <button
+              onClick={() => setTagSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+        {/* Search results */}
         {tagSearch.trim() && searchResults.length === 0 && (
-          <p className="text-sm text-muted-foreground">Geen tags gevonden</p>
+          <p className="text-sm text-muted-foreground">Geen tags gevonden voor "{tagSearch}"</p>
         )}
         {searchResults.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
@@ -258,31 +290,23 @@ function FilterContent({
                 }`}
               >
                 <IconComponent iconName={tag.icon} className="h-3.5 w-3.5" />
-                {tag.name}
+                <span>{tag.name}</span>
+                <span className="text-xs opacity-60">({tag.group})</span>
                 {filters.tagIds.includes(tag.id) && <Check className="h-3 w-3" />}
               </button>
             ))}
           </div>
         )}
-      </FilterSection>
-
-      <Separator />
-
-      {/* Event Tags by Group — always show full list */}
-      <FilterSection title="Type evenement" icon={Tag}>
-        {Object.entries(groupedTags).map(([group, groupTags]) => (
-          <div key={group} className="mb-4">
-            <h4 className="text-sm font-medium text-muted-foreground mb-2">{group}</h4>
+        {/* Popular suggestions when focused but empty */}
+        {suggestions.length > 0 && (
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">Populaire tags</p>
             <div className="flex flex-wrap gap-2">
-              {groupTags.map((tag) => (
+              {suggestions.map((tag) => (
                 <button
                   key={tag.id}
                   onClick={() => toggleTag(tag.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-all ${
-                    filters.tagIds.includes(tag.id)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted hover:bg-muted/80"
-                  }`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-muted hover:bg-muted/80 transition-all"
                 >
                   <IconComponent iconName={tag.icon} className="h-3.5 w-3.5" />
                   {tag.name}
@@ -290,7 +314,67 @@ function FilterContent({
               ))}
             </div>
           </div>
-        ))}
+        )}
+      </FilterSection>
+
+      <Separator />
+
+      {/* Event Tags by Group — group header is clickable to select/deselect all */}
+      <FilterSection title="Type evenement" icon={Tag}>
+        {Object.entries(groupedTags).map(([group, groupTags]) => {
+          const groupIds = groupTags.map((t) => t.id);
+          const selectedCount = groupIds.filter((id) => filters.tagIds.includes(id)).length;
+          const allSelected = selectedCount === groupIds.length;
+          const someSelected = selectedCount > 0 && !allSelected;
+
+          return (
+            <div key={group} className="mb-4">
+              <button
+                onClick={() => toggleGroup(groupTags)}
+                className={`flex items-center gap-1.5 mb-2 w-full text-left group ${
+                  allSelected
+                    ? "text-primary"
+                    : someSelected
+                    ? "text-primary/70"
+                    : "text-muted-foreground"
+                }`}
+              >
+                <span className={`text-sm font-semibold transition-colors ${
+                  allSelected || someSelected ? "text-primary" : "text-foreground/70 group-hover:text-foreground"
+                }`}>
+                  {group}
+                </span>
+                {someSelected && (
+                  <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                    {selectedCount}/{groupIds.length}
+                  </span>
+                )}
+                {allSelected && <Check className="h-3.5 w-3.5 text-primary" />}
+                {!allSelected && (
+                  <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                    alles selecteren
+                  </span>
+                )}
+              </button>
+              <div className="flex flex-wrap gap-2">
+                {groupTags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    onClick={() => toggleTag(tag.id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-all ${
+                      filters.tagIds.includes(tag.id)
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted hover:bg-muted/80"
+                    }`}
+                  >
+                    <IconComponent iconName={tag.icon} className="h-3.5 w-3.5" />
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </FilterSection>
     </ScrollArea>
   );

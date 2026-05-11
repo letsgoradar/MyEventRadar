@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { eventTags, targetAudiences, seasonalThemes } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 // Helper to create slug from name
 function slugify(name: string): string {
@@ -139,10 +140,10 @@ const SEASONAL_THEMES_DATA = [
     startMonth: 4, startDay: 20, endMonth: 4, endDay: 27, isFloating: false 
   },
   { 
-    name: "Zomer", 
+    name: "Zomervakantie", 
     icon: "Sun", 
-    keywords: ["zomer", "summer", "zomervakantie", "zomerfestival"],
-    startMonth: 6, startDay: 21, endMonth: 9, endDay: 21, isFloating: false 
+    keywords: ["zomervakantie", "zomer", "summer holiday", "vakantie"],
+    startMonth: 6, startDay: 19, endMonth: 8, endDay: 31, isFloating: false 
   },
   { 
     name: "Pride", 
@@ -214,7 +215,9 @@ export async function seedTagsAndAudiences() {
   }
   console.log(`Seeded ${TARGET_AUDIENCES_DATA.length} gezelschap options`);
   
-  // Seed Seasonal Themes
+  // Seed Seasonal Themes — delete removed themes first
+  await db.delete(seasonalThemes).where(eq(seasonalThemes.name, "Zomer"));
+
   for (let i = 0; i < SEASONAL_THEMES_DATA.length; i++) {
     const theme = SEASONAL_THEMES_DATA[i];
     try {

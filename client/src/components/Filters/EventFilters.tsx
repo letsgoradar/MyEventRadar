@@ -35,6 +35,9 @@ interface SeasonalTheme {
   slug: string;
   icon: string;
   isActive: boolean;
+  isCurrentlyActive?: boolean;
+  isComingSoon?: boolean;
+  isSchoolHoliday?: boolean;
 }
 
 export interface EventFilterState {
@@ -233,24 +236,56 @@ function FilterContent({
 
       <Separator />
 
-      {/* Seasonal Themes */}
-      {themes.length > 0 && (
-        <>
-          <FilterSection title="Seizoen & thema" icon={Snowflake}>
-            <div className="flex flex-wrap gap-2">
-              {themes.map((theme) => (
-                <FilterChip
-                  key={theme.id}
-                  item={theme}
-                  isSelected={filters.themeIds.includes(theme.id)}
-                  onClick={() => toggleTheme(theme.id)}
-                />
-              ))}
-            </div>
-          </FilterSection>
-          <Separator />
-        </>
-      )}
+      {/* Seasonal Themes — split into regular themes and school holidays */}
+      {themes.length > 0 && (() => {
+        const regularThemes = themes.filter((t) => !t.isSchoolHoliday);
+        const schoolHolidays = themes.filter((t) => t.isSchoolHoliday);
+        return (
+          <>
+            {regularThemes.length > 0 && (
+              <FilterSection title="Thema's" icon={Snowflake}>
+                <div className="flex flex-wrap gap-2">
+                  {regularThemes.map((theme) => (
+                    <div key={theme.id} className="relative">
+                      <FilterChip
+                        item={theme}
+                        isSelected={filters.themeIds.includes(theme.id)}
+                        onClick={() => toggleTheme(theme.id)}
+                      />
+                      {theme.isComingSoon && (
+                        <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-amber-900 text-[9px] font-semibold leading-none px-1 py-0.5 rounded-full">
+                          binnenkort
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </FilterSection>
+            )}
+            {schoolHolidays.length > 0 && (
+              <FilterSection title="Schoolvakanties" icon={Snowflake}>
+                <div className="flex flex-wrap gap-2">
+                  {schoolHolidays.map((theme) => (
+                    <div key={theme.id} className="relative">
+                      <FilterChip
+                        item={theme}
+                        isSelected={filters.themeIds.includes(theme.id)}
+                        onClick={() => toggleTheme(theme.id)}
+                      />
+                      {theme.isComingSoon && (
+                        <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-amber-900 text-[9px] font-semibold leading-none px-1 py-0.5 rounded-full">
+                          binnenkort
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </FilterSection>
+            )}
+            <Separator />
+          </>
+        );
+      })()}
 
       {/* Tag search with smart suggestions */}
       <FilterSection title="Zoeken" icon={Search}>

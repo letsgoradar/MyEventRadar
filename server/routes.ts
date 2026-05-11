@@ -4678,11 +4678,65 @@ Antwoord in dit JSON formaat:
     return false;
   }
 
+  // School holidays — grouped separately in the filter UI
+  const SCHOOL_HOLIDAY_NAMES = new Set(["Meivakantie", "Herfstvakantie", "Zomervakantie"]);
+
+  // Helper: check if a theme is currently active (today falls within its date range)
+  function isThemeActive(theme: any): boolean {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (theme.floatingRule === 'easter-2-weeks') {
+      for (const year of [today.getFullYear(), today.getFullYear() + 1]) {
+        const easter = calculateEaster(year);
+        const start = new Date(easter.getTime() - 14 * 24 * 60 * 60 * 1000);
+        const end = new Date(easter.getTime() + 2 * 24 * 60 * 60 * 1000);
+        if (today >= start && today <= end) return true;
+      }
+      return false;
+    }
+
+    if (theme.floatingRule === 'carnival-period') {
+      for (const year of [today.getFullYear(), today.getFullYear() + 1]) {
+        const easter = calculateEaster(year);
+        const ashWed = new Date(easter.getTime() - 46 * 24 * 60 * 60 * 1000);
+        const start = new Date(ashWed.getTime() - 3 * 24 * 60 * 60 * 1000);
+        if (today >= start && today <= ashWed) return true;
+      }
+      return false;
+    }
+
+    if (!theme.startMonth || !theme.startDay) return false;
+    const endMonth: number = theme.endMonth ?? theme.startMonth;
+    const endDay: number = theme.endDay ?? theme.startDay;
+
+    for (const yearOffset of [0, 1, -1]) {
+      const year = today.getFullYear() + yearOffset;
+      const start = new Date(year, theme.startMonth - 1, theme.startDay);
+      const end = endMonth < theme.startMonth
+        ? new Date(year + 1, endMonth - 1, endDay)
+        : new Date(year, endMonth - 1, endDay);
+      if (today >= start && today <= end) return true;
+    }
+
+    return false;
+  }
+
   // Get seasonal themes — only return those active or starting within 4 weeks
   app.get("/api/seasonal-themes", async (req, res) => {
     try {
       const allThemes = await storage.getSeasonalThemes();
-      const relevantThemes = allThemes.filter(isThemeRelevantNow);
+      const relevantThemes = allThemes
+        .filter(isThemeRelevantNow)
+        .map((theme) => {
+          const active = isThemeActive(theme);
+          return {
+            ...theme,
+            isCurrentlyActive: active,
+            isComingSoon: !active,
+            isSchoolHoliday: SCHOOL_HOLIDAY_NAMES.has(theme.name),
+          };
+        });
       res.json(relevantThemes);
     } catch (error: any) {
       console.error('Error fetching seasonal themes:', error);

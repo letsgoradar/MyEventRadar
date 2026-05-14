@@ -5560,6 +5560,162 @@ export class RssFeedService {
   }
 
   /**
+   * Scraper for visithardenberg.nl — same UIE/TouristServer CMS as Ommen.
+   * Overview: /agenda/{TODAY}-{TODAY+6M}/ paginated with ?p=N.
+   * Event links: a.box[href*="/agenda-item/"].
+   * Detail: h1.t2, <time class="start/end" datetime="...">, GPS from JS map init,
+   * image from og:image, description from meta[name=description].
+   */
+  static async scrapeVisitHardenberg(): Promise<FeedParseResult> {
+    const baseUrl = 'http://www.visithardenberg.nl';
+    const maxPages = 30;
+
+    // Build date-range URL: today → today + 6 months (DD-MM-YYYY format)
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = new Date();
+    const future = new Date(today);
+    future.setMonth(future.getMonth() + 6);
+    const fmt = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+    const dateRange = `${fmt(today)}-${fmt(future)}`;
+
+    try {
+      const eventLinks: string[] = [];
+
+      for (let page = 1; page <= maxPages; page++) {
+        const url = page === 1
+          ? `${baseUrl}/agenda/${dateRange}/`
+          : `${baseUrl}/agenda/${dateRange}/?p=${page}`;
+
+        console.log(`[RSS] Hardenberg: fetching overview page ${page}...`);
+
+        try {
+          const resp = await axios.get(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Accept': 'text/html,application/xhtml+xml',
+            },
+            timeout: 30000,
+          });
+
+          const $ = cheerio.load(resp.data);
+          const before = eventLinks.length;
+
+          $('a.box[href*="/agenda-item/"]').each((_, el) => {
+            const href = $(el).attr('href');
+            if (!href) return;
+            const full = href.startsWith('http') ? href : `${baseUrl}${href}`;
+            if (!eventLinks.includes(full)) eventLinks.push(full);
+          });
+
+          const added = eventLinks.length - before;
+          console.log(`[RSS] Hardenberg page ${page}: +${added} links (total ${eventLinks.length})`);
+          if (added === 0) break;
+        } catch (err: any) {
+          console.warn(`[RSS] Hardenberg page ${page} failed: ${err.message}`);
+          break;
+        }
+      }
+
+      console.log(`[RSS] Hardenberg: ${eventLinks.length} unique event links found`);
+
+      const items: ParsedFeedItem[] = [];
+      const now = new Date();
+      const seenIds = new Set<string>();
+
+      for (let i = 0; i < eventLinks.length; i += 5) {
+        const batch = eventLinks.slice(i, i + 5);
+        const results = await Promise.allSettled(
+          batch.map(async (url) => {
+            try {
+              const resp = await axios.get(url, {
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                timeout: 25000,
+              });
+              const html: string = resp.data;
+              const $ = cheerio.load(html);
+
+              const idMatch = url.match(/\/agenda-item\/(\d+)\//);
+              const externalId = idMatch ? `visithardenberg-${idMatch[1]}` : url;
+              if (seenIds.has(externalId)) return null;
+              seenIds.add(externalId);
+
+              const title = $('h1.t2').first().text().trim()
+                || $('h1.t1').first().text().trim()
+                || $('meta[property="og:title"]').attr('content')?.replace(/ - \d+ \w+ \d+ -.+$/, '').trim()
+                || '';
+              if (!title) return null;
+
+              const startAttr = $('time.start').attr('datetime') || '';
+              const endAttr = $('time.end').attr('datetime') || '';
+
+              let startTime: Date | undefined;
+              let endTime: Date | undefined;
+              if (startAttr) {
+                try { startTime = parseLocalDateTime(startAttr); } catch {}
+              }
+              if (endAttr) {
+                try {
+                  const et = parseLocalDateTime(endAttr);
+                  if (startTime && et > startTime) endTime = et;
+                } catch {}
+              }
+              if (!startTime || startTime < now) return null;
+
+              let lat: number | undefined;
+              let lng: number | undefined;
+              let venueName: string | undefined;
+              const mapMatch = html.match(/"lat":([\d.]+),"lng":([\d.]+),"title":"([^"]+)"/);
+              if (mapMatch) {
+                lat = parseFloat(mapMatch[1]);
+                lng = parseFloat(mapMatch[2]);
+                venueName = mapMatch[3];
+              }
+              if (lat && (lat < 50.7 || lat > 53.6)) lat = undefined;
+              if (lng && (lng < 3.3 || lng > 7.2)) lng = undefined;
+
+              let address = 'Hardenberg';
+              if (venueName) address = `${venueName}, Hardenberg`;
+
+              const imageUrl = $('meta[property="og:image"]').attr('content') || undefined;
+              const description = $('meta[name="description"]').attr('content')
+                || $('meta[property="og:description"]').attr('content')
+                || undefined;
+
+              return {
+                title,
+                description,
+                link: url,
+                startTime,
+                endTime,
+                latitude: lat ? String(lat) : undefined,
+                longitude: lng ? String(lng) : undefined,
+                location: venueName || 'Hardenberg',
+                address,
+                imageUrl,
+                externalId,
+                municipality: 'Hardenberg',
+              } as ParsedFeedItem;
+            } catch (err: any) {
+              console.warn(`[RSS] Hardenberg detail fetch failed (${url}): ${err.message}`);
+              return null;
+            }
+          })
+        );
+
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) items.push(r.value);
+        }
+      }
+
+      console.log(`[RSS] Hardenberg: ${items.length} valid future events parsed`);
+      return { items, feedType: 'scraper' };
+    } catch (err: any) {
+      console.error(`[RSS] Hardenberg scraper failed: ${err.message}`);
+      return { items: [], feedType: 'scraper', error: err.message };
+    }
+  }
+
+  /**
    * Generic scraper for all Uit in de Regio municipalities.
    * Uses the EventON native REST API (/wp-json/eventon/events) which returns
    * complete event data (timestamps, GPS, images, descriptions) in a single request.
@@ -10510,6 +10666,8 @@ export class RssFeedService {
           result = await this.scrapeIntoNijmegen();
         } else if (feed.feedType === "scraper" && feed.url.includes("welkominommen")) {
           result = await this.scrapeWelkominOmmen();
+        } else if (feed.feedType === "scraper" && feed.url.includes("visithardenberg")) {
+          result = await this.scrapeVisitHardenberg();
         } else if (feed.feedType === "scraper") {
           // Use intelligent universal scraper for unknown scraper feeds
           result = await this.scrapeUniversal(feed);

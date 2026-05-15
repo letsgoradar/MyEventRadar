@@ -4785,6 +4785,19 @@ export class RssFeedService {
     });
   }
 
+  // Zutphen scraper using Plaece CMS
+  // Overview: /nl/uitagenda/alle-evenementen — event links same path with /{id}/{slug}
+  // JSON-LD on detail pages has full GPS, address, eventSchedule
+  static async scrapeInZutphen(): Promise<FeedParseResult> {
+    return this.scrapePlaeceSite({
+      baseUrl: 'https://www.inzutphen.nl',
+      agendaPath: '/nl/uitagenda/alle-evenementen',
+      linkPattern: /\/nl\/uitagenda\/alle-evenementen\/\d+\/[a-z0-9-]+/,
+      municipality: 'Zutphen',
+      maxPages: 10,
+    });
+  }
+
   // Breda scraper - uses Prepr CMS via Next.js with __NEXT_DATA__ extraction
   static async scrapeBreda(): Promise<FeedParseResult> {
     try {
@@ -10979,6 +10992,8 @@ export class RssFeedService {
           result = await this.scrapeOosterhout();
         } else if (feed.feedType === "scraper" && feed.url.includes("bezoekoisterwijk")) {
           result = await this.scrapeOisterwijk();
+        } else if (feed.feedType === "scraper" && feed.url.includes("inzutphen")) {
+          result = await this.scrapeInZutphen();
         } else if (feed.feedType === "scraper" && feed.url.includes("explorebreda")) {
           result = await this.scrapeBreda();
         } else if (feed.feedType === "scraper" && feed.url.includes("grenslanddebaronie")) {

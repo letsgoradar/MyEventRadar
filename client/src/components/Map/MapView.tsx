@@ -16,6 +16,7 @@ import { useOutsideClick } from "@/hooks/use-outside-click";
 import { getLocationName } from "@/utils/location-utils";
 import { ClusterLayer, shouldUseCluster } from "./ClusterLayer";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { useLocation as useSavedLocation } from "@/hooks/useLocation";
 
 // Fix voor Leaflet iconen in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -587,8 +588,11 @@ export default function MapView({
   endDate: propEndDate,
   isWebView: propIsWebView
 }: MapViewProps) {
-  // State voor locatie van gebruiker
-  const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]);
+  // Gebruik opgeslagen locatie als startpunt (voorkomt hardcoded Oss-centrum)
+  const { location: savedLocation } = useSavedLocation();
+  const [userLocation, setUserLocation] = React.useState<[number, number]>(
+    savedLocation ? [savedLocation.lat, savedLocation.lng] : [52.0907, 5.1214]
+  );
   const [eventsData, setEventsData] = React.useState<EventInterface[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<EventInterface | null>(null);
   const [mapStyle, setMapStyle] = React.useState<'default' | 'satellite' | 'dark' | 'minimal' | 'colorful'>('default');
@@ -630,8 +634,9 @@ export default function MapView({
     if (showLayerOptions) setShowLayerOptions(false);
   });
   
-  // Als de gebruiker locatie gegeven is, haal deze op
+  // GPS fallback voor Web-versie (App-versie heeft al locatie via LocationSetupScreen)
   React.useEffect(() => {
+    if (savedLocation) return; // al ingesteld via useLocation hook
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {

@@ -159,15 +159,6 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose, collapsed = false 
                 </div>
               </Link>
             ))}
-            <Link href="/admin/users">
-              <div
-                className="flex items-center justify-center px-0 py-2 rounded-lg text-sm cursor-pointer transition-colors min-h-[44px] hover:bg-accent text-muted-foreground hover:text-foreground"
-                onClick={onClose}
-                title="Instellingen"
-              >
-                <Settings className="w-4 h-4 shrink-0" />
-              </div>
-            </Link>
           </>
         ) : (
           <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>

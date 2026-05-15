@@ -24,6 +24,9 @@ function getPageTitle(location: string): string {
   if (PAGE_TITLES[location]) return PAGE_TITLES[location];
   if (location.startsWith('/admin/venues/')) return 'Venue Detail';
   if (location.startsWith('/admin/settings')) return 'Instellingen';
+  if (location === '/admin/events/new') return 'Nieuw Evenement';
+  if (location.startsWith('/admin/events/') && location.endsWith('/edit')) return 'Evenement Bewerken';
+  if (location.startsWith('/admin/events/')) return 'Evenement Detail';
   return 'Admin';
 }
 

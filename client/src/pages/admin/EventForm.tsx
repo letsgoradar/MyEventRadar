@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { apiRequest } from '@/lib/queryClient';
-import AdminNav from '@/components/Layout/AdminNav';
+import AdminLayout from '@/components/Layout/AdminLayout';
 import { useToast } from '@/hooks/use-toast';
 import { Event, CATEGORIES } from '@shared/schema';
 import * as z from 'zod';
@@ -317,9 +317,8 @@ const EventForm: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col">
-      <AdminNav />
-      <div className="flex-1 p-6 overflow-auto">
+    <AdminLayout>
+      <div className="p-6">
         <Breadcrumb className="mb-6">
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -888,7 +887,7 @@ const EventForm: React.FC = () => {
           </Form>
         )}
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

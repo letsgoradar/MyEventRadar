@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import AdminNav from '@/components/Layout/AdminNav';
+import AdminLayout from '@/components/Layout/AdminLayout';
 import { Event } from '@shared/schema';
 import { format, parseISO, isValid } from 'date-fns';
 import { nl } from 'date-fns/locale';
@@ -163,9 +163,8 @@ const EventDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col">
-      <AdminNav />
-      <div className="flex-1 p-6 overflow-auto">
+    <AdminLayout>
+      <div className="p-6">
         <Breadcrumb className="mb-6">
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -478,7 +477,7 @@ const EventDetailPage: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

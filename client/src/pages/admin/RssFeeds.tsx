@@ -727,20 +727,20 @@ export default function RssFeedsPage() {
               </p>
             </div>
           )}
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
             <div>
               <h1 className="text-3xl font-bold" data-testid="text-page-title">RSS Feeds</h1>
               <p className="text-muted-foreground mt-1">
                 Beheer externe bronnen voor automatisch laden van evenementen
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {((stats?.errorFeeds || 0) + (stats?.pausedFeeds || 0)) > 0 && (
                 <Button
                   variant="outline"
                   onClick={() => retryErrorFeedsMutation.mutate()}
                   disabled={retryErrorFeedsMutation.isPending || syncAllFeedsMutation.isPending || syncAllProgress?.isRunning}
-                  className="border-orange-200 text-orange-700 hover:bg-orange-50"
+                  className="border-orange-200 text-orange-700 hover:bg-orange-50 min-h-[44px]"
                   title="Reset foutieve en gepauzeerde feeds naar actief en synchroniseer ze opnieuw (15s pauze tussen feeds)"
                 >
                   {retryErrorFeedsMutation.isPending ? (
@@ -759,6 +759,7 @@ export default function RssFeedsPage() {
                 onClick={() => syncAllFeedsMutation.mutate()}
                 disabled={syncAllFeedsMutation.isPending || syncAllProgress?.isRunning}
                 data-testid="button-sync-all"
+                className="min-h-[44px]"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${syncAllProgress?.isRunning ? 'animate-spin' : ''}`} />
                 Sync Alle Feeds
@@ -768,6 +769,7 @@ export default function RssFeedsPage() {
                   setIsSimpleWizardOpen(true);
                 }}
                 data-testid="button-add-feed"
+                className="min-h-[44px]"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Nieuwe Feed
@@ -779,6 +781,7 @@ export default function RssFeedsPage() {
                   setIsFeedAnalyzerOpen(true);
                 }}
                 data-testid="button-visual-scraper"
+                className="min-h-[44px]"
               >
                 <Crosshair className="w-4 h-4 mr-2" />
                 Visuele Scraper

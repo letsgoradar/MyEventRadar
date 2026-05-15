@@ -442,7 +442,7 @@ const AdminEvents: React.FC = () => {
   return (
     <AdminLayout>
       <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
             <div>
               <h1 className="text-3xl font-bold">
                 Evenementen Beheer
@@ -459,11 +459,11 @@ const AdminEvents: React.FC = () => {
               </p>
             </div>
           
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => setIsImportDialogOpen(true)}
               variant="outline"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 min-h-[44px]"
             >
               <Upload className="h-4 w-4" />
               Importeer CSV
@@ -472,14 +472,14 @@ const AdminEvents: React.FC = () => {
             <Button 
               onClick={handleExport}
               variant="outline" 
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 min-h-[44px]"
             >
               <Download className="h-4 w-4" />
               Exporteer CSV
             </Button>
             
             <Button 
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 min-h-[44px]"
               onClick={() => navigate('/admin/events/new')}
             >
               <PlusCircle className="h-4 w-4" />
@@ -502,7 +502,7 @@ const AdminEvents: React.FC = () => {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="h-8 gap-1 text-xs"
+                  className="min-h-[44px] gap-1 text-xs"
                   onClick={clearFilters}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -513,7 +513,7 @@ const AdminEvents: React.FC = () => {
                   <Button
                     variant={view === 'list' ? 'secondary' : 'ghost'}
                     size="icon"
-                    className="h-8 w-8 rounded-r-none"
+                    className="h-11 w-11 rounded-r-none"
                     onClick={() => setView('list')}
                   >
                     <List className="h-4 w-4" />
@@ -521,7 +521,7 @@ const AdminEvents: React.FC = () => {
                   <Button
                     variant={view === 'grid' ? 'secondary' : 'ghost'}
                     size="icon"
-                    className="h-8 w-8 rounded-l-none"
+                    className="h-11 w-11 rounded-l-none"
                     onClick={() => setView('grid')}
                   >
                     <LayoutGrid className="h-4 w-4" />
@@ -551,7 +551,7 @@ const AdminEvents: React.FC = () => {
                   value={filter.category}
                   onValueChange={(value) => handleFilterChange('category', value)}
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]">
                     <SelectValue placeholder="Categorie" />
                   </SelectTrigger>
                   <SelectContent>
@@ -578,7 +578,7 @@ const AdminEvents: React.FC = () => {
                     }
                   }}
                 >
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-full sm:w-[200px] min-h-[44px]">
                     <SelectValue placeholder="Feed/Bron" />
                   </SelectTrigger>
                   <SelectContent>
@@ -595,7 +595,7 @@ const AdminEvents: React.FC = () => {
                   value={filter.timeFrame}
                   onValueChange={(value) => handleFilterChange('timeFrame', value)}
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]">
                     <SelectValue placeholder="Periode" />
                   </SelectTrigger>
                   <SelectContent>
@@ -610,7 +610,7 @@ const AdminEvents: React.FC = () => {
                   value={filter.sortBy}
                   onValueChange={(value) => handleFilterChange('sortBy', value as any)}
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]">
                     <SelectValue placeholder="Sorteer op" />
                   </SelectTrigger>
                   <SelectContent>
@@ -629,7 +629,7 @@ const AdminEvents: React.FC = () => {
                     setPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-[100px]">
+                  <SelectTrigger className="w-full sm:w-[100px] min-h-[44px]">
                     <SelectValue placeholder="Aantal" />
                   </SelectTrigger>
                   <SelectContent>

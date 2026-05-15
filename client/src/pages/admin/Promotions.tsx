@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import AdminSidebar from "@/components/Layout/AdminSidebar";
+import AdminLayout from "@/components/Layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -813,10 +813,8 @@ export default function Promotions() {
   const totalRevenue = (revenue?.totalAdSpendCents || 0) + (revenue?.totalPromotionRevenueCents || 0);
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-background">
-      <AdminSidebar />
-
-      <main className="flex-1 p-8 overflow-auto">
+    <AdminLayout>
+      <div className="p-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground flex items-center gap-3">
             <Megaphone className="h-8 w-8 text-teal-600" />
@@ -943,7 +941,7 @@ export default function Promotions() {
             <PricingTab />
           </TabsContent>
         </Tabs>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

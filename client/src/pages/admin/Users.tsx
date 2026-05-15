@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
-import AdminSidebar from "@/components/Layout/AdminSidebar";
+import AdminLayout from "@/components/Layout/AdminLayout";
 import {
   Calendar,
   CalendarDays,
@@ -253,10 +253,8 @@ const AdminUsers: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex bg-background">
-      <AdminSidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
+    <AdminLayout>
+      <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold">Gebruikers Beheer</h1>
@@ -506,6 +504,7 @@ const AdminUsers: React.FC = () => {
                     <p>Er is een fout opgetreden bij het laden van de gebruikers.</p>
                   </div>
                 ) : (
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -632,6 +631,7 @@ const AdminUsers: React.FC = () => {
                       )}
                     </TableBody>
                   </Table>
+                  </div>
                 )}
               </CardContent>
               {filteredData && filteredData.length > 0 && (
@@ -822,8 +822,7 @@ const AdminUsers: React.FC = () => {
           </TabsContent>
         </Tabs>
         </div>
-      </main>
-    </div>
+    </AdminLayout>
   );
 };
 

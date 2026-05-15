@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import AdminSidebar from "@/components/Layout/AdminSidebar";
+import AdminLayout from "@/components/Layout/AdminLayout";
 import {
   Card,
   CardContent,
@@ -139,11 +139,8 @@ const AdminDashboard: React.FC = () => {
   );
 
   return (
-    <div className="h-screen flex bg-background">
-      <AdminSidebar />
-      
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
+    <AdminLayout>
+      <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -467,8 +464,7 @@ const AdminDashboard: React.FC = () => {
             </>
           )}
         </div>
-      </main>
-    </div>
+    </AdminLayout>
   );
 };
 

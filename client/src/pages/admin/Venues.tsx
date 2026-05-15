@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import AdminSidebar from "@/components/Layout/AdminSidebar";
+import AdminLayout from "@/components/Layout/AdminLayout";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
   Card,
@@ -145,9 +145,8 @@ const AdminVenues = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar />
-      <main className="flex-1 p-6 ml-64">
+    <AdminLayout>
+      <div className="p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -281,7 +280,6 @@ const AdminVenues = () => {
             </CardContent>
           </Card>
         </div>
-      </main>
 
       <Dialog open={showDiscoveryDialog} onOpenChange={setShowDiscoveryDialog}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -400,7 +398,8 @@ const AdminVenues = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 

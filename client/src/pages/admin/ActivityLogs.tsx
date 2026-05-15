@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
-import AdminSidebar from "@/components/Layout/AdminSidebar";
+import AdminLayout from "@/components/Layout/AdminLayout";
 import {
   Activity,
   CalendarDays,
@@ -138,10 +138,8 @@ const ActivityLogs: React.FC = () => {
   const totalPages = data?.total ? Math.ceil(data.total / limit) : 0;
 
   return (
-    <div className="h-screen flex bg-background">
-      <AdminSidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
+    <AdminLayout>
+      <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold">Activiteiten Logboek</h1>
@@ -215,6 +213,7 @@ const ActivityLogs: React.FC = () => {
                 <p>Er is een fout opgetreden bij het laden van de activiteiten.</p>
               </div>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -270,6 +269,7 @@ const ActivityLogs: React.FC = () => {
                   )}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
           {data?.total && data.total > 0 && (
@@ -299,8 +299,7 @@ const ActivityLogs: React.FC = () => {
           )}
         </Card>
         </div>
-      </main>
-    </div>
+    </AdminLayout>
   );
 };
 

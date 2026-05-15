@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import AdminSidebar from "@/components/Layout/AdminSidebar";
+import AdminLayout from "@/components/Layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -578,9 +578,8 @@ export default function TagManager() {
   }, {} as Record<string, EventTag[]>);
 
   return (
-    <div className="flex min-h-screen">
-      <AdminSidebar />
-      <div className="flex-1 p-8">
+    <AdminLayout>
+      <div className="p-8">
         <h1 className="text-3xl font-bold mb-6">Tag Manager</h1>
         <p className="text-muted-foreground mb-6">
           Beheer event tags, doelgroepen en seizoensthema's. Keywords worden automatisch gebruikt om events te taggen bij import.
@@ -961,6 +960,6 @@ export default function TagManager() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

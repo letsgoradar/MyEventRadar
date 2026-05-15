@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import AdminSidebar from "@/components/Layout/AdminSidebar";
+import AdminLayout from "@/components/Layout/AdminLayout";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
   Card,
@@ -254,30 +254,24 @@ const AdminVenueDetail = () => {
 
   if (venueLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <AdminSidebar />
-        <main className="flex-1 p-6 ml-64">
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        </main>
-      </div>
+      <AdminLayout>
+        <div className="p-6 flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </AdminLayout>
     );
   }
 
   if (!venue) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <AdminSidebar />
-        <main className="flex-1 p-6 ml-64">
-          <div className="text-center py-12">
-            <p className="text-gray-500">Venue niet gevonden</p>
-            <Button className="mt-4" onClick={() => setLocation("/admin/venues")}>
-              Terug naar overzicht
-            </Button>
-          </div>
-        </main>
-      </div>
+      <AdminLayout>
+        <div className="p-6 text-center py-12">
+          <p className="text-gray-500">Venue niet gevonden</p>
+          <Button className="mt-4" onClick={() => setLocation("/admin/venues")}>
+            Terug naar overzicht
+          </Button>
+        </div>
+      </AdminLayout>
     );
   }
 
@@ -304,9 +298,8 @@ const AdminVenueDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar />
-      <main className="flex-1 p-6 ml-64">
+    <AdminLayout>
+      <div className="p-6">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-4 mb-6">
             <Button variant="ghost" size="icon" onClick={() => setLocation("/admin/venues")}>
@@ -753,7 +746,6 @@ const AdminVenueDetail = () => {
             </TabsContent>
           </Tabs>
         </div>
-      </main>
 
       <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>
         <DialogContent>
@@ -903,7 +895,8 @@ const AdminVenueDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import AdminSidebar from "@/components/Layout/AdminSidebar";
+import AdminLayout from "@/components/Layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -138,9 +138,8 @@ export default function AdminFeedback() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      <AdminSidebar />
-      <main className="flex-1 p-6 overflow-y-auto">
+    <AdminLayout>
+      <div className="p-6">
         <div className="max-w-6xl mx-auto space-y-6">
           <div>
             <h1 className="text-2xl font-bold">Beta Feedback</h1>
@@ -394,7 +393,7 @@ export default function AdminFeedback() {
             )}
           </DialogContent>
         </Dialog>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

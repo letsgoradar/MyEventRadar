@@ -48,7 +48,11 @@ interface NavItem {
   children?: NavItem[];
 }
 
-const AdminSidebar: React.FC = () => {
+interface AdminSidebarProps {
+  onClose?: () => void;
+}
+
+const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const [settingsOpen, setSettingsOpen] = useState(location.startsWith('/admin/settings') || location === '/admin/users');
@@ -164,6 +168,7 @@ const AdminSidebar: React.FC = () => {
                   : "hover:bg-accent text-muted-foreground hover:text-foreground"
               )}
               data-testid={`nav-${item.label.toLowerCase()}`}
+              onClick={onClose}
             >
               {item.icon}
               <span>{item.label}</span>
@@ -205,6 +210,7 @@ const AdminSidebar: React.FC = () => {
                       : "hover:bg-accent text-muted-foreground hover:text-foreground"
                   )}
                   data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                  onClick={onClose}
                 >
                   {item.icon}
                   <span>{item.label}</span>

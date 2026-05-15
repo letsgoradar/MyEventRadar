@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import AdminSidebar from '@/components/Layout/AdminSidebar';
+import AdminLayout from '@/components/Layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -715,11 +715,8 @@ export default function RssFeedsPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      <AdminSidebar />
-      
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
+    <AdminLayout>
+      <div className="p-6">
           {stats?.devMaxFeeds != null && (
             <div className="mb-4 flex items-center gap-3 rounded-md border border-yellow-400 bg-yellow-50 px-4 py-3 text-yellow-800">
               <AlertTriangle className="h-5 w-5 shrink-0 text-yellow-500" />
@@ -1631,7 +1628,6 @@ export default function RssFeedsPage() {
           </Suspense>
 
                   </div>
-      </main>
-    </div>
+    </AdminLayout>
   );
 }

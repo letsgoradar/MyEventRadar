@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import AdminSidebar from '@/components/Layout/AdminSidebar';
+import AdminLayout from '@/components/Layout/AdminLayout';
 import { 
   CalendarDays, 
   Calendar,
@@ -440,10 +440,8 @@ const AdminEvents: React.FC = () => {
   };
   
   return (
-    <div className="h-screen flex bg-background">
-      <AdminSidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
+    <AdminLayout>
+      <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold">
@@ -661,6 +659,7 @@ const AdminEvents: React.FC = () => {
             {view === 'list' && (
               <Card>
                 <CardContent className="p-0">
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -837,6 +836,7 @@ const AdminEvents: React.FC = () => {
                       )}
                     </TableBody>
                   </Table>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -1100,8 +1100,7 @@ const AdminEvents: React.FC = () => {
         </DialogContent>
       </Dialog>
         </div>
-      </main>
-    </div>
+    </AdminLayout>
   );
 };
 

@@ -452,12 +452,12 @@ const AdminUsers: React.FC = () => {
               <Button onClick={handleSearch}>Zoeken</Button>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Select
                 value={filter.role}
                 onValueChange={(value) => handleFilterChange('role', value)}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]">
                   <SelectValue placeholder="Rol" />
                 </SelectTrigger>
                 <SelectContent>
@@ -473,7 +473,7 @@ const AdminUsers: React.FC = () => {
                 value={filter.sortBy}
                 onValueChange={(value) => handleFilterChange('sortBy', value as any)}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]">
                   <SelectValue placeholder="Sorteer op" />
                 </SelectTrigger>
                 <SelectContent>

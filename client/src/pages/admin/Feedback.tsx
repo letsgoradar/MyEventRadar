@@ -169,13 +169,13 @@ export default function AdminFeedback() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <div className="flex gap-1 bg-muted rounded-lg p-1">
+            <div className="flex flex-wrap gap-1 bg-muted rounded-lg p-1">
               {["alle", "nieuw", "gelezen", "verwerkt", "gearchiveerd"].map((s) => (
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
                   className={cn(
-                    "px-3 py-1.5 rounded-md text-sm font-medium transition-colors capitalize",
+                    "px-3 py-2 rounded-md text-sm font-medium transition-colors capitalize min-h-[44px]",
                     statusFilter === s ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -190,7 +190,7 @@ export default function AdminFeedback() {
             </div>
 
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-full sm:w-[150px] min-h-[44px]">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>

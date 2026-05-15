@@ -231,7 +231,7 @@ const AdminDashboard: React.FC = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div className="p-3 bg-muted rounded-lg">
                       <div className="text-2xl font-bold">{apiUsage?.summary?.lastHour?.requests || 0}</div>
                       <div className="text-xs text-muted-foreground">Requests dit uur</div>

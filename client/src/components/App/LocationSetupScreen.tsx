@@ -59,7 +59,7 @@ export function LocationSetupScreen() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-  }, [onLocationSet]);
+  }, []);
 
   const handleSearch = React.useCallback(async (query: string) => {
     if (!query.trim() || query.length < 2) {

@@ -73,8 +73,19 @@ app.use(helmet({
       connectSrc: ["'self'", "ws:", "wss:", "https:"],
     },
   },
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
 }));
+
+// Serve robots.txt explicitly so our rule overrides any platform default
+app.get("/robots.txt", (_req, res) => {
+  const baseUrl = process.env.NODE_ENV === "production"
+    ? "https://letsgo-radar.replit.app"
+    : "http://localhost:5000";
+  res.type("text/plain").send(
+    `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /login\nDisallow: /admin/login\n\nSitemap: ${baseUrl}/sitemap.xml\n`
+  );
+});
 
 // Enhanced error handling middleware
 const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction) => {

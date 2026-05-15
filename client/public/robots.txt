@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /login
+Disallow: /admin/login
+
+Sitemap: https://letsgo-radar.replit.app/sitemap.xml

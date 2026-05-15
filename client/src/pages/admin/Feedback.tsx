@@ -211,7 +211,7 @@ export default function AdminFeedback() {
               <p className="text-muted-foreground">Geen feedback gevonden</p>
             </div>
           ) : (
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-hidden overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>

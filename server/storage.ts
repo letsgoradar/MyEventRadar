@@ -155,7 +155,7 @@ export interface IStorage {
   // Notification operations
   createNotification(notification: InsertNotification): Promise<Notification>;
   getNotificationsByUser(userId: number): Promise<Notification[]>;
-  markNotificationAsRead(id: number): Promise<void>;
+  markNotificationAsRead(id: number, userId: number): Promise<boolean>;
   getUnreadNotificationCount(userId: number): Promise<number>;
 
   // Promoted Notification operations
@@ -974,11 +974,13 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async markNotificationAsRead(id: number): Promise<void> {
+  async markNotificationAsRead(id: number, userId: number): Promise<boolean> {
     return this.withRetry(async () => {
-      await db.update(notifications)
+      const result = await db.update(notifications)
         .set({ isRead: true })
-        .where(eq(notifications.id, id));
+        .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+        .returning({ id: notifications.id });
+      return result.length > 0;
     });
   }
 

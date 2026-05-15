@@ -1073,12 +1073,17 @@ Respond with ONLY the search term, nothing else.`,
   });
   
   // Events ophalen waar een gebruiker aan deelneemt
-  app.get("/api/events/participation/:userId", async (req, res) => {
+  app.get("/api/events/participation/:userId", isAuthenticated, async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       
       if (isNaN(userId)) {
         return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const requestingUser = req.user!;
+      if (requestingUser.id !== userId && requestingUser.role !== 'admin') {
+        return res.status(403).json({ message: "Forbidden" });
       }
       
       const events = await storage.getEventsForParticipant(userId);
@@ -1237,12 +1242,16 @@ Respond with ONLY the search term, nothing else.`,
   app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
     try {
       const notificationId = parseInt(req.params.id);
+      const userId = req.user!.id;
       
       if (isNaN(notificationId)) {
         return res.status(400).json({ message: "Invalid notification ID" });
       }
       
-      await storage.markNotificationAsRead(notificationId);
+      const updated = await storage.markNotificationAsRead(notificationId, userId);
+      if (!updated) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
       res.json({ message: "Notification marked as read" });
     } catch (error) {
       console.error('Error in PATCH /api/notifications/:id/read:', error);
@@ -1359,21 +1368,32 @@ Respond with ONLY the search term, nothing else.`,
   });
   
   // Deelnemers van een evenement ophalen
-  app.get("/api/participants/:eventId", async (req, res) => {
+  app.get("/api/participants/:eventId", isAuthenticated, async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
       
       if (isNaN(eventId)) {
         return res.status(400).json({ message: "Invalid event ID" });
       }
+
+      const requestingUser = req.user!;
+      if (requestingUser.role !== 'admin') {
+        const event = await storage.getEvent(eventId);
+        if (!event || event.hostId !== requestingUser.id) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
       
-      const participants = await storage.getEventParticipants(eventId);
+      const participantList = await storage.getEventParticipants(eventId);
       
-      // Verwijder gevoelige informatie
-      const safeParticipants = participants.map(p => {
-        const { password, ...safe } = p;
-        return safe;
-      });
+      // Return only minimal public profile fields — no PII
+      const safeParticipants = participantList.map(p => ({
+        id: p.id,
+        username: p.username,
+        name: p.name,
+        avatar: p.avatar,
+        photoUrl: p.photoUrl,
+      }));
       
       res.json(safeParticipants);
     } catch (error) {

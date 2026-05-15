@@ -477,6 +477,7 @@ const AdminVenueDetail = () => {
                   {contacts.length === 0 ? (
                     <p className="text-center py-8 text-gray-500">Nog geen contactpersonen toegevoegd</p>
                   ) : (
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -508,6 +509,7 @@ const AdminVenueDetail = () => {
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -575,6 +577,7 @@ const AdminVenueDetail = () => {
                   {tasks.length === 0 ? (
                     <p className="text-center py-8 text-gray-500">Nog geen taken toegevoegd</p>
                   ) : (
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -632,6 +635,7 @@ const AdminVenueDetail = () => {
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -653,6 +657,7 @@ const AdminVenueDetail = () => {
                   {sponsors.length === 0 ? (
                     <p className="text-center py-8 text-gray-500">Nog geen sponsor campagnes</p>
                   ) : (
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -697,6 +702,7 @@ const AdminVenueDetail = () => {
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -712,6 +718,7 @@ const AdminVenueDetail = () => {
                   {venueEvents.length === 0 ? (
                     <p className="text-center py-8 text-gray-500">Geen evenementen gekoppeld aan deze venue</p>
                   ) : (
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -740,6 +747,7 @@ const AdminVenueDetail = () => {
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>

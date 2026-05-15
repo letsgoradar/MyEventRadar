@@ -1269,6 +1269,7 @@ export default function RssFeedsPage() {
                       <Badge variant="outline" className="text-sm">{province}</Badge>
                       <span className="text-muted-foreground text-sm">({provinceFeeds.length} feeds)</span>
                     </h3>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1578,6 +1579,7 @@ export default function RssFeedsPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
                 </div>
                 ))}
               </CardContent>

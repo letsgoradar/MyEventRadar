@@ -225,6 +225,7 @@ const AdminVenues = () => {
                   {searchQuery ? "Geen venues gevonden met deze zoekopdracht" : "Nog geen venues toegevoegd"}
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -276,6 +277,7 @@ const AdminVenues = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -303,6 +305,7 @@ const AdminVenues = () => {
               Geen nieuwe locaties gevonden met voldoende evenementen
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -350,6 +353,7 @@ const AdminVenues = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </DialogContent>
       </Dialog>

@@ -630,6 +630,7 @@ export default function TagManager() {
                   Object.entries(groupedTags).map(([group, groupTags]) => (
                     <div key={group} className="mb-6">
                       <h3 className="font-semibold text-lg mb-2">{group}</h3>
+                      <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -719,6 +720,7 @@ export default function TagManager() {
                           ))}
                         </TableBody>
                       </Table>
+                      </div>
                     </div>
                   ))
                 )}
@@ -752,6 +754,7 @@ export default function TagManager() {
                     <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
                 ) : (
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -830,6 +833,7 @@ export default function TagManager() {
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -861,6 +865,7 @@ export default function TagManager() {
                     <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
                 ) : (
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -954,6 +959,7 @@ export default function TagManager() {
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>

@@ -38,9 +38,11 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Serve static files from public folder (for logo and other assets)
+// NOTE: /uploads is intentionally registered AFTER helmet() below so that
+// user-uploaded files are always served with the full security header set
+// (X-Content-Type-Options: nosniff, CSP, etc.).
 app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
 app.use('/assets', express.static(path.join(process.cwd(), 'public', 'assets')));
-app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
 // Traffic monitoring with email alerts and circuit breaker
 import { trafficMonitor } from "./middleware/traffic-monitor";
@@ -76,6 +78,10 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
 }));
+
+// Serve user-uploaded files AFTER helmet so they receive the full security
+// header set (X-Content-Type-Options: nosniff, CSP, etc.).
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
 // Serve robots.txt explicitly so our rule overrides any platform default
 app.get("/robots.txt", (_req, res) => {

@@ -1842,8 +1842,24 @@ Respond with ONLY the search term, nothing else.`,
         return res.status(403).json({ message: "Forbidden" });
       }
       
+      // Build an allowlist of fields that may be updated.
+      // Privileged fields (role, emailVerified, googleId, emailVerificationToken, etc.)
+      // are only modifiable by admins. Regular users get a restricted set.
+      let updateData: Partial<typeof req.body>;
+      if (req.user?.role === 'admin') {
+        const { password, ...rest } = req.body;
+        updateData = rest;
+      } else {
+        const { displayName, bio, location, profilePhoto, notifications, preferences } = req.body;
+        updateData = { displayName, bio, location, profilePhoto, notifications, preferences };
+        // Remove keys that were not provided to avoid overwriting with undefined
+        (Object.keys(updateData) as Array<keyof typeof updateData>).forEach(key => {
+          if (updateData[key] === undefined) delete updateData[key];
+        });
+      }
+      
       // Update de gebruiker
-      const updatedUser = await storage.updateUser(userId, req.body);
+      const updatedUser = await storage.updateUser(userId, updateData);
       
       // Verwijder wachtwoord uit de response
       const { password, ...userWithoutPassword } = updatedUser;

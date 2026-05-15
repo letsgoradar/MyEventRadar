@@ -157,21 +157,29 @@ const HOST = '0.0.0.0';
       )`);
       
       const adminEmail = 'info@letsgoradar.com';
-      const adminPassword = process.env.ADMIN_PASSWORD || 'LetsGo1234';
-      const hash = await bcrypt.default.hash(adminPassword, 10);
-      
-      const [adminUser] = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, adminEmail));
-      if (adminUser) {
-        await migrateDb.update(usersTable).set({ password: hash, emailVerified: true }).where(eq(usersTable.id, adminUser.id));
-        console.log('[Migration] Admin password synced');
-      } else {
-        const existingAdmin = await migrateDb.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.username, 'admin'));
-        if (existingAdmin.length > 0) {
-          await migrateDb.update(usersTable).set({ email: adminEmail, password: hash, emailVerified: true }).where(eq(usersTable.id, existingAdmin[0].id));
-          console.log('[Migration] Admin credentials updated');
+      const adminPassword = process.env.ADMIN_PASSWORD;
+      if (!adminPassword) {
+        if (process.env.NODE_ENV === 'production') {
+          console.error('[Migration] ADMIN_PASSWORD environment variable is not set. Skipping admin account sync to avoid insecure defaults. Set ADMIN_PASSWORD to enable admin access.');
         } else {
-          await migrateDb.insert(usersTable).values({ username: 'admin', email: adminEmail, password: hash, role: 'admin', emailVerified: true });
-          console.log('[Migration] Admin user created');
+          console.warn('[Migration] ADMIN_PASSWORD not set — skipping admin account sync in development.');
+        }
+      } else {
+        const hash = await bcrypt.default.hash(adminPassword, 10);
+        
+        const [adminUser] = await migrateDb.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, adminEmail));
+        if (adminUser) {
+          await migrateDb.update(usersTable).set({ password: hash, emailVerified: true }).where(eq(usersTable.id, adminUser.id));
+          console.log('[Migration] Admin password synced');
+        } else {
+          const existingAdmin = await migrateDb.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.username, 'admin'));
+          if (existingAdmin.length > 0) {
+            await migrateDb.update(usersTable).set({ email: adminEmail, password: hash, emailVerified: true }).where(eq(usersTable.id, existingAdmin[0].id));
+            console.log('[Migration] Admin credentials updated');
+          } else {
+            await migrateDb.insert(usersTable).values({ username: 'admin', email: adminEmail, password: hash, role: 'admin', emailVerified: true });
+            console.log('[Migration] Admin user created');
+          }
         }
       }
     } catch (e: any) {

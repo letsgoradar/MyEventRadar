@@ -532,7 +532,8 @@ export function setupAuth(app: Express) {
     }));
 
     app.get("/api/auth/google", (req, res, next) => {
-      const returnTo = req.query.returnTo as string || '/web';
+      const rawReturnTo = req.query.returnTo as string || '/web';
+      const returnTo = rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//') ? rawReturnTo : '/web';
       const nativeApp = req.query.nativeApp === 'true';
       (req.session as any).returnTo = returnTo;
       (req.session as any).nativeApp = nativeApp;

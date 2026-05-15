@@ -732,7 +732,7 @@ router.post("/purchase", isAuthenticated, async (req: Request, res: Response) =>
     const [promotion] = await db.insert(eventPromotions).values({
       eventId: data.eventId, purchasedByUserId: userId, promotionPeriod: data.period,
       startDate: now, endDate, targetRadiusKm: data.radiusKm, priceCents: price.priceCents,
-      stripePaymentIntentId: paymentIntent.id, status: "active",
+      stripePaymentIntentId: paymentIntent.id, status: "pending",
     }).returning();
     res.json({ promotion, clientSecret: paymentIntent.client_secret, paymentRequired: true });
   } catch (error: any) {
@@ -797,13 +797,19 @@ router.get("/my-ads", isAuthenticated, async (req: Request, res: Response) => {
 router.patch("/my-ads/:id/status", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const adId = parseInt(req.params.id);
-    const { status } = z.object({ status: z.enum(["draft", "active", "paused"]) }).parse(req.body);
+    const { status } = z.object({ status: z.enum(["paused", "active"]) }).parse(req.body);
     const userId = (req.user as any).id;
     const [profile] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, userId));
     if (!profile) return res.status(403).json({ error: "Niet geautoriseerd" });
     const [ad] = await db.select().from(businessAds)
       .where(and(eq(businessAds.id, adId), eq(businessAds.advertiserId, profile.id)));
     if (!ad) return res.status(404).json({ error: "Advertentie niet gevonden" });
+    if (status === "active" && ad.status !== "paused") {
+      return res.status(403).json({ error: "Alleen goedgekeurde, gepauzeerde advertenties kunnen worden hervat" });
+    }
+    if (status === "paused" && ad.status !== "active") {
+      return res.status(403).json({ error: "Alleen actieve advertenties kunnen worden gepauzeerd" });
+    }
     const [updated] = await db.update(businessAds)
       .set({ status, updatedAt: new Date() }).where(eq(businessAds.id, adId)).returning();
     res.json({ ad: updated });
@@ -958,6 +964,10 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
           await db.update(advertiserProfiles).set({
             balanceCents: sql`${advertiserProfiles.balanceCents} + ${pi.amount}`,
           }).where(eq(advertiserProfiles.id, profileId));
+        } else if (pi.metadata?.type === "event_promotion") {
+          await db.update(eventPromotions).set({
+            status: "active",
+          }).where(eq(eventPromotions.stripePaymentIntentId, pi.id));
         }
         break;
       }
@@ -965,7 +975,7 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
         const si = event.data.object;
         const profileId = parseInt(si.metadata.advertiserProfileId);
         await db.update(advertiserProfiles).set({
-          status: "active", balanceCents: 1000,
+          status: "active",
         }).where(eq(advertiserProfiles.id, profileId));
         break;
       }

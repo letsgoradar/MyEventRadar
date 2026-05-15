@@ -111,10 +111,13 @@ export function AppHomePage() {
   const handleMapBoundsChange = React.useCallback((bounds: L.LatLngBounds) => {
     const needed = Math.ceil(boundsToRadius(bounds));
     const clamped = Math.max(10, Math.min(needed, 500));
-    if (mapRadius === null) {
-      setMapRadius(clamped);
-    }
-  }, [mapRadius]);
+    setMapRadius(prev => {
+      if (prev === null) return clamped;
+      // Only update if radius changed by more than 15% to prevent excessive re-fetches
+      if (Math.abs(clamped - prev) / prev > 0.15) return clamped;
+      return prev;
+    });
+  }, []);
 
   const {
     data: mapEvents = [],
@@ -138,7 +141,7 @@ export function AppHomePage() {
       if (!location) return [];
       return fetchEventsByRadius(location.lat, location.lng, 200, 100);
     },
-    enabled: !!location && mapEvents.length > 0,
+    enabled: !!location && mapRadius !== null,
     staleTime: 10 * 60 * 1000,
   });
 

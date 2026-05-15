@@ -2,6 +2,7 @@ import * as React from "react";
 import AppLayout from "@/components/App/AppLayout";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "@/hooks/useLocation";
+import { LocationSetupScreen } from "@/components/App/LocationSetupScreen";
 import { fetchEventsByRadius } from "@/lib/api";
 import { EventInterface } from "@shared/schema";
 import { EventList } from "@/components/EventList";
@@ -237,6 +238,10 @@ export function AppHomePage() {
   }, [selectedEvent, visibleEvents, filteredEvents]);
 
   const isFirstLoad = mapLoading || (!!location && mapRadius === null);
+
+  if (!location) {
+    return <LocationSetupScreen onLocationSet={() => {}} />;
+  }
 
   return (
     <>

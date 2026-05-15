@@ -40,6 +40,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserPreferences, type MapStyle } from "@/hooks/use-user-preferences";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
+import { clearSavedLocation } from "@/hooks/useLocation";
 import { Lock } from "lucide-react";
 import {
   Dialog,
@@ -508,6 +509,28 @@ export function AppProfilePage() {
                     ))}
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Locatie</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  De app gebruikt je opgeslagen locatie om evenementen in de buurt te tonen. Wil je een andere stad gebruiken? Klik dan op de knop hieronder.
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    clearSavedLocation();
+                    window.location.href = "/app";
+                  }}
+                >
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Locatie wijzigen
+                </Button>
               </CardContent>
             </Card>
 

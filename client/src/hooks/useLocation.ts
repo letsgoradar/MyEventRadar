@@ -1,92 +1,55 @@
-
 import { useState, useEffect } from "react";
 
-interface Coordinates {
+export interface Coordinates {
   lat: number;
   lng: number;
 }
 
-interface LocationHook {
-  location: Coordinates | null;
-  locationError: GeolocationPositionError | null;
-  isLoadingLocation: boolean;
-}
+const STORAGE_KEY = "app_user_location";
 
-const DEFAULT_COORDINATES: Coordinates = { lat: 51.7656, lng: 5.5314 };
-
-let cachedLocation: Coordinates | null = null;
-let cachedError: GeolocationPositionError | null = null;
-let locationResolved = false;
-let locationListeners: Array<() => void> = [];
-let locationRequested = false;
-
-function requestLocation() {
-  if (locationRequested) return;
-  locationRequested = true;
-
-  if (!navigator.geolocation) {
-    cachedLocation = DEFAULT_COORDINATES;
-    locationResolved = true;
-    notifyListeners();
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      cachedLocation = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      };
-      cachedError = null;
-      locationResolved = true;
-      notifyListeners();
-    },
-    (error) => {
-      cachedError = error;
-      cachedLocation = DEFAULT_COORDINATES;
-      locationResolved = true;
-      notifyListeners();
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 5000,
-      maximumAge: 300000,
+function loadSavedLocation(): Coordinates | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (typeof parsed.lat === "number" && typeof parsed.lng === "number") {
+        return { lat: parsed.lat, lng: parsed.lng };
+      }
     }
-  );
+  } catch {}
+  return null;
 }
 
-function notifyListeners() {
-  locationListeners.forEach((fn) => fn());
-  locationListeners = [];
+let cachedLocation: Coordinates | null = loadSavedLocation();
+let activeSetters: Array<(loc: Coordinates | null) => void> = [];
+
+export function setManualLocation(coords: Coordinates): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(coords));
+  } catch {}
+  cachedLocation = coords;
+  activeSetters.forEach((setter) => setter(coords));
 }
 
-export function useLocation(): LocationHook {
+export function clearSavedLocation(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {}
+  cachedLocation = null;
+  activeSetters.forEach((setter) => setter(null));
+}
+
+export function useLocation() {
   const [location, setLocation] = useState<Coordinates | null>(cachedLocation);
-  const [locationError, setLocationError] = useState<GeolocationPositionError | null>(cachedError);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(!locationResolved);
 
   useEffect(() => {
-    if (locationResolved) {
-      setLocation(cachedLocation);
-      setLocationError(cachedError);
-      setIsLoadingLocation(false);
-      return;
-    }
-
-    const listener = () => {
-      setLocation(cachedLocation);
-      setLocationError(cachedError);
-      setIsLoadingLocation(false);
-    };
-
-    locationListeners.push(listener);
-    requestLocation();
-
+    setLocation(cachedLocation);
+    activeSetters.push(setLocation);
     return () => {
-      const idx = locationListeners.indexOf(listener);
-      if (idx >= 0) locationListeners.splice(idx, 1);
+      const i = activeSetters.indexOf(setLocation);
+      if (i >= 0) activeSetters.splice(i, 1);
     };
   }, []);
 
-  return { location, locationError, isLoadingLocation };
+  return { location };
 }

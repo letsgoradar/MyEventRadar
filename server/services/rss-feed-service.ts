@@ -5879,6 +5879,176 @@ export class RssFeedService {
   }
 
   /**
+   * Scraper for visitzwolle.com — UIE/TouristServer CMS (same family as Hardenberg).
+   * Overview: /agenda/{TODAY}-{TODAY+6M}/ paginated with ?p=N (max 30 pages, 12 events/page).
+   * Event links: a.box[href*="/agenda-item/"].
+   * Detail: h2.t1 title, <time class="start/end" datetime="...">, GPS from UIE_MAP JS,
+   * image from og:image, description from meta[name=description].
+   */
+  static async scrapeVisitZwolle(): Promise<FeedParseResult> {
+    const baseUrl = 'https://www.visitzwolle.com';
+    const maxPages = 30;
+
+    // Build date-range URL: today → today + 6 months (DD-MM-YYYY format)
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = new Date();
+    const future = new Date(today);
+    future.setMonth(future.getMonth() + 6);
+    const fmt = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+    const dateRange = `${fmt(today)}-${fmt(future)}`;
+
+    try {
+      const eventLinks: string[] = [];
+
+      for (let page = 1; page <= maxPages; page++) {
+        const url = page === 1
+          ? `${baseUrl}/agenda/${dateRange}/`
+          : `${baseUrl}/agenda/${dateRange}/?p=${page}`;
+
+        console.log(`[RSS] Zwolle: fetching overview page ${page}...`);
+
+        try {
+          const resp = await axios.get(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Accept': 'text/html,application/xhtml+xml',
+            },
+            timeout: 30000,
+          });
+
+          const $ = cheerio.load(resp.data);
+          const before = eventLinks.length;
+
+          $('a.box[href*="/agenda-item/"]').each((_, el) => {
+            const href = $(el).attr('href');
+            if (!href) return;
+            const full = href.startsWith('http') ? href : `${baseUrl}${href}`;
+            if (!eventLinks.includes(full)) eventLinks.push(full);
+          });
+
+          const added = eventLinks.length - before;
+          console.log(`[RSS] Zwolle page ${page}: +${added} links (total ${eventLinks.length})`);
+          if (added === 0) break;
+        } catch (err: any) {
+          console.warn(`[RSS] Zwolle page ${page} failed: ${err.message}`);
+          break;
+        }
+      }
+
+      console.log(`[RSS] Zwolle: ${eventLinks.length} unique event links found`);
+
+      // 2. Fetch detail pages in batches of 5
+      const items: ParsedFeedItem[] = [];
+      const now = new Date();
+      const seenIds = new Set<string>();
+
+      for (let i = 0; i < eventLinks.length; i += 5) {
+        const batch = eventLinks.slice(i, i + 5);
+        const results = await Promise.allSettled(
+          batch.map(async (url) => {
+            try {
+              const resp = await axios.get(url, {
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                timeout: 25000,
+              });
+              const html: string = resp.data;
+              const $ = cheerio.load(html);
+
+              // External ID from URL: /agenda-item/173192/slug/
+              const idMatch = url.match(/\/agenda-item\/(\d+)\//);
+              const externalId = idMatch ? `visitzwolle-${idMatch[1]}` : url;
+              if (seenIds.has(externalId)) return null;
+              seenIds.add(externalId);
+
+              // Title — Zwolle uses h2.t1 (not h1.t1)
+              const title = $('h2.t1, h1.t1').first().text().trim()
+                || $('meta[property="og:title"]').attr('content')
+                    ?.replace(/ - \d+ \w+ \d+ - .+$/, '').replace(/ - VisitZwolle$/, '').trim()
+                || '';
+              if (!title) return null;
+
+              // Dates — first <time class="start"> is the earliest upcoming occurrence
+              const startAttr = $('time.start').first().attr('datetime') || '';
+              const endAttr = $('time.end').first().attr('datetime') || '';
+
+              let startTime: Date | undefined;
+              let endTime: Date | undefined;
+              if (startAttr) {
+                try { startTime = parseLocalDateTime(startAttr); } catch {}
+              }
+              if (endAttr) {
+                try {
+                  const et = parseLocalDateTime(endAttr);
+                  if (startTime && et > startTime) endTime = et;
+                } catch {}
+              }
+              if (!startTime || startTime < now) return null;
+
+              // GPS from UIE_MAP.initPointerMap JS
+              let lat: number | undefined;
+              let lng: number | undefined;
+              let venueName: string | undefined;
+              const mapMatch = html.match(/"lat":([\d.]+),"lng":([\d.]+),"title":"([^"]+)"/);
+              if (mapMatch) {
+                lat = parseFloat(mapMatch[1]);
+                lng = parseFloat(mapMatch[2]);
+                venueName = mapMatch[3];
+              }
+              if (lat && (lat < 50.7 || lat > 53.6)) lat = undefined;
+              if (lng && (lng < 3.3 || lng > 7.2)) lng = undefined;
+
+              // Address
+              let address = 'Zwolle';
+              const boxMatch = html.match(/"box":"\\n<article[^"]*<h4>([^<]+)<\\\/h4>\\n[^<]*<div>([^<]+)<\\\/div>\\n[^<]*<div>([^<]+)<\\\/div>/);
+              if (boxMatch) {
+                address = `${boxMatch[2]}, ${boxMatch[3].replace(',', '').trim()}, Zwolle`;
+              } else if (venueName) {
+                address = `${venueName}, Zwolle`;
+              }
+
+              // Image
+              const imageUrl = $('meta[property="og:image"]').attr('content') || undefined;
+
+              // Description
+              const description = $('meta[name="description"]').attr('content')
+                || $('meta[property="og:description"]').attr('content')
+                || undefined;
+
+              return {
+                title,
+                description,
+                link: url,
+                startTime,
+                endTime,
+                latitude: lat ? String(lat) : undefined,
+                longitude: lng ? String(lng) : undefined,
+                location: venueName || 'Zwolle',
+                address,
+                imageUrl,
+                externalId,
+                municipality: 'Zwolle',
+              } as ParsedFeedItem;
+            } catch (err: any) {
+              console.warn(`[RSS] Zwolle detail fetch failed (${url}): ${err.message}`);
+              return null;
+            }
+          })
+        );
+
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) items.push(r.value);
+        }
+      }
+
+      console.log(`[RSS] Zwolle: ${items.length} valid future events parsed`);
+      return { items, feedType: 'scraper' };
+    } catch (err: any) {
+      console.error(`[RSS] Zwolle scraper failed: ${err.message}`);
+      return { items: [], feedType: 'scraper', error: err.message };
+    }
+  }
+
+  /**
    * Generic scraper for all Uit in de Regio municipalities.
    * Uses the EventON native REST API (/wp-json/eventon/events) which returns
    * complete event data (timestamps, GPS, images, descriptions) in a single request.
@@ -10833,6 +11003,8 @@ export class RssFeedService {
           result = await this.scrapeVisitHardenberg();
         } else if (feed.feedType === "scraper" && feed.url.includes("uitinalmelo")) {
           result = await this.scrapeUitInAlmelo();
+        } else if (feed.feedType === "scraper" && feed.url.includes("visitzwolle")) {
+          result = await this.scrapeVisitZwolle();
         } else if (feed.feedType === "scraper") {
           // Use intelligent universal scraper for unknown scraper feeds
           result = await this.scrapeUniversal(feed);

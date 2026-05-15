@@ -69,6 +69,7 @@ const FEEDS: FeedConfig[] = [
   { name: "Welkom in Ommen", url: "https://www.welkominommen.nl/agenda-0/all/", feedType: "scraper", province: "Overijssel", municipality: "Ommen", defaultCategory: "Activiteit", defaultLatitude: "52.5161", defaultLongitude: "6.4191", defaultAddress: "Ommen, Overijssel", updateFrequencyMinutes: 360 },
   { name: "Visit Hardenberg", url: "http://www.visithardenberg.nl/agenda/vandaag/", feedType: "scraper", province: "Overijssel", municipality: "Hardenberg", defaultCategory: "Activiteit", defaultLatitude: "52.5779", defaultLongitude: "6.6183", defaultAddress: "Hardenberg, Overijssel", updateFrequencyMinutes: 360 },
   { name: "Uit in Almelo", url: "https://www.uitinalmelo.nl/uitagenda/all/", feedType: "scraper", province: "Overijssel", municipality: "Almelo", defaultCategory: "Activiteit", defaultLatitude: "52.3563", defaultLongitude: "6.6635", defaultAddress: "Almelo, Overijssel", updateFrequencyMinutes: 360 },
+  { name: "Visit Zwolle", url: "https://www.visitzwolle.com/agenda/vandaag/", feedType: "scraper", province: "Overijssel", municipality: "Zwolle", defaultCategory: "Activiteit", defaultLatitude: "52.5168", defaultLongitude: "6.0830", defaultAddress: "Zwolle, Overijssel", updateFrequencyMinutes: 360 },
 ];
 
 type FeedsConfigFile = {

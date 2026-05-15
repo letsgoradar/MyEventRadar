@@ -240,7 +240,7 @@ export function AppHomePage() {
   const isFirstLoad = mapLoading || (!!location && mapRadius === null);
 
   if (!location) {
-    return <LocationSetupScreen onLocationSet={() => {}} />;
+    return <LocationSetupScreen />;
   }
 
   return (

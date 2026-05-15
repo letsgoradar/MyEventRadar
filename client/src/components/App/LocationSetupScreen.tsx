@@ -19,17 +19,19 @@ interface GeoResult {
   };
 }
 
-interface LocationSetupScreenProps {
-  onLocationSet: () => void;
-}
-
-export function LocationSetupScreen({ onLocationSet }: LocationSetupScreenProps) {
+export function LocationSetupScreen() {
   const [step, setStep] = React.useState<"initial" | "gps-loading" | "manual">("initial");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [results, setResults] = React.useState<GeoResult[]>([]);
   const [searching, setSearching] = React.useState(false);
   const [gpsError, setGpsError] = React.useState<string | null>(null);
   const searchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
 
   const handleUseGPS = React.useCallback(() => {
     setStep("gps-loading");
@@ -47,7 +49,6 @@ export function LocationSetupScreen({ onLocationSet }: LocationSetupScreenProps)
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
-        onLocationSet();
       },
       (error) => {
         let msg = "Locatietoegang geweigerd.";
@@ -92,16 +93,12 @@ export function LocationSetupScreen({ onLocationSet }: LocationSetupScreenProps)
     [handleSearch]
   );
 
-  const handleSelectResult = React.useCallback(
-    (result: GeoResult) => {
-      setManualLocation({
-        lat: parseFloat(result.lat),
-        lng: parseFloat(result.lon),
-      });
-      onLocationSet();
-    },
-    [onLocationSet]
-  );
+  const handleSelectResult = React.useCallback((result: GeoResult) => {
+    setManualLocation({
+      lat: parseFloat(result.lat),
+      lng: parseFloat(result.lon),
+    });
+  }, []);
 
   function getPlaceName(result: GeoResult): string {
     const a = result.address;

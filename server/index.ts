@@ -83,11 +83,16 @@ app.use(helmet({
 // header set (X-Content-Type-Options: nosniff, CSP, etc.).
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
-// Serve robots.txt explicitly so our rule overrides any platform default
-app.get("/robots.txt", (_req, res) => {
-  const baseUrl = process.env.NODE_ENV === "production"
-    ? "https://letsgo-radar.replit.app"
-    : "http://localhost:5000";
+// Serve robots.txt explicitly so our rule overrides any platform default.
+// On custom domains this route is reached; on .replit.app the platform
+// intercepts before us (workaround: set CUSTOM_DOMAIN env var once a domain
+// is configured so the sitemap URL stays correct).
+app.get("/robots.txt", (req: Request, res: Response) => {
+  const baseUrl = process.env.CUSTOM_DOMAIN
+    ? `https://${process.env.CUSTOM_DOMAIN}`
+    : process.env.NODE_ENV === "production"
+      ? `https://${req.get("host") ?? "letsgo-radar.replit.app"}`
+      : "http://localhost:5000";
   res.type("text/plain").send(
     `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /login\nDisallow: /admin/login\n\nSitemap: ${baseUrl}/sitemap.xml\n`
   );

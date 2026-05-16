@@ -5,4 +5,4 @@ Disallow: /api/
 Disallow: /login
 Disallow: /admin/login
 
-Sitemap: https://letsgo-radar.replit.app/sitemap.xml
+Sitemap: https://letsgoradar.com/sitemap.xml

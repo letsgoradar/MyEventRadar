@@ -11306,7 +11306,7 @@ export class RssFeedService {
       let actualMunicipality = feed.municipality || "";
       const expectedMunicipality = feed.municipality || "";
       // Regional/tourism platform feeds cover a wider area than a single municipality
-      const isRegionalFeed = feed.url.includes('visitutrechtregion') || feed.url.includes('uitinderegio');
+      const isRegionalFeed = feed.url.includes('visitutrechtregion') || feed.url.includes('uitinderegio') || feed.url.includes('visitgooivecht');
       const MAX_DISTANCE_KM = isRegionalFeed ? 60 : 20;
 
       // STEP 1: If we have GPS coordinates from the source, validate with regional limit

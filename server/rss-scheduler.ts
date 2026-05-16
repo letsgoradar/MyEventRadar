@@ -5,7 +5,7 @@ let isProcessing = false;
 let lastSyncTime: Date | null = null;
 let initialized = false;
 
-const SYNC_INTERVAL_HOURS = 84; // ~2x per week
+const SYNC_INTERVAL_HOURS = 48; // every 2 days
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('nl-NL', { 
@@ -98,7 +98,7 @@ export function rssSyncMiddleware(req: Request, res: Response, next: NextFunctio
 }
 
 export function startRssScheduler(): void {
-  console.log("[RSS Scheduler] Request-triggered mode enabled (sync every 84h / ~2x per week on traffic)");
+  console.log("[RSS Scheduler] Request-triggered mode enabled (sync every 48h on traffic)");
   initializeLastSyncTime();
 }
 

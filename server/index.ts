@@ -93,6 +93,38 @@ app.get("/robots.txt", (_req, res) => {
   );
 });
 
+// Secure cron endpoint — called by external scheduler every 48h
+// Protected by CRON_SECRET token to prevent unauthorized triggers
+app.post("/api/cron/sync-feeds", async (req: Request, res: Response) => {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    return res.status(503).json({ message: "Cron endpoint not configured" });
+  }
+
+  const authHeader = req.headers["authorization"] ?? "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+
+  if (token !== cronSecret) {
+    console.warn(`[Cron] Unauthorized sync attempt from ${req.ip}`);
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const { runManualFeedCheck, getSchedulerStatus } = await import("./rss-scheduler");
+  const status = getSchedulerStatus();
+
+  if (status.isProcessing) {
+    return res.json({ message: "Sync already in progress", skipped: true });
+  }
+
+  console.log(`[Cron] External trigger received — starting RSS sync`);
+  res.json({ message: "RSS sync started", triggeredAt: new Date().toISOString() });
+
+  // Run sync fire-and-forget after response is sent
+  runManualFeedCheck().catch((err: any) => {
+    console.error("[Cron] RSS sync error:", err.message);
+  });
+});
+
 // Enhanced error handling middleware
 const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Server error:', err);

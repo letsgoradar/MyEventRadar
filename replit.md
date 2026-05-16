@@ -285,7 +285,8 @@ Twee-producten advertentiesysteem:
 - **Build**: `npm run build` (Vite frontend + esbuild backend)
 - **Run**: `npm run start` (`NODE_ENV=production node dist/index.js`)
 - **Schedulers**: All schedulers are request-triggered (no setInterval/setTimeout):
-  - RSS feed sync: runs on first request if last sync > 84h ago (~2x per week, fire-and-forget background task). Note: `updateFrequencyMinutes` per feed is stored but not used by the auto-scheduler — only the global 84h interval applies.
+  - RSS feed sync: runs on first request if last sync > 48h ago (fire-and-forget background task). Note: `updateFrequencyMinutes` per feed is stored but not used by the auto-scheduler — only the global 48h interval applies.
+  - **External cron trigger**: `POST /api/cron/sync-feeds` — protected by `Authorization: Bearer $CRON_SECRET`. Returns `{"message":"RSS sync started"}` and runs sync fire-and-forget. If sync is already running, returns `{"skipped":true}`. Set up cron-job.org (or similar) to call this every 48h for reliable production syncing independent of user traffic.
   - Notification check: runs on first request if last check > 1h ago
   - Promotion expiration: runs on first request if last check > 5min ago
 - **Graceful Shutdown**: `SIGTERM`/`SIGINT` handlers close the database pool cleanly before exit. 10s forced timeout.

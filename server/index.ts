@@ -98,6 +98,22 @@ app.get("/robots.txt", (req: Request, res: Response) => {
   );
 });
 
+// Google Search Console HTML verification file
+// Set GOOGLE_SITE_VERIFICATION env var to the token portion of the filename Google provides
+// (e.g. if Google asks for "google1a2b3c4d5e6f7a8b.html", set the token to "1a2b3c4d5e6f7a8b")
+// Google will check: https://yourdomain.com/google{TOKEN}.html
+app.get(/^\/google([A-Za-z0-9_-]+)\.html$/, (req: Request, res: Response) => {
+  const verificationToken = process.env.GOOGLE_SITE_VERIFICATION;
+  if (!verificationToken) {
+    return res.status(404).send("Not found");
+  }
+  const requestedToken = req.params[0];
+  if (requestedToken !== verificationToken) {
+    return res.status(404).send("Not found");
+  }
+  res.type("text/html").send(`google-site-verification: google${verificationToken}.html`);
+});
+
 // Secure cron endpoint — called by external scheduler every 48h
 // Protected by CRON_SECRET token to prevent unauthorized triggers
 app.post("/api/cron/sync-feeds", async (req: Request, res: Response) => {

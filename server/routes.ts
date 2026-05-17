@@ -4417,7 +4417,11 @@ Antwoord in dit JSON formaat:
     try {
       const { getActiveCities, generateCityEventsUrl } = await import('@shared/cities');
       const cities = getActiveCities();
-      const baseUrl = `https://${req.get('host')}`;
+      const baseUrl = process.env.CUSTOM_DOMAIN
+        ? `https://${process.env.CUSTOM_DOMAIN}`
+        : process.env.NODE_ENV === "production"
+          ? `https://${req.get("host") ?? "letsgoradar.com"}`
+          : `http://${req.get("host") ?? "localhost:5000"}`;
       
       let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
       sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';

@@ -15,8 +15,8 @@ interface AlertRecord {
   topEndpoints: { endpoint: string; count: number }[];
 }
 
-const WARN_THRESHOLD = 500;
-const CRITICAL_THRESHOLD = 2000;
+const WARN_THRESHOLD = 1500;   // ~30 simultaneous users loading the SPA
+const CRITICAL_THRESHOLD = 4000; // genuine spike / potential attack
 const CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000;
 const ALERT_COOLDOWN_MS = 60 * 60 * 1000;
 

@@ -43,7 +43,8 @@ import { LogIn } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
-import { useLocation as useGeoLocation } from "@/hooks/useLocation";
+import { useLocation as useGeoLocation, clearSavedLocation } from "@/hooks/useLocation";
+import { MapPin } from "lucide-react";
 
 interface HeaderProps {
   isMapView: boolean;
@@ -477,6 +478,17 @@ export function Header({
             <span className="hidden sm:inline">Mijn Events</span>
           </Button>
         </Link>
+
+        {/* Wijzig locatie */}
+        <Button
+          size="icon"
+          variant="outline"
+          onClick={clearSavedLocation}
+          className="h-10 w-10 rounded-full"
+          title="Locatie wijzigen"
+        >
+          <MapPin className="h-5 w-5" />
+        </Button>
 
         {/* Toon de kaart/lijst schakelaar alleen indien niet verborgen */}
         {!hideViewToggle && (

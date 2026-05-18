@@ -20,7 +20,7 @@ function loadSessionLocation(): Coordinates | null {
   return null;
 }
 
-let cachedLocation: Coordinates | null = loadSessionLocation();
+let cachedLocation: Coordinates | null = null;
 let activeSetters: Array<(loc: Coordinates | null) => void> = [];
 
 export function setManualLocation(coords: Coordinates): void {

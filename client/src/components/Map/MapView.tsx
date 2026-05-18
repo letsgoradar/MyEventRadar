@@ -590,8 +590,8 @@ export default function MapView({
 }: MapViewProps) {
   // Gebruik opgeslagen locatie als startpunt (voorkomt hardcoded Oss-centrum)
   const { location: savedLocation } = useSavedLocation();
-  const [userLocation, setUserLocation] = React.useState<[number, number]>(
-    savedLocation ? [savedLocation.lat, savedLocation.lng] : [52.1326, 5.2913]
+  const [userLocation, setUserLocation] = React.useState<[number, number] | null>(
+    savedLocation ? [savedLocation.lat, savedLocation.lng] : null
   );
   const [eventsData, setEventsData] = React.useState<EventInterface[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<EventInterface | null>(null);
@@ -666,15 +666,16 @@ export default function MapView({
 
   // Als er filteredEvents zijn, gebruik die; anders fetch events op basis van locatie en radius
   const { data: fetchedEvents, isLoading, refetch } = useQuery<EventInterface[]>({
-    queryKey: ['/api/events/nearby', userLocation[0], userLocation[1], radius, searchQuery, windowDays],
+    queryKey: ['/api/events/nearby', userLocation?.[0], userLocation?.[1], radius, searchQuery, windowDays],
     queryFn: async () => {
+      if (!userLocation) return [];
       const response = await fetch(
         `/api/events/nearby?lat=${userLocation[0]}&lng=${userLocation[1]}&radius=${radius}&windowDays=${windowDays}`
       );
       if (!response.ok) throw new Error('Failed to fetch events');
       return response.json();
     },
-    enabled: !filteredEvents && userLocation[0] !== 0 && userLocation[1] !== 0,
+    enabled: !filteredEvents && !!userLocation,
   });
   
   // Refetch events wanneer de kaartgrenzen significant zijn gewijzigd
@@ -845,6 +846,11 @@ export default function MapView({
       }));
   }, [eventsData, currentBounds, showExpiredEvents]);
   
+  // Geen locatie beschikbaar: toon niets (parent zorgt voor LocationSetupScreen)
+  if (!userLocation) {
+    return null;
+  }
+
   // Render de kaart
   return (
     <div className="h-full w-full relative flex-1 overflow-hidden z-0">

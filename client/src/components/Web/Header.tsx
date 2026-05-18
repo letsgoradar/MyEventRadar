@@ -174,9 +174,6 @@ export function Header({
 
   // Gebruikerslocatie voor afstandsberekening (via centrale hook)
   const { location: geoLocation } = useGeoLocation();
-  const userLocation: [number, number] | null = geoLocation
-    ? [geoLocation.lat, geoLocation.lng]
-    : null;
 
   // Zoekresultaten ophalen van de API op basis van query en datumbereik
   React.useEffect(() => {
@@ -207,10 +204,10 @@ export function Header({
           
           // Bereken de afstand voor elk resultaat
           const resultsWithDistance = data.map((event: any) => {
-            const distance = userLocation
+            const distance = (geoLocation?.lat != null && geoLocation?.lng != null)
               ? getDistance(
-                  userLocation[0],
-                  userLocation[1],
+                  geoLocation.lat,
+                  geoLocation.lng,
                   Number(event.latitude),
                   Number(event.longitude)
                 )
@@ -253,7 +250,7 @@ export function Header({
     }, 300);
     
     return () => clearTimeout(debounceTimer);
-  }, [searchQuery, startDate, endDate, userLocation]);
+  }, [searchQuery, startDate, endDate, geoLocation?.lat, geoLocation?.lng]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;

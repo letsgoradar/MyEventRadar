@@ -12,6 +12,40 @@ let cachedLocation: Coordinates | null = null;
 let activeSetters: Array<(loc: Coordinates | null) => void> = [];
 let activeCitySetters: Array<(name: string | null) => void> = [];
 let cachedCityName: string | null = null;
+let visibilityListenerRegistered = false;
+
+function silentGpsRefresh(): void {
+  if (!navigator.permissions || !navigator.geolocation) return;
+  navigator.permissions
+    .query({ name: "geolocation" as PermissionName })
+    .then((status) => {
+      if (status.state !== "granted") return;
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setManualLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    })
+    .catch(() => {});
+}
+
+function registerVisibilityListener(): void {
+  if (visibilityListenerRegistered || typeof document === "undefined") return;
+  visibilityListenerRegistered = true;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      silentGpsRefresh();
+    }
+  });
+  silentGpsRefresh();
+}
+
+registerVisibilityListener();
 
 export function setManualLocation(coords: Coordinates): void {
   try {

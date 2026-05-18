@@ -15,7 +15,7 @@ let cachedCityName: string | null = null;
 let visibilityListenerRegistered = false;
 
 function silentGpsRefresh(): void {
-  if (!navigator.permissions || !navigator.geolocation) return;
+  if (typeof navigator === "undefined" || !navigator.permissions || !navigator.geolocation) return;
   navigator.permissions
     .query({ name: "geolocation" as PermissionName })
     .then((status) => {

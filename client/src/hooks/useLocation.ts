@@ -7,19 +7,6 @@ export interface Coordinates {
 
 const STORAGE_KEY = "app_user_location_session";
 
-function loadSessionLocation(): Coordinates | null {
-  try {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (typeof parsed.lat === "number" && typeof parsed.lng === "number") {
-        return { lat: parsed.lat, lng: parsed.lng };
-      }
-    }
-  } catch {}
-  return null;
-}
-
 let cachedLocation: Coordinates | null = null;
 let activeSetters: Array<(loc: Coordinates | null) => void> = [];
 

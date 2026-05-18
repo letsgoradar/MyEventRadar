@@ -1,6 +1,6 @@
 import * as React from "react";
 import { trackSearch } from "@/lib/analytics";
-import { Search, Filter, Map, List, CalendarIcon, Euro, ArrowUpDown } from "lucide-react";
+import { Search, Filter, Map, List, CalendarIcon, Euro, ArrowUpDown, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ import { format, addDays, startOfDay, differenceInDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useOutsideClick } from "@/hooks/use-outside-click";
-import { useLocation as useGeoLocation } from "@/hooks/useLocation";
+import { useLocation as useGeoLocation, clearSavedLocation } from "@/hooks/useLocation";
 
 interface AppHeaderProps {
   isMapView: boolean;
@@ -248,6 +248,16 @@ export function AppHeader({
               onClick={toggleView}
             >
               {isMapView ? <List className="h-4 w-4" /> : <Map className="h-4 w-4" />}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10"
+              onClick={clearSavedLocation}
+              title="Locatie wijzigen"
+            >
+              <MapPin className="h-4 w-4" />
             </Button>
             
             <LanguageSwitcher />

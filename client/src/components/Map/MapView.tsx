@@ -591,7 +591,7 @@ export default function MapView({
   // Gebruik opgeslagen locatie als startpunt (voorkomt hardcoded Oss-centrum)
   const { location: savedLocation } = useSavedLocation();
   const [userLocation, setUserLocation] = React.useState<[number, number]>(
-    savedLocation ? [savedLocation.lat, savedLocation.lng] : [52.0907, 5.1214]
+    savedLocation ? [savedLocation.lat, savedLocation.lng] : [52.1326, 5.2913]
   );
   const [eventsData, setEventsData] = React.useState<EventInterface[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<EventInterface | null>(null);
@@ -634,19 +634,12 @@ export default function MapView({
     if (showLayerOptions) setShowLayerOptions(false);
   });
   
-  // GPS fallback voor Web-versie (App-versie heeft al locatie via LocationSetupScreen)
+  // Sync userLocation wanneer savedLocation verandert (bijv. na locatiewijziging)
   React.useEffect(() => {
-    if (savedLocation) return; // al ingesteld via useLocation hook
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation([latitude, longitude]);
-        },
-        () => {}
-      );
+    if (savedLocation) {
+      setUserLocation([savedLocation.lat, savedLocation.lng]);
     }
-  }, []);
+  }, [savedLocation?.lat, savedLocation?.lng]);
   
   // Sync de interne selectedEvent state met de externe prop
   React.useEffect(() => {

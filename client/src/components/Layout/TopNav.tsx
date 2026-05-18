@@ -18,6 +18,7 @@ import { Logo } from '../ui/logo';
 import { calculateDistance } from '@/lib/utils';
 import { addHours, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { DatePicker } from "@/components/ui/date-picker";
+import { useLocation as useGeoLocation } from "@/hooks/useLocation";
 
 interface TopNavProps {
   isMapView?: boolean;
@@ -51,34 +52,13 @@ export default function TopNav({
   const [sortBy, setSortBy] = useState<'distance' | 'startTime'>('distance');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [, setLocation] = useLocation();
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const { location: userLocation } = useGeoLocation();
 
   // Refs for clickaway handlers
   const timeFilterRef = useRef<HTMLDivElement>(null);
   const radiusSliderRef = useRef<HTMLDivElement>(null);
   const priceFilterRef = useRef<HTMLDivElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
-
-  // Get user location
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        () => {
-          console.error("Could not get user location");
-          setUserLocation({
-            lat: 52.3676,
-            lng: 4.9041,
-          });
-        }
-      );
-    }
-  }, []);
 
   // Clickaway handler
   useEffect(() => {

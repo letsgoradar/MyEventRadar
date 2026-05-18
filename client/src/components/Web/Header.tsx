@@ -43,6 +43,7 @@ import { LogIn } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
+import { useLocation as useGeoLocation } from "@/hooks/useLocation";
 
 interface HeaderProps {
   isMapView: boolean;
@@ -170,22 +171,11 @@ export function Header({
     }
   }, []);
 
-  // Gebruikerslocatie voor afstandsberekening
-  const [userLocation, setUserLocation] = React.useState<[number, number]>([51.7767, 5.5345]); // Standaard positie
-
-  // Gebruikerslocatie ophalen
-  React.useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
-        },
-        (error) => {
-          console.error("Fout bij ophalen locatie:", error);
-        }
-      );
-    }
-  }, []);
+  // Gebruikerslocatie voor afstandsberekening (via centrale hook)
+  const { location: geoLocation } = useGeoLocation();
+  const userLocation: [number, number] = geoLocation
+    ? [geoLocation.lat, geoLocation.lng]
+    : [52.1326, 5.2913];
 
   // Zoekresultaten ophalen van de API op basis van query en datumbereik
   React.useEffect(() => {

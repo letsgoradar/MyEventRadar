@@ -5,11 +5,11 @@ export interface Coordinates {
   lng: number;
 }
 
-const STORAGE_KEY = "app_user_location";
+const STORAGE_KEY = "app_user_location_session";
 
-function loadSavedLocation(): Coordinates | null {
+function loadSessionLocation(): Coordinates | null {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = sessionStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (typeof parsed.lat === "number" && typeof parsed.lng === "number") {
@@ -20,12 +20,12 @@ function loadSavedLocation(): Coordinates | null {
   return null;
 }
 
-let cachedLocation: Coordinates | null = loadSavedLocation();
+let cachedLocation: Coordinates | null = loadSessionLocation();
 let activeSetters: Array<(loc: Coordinates | null) => void> = [];
 
 export function setManualLocation(coords: Coordinates): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(coords));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(coords));
   } catch {}
   cachedLocation = coords;
   activeSetters.forEach((setter) => setter(coords));
@@ -33,7 +33,8 @@ export function setManualLocation(coords: Coordinates): void {
 
 export function clearSavedLocation(): void {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("app_user_location");
   } catch {}
   cachedLocation = null;
   activeSetters.forEach((setter) => setter(null));

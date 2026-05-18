@@ -1,5 +1,5 @@
 import * as React from "react";
-import { MapPin, Search, Navigation, Loader2, ChevronRight } from "lucide-react";
+import { MapPin, Search, Navigation, Loader2, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { setManualLocation } from "@/hooks/useLocation";
@@ -19,13 +19,18 @@ interface GeoResult {
   };
 }
 
-export function LocationSetupScreen() {
-  const [step, setStep] = React.useState<"initial" | "gps-loading" | "manual">("initial");
+interface LocationSetupScreenProps {
+  onDismiss?: () => void;
+}
+
+export function LocationSetupScreen({ onDismiss }: LocationSetupScreenProps = {}) {
+  const [step, setStep] = React.useState<"checking" | "initial" | "gps-loading" | "manual">("checking");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [results, setResults] = React.useState<GeoResult[]>([]);
   const [searching, setSearching] = React.useState(false);
   const [gpsError, setGpsError] = React.useState<string | null>(null);
   const searchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gpsStartedRef = React.useRef(false);
 
   React.useEffect(() => {
     return () => {
@@ -33,7 +38,9 @@ export function LocationSetupScreen() {
     };
   }, []);
 
-  const handleUseGPS = React.useCallback(() => {
+  const doGPS = React.useCallback(() => {
+    if (gpsStartedRef.current) return;
+    gpsStartedRef.current = true;
     setStep("gps-loading");
     setGpsError(null);
 
@@ -61,6 +68,32 @@ export function LocationSetupScreen() {
     );
   }, []);
 
+  React.useEffect(() => {
+    if (!navigator.permissions) {
+      setStep("initial");
+      return;
+    }
+    navigator.permissions
+      .query({ name: "geolocation" as PermissionName })
+      .then((status) => {
+        if (status.state === "granted") {
+          doGPS();
+        } else if (status.state === "denied") {
+          setStep("manual");
+        } else {
+          setStep("initial");
+        }
+      })
+      .catch(() => {
+        setStep("initial");
+      });
+  }, [doGPS]);
+
+  const handleUseGPS = React.useCallback(() => {
+    gpsStartedRef.current = false;
+    doGPS();
+  }, [doGPS]);
+
   const handleSearch = React.useCallback(async (query: string) => {
     if (!query.trim() || query.length < 2) {
       setResults([]);
@@ -77,7 +110,7 @@ export function LocationSetupScreen() {
         setResults(data);
       }
     } catch {
-      // silent fail - user can retry
+      // silent fail
     } finally {
       setSearching(false);
     }
@@ -113,8 +146,27 @@ export function LocationSetupScreen() {
     return parts.slice(1, 3).join(", ");
   }
 
+  if (step === "checking") {
+    return (
+      <div className="fixed inset-0 z-[500] flex flex-col items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[500] flex flex-col bg-background">
+      {onDismiss && (
+        <div className="flex justify-end p-4">
+          <button
+            onClick={onDismiss}
+            className="rounded-full p-1 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Sluiten"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8 pb-8">
         <div className="flex flex-col items-center gap-3">
           <RadarLogoWithText height={48} textColor="hsl(var(--foreground))" />

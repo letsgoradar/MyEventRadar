@@ -116,7 +116,7 @@ export async function sendFeedbackNotification(feedback: {
 
 export async function sendTrafficAlertEmail(
   level: "warning" | "critical" | "circuit_breaker_on" | "circuit_breaker_off",
-  stats: { requestsPerMin: number; uniqueIps: number; topEndpoints: { endpoint: string; count: number }[] }
+  stats: { requestsPerMin: number; uniqueIps: number; topEndpoints: { endpoint: string; count: number }[]; humanRequests?: number; topBots?: { name: string; count: number }[] }
 ): Promise<boolean> {
   const levelLabels: Record<string, { label: string; color: string; icon: string }> = {
     warning: { label: "Waarschuwing — Hoog verkeer", color: "#f59e0b", icon: "⚠️" },
@@ -132,6 +132,12 @@ export async function sendTrafficAlertEmail(
     .map(e => `<tr><td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${e.endpoint}</td><td style="padding: 4px 8px; border-bottom: 1px solid #eee; text-align: right;">${e.count}</td></tr>`)
     .join("");
 
+  const botTotal = stats.topBots?.reduce((s, b) => s + b.count, 0) ?? 0;
+  const humanReqs = stats.humanRequests ?? (stats.requestsPerMin - botTotal);
+  const botSummary = botTotal > 0
+    ? `🤖 ${botTotal} bot (${stats.topBots!.map(b => `${b.name}: ${b.count}`).join(", ")}) / 👤 ${humanReqs} menselijk`
+    : `👤 ${humanReqs} menselijk (geen bekende bots)`;
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
       <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
@@ -141,6 +147,7 @@ export async function sendTrafficAlertEmail(
         <table style="width: 100%; font-size: 15px; margin-bottom: 20px;">
           <tr><td style="padding: 6px 0; color: #555;"><strong>Requests/minuut:</strong></td><td style="text-align: right; font-size: 18px; font-weight: bold; color: ${info.color};">${stats.requestsPerMin}</td></tr>
           <tr><td style="padding: 6px 0; color: #555;"><strong>Unieke IP-adressen:</strong></td><td style="text-align: right;">${stats.uniqueIps}</td></tr>
+          <tr><td style="padding: 6px 0; color: #555;"><strong>Bron:</strong></td><td style="text-align: right; font-size: 13px;">${botSummary}</td></tr>
           <tr><td style="padding: 6px 0; color: #555;"><strong>Tijdstip:</strong></td><td style="text-align: right;">${new Date().toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}</td></tr>
         </table>
         ${stats.topEndpoints.length > 0 ? `

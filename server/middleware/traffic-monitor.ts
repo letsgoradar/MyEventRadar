@@ -5,6 +5,8 @@ interface TrafficWindow {
   uniqueIps: Set<string>;
   startTime: number;
   endpointCounts: Map<string, number>;
+  botCounts: Map<string, number>;
+  humanRequests: number;
 }
 
 interface AlertRecord {
@@ -28,12 +30,39 @@ let circuitBreakerManualOverride: boolean | null = null;
 let lastAlertTime: number = 0;
 let alertHistory: AlertRecord[] = [];
 
+const KNOWN_BOTS: { pattern: RegExp; name: string }[] = [
+  { pattern: /Googlebot/i,       name: "Googlebot" },
+  { pattern: /Bingbot/i,         name: "Bingbot" },
+  { pattern: /AhrefsBot/i,       name: "AhrefsBot" },
+  { pattern: /SemrushBot/i,      name: "SemrushBot" },
+  { pattern: /DotBot/i,          name: "DotBot" },
+  { pattern: /YandexBot/i,       name: "YandexBot" },
+  { pattern: /MJ12bot/i,         name: "MJ12bot" },
+  { pattern: /DataForSeoBot/i,   name: "DataForSeoBot" },
+  { pattern: /Lighthouse/i,      name: "Lighthouse" },
+  { pattern: /HeadlessChrome/i,  name: "HeadlessChrome" },
+  { pattern: /python-requests/i, name: "python-requests" },
+  { pattern: /curl\//i,          name: "curl" },
+  { pattern: /wget\//i,          name: "wget" },
+  { pattern: /Go-http-client/i,  name: "Go-http-client" },
+  { pattern: /Scrapy/i,          name: "Scrapy" },
+];
+
+function detectBot(userAgent: string): string | null {
+  for (const bot of KNOWN_BOTS) {
+    if (bot.pattern.test(userAgent)) return bot.name;
+  }
+  return null;
+}
+
 function createWindow(): TrafficWindow {
   return {
     count: 0,
     uniqueIps: new Set(),
     startTime: Date.now(),
     endpointCounts: new Map(),
+    botCounts: new Map(),
+    humanRequests: 0,
   };
 }
 
@@ -68,7 +97,9 @@ function addAlert(level: AlertRecord["level"], requestsPerMin: number, uniqueIps
   return record;
 }
 
-async function sendAlert(level: "warning" | "critical", stats: { requestsPerMin: number; uniqueIps: number; topEndpoints: { endpoint: string; count: number }[] }) {
+type TrafficStats = { requestsPerMin: number; uniqueIps: number; topEndpoints: { endpoint: string; count: number }[]; humanRequests?: number; topBots?: { name: string; count: number }[] };
+
+async function sendAlert(level: "warning" | "critical", stats: TrafficStats) {
   const now = Date.now();
   if (now - lastAlertTime < ALERT_COOLDOWN_MS) return;
   lastAlertTime = now;
@@ -83,7 +114,7 @@ async function sendAlert(level: "warning" | "critical", stats: { requestsPerMin:
   }
 }
 
-async function sendCircuitBreakerEmail(activated: boolean, stats: { requestsPerMin: number; uniqueIps: number; topEndpoints: { endpoint: string; count: number }[] }) {
+async function sendCircuitBreakerEmail(activated: boolean, stats: TrafficStats) {
   const level = activated ? "circuit_breaker_on" : "circuit_breaker_off";
   addAlert(level, stats.requestsPerMin, stats.uniqueIps, stats.topEndpoints);
 
@@ -95,7 +126,7 @@ async function sendCircuitBreakerEmail(activated: boolean, stats: { requestsPerM
   }
 }
 
-function activateCircuitBreaker(stats: { requestsPerMin: number; uniqueIps: number; topEndpoints: { endpoint: string; count: number }[] }) {
+function activateCircuitBreaker(stats: TrafficStats) {
   if (circuitBreakerActive) return;
   circuitBreakerActive = true;
   circuitBreakerActivatedAt = Date.now();
@@ -131,14 +162,26 @@ export function trafficMonitor(req: Request, res: Response, next: NextFunction) 
 
   const ip = req.ip || req.socket.remoteAddress || "unknown";
   const endpoint = simplifyEndpoint(req.path);
+  const ua = req.headers["user-agent"] || "";
+  const botName = detectBot(ua);
 
   currentMinuteWindow.count++;
   currentMinuteWindow.uniqueIps.add(ip);
   currentMinuteWindow.endpointCounts.set(endpoint, (currentMinuteWindow.endpointCounts.get(endpoint) || 0) + 1);
+  if (botName) {
+    currentMinuteWindow.botCounts.set(botName, (currentMinuteWindow.botCounts.get(botName) || 0) + 1);
+  } else {
+    currentMinuteWindow.humanRequests++;
+  }
 
   currentHourWindow.count++;
   currentHourWindow.uniqueIps.add(ip);
   currentHourWindow.endpointCounts.set(endpoint, (currentHourWindow.endpointCounts.get(endpoint) || 0) + 1);
+  if (botName) {
+    currentHourWindow.botCounts.set(botName, (currentHourWindow.botCounts.get(botName) || 0) + 1);
+  } else {
+    currentHourWindow.humanRequests++;
+  }
 
   if (circuitBreakerManualOverride !== null) {
     if (circuitBreakerManualOverride && !isAllowedDuringCircuitBreak(req.path)) {
@@ -161,10 +204,16 @@ export function trafficMonitor(req: Request, res: Response, next: NextFunction) 
   }
 
   const reqPerMin = currentMinuteWindow.count;
+  const topBots = Array.from(currentMinuteWindow.botCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => ({ name, count }));
   const stats = {
     requestsPerMin: reqPerMin,
     uniqueIps: currentMinuteWindow.uniqueIps.size,
     topEndpoints: getTopEndpoints(currentMinuteWindow),
+    humanRequests: currentMinuteWindow.humanRequests,
+    topBots,
   };
 
   if (reqPerMin >= CRITICAL_THRESHOLD) {
@@ -180,11 +229,20 @@ export function getTrafficStatus() {
   currentMinuteWindow = rotateWindowIfNeeded(currentMinuteWindow, 60 * 1000);
   currentHourWindow = rotateWindowIfNeeded(currentHourWindow, 60 * 60 * 1000);
 
+  const topBotsMinute = Array.from(currentMinuteWindow.botCounts.entries())
+    .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count }));
+  const topBotsHour = Array.from(currentHourWindow.botCounts.entries())
+    .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count }));
+
   return {
     requestsPerMinute: currentMinuteWindow.count,
     requestsPerHour: currentHourWindow.count,
     uniqueIpsMinute: currentMinuteWindow.uniqueIps.size,
     uniqueIpsHour: currentHourWindow.uniqueIps.size,
+    humanRequestsMinute: currentMinuteWindow.humanRequests,
+    humanRequestsHour: currentHourWindow.humanRequests,
+    topBotsMinute,
+    topBotsHour,
     topEndpointsMinute: getTopEndpoints(currentMinuteWindow),
     topEndpointsHour: getTopEndpoints(currentHourWindow, 10),
     circuitBreaker: {

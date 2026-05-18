@@ -43,7 +43,7 @@ import { LogIn } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
-import { useLocation as useGeoLocation, clearSavedLocation } from "@/hooks/useLocation";
+import { useLocation as useGeoLocation, clearSavedLocation, useCityName } from "@/hooks/useLocation";
 import { MapPin } from "lucide-react";
 
 interface HeaderProps {
@@ -174,6 +174,7 @@ export function Header({
 
   // Gebruikerslocatie voor afstandsberekening (via centrale hook)
   const { location: geoLocation } = useGeoLocation();
+  const cityName = useCityName();
 
   // Zoekresultaten ophalen van de API op basis van query en datumbereik
   React.useEffect(() => {
@@ -480,13 +481,15 @@ export function Header({
 
         {/* Wijzig locatie */}
         <Button
-          size="icon"
           variant="outline"
           onClick={clearSavedLocation}
-          className="h-10 w-10 rounded-full"
+          className={cityName ? "h-10 px-3 rounded-full flex items-center gap-1.5 max-w-[160px]" : "h-10 w-10 rounded-full"}
           title="Locatie wijzigen"
         >
-          <MapPin className="h-5 w-5" />
+          <MapPin className="h-5 w-5 flex-shrink-0" />
+          {cityName && (
+            <span className="text-sm font-medium truncate">{cityName}</span>
+          )}
         </Button>
 
         {/* Toon de kaart/lijst schakelaar alleen indien niet verborgen */}

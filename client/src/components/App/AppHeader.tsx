@@ -28,7 +28,7 @@ import { format, addDays, startOfDay, differenceInDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useOutsideClick } from "@/hooks/use-outside-click";
-import { useLocation as useGeoLocation, clearSavedLocation } from "@/hooks/useLocation";
+import { useLocation as useGeoLocation, clearSavedLocation, useCityName } from "@/hooks/useLocation";
 
 interface AppHeaderProps {
   isMapView: boolean;
@@ -74,6 +74,7 @@ export function AppHeader({
   }, []);
   const [, setLocation] = useLocation();
   const { location: userLocation } = useGeoLocation();
+  const cityName = useCityName();
 
   // Refs for clickaway handlers
   const timeFilterRef = React.useRef<HTMLDivElement>(null);
@@ -252,12 +253,14 @@ export function AppHeader({
 
             <Button
               variant="outline"
-              size="icon"
-              className="h-10 w-10"
+              className={cityName ? "h-10 px-3 flex items-center gap-1.5 max-w-[140px]" : "h-10 w-10"}
               onClick={clearSavedLocation}
               title="Locatie wijzigen"
             >
-              <MapPin className="h-4 w-4" />
+              <MapPin className="h-4 w-4 flex-shrink-0" />
+              {cityName && (
+                <span className="text-sm font-medium truncate">{cityName}</span>
+              )}
             </Button>
             
             <LanguageSwitcher />

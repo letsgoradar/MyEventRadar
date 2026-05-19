@@ -46,7 +46,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles, Crosshair, FileCode, Clock, Download } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit, ExternalLink, Rss, Globe, AlertCircle, CheckCircle, Eye, Map, List, AlertTriangle, Loader2, Sparkles, Crosshair, FileCode, Clock, Download, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
@@ -60,6 +60,7 @@ const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteI
 const FeedAnalyzerModal = lazy(() => import('@/components/admin/FeedAnalyzerModal'));
 const SimpleFeedWizard = lazy(() => import('@/components/admin/SimpleFeedWizard'));
 const QualityCheckPanel = lazy(() => import('@/components/admin/QualityCheckPanel'));
+const MunicipalityFeedView = lazy(() => import('@/components/admin/MunicipalityFeedView'));
 
 interface RssFeed {
   id: number;
@@ -1204,6 +1205,10 @@ export default function RssFeedsPage() {
                 <AlertTriangle className="w-4 h-4" />
                 Incompleet
               </TabsTrigger>
+              <TabsTrigger value="gemeentes" className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Gemeentes
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="map">
@@ -1598,6 +1603,26 @@ export default function RssFeedsPage() {
                 </div>
               }>
                 <IncompleteItemsManager />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="gemeentes">
+              <Suspense fallback={
+                <div className="flex items-center justify-center h-[400px] bg-muted rounded-lg">
+                  <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+                </div>
+              }>
+                <MunicipalityFeedView
+                  feeds={feeds}
+                  feedOverview={feedOverview}
+                  onEditFeed={(feed) => {
+                    setEditingVisualFeedId(feed.id);
+                    setIsFeedAnalyzerOpen(true);
+                  }}
+                  onOpenAnalyzer={(_municipality, _province) => {
+                    setIsFeedAnalyzerOpen(true);
+                  }}
+                />
               </Suspense>
             </TabsContent>
           </Tabs>

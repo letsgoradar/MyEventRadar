@@ -251,29 +251,30 @@ export function BottomSheet({
                       </button>
                     )}
 
-                    {/* Hart knop rechts-onder: opslaan */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        favoriteMutation.mutate({ eventId: event.id, isFav: favd });
-                      }}
-                      className="absolute bottom-1.5 right-1.5 z-10 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors"
-                      title={favd ? 'Verwijder uit opgeslagen' : 'Opslaan'}
-                    >
-                      <Heart className={`h-3 w-3 ${favd ? 'fill-red-500 stroke-red-500' : 'fill-transparent stroke-white'}`} />
-                    </button>
                   </div>
                   
                   <div className="p-2">
-                    <h3 className="font-medium text-sm line-clamp-2 leading-tight mb-1">
+                    <h3 className="font-medium text-sm line-clamp-2 leading-tight mb-1 pr-5">
                       {event.title}
                     </h3>
-                    {event.address && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{extractCity(event.address)}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-between gap-1">
+                      {event.address ? (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{extractCity(event.address)}</span>
+                        </div>
+                      ) : <div />}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          favoriteMutation.mutate({ eventId: event.id, isFav: favd });
+                        }}
+                        className="flex-shrink-0 p-0.5 rounded transition-colors hover:scale-110"
+                        title={favd ? 'Verwijder uit opgeslagen' : 'Opslaan'}
+                      >
+                        <Heart className={`h-4 w-4 ${favd ? 'fill-red-500 stroke-red-500' : 'stroke-gray-400 fill-transparent'}`} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

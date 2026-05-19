@@ -15,7 +15,11 @@ import {
   isBefore,
   isAfter,
   isWithinInterval,
-  differenceInDays
+  differenceInDays,
+  nextSaturday,
+  nextSunday,
+  endOfWeek,
+  startOfWeek,
 } from "date-fns";
 import { nl } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -95,14 +99,36 @@ export function DateRangeFilter({
       onRangeChange(day, null);
       setSelectingEnd(true);
     } else {
-      if (isBefore(day, startDate)) {
+      // Klik op dezelfde dag = bevestig 1 dag
+      if (isSameDay(day, startDate)) {
+        onRangeChange(startDate, startDate);
+        setSelectingEnd(false);
+      } else if (isBefore(day, startDate)) {
         onRangeChange(day, startDate);
+        setSelectingEnd(false);
       } else {
         onRangeChange(startDate, day);
+        setSelectingEnd(false);
       }
-      setSelectingEnd(false);
     }
   };
+
+  const setPreset = (start: Date, end: Date) => {
+    onRangeChange(start, end);
+    setSelectingEnd(false);
+    setCurrentMonth(start);
+  };
+
+  const presets = [
+    { label: 'Vandaag', start: today, end: today },
+    { label: 'Morgen', start: addDays(today, 1), end: addDays(today, 1) },
+    {
+      label: 'Weekend',
+      start: (() => { const d = getDay(today); return d === 6 ? today : d === 0 ? addDays(today, 6) : nextSaturday(today); })(),
+      end: (() => { const d = getDay(today); return d === 0 ? today : d === 6 ? addDays(today, 1) : nextSunday(today); })(),
+    },
+    { label: 'Deze week', start: startOfWeek(today, { weekStartsOn: 1 }), end: endOfWeek(today, { weekStartsOn: 1 }) },
+  ];
 
   const isInRange = (day: Date) => {
     if (!startDate) return false;
@@ -152,10 +178,31 @@ export function DateRangeFilter({
 
   const weekDays = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
 
+  const isPresetActive = (start: Date, end: Date) =>
+    startDate && endDate && isSameDay(startDate, start) && isSameDay(endDate, end);
+
   return (
     <div className="space-y-3">
+      {/* Snelknoppen */}
+      <div className="flex flex-wrap gap-1.5">
+        {presets.map((preset) => (
+          <button
+            key={preset.label}
+            onClick={() => setPreset(preset.start, preset.end)}
+            className={cn(
+              "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+              isPresetActive(preset.start, preset.end)
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-foreground border-border hover:border-primary hover:text-primary"
+            )}
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-sm">Periode selecteren</h3>
+        <h3 className="font-medium text-sm">Of kies een periode</h3>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -251,15 +298,20 @@ export function DateRangeFilter({
       <div className="flex items-center justify-between text-xs pt-2 border-t">
         <div className="text-muted-foreground">
           {!startDate && !endDate && (
-            <span>Klik op een startdatum</span>
+            <span>Klik op een datum of gebruik de snelknoppen</span>
           )}
           {startDate && !endDate && selectingEnd && (
-            <span>Klik op een einddatum</span>
+            <span>Klik opnieuw voor 1 dag, of kies een einddatum</span>
           )}
-          {startDate && endDate && (
+          {startDate && endDate && isSameDay(startDate, endDate) && (
+            <span className="text-primary font-medium">
+              {format(startDate, 'd MMMM yyyy', { locale: nl })} (1 dag)
+            </span>
+          )}
+          {startDate && endDate && !isSameDay(startDate, endDate) && (
             <span>
-              {format(startDate, 'd MMM', { locale: nl })} - {format(endDate, 'd MMM', { locale: nl })}
-              {' '}({getRangeDays()} {getRangeDays() === 1 ? 'dag' : 'dagen'})
+              {format(startDate, 'd MMM', { locale: nl })} – {format(endDate, 'd MMM', { locale: nl })}
+              {' '}({getRangeDays()} dagen)
             </span>
           )}
           {startDate && !endDate && !selectingEnd && (

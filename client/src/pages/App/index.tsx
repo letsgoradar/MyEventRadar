@@ -257,6 +257,7 @@ export function AppHomePage() {
         onBoundsFilteredEventsChange={setVisibleEvents}
         onMapBoundsChange={handleMapBoundsChange}
         selectedEventId={selectedEvent?.id ?? null}
+        onRequireAuth={() => setShowAuthModal(true)}
       >
         {isFirstLoad && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[200]">

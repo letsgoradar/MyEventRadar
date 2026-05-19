@@ -121,6 +121,7 @@ interface AppLayoutProps {
   onStartDateChange?: (date: Date | null) => void;
   onEndDateChange?: (date: Date | null) => void;
   selectedEventId?: number | null;
+  onRequireAuth?: () => void;
 }
 
 export function AppLayout({
@@ -150,8 +151,12 @@ export function AppLayout({
   onStartDateChange,
   onEndDateChange,
   selectedEventId,
+  onRequireAuth,
 }: AppLayoutProps) {
   const { isHidden, hideEvent, unhideEvent } = useHiddenEvents();
+  const { user, logoutMutation } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [showHiddenInSheet, setShowHiddenInSheet] = React.useState(false);
 
   const handleHideToggle = React.useCallback((eventId: number) => {
@@ -161,6 +166,23 @@ export function AppLayout({
       hideEvent(eventId);
     }
   }, [isHidden, hideEvent, unhideEvent]);
+
+  const handleMapHideEvent = React.useCallback((eventId: number) => {
+    if (!user) { onRequireAuth?.(); return; }
+    handleHideToggle(eventId);
+  }, [user, onRequireAuth, handleHideToggle]);
+
+  const handleMapFavoriteToggle = React.useCallback((eventId: number) => {
+    if (!user) { onRequireAuth?.(); return; }
+    fetch(`/api/favorites`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId }),
+      credentials: 'include',
+    }).catch(() => {
+      fetch(`/api/favorites/${eventId}`, { method: 'DELETE', credentials: 'include' });
+    });
+  }, [user, onRequireAuth]);
 
   // Date range state - default vandaag + 99 dagen = 100 dagen totaal
   const today = startOfDay(new Date());
@@ -376,10 +398,7 @@ export function AppLayout({
     role: string;
   }
   
-  // Gebruik de useAuth hook voor authenticatie en logout functionaliteit
-  const { user, logoutMutation } = useAuth();
-  const { toast } = useToast();
-  const [, setLocation] = useLocation();
+  // useAuth, useToast and useLocation are declared at the top of the component
 
   // Apply saved preferences to filters once when user data loads
   React.useEffect(() => {
@@ -747,6 +766,8 @@ export function AppLayout({
               onBoundsChange={handleMapBoundsChange}
               startDate={startDate}
               endDate={endDate}
+              onHideEvent={handleMapHideEvent}
+              onFavoriteToggle={handleMapFavoriteToggle}
             />
             
           </div>

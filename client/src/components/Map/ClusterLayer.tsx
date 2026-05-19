@@ -27,6 +27,32 @@ interface ClusterLayerProps {
   userLocation: [number, number];
   isInteracting?: boolean;
   isWebView?: boolean;
+  onHideEvent?: (eventId: number) => void;
+  onFavoriteToggle?: (eventId: number) => void;
+}
+
+function formatPopupDate(startTime: string | Date): string {
+  const d = new Date(startTime);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (start.getTime() === todayStart.getTime()) return 'Vandaag';
+  if (start.getTime() === tomorrowStart.getTime()) return 'Morgen';
+  return d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function formatPopupTime(startTime: string | Date, endTime?: string | Date | null): string | null {
+  const d = new Date(startTime);
+  const h = d.getHours(), m = d.getMinutes();
+  if (h === 0 && m === 0) return null;
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const startStr = `${pad(h)}:${pad(m)}`;
+  if (endTime) {
+    const e = new Date(endTime);
+    if (e > d) return `${startStr} – ${pad(e.getHours())}:${pad(e.getMinutes())}`;
+  }
+  return startStr;
 }
 
 const CLUSTER_THRESHOLD = 200;
@@ -211,7 +237,9 @@ export function ClusterLayer({
   selectedEventId, 
   userLocation,
   isInteracting = false,
-  isWebView = false
+  isWebView = false,
+  onHideEvent,
+  onFavoriteToggle,
 }: ClusterLayerProps) {
   const map = useMap();
   const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -329,11 +357,52 @@ export function ClusterLayer({
           category.style.cssText = 'margin: 4px 0 0; font-size: 11px; color: #888;';
           category.textContent = event.category;
           info.appendChild(category);
-          
+
+          const dateEl = document.createElement('p');
+          dateEl.style.cssText = 'margin: 5px 0 0; font-size: 12px; color: #444; font-weight: 500;';
+          dateEl.textContent = '📅 ' + formatPopupDate(event.event.startTime);
+          info.appendChild(dateEl);
+
+          const timeStr = formatPopupTime(event.event.startTime, event.event.endTime);
+          if (timeStr) {
+            const timeEl = document.createElement('p');
+            timeEl.style.cssText = 'margin: 2px 0 0; font-size: 11px; color: #666;';
+            timeEl.textContent = '🕐 ' + timeStr;
+            info.appendChild(timeEl);
+          }
+
+          const actionsRow = document.createElement('div');
+          actionsRow.style.cssText = 'display: flex; gap: 6px; margin-top: 8px;';
+
+          const heartBtn = document.createElement('button');
+          heartBtn.title = 'Opslaan als favoriet';
+          heartBtn.style.cssText = 'flex: 1; padding: 5px 8px; background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: #555;';
+          heartBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg> Opslaan';
+          L.DomEvent.on(heartBtn, 'click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            L.DomEvent.preventDefault(e);
+            onFavoriteToggle?.(event.id);
+          });
+          actionsRow.appendChild(heartBtn);
+
+          const hideBtn = document.createElement('button');
+          hideBtn.title = 'Evenement verbergen';
+          hideBtn.style.cssText = 'flex: 1; padding: 5px 8px; background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: #555;';
+          hideBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Verbergen';
+          L.DomEvent.on(hideBtn, 'click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            L.DomEvent.preventDefault(e);
+            marker.closePopup();
+            onHideEvent?.(event.id);
+          });
+          actionsRow.appendChild(hideBtn);
+
+          info.appendChild(actionsRow);
+
           if (!isWebView) {
             const btn = document.createElement('button');
             btn.className = 'cluster-popup-details-btn';
-            btn.style.cssText = 'width: 100%; margin-top: 8px; padding: 6px 12px; background-color: hsl(var(--primary)); color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;';
+            btn.style.cssText = 'width: 100%; margin-top: 6px; padding: 6px 12px; background-color: hsl(var(--primary)); color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;';
             btn.textContent = 'Bekijk details';
             L.DomEvent.on(btn, 'click', (e) => {
               L.DomEvent.stopPropagation(e);

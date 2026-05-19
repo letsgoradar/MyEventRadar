@@ -696,6 +696,8 @@ interface MapViewProps {
   startDate?: Date | null;
   endDate?: Date | null;
   isWebView?: boolean;
+  onHideEvent?: (eventId: number) => void;
+  onFavoriteToggle?: (eventId: number) => void;
 }
 
 export default function MapView({ 
@@ -713,7 +715,9 @@ export default function MapView({
   hoveredEventId: propHoveredEventId,
   startDate: propStartDate,
   endDate: propEndDate,
-  isWebView: propIsWebView
+  isWebView: propIsWebView,
+  onHideEvent,
+  onFavoriteToggle,
 }: MapViewProps) {
   // Gebruik opgeslagen locatie als startpunt (voorkomt hardcoded Oss-centrum)
   const { location: savedLocation } = useSavedLocation();
@@ -1097,6 +1101,8 @@ export default function MapView({
             selectedEventId={selectedEvent?.id}
             userLocation={userLocation}
             isWebView={isWebView}
+            onHideEvent={onHideEvent}
+            onFavoriteToggle={onFavoriteToggle}
           />
         ) : (
           /* Markers voor events met radar-gesynchroniseerde animatie */

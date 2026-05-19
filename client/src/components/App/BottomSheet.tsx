@@ -32,6 +32,7 @@ interface BottomSheetProps {
   onHideToggle?: (eventId: number) => void;
   showHidden?: boolean;
   onShowHiddenChange?: (show: boolean) => void;
+  onRequireAuth?: () => void;
 }
 
 const COLLAPSED_HEIGHT = 50;
@@ -48,6 +49,7 @@ export function BottomSheet({
   onHideToggle,
   showHidden = false,
   onShowHiddenChange,
+  onRequireAuth,
 }: BottomSheetProps) {
   const [isExpanded, setIsExpanded] = React.useState(isOpen);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -241,15 +243,17 @@ export function BottomSheet({
                     </div>
 
                     {/* X knop rechts-boven: verberg */}
-                    {onHideToggle && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
-                        className="absolute top-1.5 right-1.5 z-10 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors"
-                        title={isHidden?.(event.id) ? 'Evenement tonen' : 'Evenement verbergen'}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!user) { onRequireAuth?.(); return; }
+                        onHideToggle?.(event.id);
+                      }}
+                      className="absolute top-1.5 right-1.5 z-10 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors"
+                      title={isHidden?.(event.id) ? 'Evenement tonen' : 'Evenement verbergen'}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
 
                   </div>
                   
@@ -267,6 +271,7 @@ export function BottomSheet({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (!user) { onRequireAuth?.(); return; }
                           favoriteMutation.mutate({ eventId: event.id, isFav: favd });
                         }}
                         className="flex-shrink-0 p-0.5 rounded transition-colors hover:scale-110"

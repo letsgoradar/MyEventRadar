@@ -813,6 +813,7 @@ export function AppLayout({
           onHideToggle={handleHideToggle}
           showHidden={showHiddenInSheet}
           onShowHiddenChange={setShowHiddenInSheet}
+          onRequireAuth={onRequireAuth}
         />
       )}
       

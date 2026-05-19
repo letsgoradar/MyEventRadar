@@ -10,6 +10,7 @@ import { CategoryIcon, getCategoryColor, CATEGORY_PATHS } from "../CategoryIcon"
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, Clock, Euro, Navigation, Heart } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import "leaflet/dist/leaflet.css";
 import "./map-styles.css";
 import { useOutsideClick } from "@/hooks/use-outside-click";
@@ -105,6 +106,7 @@ const UserLocationMarker = React.memo(function UserLocationMarker({
   const markerRef = React.useRef<L.Marker>(null);
   const map = useMap();
   const cityName = useCityName();
+  const { user } = useAuth();
 
   const handleClick = () => {
     map.flyTo(position, 14, { animate: true, duration: 1 });
@@ -117,6 +119,18 @@ const UserLocationMarker = React.memo(function UserLocationMarker({
     clearSavedLocation();
   };
 
+  const handleCenterMap = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    map.flyTo(position, 14, { animate: true, duration: 1 });
+  };
+
+  // Avatar helpers
+  const photoUrl = user?.photoUrl || user?.avatar || null;
+  const displayName = user?.displayName || user?.username || null;
+  const initials = displayName
+    ? displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
   return (
     <Marker 
       ref={markerRef}
@@ -124,44 +138,174 @@ const UserLocationMarker = React.memo(function UserLocationMarker({
       icon={stableUserLocationIcon}
       eventHandlers={{ click: handleClick }}
     >
-      <Popup className="user-location-popup" closeButton={true} minWidth={220}>
-        <div className="p-2 min-w-[200px]">
-          {/* Header */}
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse flex-shrink-0"></div>
-            <p className="font-semibold text-sm text-primary">
-              {cityName || 'Jouw locatie'}
-            </p>
+      <Popup className="user-location-popup" closeButton={true} minWidth={260} maxWidth={300}>
+        <div style={{ fontFamily: 'inherit', minWidth: 240, padding: 0 }}>
+
+          {/* Profile header */}
+          <div style={{
+            background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+            borderRadius: '10px 10px 0 0',
+            padding: '16px 16px 12px',
+            color: 'white',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {/* Avatar */}
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                border: '2px solid rgba(255,255,255,0.6)',
+                overflow: 'hidden',
+                background: photoUrl ? 'transparent' : 'rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                {photoUrl ? (
+                  <img src={photoUrl} alt="Profiel" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : user ? (
+                  <span style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>{initials}</span>
+                ) : (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                )}
+              </div>
+
+              {/* Name + location */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {user ? (
+                  <>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: 'white', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {displayName}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
+                      @{user.username}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontWeight: 700, fontSize: 15, color: 'white' }}>
+                    Mijn locatie
+                  </div>
+                )}
+                {/* City row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#86efac', boxShadow: '0 0 0 2px rgba(134,239,172,0.3)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
+                    {cityName || 'Jouw locatie'}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Events nearby */}
-          {nearbyEventCount !== undefined && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>
-                {nearbyEventCount === 0
-                  ? 'Geen evenementen zichtbaar'
-                  : `${nearbyEventCount} evenement${nearbyEventCount === 1 ? '' : 'en'} zichtbaar op de kaart`}
-              </span>
+          {/* Stats row */}
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid #f1f5f9', background: '#fafafa' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                background: nearbyEventCount && nearbyEventCount > 0 ? '#ecfdf5' : '#f8fafc',
+                border: `1px solid ${nearbyEventCount && nearbyEventCount > 0 ? '#bbf7d0' : '#e2e8f0'}`,
+                borderRadius: 20,
+                padding: '4px 10px',
+                fontSize: 12,
+                color: nearbyEventCount && nearbyEventCount > 0 ? '#059669' : '#64748b',
+                fontWeight: 500,
+              }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                {nearbyEventCount === undefined
+                  ? 'Evenementen laden…'
+                  : nearbyEventCount === 0
+                    ? 'Geen evenementen zichtbaar'
+                    : `${nearbyEventCount} evenement${nearbyEventCount === 1 ? '' : 'en'} in beeld`}
+              </div>
             </div>
-          )}
+          </div>
 
-          {/* Actions */}
-          <div className="flex flex-col gap-1.5">
+          {/* Action buttons */}
+          <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button
-              onClick={() => { map.flyTo(position, 14, { animate: true, duration: 1 }); }}
-              className="flex items-center gap-2 text-xs text-primary hover:underline"
+              onClick={handleCenterMap}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                background: '#0d9488', color: 'white',
+                border: 'none', borderRadius: 8,
+                padding: '9px 14px', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', width: '100%',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#0f766e')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#0d9488')}
             >
-              <Navigation className="h-3.5 w-3.5" />
-              Centreer kaart op mijn locatie
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+              </svg>
+              Centreer kaart hier
             </button>
-            <button
-              onClick={handleChangeLocation}
-              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground hover:underline"
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              Andere locatie kiezen
-            </button>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={handleChangeLocation}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  background: 'white', color: '#475569',
+                  border: '1px solid #e2e8f0', borderRadius: 8,
+                  padding: '8px 10px', fontSize: 12, fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'border-color 0.15s, color 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#0d9488'; e.currentTarget.style.color = '#0d9488'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569'; }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                </svg>
+                Andere locatie
+              </button>
+
+              {user ? (
+                <a
+                  href="/app/profile"
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    background: 'white', color: '#475569',
+                    border: '1px solid #e2e8f0', borderRadius: 8,
+                    padding: '8px 10px', fontSize: 12, fontWeight: 500,
+                    textDecoration: 'none',
+                    transition: 'border-color 0.15s, color 0.15s',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = '#0d9488'; (e.currentTarget as HTMLAnchorElement).style.color = '#0d9488'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = '#e2e8f0'; (e.currentTarget as HTMLAnchorElement).style.color = '#475569'; }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  Mijn profiel
+                </a>
+              ) : (
+                <a
+                  href="/app/login"
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    background: 'white', color: '#475569',
+                    border: '1px solid #e2e8f0', borderRadius: 8,
+                    padding: '8px 10px', fontSize: 12, fontWeight: 500,
+                    textDecoration: 'none',
+                    transition: 'border-color 0.15s, color 0.15s',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = '#0d9488'; (e.currentTarget as HTMLAnchorElement).style.color = '#0d9488'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = '#e2e8f0'; (e.currentTarget as HTMLAnchorElement).style.color = '#475569'; }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+                  </svg>
+                  Inloggen
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </Popup>

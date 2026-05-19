@@ -280,6 +280,7 @@ export function AppHomePage() {
           filteredEvents={filteredEvents}
           gridView={true}
           onEventClick={handleEventClick}
+          onRequireAuth={() => setShowAuthModal(true)}
         />
       </AppLayout>
       

@@ -32,12 +32,13 @@ interface EventListProps {
   hoveredEventId?: number | null;
   isHidden?: (eventId: number) => boolean;
   onHideToggle?: (eventId: number) => void;
+  onRequireAuth?: () => void;
 }
 
 const INITIAL_DISPLAY_COUNT = 24;
 const LOAD_MORE_COUNT = 24;
 
-export function EventList({ filteredEvents, gridView = false, onEventClick, onEventHover, hoveredEventId, isHidden, onHideToggle }: EventListProps) {
+export function EventList({ filteredEvents, gridView = false, onEventClick, onEventHover, hoveredEventId, isHidden, onHideToggle, onRequireAuth }: EventListProps) {
   const isMobile = useIsMobile();
   const [displayCount, setDisplayCount] = React.useState(INITIAL_DISPLAY_COUNT);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
@@ -101,6 +102,7 @@ export function EventList({ filteredEvents, gridView = false, onEventClick, onEv
                 isHighlighted={hoveredEventId === event.id}
                 isHidden={isHidden?.(event.id)}
                 onHideToggle={onHideToggle}
+                onRequireAuth={onRequireAuth}
               />
             </div>
           ))}
@@ -133,6 +135,7 @@ export function EventList({ filteredEvents, gridView = false, onEventClick, onEv
               isHighlighted={hoveredEventId === event.id}
               isHidden={isHidden?.(event.id)}
               onHideToggle={onHideToggle}
+              onRequireAuth={onRequireAuth}
             />
           </div>
         ))}

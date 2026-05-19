@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
+import { useHiddenEvents } from '@/hooks/useHiddenEvents';
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -94,14 +95,18 @@ interface EventCardProps {
   isPromoted?: boolean;
   isHidden?: boolean;
   onHideToggle?: (eventId: number) => void;
+  onRequireAuth?: () => void;
 }
 
-export default function EventCard({ event, distance, gridView = false, onEventClick, isHighlighted = false, isPromoted = false, isHidden = false, onHideToggle }: EventCardProps) {
+export default function EventCard({ event, distance, gridView = false, onEventClick, isHighlighted = false, isPromoted = false, isHidden: isHiddenProp = false, onHideToggle, onRequireAuth }: EventCardProps) {
   const [imageError, setImageError] = useState(() => isImageFailed(event.imageUrl));
   const { location } = useLocation();
   const [calculatedDistance, setCalculatedDistance] = useState<number | undefined>(distance);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { hideEvent, unhideEvent, isHidden: isHiddenHook } = useHiddenEvents();
+
+  const isHidden = onHideToggle ? isHiddenProp : isHiddenHook(event.id);
 
   const now = new Date();
   const startTime = new Date(event.startTime);
@@ -161,14 +166,41 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
     },
   });
 
+  const handleAuthRequired = () => {
+    if (onRequireAuth) {
+      onRequireAuth();
+    } else {
+      toast({
+        title: 'Inloggen vereist',
+        description: 'Maak een gratis account aan met Google om evenementen op te slaan en te verbergen.',
+      });
+    }
+  };
+
   const handleHeartClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     if (!user) {
-      toast({ title: 'Log in om evenementen op te slaan', description: 'Maak een account aan of log in.' });
+      handleAuthRequired();
       return;
     }
     toggleFavoriteMutation.mutate();
+  };
+
+  const handleHideClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!user) {
+      handleAuthRequired();
+      return;
+    }
+    if (onHideToggle) {
+      onHideToggle(event.id);
+    } else if (isHiddenHook(event.id)) {
+      unhideEvent(event.id);
+    } else {
+      hideEvent(event.id);
+    }
   };
 
   const showEventOnMap = (e: React.MouseEvent) => {
@@ -196,15 +228,15 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
   };
 
   // X button top-right: verberg event
-  const HideButton = () => onHideToggle ? (
+  const HideButton = () => (
     <button
-      onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
+      onClick={handleHideClick}
       className="absolute top-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
       title={isHidden ? 'Evenement tonen' : 'Evenement verbergen'}
     >
       <X className="h-4 w-4" />
     </button>
-  ) : null;
+  );
 
   // Hart knop rechtsonder in de afbeelding
   const HeartButton = () => (

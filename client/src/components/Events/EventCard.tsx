@@ -195,26 +195,26 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
     else showEventOnMap(e);
   };
 
-  // Overlay buttons: hide (X) on top, heart below — stacked vertically top-right
-  const OverlayButtons = () => (
-    <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
-      {onHideToggle && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
-          className="bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
-          title={isHidden ? 'Evenement tonen' : 'Evenement verbergen'}
-        >
-          <X className="h-4 w-4" />
-        </button>
-      )}
-      <button
-        onClick={handleHeartClick}
-        className="bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
-        title={isFavorited ? 'Verwijder uit opgeslagen' : 'Opslaan'}
-      >
-        <Heart className={`h-4 w-4 ${isFavorited ? 'fill-red-500 stroke-red-500' : 'fill-transparent stroke-white'}`} />
-      </button>
-    </div>
+  // X button top-right: verberg event
+  const HideButton = () => onHideToggle ? (
+    <button
+      onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
+      className="absolute top-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
+      title={isHidden ? 'Evenement tonen' : 'Evenement verbergen'}
+    >
+      <X className="h-4 w-4" />
+    </button>
+  ) : null;
+
+  // Hart knop rechtsonder in de afbeelding
+  const HeartButton = () => (
+    <button
+      onClick={(e) => { e.stopPropagation(); handleHeartClick(e); }}
+      className="absolute bottom-2 right-2 z-10 bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
+      title={isFavorited ? 'Verwijder uit opgeslagen' : 'Opslaan'}
+    >
+      <Heart className={`h-4 w-4 ${isFavorited ? 'fill-red-500 stroke-red-500' : 'fill-transparent stroke-white'}`} />
+    </button>
   );
 
   // Date badge for image overlay (bottom-left)
@@ -243,7 +243,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
               </div>
             )}
 
-            <OverlayButtons />
+            <HideButton />
 
             {showPlaceholder ? (
               <img src={placeholderImage} alt={event.title} className="h-full w-full object-cover bg-gray-100" />
@@ -264,6 +264,8 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 {dateBadgeText}
               </span>
             </div>
+
+            <HeartButton />
           </div>
 
           <CardHeader className="p-4 pb-2 flex-1">
@@ -345,7 +347,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 </div>
               )}
 
-              <OverlayButtons />
+              <HideButton />
 
               {appShowPlaceholder ? (
                 <img src={placeholderImage} alt={event.title} className="h-full w-full object-cover" />
@@ -358,6 +360,8 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                   loading="lazy"
                 />
               )}
+
+              <HeartButton />
             </div>
 
             <div className="p-4">
@@ -407,7 +411,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
               </div>
             )}
 
-            <OverlayButtons />
+            <HideButton />
 
             {listShowPlaceholder ? (
               <img src={placeholderImage} alt={event.title} className="h-full w-full object-cover bg-gray-100" />
@@ -428,6 +432,8 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 {dateBadgeText}
               </span>
             </div>
+
+            <HeartButton />
           </div>
 
           <div className="md:w-2/3 flex flex-col">

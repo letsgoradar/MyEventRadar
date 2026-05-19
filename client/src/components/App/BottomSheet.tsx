@@ -3,8 +3,11 @@ import { motion, PanInfo } from "framer-motion";
 import { EventInterface as Event } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { MapPin, Loader2, Eye, EyeOff } from "lucide-react";
+import { MapPin, Loader2, Eye, EyeOff, X, Heart } from "lucide-react";
 import { formatDutchShortDate } from "@/utils/date-utils";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 
 function extractCity(address: string | null | undefined): string | null {
   if (!address) return null;
@@ -51,10 +54,33 @@ export function BottomSheet({
   const sentinelRef = React.useRef<HTMLDivElement>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [displayCount, setDisplayCount] = React.useState(PAGE_SIZE);
-  
+  const { user } = useAuth();
+
   const expandedHeight = typeof window !== 'undefined' 
     ? window.innerHeight * EXPANDED_HEIGHT_RATIO 
     : 400;
+
+  const { data: favorites = [] } = useQuery<any[]>({
+    queryKey: ['/api/events/favorites'],
+    enabled: !!user,
+  });
+
+  const favoriteMutation = useMutation({
+    mutationFn: async ({ eventId, isFav }: { eventId: number; isFav: boolean }) => {
+      if (isFav) {
+        await apiRequest(`/api/events/${eventId}/unfavorite`, { method: 'DELETE' });
+      } else {
+        await apiRequest(`/api/events/${eventId}/favorite`, { method: 'POST' });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/events/favorites'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/favorites/${user?.id}`] });
+    },
+  });
+
+  const isFavorited = (eventId: number) =>
+    Array.isArray(favorites) && favorites.some((f: any) => f.id === eventId);
 
   React.useEffect(() => {
     setIsExpanded(isOpen);
@@ -185,53 +211,73 @@ export function BottomSheet({
           )}
         >
           <div className="grid grid-cols-2 gap-3 pb-4">
-            {visibleEvents.map((event) => (
-              <div
-                key={event.id}
-                onClick={() => onEventClick?.(event)}
-                className="bg-card rounded-xl overflow-hidden shadow-sm border cursor-pointer hover:shadow-md transition-shadow"
-              >
-                <div className="relative h-24 bg-muted">
-                  {event.imageUrl ? (
-                    <img 
-                      src={event.imageUrl} 
-                      alt={event.title}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/40">
-                      <CategoryIcon category={event.category as any} size={32} className="text-primary" />
+            {visibleEvents.map((event) => {
+              const favd = isFavorited(event.id);
+              return (
+                <div
+                  key={event.id}
+                  onClick={() => onEventClick?.(event)}
+                  className="bg-card rounded-xl overflow-hidden shadow-sm border cursor-pointer hover:shadow-md transition-shadow"
+                >
+                  <div className="relative h-24 bg-muted">
+                    {event.imageUrl ? (
+                      <img 
+                        src={event.imageUrl} 
+                        alt={event.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/40">
+                        <CategoryIcon category={event.category as any} size={32} className="text-primary" />
+                      </div>
+                    )}
+
+                    {/* Datum badge links-boven */}
+                    <div className="absolute top-1.5 left-1.5">
+                      <div className="bg-[#1A2B3C]/80 backdrop-blur-sm rounded-full px-2 py-0.5 text-xs font-medium text-white">
+                        {formatEventTime(event)}
+                      </div>
                     </div>
-                  )}
-                  <div className="absolute top-2 left-2">
-                    <div className="bg-white/90 backdrop-blur-sm rounded-full px-2 py-0.5 text-xs font-medium">
-                      {formatEventTime(event)}
-                    </div>
-                  </div>
-                  {onHideToggle && (
+
+                    {/* X knop rechts-boven: verberg */}
+                    {onHideToggle && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
+                        className="absolute top-1.5 right-1.5 z-10 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors"
+                        title={isHidden?.(event.id) ? 'Evenement tonen' : 'Evenement verbergen'}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+
+                    {/* Hart knop rechts-onder: opslaan */}
                     <button
-                      onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
-                      className="absolute top-1 right-1 z-10 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        favoriteMutation.mutate({ eventId: event.id, isFav: favd });
+                      }}
+                      className="absolute bottom-1.5 right-1.5 z-10 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full transition-colors"
+                      title={favd ? 'Verwijder uit opgeslagen' : 'Opslaan'}
                     >
-                      {isHidden?.(event.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      <Heart className={`h-3 w-3 ${favd ? 'fill-red-500 stroke-red-500' : 'fill-transparent stroke-white'}`} />
                     </button>
-                  )}
+                  </div>
+                  
+                  <div className="p-2">
+                    <h3 className="font-medium text-sm line-clamp-2 leading-tight mb-1">
+                      {event.title}
+                    </h3>
+                    {event.address && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{extractCity(event.address)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                
-                <div className="p-2">
-                  <h3 className="font-medium text-sm line-clamp-2 leading-tight mb-1">
-                    {event.title}
-                  </h3>
-                  {event.address && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{extractCity(event.address)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           {hasMore && (
             <div ref={sentinelRef} className="flex justify-center py-4">

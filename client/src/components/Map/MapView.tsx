@@ -9,14 +9,15 @@ import { nl } from "date-fns/locale";
 import { CategoryIcon, getCategoryColor, CATEGORY_PATHS } from "../CategoryIcon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Clock, Euro } from "lucide-react";
+import { Calendar, MapPin, Clock, Euro, Navigation, Heart } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import "./map-styles.css";
 import { useOutsideClick } from "@/hooks/use-outside-click";
 import { getLocationName } from "@/utils/location-utils";
 import { ClusterLayer, shouldUseCluster } from "./ClusterLayer";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
-import { useLocation as useSavedLocation } from "@/hooks/useLocation";
+import { useLocation as useSavedLocation, clearSavedLocation, useCityName } from "@/hooks/useLocation";
+import { formatSmartEventDate, formatEventTimeRange } from "@/utils/date-utils";
 
 // Fix voor Leaflet iconen in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -94,68 +95,26 @@ const stableUserLocationIcon = L.divIcon({
 // Component voor de gebruikerslocatie marker met animaties en adres
 const UserLocationMarker = React.memo(function UserLocationMarker({ 
   position, 
-  onCenterMap
+  onCenterMap,
+  nearbyEventCount,
 }: { 
   position: [number, number]; 
   onCenterMap: () => void;
+  nearbyEventCount?: number;
 }) {
-  const [address, setAddress] = React.useState<string>("Adres laden...");
-  const [isLoadingAddress, setIsLoadingAddress] = React.useState(true);
   const markerRef = React.useRef<L.Marker>(null);
   const map = useMap();
-  // Radar animatie is nu pure CSS - geen JavaScript hoek tracking meer nodig
-
-  // Haal het adres op via reverse geocoding
-  React.useEffect(() => {
-    const fetchAddress = async () => {
-      try {
-        setIsLoadingAddress(true);
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position[0]}&lon=${position[1]}&zoom=18&addressdetails=1`,
-          {
-            headers: {
-              'Accept-Language': 'nl'
-            }
-          }
-        );
-        const data = await response.json();
-        
-        if (data.address) {
-          const parts = [];
-          if (data.address.road) parts.push(data.address.road);
-          if (data.address.house_number) parts[0] = `${parts[0]} ${data.address.house_number}`;
-          if (data.address.suburb) parts.push(data.address.suburb);
-          if (data.address.city || data.address.town || data.address.village) {
-            parts.push(data.address.city || data.address.town || data.address.village);
-          }
-          setAddress(parts.join(', ') || data.display_name?.split(',').slice(0, 2).join(',') || 'Onbekende locatie');
-        } else {
-          setAddress('Onbekende locatie');
-        }
-      } catch (error) {
-        console.error('Fout bij ophalen adres:', error);
-        setAddress('Adres niet beschikbaar');
-      } finally {
-        setIsLoadingAddress(false);
-      }
-    };
-
-    fetchAddress();
-  }, [position[0], position[1]]);
+  const cityName = useCityName();
 
   const handleClick = () => {
-    // Centreer de kaart op de gebruikerslocatie
-    map.flyTo(position, 15, {
-      animate: true,
-      duration: 1
-    });
-    
-    // Open de popup
-    if (markerRef.current) {
-      markerRef.current.openPopup();
-    }
-    
+    map.flyTo(position, 14, { animate: true, duration: 1 });
+    if (markerRef.current) markerRef.current.openPopup();
     onCenterMap();
+  };
+
+  const handleChangeLocation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    clearSavedLocation();
   };
 
   return (
@@ -163,23 +122,47 @@ const UserLocationMarker = React.memo(function UserLocationMarker({
       ref={markerRef}
       position={position}
       icon={stableUserLocationIcon}
-      eventHandlers={{
-        click: handleClick
-      }}
+      eventHandlers={{ click: handleClick }}
     >
-      <Popup className="user-location-popup" closeButton={true}>
-        <div className="p-1">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
-            <p className="font-semibold text-sm text-blue-600">Jouw locatie</p>
+      <Popup className="user-location-popup" closeButton={true} minWidth={220}>
+        <div className="p-2 min-w-[200px]">
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse flex-shrink-0"></div>
+            <p className="font-semibold text-sm text-primary">
+              {cityName || 'Jouw locatie'}
+            </p>
           </div>
-          <p className="text-xs text-gray-600 ml-5">
-            {isLoadingAddress ? (
-              <span className="text-gray-400">Adres laden...</span>
-            ) : (
-              address
-            )}
-          </p>
+
+          {/* Events nearby */}
+          {nearbyEventCount !== undefined && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>
+                {nearbyEventCount === 0
+                  ? 'Geen evenementen zichtbaar'
+                  : `${nearbyEventCount} evenement${nearbyEventCount === 1 ? '' : 'en'} zichtbaar op de kaart`}
+              </span>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex flex-col gap-1.5">
+            <button
+              onClick={() => { map.flyTo(position, 14, { animate: true, duration: 1 }); }}
+              className="flex items-center gap-2 text-xs text-primary hover:underline"
+            >
+              <Navigation className="h-3.5 w-3.5" />
+              Centreer kaart op mijn locatie
+            </button>
+            <button
+              onClick={handleChangeLocation}
+              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground hover:underline"
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              Andere locatie kiezen
+            </button>
+          </div>
         </div>
       </Popup>
     </Marker>
@@ -948,9 +931,8 @@ export default function MapView({
         {/* Marker voor gebruiker locatie met stabiele animatie - geen re-renders bij zoom */}
         <UserLocationMarker 
           position={userLocation}
-          onCenterMap={() => {
-            console.log('Kaart gecentreerd op gebruikerslocatie');
-          }}
+          onCenterMap={() => {}}
+          nearbyEventCount={eventsData.length}
         />
         
         {/* Hover highlight component - gebruikt directe Leaflet manipulatie zonder React state */}
@@ -1055,14 +1037,20 @@ export default function MapView({
                     <span>{event.category}</span>
                   </div>
                   <div className="flex items-center text-xs text-muted-foreground mt-1">
-                    <Calendar className="h-3 w-3 mr-1" />
-                    <span>
-                      {formatDistance(new Date(event.startTime), new Date(), {
-                        addSuffix: true,
-                        locale: nl,
-                      })}
+                    <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
+                    <span className="font-medium text-foreground">
+                      {formatSmartEventDate(event.event.startTime, event.event.endTime)}
                     </span>
                   </div>
+                  {(() => {
+                    const tr = formatEventTimeRange(event.event.startTime, event.event.endTime);
+                    return tr ? (
+                      <div className="flex items-center text-xs text-muted-foreground mt-0.5">
+                        <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
+                        <span>{tr}</span>
+                      </div>
+                    ) : null;
+                  })()}
                   {event.expired && (
                     <div className="mt-1 text-xs text-red-500 font-medium">
                       Dit evenement is verlopen

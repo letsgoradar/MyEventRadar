@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { EventInterface } from '@shared/schema';
-import { MapPin, Calendar, Euro, Eye, EyeOff, Heart } from 'lucide-react';
+import { MapPin, Calendar, Euro, X, Heart } from 'lucide-react';
 import { isImageFailed, markImageFailed } from '@/lib/imageCache';
 
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
@@ -195,9 +195,18 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
     else showEventOnMap(e);
   };
 
-  // Overlay buttons: heart + hide (used in all card variants)
+  // Overlay buttons: hide (X) on top, heart below — stacked vertically top-right
   const OverlayButtons = () => (
-    <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+    <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
+      {onHideToggle && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
+          className="bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
+          title={isHidden ? 'Evenement tonen' : 'Evenement verbergen'}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
       <button
         onClick={handleHeartClick}
         className="bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
@@ -205,15 +214,6 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
       >
         <Heart className={`h-4 w-4 ${isFavorited ? 'fill-red-500 stroke-red-500' : 'fill-transparent stroke-white'}`} />
       </button>
-      {onHideToggle && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onHideToggle(event.id); }}
-          className="bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
-          title={isHidden ? 'Evenement tonen' : 'Evenement verbergen'}
-        >
-          {isHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
-      )}
     </div>
   );
 

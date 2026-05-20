@@ -5411,14 +5411,23 @@ export class RssFeedService {
 
   /**
    * Scraper for welkominommen.nl — UIE/TouristServer CMS.
-   * Overview: /agenda-0/all/ paginated with ?p=N (max 14 pages).
+   * Overview: /agenda-0/{TODAY}-{TODAY+6M}/ paginated with ?p=N.
    * Event links: a.box[href*="/agenda-item/"].
    * Detail: <time class="start/end" datetime="...">, GPS from UIE_MAP.initPointerMap JS,
    * venue name from same JS, image from og:image, description from meta[name=description].
+   * Note: datetime may be truncated as "2026-05-20T" (no time) — pad with 00:00:00.
    */
   static async scrapeWelkominOmmen(): Promise<FeedParseResult> {
     const baseUrl = 'https://www.welkominommen.nl';
     const maxPages = 20;
+
+    // Build date-range URL: today → today + 6 months (DD-MM-YYYY format)
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = new Date();
+    const future = new Date(today);
+    future.setMonth(future.getMonth() + 6);
+    const fmt = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+    const dateRange = `${fmt(today)}-${fmt(future)}`;
 
     try {
       const eventLinks: string[] = [];
@@ -5426,8 +5435,8 @@ export class RssFeedService {
       // 1. Collect event links from overview pages
       for (let page = 1; page <= maxPages; page++) {
         const url = page === 1
-          ? `${baseUrl}/agenda-0/all/`
-          : `${baseUrl}/agenda-0/all/?p=${page}`;
+          ? `${baseUrl}/agenda-0/${dateRange}/`
+          : `${baseUrl}/agenda-0/${dateRange}/?p=${page}`;
 
         console.log(`[RSS] Ommen: fetching overview page ${page}...`);
 
@@ -5491,8 +5500,11 @@ export class RssFeedService {
               if (!title) return null;
 
               // Dates from <time> elements
-              const startAttr = $('time.start').attr('datetime') || '';
-              const endAttr = $('time.end').attr('datetime') || '';
+              // Note: datetime may be truncated as "2026-05-20T" — pad with 00:00:00
+              const rawStart = $('time.start').attr('datetime') || '';
+              const rawEnd = $('time.end').attr('datetime') || '';
+              const startAttr = rawStart.endsWith('T') ? rawStart + '00:00:00' : rawStart;
+              const endAttr = rawEnd.endsWith('T') ? rawEnd + '00:00:00' : rawEnd;
 
               let startTime: Date | undefined;
               let endTime: Date | undefined;
@@ -5658,8 +5670,11 @@ export class RssFeedService {
                 || '';
               if (!title) return null;
 
-              const startAttr = $('time.start').attr('datetime') || '';
-              const endAttr = $('time.end').attr('datetime') || '';
+              // Note: datetime may be truncated as "2026-05-20T" — pad with 00:00:00
+              const rawStart = $('time.start').attr('datetime') || '';
+              const rawEnd = $('time.end').attr('datetime') || '';
+              const startAttr = rawStart.endsWith('T') ? rawStart + '00:00:00' : rawStart;
+              const endAttr = rawEnd.endsWith('T') ? rawEnd + '00:00:00' : rawEnd;
 
               let startTime: Date | undefined;
               let endTime: Date | undefined;
@@ -5730,14 +5745,23 @@ export class RssFeedService {
 
   /**
    * Scraper for uitinalmelo.nl — UIE/TouristServer CMS (same as welkominommen.nl).
-   * Overview: /uitagenda/all/ paginated with ?p=N (max 20 pages, 15 events/page).
+   * Overview: /uitagenda/{TODAY}-{TODAY+6M}/ paginated with ?p=N.
    * Event links: a.box[href*="/agenda-item/"].
    * Detail: h1.t1, <time class="start/end" datetime="...">, GPS from UIE_MAP.initPointerMap JS,
    * venue name from same JS, image from og:image, description from meta[name=description].
+   * Note: datetime may be truncated as "2026-05-20T" (no time) — pad with 00:00:00.
    */
   static async scrapeUitInAlmelo(): Promise<FeedParseResult> {
     const baseUrl = 'https://www.uitinalmelo.nl';
     const maxPages = 20;
+
+    // Build date-range URL: today → today + 6 months (DD-MM-YYYY format)
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = new Date();
+    const future = new Date(today);
+    future.setMonth(future.getMonth() + 6);
+    const fmt = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+    const dateRange = `${fmt(today)}-${fmt(future)}`;
 
     try {
       const eventLinks: string[] = [];
@@ -5745,8 +5769,8 @@ export class RssFeedService {
       // 1. Collect event links from overview pages
       for (let page = 1; page <= maxPages; page++) {
         const url = page === 1
-          ? `${baseUrl}/uitagenda/all/`
-          : `${baseUrl}/uitagenda/all/?p=${page}`;
+          ? `${baseUrl}/uitagenda/${dateRange}/`
+          : `${baseUrl}/uitagenda/${dateRange}/?p=${page}`;
 
         console.log(`[RSS] Almelo: fetching overview page ${page}...`);
 
@@ -5810,8 +5834,11 @@ export class RssFeedService {
               if (!title) return null;
 
               // Dates from <time> elements
-              const startAttr = $('time.start').attr('datetime') || '';
-              const endAttr = $('time.end').attr('datetime') || '';
+              // Note: datetime may be truncated as "2026-05-20T" — pad with 00:00:00
+              const rawStart = $('time.start').attr('datetime') || '';
+              const rawEnd = $('time.end').attr('datetime') || '';
+              const startAttr = rawStart.endsWith('T') ? rawStart + '00:00:00' : rawStart;
+              const endAttr = rawEnd.endsWith('T') ? rawEnd + '00:00:00' : rawEnd;
 
               let startTime: Date | undefined;
               let endTime: Date | undefined;
@@ -5981,8 +6008,11 @@ export class RssFeedService {
               if (!title) return null;
 
               // Dates — first <time class="start"> is the earliest upcoming occurrence
-              const startAttr = $('time.start').first().attr('datetime') || '';
-              const endAttr = $('time.end').first().attr('datetime') || '';
+              // Note: datetime may be truncated as "2026-05-20T" — pad with 00:00:00
+              const rawStart = $('time.start').first().attr('datetime') || '';
+              const rawEnd = $('time.end').first().attr('datetime') || '';
+              const startAttr = rawStart.endsWith('T') ? rawStart + '00:00:00' : rawStart;
+              const endAttr = rawEnd.endsWith('T') ? rawEnd + '00:00:00' : rawEnd;
 
               let startTime: Date | undefined;
               let endTime: Date | undefined;

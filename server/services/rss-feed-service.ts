@@ -10677,6 +10677,8 @@ export class RssFeedService {
         result = await this.scrapeVisitLeiden();
       } else if (feed.feedType === "scraper" && feed.url.includes("groenehart.nl")) {
         result = await this.scrapeGroeneHart();
+      } else if (feed.feedType === "uitdatabank") {
+        result = await this.scrapeUiTdatabank(feed);
       } else if (feed.feedType === "scraper") {
         // Use intelligent universal scraper for unknown scraper feeds
         result = await this.scrapeUniversal(feed);
@@ -10814,6 +10816,147 @@ export class RssFeedService {
       });
       
       return { success: false, itemsProcessed: 0, eventsCreated: 0, eventsUpdated: 0, error: error.message };
+    }
+  }
+
+  /**
+   * Scraper for UiTdatabank Search API v3 (Publiq vzw).
+   * Requires UITDATABANK_API_KEY environment variable.
+   * Feed URL encodes the addressLocality filter, e.g.:
+   *   https://search.uitdatabank.be/offers/?addressLocality=Utrecht
+   */
+  static async scrapeUiTdatabank(feed: any): Promise<FeedParseResult> {
+    const API_KEY = process.env.UITDATABANK_API_KEY;
+    if (!API_KEY) {
+      console.warn(`[RSS] UiTdatabank (${feed.municipality}): UITDATABANK_API_KEY not set — skipping feed`);
+      return { success: false, items: [], error: 'UITDATABANK_API_KEY not configured' };
+    }
+
+    let addressLocality: string;
+    try {
+      const feedUrl = new URL(feed.url);
+      addressLocality = feedUrl.searchParams.get('addressLocality') || feed.municipality || '';
+    } catch {
+      addressLocality = feed.municipality || '';
+    }
+
+    const today = new Date();
+    const dateFrom = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    const items: ParsedFeedItem[] = [];
+    const PAGE_SIZE = 50;
+    const MAX_PAGES = 10;
+
+    try {
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const params = new URLSearchParams({
+          limit: String(PAGE_SIZE),
+          start: String(page * PAGE_SIZE),
+          'sort[startDate]': 'asc',
+          dateFrom,
+        });
+        if (addressLocality) params.set('addressLocality', addressLocality);
+
+        const url = `https://search.uitdatabank.be/offers/?${params.toString()}`;
+        console.log(`[RSS] UiTdatabank ${addressLocality}: page ${page + 1}...`);
+
+        const resp = await axios.get(url, {
+          headers: { 'x-api-key': API_KEY, 'Accept': 'application/json' },
+          timeout: 20000,
+        });
+
+        const data = resp.data;
+        const members: any[] = data.member || [];
+        if (members.length === 0) break;
+
+        for (const event of members) {
+          const idUrl: string = event['@id'] || '';
+          const uuidMatch = idUrl.match(/\/([a-f0-9-]{36})$/i);
+          const externalId = `uitdatabank-${uuidMatch ? uuidMatch[1] : encodeURIComponent(idUrl.split('/').pop() || idUrl)}`;
+
+          const nameParts = event.name || {};
+          const title = (nameParts.nl || nameParts.en || Object.values(nameParts)[0] || '') as string;
+          if (!title) continue;
+
+          const descParts = event.description || {};
+          const rawDesc = (descParts.nl || descParts.en || Object.values(descParts)[0] || '') as string;
+          const description = rawDesc.replace(/<[^>]+>/g, ' ').trim();
+
+          let startTime: Date | undefined;
+          let endTime: Date | undefined;
+          if (event.startDate) {
+            try {
+              const d = new Date(event.startDate);
+              if (!isNaN(d.getTime())) startTime = d;
+            } catch {}
+          }
+          if (event.endDate && startTime) {
+            try {
+              const et = new Date(event.endDate);
+              if (!isNaN(et.getTime()) && et >= startTime) endTime = et;
+            } catch {}
+          }
+
+          const loc = event.location || {};
+          const locNameParts = loc.name || {};
+          const locName = (locNameParts.nl || locNameParts.en || Object.values(locNameParts)[0] || '') as string;
+          const addr = loc.address || {};
+          const street = (addr.streetAddress || '') as string;
+          const postal = (addr.postalCode || '') as string;
+          const city = (addr.addressLocality || addressLocality) as string;
+          const fullAddress = [street, postal, city].filter(Boolean).join(', ');
+
+          const geo = loc.geo || {};
+          const lat = geo.latitude ? parseFloat(String(geo.latitude)) : undefined;
+          const lng = geo.longitude ? parseFloat(String(geo.longitude)) : undefined;
+          const validLat = lat && lat >= 50.0 && lat <= 54.0 ? lat : undefined;
+          const validLng = lng && lng >= 2.5 && lng <= 7.5 ? lng : undefined;
+
+          const media: any[] = event.mediaObjects || [];
+          const imageUrl = media[0]?.contentUrl || media[0]?.thumbnailUrl || undefined;
+
+          const sameAs: string[] = event.sameAs || [];
+          const link = sameAs.find((u: string) => !u.includes('uitdatabank.be') && !u.includes('data.cultuurinfo')) || sameAs[0] || idUrl;
+
+          let detectedCategory: string | undefined;
+          const terms: any[] = event.terms || [];
+          const eventTypeTerm = terms.find((t: any) => t.domain === 'eventtype');
+          if (eventTypeTerm) {
+            const label = ((eventTypeTerm.label as string) || '').toLowerCase();
+            if (label.includes('concert') || label.includes('muziek') || label.includes('theater') || label.includes('voorstelling')) detectedCategory = 'Voorstelling';
+            else if (label.includes('tentoonstelling') || label.includes('expo') || label.includes('museum')) detectedCategory = 'Tentoonstelling';
+            else if (label.includes('markt') || label.includes('beurs') || label.includes('kermis')) detectedCategory = 'Markt & Beurs';
+            else if (label.includes('workshop') || label.includes('cursus') || label.includes('lezing')) detectedCategory = 'Leren & Ontdekken';
+            else if (label.includes('sport') || label.includes('wandel') || label.includes('fiets') || label.includes('loop')) detectedCategory = 'Activiteit';
+          }
+
+          items.push({
+            externalId,
+            title,
+            description,
+            link: link || undefined,
+            imageUrl,
+            startTime,
+            endTime,
+            location: locName || city,
+            address: fullAddress || city,
+            latitude: validLat,
+            longitude: validLng,
+            venueName: locName || undefined,
+            venueCity: city || undefined,
+            venuePostalCode: postal || undefined,
+            detectedCategory,
+          });
+        }
+
+        if (members.length < PAGE_SIZE) break;
+      }
+
+      console.log(`[RSS] UiTdatabank ${addressLocality}: ${items.length} events parsed`);
+      return { success: true, items };
+    } catch (err: any) {
+      console.error(`[RSS] UiTdatabank scraper failed for ${addressLocality}: ${err.message}`);
+      return { success: false, items: [], error: err.message };
     }
   }
 
@@ -11035,6 +11178,8 @@ export class RssFeedService {
           result = await this.scrapeUitInAlmelo();
         } else if (feed.feedType === "scraper" && feed.url.includes("visitzwolle")) {
           result = await this.scrapeVisitZwolle();
+        } else if (feed.feedType === "uitdatabank") {
+          result = await this.scrapeUiTdatabank(feed);
         } else if (feed.feedType === "scraper") {
           // Use intelligent universal scraper for unknown scraper feeds
           result = await this.scrapeUniversal(feed);

@@ -10828,8 +10828,8 @@ export class RssFeedService {
   static async scrapeUiTdatabank(feed: any): Promise<FeedParseResult> {
     const API_KEY = process.env.UITDATABANK_API_KEY;
     if (!API_KEY) {
-      console.warn(`[RSS] UiTdatabank (${feed.municipality}): UITDATABANK_API_KEY not set — skipping feed`);
-      return { success: false, items: [], error: 'UITDATABANK_API_KEY not configured' };
+      console.warn(`[RSS] UiTdatabank (${feed.municipality}): UITDATABANK_API_KEY not set — feed overgeslagen`);
+      return { success: true, items: [] };
     }
 
     let addressLocality: string;

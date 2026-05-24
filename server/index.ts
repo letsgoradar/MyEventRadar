@@ -114,7 +114,7 @@ app.get(/^\/google([A-Za-z0-9_-]+)\.html$/, (req: Request, res: Response) => {
   res.type("text/html").send(`google-site-verification: google${verificationToken}.html`);
 });
 
-// Secure cron endpoint — called by external scheduler every 48h
+// Secure cron endpoint — can be called by external scheduler as manual fallback
 // Protected by CRON_SECRET token to prevent unauthorized triggers
 app.post("/api/cron/sync-feeds", async (req: Request, res: Response) => {
   const cronSecret = process.env.CRON_SECRET;
@@ -302,7 +302,7 @@ const HOST = '0.0.0.0';
         expirePromotions().catch(console.error);
       }
     });
-    console.log('Request-triggered schedulers registered (RSS 84h / ~2x per week, notifications 1h, promotions 5min)');
+    console.log('Schedulers started (RSS interval 6h, notifications 1h, promotions 5min)');
 
     // Add error handling middleware
     app.use(errorHandler);

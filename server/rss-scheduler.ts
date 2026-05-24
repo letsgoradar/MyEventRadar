@@ -4,8 +4,9 @@ import type { Request, Response, NextFunction } from "express";
 let isProcessing = false;
 let lastSyncTime: Date | null = null;
 let initialized = false;
+let schedulerInterval: ReturnType<typeof setInterval> | null = null;
 
-const SYNC_INTERVAL_HOURS = 48; // every 2 days
+const SYNC_INTERVAL_HOURS = 6;
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('nl-NL', { 
@@ -44,7 +45,7 @@ async function initializeLastSyncTime(): Promise<void> {
       lastSyncTime = new Date(mostRecent.lastFetchedAt);
       console.log(`[RSS Scheduler] Last sync was at ${formatTime(lastSyncTime)} on ${formatDate(lastSyncTime)}`);
     } else {
-      console.log(`[RSS Scheduler] No previous sync found, will sync on first request`);
+      console.log(`[RSS Scheduler] No previous sync found, will sync immediately`);
     }
   } catch (error: any) {
     console.error("[RSS Scheduler] Error reading last sync time:", error.message);
@@ -63,7 +64,7 @@ async function runBackgroundSync(): Promise<void> {
   if (isProcessing) return;
   
   const startTime = new Date();
-  console.log(`[RSS Scheduler] ===== Starting request-triggered scrape at ${formatTime(startTime)} on ${formatDate(startTime)} =====`);
+  console.log(`[RSS Scheduler] ===== Starting interval-triggered scrape at ${formatTime(startTime)} on ${formatDate(startTime)} =====`);
   
   isProcessing = true;
   try {
@@ -83,26 +84,35 @@ async function runBackgroundSync(): Promise<void> {
   }
 }
 
+// No-op middleware — sync is now handled by the internal interval, not per-request
 export function rssSyncMiddleware(req: Request, res: Response, next: NextFunction): void {
   next();
-  
-  if (!initialized) {
-    initializeLastSyncTime().then(() => {
-      if (shouldSync()) {
-        runBackgroundSync();
-      }
-    });
-  } else if (shouldSync()) {
-    runBackgroundSync();
-  }
 }
 
 export function startRssScheduler(): void {
-  console.log("[RSS Scheduler] Request-triggered mode enabled (sync every 48h on traffic)");
-  initializeLastSyncTime();
+  console.log(`[RSS Scheduler] Interval-based mode enabled (sync every ${SYNC_INTERVAL_HOURS}h)`);
+
+  initializeLastSyncTime().then(() => {
+    // Run immediately if overdue, then schedule regular interval
+    if (shouldSync()) {
+      runBackgroundSync();
+    }
+
+    // Tick every 15 minutes to check if any feed is due — actual fetch
+    // frequency per feed is controlled by updateFrequencyMinutes
+    schedulerInterval = setInterval(() => {
+      if (shouldSync()) {
+        runBackgroundSync();
+      }
+    }, 15 * 60 * 1000);
+  });
 }
 
 export function stopRssScheduler(): void {
+  if (schedulerInterval) {
+    clearInterval(schedulerInterval);
+    schedulerInterval = null;
+  }
   console.log("[RSS Scheduler] Stopped");
 }
 
@@ -144,12 +154,16 @@ export function getSchedulerStatus(): {
   lastSyncTime: Date | null;
   mode: string;
 } {
+  const nextRun = lastSyncTime
+    ? new Date(lastSyncTime.getTime() + SYNC_INTERVAL_HOURS * 60 * 60 * 1000)
+    : null;
+
   return {
-    isRunning: true,
+    isRunning: schedulerInterval !== null,
     isProcessing,
-    nextRun: null,
-    scheduleHours: [],
+    nextRun,
+    scheduleHours: [SYNC_INTERVAL_HOURS],
     lastSyncTime,
-    mode: 'request-triggered'
+    mode: 'interval',
   };
 }

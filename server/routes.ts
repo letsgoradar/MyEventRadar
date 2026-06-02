@@ -4422,23 +4422,62 @@ Antwoord in dit JSON formaat:
     }
   });
 
-  // Sitemap.xml generator
+  // Bepaal de canonieke base-URL voor de huidige request/merk.
+  const getBaseUrl = (req: any): string => {
+    if (process.env.CUSTOM_DOMAIN) return `https://${process.env.CUSTOM_DOMAIN}`;
+    const host = req.get("host");
+    if (process.env.NODE_ENV === "production") {
+      return `https://${host ?? "letsgoradar.com"}`;
+    }
+    return `http://${host ?? "localhost:5000"}`;
+  };
+
+  // Robots.txt — merk-/domein-bewust, verwijst naar de juiste sitemap.
+  app.get("/robots.txt", (req, res) => {
+    const baseUrl = getBaseUrl(req);
+    const body = [
+      "User-agent: *",
+      "Allow: /",
+      "Disallow: /admin",
+      "Disallow: /api/",
+      "Disallow: /login",
+      "Disallow: /admin/login",
+      "",
+      `Sitemap: ${baseUrl}/sitemap.xml`,
+      "",
+    ].join("\n");
+    res.set("Content-Type", "text/plain");
+    res.send(body);
+  });
+
+  // Sitemap.xml generator — merk-bewust. Focus-merken nemen alleen steden op
+  // die daadwerkelijk relevante (gefilterde) events bevatten, zodat we geen
+  // dunne/lege pagina's aan zoekmachines aanbieden.
   app.get("/sitemap.xml", async (req, res) => {
     try {
       const { getActiveCities, generateCityEventsUrl } = await import('@shared/cities');
+      const brand = getRequestBrand(req);
       const cities = getActiveCities();
-      const baseUrl = process.env.CUSTOM_DOMAIN
-        ? `https://${process.env.CUSTOM_DOMAIN}`
-        : process.env.NODE_ENV === "production"
-          ? `https://${req.get("host") ?? "letsgoradar.com"}`
-          : `http://${req.get("host") ?? "localhost:5000"}`;
-      
+      const baseUrl = getBaseUrl(req);
+
+      let citiesToInclude = cities;
+      if (brand.categories && brand.categories.length > 0) {
+        const counts = await Promise.all(
+          cities.map((c) =>
+            storage.getEventCountByCitySlug(c.slug, brand.categories)
+              .then((n) => ({ city: c, n }))
+              .catch(() => ({ city: c, n: 0 }))
+          )
+        );
+        citiesToInclude = counts.filter((x) => x.n > 0).map((x) => x.city);
+      }
+
       let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
       sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
       
       sitemap += `  <url>\n    <loc>${baseUrl}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n`;
       
-      for (const city of cities) {
+      for (const city of citiesToInclude) {
         const cityUrl = generateCityEventsUrl(city);
         sitemap += `  <url>\n    <loc>${baseUrl}${cityUrl}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
       }

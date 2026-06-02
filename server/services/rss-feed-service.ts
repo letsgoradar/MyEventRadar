@@ -5577,7 +5577,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Ommen: ${items.length} valid future events parsed`);
-      return { items, feedType: 'scraper' };
+      return { success: true, items, feedType: 'scraper' };
     } catch (err: any) {
       console.error(`[RSS] Ommen scraper failed: ${err.message}`);
       return { items: [], feedType: 'scraper', error: err.message };
@@ -5736,7 +5736,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Hardenberg: ${items.length} valid future events parsed`);
-      return { items, feedType: 'scraper' };
+      return { success: true, items, feedType: 'scraper' };
     } catch (err: any) {
       console.error(`[RSS] Hardenberg scraper failed: ${err.message}`);
       return { items: [], feedType: 'scraper', error: err.message };
@@ -5899,7 +5899,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Almelo: ${items.length} valid future events parsed`);
-      return { items, feedType: 'scraper' };
+      return { success: true, items, feedType: 'scraper' };
     } catch (err: any) {
       console.error(`[RSS] Almelo scraper failed: ${err.message}`);
       return { items: [], feedType: 'scraper', error: err.message };
@@ -6069,7 +6069,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Zwolle: ${items.length} valid future events parsed`);
-      return { items, feedType: 'scraper' };
+      return { success: true, items, feedType: 'scraper' };
     } catch (err: any) {
       console.error(`[RSS] Zwolle scraper failed: ${err.message}`);
       return { items: [], feedType: 'scraper', error: err.message };
@@ -10428,8 +10428,14 @@ export class RssFeedService {
       AiProvider.resetCallCount();
       
       if (feedConfig.feedType === 'scraper') {
-        // Pass linkLimit to limit pagination in test mode
-        result = await this.scrapeUniversal(mockFeed, { linkLimit: feedConfig.limit });
+        if (feedConfig.limit) {
+          // Test mode: fast generic scrape with a link cap for a quick smoke check
+          result = await this.scrapeUniversal(mockFeed, { linkLimit: feedConfig.limit });
+        } else {
+          // Full preview: use the same dispatch as a real sync so the event
+          // count matches what syncing will actually import (incl. dedicated scrapers)
+          result = await this.dispatchScraper(mockFeed);
+        }
       } else if (feedConfig.feedType === 'json') {
         result = await this.fetchAndParseJsonFeed(feedConfig.url, feedConfig.municipality);
       } else {
@@ -10584,6 +10590,70 @@ export class RssFeedService {
     }
   }
 
+  /**
+   * Unified scraper dispatch — maps a feed to its dedicated scraper, or falls
+   * back to the universal scraper / feed parsers. Used by processFeed (single
+   * sync), processFeeds (bulk sync) and previewFeed so all three stay in sync.
+   *
+   * Previously these had three separate, drifting if/else chains. Some feeds
+   * (e.g. welkominommen.nl) only existed in the bulk chain, so a single-feed
+   * sync or preview fell through to the generic scraper and imported far fewer
+   * events (only the first page) than a bulk sync did.
+   */
+  static async dispatchScraper(
+    feed: RssFeed,
+    options?: { linkLimit?: number; onProgress?: (progress: any) => void }
+  ): Promise<FeedParseResult> {
+    const onProgress = options?.onProgress;
+    if (feed.feedType === "scraper") {
+      const url = feed.url;
+      if (url.includes("iamsterdam.com")) return this.scrapeIAmsterdam(onProgress);
+      if (url.includes("thisiseindhoven")) return this.scrapeThisIsEindhoven();
+      if (url.includes("trefhetinoss")) return this.scrapeTrefhetInOss();
+      if (url.includes("visithelmond")) return this.scrapeVisitHelmond();
+      if (url.includes("bezoekmeierijstad")) return this.scrapeMeierijstad();
+      if (url.includes("exploremaashorst")) return this.scrapeMaashorst();
+      if (url.includes("sonenbreugel")) return this.scrapeSonEnBreugel();
+      if (url.includes("mooibernheze")) return this.scrapeBernheze();
+      if (url.includes("zinindenbosch")) return this.scrapeDenBosch();
+      if (url.includes("beleefboxtel")) return this.scrapeBoxtel();
+      if (url.includes("visitbergeijk")) return this.scrapeBergeijk();
+      if (url.includes("goedgestel")) return this.scrapeSintMichielsgestel();
+      if (url.includes("visitvught")) return this.scrapeVught();
+      if (url.includes("beleveninoosterhout")) return this.scrapeOosterhout();
+      if (url.includes("bezoekoisterwijk")) return this.scrapeOisterwijk();
+      if (url.includes("inzutphen")) return this.scrapeInZutphen();
+      if (url.includes("explorebreda")) return this.scrapeBreda();
+      if (url.includes("grenslanddebaronie")) return this.scrapeGrensland();
+      if (url.includes("tilburg.com")) return this.scrapeTilburg();
+      if (url.includes("bommelerwaard.net")) return this.scrapeBommelerwaard();
+      if (url.includes("uitinderegio.nl/landvanmaasenwaal")) return this.scrapeUitInDeRegioLandVanMaasEnWaal(onProgress);
+      if (url.includes("uitinderegio.nl/bommelerwaard")) return this.scrapeUitInDeRegioBommelerwaard(onProgress);
+      if (url.includes("uitinderegio.nl/beleef-west-betuwe")) return this.scrapeUitInDeRegioWestBetuwe(onProgress);
+      if (url.includes("uitinderegio.nl/betuwe")) return this.scrapeUitInDeRegioBetuwe(onProgress);
+      if (url.includes("stadwageningen")) return this.scrapeStadWageningen();
+      if (url.includes("wijchenis")) return this.scrapeWijchenIs();
+      if (url.includes("intonijmegen")) return this.scrapeIntoNijmegen();
+      if (url.includes("welkominommen")) return this.scrapeWelkominOmmen();
+      if (url.includes("visithardenberg")) return this.scrapeVisitHardenberg();
+      if (url.includes("uitinalmelo")) return this.scrapeUitInAlmelo();
+      if (url.includes("visitzwolle")) return this.scrapeVisitZwolle();
+      if (url.includes("denhaag.com")) return this.scrapeDenHaagAgenda();
+      if (url.includes("indelft.nl")) return this.scrapeInDelft();
+      if (url.includes("visitleiden.nl")) return this.scrapeVisitLeiden();
+      if (url.includes("groenehart.nl")) return this.scrapeGroeneHart();
+      // No dedicated scraper — use the intelligent universal scraper
+      return this.scrapeUniversal(feed, { linkLimit: options?.linkLimit });
+    }
+    if (feed.feedType === "uitdatabank") return this.scrapeUiTdatabank(feed);
+    if (feed.feedType === "json") return this.fetchAndParseJsonFeed(feed.url, feed.municipality || undefined);
+    if (feed.feedType === "umbraco_api") {
+      console.log(`[RSS] ${feed.name}: Using Umbraco API method`);
+      return this.tryUmbracoApi(feed.url, feed.municipality || '', feed);
+    }
+    return this.fetchAndParseRssFeed(feed.url, feed.municipality || undefined);
+  }
+
   static async processFeed(
     feed: RssFeed, 
     storage?: any,
@@ -10616,83 +10686,7 @@ export class RssFeedService {
 
       let result: FeedParseResult;
       try {
-
-      if (feed.feedType === "scraper" && feed.url.includes("iamsterdam.com")) {
-        result = await this.scrapeIAmsterdam(onProgress);
-      } else if (feed.feedType === "scraper" && feed.url.includes("thisiseindhoven")) {
-        result = await this.scrapeThisIsEindhoven();
-      } else if (feed.feedType === "scraper" && feed.url.includes("trefhetinoss")) {
-        result = await this.scrapeTrefhetInOss();
-      } else if (feed.feedType === "scraper" && feed.url.includes("visithelmond")) {
-        result = await this.scrapeVisitHelmond();
-      } else if (feed.feedType === "scraper" && feed.url.includes("bezoekmeierijstad")) {
-        result = await this.scrapeMeierijstad();
-      } else if (feed.feedType === "scraper" && feed.url.includes("exploremaashorst")) {
-        result = await this.scrapeMaashorst();
-      } else if (feed.feedType === "scraper" && feed.url.includes("sonenbreugel")) {
-        result = await this.scrapeSonEnBreugel();
-      } else if (feed.feedType === "scraper" && feed.url.includes("mooibernheze")) {
-        result = await this.scrapeBernheze();
-      } else if (feed.feedType === "scraper" && feed.url.includes("zinindenbosch")) {
-        result = await this.scrapeDenBosch();
-      } else if (feed.feedType === "scraper" && feed.url.includes("beleefboxtel")) {
-        result = await this.scrapeBoxtel();
-      } else if (feed.feedType === "scraper" && feed.url.includes("visitbergeijk")) {
-        result = await this.scrapeBergeijk();
-      } else if (feed.feedType === "scraper" && feed.url.includes("goedgestel")) {
-        result = await this.scrapeSintMichielsgestel();
-      } else if (feed.feedType === "scraper" && feed.url.includes("visitvught")) {
-        result = await this.scrapeVught();
-      } else if (feed.feedType === "scraper" && feed.url.includes("beleveninoosterhout")) {
-        result = await this.scrapeOosterhout();
-      } else if (feed.feedType === "scraper" && feed.url.includes("bezoekoisterwijk")) {
-        result = await this.scrapeOisterwijk();
-      } else if (feed.feedType === "scraper" && feed.url.includes("explorebreda")) {
-        result = await this.scrapeBreda();
-      } else if (feed.feedType === "scraper" && feed.url.includes("grenslanddebaronie")) {
-        result = await this.scrapeGrensland();
-      } else if (feed.feedType === "scraper" && feed.url.includes("tilburg.com")) {
-        result = await this.scrapeTilburg();
-      } else if (feed.feedType === "scraper" && feed.url.includes("bommelerwaard.net")) {
-        result = await this.scrapeBommelerwaard();
-      } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/landvanmaasenwaal")) {
-        result = await this.scrapeUitInDeRegioLandVanMaasEnWaal(onProgress);
-      } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/bommelerwaard")) {
-        result = await this.scrapeUitInDeRegioBommelerwaard(onProgress);
-      } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/beleef-west-betuwe")) {
-        result = await this.scrapeUitInDeRegioWestBetuwe(onProgress);
-      } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/betuwe")) {
-        result = await this.scrapeUitInDeRegioBetuwe(onProgress);
-      } else if (feed.feedType === "scraper" && feed.url.includes("stadwageningen")) {
-        result = await this.scrapeStadWageningen();
-      } else if (feed.feedType === "scraper" && feed.url.includes("wijchenis")) {
-        result = await this.scrapeWijchenIs();
-      } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
-        result = await this.scrapeIntoNijmegen();
-      } else if (feed.feedType === "scraper" && feed.url.includes("denhaag.com")) {
-        result = await this.scrapeDenHaagAgenda();
-      } else if (feed.feedType === "scraper" && feed.url.includes("indelft.nl")) {
-        result = await this.scrapeInDelft();
-      } else if (feed.feedType === "scraper" && feed.url.includes("visitleiden.nl")) {
-        result = await this.scrapeVisitLeiden();
-      } else if (feed.feedType === "scraper" && feed.url.includes("groenehart.nl")) {
-        result = await this.scrapeGroeneHart();
-      } else if (feed.feedType === "uitdatabank") {
-        result = await this.scrapeUiTdatabank(feed);
-      } else if (feed.feedType === "scraper") {
-        // Use intelligent universal scraper for unknown scraper feeds
-        result = await this.scrapeUniversal(feed);
-      } else if (feed.feedType === "json") {
-        // Parse WordPress JSON API or similar JSON feeds with content extraction
-        result = await this.fetchAndParseJsonFeed(feed.url, feed.municipality || undefined);
-      } else if (feed.feedType === "umbraco_api") {
-        // Use Umbraco CMS API for sites like bezoekdelangstraat.nl
-        console.log(`[RSS] ${feed.name}: Using Umbraco API method`);
-        result = await this.tryUmbracoApi(feed.url, feed.municipality || '', feed);
-      } else {
-        result = await this.fetchAndParseRssFeed(feed.url, feed.municipality || undefined);
-      }
-
+        result = await this.dispatchScraper(feed, { onProgress });
       } finally {
         clearInterval(_heartbeat);
       }
@@ -11118,81 +11112,7 @@ export class RssFeedService {
 
         console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: Starting...`);
 
-        let result: FeedParseResult;
-
-        if (feed.feedType === "scraper" && feed.url.includes("iamsterdam.com")) {
-          result = await this.scrapeIAmsterdam();
-        } else if (feed.feedType === "scraper" && feed.url.includes("thisiseindhoven")) {
-          result = await this.scrapeThisIsEindhoven();
-        } else if (feed.feedType === "scraper" && feed.url.includes("trefhetinoss")) {
-          result = await this.scrapeTrefhetInOss();
-        } else if (feed.feedType === "scraper" && feed.url.includes("visithelmond")) {
-          result = await this.scrapeVisitHelmond();
-        } else if (feed.feedType === "scraper" && feed.url.includes("bezoekmeierijstad")) {
-          result = await this.scrapeMeierijstad();
-        } else if (feed.feedType === "scraper" && feed.url.includes("exploremaashorst")) {
-          result = await this.scrapeMaashorst();
-        } else if (feed.feedType === "scraper" && feed.url.includes("sonenbreugel")) {
-          result = await this.scrapeSonEnBreugel();
-        } else if (feed.feedType === "scraper" && feed.url.includes("mooibernheze")) {
-          result = await this.scrapeBernheze();
-        } else if (feed.feedType === "scraper" && feed.url.includes("zinindenbosch")) {
-          result = await this.scrapeDenBosch();
-        } else if (feed.feedType === "scraper" && feed.url.includes("beleefboxtel")) {
-          result = await this.scrapeBoxtel();
-        } else if (feed.feedType === "scraper" && feed.url.includes("visitbergeijk")) {
-          result = await this.scrapeBergeijk();
-        } else if (feed.feedType === "scraper" && feed.url.includes("goedgestel")) {
-          result = await this.scrapeSintMichielsgestel();
-        } else if (feed.feedType === "scraper" && feed.url.includes("visitvught")) {
-          result = await this.scrapeVught();
-        } else if (feed.feedType === "scraper" && feed.url.includes("beleveninoosterhout")) {
-          result = await this.scrapeOosterhout();
-        } else if (feed.feedType === "scraper" && feed.url.includes("bezoekoisterwijk")) {
-          result = await this.scrapeOisterwijk();
-        } else if (feed.feedType === "scraper" && feed.url.includes("inzutphen")) {
-          result = await this.scrapeInZutphen();
-        } else if (feed.feedType === "scraper" && feed.url.includes("explorebreda")) {
-          result = await this.scrapeBreda();
-        } else if (feed.feedType === "scraper" && feed.url.includes("grenslanddebaronie")) {
-          result = await this.scrapeGrensland();
-        } else if (feed.feedType === "scraper" && feed.url.includes("tilburg.com")) {
-          result = await this.scrapeTilburg();
-        } else if (feed.feedType === "scraper" && feed.url.includes("bommelerwaard.net")) {
-          result = await this.scrapeBommelerwaard();
-        } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/landvanmaasenwaal")) {
-          result = await this.scrapeUitInDeRegioLandVanMaasEnWaal();
-        } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/bommelerwaard")) {
-          result = await this.scrapeUitInDeRegioBommelerwaard();
-        } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/beleef-west-betuwe")) {
-          result = await this.scrapeUitInDeRegioWestBetuwe();
-        } else if (feed.feedType === "scraper" && feed.url.includes("uitinderegio.nl/betuwe")) {
-          result = await this.scrapeUitInDeRegioBetuwe();
-        } else if (feed.feedType === "scraper" && feed.url.includes("intonijmegen")) {
-          result = await this.scrapeIntoNijmegen();
-        } else if (feed.feedType === "scraper" && feed.url.includes("welkominommen")) {
-          result = await this.scrapeWelkominOmmen();
-        } else if (feed.feedType === "scraper" && feed.url.includes("visithardenberg")) {
-          result = await this.scrapeVisitHardenberg();
-        } else if (feed.feedType === "scraper" && feed.url.includes("uitinalmelo")) {
-          result = await this.scrapeUitInAlmelo();
-        } else if (feed.feedType === "scraper" && feed.url.includes("visitzwolle")) {
-          result = await this.scrapeVisitZwolle();
-        } else if (feed.feedType === "uitdatabank") {
-          result = await this.scrapeUiTdatabank(feed);
-        } else if (feed.feedType === "scraper") {
-          // Use intelligent universal scraper for unknown scraper feeds
-          result = await this.scrapeUniversal(feed);
-        } else if (feed.feedType === "json") {
-          // Parse WordPress JSON API or similar JSON feeds with content extraction
-          result = await this.fetchAndParseJsonFeed(feed.url, feed.municipality || undefined);
-        } else if (feed.feedType === "umbraco_api") {
-          // Use Umbraco CMS API for sites like bezoekdelangstraat.nl
-          console.log(`[RSS] ${feed.name}: Using Umbraco API method`);
-          result = await this.tryUmbracoApi(feed.url, feed.municipality || '', feed);
-        } else {
-          result = await this.fetchAndParseRssFeed(feed.url, feed.municipality || undefined);
-        }
+        let result: FeedParseResult = await this.dispatchScraper(feed);
 
         const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
 

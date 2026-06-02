@@ -4341,8 +4341,8 @@ Antwoord in dit JSON formaat:
       
       const brand = getRequestBrand(req);
       const limit = parseInt(req.query.limit as string) || 50;
-      const events = await storage.getEventsByCitySlug(citySlug, limit, brand.categories);
-      const count = await storage.getEventCountByCitySlug(citySlug, brand.categories);
+      const events = await storage.getEventsByCitySlug(citySlug, limit, brand);
+      const count = await storage.getEventCountByCitySlug(citySlug, brand);
       res.json({ events, count });
     } catch (error: any) {
       console.error('Error in GET /api/public/events/:citySlug:', error);
@@ -4368,7 +4368,7 @@ Antwoord in dit JSON formaat:
       
       const brand = getRequestBrand(req);
       const content = getBrandCityContent(brand, citySlug, city.name, city.province);
-      const eventCount = await storage.getEventCountByCitySlug(citySlug, brand.categories);
+      const eventCount = await storage.getEventCountByCitySlug(citySlug, brand);
       
       res.json({ city, content, eventCount, brand });
     } catch (error: any) {
@@ -4450,7 +4450,7 @@ Antwoord in dit JSON formaat:
       if (brand.categories && brand.categories.length > 0) {
         const counts = await Promise.all(
           cities.map((c) =>
-            storage.getEventCountByCitySlug(c.slug, brand.categories)
+            storage.getEventCountByCitySlug(c.slug, brand)
               .then((n) => ({ city: c, n }))
               .catch(() => ({ city: c, n: 0 }))
           )

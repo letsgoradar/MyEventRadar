@@ -38,6 +38,19 @@ export interface BrandConfig {
    * Een niet-lege array = focus-merk (alleen deze categorieën).
    */
   categories: string[] | null;
+  /**
+   * Optionele trefwoorden (case-insensitive substring) die in de event-titel
+   * worden gezocht. Vangt relevante events op die onder een verkeerde
+   * categorie zijn geïmporteerd (bv. een foodtruckfestival onder "Activiteit").
+   * Alleen van toepassing op focus-merken.
+   */
+  matchKeywords?: string[];
+  /**
+   * Optionele tag-namen (case-insensitive) die worden vergeleken met de
+   * vrije-tekst `tags` van een event. Vangt mislabelde events op die wel de
+   * juiste tag hebben gekregen. Alleen van toepassing op focus-merken.
+   */
+  matchTags?: string[];
   /** Is dit een focus-merk (gefilterd) of het overkoepelende merk? */
   isFocus: boolean;
   /** Korte pay-off / tagline. */
@@ -85,6 +98,24 @@ const MARKTEN_BRAND: BrandConfig = {
   logoWithText: null,
   themeColor: "#EA580C",
   categories: ["Markt & Beurs"],
+  matchKeywords: [
+    "braderie",
+    "rommelmarkt",
+    "vlooienmarkt",
+    "boerenmarkt",
+    "kerstmarkt",
+    "antiekmarkt",
+    "snuffelmarkt",
+    "jaarmarkt",
+    "warenmarkt",
+    "weekmarkt",
+    "streekmarkt",
+    "boekenmarkt",
+    "vrijmarkt",
+    "kofferbakverkoop",
+    "kofferbakmarkt",
+  ],
+  matchTags: ["markt", "braderie", "rommelmarkt", "vlooienmarkt"],
   isFocus: true,
   tagline: "Alle markten en braderieën bij jou in de buurt",
   seo: {
@@ -106,6 +137,20 @@ const FOODTRUCK_BRAND: BrandConfig = {
   logoWithText: null,
   themeColor: "#DC2626",
   categories: ["Eten & Drinken"],
+  matchKeywords: [
+    "foodtruck",
+    "food truck",
+    "streetfood",
+    "street food",
+    "food festival",
+    "foodfestival",
+    "foodmarkt",
+    "food market",
+    "culinair festival",
+    "smaakfestival",
+    "proeverij",
+  ],
+  matchTags: ["foodtruck", "streetfood", "foodfestival"],
   isFocus: true,
   tagline: "Alle foodtruckfestivals en streetfood-events bij jou in de buurt",
   seo: {
@@ -151,6 +196,48 @@ export function resolveBrand(rawHost: string | undefined | null): BrandConfig {
     }
   }
   return DEFAULT_BRAND;
+}
+
+/**
+ * Bepaal of een event bij een merk hoort. Het overkoepelende merk
+ * (categories === null) accepteert alles. Een focus-merk accepteert een event
+ * als de categorie matcht, OF de titel een van de merk-trefwoorden bevat, OF
+ * een van de event-tags overeenkomt met de merk-tags. Zo verschijnen ook
+ * mislabelde events (bv. een foodtruckfestival onder "Activiteit") op het merk.
+ */
+export function eventMatchesBrand(
+  event: {
+    category?: string | null;
+    title?: string | null;
+    tags?: (string | null)[] | null;
+  },
+  brand: BrandConfig,
+): boolean {
+  if (!brand.categories) return true;
+
+  if (event.category != null && brand.categories.includes(event.category)) {
+    return true;
+  }
+
+  if (brand.matchKeywords && brand.matchKeywords.length > 0 && event.title) {
+    const title = event.title.toLowerCase();
+    if (brand.matchKeywords.some((kw) => title.includes(kw.toLowerCase()))) {
+      return true;
+    }
+  }
+
+  if (brand.matchTags && brand.matchTags.length > 0 && event.tags) {
+    const eventTags = new Set(
+      event.tags
+        .filter((t): t is string => typeof t === "string")
+        .map((t) => t.toLowerCase()),
+    );
+    if (brand.matchTags.some((t) => eventTags.has(t.toLowerCase()))) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /** Bouw een document-/paginatitel voor een stad volgens het merk-sjabloon. */

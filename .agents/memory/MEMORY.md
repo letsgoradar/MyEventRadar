@@ -1,1 +1,2 @@
 - [RSS scraper dispatch](rss-scraper-dispatch.md) — all scrapers route through one `dispatchScraper` helper; each must return `success: true` or it's silently marked FAILED.
+- [Brand event filtering](brand-filtering.md) — focus brands match on category OR title keyword OR tag; keep eventMatchesBrand and buildBrandEventCondition in lockstep.

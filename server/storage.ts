@@ -84,6 +84,8 @@ import {
   apiUsageStats,
   type ApiUsageStats,
 } from "@shared/schema";
+import type { BrandConfig } from "@shared/brands";
+import { buildBrandEventCondition } from "./brand";
 import { db } from './db';
 import NodeGeocoder from 'node-geocoder';
 
@@ -217,8 +219,8 @@ export interface IStorage {
   getAllAiExtractionProfiles(): Promise<AiExtractionProfile[]>;
 
   // Public data operations
-  getEventsByCitySlug(citySlug: string, limit?: number, categories?: string[] | null): Promise<Event[]>;
-  getEventCountByCitySlug(citySlug: string, categories?: string[] | null): Promise<number>;
+  getEventsByCitySlug(citySlug: string, limit?: number, brand?: BrandConfig | null): Promise<Event[]>;
+  getEventCountByCitySlug(citySlug: string, brand?: BrandConfig | null): Promise<number>;
 
   // Venue operations
   createVenue(venue: InsertVenue): Promise<Venue>;
@@ -1402,7 +1404,7 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async getEventsByCitySlug(citySlug: string, limit: number = 50, categories?: string[] | null): Promise<Event[]> {
+  async getEventsByCitySlug(citySlug: string, limit: number = 50, brand?: BrandConfig | null): Promise<Event[]> {
     return this.withRetry(async () => {
       const { getCityBySlug } = await import('@shared/cities');
       const city = getCityBySlug(citySlug);
@@ -1418,8 +1420,9 @@ export class PgStorage implements IStorage {
         sql`${events.longitude}::float BETWEEN ${city.longitude - lonDiff} AND ${city.longitude + lonDiff}`,
         sql`${events.startTime} >= ${now}`,
       ];
-      if (categories && categories.length > 0) {
-        conditions.push(inArray(events.category, categories));
+      if (brand) {
+        const brandCondition = buildBrandEventCondition(brand);
+        if (brandCondition) conditions.push(brandCondition);
       }
       return await db.select().from(events)
         .where(and(...conditions))
@@ -1428,7 +1431,7 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async getEventCountByCitySlug(citySlug: string, categories?: string[] | null): Promise<number> {
+  async getEventCountByCitySlug(citySlug: string, brand?: BrandConfig | null): Promise<number> {
     return this.withRetry(async () => {
       const { getCityBySlug } = await import('@shared/cities');
       const city = getCityBySlug(citySlug);
@@ -1445,8 +1448,9 @@ export class PgStorage implements IStorage {
         sql`${events.startTime} >= ${now}`,
         isNull(events.deletedAt),
       ];
-      if (categories && categories.length > 0) {
-        conditions.push(inArray(events.category, categories));
+      if (brand) {
+        const brandCondition = buildBrandEventCondition(brand);
+        if (brandCondition) conditions.push(brandCondition);
       }
       const result = await db.select({ count: count() }).from(events)
         .where(and(...conditions));

@@ -5419,7 +5419,7 @@ export class RssFeedService {
    */
   static async scrapeWelkominOmmen(): Promise<FeedParseResult> {
     const baseUrl = 'https://www.welkominommen.nl';
-    const maxPages = 20;
+    const maxPages = 30;
 
     // Build date-range URL: today → today + 6 months (DD-MM-YYYY format)
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -5452,7 +5452,8 @@ export class RssFeedService {
           const $ = cheerio.load(resp.data);
           const before = eventLinks.length;
 
-          $('a.box[href*="/agenda-item/"]').each((_, el) => {
+          const matched = $('a.box[href*="/agenda-item/"]');
+          matched.each((_, el) => {
             const href = $(el).attr('href');
             if (!href) return;
             const full = href.startsWith('http') ? href : `${baseUrl}${href}`;
@@ -5461,7 +5462,10 @@ export class RssFeedService {
 
           const added = eventLinks.length - before;
           console.log(`[RSS] Ommen page ${page}: +${added} links (total ${eventLinks.length})`);
-          if (added === 0) break;
+          // Overview pages repeat "featured" links, so a page can add 0 NEW links
+          // while later pages still have unique events. Only stop when a page has
+          // NO event links at all (we're past the last page).
+          if (matched.length === 0) break;
         } catch (err: any) {
           console.warn(`[RSS] Ommen page ${page} failed: ${err.message}`);
           break;
@@ -5625,7 +5629,8 @@ export class RssFeedService {
           const $ = cheerio.load(resp.data);
           const before = eventLinks.length;
 
-          $('a.box[href*="/agenda-item/"]').each((_, el) => {
+          const matched = $('a.box[href*="/agenda-item/"]');
+          matched.each((_, el) => {
             const href = $(el).attr('href');
             if (!href) return;
             const full = href.startsWith('http') ? href : `${baseUrl}${href}`;
@@ -5634,7 +5639,10 @@ export class RssFeedService {
 
           const added = eventLinks.length - before;
           console.log(`[RSS] Hardenberg page ${page}: +${added} links (total ${eventLinks.length})`);
-          if (added === 0) break;
+          // Overview pages repeat "featured" links, so a page can add 0 NEW links
+          // while later pages still have unique events. Only stop when a page has
+          // NO event links at all (we're past the last page).
+          if (matched.length === 0) break;
         } catch (err: any) {
           console.warn(`[RSS] Hardenberg page ${page} failed: ${err.message}`);
           break;
@@ -5752,7 +5760,7 @@ export class RssFeedService {
    */
   static async scrapeUitInAlmelo(): Promise<FeedParseResult> {
     const baseUrl = 'https://www.uitinalmelo.nl';
-    const maxPages = 20;
+    const maxPages = 30;
 
     try {
       const eventLinks: string[] = [];
@@ -5777,7 +5785,8 @@ export class RssFeedService {
           const $ = cheerio.load(resp.data);
           const before = eventLinks.length;
 
-          $('a.box[href*="/agenda-item/"]').each((_, el) => {
+          const matched = $('a.box[href*="/agenda-item/"]');
+          matched.each((_, el) => {
             const href = $(el).attr('href');
             if (!href) return;
             const full = href.startsWith('http') ? href : `${baseUrl}${href}`;
@@ -5786,7 +5795,10 @@ export class RssFeedService {
 
           const added = eventLinks.length - before;
           console.log(`[RSS] Almelo page ${page}: +${added} links (total ${eventLinks.length})`);
-          if (added === 0) break;
+          // Overview pages repeat "featured" links, so a page can add 0 NEW links
+          // while later pages still have unique events. Only stop when a page has
+          // NO event links at all (we're past the last page).
+          if (matched.length === 0) break;
         } catch (err: any) {
           console.warn(`[RSS] Almelo page ${page} failed: ${err.message}`);
           break;
@@ -5947,7 +5959,8 @@ export class RssFeedService {
           const $ = cheerio.load(resp.data);
           const before = eventLinks.length;
 
-          $('a.box[href*="/agenda-item/"]').each((_, el) => {
+          const matched = $('a.box[href*="/agenda-item/"]');
+          matched.each((_, el) => {
             const href = $(el).attr('href');
             if (!href) return;
             const full = href.startsWith('http') ? href : `${baseUrl}${href}`;
@@ -5956,7 +5969,10 @@ export class RssFeedService {
 
           const added = eventLinks.length - before;
           console.log(`[RSS] Zwolle page ${page}: +${added} links (total ${eventLinks.length})`);
-          if (added === 0) break;
+          // Overview pages repeat "featured" links, so a page can add 0 NEW links
+          // while later pages still have unique events. Only stop when a page has
+          // NO event links at all (we're past the last page).
+          if (matched.length === 0) break;
         } catch (err: any) {
           console.warn(`[RSS] Zwolle page ${page} failed: ${err.message}`);
           break;

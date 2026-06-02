@@ -25,3 +25,14 @@ imports 0 events — even if it parsed events correctly. Four Overijssel scraper
 `dispatchScraper`, (2) return `success: true` on the happy path. Note ordering of
 `url.includes()` checks: more specific paths first (e.g.
 `uitinderegio.nl/beleef-west-betuwe` before `uitinderegio.nl/betuwe`).
+
+## Pagination break condition (UIE/TouristServer sites: Ommen/Hardenberg/Almelo/Zwolle)
+
+These `?p=N` paginated overview pages repeat the SAME "featured" event links on
+every page plus a few page-unique ones. So a single page can add 0 NEW links while
+later pages still have unique events. Loop break MUST be `if (matched.length === 0)`
+(the page has no event links at all = past the last page), NOT `if (added === 0)`
+(no new links). Using `added === 0` stops far too early — Almelo broke at page 14
+and collected 42/80 events; the source has ~21 pages. Keep `maxPages` >= real page
+count (Almelo has 21, so 20 was too low). Past-the-last-page returns 500 or empty.
+

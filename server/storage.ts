@@ -217,8 +217,8 @@ export interface IStorage {
   getAllAiExtractionProfiles(): Promise<AiExtractionProfile[]>;
 
   // Public data operations
-  getEventsByCitySlug(citySlug: string, limit?: number): Promise<Event[]>;
-  getEventCountByCitySlug(citySlug: string): Promise<number>;
+  getEventsByCitySlug(citySlug: string, limit?: number, categories?: string[] | null): Promise<Event[]>;
+  getEventCountByCitySlug(citySlug: string, categories?: string[] | null): Promise<number>;
 
   // Venue operations
   createVenue(venue: InsertVenue): Promise<Venue>;
@@ -1402,7 +1402,7 @@ export class PgStorage implements IStorage {
     });
   }
 
-  async getEventsByCitySlug(citySlug: string, limit: number = 50): Promise<Event[]> {
+  async getEventsByCitySlug(citySlug: string, limit: number = 50, categories?: string[] | null): Promise<Event[]> {
     return this.withRetry(async () => {
       const { getCityBySlug } = await import('@shared/cities');
       const city = getCityBySlug(citySlug);
@@ -1413,18 +1413,22 @@ export class PgStorage implements IStorage {
       const lonDiff = radiusKm / (111 * Math.cos(city.latitude * Math.PI / 180));
 
       const now = new Date();
+      const conditions = [
+        sql`${events.latitude}::float BETWEEN ${city.latitude - latDiff} AND ${city.latitude + latDiff}`,
+        sql`${events.longitude}::float BETWEEN ${city.longitude - lonDiff} AND ${city.longitude + lonDiff}`,
+        sql`${events.startTime} >= ${now}`,
+      ];
+      if (categories && categories.length > 0) {
+        conditions.push(inArray(events.category, categories));
+      }
       return await db.select().from(events)
-        .where(and(
-          sql`${events.latitude}::float BETWEEN ${city.latitude - latDiff} AND ${city.latitude + latDiff}`,
-          sql`${events.longitude}::float BETWEEN ${city.longitude - lonDiff} AND ${city.longitude + lonDiff}`,
-          sql`${events.startTime} >= ${now}`
-        ))
+        .where(and(...conditions))
         .orderBy(events.startTime)
         .limit(limit);
     });
   }
 
-  async getEventCountByCitySlug(citySlug: string): Promise<number> {
+  async getEventCountByCitySlug(citySlug: string, categories?: string[] | null): Promise<number> {
     return this.withRetry(async () => {
       const { getCityBySlug } = await import('@shared/cities');
       const city = getCityBySlug(citySlug);
@@ -1435,13 +1439,17 @@ export class PgStorage implements IStorage {
       const lonDiff = radiusKm / (111 * Math.cos(city.latitude * Math.PI / 180));
 
       const now = new Date();
+      const conditions = [
+        sql`${events.latitude}::float BETWEEN ${city.latitude - latDiff} AND ${city.latitude + latDiff}`,
+        sql`${events.longitude}::float BETWEEN ${city.longitude - lonDiff} AND ${city.longitude + lonDiff}`,
+        sql`${events.startTime} >= ${now}`,
+        isNull(events.deletedAt),
+      ];
+      if (categories && categories.length > 0) {
+        conditions.push(inArray(events.category, categories));
+      }
       const result = await db.select({ count: count() }).from(events)
-        .where(and(
-          sql`${events.latitude}::float BETWEEN ${city.latitude - latDiff} AND ${city.latitude + latDiff}`,
-          sql`${events.longitude}::float BETWEEN ${city.longitude - lonDiff} AND ${city.longitude + lonDiff}`,
-          sql`${events.startTime} >= ${now}`,
-          isNull(events.deletedAt)
-        ));
+        .where(and(...conditions));
       return result[0]?.count || 0;
     });
   }

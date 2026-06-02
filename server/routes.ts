@@ -14,6 +14,8 @@ import { AiProvider } from "./services/ai-provider";
 import { storage } from "./storage";
 import { insertEventSchema, insertUserSchema, insertActivityLogSchema, insertSavedSearchSchema, insertEventTagSchema, insertTargetAudienceSchema, insertSeasonalThemeSchema, hiddenEvents } from "@shared/schema";
 import { isAdmin, isAuthenticated, attachUser } from "./middleware/auth";
+import { getRequestBrand, filterEventsForBrand } from "./brand";
+import { getBrandCityContent } from "@shared/brands";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 
@@ -249,6 +251,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+  // Actief merk voor deze request (op basis van hostname). Frontend gebruikt
+  // dit als robuuste fallback naast client-side hostname-detectie.
+  app.get("/api/brand", (req, res) => {
+    res.json(getRequestBrand(req));
+  });
+
   // Check if user is authenticated - voor alle gebruikers
   app.get("/api/auth/check", attachUser, (req, res) => {
     if (req.user) {
@@ -822,7 +830,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { lat, lng, radius } = parsed;
       const windowDays = parsed.windowDays === 'all' || parsed.windowDays === undefined ? null : parsed.windowDays;
 
-      const events = await storage.getEventsByRadius(lat, lng, radius, windowDays);
+      const allRadiusEvents = await storage.getEventsByRadius(lat, lng, radius, windowDays);
+      const events = filterEventsForBrand(allRadiusEvents, getRequestBrand(req));
       
       const sortedEvents = events.sort((a, b) => {
         const now = new Date();
@@ -1009,8 +1018,8 @@ Respond with ONLY the search term, nothing else.`,
 
       console.log('GET /api/events/search params:', { query, startDate, endDate });
       
-      // Haal alle evenementen op
-      const allEvents = await storage.getAllEvents();
+      // Haal alle evenementen op (gefilterd op het actieve merk)
+      const allEvents = filterEventsForBrand(await storage.getAllEvents(), getRequestBrand(req));
       
       // Filter de evenementen op basis van de zoekterm
       let filteredEvents = allEvents.filter(event => {
@@ -4330,9 +4339,10 @@ Antwoord in dit JSON formaat:
         return res.status(404).json({ message: "City not found in this province", events: [], count: 0 });
       }
       
+      const brand = getRequestBrand(req);
       const limit = parseInt(req.query.limit as string) || 50;
-      const events = await storage.getEventsByCitySlug(citySlug, limit);
-      const count = await storage.getEventCountByCitySlug(citySlug);
+      const events = await storage.getEventsByCitySlug(citySlug, limit, brand.categories);
+      const count = await storage.getEventCountByCitySlug(citySlug, brand.categories);
       res.json({ events, count });
     } catch (error: any) {
       console.error('Error in GET /api/public/events/:citySlug:', error);
@@ -4346,7 +4356,6 @@ Antwoord in dit JSON formaat:
       const { citySlug } = req.params;
       const { provinceSlug } = req.query;
       const { getCityBySlug } = await import('@shared/cities');
-      const { getCityContent } = await import('@shared/content');
       
       const city = getCityBySlug(citySlug);
       if (!city) {
@@ -4357,10 +4366,11 @@ Antwoord in dit JSON formaat:
         return res.status(404).json({ message: "City not found in this province" });
       }
       
-      const content = getCityContent(citySlug, city.name, city.province);
-      const eventCount = await storage.getEventCountByCitySlug(citySlug);
+      const brand = getRequestBrand(req);
+      const content = getBrandCityContent(brand, citySlug, city.name, city.province);
+      const eventCount = await storage.getEventCountByCitySlug(citySlug, brand.categories);
       
-      res.json({ city, content, eventCount });
+      res.json({ city, content, eventCount, brand });
     } catch (error: any) {
       console.error('Error in GET /api/public/city/:citySlug:', error);
       res.status(500).json({ message: error.message || "Internal server error" });

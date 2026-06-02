@@ -9,6 +9,9 @@ import { LeadForm } from '@/components/Public/LeadForm';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { CATEGORIES, type EventInterface } from '@shared/schema';
 import type { CityConfig } from '@shared/cities';
+import { getBrandCityTitle, type BrandConfig } from '@shared/brands';
+import { RadarLogoWithText } from '@/components/RadarLogo';
+import { getCurrentBrand } from '@/lib/brand';
 
 interface CityPageData {
   city: CityConfig;
@@ -25,13 +28,15 @@ interface CityEventsData {
   count: number;
 }
 
-function JsonLdSchema({ city, events, eventCount }: { city: CityConfig; events: EventInterface[]; eventCount: number }) {
+function JsonLdSchema({ city, events, eventCount, brand }: { city: CityConfig; events: EventInterface[]; eventCount: number; brand: BrandConfig }) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : `https://${brand.displayName}`;
+  const noun = brand.seo.eventNoun;
   const schema = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    "name": `Evenementen in ${city.name}`,
-    "description": `Ontdek ${eventCount} evenementen in ${city.name}, ${city.province}`,
-    "url": `https://letsgoradar.nl/${city.provinceSlug}/${city.slug}/evenementen`,
+    "name": `${noun.charAt(0).toUpperCase() + noun.slice(1)} in ${city.name}`,
+    "description": `Ontdek ${eventCount} ${noun} in ${city.name}, ${city.province}`,
+    "url": `${origin}/${city.provinceSlug}/${city.slug}/evenementen`,
     "mainEntity": {
       "@type": "ItemList",
       "numberOfItems": eventCount,
@@ -92,6 +97,9 @@ export default function CityPage() {
   const params = useParams();
   const citySlug = params.city as string;
   const provinceSlug = params.province as string;
+  const brand = getCurrentBrand();
+  const noun = brand.seo.eventNoun;
+  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
 
   const cityApiUrl = citySlug && provinceSlug 
     ? `/api/public/city/${citySlug}?provinceSlug=${encodeURIComponent(provinceSlug)}`
@@ -128,7 +136,7 @@ export default function CityPage() {
 
   useEffect(() => {
     if (cityData?.city) {
-      document.title = `Evenementen in ${cityData.city.name} - MyEventRadar.com`;
+      document.title = getBrandCityTitle(brand, cityData.city.name);
       
       const metaDesc = document.querySelector('meta[name="description"]');
       if (metaDesc) {
@@ -177,7 +185,7 @@ export default function CityPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {events.length > 0 && (
-        <JsonLdSchema city={city} events={events} eventCount={eventCount} />
+        <JsonLdSchema city={city} events={events} eventCount={eventCount} brand={brand} />
       )}
 
       <header className="bg-white dark:bg-gray-800 border-b sticky top-0 z-10">
@@ -191,16 +199,11 @@ export default function CityPage() {
                 </Button>
               </Link>
               <div className="flex items-center">
-                <img
-                  src="/images/myeventradar-logo.jpg"
-                  alt="MyEventRadar.com"
-                  className="object-contain rounded-lg drop-shadow-sm"
-                  style={{ height: '34px', width: 'auto' }}
-                />
+                <RadarLogoWithText height={34} />
               </div>
             </div>
             <Link href="/app">
-              <Button size="sm" className="bg-[#00A9C5] hover:bg-[#0096B3]">
+              <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 Open App
               </Button>
             </Link>
@@ -210,22 +213,22 @@ export default function CityPage() {
 
       <main className="container mx-auto px-4 py-8">
         <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6" data-testid="breadcrumb">
-          <Link href="/" className="hover:text-[#00A9C5]">Home</Link>
+          <Link href="/" className="hover:text-primary">Home</Link>
           <ChevronRight className="w-4 h-4" />
-          <Link href={`/${city.provinceSlug}`} className="hover:text-[#00A9C5]">{city.province}</Link>
+          <Link href={`/${city.provinceSlug}`} className="hover:text-primary">{city.province}</Link>
           <ChevronRight className="w-4 h-4" />
           <span className="text-gray-900 dark:text-white font-medium">{city.name}</span>
         </nav>
 
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <MapPin className="w-8 h-8 text-[#00A9C5]" />
+            <MapPin className="w-8 h-8 text-primary" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white" data-testid="text-city-name">
-                Evenementen in {city.name}
+                {Noun} in {city.name}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                {city.province} · {eventCount} evenementen
+                {city.province} · {eventCount} {noun}
               </p>
             </div>
           </div>
@@ -245,7 +248,7 @@ export default function CityPage() {
 
         <section>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Komende evenementen in {city.name}
+            Komende {noun} in {city.name}
           </h2>
           
           {isEventsLoading ? (
@@ -258,10 +261,10 @@ export default function CityPage() {
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl">
               <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
               <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-                Nog geen evenementen
+                Nog geen {noun}
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Er zijn momenteel geen evenementen in {city.name}. Meld je aan om op de hoogte te blijven!
+                Er zijn momenteel geen {noun} in {city.name}. Meld je aan om op de hoogte te blijven!
               </p>
             </div>
           ) : (
@@ -309,7 +312,7 @@ export default function CityPage() {
 
         <section className="mt-12">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Over evenementen in {city.name}
+            Over {noun} in {city.name}
           </h2>
           <div className="prose dark:prose-invert max-w-none">
             <p>{content.description}</p>
@@ -321,15 +324,10 @@ export default function CityPage() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center">
-              <img
-                src="/images/myeventradar-logo.jpg"
-                alt="MyEventRadar.com"
-                className="object-contain rounded-md drop-shadow-sm"
-                style={{ height: '28px', width: 'auto' }}
-              />
+              <RadarLogoWithText height={28} />
             </div>
             <p className="text-sm text-gray-500">
-              &copy; {new Date().getFullYear()} MyEventRadar.com. Alle rechten voorbehouden.
+              &copy; {new Date().getFullYear()} {brand.displayName}. Alle rechten voorbehouden.
             </p>
           </div>
         </div>

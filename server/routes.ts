@@ -4432,23 +4432,9 @@ Antwoord in dit JSON formaat:
     return `http://${host ?? "localhost:5000"}`;
   };
 
-  // Robots.txt — merk-/domein-bewust, verwijst naar de juiste sitemap.
-  app.get("/robots.txt", (req, res) => {
-    const baseUrl = getBaseUrl(req);
-    const body = [
-      "User-agent: *",
-      "Allow: /",
-      "Disallow: /admin",
-      "Disallow: /api/",
-      "Disallow: /login",
-      "Disallow: /admin/login",
-      "",
-      `Sitemap: ${baseUrl}/sitemap.xml`,
-      "",
-    ].join("\n");
-    res.set("Content-Type", "text/plain");
-    res.send(body);
-  });
+  // NB: /robots.txt wordt afgehandeld in server/index.ts (vóór registerRoutes
+  // geregistreerd, dus die wint). Daar is hij ook domein-bewust. We registreren
+  // hem hier bewust NIET nogmaals om een dode duplicaat te voorkomen.
 
   // Sitemap.xml generator — merk-bewust. Focus-merken nemen alleen steden op
   // die daadwerkelijk relevante (gefilterde) events bevatten, zodat we geen

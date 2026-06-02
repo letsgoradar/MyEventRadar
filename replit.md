@@ -38,6 +38,18 @@ Preferred communication style: Simple, everyday language.
 ### Database Schema
 PostgreSQL with entities for Users, Events, Favorites, Participants, Activity Logs, Saved Searches, Hidden Events, and Password Reset Tokens.
 
+### Multi-Merk / Multi-Domein Systeem
+Eén project bedient meerdere event-radar merken, gekozen op basis van de hostname van het verzoek. Geen code-kopie per merk — voeg een merk toe = één entry in `shared/brands.ts`.
+- **Centrale config**: `shared/brands.ts` (`BrandConfig`, `BRANDS`, `resolveBrand`, `getDefaultBrand`, `getBrandCityTitle`, `getBrandCityContent`). Server: `server/brand.ts` (`getRequestBrand`, `filterEventsForBrand`). Client: `client/src/lib/brand.ts` + `/api/brand` endpoint.
+- **Overkoepelend merk** (`categories: null`, `isFocus: false`): toont ALLE events. Standaard = MyEventRadar.com (id `letsgo`).
+- **Focus-merken** (`categories: [...]`, `isFocus: true`): tonen alleen events binnen die categorieën, met eigen SEO-"schil" (unieke titels/intro's/beschrijvingen/CTA's/JSON-LD) om duplicate content te vermijden.
+  - **Marktenradar.nl** (id `markten`): alleen `Markt & Beurs`. Kleur `#EA580C`.
+  - **Foodtruckfestivalradar.nl** (id `foodtruck`): alleen `Eten & Drinken`. Kleur `#DC2626`.
+- **Filtering** is gecentraliseerd via `filterEventsForBrand` + categorie-doorgifte in storage city-methods. Toegepast op `/api/events/nearby`, `/api/events/search`, `/api/public/events/:citySlug`, `/api/public/city/:citySlug`, en de brand-bewuste `/sitemap.xml`.
+- **Brand-bewuste UI**: `RadarLogo.tsx` (logo of tekst-wordmark fallback), `ThemeInjector.tsx` (hex→HSL `--primary` + titel + theme-color), `CityPage.tsx` (SEO/kleuren/nouns per merk).
+- **Unieke stad-content**: per focus-merk eigen intro/description/cta varianten in `shared/brands.ts`, gewired via `BRAND_CONTENT_VARIANTS` in `getBrandCityContent`.
+- **robots.txt**: afgehandeld in `server/index.ts` (domein-bewust, registreert vóór `registerRoutes` dus wint). NIET dupliceren in `routes.ts`.
+
 ### Key Features
 - **Hidden Events**: Users can hide events (eye icon on cards). Stored in `hidden_events` table for logged-in users, sessionStorage for guests. Hook: `useHiddenEvents` (`client/src/hooks/useHiddenEvents.ts`). API: GET `/api/hidden-events`, POST/DELETE `/api/events/:id/hide`. Filter toggle in SplitView header. Hidden events filtered from map and list.
 - **Map Integration**: Interactive Leaflet map with event markers, location-based discovery, street view, and geocoding.

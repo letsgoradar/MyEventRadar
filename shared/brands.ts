@@ -97,11 +97,38 @@ const MARKTEN_BRAND: BrandConfig = {
   },
 };
 
+const FOODTRUCK_BRAND: BrandConfig = {
+  id: "foodtruck",
+  name: "Foodtruckfestivalradar",
+  displayName: "Foodtruckfestivalradar.nl",
+  hostnames: ["foodtruckfestivalradar.nl", "www.foodtruckfestivalradar.nl"],
+  logo: null,
+  logoWithText: null,
+  themeColor: "#DC2626",
+  categories: ["Eten & Drinken"],
+  isFocus: true,
+  tagline: "Alle foodtruckfestivals en streetfood-events bij jou in de buurt",
+  seo: {
+    homeTitle:
+      "Foodtruckfestivalradar.nl - Vind alle foodtruckfestivals bij jou in de buurt",
+    homeDescription:
+      "Ontdek alle foodtruckfestivals, streetfood-events en foodmarkten bij jou in de buurt. Foodtruckfestivalradar toont elk foodtruckfestival in Nederland op de kaart.",
+    cityTitleTemplate:
+      "Foodtruckfestivals in {city} - Foodtruckfestivalradar.nl",
+    eventNoun: "foodtruckfestivals",
+    eventNounSingular: "foodtruckfestival",
+  },
+};
+
 /**
  * Alle merken. Het eerste merk is altijd het overkoepelende standaard-merk.
  * Voeg nieuwe focus-merken toe door een entry met isFocus: true en hostnames.
  */
-export const BRANDS: BrandConfig[] = [DEFAULT_BRAND, MARKTEN_BRAND];
+export const BRANDS: BrandConfig[] = [
+  DEFAULT_BRAND,
+  MARKTEN_BRAND,
+  FOODTRUCK_BRAND,
+];
 
 export function getDefaultBrand(): BrandConfig {
   return DEFAULT_BRAND;
@@ -196,6 +223,89 @@ const MARKET_CTA_VARIANTS: ContentVariant[] = [
   },
 ];
 
+const FOODTRUCK_INTRO_VARIANTS: ContentVariant[] = [
+  {
+    id: "foodtruck-intro-1",
+    type: "intro",
+    template:
+      "Zin in streetfood in {city}? Ontdek alle foodtruckfestivals, foodmarkten en streetfood-events in en rond {city} op de kaart.",
+  },
+  {
+    id: "foodtruck-intro-2",
+    type: "intro",
+    template:
+      "Smullen bij de foodtrucks in {city}! Van burgers en taco's tot verse oesters en zoete lekkernijen - vind elk foodtruckfestival bij jou in de buurt.",
+  },
+  {
+    id: "foodtruck-intro-3",
+    type: "intro",
+    template:
+      "Foodtruckfestivals in {city} en omgeving. Bekijk waar en wanneer het volgende streetfood-festival of foodtruck-evenement plaatsvindt.",
+  },
+  {
+    id: "foodtruck-intro-4",
+    type: "intro",
+    template:
+      "Dé foodtruckkalender van {city}. Mis geen enkel foodtruckfestival, streetfood-event of foodmarkt meer en plan je culinaire dagje uit.",
+  },
+];
+
+const FOODTRUCK_DESCRIPTION_VARIANTS: ContentVariant[] = [
+  {
+    id: "foodtruck-desc-1",
+    type: "description",
+    template:
+      "{city} is een walhalla voor liefhebbers van streetfood. Of je nu gaat voor sappige burgers, knapperige loaded fries of een exotische hap - in {province} is er regelmatig wel een foodtruckfestival te vinden. Foodtruckfestivalradar verzamelt ze allemaal op één kaart.",
+  },
+  {
+    id: "foodtruck-desc-2",
+    type: "description",
+    template:
+      "Foodtruckfestivals zijn niet meer weg te denken uit {city}. Van gezellige streetfood-markten tot grote foodtruck-evenementen met live muziek: ontdek hier alle foodtruckfestivals in {city} en de rest van {province}, overzichtelijk op de kaart en altijd actueel.",
+  },
+  {
+    id: "foodtruck-desc-3",
+    type: "description",
+    template:
+      "Houd je van lekker eten op locatie? Dan zit je in {city} goed. Foodtruckfestivalradar toont alle foodtruckfestivals in de regio - streetfood, foodmarkten en culinaire festivals - zodat je nooit meer een smakelijk evenement misloopt.",
+  },
+];
+
+const FOODTRUCK_CTA_VARIANTS: ContentVariant[] = [
+  {
+    id: "foodtruck-cta-1",
+    type: "cta",
+    template:
+      "Wil je geen enkel foodtruckfestival in {city} missen? Meld je aan en ontvang de nieuwste foodtruck-events in je inbox!",
+  },
+  {
+    id: "foodtruck-cta-2",
+    type: "cta",
+    template:
+      "Blijf op de hoogte van alle foodtruckfestivals in {city}. Schrijf je in en ontvang wekelijks de lekkerste streetfood-tips!",
+  },
+];
+
+/**
+ * Merk-specifieke content-pools. Een focus-merk dat hier niet voorkomt valt
+ * terug op de generieke evenement-teksten (CITY_*_VARIANTS).
+ */
+const BRAND_CONTENT_VARIANTS: Record<
+  string,
+  { intro: ContentVariant[]; description: ContentVariant[]; cta: ContentVariant[] }
+> = {
+  markten: {
+    intro: MARKET_INTRO_VARIANTS,
+    description: MARKET_DESCRIPTION_VARIANTS,
+    cta: MARKET_CTA_VARIANTS,
+  },
+  foodtruck: {
+    intro: FOODTRUCK_INTRO_VARIANTS,
+    description: FOODTRUCK_DESCRIPTION_VARIANTS,
+    cta: FOODTRUCK_CTA_VARIANTS,
+  },
+};
+
 /**
  * Genereer merk-specifieke, unieke stad-content. Voor het overkoepelende
  * merk worden de generieke evenement-teksten gebruikt; focus-merken krijgen
@@ -209,14 +319,10 @@ export function getBrandCityContent(
 ): { intro: string; description: string; cta: string } {
   const variables = { city: cityName, province: provinceName };
 
-  const introVariants =
-    brand.id === "markten" ? MARKET_INTRO_VARIANTS : CITY_INTRO_VARIANTS;
-  const descVariants =
-    brand.id === "markten"
-      ? MARKET_DESCRIPTION_VARIANTS
-      : CITY_DESCRIPTION_VARIANTS;
-  const ctaVariants =
-    brand.id === "markten" ? MARKET_CTA_VARIANTS : CITY_CTA_VARIANTS;
+  const brandVariants = BRAND_CONTENT_VARIANTS[brand.id];
+  const introVariants = brandVariants?.intro ?? CITY_INTRO_VARIANTS;
+  const descVariants = brandVariants?.description ?? CITY_DESCRIPTION_VARIANTS;
+  const ctaVariants = brandVariants?.cta ?? CITY_CTA_VARIANTS;
 
   return {
     intro: renderTemplate(

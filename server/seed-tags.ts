@@ -54,9 +54,7 @@ const EVENT_TAGS_DATA = [
   // Feest & Uitgaan → Stappen & Borrel
   { name: "Festival", icon: "Ticket", group: "Feest", parentCategory: "Stappen & Borrel", keywords: ["festival", "festivals", "festijn"] },
   { name: "Feest", icon: "PartyPopper", group: "Feest", parentCategory: "Stappen & Borrel", keywords: ["feest", "party", "feestavond", "fuif"] },
-  { name: "Carnaval", icon: "Crown", group: "Feest", parentCategory: "Stappen & Borrel", keywords: ["carnaval", "carnavalsfeest", "vastelaovend"] },
-  { name: "Carnavalsbal", icon: "CircleDot", group: "Feest", parentCategory: "Stappen & Borrel", keywords: ["carnavalsbal", "prinsenbal", "vorstenbal", "hofbal"] },
-  { name: "Carnavalsoptocht", icon: "Users", group: "Feest", parentCategory: "Stappen & Borrel", keywords: ["optocht", "carnavalsoptocht", "stoet", "parade"] },
+  { name: "Carnaval", icon: "Crown", group: "Seizoen", parentCategory: "Stappen & Borrel", keywords: ["carnaval", "carnavalsfeest", "vastelaovend", "carnavalsbal", "prinsenbal", "vorstenbal", "hofbal", "optocht", "carnavalsoptocht", "stoet", "parade"] },
   { name: "Borrel", icon: "GlassWater", group: "Feest", parentCategory: "Stappen & Borrel", keywords: ["borrel", "netwerkborrel", "kerstborrel", "vrijdagmiddagborrel"] },
   { name: "Kermis", icon: "Ferriswheel", group: "Feest", parentCategory: "Stappen & Borrel", keywords: ["kermis", "kermissen", "attracties", "draaimolen"] },
   

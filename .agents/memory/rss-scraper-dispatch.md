@@ -26,6 +26,21 @@ imports 0 events — even if it parsed events correctly. Four Overijssel scraper
 `url.includes()` checks: more specific paths first (e.g.
 `uitinderegio.nl/beleef-west-betuwe` before `uitinderegio.nl/betuwe`).
 
+## uitinalmelo.nl venue GPS source (changed mid-2026)
+
+uitinalmelo.nl (UIE/TouristServer) STOPPED embedding venue GPS in the old
+`"lat":..,"lng":..,"title":".."` map JS. Its schema.org `itemprop="streetAddress"`
+is now a SITE-WIDE FOOTER address (constant "Grotestraat 118" on every page) — do
+NOT use it as the venue, or every event lands on one central spot (spider-web). The
+REAL per-venue data is an embedded JSON blob with `organisationLat`,
+`organisationlong` (lowercase L), `organisationName`, `organisationAddress`,
+`organisationZipcode`. A few events lack organisationLat/long → geocode their
+organisationAddress as fallback. **Why:** site changed its template; sister sites
+(Ommen/Zwolle) still embed the old map-JS GPS, so don't assume all TouristServer
+sites behave the same — verify each. **How to apply:** when a TouristServer/UIE
+scraper suddenly clusters events, grep a detail page for `organisation` JSON keys
+before reaching for geocoding.
+
 ## Pagination break condition (UIE/TouristServer sites: Ommen/Hardenberg/Almelo/Zwolle)
 
 These `?p=N` paginated overview pages repeat the SAME "featured" event links on

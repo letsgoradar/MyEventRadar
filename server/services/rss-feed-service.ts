@@ -5853,28 +5853,49 @@ export class RssFeedService {
               }
               if (!startTime || startTime < now) return null;
 
-              // GPS from UIE_MAP.initPointerMap JS
+              // Venue GPS + address come from the embedded organisation JSON.
+              // NOTE: the page's schema.org streetAddress (e.g. "Grotestraat 118")
+              // is a site-wide footer address, NOT the event venue — using it makes
+              // every event land on one central spot. The real per-venue data lives
+              // in "organisationLat"/"organisationlong"/"organisationName"/
+              // "organisationAddress"/"organisationZipcode".
               let lat: number | undefined;
               let lng: number | undefined;
               let venueName: string | undefined;
-              const mapMatch = html.match(/"lat":([\d.]+),"lng":([\d.]+),"title":"([^"]+)"/);
-              if (mapMatch) {
-                lat = parseFloat(mapMatch[1]);
-                lng = parseFloat(mapMatch[2]);
-                venueName = mapMatch[3];
-              }
-              // Validate NL bounds
-              if (lat && (lat < 50.7 || lat > 53.6)) lat = undefined;
-              if (lng && (lng < 3.3 || lng > 7.2)) lng = undefined;
 
-              // Address: try to extract from venue box in JS, fallback to venueName + city
-              let address = 'Almelo';
-              const boxMatch = html.match(/"box":"\\n<article[^"]*<h4>([^<]+)<\\\/h4>\\n[^<]*<div>([^<]+)<\\\/div>\\n[^<]*<div>([^<]+)<\\\/div>/);
-              if (boxMatch) {
-                address = `${boxMatch[2]}, ${boxMatch[3].replace(',', '').trim()}, Almelo`;
-              } else if (venueName) {
-                address = `${venueName}, Almelo`;
+              const latMatch = html.match(/"organisationLat":\s*([\d.]+)/);
+              const lngMatch = html.match(/"organisationlong":\s*([\d.]+)/);
+              if (latMatch) lat = parseFloat(latMatch[1]);
+              if (lngMatch) lng = parseFloat(lngMatch[1]);
+
+              // Fallback to the older inline map format if still present
+              if (lat === undefined || lng === undefined) {
+                const mapMatch = html.match(/"lat":([\d.]+),"lng":([\d.]+),"title":"([^"]+)"/);
+                if (mapMatch) {
+                  lat = parseFloat(mapMatch[1]);
+                  lng = parseFloat(mapMatch[2]);
+                  venueName = mapMatch[3];
+                }
               }
+
+              // Validate NL bounds — drop bad coords so geocoding can retry
+              if (lat !== undefined && (lat < 50.7 || lat > 53.6)) lat = undefined;
+              if (lng !== undefined && (lng < 3.3 || lng > 7.2)) lng = undefined;
+
+              const unescapeJson = (s: string) => s.replace(/\\\//g, '/').trim();
+              const orgName = html.match(/"organisationName":\s*"([^"]+)"/);
+              const orgAddr = html.match(/"organisationAddress":\s*"([^"]+)"/);
+              const orgZip = html.match(/"organisationZipcode":\s*"([^"]+)"/);
+              if (!venueName && orgName) venueName = unescapeJson(orgName[1]);
+              const street = orgAddr ? unescapeJson(orgAddr[1]) : '';
+              const zip = orgZip ? unescapeJson(orgZip[1]) : '';
+
+              const addressParts = [street, [zip, 'Almelo'].filter(Boolean).join(' ')].filter(Boolean);
+              const address = addressParts.length
+                ? addressParts.join(', ')
+                : (venueName ? `${venueName}, Almelo` : 'Almelo');
+              // Query used to geocode venues that have no embedded GPS
+              const geocodeQuery = street || venueName || undefined;
 
               // Image
               const imageUrl = $('meta[property="og:image"]').attr('content') || undefined;
@@ -5890,13 +5911,14 @@ export class RssFeedService {
                 link: url,
                 startTime,
                 endTime,
-                latitude: lat ? String(lat) : undefined,
-                longitude: lng ? String(lng) : undefined,
-                location: venueName || 'Almelo',
+                latitude: lat !== undefined ? String(lat) : undefined,
+                longitude: lng !== undefined ? String(lng) : undefined,
+                location: venueName || street || 'Almelo',
                 address,
                 imageUrl,
                 externalId,
                 municipality: 'Almelo',
+                rawData: { geocodeQuery },
               } as ParsedFeedItem;
             } catch (err: any) {
               console.warn(`[RSS] Almelo detail fetch failed (${url}): ${err.message}`);
@@ -5910,7 +5932,31 @@ export class RssFeedService {
         }
       }
 
-      console.log(`[RSS] Almelo: ${items.length} valid future events parsed`);
+      // Geocode the few venues that have no embedded GPS so they don't fall back
+      // to the Almelo town centre. Cached per query to avoid duplicate lookups.
+      const geoCache = new Map<string, { lat: number; lon: number } | null>();
+      for (const item of items) {
+        if (item.latitude && item.longitude) continue;
+        const rawQuery = (item.rawData as any)?.geocodeQuery as string | undefined;
+        if (!rawQuery) continue;
+        const query = rawQuery.trim().toLowerCase();
+        let geo = geoCache.get(query);
+        if (geo === undefined) {
+          try {
+            const g = await this.geocodeWithMunicipalityValidation(rawQuery, 'Almelo');
+            geo = g ? { lat: g.lat, lon: g.lon } : null;
+          } catch { geo = null; }
+          geoCache.set(query, geo);
+          await new Promise(r => setTimeout(r, 1100));
+        }
+        if (geo) {
+          item.latitude = String(geo.lat);
+          item.longitude = String(geo.lon);
+        }
+      }
+
+      const withGps = items.filter(i => i.latitude && i.longitude).length;
+      console.log(`[RSS] Almelo: ${items.length} valid future events parsed (${withGps} with GPS)`);
       return { success: true, items, feedType: 'scraper' };
     } catch (err: any) {
       console.error(`[RSS] Almelo scraper failed: ${err.message}`);

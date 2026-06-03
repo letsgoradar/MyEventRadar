@@ -313,12 +313,34 @@ const UserLocationMarker = React.memo(function UserLocationMarker({
   );
 });
 
-// Component om de kaart automatisch te centreren op gebruiker
+// SessionStorage sleutels voor kaart-positie persistentie
+const MAP_ZOOM_KEY = 'app_map_zoom';
+const MAP_CENTER_KEY = 'app_map_center';
+
+function readSavedMapState(): { center: [number, number] | null; zoom: number } {
+  try {
+    const zoomStr = sessionStorage.getItem(MAP_ZOOM_KEY);
+    const centerStr = sessionStorage.getItem(MAP_CENTER_KEY);
+    if (zoomStr && centerStr) {
+      return { center: JSON.parse(centerStr) as [number, number], zoom: parseInt(zoomStr, 10) };
+    }
+  } catch {}
+  return { center: null, zoom: 11 };
+}
+
+// Component om de kaart automatisch te centreren op gebruiker — alleen bij eerste bezoek
 function MapCenter({ lat, lng, shouldFlyTo = false }: { lat: number; lng: number; shouldFlyTo?: boolean }) {
   const map = useMap();
+  const hasRunRef = React.useRef(false);
   
   React.useEffect(() => {
+    if (hasRunRef.current) return;
+    // Niet centreren als er al een opgeslagen kaartpositie is (bijv. na navigatie terug)
+    try {
+      if (sessionStorage.getItem(MAP_ZOOM_KEY)) return;
+    } catch {}
     if (lat && lng) {
+      hasRunRef.current = true;
       if (shouldFlyTo) {
         map.flyTo([lat, lng], 13);
       } else {
@@ -402,6 +424,15 @@ function MapEventLoader({
     // Geef de kaart even tijd om te laden
     const initTimer = setTimeout(sendInitialValues, 100);
     
+    // Sla kaartpositie op in sessionStorage zodat zoom behouden blijft bij navigatie
+    const saveMapState = () => {
+      try {
+        const center = map.getCenter();
+        sessionStorage.setItem(MAP_ZOOM_KEY, String(map.getZoom()));
+        sessionStorage.setItem(MAP_CENTER_KEY, JSON.stringify([center.lat, center.lng]));
+      } catch {}
+    };
+
     // Handler voor bewegingen van de kaart
     const handleMoveEnd = () => {
       try {
@@ -410,6 +441,7 @@ function MapEventLoader({
           onBoundsChangeRef.current(newBounds);
           prevBoundsRef.current = newBounds;
         }
+        saveMapState();
       } catch (err) {
         console.error("Fout bij bounds update:", err);
       }
@@ -432,6 +464,7 @@ function MapEventLoader({
           onBoundsChangeRef.current(newBounds);
           prevBoundsRef.current = newBounds;
         }
+        saveMapState();
       } catch (err) {
         console.error("Fout bij zoom update:", err);
       }
@@ -1045,8 +1078,8 @@ export default function MapView({
       </div>
       
       <MapContainer
-        center={userLocation}
-        zoom={11}
+        center={(() => { const s = readSavedMapState(); return s.center || userLocation; })()}
+        zoom={readSavedMapState().zoom}
         style={{ height: "100%", width: "100%" }}
         zoomControl={!hideZoomControls}
         className="z-10 map-container"

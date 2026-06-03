@@ -39,12 +39,65 @@ import { EventFilters, ActiveFilterBadges, type EventFilterState } from "@/compo
 import { RadarLogoWithText } from "@/components/RadarLogo";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { useAuth } from "@/hooks/use-auth";
-import { LogIn } from "lucide-react";
+import { LogIn, Navigation, MapPin, LocateFixed } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
-import { useLocation as useGeoLocation, clearSavedLocation, useCityName } from "@/hooks/useLocation";
-import { MapPin } from "lucide-react";
+import { useLocation as useGeoLocation, clearSavedLocation, setManualLocation, useCityName } from "@/hooks/useLocation";
+
+// Top-50 Nederlandse steden met coördinaten
+const DUTCH_CITIES = [
+  { name: 'Amsterdam', lat: 52.3676, lng: 4.9041 },
+  { name: 'Rotterdam', lat: 51.9244, lng: 4.4777 },
+  { name: 'Den Haag', lat: 52.0705, lng: 4.3007 },
+  { name: 'Utrecht', lat: 52.0907, lng: 5.1214 },
+  { name: 'Eindhoven', lat: 51.4416, lng: 5.4697 },
+  { name: 'Groningen', lat: 53.2194, lng: 6.5665 },
+  { name: 'Tilburg', lat: 51.5555, lng: 5.0913 },
+  { name: 'Almere', lat: 52.3508, lng: 5.2647 },
+  { name: 'Breda', lat: 51.5719, lng: 4.7683 },
+  { name: 'Nijmegen', lat: 51.8426, lng: 5.8546 },
+  { name: 'Enschede', lat: 52.2215, lng: 6.8937 },
+  { name: 'Haarlem', lat: 52.3874, lng: 4.6462 },
+  { name: 'Arnhem', lat: 51.9851, lng: 5.8987 },
+  { name: 'Amersfoort', lat: 52.1561, lng: 5.3878 },
+  { name: 'Apeldoorn', lat: 52.2112, lng: 5.9699 },
+  { name: 'Den Bosch', lat: 51.6978, lng: 5.3037 },
+  { name: 'Maastricht', lat: 50.8514, lng: 5.6909 },
+  { name: 'Leiden', lat: 52.1601, lng: 4.4970 },
+  { name: 'Dordrecht', lat: 51.8133, lng: 4.6901 },
+  { name: 'Zoetermeer', lat: 52.0578, lng: 4.4938 },
+  { name: 'Zwolle', lat: 52.5168, lng: 6.0830 },
+  { name: 'Deventer', lat: 52.2512, lng: 6.1583 },
+  { name: 'Delft', lat: 52.0116, lng: 4.3571 },
+  { name: 'Alkmaar', lat: 52.6324, lng: 4.7534 },
+  { name: 'Venlo', lat: 51.3704, lng: 6.1724 },
+  { name: 'Hilversum', lat: 52.2292, lng: 5.1725 },
+  { name: 'Zaandam', lat: 52.4392, lng: 4.8153 },
+  { name: 'Oss', lat: 51.7669, lng: 5.5185 },
+  { name: 'Almelo', lat: 52.3564, lng: 6.6637 },
+  { name: 'Leeuwarden', lat: 53.2012, lng: 5.7999 },
+  { name: 'Sittard', lat: 51.0005, lng: 5.8724 },
+  { name: 'Helmond', lat: 51.4817, lng: 5.6614 },
+  { name: 'Heerlen', lat: 50.8878, lng: 5.9794 },
+  { name: 'Ede', lat: 52.0461, lng: 5.6630 },
+  { name: 'Roosendaal', lat: 51.5308, lng: 4.4614 },
+  { name: 'Emmen', lat: 52.7797, lng: 6.9003 },
+  { name: 'Nijkerk', lat: 52.2197, lng: 5.4909 },
+  { name: 'Harderwijk', lat: 52.3420, lng: 5.6228 },
+  { name: 'Gouda', lat: 52.0116, lng: 4.7067 },
+  { name: 'Purmerend', lat: 52.5027, lng: 4.9575 },
+  { name: 'Middelburg', lat: 51.4987, lng: 3.6136 },
+  { name: 'Vlaardingen', lat: 51.9122, lng: 4.3414 },
+  { name: 'Alphen aan den Rijn', lat: 52.1278, lng: 4.6569 },
+  { name: 'Bergen op Zoom', lat: 51.4942, lng: 4.2878 },
+  { name: 'Lelystad', lat: 52.5185, lng: 5.4714 },
+  { name: 'Spijkenisse', lat: 51.8447, lng: 4.3296 },
+  { name: 'Assen', lat: 52.9925, lng: 6.5642 },
+  { name: 'Woerden', lat: 52.0875, lng: 4.8856 },
+  { name: 'Veenendaal', lat: 52.0275, lng: 5.5575 },
+  { name: 'Schiedam', lat: 51.9213, lng: 4.3983 },
+];
 
 interface HeaderProps {
   isMapView: boolean;
@@ -122,6 +175,42 @@ export function Header({
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = React.useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = React.useState(false);
+  const [locationPopoverOpen, setLocationPopoverOpen] = React.useState(false);
+  const [gpsLoading, setGpsLoading] = React.useState(false);
+  const cityName = useCityName();
+
+  const handleGoToMyLocation = React.useCallback(() => {
+    if (!navigator.geolocation) return;
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setManualLocation(coords);
+        // Vlieg naar nieuwe locatie op de kaart
+        try {
+          const mapRef = (window as any).mapRef;
+          if (mapRef?.current) {
+            mapRef.current.flyTo([coords.lat, coords.lng], 13, { animate: true, duration: 1 });
+          }
+        } catch {}
+        setGpsLoading(false);
+        setLocationPopoverOpen(false);
+      },
+      () => { setGpsLoading(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, []);
+
+  const handleSelectCity = React.useCallback((city: { name: string; lat: number; lng: number }) => {
+    setManualLocation({ lat: city.lat, lng: city.lng });
+    try {
+      const mapRef = (window as any).mapRef;
+      if (mapRef?.current) {
+        mapRef.current.flyTo([city.lat, city.lng], 13, { animate: true, duration: 1 });
+      }
+    } catch {}
+    setLocationPopoverOpen(false);
+  }, []);
 
   // Date range state - geen default, toont alle events
   const today = startOfDay(new Date());
@@ -174,7 +263,6 @@ export function Header({
 
   // Gebruikerslocatie voor afstandsberekening (via centrale hook)
   const { location: geoLocation } = useGeoLocation();
-  const cityName = useCityName();
 
   // Zoekresultaten ophalen van de API op basis van query en datumbereik
   React.useEffect(() => {
@@ -479,18 +567,55 @@ export function Header({
           </Button>
         </Link>
 
-        {/* Wijzig locatie */}
-        <Button
-          variant="outline"
-          onClick={clearSavedLocation}
-          className={cityName ? "h-10 px-3 rounded-full flex items-center gap-1.5 max-w-[160px]" : "h-10 w-10 rounded-full"}
-          title="Locatie wijzigen"
-        >
-          <MapPin className="h-5 w-5 flex-shrink-0" />
-          {cityName && (
-            <span className="text-sm font-medium truncate">{cityName}</span>
-          )}
-        </Button>
+        {/* Locatie knop met dropdown */}
+        <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cityName ? "h-10 px-3 rounded-full flex items-center gap-1.5 max-w-[160px]" : "h-10 w-10 rounded-full"}
+              title="Locatie wijzigen"
+            >
+              <MapPin className="h-5 w-5 flex-shrink-0" />
+              {cityName && (
+                <span className="text-sm font-medium truncate">{cityName}</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-0" align="end">
+            {/* GPS locatie */}
+            <button
+              onClick={handleGoToMyLocation}
+              disabled={gpsLoading}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted transition-colors disabled:opacity-60 border-b"
+            >
+              <LocateFixed className={`h-4 w-4 text-primary flex-shrink-0 ${gpsLoading ? 'animate-pulse' : ''}`} />
+              <div className="text-left">
+                <div className="font-medium">{gpsLoading ? 'Locatie bepalen…' : 'Mijn locatie gebruiken'}</div>
+                <div className="text-xs text-muted-foreground">Ga terug naar je GPS-positie</div>
+              </div>
+            </button>
+            {/* Stad zoeken */}
+            <Command>
+              <CommandInput placeholder="Zoek een stad…" className="h-9" />
+              <CommandList className="max-h-52">
+                <CommandEmpty>Geen resultaat</CommandEmpty>
+                <CommandGroup heading="Steden">
+                  {DUTCH_CITIES.map((city) => (
+                    <CommandItem
+                      key={city.name}
+                      value={city.name}
+                      onSelect={() => handleSelectCity(city)}
+                      className="cursor-pointer"
+                    >
+                      <Navigation className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
+                      {city.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
 
         {/* Toon de kaart/lijst schakelaar alleen indien niet verborgen */}
         {!hideViewToggle && (

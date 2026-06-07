@@ -10704,6 +10704,7 @@ export class RssFeedService {
       if (url.includes("indelft.nl")) return this.scrapeInDelft();
       if (url.includes("visitleiden.nl")) return this.scrapeVisitLeiden();
       if (url.includes("groenehart.nl")) return this.scrapeGroeneHart();
+      if (url.includes("heerlenmijnstad.nl")) return this.scrapeHeerlenMijnStad();
       // No dedicated scraper — use the intelligent universal scraper
       return this.scrapeUniversal(feed, { linkLimit: options?.linkLimit });
     }
@@ -11012,6 +11013,185 @@ export class RssFeedService {
       return { success: true, items };
     } catch (err: any) {
       console.error(`[RSS] UiTdatabank scraper failed for ${addressLocality}: ${err.message}`);
+      return { success: false, items: [], error: err.message };
+    }
+  }
+
+  // HeerlenMijnStad — CraftCMS GraphQL endpoint (no auth required)
+  // API: https://cms.heerlenmijnstad.nl/graphql
+  // Types: uitagenda_ongoing_Entry (permanent/recurring), uitagenda_short_Entry (dated events)
+  static async scrapeHeerlenMijnStad(): Promise<FeedParseResult> {
+    const GRAPHQL_URL = 'https://cms.heerlenmijnstad.nl/graphql';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const HEERLEN_CATEGORY_MAP: Record<string, string> = {
+      'kunst': 'Kunst & Cultuur',
+      'street art': 'Kunst & Cultuur',
+      'tentoonstelling': 'Tentoonstelling',
+      'museum': 'Tentoonstelling',
+      'erfgoed': 'Tentoonstelling',
+      'muziek': 'Muziek & Concert',
+      'concert': 'Muziek & Concert',
+      'theater': 'Voorstelling',
+      'dans': 'Voorstelling',
+      'cabaret': 'Voorstelling',
+      'kermis': 'Markt & Beurs',
+      'markt': 'Markt & Beurs',
+      'beurs': 'Markt & Beurs',
+      'sport': 'Sport & Bewegen',
+      'actief': 'Activiteit',
+      'wandel': 'Activiteit',
+      'fiets': 'Activiteit',
+      'jeugd': 'Kinderen & Familie',
+      'familie': 'Kinderen & Familie',
+      'speeltuin': 'Kinderen & Familie',
+      'festival': 'Festival',
+      'groot evenement': 'Festival',
+      'grote evenement': 'Festival',
+    };
+
+    const mapCategory = (cats: Array<{ title: string }>): string | undefined => {
+      if (!cats || cats.length === 0) return undefined;
+      for (const cat of cats) {
+        const lower = cat.title.toLowerCase();
+        for (const [key, val] of Object.entries(HEERLEN_CATEGORY_MAP)) {
+          if (lower.includes(key)) return val;
+        }
+      }
+      return undefined;
+    };
+
+    const FIELDS = `
+      id title slug url typeHandle
+      ... on uitagenda_ongoing_Entry {
+        eventStartdate eventEnddate eventSummary eventLocation
+        eventCategories { title }
+        eventImage { url }
+      }
+      ... on uitagenda_short_Entry {
+        eventStartdate eventEnddate eventSummary eventLocation
+        eventCategories { title }
+        eventImage { url }
+      }
+    `;
+
+    const query = `
+      query HeerlenEvents {
+        short: entries(section: "uitagenda", type: "short", limit: 300, orderBy: "eventStartdate ASC") { ${FIELDS} }
+        ongoing: entries(section: "uitagenda", type: "ongoing", limit: 100, orderBy: "eventStartdate ASC") { ${FIELDS} }
+      }
+    `;
+
+    try {
+      console.log('[RSS] HeerlenMijnStad: querying GraphQL API...');
+      const resp = await axios.post(GRAPHQL_URL, { query }, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000,
+      });
+
+      const data = resp.data?.data;
+      if (!data) {
+        const errMsg = resp.data?.errors?.[0]?.message || 'No data returned';
+        console.error(`[RSS] HeerlenMijnStad: GraphQL error: ${errMsg}`);
+        return { success: false, items: [], error: errMsg };
+      }
+
+      const allEntries: any[] = [
+        ...(data.short || []),
+        ...(data.ongoing || []),
+      ];
+
+      // Filter: only events where endDate >= today (or startDate >= today if no endDate)
+      const activeEntries = allEntries.filter((e: any) => {
+        const endRaw = e.eventEnddate || e.eventStartdate;
+        if (!endRaw) return false;
+        try {
+          return new Date(endRaw) >= today;
+        } catch { return false; }
+      });
+
+      console.log(`[RSS] HeerlenMijnStad: ${allEntries.length} total, ${activeEntries.length} active/upcoming`);
+
+      // Build items (no GPS yet)
+      const rawItems: ParsedFeedItem[] = activeEntries.map((e: any) => {
+        const externalId = `heerlen-${e.id}`;
+
+        let startTime: Date | undefined;
+        let endTime: Date | undefined;
+        if (e.eventStartdate) {
+          try {
+            const d = new Date(e.eventStartdate);
+            if (!isNaN(d.getTime())) startTime = d;
+          } catch {}
+        }
+        if (e.eventEnddate && startTime) {
+          try {
+            const et = new Date(e.eventEnddate);
+            if (!isNaN(et.getTime()) && et >= startTime) endTime = et;
+          } catch {}
+        }
+
+        const rawLocation: string = e.eventLocation || '';
+        // eventLocation sometimes includes the full address (e.g. "Venue, Street 1 (area)")
+        // Strip parenthetical annotations for cleaner geocoding
+        const venueForGeocoding = rawLocation.replace(/\s*\([^)]*\)\s*/g, '').trim();
+
+        const imageUrl: string | undefined = e.eventImage?.[0]?.url || e.eventImage?.url || undefined;
+        const detectedCategory = mapCategory(e.eventCategories || []);
+
+        return {
+          externalId,
+          title: e.title,
+          description: e.eventSummary || undefined,
+          link: e.url || `https://heerlenmijnstad.nl/uitagenda/${e.slug}`,
+          imageUrl,
+          startTime,
+          endTime,
+          location: rawLocation || 'Heerlen',
+          address: rawLocation ? `${rawLocation}, Heerlen` : 'Heerlen',
+          latitude: undefined,
+          longitude: undefined,
+          venueName: rawLocation || undefined,
+          venueCity: 'Heerlen',
+          detectedCategory,
+          rawData: { venueForGeocoding },
+        };
+      });
+
+      // Geocode unique venue names
+      const uniqueVenues = [...new Set(
+        rawItems.map(i => (i.rawData as any)?.venueForGeocoding).filter(Boolean)
+      )] as string[];
+
+      const venueGps = new Map<string, { lat: number; lon: number }>();
+      for (const venue of uniqueVenues) {
+        try {
+          const geo = await this.geocodeWithMunicipalityValidation(venue, 'Heerlen');
+          if (geo) {
+            venueGps.set(venue, { lat: geo.lat, lon: geo.lon });
+            console.log(`[RSS] HeerlenMijnStad geocoded: "${venue}" → ${geo.lat.toFixed(4)}, ${geo.lon.toFixed(4)}`);
+          }
+          await new Promise(r => setTimeout(r, 1100));
+        } catch { /* keep undefined */ }
+      }
+
+      // Apply geocoded coordinates
+      const items: ParsedFeedItem[] = rawItems.map(item => {
+        const venueKey = (item.rawData as any)?.venueForGeocoding;
+        const gps = venueKey ? venueGps.get(venueKey) : undefined;
+        return {
+          ...item,
+          latitude: gps?.lat,
+          longitude: gps?.lon,
+          rawData: undefined,
+        };
+      });
+
+      console.log(`[RSS] HeerlenMijnStad: ${items.length} events ready (${venueGps.size}/${uniqueVenues.length} venues geocoded)`);
+      return { success: true, items };
+    } catch (err: any) {
+      console.error(`[RSS] HeerlenMijnStad scraper failed: ${err.message}`);
       return { success: false, items: [], error: err.message };
     }
   }

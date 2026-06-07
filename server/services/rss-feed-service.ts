@@ -368,6 +368,9 @@ export class RssFeedService {
   private static async recordFeedFailure(feed: RssFeed, errorMessage: string): Promise<void> {
     const newCount = (feed.consecutiveFailures ?? 0) + 1;
     const shouldPause = newCount >= RssFeedService.MAX_CONSECUTIVE_FAILURES;
+    // Only send email on FIRST pause transition. If consecutiveFailures was already
+    // at/above the threshold, this is an auto-retry of an already-paused feed → skip email.
+    const isFirstPause = shouldPause && (feed.consecutiveFailures ?? 0) < RssFeedService.MAX_CONSECUTIVE_FAILURES;
 
     await db.update(rssFeeds)
       .set({
@@ -378,8 +381,12 @@ export class RssFeedService {
       })
       .where(eq(rssFeeds.id, feed.id));
 
-    if (shouldPause) {
+    if (isFirstPause) {
       console.warn(`[RSS] ${feed.name}: PAUSED after ${newCount} consecutive failures. Sending alert email.`);
+    } else if (shouldPause) {
+      console.warn(`[RSS] ${feed.name}: auto-retry failed (${newCount} total failures). Staying paused, no duplicate email sent.`);
+    }
+    if (isFirstPause) {
       try {
         const recentFailures = await db.select({
           syncedAt: feedSyncHistory.syncedAt,

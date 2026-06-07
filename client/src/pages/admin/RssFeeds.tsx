@@ -77,6 +77,7 @@ interface RssFeed {
   updateFrequencyMinutes: number;
   lastFetchedAt: string | null;
   lastErrorMessage: string | null;
+  consecutiveFailures: number;
   itemsImported: number;
   autoCreateEvents: boolean;
   createdAt: string;
@@ -598,6 +599,28 @@ export default function RssFeedsPage() {
     },
   });
 
+  // Manually reactivate all paused feeds (fresh start: resets consecutiveFailures to 0)
+  const reactivatePausedFeedsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('/api/admin/rss-feeds/reactivate-paused', { method: 'POST' });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/stats'] });
+      toast({
+        title: `${data.reactivated} feeds hergeactiveerd`,
+        description: 'Feeds worden opgepikt bij de volgende sync.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Heractiveren mislukt',
+        description: error.message || 'Er is een fout opgetreden.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const cancelSyncAllMutation = useMutation({
     mutationFn: async () => {
       return apiRequest('/api/admin/rss-feeds/sync-all/cancel', {
@@ -960,6 +983,80 @@ export default function RssFeedsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Paused Feeds Panel */}
+          {feeds.filter(f => f.status === 'paused').length > 0 && (
+            <Card className="mb-6 border-orange-200 bg-orange-50/30">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2 text-orange-800">
+                    <AlertCircle className="w-4 h-4" />
+                    Gepauzeerde feeds ({feeds.filter(f => f.status === 'paused').length})
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                    onClick={() => reactivatePausedFeedsMutation.mutate()}
+                    disabled={reactivatePausedFeedsMutation.isPending}
+                  >
+                    {reactivatePausedFeedsMutation.isPending ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                    )}
+                    Heractiveer alle
+                  </Button>
+                </div>
+                <p className="text-xs text-orange-600 mt-1">
+                  Feeds worden automatisch opnieuw geprobeerd na 24 uur. Handmatig heractiveren reset de foutenteller.
+                </p>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  {feeds.filter(f => f.status === 'paused').map(feed => {
+                    const hoursAgo = feed.lastFetchedAt
+                      ? Math.round((Date.now() - new Date(feed.lastFetchedAt).getTime()) / (60 * 60 * 1000))
+                      : null;
+                    const nextRetryInHours = hoursAgo !== null ? Math.max(0, 24 - hoursAgo) : null;
+                    return (
+                      <div key={feed.id} className="flex items-start justify-between gap-3 p-3 bg-white rounded-lg border border-orange-100">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm truncate">{feed.name}</span>
+                            <Badge variant="outline" className="text-xs border-orange-200 text-orange-700 shrink-0">
+                              {feed.consecutiveFailures} fouten
+                            </Badge>
+                          </div>
+                          {feed.lastErrorMessage && (
+                            <p className="text-xs text-red-600 mt-0.5 truncate" title={feed.lastErrorMessage}>
+                              {feed.lastErrorMessage}
+                            </p>
+                          )}
+                          {nextRetryInHours !== null && (
+                            <p className="text-xs text-orange-500 mt-0.5 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {nextRetryInHours === 0 ? 'Auto-retry bij volgende sync' : `Auto-retry over ~${nextRetryInHours}u`}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="shrink-0 text-orange-700 hover:bg-orange-100 h-7 px-2 text-xs"
+                          onClick={() => updateFeedMutation.mutate({ id: feed.id, status: 'active', consecutiveFailures: 0 })}
+                          disabled={updateFeedMutation.isPending}
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Heractiveer
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {syncAllProgress && (syncAllProgress.isRunning || syncAllProgress.feedResults.length > 0) && (
             <Card className="mb-6 border-blue-200 bg-blue-50/50">

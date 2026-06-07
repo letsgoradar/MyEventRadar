@@ -7,7 +7,7 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import type { EventInterface } from "@shared/schema";
 import { getCategoryColor, CATEGORY_PATHS } from "../CategoryIcon";
 import { isImageFailed, markImageFailed } from "@/lib/imageCache";
-import { getBestCategoryImage, CATEGORY_IMAGES } from "@/lib/categoryImages";
+import { getDeterministicCategoryImage, CATEGORY_IMAGES } from "@/lib/categoryImages";
 
 interface FormattedEvent {
   id: number;
@@ -135,9 +135,7 @@ function createImageMarkerIcon(
   ].join('');
 
   if (!displayUrl) {
-    // Absolute last resort: use getBestCategoryImage cross-category fallback
-    const emergencyUrl = getBestCategoryImage(category, "", "");
-    const fallbackUrl = emergencyUrl ?? "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=200&q=60";
+    const fallbackUrl = "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=200&q=60";
     const markerId2 = `marker-img-${markerIdCounter++}`;
     return L.divIcon({
       className: "pin-marker-container",
@@ -299,10 +297,12 @@ export function ClusterLayer({
     events.forEach((event) => {
       const isSelected = selectedEventId === event.id;
       const rawImageUrl = event.event.imageUrl ?? null;
-      // Always show a photo: use event image, fall back to category stock photo
+      // Always show a photo: use event image, fall back to deterministic category stock photo
+      // Using eventId as seed ensures the same photo is always shown for the same event,
+      // preventing flickering when bounds/events change on scroll or mouse move.
       const imageUrl = (rawImageUrl && !isImageFailed(rawImageUrl))
         ? rawImageUrl
-        : getBestCategoryImage(event.category, event.title, event.event.description || '');
+        : getDeterministicCategoryImage(event.category, event.id);
       
       if (currentMarkers.has(event.id)) {
         const existingMarker = currentMarkers.get(event.id)!;

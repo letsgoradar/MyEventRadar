@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalLinkInterstitial } from "@/components/Ads/ExternalLinkInterstitial";
+import { getDeterministicCategoryImage } from "@/lib/categoryImages";
 
 const formatDateTime = (dateInput: string | Date) => {
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
@@ -302,20 +303,31 @@ export function EventDetailPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {event.imageUrl && (
-          <div className="h-64 relative">
-            <img 
-              src={event.imageUrl} 
-              alt={event.title}
-              className="w-full h-full object-cover"
-            />
-            {(event as any).isHighlighted && (
-              <div className="absolute top-4 left-4">
-                <Badge className="bg-amber-500 text-white">Uitgelicht</Badge>
-              </div>
-            )}
-          </div>
-        )}
+        {(() => {
+          const displayImage = event.imageUrl || getDeterministicCategoryImage(event.category, event.id);
+          const isStockPhoto = !event.imageUrl;
+          return (
+            <div className="h-64 relative">
+              <img
+                src={displayImage}
+                alt={event.title}
+                className="w-full h-full object-cover"
+              />
+              {isStockPhoto && (
+                <div className="absolute bottom-2 right-2">
+                  <span className="bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">
+                    Stockfoto
+                  </span>
+                </div>
+              )}
+              {(event as any).isHighlighted && (
+                <div className="absolute top-4 left-4">
+                  <Badge className="bg-amber-500 text-white">Uitgelicht</Badge>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="p-6 space-y-6">
           <div className="flex items-center gap-3 text-sm">

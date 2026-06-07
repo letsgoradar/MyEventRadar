@@ -181,6 +181,14 @@ export function getCategoryImages(category: string): string[] {
   return CATEGORY_IMAGES[category] || CATEGORY_IMAGES["Anders"];
 }
 
+export function getDeterministicCategoryImage(category: string, eventId: number): string {
+  const images = CATEGORY_IMAGES[category] || CATEGORY_IMAGES["Anders"] || [];
+  if (!images || images.length === 0) {
+    return "https://images.unsplash.com/photo-1516450137517-162bfbeb8dba?q=80&w=1000";
+  }
+  return images[Math.abs(eventId) % images.length];
+}
+
 export function getSmartAlternatives(category: string, title: string, description: string, currentImage: string): string[] {
   const categoryImages = getCategoryImages(category);
   const alternatives = categoryImages.filter(img => img !== currentImage);

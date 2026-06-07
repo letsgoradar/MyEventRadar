@@ -10989,6 +10989,18 @@ export class RssFeedService {
    * Reads UITDATABANK_CLIENT_ID (preferred) or legacy UITDATABANK_API_KEY.
    * Feed URL encodes the addressLocality filter, e.g.:
    *   https://search.uitdatabank.be/offers/?addressLocality=Utrecht
+   *
+   * NOTE on filtering (validated against the live API):
+   * - `addressLocality` is NOT a valid URL query parameter (returns 404). The
+   *   municipality must be filtered via the advanced `q` query field using the
+   *   `address.\*.addressLocality:<City>` syntax (the backslash before `*` is
+   *   required by the query parser; `*` matches any address language).
+   * - The Search API only returns Belgian results by default. Dutch cities require
+   *   disabling that default with `addressCountry=*` and restricting to NL via
+   *   `address.\*.addressCountry:NL` in the same advanced query.
+   * - `dateFrom` must be a full ISO-8601 datetime WITH an explicit offset
+   *   (e.g. `2026-06-07T00:00:00+00:00`); a bare date or `Z`/millisecond form is
+   *   rejected. Valid sort fields are `created`/`modified` only (no `startDate`).
    */
   static async scrapeUiTdatabank(feed: any): Promise<FeedParseResult> {
     const clientId = process.env.UITDATABANK_CLIENT_ID || process.env.UITDATABANK_API_KEY;
@@ -11006,7 +11018,7 @@ export class RssFeedService {
     }
 
     const today = new Date();
-    const dateFrom = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const dateFrom = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}T00:00:00+00:00`;
 
     const items: ParsedFeedItem[] = [];
     const PAGE_SIZE = 50;
@@ -11017,10 +11029,17 @@ export class RssFeedService {
         const params = new URLSearchParams({
           limit: String(PAGE_SIZE),
           start: String(page * PAGE_SIZE),
-          'sort[startDate]': 'asc',
           dateFrom,
+          addressCountry: '*',
         });
-        if (addressLocality) params.set('addressLocality', addressLocality);
+        const qParts = ['address.\\*.addressCountry:NL'];
+        if (addressLocality) {
+          const escapedLocality = addressLocality.trim()
+            .replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, '\\$&')
+            .replace(/\s+/g, '\\ ');
+          qParts.push(`address.\\*.addressLocality:${escapedLocality}`);
+        }
+        params.set('q', qParts.join(' AND '));
 
         const url = `https://search.uitdatabank.be/offers/?${params.toString()}`;
         console.log(`[RSS] UiTdatabank ${addressLocality}: page ${page + 1}...`);
@@ -11120,8 +11139,15 @@ export class RssFeedService {
       console.log(`[RSS] UiTdatabank ${addressLocality}: ${items.length} events parsed`);
       return { success: true, items };
     } catch (err: any) {
-      console.error(`[RSS] UiTdatabank scraper failed for ${addressLocality}: ${err.message}`);
-      return { success: false, items: [], error: err.message };
+      const status = err.response?.status;
+      const body = typeof err.response?.data === 'string'
+        ? err.response.data.slice(0, 200)
+        : JSON.stringify(err.response?.data || {}).slice(0, 200);
+      const hint = status === 403
+        ? ' (403: client id not authorized for the Search API — enable/activate Search API for this integration on platform.publiq.be)'
+        : '';
+      console.error(`[RSS] UiTdatabank scraper failed for ${addressLocality}: ${err.message}${status ? ` [HTTP ${status}]` : ''}${hint} ${body}`);
+      return { success: false, items: [], error: `${err.message}${status ? ` (HTTP ${status})` : ''}` };
     }
   }
 

@@ -609,3 +609,260 @@ export async function sendFeedPausedNotification(feed: {
     return false;
   }
 }
+
+export async function sendDailyDigest(): Promise<boolean> {
+  const adminEmail = "info@letsgoradar.com";
+  const baseUrl = getBaseUrl();
+  const adminUrl = `${baseUrl}/admin/rss-feeds`;
+
+  const now = new Date();
+  const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  const dateLabel = now.toLocaleDateString("nl-NL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Amsterdam",
+  });
+
+  const subject = `[letsgo radar] Dagelijks feedrapport — ${dateLabel}`;
+
+  let allFeeds: Array<{
+    id: number;
+    name: string;
+    municipality: string | null;
+    status: string;
+    lastFetchedAt: Date | null;
+    lastErrorMessage: string | null;
+    consecutiveFailures: number | null;
+    itemsImported: number | null;
+  }> = [];
+
+  let newEvents: Array<{
+    title: string;
+    category: string;
+    address: string | null;
+    feedName: string | null;
+    createdAt: Date | null;
+  }> = [];
+
+  try {
+    const { db } = await import("../db");
+    const { rssFeeds, rssFeedItems, events } = await import("@shared/schema");
+    const { gte, isNotNull, eq, asc, desc } = await import("drizzle-orm");
+
+    allFeeds = await db
+      .select({
+        id: rssFeeds.id,
+        name: rssFeeds.name,
+        municipality: rssFeeds.municipality,
+        status: rssFeeds.status,
+        lastFetchedAt: rssFeeds.lastFetchedAt,
+        lastErrorMessage: rssFeeds.lastErrorMessage,
+        consecutiveFailures: rssFeeds.consecutiveFailures,
+        itemsImported: rssFeeds.itemsImported,
+      })
+      .from(rssFeeds)
+      .orderBy(asc(rssFeeds.name));
+
+    const recentItems = await db
+      .select({
+        title: events.title,
+        category: events.category,
+        address: events.address,
+        createdAt: events.createdAt,
+        feedName: rssFeeds.name,
+      })
+      .from(events)
+      .innerJoin(rssFeedItems, eq(rssFeedItems.eventId, events.id))
+      .innerJoin(rssFeeds, eq(rssFeeds.id, rssFeedItems.feedId))
+      .where(gte(events.createdAt, since24h))
+      .orderBy(desc(events.createdAt))
+      .limit(50);
+
+    newEvents = recentItems;
+  } catch (error) {
+    console.error("[Email] Digest: fout bij ophalen data uit DB:", error);
+  }
+
+  const activeFeeds = allFeeds.filter((f) => f.status === "active");
+  const problemFeeds = allFeeds.filter((f) => f.status === "error" || f.status === "paused");
+
+  function statusBadge(status: string): string {
+    if (status === "active") return `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:bold;">actief</span>`;
+    if (status === "paused") return `<span style="background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:bold;">gepauzeerd</span>`;
+    return `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:bold;">fout</span>`;
+  }
+
+  function fmtDate(d: Date | null): string {
+    if (!d) return "—";
+    return new Date(d).toLocaleString("nl-NL", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+      timeZone: "Europe/Amsterdam",
+    });
+  }
+
+  const feedTableRows = allFeeds.map((f, i) =>
+    `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"};">
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">${f.name}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#555;">${f.municipality || "—"}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;">${statusBadge(f.status)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#555;">${fmtDate(f.lastFetchedAt)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">${f.itemsImported ?? 0}</td>
+    </tr>`
+  ).join("");
+
+  const eventRows = newEvents.length > 0
+    ? newEvents.map((e, i) =>
+        `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"};">
+          <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">${e.title}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#555;">${e.category}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#555;">${e.address || "—"}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#555;">${e.feedName || "—"}</td>
+        </tr>`
+      ).join("")
+    : `<tr><td colspan="4" style="padding:12px;color:#9ca3af;text-align:center;font-size:13px;">Geen nieuwe events in de afgelopen 24 uur</td></tr>`;
+
+  const problemSection = problemFeeds.length > 0
+    ? `<h2 style="font-size:17px;color:#dc2626;margin:32px 0 12px;padding-bottom:8px;border-bottom:2px solid #fca5a5;">
+        ⚠️ Probleem-feeds (${problemFeeds.length})
+      </h2>
+      ${problemFeeds.map((f) => `
+        <div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:14px 16px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+            <div>
+              <strong style="font-size:14px;color:#111;">${f.name}</strong>
+              <span style="margin-left:8px;">${statusBadge(f.status)}</span>
+              ${f.municipality ? `<span style="margin-left:6px;font-size:12px;color:#6b7280;">(${f.municipality})</span>` : ""}
+            </div>
+            <span style="font-size:12px;color:#9ca3af;white-space:nowrap;">Fouten: ${f.consecutiveFailures ?? 0}</span>
+          </div>
+          ${f.lastErrorMessage ? `<p style="font-size:12px;font-family:monospace;color:#b91c1c;background:#fef2f2;border-radius:4px;padding:8px 10px;margin:8px 0 0;word-break:break-all;">${f.lastErrorMessage}</p>` : ""}
+          <p style="font-size:12px;color:#6b7280;margin:6px 0 0;">Laatste sync: ${fmtDate(f.lastFetchedAt)}</p>
+        </div>
+      `).join("")}
+      <div style="text-align:center;margin:20px 0;">
+        <a href="${adminUrl}" style="display:inline-block;background:#dc2626;color:white;padding:11px 24px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:bold;">
+          Beheer probleem-feeds →
+        </a>
+      </div>`
+    : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;margin:24px 0;text-align:center;">
+        <p style="margin:0;color:#166534;font-size:14px;">✅ Alle feeds functioneren zonder problemen</p>
+      </div>`;
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:20px;background:#f9fafb;">
+      <div style="background:white;border-radius:12px;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="background:#00A9C5;display:inline-block;padding:10px 22px;border-radius:8px;">
+            <span style="color:white;font-size:18px;font-weight:bold;letter-spacing:-0.5px;">letsgo&#33; radar</span>
+          </div>
+          <h1 style="font-size:20px;color:#111;margin:16px 0 4px;">Dagelijks feedrapport</h1>
+          <p style="color:#6b7280;font-size:14px;margin:0;">${dateLabel}</p>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-bottom:28px;text-align:center;">
+          <div style="flex:1;background:#f0fdf4;border-radius:8px;padding:14px;">
+            <div style="font-size:26px;font-weight:bold;color:#16a34a;">${activeFeeds.length}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Actieve feeds</div>
+          </div>
+          <div style="flex:1;background:${problemFeeds.length > 0 ? "#fff5f5" : "#f9fafb"};border-radius:8px;padding:14px;">
+            <div style="font-size:26px;font-weight:bold;color:${problemFeeds.length > 0 ? "#dc2626" : "#6b7280"};">${problemFeeds.length}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Probleem-feeds</div>
+          </div>
+          <div style="flex:1;background:#eff6ff;border-radius:8px;padding:14px;">
+            <div style="font-size:26px;font-weight:bold;color:#2563eb;">${newEvents.length}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Nieuwe events (24h)</div>
+          </div>
+          <div style="flex:1;background:#f9fafb;border-radius:8px;padding:14px;">
+            <div style="font-size:26px;font-weight:bold;color:#374151;">${allFeeds.length}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Feeds totaal</div>
+          </div>
+        </div>
+
+        ${problemSection}
+
+        <h2 style="font-size:17px;color:#111;margin:32px 0 12px;padding-bottom:8px;border-bottom:2px solid #e5e7eb;">
+          📋 Feed-overzicht (${allFeeds.length})
+        </h2>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="background:#f3f4f6;">
+                <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Feed</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Gemeente</th>
+                <th style="padding:8px 10px;text-align:center;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Status</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Laatste sync</th>
+                <th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Geïmporteerd</th>
+              </tr>
+            </thead>
+            <tbody>${feedTableRows}</tbody>
+          </table>
+        </div>
+
+        <h2 style="font-size:17px;color:#111;margin:32px 0 12px;padding-bottom:8px;border-bottom:2px solid #e5e7eb;">
+          🆕 Nieuwe events afgelopen 24 uur (${newEvents.length})
+        </h2>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="background:#f3f4f6;">
+                <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Titel</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Categorie</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Locatie</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Feed</th>
+              </tr>
+            </thead>
+            <tbody>${eventRows}</tbody>
+          </table>
+        </div>
+
+        <div style="text-align:center;margin:28px 0 8px;">
+          <a href="${adminUrl}" style="display:inline-block;background:#00A9C5;color:white;padding:12px 28px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:bold;">
+            Open admin-paneel →
+          </a>
+        </div>
+
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0 16px;" />
+        <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0;">
+          letsgo radar — Automatisch dagrapport · 
+          <a href="${baseUrl}/admin" style="color:#9ca3af;">Admin</a>
+        </p>
+      </div>
+    </div>
+  `;
+
+  const transport = getTransporter();
+
+  if (!transport) {
+    console.log("\n========================================");
+    console.log("[Email] DAGELIJKS DIGEST (dev mode — SMTP niet geconfigureerd)");
+    console.log(`Datum: ${dateLabel}`);
+    console.log(`Feeds totaal: ${allFeeds.length} | Actief: ${activeFeeds.length} | Probleem: ${problemFeeds.length}`);
+    console.log(`Nieuwe events (24h): ${newEvents.length}`);
+    console.log("========================================\n");
+    return true;
+  }
+
+  try {
+    await transport.sendMail({
+      from: `letsgo radar <${getFromAddress()}>`,
+      to: adminEmail,
+      replyTo: adminEmail,
+      subject,
+      html,
+      headers: {
+        "List-Unsubscribe": `<mailto:${adminEmail}?subject=Unsubscribe>`,
+        "X-Mailer": "letsgo-radar-digest/1.0",
+        "Precedence": "bulk",
+      },
+    });
+    console.log(`[Email] Dagelijkse digest verzonden naar ${adminEmail} (${allFeeds.length} feeds, ${newEvents.length} nieuwe events)`);
+    return true;
+  } catch (error) {
+    console.error("[Email] Fout bij verzenden dagelijkse digest:", error);
+    return false;
+  }
+}

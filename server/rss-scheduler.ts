@@ -8,6 +8,10 @@ let schedulerInterval: ReturnType<typeof setInterval> | null = null;
 
 const SYNC_INTERVAL_HOURS = 6;
 
+let lastDigestSentAt: Date | null = null;
+const DIGEST_COOLDOWN_HOURS = 20;
+const DIGEST_TARGET_HOUR_CET = 7;
+
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('nl-NL', { 
     hour: '2-digit', 
@@ -84,6 +88,47 @@ async function runBackgroundSync(): Promise<void> {
   }
 }
 
+function currentHourCET(): number {
+  return parseInt(
+    new Date().toLocaleString("nl-NL", { hour: "numeric", hour12: false, timeZone: "Europe/Amsterdam" }),
+    10
+  );
+}
+
+function shouldSendDigest(): boolean {
+  if (lastDigestSentAt) {
+    const hoursSince = (Date.now() - lastDigestSentAt.getTime()) / (1000 * 60 * 60);
+    if (hoursSince < DIGEST_COOLDOWN_HOURS) return false;
+  }
+  return currentHourCET() === DIGEST_TARGET_HOUR_CET;
+}
+
+async function runDailyDigest(): Promise<void> {
+  lastDigestSentAt = new Date();
+  try {
+    const { sendDailyDigest } = await import("./services/email-service");
+    const ok = await sendDailyDigest();
+    if (ok) {
+      console.log(`[RSS Scheduler] Dagelijkse digest verstuurd om ${formatTime(new Date())}`);
+    } else {
+      console.warn("[RSS Scheduler] Digest verzending mislukt (zie e-mail logs)");
+      lastDigestSentAt = null;
+    }
+  } catch (err: any) {
+    console.error("[RSS Scheduler] Fout bij dagelijkse digest:", err.message);
+    lastDigestSentAt = null;
+  }
+}
+
+export function triggerDigestNow(): void {
+  lastDigestSentAt = null;
+  runDailyDigest();
+}
+
+export function getLastDigestSentAt(): Date | null {
+  return lastDigestSentAt;
+}
+
 // No-op middleware — sync is now handled by the internal interval, not per-request
 export function rssSyncMiddleware(req: Request, res: Response, next: NextFunction): void {
   next();
@@ -103,6 +148,9 @@ export function startRssScheduler(): void {
     schedulerInterval = setInterval(() => {
       if (shouldSync()) {
         runBackgroundSync();
+      }
+      if (shouldSendDigest()) {
+        runDailyDigest();
       }
     }, 15 * 60 * 1000);
   });

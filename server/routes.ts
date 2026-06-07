@@ -439,6 +439,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/admin/digest/send", isAdmin, async (req, res) => {
+    try {
+      const { triggerDigestNow, getLastDigestSentAt } = await import("./rss-scheduler");
+      triggerDigestNow();
+      res.json({
+        sent: true,
+        to: "info@letsgoradar.com",
+        triggeredAt: new Date().toISOString(),
+        message: "Dagelijkse digest wordt verstuurd op de achtergrond",
+      });
+    } catch (error: any) {
+      console.error("[Admin] Fout bij triggeren digest:", error);
+      res.status(500).json({ error: "Kon digest niet starten" });
+    }
+  });
+
+  app.get("/api/admin/digest/status", isAdmin, async (req, res) => {
+    try {
+      const { getLastDigestSentAt } = await import("./rss-scheduler");
+      const lastSent = getLastDigestSentAt();
+      res.json({
+        lastSentAt: lastSent?.toISOString() ?? null,
+        nextScheduledAt: "07:00 CET (dagelijks)",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: "Kon digest-status niet ophalen" });
+    }
+  });
+
   app.get("/api/admin/api-usage", isAdmin, async (req, res) => {
     try {
       const summary = await storage.getApiUsageSummary();

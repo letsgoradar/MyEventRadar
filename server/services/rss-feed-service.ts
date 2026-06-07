@@ -359,6 +359,87 @@ export class RssFeedService {
   private static readonly MAX_BATCH_IMPORT_SIZE = 500;
   private static readonly MAX_CONSECUTIVE_FAILURES = 3;
   private static geocodeCache: Map<string, GeocodingResult> = new Map();
+  // Addresses that returned no result this session — skip re-querying Nominatim.
+  // Only genuine "not found" results are cached here (NOT transient 429/timeouts).
+  private static geocodeMisses: Set<string> = new Set();
+  // Global Nominatim throttle: serialize requests, >=1 req/sec (Nominatim ToS).
+  private static readonly NOMINATIM_MIN_INTERVAL_MS = 1100;
+  private static lastNominatimAt = 0;
+  private static nominatimChain: Promise<void> = Promise.resolve();
+
+  /**
+   * Normalize a free-text address before geocoding: collapse newlines, tabs and
+   * repeated whitespace (RSS/HTML feeds frequently include raw layout whitespace).
+   */
+  private static cleanAddressQuery(address: string): string {
+    return address
+      .replace(/[\r\n\t]+/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .replace(/\s*,\s*/g, ", ")
+      .trim();
+  }
+
+  /**
+   * Serialize Nominatim calls and enforce a minimum interval between them so a
+   * batch sync of many feeds never exceeds the 1 req/sec usage policy (avoids 429).
+   */
+  private static async throttleNominatim(): Promise<void> {
+    const prev = this.nominatimChain;
+    let release!: () => void;
+    this.nominatimChain = new Promise<void>((resolve) => { release = resolve; });
+    await prev;
+    const elapsed = Date.now() - this.lastNominatimAt;
+    const wait = this.NOMINATIM_MIN_INTERVAL_MS - elapsed;
+    if (wait > 0) {
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+    this.lastNominatimAt = Date.now();
+    release();
+  }
+
+  // Venue names too generic to learn as a specific location (would resolve to a
+  // municipality centroid, which the platform explicitly forbids).
+  private static readonly GENERIC_VENUE_NAMES = new Set([
+    "gemeentehuis", "centrum", "binnenstad", "stadhuis", "marktplein", "markt",
+    "dorpsplein", "plein", "centre", "city center", "stadscentrum", "dorpskern",
+    "online", "diverse locaties", "verschillende locaties", "n.t.b.", "ntb",
+    "locatie volgt", "onbekend", "diversen",
+  ]);
+
+  /**
+   * Decide whether a resolved venue is specific enough to LEARN. Rejects:
+   *  - generic placeholder names (gemeentehuis, centrum, ...) or the municipality
+   *    name itself, and
+   *  - coordinates that sit (almost) exactly on the municipality centroid, which
+   *    means we only matched a generic city point, not a real venue.
+   */
+  private static isSpecificVenueLocation(
+    venueName: string,
+    lat: number,
+    lon: number,
+    municipality: string,
+  ): boolean {
+    const normalized = (venueName || "").toLowerCase().trim();
+    if (!normalized || normalized.length < 3) return false;
+    if (this.GENERIC_VENUE_NAMES.has(normalized)) return false;
+    if (municipality && normalized === municipality.toLowerCase().trim()) return false;
+
+    // Reject coordinates within ~250m of the municipality centroid.
+    const centroid = getMunicipalityCentroid(municipality);
+    if (centroid) {
+      const R = 6371;
+      const dLat = ((centroid.lat - lat) * Math.PI) / 180;
+      const dLon = ((centroid.lng - lon) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((lat * Math.PI) / 180) *
+          Math.cos((centroid.lat * Math.PI) / 180) *
+          Math.sin(dLon / 2) ** 2;
+      const distanceKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      if (distanceKm < 0.25) return false;
+    }
+    return true;
+  }
 
   /**
    * Record a feed failure: increment consecutiveFailures.
@@ -651,12 +732,23 @@ export class RssFeedService {
   }
 
   static async geocodeAddress(address: string): Promise<GeocodingResult | null> {
+    // Clean raw feed whitespace (newlines/tabs) before anything else
+    const cleanedAddress = this.cleanAddressQuery(address);
     // Normalize address for consistent cache lookups
-    const normalizedAddress = address.toLowerCase().trim();
-    
+    const normalizedAddress = cleanedAddress.toLowerCase().trim();
+
+    if (!normalizedAddress) {
+      return null;
+    }
+
     // Check in-memory cache first (fast path)
     if (this.geocodeCache.has(normalizedAddress)) {
       return this.geocodeCache.get(normalizedAddress)!;
+    }
+
+    // Skip addresses already known to return no result this session
+    if (this.geocodeMisses.has(normalizedAddress)) {
+      return null;
     }
 
     // Check database cache (persistent)
@@ -670,7 +762,7 @@ export class RssFeedService {
         };
         // Store in memory cache for even faster subsequent lookups
         this.geocodeCache.set(normalizedAddress, result);
-        console.log(`[RSS] Geocode CACHE HIT for "${address.substring(0, 40)}..."`);
+        console.log(`[RSS] Geocode CACHE HIT for "${cleanedAddress.substring(0, 40)}..."`);
         return result;
       }
     } catch (error) {
@@ -678,7 +770,10 @@ export class RssFeedService {
     }
 
     try {
-      const encodedAddress = encodeURIComponent(address);
+      // Enforce global 1 req/sec Nominatim rate limit across all feeds
+      await this.throttleNominatim();
+
+      const encodedAddress = encodeURIComponent(cleanedAddress);
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`;
       
       const response = await axios.get(url, {
@@ -705,11 +800,15 @@ export class RssFeedService {
           console.log(`[RSS] Geocode cache save failed: ${err.message}`);
         });
         
-        console.log(`[RSS] Geocoded "${address.substring(0, 40)}..." to ${result.lat}, ${result.lon}`);
+        console.log(`[RSS] Geocoded "${cleanedAddress.substring(0, 40)}..." to ${result.lat}, ${result.lon}`);
         return result;
       }
+
+      // Genuine "not found" — remember so we don't re-query this session
+      this.geocodeMisses.add(normalizedAddress);
     } catch (error: any) {
-      console.error(`[RSS] Geocoding error for "${address}":`, error.message);
+      // Transient errors (429/timeout): do NOT negative-cache, allow later retries
+      console.error(`[RSS] Geocoding error for "${cleanedAddress}":`, error.message);
     }
     return null;
   }
@@ -11663,6 +11762,40 @@ export class RssFeedService {
         }
       }
 
+      // STEP 1b: Check the learned venue database BEFORE hitting Nominatim.
+      // A venue we successfully located before is reused instantly (no API call),
+      // which is the core of the self-improving system and avoids 429 rate limits.
+      let usedLearnedVenue = false;
+      if (!geocodeSuccess && (parsedItem.location || parsedItem.address)) {
+        const venueName = parsedItem.location || parsedItem.address || "";
+        const learnedVenue = await VenueService.findBestVenue(venueName);
+        if (learnedVenue?.latitude && learnedVenue?.longitude) {
+          const vLat = parseFloat(learnedVenue.latitude);
+          const vLon = parseFloat(learnedVenue.longitude);
+          if (!isNaN(vLat) && !isNaN(vLon)) {
+            const regionCheck = this.validateCoordinatesWithDistanceLimit(
+              vLat,
+              vLon,
+              expectedMunicipality,
+              MAX_DISTANCE_KM
+            );
+            // Admin-verified venues are trusted even if they fall outside the
+            // distance limit (they were curated on purpose); otherwise require
+            // the stored location to be within range of the expected municipality.
+            if (regionCheck || learnedVenue.isVerified) {
+              latitude = vLat.toString();
+              longitude = vLon.toString();
+              address = learnedVenue.address || parsedItem.address || `${venueName}, ${learnedVenue.municipality || expectedMunicipality}`;
+              actualMunicipality = regionCheck?.municipality || learnedVenue.municipality || expectedMunicipality;
+              geocodeSuccess = true;
+              usedLearnedVenue = true;
+              await VenueService.recordVenueUsage(learnedVenue.id).catch(() => {});
+              console.log(`[RSS] Venue DB HIT: "${venueName}" -> (${vLat}, ${vLon}) [${learnedVenue.isVerified ? 'verified' : 'learned'}]`);
+            }
+          }
+        }
+      }
+
       // STEP 2: Try geocoding street address with municipality context
       if (!geocodeSuccess && parsedItem.address) {
         const hasPostalCode = /\d{4}\s*[A-Z]{2}/.test(parsedItem.address);
@@ -11707,6 +11840,7 @@ export class RssFeedService {
       }
 
       // STEP 5: Fall back to feed-level default coordinates when no item-level location found
+      let usedFeedDefault = false;
       if (!geocodeSuccess && feed.defaultLatitude && feed.defaultLongitude) {
         const defLat = parseFloat(feed.defaultLatitude);
         const defLon = parseFloat(feed.defaultLongitude);
@@ -11716,6 +11850,7 @@ export class RssFeedService {
           address = feed.defaultAddress || `${expectedMunicipality}, Nederland`;
           actualMunicipality = expectedMunicipality;
           geocodeSuccess = true;
+          usedFeedDefault = true;
           console.log(`[RSS] Using feed default coordinates for "${formattedTitle}" in ${expectedMunicipality}`);
         }
       }
@@ -11738,6 +11873,29 @@ export class RssFeedService {
           })
           .where(eq(rssFeedItems.id, feedItem.id));
         return;
+      }
+
+      // LEARN: persist the resolved venue so future syncs reuse it without geocoding.
+      // Skip when we only matched a generic feed-default centroid, or when we just
+      // read it back from the venue DB (no new information to store), or when the
+      // resolved point is a generic name / municipality centroid (forbidden).
+      if (
+        !usedFeedDefault &&
+        !usedLearnedVenue &&
+        parsedItem.location &&
+        this.isSpecificVenueLocation(parsedItem.location, parseFloat(latitude), parseFloat(longitude), actualMunicipality)
+      ) {
+        const vLat = parseFloat(latitude);
+        const vLon = parseFloat(longitude);
+        if (!isNaN(vLat) && !isNaN(vLon)) {
+          await VenueService.findOrCreateVenue(parsedItem.location, {
+            municipality: actualMunicipality,
+            address: address || undefined,
+            latitude: vLat,
+            longitude: vLon,
+            sourceUrl: parsedItem.link || undefined,
+          }).catch((err) => console.log(`[VenueService] learn failed: ${err.message}`));
+        }
       }
 
       let imageUrl = parsedItem.imageUrl;

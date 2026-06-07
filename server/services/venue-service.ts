@@ -13,7 +13,8 @@ export class VenueService {
 
   static async findVenue(name: string, municipality?: string): Promise<Venue | null> {
     const normalizedName = this.normalizeVenueName(name);
-    
+    if (!normalizedName) return null;
+
     const conditions = [eq(venues.normalizedName, normalizedName)];
     if (municipality) {
       conditions.push(eq(venues.municipality, municipality));
@@ -22,9 +23,38 @@ export class VenueService {
     const [venue] = await db.select()
       .from(venues)
       .where(and(...conditions))
+      // Prefer admin-verified venues, then most-used
+      .orderBy(desc(venues.isVerified), desc(venues.usageCount))
       .limit(1);
 
     return venue || null;
+  }
+
+  /**
+   * Find a learned venue by name across ALL municipalities (no municipality filter).
+   * Used by the import flow so a venue learned under its actual municipality (e.g. a
+   * regional venue stored under "Deurne") still matches when a neighbouring feed
+   * (e.g. "Gemert-Bakel") references it. The caller validates the distance.
+   * Prefers admin-verified venues, then most-used.
+   */
+  static async findBestVenue(name: string): Promise<Venue | null> {
+    const normalizedName = this.normalizeVenueName(name);
+    if (!normalizedName) return null;
+
+    const [venue] = await db.select()
+      .from(venues)
+      .where(eq(venues.normalizedName, normalizedName))
+      .orderBy(desc(venues.isVerified), desc(venues.usageCount))
+      .limit(1);
+
+    return venue || null;
+  }
+
+  /** Increment usage stats for a venue that was matched from the learned DB. */
+  static async recordVenueUsage(id: number): Promise<void> {
+    await db.update(venues)
+      .set({ usageCount: sql`COALESCE(${venues.usageCount}, 0) + 1`, lastUsedAt: new Date() })
+      .where(eq(venues.id, id));
   }
 
   static async findOrCreateVenue(

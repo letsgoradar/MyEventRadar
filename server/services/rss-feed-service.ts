@@ -10984,14 +10984,16 @@ export class RssFeedService {
 
   /**
    * Scraper for UiTdatabank Search API v3 (Publiq vzw).
-   * Requires UITDATABANK_API_KEY environment variable.
+   * Auth via publiq "client identification": the client id is sent as an
+   * X-Client-Id header (recommended for read-only Search API; no secret needed).
+   * Reads UITDATABANK_CLIENT_ID (preferred) or legacy UITDATABANK_API_KEY.
    * Feed URL encodes the addressLocality filter, e.g.:
    *   https://search.uitdatabank.be/offers/?addressLocality=Utrecht
    */
   static async scrapeUiTdatabank(feed: any): Promise<FeedParseResult> {
-    const API_KEY = process.env.UITDATABANK_API_KEY;
-    if (!API_KEY) {
-      console.warn(`[RSS] UiTdatabank (${feed.municipality}): UITDATABANK_API_KEY not set — feed overgeslagen`);
+    const clientId = process.env.UITDATABANK_CLIENT_ID || process.env.UITDATABANK_API_KEY;
+    if (!clientId) {
+      console.warn(`[RSS] UiTdatabank (${feed.municipality}): UITDATABANK_CLIENT_ID not set — feed overgeslagen`);
       return { success: true, items: [] };
     }
 
@@ -11024,7 +11026,7 @@ export class RssFeedService {
         console.log(`[RSS] UiTdatabank ${addressLocality}: page ${page + 1}...`);
 
         const resp = await axios.get(url, {
-          headers: { 'x-api-key': API_KEY, 'Accept': 'application/json' },
+          headers: { 'X-Client-Id': clientId, 'Accept': 'application/json' },
           timeout: 20000,
         });
 

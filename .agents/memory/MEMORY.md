@@ -1,4 +1,5 @@
 - [RSS scraper dispatch](rss-scraper-dispatch.md) — all scrapers route through one `dispatchScraper` helper; each must return `success: true` or it's silently marked FAILED.
 - [Brand event filtering](brand-filtering.md) — focus brands match on category OR title keyword OR tag; keep eventMatchesBrand and buildBrandEventCondition in lockstep.
 - [Venue learning in RSS import](venue-learning.md) — main flow reuses learned venues before Nominatim + throttles 1 req/sec; never learn generic-centroid/placeholder venues.
+- [UiTdatabank auth](uitdatabank-auth.md) — Search API uses X-Client-Id (client id only, no secret); 403 "not allowed" = account not authorized for Search API, not a code bug.
 - [Heerlen GraphQL fix](heerlen-graphql-fix.md) — site uses undocumented CraftCMS GraphQL at cms.heerlenmijnstad.nl, not HTML scraping.

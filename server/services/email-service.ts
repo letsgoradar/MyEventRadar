@@ -616,7 +616,6 @@ export async function sendDailyDigest(): Promise<boolean> {
   const adminUrl = `${baseUrl}/admin/rss-feeds`;
 
   const now = new Date();
-  const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   const dateLabel = now.toLocaleDateString("nl-NL", {
     weekday: "long",
@@ -627,6 +626,30 @@ export async function sendDailyDigest(): Promise<boolean> {
   });
 
   const subject = `[letsgo radar] Dagelijks feedrapport — ${dateLabel}`;
+
+  function getAmsterdamDayStart(daysAgo: number): Date {
+    const ref = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    const parts = new Intl.DateTimeFormat("nl-NL", {
+      timeZone: "Europe/Amsterdam",
+      year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(ref);
+    const day = parts.find(p => p.type === "day")!.value;
+    const month = parts.find(p => p.type === "month")!.value;
+    const year = parts.find(p => p.type === "year")!.value;
+    const midnightUTC = new Date(`${year}-${month}-${day}T00:00:00Z`);
+    const amsHour = parseInt(
+      new Intl.DateTimeFormat("nl-NL", {
+        timeZone: "Europe/Amsterdam",
+        hour: "numeric", hour12: false,
+      }).formatToParts(midnightUTC).find(p => p.type === "hour")!.value,
+      10
+    );
+    return new Date(midnightUTC.getTime() - amsHour * 60 * 60 * 1000);
+  }
+
+  const todayStart = getAmsterdamDayStart(0);
+  const yesterdayStart = getAmsterdamDayStart(1);
+  const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   let allFeeds: Array<{
     id: number;
@@ -647,10 +670,13 @@ export async function sendDailyDigest(): Promise<boolean> {
     createdAt: Date | null;
   }> = [];
 
+  const feedCountsToday = new Map<number, number>();
+  const feedCountsYesterday = new Map<number, number>();
+
   try {
     const { db } = await import("../db");
-    const { rssFeeds, rssFeedItems, events } = await import("@shared/schema");
-    const { gte, isNotNull, eq, asc, desc } = await import("drizzle-orm");
+    const { rssFeeds, rssFeedItems, events, feedSyncHistory } = await import("@shared/schema");
+    const { gte, lt, and, eq, asc, desc, sql } = await import("drizzle-orm");
 
     allFeeds = await db
       .select({
@@ -665,6 +691,30 @@ export async function sendDailyDigest(): Promise<boolean> {
       })
       .from(rssFeeds)
       .orderBy(asc(rssFeeds.name));
+
+    const todaySyncs = await db
+      .select({
+        feedId: feedSyncHistory.feedId,
+        total: sql<number>`COALESCE(SUM(${feedSyncHistory.newEvents}), 0)::int`,
+      })
+      .from(feedSyncHistory)
+      .where(gte(feedSyncHistory.syncedAt, todayStart))
+      .groupBy(feedSyncHistory.feedId);
+
+    const yesterdaySyncs = await db
+      .select({
+        feedId: feedSyncHistory.feedId,
+        total: sql<number>`COALESCE(SUM(${feedSyncHistory.newEvents}), 0)::int`,
+      })
+      .from(feedSyncHistory)
+      .where(and(
+        gte(feedSyncHistory.syncedAt, yesterdayStart),
+        lt(feedSyncHistory.syncedAt, todayStart),
+      ))
+      .groupBy(feedSyncHistory.feedId);
+
+    for (const row of todaySyncs) feedCountsToday.set(row.feedId, Number(row.total));
+    for (const row of yesterdaySyncs) feedCountsYesterday.set(row.feedId, Number(row.total));
 
     const recentItems = await db
       .select({
@@ -704,15 +754,19 @@ export async function sendDailyDigest(): Promise<boolean> {
     });
   }
 
-  const feedTableRows = allFeeds.map((f, i) =>
-    `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"};">
+  const feedTableRows = allFeeds.map((f, i) => {
+    const todayCount = feedCountsToday.get(f.id) ?? 0;
+    const yesterdayCount = feedCountsYesterday.get(f.id) ?? 0;
+    return `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"};">
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">${f.name}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#555;">${f.municipality || "—"}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;">${statusBadge(f.status)}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#555;">${fmtDate(f.lastFetchedAt)}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">${f.itemsImported ?? 0}</td>
-    </tr>`
-  ).join("");
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;font-weight:${todayCount > 0 ? "bold" : "normal"};color:${todayCount > 0 ? "#16a34a" : "#6b7280"};">${todayCount}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;color:#6b7280;">${yesterdayCount}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;color:#9ca3af;">${f.itemsImported ?? 0}</td>
+    </tr>`;
+  }).join("");
 
   const eventRows = newEvents.length > 0
     ? newEvents.map((e, i) =>
@@ -795,7 +849,9 @@ export async function sendDailyDigest(): Promise<boolean> {
                 <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Gemeente</th>
                 <th style="padding:8px 10px;text-align:center;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Status</th>
                 <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Laatste sync</th>
-                <th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Geïmporteerd</th>
+                <th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;font-size:12px;color:#16a34a;">Vandaag</th>
+                <th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;font-size:12px;color:#374151;">Gisteren</th>
+                <th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;font-size:12px;color:#9ca3af;">Totaal</th>
               </tr>
             </thead>
             <tbody>${feedTableRows}</tbody>

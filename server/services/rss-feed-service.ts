@@ -289,6 +289,8 @@ interface ParsedFeedItem {
   venueName?: string;
   venueCity?: string;
   venuePostalCode?: string;
+  /** ISO country code derived from the source (e.g. 'NL', 'BE') */
+  country?: string;
   /** Scraper manifest regel 2: herhalende events krijgen een recurrence-waarde mee */
   recurrence?: "once" | "daily" | "weekly" | "monthly";
 }
@@ -301,13 +303,18 @@ interface GeocodingResult {
 
 const UNSPLASH_CATEGORY_KEYWORDS: Record<string, string[]> = {
   "Tentoonstelling": ["museum", "exhibition", "gallery", "art", "painting", "sculpture"],
-  "Voorstelling": ["concert", "music", "theater", "performance", "show", "festival", "dance"],
-  "Activiteit": ["sports", "fitness", "running", "cycling", "outdoor", "children", "play"],
-  "Stappen & Borrel": ["party", "festival", "celebration", "drinks", "nightlife", "social"],
+  "Muziek & Concert": ["concert", "music", "live music", "band", "orchestra", "dj"],
+  "Theater, Dans & Film": ["theater", "performance", "show", "dance", "cinema", "film"],
+  "Sport & Bewegen": ["sports", "fitness", "running", "match", "gym", "swimming"],
+  "Wandelen, Fietsen & Natuur": ["hiking", "cycling", "outdoor", "nature", "park", "trail"],
+  "Rondleiding & Uitstap": ["tour", "excursion", "sightseeing", "guided tour", "day trip"],
+  "Cursus & Workshop": ["workshop", "learning", "course", "training", "classroom"],
+  "Lezing & Congres": ["lecture", "conference", "seminar", "talk", "presentation"],
   "Markt & Beurs": ["market", "fair", "food market", "flea market", "stalls"],
-  "Quiz & Spelletjes": ["games", "quiz", "board games", "pub quiz", "fun"],
-  "Leren & Ontdekken": ["workshop", "learning", "education", "training", "classroom"],
   "Eten & Drinken": ["food", "restaurant", "cooking", "dining", "culinary"],
+  "Quiz & Spelletjes": ["games", "quiz", "board games", "pub quiz", "fun"],
+  "Familie & Vakantie": ["family", "children", "kids", "playground", "holiday"],
+  "Feest & Nachtleven": ["party", "festival", "celebration", "drinks", "nightlife"],
 };
 
 interface FeedParseResult {
@@ -357,6 +364,10 @@ async function parallelBatch<T, R>(
 export class RssFeedService {
   private static readonly USER_AGENT = "letsgo-radar/1.0 (+https://letsgo-radar.nl)";
   private static readonly MAX_BATCH_IMPORT_SIZE = 500;
+  // Country-wide UiTdatabank feeds (e.g. all of Belgium) legitimately return tens of
+  // thousands of pre-validated, geo-located events. The 500 runaway-guard would silently
+  // drop most of them, so country feeds use a much higher windowed cap instead.
+  private static readonly MAX_BATCH_IMPORT_SIZE_COUNTRY = 40000;
   private static readonly MAX_CONSECUTIVE_FAILURES = 3;
   private static geocodeCache: Map<string, GeocodingResult> = new Map();
   // Addresses that returned no result this session — skip re-querying Nominatim.
@@ -1158,13 +1169,19 @@ export class RssFeedService {
     const text = (title + " " + description).toLowerCase();
     
     const categoryKeywords: Record<string, string[]> = {
-      "Tentoonstelling": ["tentoonstelling", "expositie", "galerie", "museum", "vernissage", "kunstwerk", "expo"],
-      "Voorstelling": ["concert", "muziek", "theater", "toneel", "musical", "opera", "ballet", "dans", "cabaret", "film", "bioscoop", "optreden", "voorstelling", "show", "live", "jazz", "band", "dj", "koor", "circus"],
-      "Activiteit": ["sport", "fitness", "hardlopen", "zwemmen", "voetbal", "tennis", "gym", "yoga", "run", "fiets", "basketbal", "hockey", "toernooi", "wandeling", "speurtocht", "kinderfeest", "kinderactiviteit"],
+      "Tentoonstelling": ["tentoonstelling", "expositie", "galerie", "museum", "vernissage", "kunstwerk", "expo", "erfgoed"],
+      "Muziek & Concert": ["concert", "muziek", "livemuziek", "optreden", "band", "orkest", "koor", "jazz", "dj"],
+      "Theater, Dans & Film": ["theater", "toneel", "musical", "opera", "ballet", "dans", "cabaret", "film", "bioscoop", "voorstelling", "show", "circus"],
+      "Sport & Bewegen": ["sport", "fitness", "hardlopen", "zwemmen", "voetbal", "tennis", "gym", "yoga", "run", "basketbal", "hockey", "toernooi"],
+      "Wandelen, Fietsen & Natuur": ["wandeling", "wandelen", "fietsen", "fietstocht", "speurtocht", "natuur", "boswandeling", "route"],
+      "Rondleiding & Uitstap": ["rondleiding", "excursie", "uitstap", "opendeurdag", "open dag", "daguitstap", "dagje uit"],
+      "Cursus & Workshop": ["workshop", "cursus", "training", "masterclass", "knutsel", "creatief"],
+      "Lezing & Congres": ["lezing", "congres", "seminar", "symposium", "presentatie", "conferentie", "debat"],
       "Markt & Beurs": ["markt", "beurs", "rommelmarkt", "braderie", "koopzondag", "vlooienmarkt", "kerstmarkt", "weekmarkt", "fair"],
-      "Quiz & Spelletjes": ["pubquiz", "quiz", "bingo", "bordspel", "spelletjes", "trivia", "escape room", "kienen"],
-      "Leren & Ontdekken": ["workshop", "cursus", "lezing", "training", "presentatie", "educatie", "rondleiding", "excursie", "seminar", "masterclass", "meditatie"],
       "Eten & Drinken": ["foodfestival", "proeverij", "diner", "culinair", "restaurant", "tasting", "koken", "bakken", "bbq", "food truck"],
+      "Quiz & Spelletjes": ["pubquiz", "quiz", "bingo", "bordspel", "spelletjes", "trivia", "escape room", "kienen"],
+      "Familie & Vakantie": ["kinderfeest", "kinderactiviteit", "familie", "kinderen", "jeugd", "speeltuin", "vakantie", "kamp"],
+      "Feest & Nachtleven": ["feest", "festival", "fuif", "kermis", "carnaval", "borrel", "uitgaan", "stappen", "dancing"],
     };
 
     for (const [category, keywords] of Object.entries(categoryKeywords)) {
@@ -1175,7 +1192,7 @@ export class RssFeedService {
       }
     }
     
-    return "Stappen & Borrel";
+    return "Rondleiding & Uitstap";
   }
 
   // Format Breda address from Prepr CMS address object
@@ -6716,19 +6733,19 @@ export class RssFeedService {
 
       // Map iAmsterdam URL category path segments to app categories
       const categoryMap: Record<string, string> = {
-        'concerten-en-muziek': 'Voorstelling',
-        'festivals': 'Stappen & Borrel',
+        'concerten-en-muziek': 'Muziek & Concert',
+        'festivals': 'Feest & Nachtleven',
         'tentoonstellingen': 'Tentoonstelling',
         'musea-en-galeries': 'Tentoonstelling',
-        'voorstellingen': 'Voorstelling',
-        'theater': 'Voorstelling',
-        'dance': 'Voorstelling',
-        'attracties-en-bezienswaardigheden': 'Activiteit',
-        'nachtleven': 'Stappen & Borrel',
+        'voorstellingen': 'Theater, Dans & Film',
+        'theater': 'Theater, Dans & Film',
+        'dance': 'Theater, Dans & Film',
+        'attracties-en-bezienswaardigheden': 'Rondleiding & Uitstap',
+        'nachtleven': 'Feest & Nachtleven',
         'food-en-drink': 'Eten & Drinken',
-        'sport': 'Activiteit',
-        'kinderen': 'Activiteit',
-        'workshops': 'Leren & Ontdekken',
+        'sport': 'Sport & Bewegen',
+        'kinderen': 'Familie & Vakantie',
+        'workshops': 'Cursus & Workshop',
       };
 
       /** Derive app category from iAmsterdam event URL (/uit/agenda/{cat}/...) */
@@ -10576,7 +10593,7 @@ export class RssFeedService {
         scraperConfig: feedConfig.scraperConfig,
         fieldMappings: feedConfig.fieldMappings || null,
         autoCreateEvents: false,
-        defaultCategory: 'Stappen & Borrel',
+        defaultCategory: 'Rondleiding & Uitstap',
         status: 'active',
         updateFrequencyMinutes: 60,
         itemsImported: 0,
@@ -11002,6 +11019,150 @@ export class RssFeedService {
    *   (e.g. `2026-06-07T00:00:00+00:00`); a bare date or `Z`/millisecond form is
    *   rejected. Valid sort fields are `created`/`modified` only (no `startDate`).
    */
+  /**
+   * Maps a UiTdatabank `terms[]` array (domain eventtype/theme) to one of the
+   * app CATEGORIES. Tries an exact label match first, then substring heuristics.
+   * Returns undefined when nothing matches (caller falls back to feed default).
+   */
+  private static readonly UIT_EVENTTYPE_CATEGORY: Record<string, string> = {
+    'tentoonstelling': 'Tentoonstelling',
+    'concert': 'Muziek & Concert',
+    'festival': 'Muziek & Concert',
+    'theatervoorstelling': 'Theater, Dans & Film',
+    'dansvoorstelling': 'Theater, Dans & Film',
+    'film': 'Theater, Dans & Film',
+    'sportactiviteit': 'Sport & Bewegen',
+    'sport en beweging': 'Sport & Bewegen',
+    'sportwedstrijd bekijken': 'Sport & Bewegen',
+    'fiets- of wandelroute': 'Wandelen, Fietsen & Natuur',
+    'natuur, park of tuin': 'Wandelen, Fietsen & Natuur',
+    'park of tuin': 'Wandelen, Fietsen & Natuur',
+    'begeleide uitstap of rondleiding': 'Rondleiding & Uitstap',
+    'begeleide rondleiding': 'Rondleiding & Uitstap',
+    'opendeurdag': 'Rondleiding & Uitstap',
+    'cursus of workshop': 'Cursus & Workshop',
+    'lessenreeks': 'Cursus & Workshop',
+    'cursus met open sessies': 'Cursus & Workshop',
+    'lezing of congres': 'Lezing & Congres',
+    'lezing of debat': 'Lezing & Congres',
+    'markt of braderie': 'Markt & Beurs',
+    'markt, braderie of kermis': 'Markt & Beurs',
+    'beurs': 'Markt & Beurs',
+    'eten en drinken': 'Eten & Drinken',
+    'eet- of drankfestijn': 'Eten & Drinken',
+    'spel of quiz': 'Quiz & Spelletjes',
+    'kamp of vakantie': 'Familie & Vakantie',
+    'kermis of feestelijkheid': 'Feest & Nachtleven',
+    'feest of fuif': 'Feest & Nachtleven',
+    'party of fuif': 'Feest & Nachtleven',
+  };
+
+  private static mapUitEventType(terms: any[]): string | undefined {
+    const et = (terms || []).find((t: any) => t.domain === 'eventtype')
+      || (terms || []).find((t: any) => t.domain === 'theme');
+    if (!et) return undefined;
+    const label = String(et.label || '').toLowerCase().trim();
+    if (this.UIT_EVENTTYPE_CATEGORY[label]) return this.UIT_EVENTTYPE_CATEGORY[label];
+    // Substring fallback for unmapped/renamed labels
+    if (label.includes('concert') || label.includes('muziek')) return 'Muziek & Concert';
+    if (label.includes('theater') || label.includes('dans') || label.includes('film')) return 'Theater, Dans & Film';
+    if (label.includes('tentoonstelling') || label.includes('expo') || label.includes('museum')) return 'Tentoonstelling';
+    if (label.includes('sport') || label.includes('beweg')) return 'Sport & Bewegen';
+    if (label.includes('wandel') || label.includes('fiets') || label.includes('route') || label.includes('natuur')) return 'Wandelen, Fietsen & Natuur';
+    if (label.includes('rondleiding') || label.includes('uitstap') || label.includes('opendeur')) return 'Rondleiding & Uitstap';
+    if (label.includes('workshop') || label.includes('cursus') || label.includes('lessen')) return 'Cursus & Workshop';
+    if (label.includes('lezing') || label.includes('congres') || label.includes('debat')) return 'Lezing & Congres';
+    if (label.includes('markt') || label.includes('beurs') || label.includes('braderie')) return 'Markt & Beurs';
+    if (label.includes('eten') || label.includes('drank') || label.includes('drink') || label.includes('food')) return 'Eten & Drinken';
+    if (label.includes('quiz') || label.includes('spel')) return 'Quiz & Spelletjes';
+    if (label.includes('kamp') || label.includes('vakantie') || label.includes('familie') || label.includes('kinder')) return 'Familie & Vakantie';
+    if (label.includes('feest') || label.includes('kermis') || label.includes('fuif') || label.includes('festival') || label.includes('nachtleven')) return 'Feest & Nachtleven';
+    return undefined;
+  }
+
+  /**
+   * Parses a single UiTdatabank `event` member (embed=true shape) into a
+   * ParsedFeedItem. Handles language-nested address (nl>fr>en>de), geo, terms,
+   * media and sameAs. Returns null when the event has no usable title.
+   * `defaultCountry` tags events whose address lacks an explicit addressCountry.
+   */
+  private static parseUitMember(event: any, fallbackCity: string, defaultCountry: string): ParsedFeedItem | null {
+    const idUrl: string = event['@id'] || '';
+    const uuidMatch = idUrl.match(/\/([a-f0-9-]{36})$/i);
+    const externalId = `uitdatabank-${uuidMatch ? uuidMatch[1] : encodeURIComponent(idUrl.split('/').pop() || idUrl)}`;
+
+    const nameParts = event.name || {};
+    const title = (nameParts.nl || nameParts.fr || nameParts.en || Object.values(nameParts)[0] || '') as string;
+    if (!title) return null;
+
+    const descParts = event.description || {};
+    const rawDesc = (descParts.nl || descParts.fr || descParts.en || Object.values(descParts)[0] || '') as string;
+    const description = rawDesc.replace(/<[^>]+>/g, ' ').trim();
+
+    let startTime: Date | undefined;
+    let endTime: Date | undefined;
+    if (event.startDate) {
+      const d = new Date(event.startDate);
+      if (!isNaN(d.getTime())) startTime = d;
+    }
+    if (event.endDate && startTime) {
+      const et = new Date(event.endDate);
+      if (!isNaN(et.getTime()) && et >= startTime) endTime = et;
+    }
+
+    const loc = event.location || {};
+    const locNameParts = loc.name || {};
+    const locName = (locNameParts.nl || locNameParts.fr || locNameParts.en || Object.values(locNameParts)[0] || '') as string;
+
+    // Address is language-nested: location.address.{nl|fr|en|de}.{...}
+    const addrRaw = loc.address || {};
+    const addr: any = addrRaw.streetAddress
+      ? addrRaw
+      : (addrRaw.nl || addrRaw.fr || addrRaw.en || addrRaw.de || {});
+    const street = (addr.streetAddress || '') as string;
+    const postal = (addr.postalCode || '') as string;
+    const city = (addr.addressLocality || fallbackCity) as string;
+    const country = (addr.addressCountry || defaultCountry || '').toString().toUpperCase() || undefined;
+    const fullAddress = [street, postal, city].filter(Boolean).join(', ');
+
+    const geo = loc.geo || {};
+    const lat = geo.latitude != null ? parseFloat(String(geo.latitude)) : undefined;
+    const lng = geo.longitude != null ? parseFloat(String(geo.longitude)) : undefined;
+    // Bounds cover both the Netherlands and Belgium (lat 49.4–53.7, lng 2.4–7.4)
+    const validLat = lat != null && !isNaN(lat) && lat >= 49.4 && lat <= 53.7 ? lat : undefined;
+    const validLng = lng != null && !isNaN(lng) && lng >= 2.4 && lng <= 7.4 ? lng : undefined;
+    const hasGeo = validLat !== undefined && validLng !== undefined;
+
+    const media: any[] = event.mediaObject || event.mediaObjects || [];
+    const imageUrl = media[0]?.contentUrl || media[0]?.thumbnailUrl || undefined;
+
+    const sameAs: string[] = event.sameAs || [];
+    const link = sameAs.find((u: string) => !u.includes('uitdatabank.be') && !u.includes('data.cultuurinfo')) || sameAs[0] || idUrl;
+
+    const detectedCategory = this.mapUitEventType(event.terms || []);
+    const recurrence = event.calendarType === 'periodic' || event.calendarType === 'permanent' ? 'weekly' : undefined;
+
+    return {
+      externalId,
+      title,
+      description,
+      link: link || undefined,
+      imageUrl,
+      startTime,
+      endTime,
+      location: locName || city,
+      address: fullAddress || city,
+      latitude: hasGeo ? validLat : undefined,
+      longitude: hasGeo ? validLng : undefined,
+      venueName: locName || undefined,
+      venueCity: city || undefined,
+      venuePostalCode: postal || undefined,
+      country,
+      detectedCategory,
+      recurrence,
+    };
+  }
+
   static async scrapeUiTdatabank(feed: any): Promise<FeedParseResult> {
     const clientId = process.env.UITDATABANK_CLIENT_ID || process.env.UITDATABANK_API_KEY;
     if (!clientId) {
@@ -11009,26 +11170,84 @@ export class RssFeedService {
       return { success: true, items: [] };
     }
 
-    let addressLocality: string;
+    // Determine mode from the feed URL: country-wide (e.g. ?country=BE) vs per-city.
+    let addressLocality = '';
+    let countryMode: string | null = null;
     try {
       const feedUrl = new URL(feed.url);
       addressLocality = feedUrl.searchParams.get('addressLocality') || feed.municipality || '';
+      countryMode = (feedUrl.searchParams.get('country') || '').toUpperCase() || null;
     } catch {
       addressLocality = feed.municipality || '';
     }
 
-    const today = new Date();
-    const dateFrom = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}T00:00:00+00:00`;
-
-    const items: ParsedFeedItem[] = [];
+    const BASE_URL = 'https://search.uitdatabank.be/events/';
     const PAGE_SIZE = 50;
-    const MAX_PAGES = 10;
+    const headers = { 'X-Client-Id': clientId, 'Accept': 'application/json' };
+    const items: ParsedFeedItem[] = [];
+    const seenIds = new Set<string>();
+
+    const isoOffset = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}T00:00:00+00:00`;
+    };
 
     try {
+      if (countryMode) {
+        // COUNTRY MODE: slice the future into month windows to stay under the
+        // 10k deep-pagination cap (start=10000 -> 404), paginate within each.
+        const MONTHS_AHEAD = 18;
+        const MAX_PAGES_PER_WINDOW = 180; // 180 * 50 = 9000 < 10k cap
+        const MAX_TOTAL = 40000; // safety ceiling
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+
+        for (let m = 0; m < MONTHS_AHEAD && items.length < MAX_TOTAL; m++) {
+          const from = new Date(start.getFullYear(), start.getMonth() + m, m === 0 ? start.getDate() : 1, 0, 0, 0);
+          const to = new Date(start.getFullYear(), start.getMonth() + m + 1, 1, 0, 0, 0);
+          const escCountry = countryMode.replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, '\\$&');
+
+          for (let page = 0; page < MAX_PAGES_PER_WINDOW && items.length < MAX_TOTAL; page++) {
+            const params = new URLSearchParams({
+              limit: String(PAGE_SIZE),
+              start: String(page * PAGE_SIZE),
+              embed: 'true',
+              dateFrom: isoOffset(from),
+              dateTo: isoOffset(to),
+              addressCountry: '*',
+              q: `address.\\*.addressCountry:${escCountry}`,
+            });
+            const url = `${BASE_URL}?${params.toString()}`;
+            const resp = await axios.get(url, { headers, timeout: 25000 });
+            const members: any[] = resp.data?.member || [];
+            if (members.length === 0) break;
+
+            for (const event of members) {
+              const parsed = this.parseUitMember(event, addressLocality, countryMode);
+              if (parsed && !seenIds.has(parsed.externalId)) {
+                seenIds.add(parsed.externalId);
+                items.push(parsed);
+              }
+            }
+            if (members.length < PAGE_SIZE) break;
+            await new Promise(r => setTimeout(r, 150)); // be gentle on the API
+          }
+          console.log(`[RSS] UiTdatabank ${countryMode} window ${from.toISOString().slice(0, 7)}: total ${items.length} so far`);
+        }
+        console.log(`[RSS] UiTdatabank ${countryMode}: ${items.length} events parsed`);
+        return { success: true, items };
+      }
+
+      // CITY MODE (existing NL behaviour): single date-from, shallow pagination.
+      const MAX_PAGES = 10;
+      const dateFrom = isoOffset(new Date());
       for (let page = 0; page < MAX_PAGES; page++) {
         const params = new URLSearchParams({
           limit: String(PAGE_SIZE),
           start: String(page * PAGE_SIZE),
+          embed: 'true',
           dateFrom,
           addressCountry: '*',
         });
@@ -11041,96 +11260,19 @@ export class RssFeedService {
         }
         params.set('q', qParts.join(' AND '));
 
-        const url = `https://search.uitdatabank.be/offers/?${params.toString()}`;
+        const url = `${BASE_URL}?${params.toString()}`;
         console.log(`[RSS] UiTdatabank ${addressLocality}: page ${page + 1}...`);
 
-        const resp = await axios.get(url, {
-          headers: { 'X-Client-Id': clientId, 'Accept': 'application/json' },
-          timeout: 20000,
-        });
-
-        const data = resp.data;
-        const members: any[] = data.member || [];
+        const resp = await axios.get(url, { headers, timeout: 20000 });
+        const members: any[] = resp.data?.member || [];
         if (members.length === 0) break;
 
         for (const event of members) {
-          const idUrl: string = event['@id'] || '';
-          const uuidMatch = idUrl.match(/\/([a-f0-9-]{36})$/i);
-          const externalId = `uitdatabank-${uuidMatch ? uuidMatch[1] : encodeURIComponent(idUrl.split('/').pop() || idUrl)}`;
-
-          const nameParts = event.name || {};
-          const title = (nameParts.nl || nameParts.en || Object.values(nameParts)[0] || '') as string;
-          if (!title) continue;
-
-          const descParts = event.description || {};
-          const rawDesc = (descParts.nl || descParts.en || Object.values(descParts)[0] || '') as string;
-          const description = rawDesc.replace(/<[^>]+>/g, ' ').trim();
-
-          let startTime: Date | undefined;
-          let endTime: Date | undefined;
-          if (event.startDate) {
-            try {
-              const d = new Date(event.startDate);
-              if (!isNaN(d.getTime())) startTime = d;
-            } catch {}
+          const parsed = this.parseUitMember(event, addressLocality, 'NL');
+          if (parsed && !seenIds.has(parsed.externalId)) {
+            seenIds.add(parsed.externalId);
+            items.push(parsed);
           }
-          if (event.endDate && startTime) {
-            try {
-              const et = new Date(event.endDate);
-              if (!isNaN(et.getTime()) && et >= startTime) endTime = et;
-            } catch {}
-          }
-
-          const loc = event.location || {};
-          const locNameParts = loc.name || {};
-          const locName = (locNameParts.nl || locNameParts.en || Object.values(locNameParts)[0] || '') as string;
-          const addr = loc.address || {};
-          const street = (addr.streetAddress || '') as string;
-          const postal = (addr.postalCode || '') as string;
-          const city = (addr.addressLocality || addressLocality) as string;
-          const fullAddress = [street, postal, city].filter(Boolean).join(', ');
-
-          const geo = loc.geo || {};
-          const lat = geo.latitude ? parseFloat(String(geo.latitude)) : undefined;
-          const lng = geo.longitude ? parseFloat(String(geo.longitude)) : undefined;
-          const validLat = lat && lat >= 50.0 && lat <= 54.0 ? lat : undefined;
-          const validLng = lng && lng >= 2.5 && lng <= 7.5 ? lng : undefined;
-
-          const media: any[] = event.mediaObjects || [];
-          const imageUrl = media[0]?.contentUrl || media[0]?.thumbnailUrl || undefined;
-
-          const sameAs: string[] = event.sameAs || [];
-          const link = sameAs.find((u: string) => !u.includes('uitdatabank.be') && !u.includes('data.cultuurinfo')) || sameAs[0] || idUrl;
-
-          let detectedCategory: string | undefined;
-          const terms: any[] = event.terms || [];
-          const eventTypeTerm = terms.find((t: any) => t.domain === 'eventtype');
-          if (eventTypeTerm) {
-            const label = ((eventTypeTerm.label as string) || '').toLowerCase();
-            if (label.includes('concert') || label.includes('muziek') || label.includes('theater') || label.includes('voorstelling')) detectedCategory = 'Voorstelling';
-            else if (label.includes('tentoonstelling') || label.includes('expo') || label.includes('museum')) detectedCategory = 'Tentoonstelling';
-            else if (label.includes('markt') || label.includes('beurs') || label.includes('kermis')) detectedCategory = 'Markt & Beurs';
-            else if (label.includes('workshop') || label.includes('cursus') || label.includes('lezing')) detectedCategory = 'Leren & Ontdekken';
-            else if (label.includes('sport') || label.includes('wandel') || label.includes('fiets') || label.includes('loop')) detectedCategory = 'Activiteit';
-          }
-
-          items.push({
-            externalId,
-            title,
-            description,
-            link: link || undefined,
-            imageUrl,
-            startTime,
-            endTime,
-            location: locName || city,
-            address: fullAddress || city,
-            latitude: validLat,
-            longitude: validLng,
-            venueName: locName || undefined,
-            venueCity: city || undefined,
-            venuePostalCode: postal || undefined,
-            detectedCategory,
-          });
         }
 
         if (members.length < PAGE_SIZE) break;
@@ -11146,7 +11288,8 @@ export class RssFeedService {
       const hint = status === 403
         ? ' (403: client id not authorized for the Search API — enable/activate Search API for this integration on platform.publiq.be)'
         : '';
-      console.error(`[RSS] UiTdatabank scraper failed for ${addressLocality}: ${err.message}${status ? ` [HTTP ${status}]` : ''}${hint} ${body}`);
+      const label = countryMode || addressLocality;
+      console.error(`[RSS] UiTdatabank scraper failed for ${label}: ${err.message}${status ? ` [HTTP ${status}]` : ''}${hint} ${body}`);
       return { success: false, items: [], error: `${err.message}${status ? ` (HTTP ${status})` : ''}` };
     }
   }
@@ -11159,30 +11302,32 @@ export class RssFeedService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Keys are matched as substrings against the source category title; values MUST be
+    // members of the 13-category CATEGORIES vocabulary in @shared/schema.
     const HEERLEN_CATEGORY_MAP: Record<string, string> = {
-      'kunst': 'Kunst & Cultuur',
-      'street art': 'Kunst & Cultuur',
+      'kunst': 'Theater, Dans & Film',
+      'street art': 'Theater, Dans & Film',
       'tentoonstelling': 'Tentoonstelling',
       'museum': 'Tentoonstelling',
       'erfgoed': 'Tentoonstelling',
       'muziek': 'Muziek & Concert',
       'concert': 'Muziek & Concert',
-      'theater': 'Voorstelling',
-      'dans': 'Voorstelling',
-      'cabaret': 'Voorstelling',
+      'theater': 'Theater, Dans & Film',
+      'dans': 'Theater, Dans & Film',
+      'cabaret': 'Theater, Dans & Film',
       'kermis': 'Markt & Beurs',
       'markt': 'Markt & Beurs',
       'beurs': 'Markt & Beurs',
       'sport': 'Sport & Bewegen',
-      'actief': 'Activiteit',
-      'wandel': 'Activiteit',
-      'fiets': 'Activiteit',
-      'jeugd': 'Kinderen & Familie',
-      'familie': 'Kinderen & Familie',
-      'speeltuin': 'Kinderen & Familie',
-      'festival': 'Festival',
-      'groot evenement': 'Festival',
-      'grote evenement': 'Festival',
+      'actief': 'Sport & Bewegen',
+      'wandel': 'Wandelen, Fietsen & Natuur',
+      'fiets': 'Wandelen, Fietsen & Natuur',
+      'jeugd': 'Familie & Vakantie',
+      'familie': 'Familie & Vakantie',
+      'speeltuin': 'Familie & Vakantie',
+      'festival': 'Feest & Nachtleven',
+      'groot evenement': 'Feest & Nachtleven',
+      'grote evenement': 'Feest & Nachtleven',
     };
 
     const mapCategory = (cats: Array<{ title: string }>): string | undefined => {
@@ -11508,10 +11653,18 @@ export class RssFeedService {
         // UNIVERSAL MULTI-DAY CONSOLIDATION - apply to ALL feeds
         const consolidatedItems = this.consolidateMultiDayEvents(result.items);
 
-        if (consolidatedItems.length > this.MAX_BATCH_IMPORT_SIZE) {
-          console.warn(`[RSS] BATCH LIMIT: ${feed.name} returned ${consolidatedItems.length} items, capping at ${this.MAX_BATCH_IMPORT_SIZE} to prevent runaway bulk creation`);
+        // Country-wide UiTdatabank feeds (windowed, pre-validated geo) get a much higher
+        // cap; everything else keeps the conservative runaway-guard.
+        const isCountryFeed =
+          feed.feedType === 'uitdatabank' && /[?&]country=/i.test(feed.url || '');
+        const batchCap = isCountryFeed
+          ? this.MAX_BATCH_IMPORT_SIZE_COUNTRY
+          : this.MAX_BATCH_IMPORT_SIZE;
+
+        if (consolidatedItems.length > batchCap) {
+          console.warn(`[RSS] BATCH LIMIT: ${feed.name} returned ${consolidatedItems.length} items, capping at ${batchCap} to prevent runaway bulk creation`);
         }
-        const itemsToProcess = consolidatedItems.slice(0, this.MAX_BATCH_IMPORT_SIZE);
+        const itemsToProcess = consolidatedItems.slice(0, batchCap);
         
         let newItemsCount = 0;
         let updatedItemsCount = 0;
@@ -11615,7 +11768,7 @@ export class RssFeedService {
       const detectedCategory = parsedItem.detectedCategory || this.detectCategory(parsedItem.title, parsedItem.description);
       const category = validCategories.includes(detectedCategory) 
         ? detectedCategory 
-        : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Stappen & Borrel");
+        : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Rondleiding & Uitstap");
 
       // Build update object - only include fields we have valid data for
       const updateData: Record<string, any> = {
@@ -11623,6 +11776,7 @@ export class RssFeedService {
         category: category,
         externalUrl: parsedItem.link || null
       };
+      if (parsedItem.country) updateData.country = parsedItem.country;
       
       // Only update description if we have content (link is stored separately in externalUrl)
       if (parsedItem.description) {
@@ -11749,7 +11903,7 @@ export class RssFeedService {
       const detectedCategory = parsedItem.detectedCategory || this.detectCategory(parsedItem.title, parsedItem.description);
       const category = validCategories.includes(detectedCategory) 
         ? detectedCategory 
-        : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Stappen & Borrel");
+        : (validCategories.includes(feed.defaultCategory) ? feed.defaultCategory : "Rondleiding & Uitstap");
       
       if (parsedItem.detectedCategory) {
         console.log(`[RSS] Category detected: "${detectedCategory}" (confidence: ${((parsedItem.categoryConfidence || 0) * 100).toFixed(0)}%)`);
@@ -11764,29 +11918,42 @@ export class RssFeedService {
       // Regional/tourism platform feeds cover a wider area than a single municipality
       const isRegionalFeed = feed.url.includes('visitutrechtregion') || feed.url.includes('uitinderegio') || feed.url.includes('visitgooivecht');
       const MAX_DISTANCE_KM = isRegionalFeed ? 60 : 20;
+      // UiTdatabank delivers reliable source coordinates from its venue registry.
+      // Country-mode feeds (e.g. all of Belgium) have no single municipality to
+      // distance-check against, so trust the source GPS directly when present.
+      const isTrustedGeoFeed = feed.feedType === 'uitdatabank';
 
       // STEP 1: If we have GPS coordinates from the source, validate with regional limit
       if (parsedItem.latitude && parsedItem.longitude) {
-        const regionCheck = this.validateCoordinatesWithDistanceLimit(
-          parsedItem.latitude, 
-          parsedItem.longitude, 
-          expectedMunicipality,
-          MAX_DISTANCE_KM
-        );
-        
-        if (regionCheck) {
+        if (isTrustedGeoFeed) {
           latitude = parsedItem.latitude.toString();
           longitude = parsedItem.longitude.toString();
-          address = parsedItem.address || parsedItem.location || regionCheck.municipality;
-          actualMunicipality = regionCheck.municipality;
+          address = parsedItem.address || parsedItem.location || parsedItem.venueCity || "";
+          actualMunicipality = parsedItem.venueCity || expectedMunicipality;
           geocodeSuccess = true;
-          if (regionCheck.distance > 0) {
-            console.log(`[RSS] Source GPS accepted (regional): "${formattedTitle}" in ${actualMunicipality} (${regionCheck.distance.toFixed(1)}km from ${expectedMunicipality})`);
-          } else {
-            console.log(`[RSS] Source GPS validated for "${formattedTitle}" in ${expectedMunicipality}`);
-          }
+          console.log(`[RSS] Trusted source GPS for "${formattedTitle}"${parsedItem.venueCity ? ` in ${parsedItem.venueCity}` : ''}`);
         } else {
-          console.log(`[RSS] Source GPS REJECTED for "${formattedTitle}" - too far from ${expectedMunicipality}`);
+          const regionCheck = this.validateCoordinatesWithDistanceLimit(
+            parsedItem.latitude, 
+            parsedItem.longitude, 
+            expectedMunicipality,
+            MAX_DISTANCE_KM
+          );
+          
+          if (regionCheck) {
+            latitude = parsedItem.latitude.toString();
+            longitude = parsedItem.longitude.toString();
+            address = parsedItem.address || parsedItem.location || regionCheck.municipality;
+            actualMunicipality = regionCheck.municipality;
+            geocodeSuccess = true;
+            if (regionCheck.distance > 0) {
+              console.log(`[RSS] Source GPS accepted (regional): "${formattedTitle}" in ${actualMunicipality} (${regionCheck.distance.toFixed(1)}km from ${expectedMunicipality})`);
+            } else {
+              console.log(`[RSS] Source GPS validated for "${formattedTitle}" in ${expectedMunicipality}`);
+            }
+          } else {
+            console.log(`[RSS] Source GPS REJECTED for "${formattedTitle}" - too far from ${expectedMunicipality}`);
+          }
         }
       }
 
@@ -11973,6 +12140,7 @@ export class RssFeedService {
           latitude: latitude,
           longitude: longitude,
           address: address,
+          country: parsedItem.country || null,
           notificationReach: "2.5",
           startTime: startTime,
           endTime: endTime,
@@ -12008,7 +12176,11 @@ export class RssFeedService {
         console.log(`[RSS] Created event "${event.title}" at ${address} (ID: ${event.id})`);
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1100));
+      // Nominatim rate-limit pause only matters when we actually geocoded;
+      // trusted-geo feeds (UiTdatabank) use source coordinates, so skip the delay.
+      if (!isTrustedGeoFeed) {
+        await new Promise(resolve => setTimeout(resolve, 1100));
+      }
     } catch (error: any) {
       console.error(`[RSS] Error creating event from feed item:`, error.message);
     }

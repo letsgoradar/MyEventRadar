@@ -105,7 +105,7 @@ function createImageMarkerIcon(
   ].join('');
 
   // Always resolve to a photo URL — never show icon-only pins
-  const stockImages = CATEGORY_IMAGES[category] ?? CATEGORY_IMAGES["Stappen & Borrel"] ?? [];
+  const stockImages = CATEGORY_IMAGES[category] ?? CATEGORY_IMAGES["Anders"] ?? [];
 
   // Resolve a non-failed stock photo URL for a given tried index
   function pickStockPhoto(startIndex: number): string | null {

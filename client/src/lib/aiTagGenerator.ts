@@ -14,39 +14,57 @@ const EVENT_TEMPLATES = [
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'Tentoonstelling': [
     'tentoonstelling', 'expositie', 'galerie', 'museum', 'kunst', 'schilderij', 'vernissage',
-    'kunstenaar', 'beeldhouw', 'fotografie', 'expo', 'collectie', 'design', 'installatie'
+    'beeldhouw', 'fotografie', 'expo', 'collectie', 'design', 'installatie', 'erfgoed',
+    'kunstenaar', 'atelier'
   ],
-  'Voorstelling': [
-    'concert', 'muziek', 'theater', 'toneel', 'musical', 'opera', 'ballet', 'dans',
-    'cabaret', 'comedy', 'standup', 'film', 'bioscoop', 'optreden', 'voorstelling', 'show',
-    'live', 'jazz', 'band', 'dj', 'koor', 'circus', 'acrobatiek', 'piano', 'gitaar'
+  'Muziek & Concert': [
+    'concert', 'muziek', 'livemuziek', 'optreden', 'band', 'orkest', 'koor', 'zang',
+    'dj', 'jazz', 'klassiek', 'pop', 'rock', 'piano', 'gitaar', 'akoestisch'
   ],
-  'Activiteit': [
-    'sport', 'spel', 'toernooi', 'wedstrijd', 'marathon', 'race', 'tennis', 'voetbal',
-    'hardlopen', 'zwemmen', 'fietsen', 'yoga', 'fitness', 'wandelen', 'speurtocht',
-    'kinderfeest', 'kinderactiviteit', 'atletiek', 'basketbal', 'hockey', 'schaatsen'
+  'Theater, Dans & Film': [
+    'theater', 'toneel', 'musical', 'opera', 'ballet', 'dans', 'cabaret', 'comedy',
+    'standup', 'film', 'cinema', 'bioscoop', 'voorstelling', 'show', 'circus', 'performance'
   ],
-  'Stappen & Borrel': [
-    'borrel', 'feest', 'party', 'festival', 'kermis', 'carnaval', 'dancing', 'rave',
-    'koningsdag', 'nieuwjaar', 'jubileum', 'verjaardag', 'stappen', 'uitgaan', 'netwerk',
-    'happy hour', 'terras', 'cocktail', 'dansen', 'openlucht'
+  'Sport & Bewegen': [
+    'sport', 'wedstrijd', 'toernooi', 'marathon', 'hardlopen', 'voetbal', 'tennis',
+    'basketbal', 'zwemmen', 'fitness', 'yoga', 'atletiek', 'gym', 'vechtsport',
+    'schaatsen', 'bootcamp'
+  ],
+  'Wandelen, Fietsen & Natuur': [
+    'wandelen', 'wandeling', 'fietsen', 'wielrennen', 'route', 'natuur', 'speurtocht',
+    'park', 'tuin', 'outdoor', 'fietstocht', 'boswandeling'
+  ],
+  'Rondleiding & Uitstap': [
+    'rondleiding', 'excursie', 'tour', 'uitstap', 'opendeur', 'opendeurdag', 'open dag',
+    'bezoek', 'daguitstap', 'dagje uit'
+  ],
+  'Cursus & Workshop': [
+    'cursus', 'workshop', 'training', 'les', 'lessenreeks', 'masterclass', 'creatief',
+    'knutsel', 'handwerk', 'schilderen', 'atelier', 'leren'
+  ],
+  'Lezing & Congres': [
+    'lezing', 'congres', 'seminar', 'symposium', 'presentatie', 'conferentie', 'college',
+    'debat', 'talk', 'boekpresentatie'
   ],
   'Markt & Beurs': [
-    'markt', 'beurs', 'rommelmarkt', 'braderie', 'koopzondag', 'vlooienmarkt', 'kerstmarkt',
-    'weekmarkt', 'boerenmarkt', 'fair', 'antiek', 'vintage', 'tweedehands', 'kraampjes'
-  ],
-  'Quiz & Spelletjes': [
-    'pubquiz', 'quiz', 'bingo', 'bordspel', 'spelletjes', 'trivia', 'escape room',
-    'puzzel', 'kaartspel', 'speeddaten', 'kienen', 'gameavond'
-  ],
-  'Leren & Ontdekken': [
-    'lezing', 'workshop', 'cursus', 'leren', 'educatie', 'kennis', 'seminar', 'conferentie',
-    'masterclass', 'training', 'presentatie', 'college', 'rondleiding', 'excursie',
-    'meditatie', 'mindfulness', 'natuur', 'ontdekken', 'innovatie', 'technologie'
+    'markt', 'braderie', 'rommelmarkt', 'vlooienmarkt', 'kerstmarkt', 'weekmarkt',
+    'boerenmarkt', 'beurs', 'fair', 'antiek', 'vintage', 'tweedehands'
   ],
   'Eten & Drinken': [
-    'foodfestival', 'proeverij', 'diner', 'culinair', 'restaurant', 'tasting', 'koken', 'bakken',
-    'bbq', 'barbecue', 'food truck', 'streetfood', 'wijn', 'bier', 'brunch', 'lunch'
+    'eten', 'food', 'foodfestival', 'proeverij', 'diner', 'culinair', 'restaurant',
+    'tasting', 'koken', 'bakken', 'bbq', 'barbecue', 'wijn', 'bier', 'streetfood', 'brunch'
+  ],
+  'Quiz & Spelletjes': [
+    'quiz', 'pubquiz', 'bingo', 'bordspel', 'spelletjes', 'trivia', 'escape room',
+    'kienen', 'gameavond', 'kaartspel'
+  ],
+  'Familie & Vakantie': [
+    'familie', 'kinderen', 'kids', 'kinderfeest', 'kinderactiviteit', 'jeugd', 'kamp',
+    'vakantie', 'speeltuin', 'gezin', 'peuter'
+  ],
+  'Feest & Nachtleven': [
+    'feest', 'party', 'borrel', 'kermis', 'carnaval', 'festival', 'fuif', 'dancing',
+    'rave', 'uitgaan', 'stappen', 'terras', 'cocktail', 'dansen'
   ],
 };
 

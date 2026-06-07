@@ -246,23 +246,29 @@ const HOST = '0.0.0.0';
       console.error('[Seed Feeds] Startup sync failed:', e.message);
     }
 
-    // Migrate old category names to new 8-category system
+    // Migrate old category names to the new 13-category system
     try {
       const { db: migrateDb2 } = await import('./db');
       const { events: eventsTable } = await import('@shared/schema');
       const { eq } = await import('drizzle-orm');
       const OLD_TO_NEW: Record<string, string> = {
-        'Sport en spel':           'Activiteit',
-        'Kunst en Cultuur':        'Voorstelling',
-        'Gezellig en Sociaal':     'Stappen & Borrel',
-        'Leren en Ontdekken':      'Leren & Ontdekken',
-        'Vrijwilligerswerk en hulp': 'Activiteit',
-        'Cultuur & Kunst':         'Voorstelling',
-        'Cultuur & Entertainment': 'Voorstelling',
-        'entertainment':           'Stappen & Borrel',
-        'community':               'Stappen & Borrel',
-        'Evenementen':             'Stappen & Borrel',
-        'Overig':                  'Stappen & Borrel',
+        // Core old 8-category system -> new 13
+        'Voorstelling':            'Theater, Dans & Film',
+        'Activiteit':              'Rondleiding & Uitstap',
+        'Stappen & Borrel':        'Feest & Nachtleven',
+        'Leren & Ontdekken':       'Cursus & Workshop',
+        // Legacy / external category names
+        'Sport en spel':           'Rondleiding & Uitstap',
+        'Kunst en Cultuur':        'Theater, Dans & Film',
+        'Gezellig en Sociaal':     'Feest & Nachtleven',
+        'Leren en Ontdekken':      'Cursus & Workshop',
+        'Vrijwilligerswerk en hulp': 'Rondleiding & Uitstap',
+        'Cultuur & Kunst':         'Theater, Dans & Film',
+        'Cultuur & Entertainment': 'Theater, Dans & Film',
+        'entertainment':           'Feest & Nachtleven',
+        'community':               'Feest & Nachtleven',
+        'Evenementen':             'Feest & Nachtleven',
+        'Overig':                  'Feest & Nachtleven',
       };
       let totalMigrated = 0;
       for (const [oldCat, newCat] of Object.entries(OLD_TO_NEW)) {

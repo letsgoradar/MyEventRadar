@@ -51,6 +51,14 @@ export interface BrandConfig {
    * juiste tag hebben gekregen. Alleen van toepassing op focus-merken.
    */
   matchTags?: string[];
+  /**
+   * Optionele landfilter (ISO-landcodes, bv. ["BE"]). Undefined/leeg = alle
+   * landen (huidige situatie: het overkoepelende merk toont NL én BE). Een merk
+   * met countries: ["BE"] toont uitsluitend Belgische events; een toekomstige
+   * Belgische URL gebruikt dit. Events zonder land worden als "NL" behandeld
+   * (bestaande data van vóór de country-kolom).
+   */
+  countries?: string[];
   /** Is dit een focus-merk (gefilterd) of het overkoepelende merk? */
   isFocus: boolean;
   /** Korte pay-off / tagline. */
@@ -210,9 +218,17 @@ export function eventMatchesBrand(
     category?: string | null;
     title?: string | null;
     tags?: (string | null)[] | null;
+    country?: string | null;
   },
   brand: BrandConfig,
 ): boolean {
+  // Landfilter (onafhankelijk van categorie). Events zonder land = "NL".
+  if (brand.countries && brand.countries.length > 0) {
+    const eventCountry = (event.country || "NL").toUpperCase();
+    const allowed = brand.countries.map((c) => c.toUpperCase());
+    if (!allowed.includes(eventCountry)) return false;
+  }
+
   if (!brand.categories) return true;
 
   if (event.category != null && brand.categories.includes(event.category)) {

@@ -3,3 +3,5 @@
 - [Venue learning in RSS import](venue-learning.md) — main flow reuses learned venues before Nominatim + throttles 1 req/sec; never learn generic-centroid/placeholder venues.
 - [UiTdatabank auth](uitdatabank-auth.md) — Search API uses X-Client-Id (client id only, no secret); 403 "not allowed" = account not authorized for Search API, not a code bug.
 - [Heerlen GraphQL fix](heerlen-graphql-fix.md) — site uses undocumented CraftCMS GraphQL at cms.heerlenmijnstad.nl, not HTML scraping.
+- [Category vocabulary](category-vocabulary.md) — CATEGORIES output values are duplicated across many string-literal scraper maps tsc can't catch; grep all on any rename.
+- [Country dimension](country-dimension.md) — events.country (missing=NL) + BrandConfig.countries; keep eventMatchesBrand & buildBrandEventCondition in lockstep; UiT ?country=BE windowed mode.

@@ -4,13 +4,18 @@ import { z } from "zod";
 
 export const CATEGORIES = [
   'Tentoonstelling',
-  'Voorstelling',
-  'Activiteit',
-  'Stappen & Borrel',
+  'Muziek & Concert',
+  'Theater, Dans & Film',
+  'Sport & Bewegen',
+  'Wandelen, Fietsen & Natuur',
+  'Rondleiding & Uitstap',
+  'Cursus & Workshop',
+  'Lezing & Congres',
   'Markt & Beurs',
-  'Quiz & Spelletjes',
-  'Leren & Ontdekken',
   'Eten & Drinken',
+  'Quiz & Spelletjes',
+  'Familie & Vakantie',
+  'Feest & Nachtleven',
 ] as const;
 
 // Event Tags - specifieke beschrijvingen van wat voor evenement het is
@@ -183,6 +188,7 @@ export const events = pgTable("events", {
   latitude: decimal("latitude").notNull(),
   longitude: decimal("longitude").notNull(),
   address: text("address"),
+  country: text("country"), // ISO country code (e.g. 'NL', 'BE'); used for per-country brand filtering
   notificationReach: decimal("notification_reach").notNull(),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time"),

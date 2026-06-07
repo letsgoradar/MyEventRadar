@@ -159,7 +159,7 @@ function InlineAddForm({ municipality, province, onSuccess, onCancel, onOpenAnal
           name: name || (isVenue ? `${venueName} – ${municipality}` : `${municipality} Agenda`),
           url,
           feedType: 'scraper',
-          defaultCategory: 'Stappen & Borrel',
+          defaultCategory: 'Rondleiding & Uitstap',
           municipality,
           province,
           autoCreateEvents: true,

@@ -5,7 +5,7 @@ import {
   eventMatchesBrand,
   type BrandConfig,
 } from "@shared/brands";
-import { sql, inArray, or, type SQL } from "drizzle-orm";
+import { sql, inArray, or, and, type SQL } from "drizzle-orm";
 import { events } from "@shared/schema";
 
 /**
@@ -28,9 +28,12 @@ export function filterEventsForBrand<
     category?: string | null;
     title?: string | null;
     tags?: (string | null)[] | null;
+    country?: string | null;
   },
 >(events: T[], brand: BrandConfig): T[] {
-  if (!brand.categories) return events;
+  const hasCategoryFocus = !!brand.categories;
+  const hasCountryFocus = !!(brand.countries && brand.countries.length > 0);
+  if (!hasCategoryFocus && !hasCountryFocus) return events;
   return events.filter((e) => eventMatchesBrand(e, brand));
 }
 
@@ -43,24 +46,40 @@ export function filterEventsForBrand<
 export function buildBrandEventCondition(
   brand: BrandConfig,
 ): SQL | undefined {
-  if (!brand.categories || brand.categories.length === 0) return undefined;
+  const conditions: SQL[] = [];
 
-  const clauses: SQL[] = [inArray(events.category, brand.categories)];
+  // Categorie-focus: OR-groep van categorie / titel-trefwoord / event-tag.
+  if (brand.categories && brand.categories.length > 0) {
+    const clauses: SQL[] = [inArray(events.category, brand.categories)];
 
-  if (brand.matchKeywords && brand.matchKeywords.length > 0) {
-    for (const kw of brand.matchKeywords) {
-      clauses.push(sql`${events.title} ILIKE ${"%" + kw + "%"}`);
+    if (brand.matchKeywords && brand.matchKeywords.length > 0) {
+      for (const kw of brand.matchKeywords) {
+        clauses.push(sql`${events.title} ILIKE ${"%" + kw + "%"}`);
+      }
     }
+
+    if (brand.matchTags && brand.matchTags.length > 0) {
+      const lowered = brand.matchTags.map((t) => t.toLowerCase());
+      clauses.push(
+        sql`EXISTS (SELECT 1 FROM unnest(${events.tags}) AS bt WHERE lower(bt) = ANY(${lowered}))`,
+      );
+    }
+
+    const categoryCondition = or(...clauses);
+    if (categoryCondition) conditions.push(categoryCondition);
   }
 
-  if (brand.matchTags && brand.matchTags.length > 0) {
-    const lowered = brand.matchTags.map((t) => t.toLowerCase());
-    clauses.push(
-      sql`EXISTS (SELECT 1 FROM unnest(${events.tags}) AS bt WHERE lower(bt) = ANY(${lowered}))`,
+  // Landfilter (AND-gate). Events zonder land worden als "NL" behandeld.
+  if (brand.countries && brand.countries.length > 0) {
+    const upper = brand.countries.map((c) => c.toUpperCase());
+    conditions.push(
+      sql`COALESCE(UPPER(${events.country}), 'NL') = ANY(${upper})`,
     );
   }
 
-  return or(...clauses);
+  if (conditions.length === 0) return undefined;
+  if (conditions.length === 1) return conditions[0];
+  return and(...conditions);
 }
 
 export { getDefaultBrand };

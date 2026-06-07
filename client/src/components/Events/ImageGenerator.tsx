@@ -34,17 +34,17 @@ export function ImageGenerator({
       // Bepaal de belangrijkste keywords per categorie
       if (category === "Tentoonstelling") {
         categoryKeyword = "kunstexpositie museum";
-      } else if (category === "Voorstelling") {
+      } else if (category === "Theater, Dans & Film") {
         categoryKeyword = "concert optreden podium";
-      } else if (category === "Activiteit") {
+      } else if (category === "Rondleiding & Uitstap") {
         categoryKeyword = "buitenactiviteit sport";
-      } else if (category === "Stappen & Borrel") {
+      } else if (category === "Feest & Nachtleven") {
         categoryKeyword = "festival feest mensen";
       } else if (category === "Markt & Beurs") {
         categoryKeyword = "buitenmarkt kramen";
       } else if (category === "Quiz & Spelletjes") {
         categoryKeyword = "pubquiz spelletjes groep";
-      } else if (category === "Leren & Ontdekken") {
+      } else if (category === "Cursus & Workshop") {
         categoryKeyword = "workshop cursus leren";
       } else if (category === "Eten & Drinken") {
         categoryKeyword = "eten drinken culinair";

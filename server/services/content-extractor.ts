@@ -86,56 +86,58 @@ export interface ContentExtractionResult {
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'Tentoonstelling': [
-    'tentoonstelling', 'expositie', 'galerie', 'museum', 'opening', 'vernissage',
-    'kunstwerk', 'schilderij', 'beeldhouw', 'fotografie', 'installatie', 'design',
-    'erfgoed', 'kunstenaar', 'atelier', 'collectie', 'permanente', 'tijdelijke', 'expo'
+    'tentoonstelling', 'expositie', 'galerie', 'museum', 'kunst', 'schilderij', 'vernissage',
+    'beeldhouw', 'fotografie', 'expo', 'collectie', 'design', 'installatie', 'erfgoed',
+    'kunstenaar', 'atelier'
   ],
-  'Voorstelling': [
-    'concert', 'muziek', 'theater', 'toneel', 'musical', 'opera', 'ballet', 'dans',
-    'cabaret', 'comedy', 'standup', 'film', 'cinema', 'bioscoop', 'premiere',
-    'jazz', 'klassiek', 'pop', 'rock', 'orkest', 'koor', 'zang', 'band', 'dj',
-    'optreden', 'uitvoering', 'voorstelling', 'show', 'performance', 'live',
-    'tribute', 'coverband', 'circus', 'acrobatiek', 'illusionist', 'entertainer'
+  'Muziek & Concert': [
+    'concert', 'muziek', 'livemuziek', 'optreden', 'band', 'orkest', 'koor', 'zang',
+    'dj', 'jazz', 'klassiek', 'pop', 'rock', 'piano', 'gitaar', 'akoestisch'
   ],
-  'Activiteit': [
-    'voetbal', 'tennis', 'hockey', 'zwemmen', 'fitness', 'sport', 'wedstrijd', 'toernooi',
-    'hardlopen', 'marathon', 'atletiek', 'basketbal', 'volleybal', 'handbal', 'schaatsen',
-    'wielrennen', 'fietsen', 'golf', 'badminton', 'yoga', 'pilates', 'bootcamp',
-    'sportdag', 'wandeling', 'speurtocht', 'survival', 'klimmen',
-    'kinderfeest', 'kinderactiviteit', 'kinderdag', 'kindermiddag', 'kinderprogramma',
-    'jeugd', 'kinderen', 'kids', 'voorlezen', 'peuterspeelzaal'
+  'Theater, Dans & Film': [
+    'theater', 'toneel', 'musical', 'opera', 'ballet', 'dans', 'cabaret', 'comedy',
+    'standup', 'film', 'cinema', 'bioscoop', 'voorstelling', 'show', 'circus', 'performance'
   ],
-  'Stappen & Borrel': [
-    'festival', 'feest', 'party', 'borrel', 'kermis', 'carnaval', 'braderie',
-    'dancing', 'rave', 'openlucht', 'zomerfestival', 'koningsdag', 'bevrijdingsdag',
-    'sinterklaas', 'kerst', 'nieuwjaar', 'jubileum', 'verjaardag', 'reünie',
-    'open dag', 'opendag', 'inloop', 'netwerk', 'gezelligheid', 'stappen', 'uitgaan',
-    'happy hour', 'afterparty', 'rooftop', 'terras', 'cocktail', 'dansen', 'liveband'
+  'Sport & Bewegen': [
+    'sport', 'wedstrijd', 'toernooi', 'marathon', 'hardlopen', 'voetbal', 'tennis',
+    'basketbal', 'zwemmen', 'fitness', 'yoga', 'atletiek', 'gym', 'vechtsport',
+    'schaatsen', 'bootcamp'
+  ],
+  'Wandelen, Fietsen & Natuur': [
+    'wandelen', 'wandeling', 'fietsen', 'wielrennen', 'route', 'natuur', 'speurtocht',
+    'park', 'tuin', 'outdoor', 'fietstocht', 'boswandeling'
+  ],
+  'Rondleiding & Uitstap': [
+    'rondleiding', 'excursie', 'tour', 'uitstap', 'opendeur', 'opendeurdag', 'open dag',
+    'bezoek', 'daguitstap', 'dagje uit'
+  ],
+  'Cursus & Workshop': [
+    'cursus', 'workshop', 'training', 'les', 'lessenreeks', 'masterclass', 'creatief',
+    'knutsel', 'handwerk', 'schilderen', 'atelier', 'leren'
+  ],
+  'Lezing & Congres': [
+    'lezing', 'congres', 'seminar', 'symposium', 'presentatie', 'conferentie', 'college',
+    'debat', 'talk', 'boekpresentatie'
   ],
   'Markt & Beurs': [
-    'markt', 'beurs', 'rommelmarkt', 'braderie', 'koopzondag', 'tweedehands',
-    'vlooienmarkt', 'kerstmarkt', 'weekmarkt', 'boerenmarkt', 'streekmarkt',
-    'fair', 'trade show', 'handelsmarkt', 'antiek', 'vintage', 'snuffelmarkt',
-    'boeken', 'collector', 'artisan', 'ambacht', 'kraampjes', 'stands'
-  ],
-  'Quiz & Spelletjes': [
-    'pubquiz', 'quiz', 'bingo', 'bordspel', 'spelletjes', 'trivia', 'escape room',
-    'puzzel', 'kaartspel', 'speeddating', 'speeddaten', 'singles', 'singles event',
-    'ontmoeten', 'kennismaken', 'gameshow', 'kienen', 'klaverjassen'
-  ],
-  'Leren & Ontdekken': [
-    'workshop', 'cursus', 'training', 'les', 'college', 'seminar', 'webinar',
-    'lezing', 'presentatie', 'conferentie', 'congres', 'symposium', 'masterclass',
-    'educatie', 'onderwijs', 'academie', 'rondleiding', 'excursie', 'tour',
-    'wetenschap', 'technologie', 'innovatie', 'experiment', 'bibliotheek',
-    'boekpresentatie', 'creatief', 'knutsel', 'handwerk', 'schilderen',
-    'meditatie', 'mindfulness', 'retraite', 'natuur'
+    'markt', 'braderie', 'rommelmarkt', 'vlooienmarkt', 'kerstmarkt', 'weekmarkt',
+    'boerenmarkt', 'beurs', 'fair', 'antiek', 'vintage', 'tweedehands'
   ],
   'Eten & Drinken': [
-    'foodfestival', 'food festival', 'proeverij', 'diner', 'culinair', 'restaurant',
-    'tasting', 'koken', 'bakken', 'eten', 'lunch', 'brunch', 'ontbijt',
-    'wijn', 'bier', 'whisky', 'gin', 'koffie', 'thee', 'bbq', 'barbecue',
-    'food truck', 'streetfood', 'tapas', 'gastronomie', 'chef', 'pop-up restaurant'
+    'eten', 'food', 'foodfestival', 'proeverij', 'diner', 'culinair', 'restaurant',
+    'tasting', 'koken', 'bakken', 'bbq', 'barbecue', 'wijn', 'bier', 'streetfood', 'brunch'
+  ],
+  'Quiz & Spelletjes': [
+    'quiz', 'pubquiz', 'bingo', 'bordspel', 'spelletjes', 'trivia', 'escape room',
+    'kienen', 'gameavond', 'kaartspel'
+  ],
+  'Familie & Vakantie': [
+    'familie', 'kinderen', 'kids', 'kinderfeest', 'kinderactiviteit', 'jeugd', 'kamp',
+    'vakantie', 'speeltuin', 'gezin', 'peuter'
+  ],
+  'Feest & Nachtleven': [
+    'feest', 'party', 'borrel', 'kermis', 'carnaval', 'festival', 'fuif', 'dancing',
+    'rave', 'uitgaan', 'stappen', 'terras', 'cocktail', 'dansen'
   ],
 };
 
@@ -679,9 +681,9 @@ export class ContentExtractor {
       };
     }
     
-    // Default to 'Stappen & Borrel' as fallback for general events
+    // Default to 'Rondleiding & Uitstap' as fallback for general events
     return {
-      category: 'Stappen & Borrel',
+      category: 'Rondleiding & Uitstap',
       confidence: 0.3,
       matchedKeywords: []
     };

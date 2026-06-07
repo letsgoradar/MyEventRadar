@@ -29,21 +29,21 @@ const EVENT_TITLES: Record<string, string[]> = {
     "Galerie opening",
     "Museum rondleiding"
   ],
-  "Voorstelling": [
+  "Theater, Dans & Film": [
     "Theatervoorstelling",
     "Muziekconcert",
     "Dansvoorstelling",
     "Filmfestival",
     "Cabaretavond"
   ],
-  "Activiteit": [
+  "Rondleiding & Uitstap": [
     "Voetbaltoernooi",
     "Tennis clinic",
     "Sportdag",
     "Yoga sessie",
     "Fietstochtje"
   ],
-  "Stappen & Borrel": [
+  "Feest & Nachtleven": [
     "Buurtborrel",
     "BBQ & Muziek",
     "Zomerfeest",
@@ -61,7 +61,7 @@ const EVENT_TITLES: Record<string, string[]> = {
     "Trivia night",
     "Game-avond"
   ],
-  "Leren & Ontdekken": [
+  "Cursus & Workshop": [
     "Workshop fotografie",
     "Lezing geschiedenis",
     "Cursus koken",

@@ -111,8 +111,6 @@ const AppEventDetailPage = React.lazy(() => import("@/pages/App/event-detail"));
 
 const CityPage = React.lazy(() => import("@/pages/public/CityPage"));
 
-const InstallPWA = React.lazy(() => import("@/components/App/InstallPWA").then(m => ({ default: m.InstallPWA })));
-
 const PrivacyPolicy = React.lazy(() => import("@/pages/PrivacyPolicy"));
 const ResetPassword = React.lazy(() => import("@/pages/ResetPassword"));
 const NotFound = React.lazy(() => import("@/pages/not-found"));
@@ -450,9 +448,6 @@ export default function App() {
         </Route>
           </Switch>
           </RouteErrorBoundary>
-          {showInstallScreen && (
-            <LazyLoad><InstallPWA /></LazyLoad>
-          )}
           <BetaOverlay />
           <Toaster />
           </AnalyticsProvider>

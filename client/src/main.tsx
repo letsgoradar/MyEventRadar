@@ -22,16 +22,20 @@ import "./hmr-config";
 
 createRoot(document.getElementById("root")!).render(<App />);
 
+// PWA/offline-cache is voorlopig uitgeschakeld. Deregistreer bestaande service
+// workers en wis hun caches zodat vastgemaakte apps altijd de actuele webversie
+// laden (lost het "Er ging iets mis"-scherm op na een nieuwe deploy).
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then((registration) => {
-        console.log('Service Worker geregistreerd:', registration.scope);
-      })
-      .catch((error) => {
-        console.log('Service Worker registratie mislukt:', error);
-      });
-  });
+  navigator.serviceWorker.getRegistrations()
+    .then((registrations) => {
+      registrations.forEach((registration) => registration.unregister());
+    })
+    .catch(() => {});
+  if ('caches' in window) {
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .catch(() => {});
+  }
 }
 
 if (window.matchMedia('(display-mode: standalone)').matches && screen.orientation && 'lock' in screen.orientation) {

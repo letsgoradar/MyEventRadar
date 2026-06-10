@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { MapPin, Loader2, Eye, EyeOff, X, Heart } from "lucide-react";
 import { formatDutchShortDate } from "@/utils/date-utils";
+import { getDeterministicCategoryImage } from "@/lib/categoryImages";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -222,18 +223,27 @@ export function BottomSheet({
                   className="bg-card rounded-xl overflow-hidden shadow-sm border cursor-pointer hover:shadow-md transition-shadow"
                 >
                   <div className="relative h-24 bg-muted">
-                    {event.imageUrl ? (
-                      <img 
-                        src={event.imageUrl} 
-                        alt={event.title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/40">
-                        <CategoryIcon category={event.category as any} size={32} className="text-primary" />
-                      </div>
-                    )}
+                    {(() => {
+                      const displayImage = event.imageUrl || getDeterministicCategoryImage(event.category, event.id);
+                      const isStockPhoto = !event.imageUrl;
+                      return (
+                        <>
+                          <img
+                            src={displayImage}
+                            alt={event.title}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                          {isStockPhoto && (
+                            <div className="absolute bottom-1 right-1">
+                              <span className="bg-black/50 text-white text-[9px] px-1 py-0.5 rounded">
+                                Stockfoto
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {/* Datum badge links-boven */}
                     <div className="absolute top-1.5 left-1.5">

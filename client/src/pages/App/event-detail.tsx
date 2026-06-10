@@ -34,6 +34,7 @@ import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import 'leaflet/dist/leaflet.css';
 import '@/components/Events/leaflet-fix.css';
 import { getLocationName } from "@/utils/location-utils";
+import { getDeterministicCategoryImage } from "@/lib/categoryImages";
 import L from 'leaflet';
 
 export function AppEventDetail() {
@@ -273,16 +274,24 @@ export function AppEventDetail() {
 
   // Component voor de afbeeldingengalerij
   const ImageGallery = ({ imageUrls }: { imageUrls: string[] }) => {
-    if (!imageUrls || imageUrls.length === 0) return null;
-    
+    const displayImage = imageUrls[0] || getDeterministicCategoryImage(event.category, event.id);
+    const isStockPhoto = !imageUrls[0];
+
     return (
       <div className="mb-6">
         <div className="relative h-64 w-full rounded-md overflow-hidden">
           <img 
-            src={imageUrls[0]} 
+            src={displayImage} 
             alt={event.title} 
             className="w-full h-full object-cover"
           />
+          {isStockPhoto && (
+            <div className="absolute bottom-2 right-2">
+              <span className="bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">
+                Stockfoto
+              </span>
+            </div>
+          )}
           {imageUrls.length > 1 && (
             <div className="absolute bottom-2 right-2 bg-black/50 text-white px-2 py-1 rounded-md text-xs">
               +{imageUrls.length - 1} foto's

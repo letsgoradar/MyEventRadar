@@ -390,6 +390,7 @@ export const feedSyncHistory = pgTable("feed_sync_history", {
   updatedEvents: integer("updated_events").default(0),
   incompleteEvents: integer("incomplete_events").default(0),
   skippedEvents: integer("skipped_events").default(0),
+  pagesProcessed: integer("pages_processed").default(0),
   incompleteReasons: jsonb("incomplete_reasons").$type<Record<string, number>>(),
   errorMessage: text("error_message"),
   success: boolean("success").default(true),

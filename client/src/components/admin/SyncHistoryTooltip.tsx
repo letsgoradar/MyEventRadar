@@ -17,7 +17,8 @@ import {
   XCircle,
   FileQuestion,
   RefreshCw,
-  ArrowRight
+  ArrowRight,
+  Layers
 } from 'lucide-react';
 
 interface SyncHistory {
@@ -31,6 +32,7 @@ interface SyncHistory {
   updatedEvents: number | null;
   incompleteEvents: number | null;
   skippedEvents: number | null;
+  pagesProcessed: number | null;
   incompleteReasons: Record<string, number> | null;
   errorMessage: string | null;
   success: boolean | null;
@@ -158,6 +160,13 @@ export function SyncHistoryTooltip({ feedId, lastFetchedAt }: SyncHistoryTooltip
             <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
               <span className="text-blue-700">Bijgewerkt</span>
               <span className="font-medium text-blue-700">{sync.updatedEvents ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-muted/50 rounded col-span-2">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Layers className="w-3 h-3" />
+                Pagina's doorzocht
+              </span>
+              <span className="font-medium">{sync.pagesProcessed ?? '—'}</span>
             </div>
             <div className="flex items-center justify-between p-2 bg-amber-50 rounded col-span-2">
               <span className="text-amber-700 flex items-center gap-1">

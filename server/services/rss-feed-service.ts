@@ -321,6 +321,7 @@ interface FeedParseResult {
   success: boolean;
   items: ParsedFeedItem[];
   error?: string;
+  pagesProcessed?: number;
 }
 
 /**
@@ -1862,7 +1863,9 @@ export class RssFeedService {
       const eventLinks: string[] = [];
       const maxPages = 50;
       
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1 
           ? "https://www.thisiseindhoven.com/en/events"
           : `https://www.thisiseindhoven.com/en/events?page=${page}`;
@@ -1930,7 +1933,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from This Is Eindhoven (${errorCount} errors)`);
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping This Is Eindhoven:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -1943,7 +1946,9 @@ export class RssFeedService {
       const eventLinks: string[] = [];
       const maxPages = 50;
       
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1 
           ? "https://www.trefhetinoss.nl/uitagenda"
           : `https://www.trefhetinoss.nl/uitagenda?page=${page}`;
@@ -2015,7 +2020,7 @@ export class RssFeedService {
 
       console.log(`[RSS] Scraped ${items.length} events from Tref het in Oss (${errorCount} errors)`);
       // Note: Multi-day consolidation now happens in syncFeed/processFeeds
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Tref het in Oss:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -2028,7 +2033,9 @@ export class RssFeedService {
       const eventLinks: string[] = [];
       const maxPages = 50;
       
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1 
           ? "https://www.visithelmond.nl/nl/agenda"
           : `https://www.visithelmond.nl/nl/agenda?page=${page}`;
@@ -2100,7 +2107,7 @@ export class RssFeedService {
 
       console.log(`[RSS] Scraped ${items.length} events from Visit Helmond (${errorCount} errors)`);
       // Note: Multi-day consolidation now happens in syncFeed/processFeeds
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Visit Helmond:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -2307,7 +2314,9 @@ export class RssFeedService {
       const eventLinks: string[] = [];
       const maxPages = 10;
 
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1
           ? "https://www.visitleiden.nl/nl/agenda"
           : `https://www.visitleiden.nl/nl/agenda?page=${page}`;
@@ -2379,7 +2388,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from Visit Leiden (${errorCount} errors)`);
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Visit Leiden:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -2629,7 +2638,9 @@ export class RssFeedService {
       const eventLinks: string[] = [];
       const maxPages = 10;
 
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1
           ? "https://www.groenehart.nl/agenda/overzicht"
           : `https://www.groenehart.nl/agenda/overzicht?page=${page}`;
@@ -2701,7 +2712,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from Groene Hart (${errorCount} errors)`);
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Groene Hart:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -3057,7 +3068,9 @@ export class RssFeedService {
       const eventLinks: string[] = [];
       const maxPages = 50;
       
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1 
           ? "https://www.bezoekmeierijstad.nl/agenda"
           : `https://www.bezoekmeierijstad.nl/agenda?order=desc&sort=calendar&page=${page}`;
@@ -3129,7 +3142,7 @@ export class RssFeedService {
 
       console.log(`[RSS] Scraped ${items.length} events from Meierijstad (${errorCount} errors)`);
       // Note: Multi-day consolidation now happens in syncFeed/processFeeds
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Meierijstad:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -3420,7 +3433,9 @@ export class RssFeedService {
       const eventLinks: string[] = [];
       const maxPages = 50;
       
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1 
           ? "https://www.exploremaashorst.nl/uitagenda"
           : `https://www.exploremaashorst.nl/uitagenda?page=${page}`;
@@ -3492,7 +3507,7 @@ export class RssFeedService {
 
       console.log(`[RSS] Scraped ${items.length} events from Maashorst (${errorCount} errors)`);
       // Note: Multi-day consolidation now happens in syncFeed/processFeeds
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Maashorst:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -3918,7 +3933,9 @@ export class RssFeedService {
       const maxPages = 50;
       
       // Collect event links from overview pages
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1 
           ? "https://www.mooibernheze.nl/agenda"
           : `https://www.mooibernheze.nl/agenda?page=${page}`;
@@ -4003,7 +4020,7 @@ export class RssFeedService {
         console.log(`[RSS] Bernheze: consolidated ${removedCount} recurring events (series opgeslagen als recurrence)`);
       }
 
-      return { success: true, items: consolidatedItems };
+      return { success: true, items: consolidatedItems, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Bernheze:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -4326,7 +4343,9 @@ export class RssFeedService {
       const maxPages = config.maxPages || 10;
       const eventLinkPath = config.eventLinkPath || config.agendaPath;
       
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1 
           ? overviewUrl
           : `${config.baseUrl}${config.agendaPath}?page=${page}`;
@@ -4396,7 +4415,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from ${config.municipality} (${successCount} with GPS, ${skippedCount} skipped)`);
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping ${config.municipality}:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -4929,7 +4948,9 @@ export class RssFeedService {
       const maxPages = 50;
       
       // Step 1: Collect event URLs from /nl/evenementen pages
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1 
           ? "https://www.explorebreda.com/nl/evenementen"
           : `https://www.explorebreda.com/nl/evenementen?page=${page}`;
@@ -5135,7 +5156,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Scraped ${items.length} events from Breda (${successCount} with GPS, ${skippedCount} skipped)`);
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping Breda:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -5556,7 +5577,9 @@ export class RssFeedService {
       const eventLinks: string[] = [];
 
       // 1. Collect event links from overview pages
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1
           ? `${baseUrl}/agenda-0/${dateRange}/`
           : `${baseUrl}/agenda-0/${dateRange}/?p=${page}`;
@@ -5704,7 +5727,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Ommen: ${items.length} valid future events parsed`);
-      return { success: true, items, feedType: 'scraper' };
+      return { success: true, items, feedType: 'scraper', pagesProcessed: pagesScraped };
     } catch (err: any) {
       console.error(`[RSS] Ommen scraper failed: ${err.message}`);
       return { items: [], feedType: 'scraper', error: err.message };
@@ -5733,7 +5756,9 @@ export class RssFeedService {
     try {
       const eventLinks: string[] = [];
 
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1
           ? `${baseUrl}/agenda/${dateRange}/`
           : `${baseUrl}/agenda/${dateRange}/?p=${page}`;
@@ -5867,7 +5892,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Hardenberg: ${items.length} valid future events parsed`);
-      return { success: true, items, feedType: 'scraper' };
+      return { success: true, items, feedType: 'scraper', pagesProcessed: pagesScraped };
     } catch (err: any) {
       console.error(`[RSS] Hardenberg scraper failed: ${err.message}`);
       return { items: [], feedType: 'scraper', error: err.message };
@@ -5889,7 +5914,9 @@ export class RssFeedService {
       const eventLinks: string[] = [];
 
       // 1. Collect event links from overview pages
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1
           ? `${baseUrl}/uitagenda/all/`
           : `${baseUrl}/uitagenda/all/?p=${page}`;
@@ -6080,7 +6107,7 @@ export class RssFeedService {
 
       const withGps = items.filter(i => i.latitude && i.longitude).length;
       console.log(`[RSS] Almelo: ${items.length} valid future events parsed (${withGps} with GPS)`);
-      return { success: true, items, feedType: 'scraper' };
+      return { success: true, items, feedType: 'scraper', pagesProcessed: pagesScraped };
     } catch (err: any) {
       console.error(`[RSS] Almelo scraper failed: ${err.message}`);
       return { items: [], feedType: 'scraper', error: err.message };
@@ -6109,7 +6136,9 @@ export class RssFeedService {
     try {
       const eventLinks: string[] = [];
 
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         const url = page === 1
           ? `${baseUrl}/agenda/${dateRange}/`
           : `${baseUrl}/agenda/${dateRange}/?p=${page}`;
@@ -6254,7 +6283,7 @@ export class RssFeedService {
       }
 
       console.log(`[RSS] Zwolle: ${items.length} valid future events parsed`);
-      return { success: true, items, feedType: 'scraper' };
+      return { success: true, items, feedType: 'scraper', pagesProcessed: pagesScraped };
     } catch (err: any) {
       console.error(`[RSS] Zwolle scraper failed: ${err.message}`);
       return { items: [], feedType: 'scraper', error: err.message };
@@ -6774,7 +6803,9 @@ export class RssFeedService {
       const seenUrls = new Set<string>();
       const MAX_LISTING_PAGES = 25;
 
+      let pagesScraped = 0;
       for (let page = 1; page <= MAX_LISTING_PAGES; page++) {
+        pagesScraped = page;
         let listingError: string | undefined;
         try {
           const pageUrl = page === 1 ? agendaBase : `${agendaBase}?page=${page}`;
@@ -7168,7 +7199,7 @@ export class RssFeedService {
         onProgress?.({ logMessage: line });
       }
 
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: unknown) {
       const err = error as { message?: string };
       console.error(`[RSS] iAmsterdam scraper error:`, err.message ?? error);
@@ -7231,7 +7262,9 @@ export class RssFeedService {
       const eventLinks: string[] = [];
       const maxPages = 30;
       
+      let pagesScraped = 0;
       for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
         try {
           const pageUrl = page === 1 ? agendaUrl : `${agendaUrl}?page=${page}`;
           console.log(`[RSS] Fetching IntoNijmegen agenda page ${page}...`);
@@ -7458,7 +7491,7 @@ export class RssFeedService {
       }
       
       console.log(`[RSS] Scraped ${items.length} events from IntoNijmegen (${successCount} success, ${skippedCount} skipped)`);
-      return { success: true, items };
+      return { success: true, items, pagesProcessed: pagesScraped };
     } catch (error: any) {
       console.error(`[RSS] Error scraping IntoNijmegen:`, error.message);
       return { success: false, items: [], error: error.message };
@@ -8717,7 +8750,9 @@ export class RssFeedService {
     const items: ParsedFeedItem[] = [];
     const seenIds = new Set<string>();
 
+    let pagesScraped = 0;
     for (let page = 1; page <= maxPages; page++) {
+      pagesScraped = page;
       const apiUrl = `${origin}/umbraco/api/Entity/GetProductions?id=1083&pageSize=${PAGE_SIZE}&isMobile=false&culture=nl-NL&p=${page}`;
 
       let response: any;
@@ -8818,7 +8853,7 @@ export class RssFeedService {
     }
 
     console.log(`[RSS] Uitagenda Rotterdam: ${items.length} evenementen opgehaald`);
-    return { success: true, items };
+    return { success: true, items, pagesProcessed: pagesScraped };
   }
 
   /**
@@ -9052,7 +9087,9 @@ export class RssFeedService {
     const items: ParsedFeedItem[] = [];
     const seenUrls = new Set<string>();
 
+    let pagesScraped = 0;
     for (let page = 1; page <= MAX_PAGES; page++) {
+      pagesScraped = page;
       const pageUrl = page === 1
         ? `${ORIGIN}${BASE_PATH}`
         : `${ORIGIN}${BASE_PATH}?page=${page}`;
@@ -9193,7 +9230,7 @@ export class RssFeedService {
     }
 
     console.log(`[RSS] Delft: ${items.length} evenementen opgehaald`);
-    return { success: true, items };
+    return { success: true, items, pagesProcessed: pagesScraped };
   }
 
   /**
@@ -10840,6 +10877,74 @@ export class RssFeedService {
     return this.fetchAndParseRssFeed(feed.url, feed.municipality || undefined);
   }
 
+  /**
+   * Record a per-feed sync history row (found / pages / imported / incomplete).
+   * Used by both processFeed (single manual sync) and processFeeds (bulk/auto
+   * sync) so EVERY sync is visible in the admin — previously only manual
+   * single-feed syncs recorded history, which is why auto-synced feeds showed
+   * stale/empty sync info.
+   */
+  private static async recordSyncHistory(params: {
+    feed: RssFeed;
+    durationMs: number;
+    result: FeedParseResult | null;
+    afterMerge: number;
+    newEvents: number;
+    updatedEvents: number;
+    success: boolean;
+    errorMessage?: string;
+  }): Promise<void> {
+    const { feed, durationMs, result, afterMerge, newEvents, updatedEvents, success, errorMessage } = params;
+
+    let incompleteCount = 0;
+    const incompleteReasons: Record<string, number> = {};
+    if (success) {
+      try {
+        const incompleteItemsResult = await db.select({
+          count: sql<number>`COUNT(*)`,
+          missingFields: rssFeedItems.missingFields
+        })
+          .from(rssFeedItems)
+          .where(and(
+            eq(rssFeedItems.feedId, feed.id),
+            eq(rssFeedItems.processingStatus, 'incomplete')
+          ))
+          .groupBy(rssFeedItems.missingFields);
+
+        incompleteCount = incompleteItemsResult.reduce((sum, row) => sum + Number(row.count), 0);
+        incompleteItemsResult.forEach(row => {
+          const fields = row.missingFields as string[] | null;
+          if (fields && Array.isArray(fields)) {
+            fields.forEach(field => {
+              incompleteReasons[field] = (incompleteReasons[field] || 0) + Number(row.count);
+            });
+          }
+        });
+      } catch (e: any) {
+        console.warn(`[RSS] ${feed.name}: failed to compute incomplete counts — ${e.message}`);
+      }
+    }
+
+    try {
+      await storage.createSyncHistory({
+        feedId: feed.id,
+        durationMs,
+        totalFound: result?.items.length ?? 0,
+        afterMerge,
+        newEvents,
+        updatedEvents,
+        incompleteEvents: incompleteCount,
+        skippedEvents: 0,
+        incompleteReasons: Object.keys(incompleteReasons).length > 0 ? incompleteReasons : null,
+        pagesProcessed: result?.pagesProcessed ?? null,
+        errorMessage,
+        success,
+      });
+    } catch (e: any) {
+      console.warn(`[RSS] ${feed.name}: failed to record sync history — ${e.message}`);
+    }
+  }
+
   static async processFeed(
     feed: RssFeed, 
     storage?: any,
@@ -10882,6 +10987,16 @@ export class RssFeedService {
       if (!result.success) {
         console.log(`[RSS] ${feed.name}: FAILED after ${feedDuration} min - ${result.error}`);
         await RssFeedService.recordFeedFailure(feed, result.error || 'Onbekende fout');
+        await this.recordSyncHistory({
+          feed,
+          durationMs: Date.now() - feedStartTime,
+          result,
+          afterMerge: 0,
+          newEvents: 0,
+          updatedEvents: 0,
+          success: false,
+          errorMessage: result.error || 'Onbekende fout',
+        });
         return { success: false, itemsProcessed: 0, eventsCreated: 0, eventsUpdated: 0, error: result.error };
       }
 
@@ -10928,40 +11043,15 @@ export class RssFeedService {
       await RssFeedService.recordFeedSuccess(feed, newItemsCount);
 
       const durationMs = Date.now() - feedStartTime;
-      
-      const incompleteItemsResult = await db.select({
-        count: sql<number>`COUNT(*)`,
-        missingFields: rssFeedItems.missingFields
-      })
-        .from(rssFeedItems)
-        .where(and(
-          eq(rssFeedItems.feedId, feed.id),
-          eq(rssFeedItems.processingStatus, 'incomplete')
-        ))
-        .groupBy(rssFeedItems.missingFields);
-      
-      const incompleteCount = incompleteItemsResult.reduce((sum, row) => sum + Number(row.count), 0);
-      const incompleteReasons: Record<string, number> = {};
-      incompleteItemsResult.forEach(row => {
-        const fields = row.missingFields as string[] | null;
-        if (fields && Array.isArray(fields)) {
-          fields.forEach(field => {
-            incompleteReasons[field] = (incompleteReasons[field] || 0) + Number(row.count);
-          });
-        }
-      });
 
-      await storage.createSyncHistory({
-        feedId: feed.id,
+      await this.recordSyncHistory({
+        feed,
         durationMs,
-        totalFound: result.items.length,
+        result,
         afterMerge: consolidatedItems.length,
         newEvents: newItemsCount,
         updatedEvents: updatedItemsCount,
-        incompleteEvents: incompleteCount,
-        skippedEvents: 0,
-        incompleteReasons: Object.keys(incompleteReasons).length > 0 ? incompleteReasons : null,
-        success: true
+        success: true,
       });
 
       console.log(`[RSS] ${feed.name}: SUCCESS - ${newItemsCount} new, ${updatedItemsCount} updated in ${feedDuration} min (total: ${consolidatedItems.length} consolidated from ${result.items.length})`);
@@ -10981,18 +11071,16 @@ export class RssFeedService {
       const feedDuration = ((durationMs) / 1000 / 60).toFixed(1);
       console.error(`[RSS] ${feed.name}: ERROR after ${feedDuration} min - ${error.message}`);
       await RssFeedService.recordFeedFailure(feed, error.message);
-      
-      await storage.createSyncHistory({
-        feedId: feed.id,
+
+      await this.recordSyncHistory({
+        feed,
         durationMs,
-        totalFound: 0,
+        result: null,
         afterMerge: 0,
         newEvents: 0,
         updatedEvents: 0,
-        incompleteEvents: 0,
-        skippedEvents: 0,
+        success: false,
         errorMessage: error.message,
-        success: false
       });
       
       return { success: false, itemsProcessed: 0, eventsCreated: 0, eventsUpdated: 0, error: error.message };
@@ -11640,6 +11728,16 @@ export class RssFeedService {
         if (!result.success) {
           console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: FAILED after ${feedDuration} min - ${result.error}`);
           await RssFeedService.recordFeedFailure(feed, result.error || 'Onbekende fout');
+          await this.recordSyncHistory({
+            feed,
+            durationMs: Date.now() - feedStartTime,
+            result,
+            afterMerge: 0,
+            newEvents: 0,
+            updatedEvents: 0,
+            success: false,
+            errorMessage: result.error || 'Onbekende fout',
+          });
           errors++;
           continue;
         }
@@ -11676,12 +11774,32 @@ export class RssFeedService {
 
         await RssFeedService.recordFeedSuccess(feed, newItemsCount);
 
+        await this.recordSyncHistory({
+          feed,
+          durationMs: Date.now() - feedStartTime,
+          result,
+          afterMerge: consolidatedItems.length,
+          newEvents: newItemsCount,
+          updatedEvents: updatedItemsCount,
+          success: true,
+        });
+
         console.log(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: SUCCESS - ${newItemsCount} new, ${updatedItemsCount} updated in ${feedDuration} min (consolidated: ${consolidatedItems.length} from ${result.items.length})`);
         processed++;
       } catch (error: any) {
         const feedDuration = ((Date.now() - feedStartTime) / 1000 / 60).toFixed(1);
         console.error(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: ERROR after ${feedDuration} min - ${error.message}`);
         await RssFeedService.recordFeedFailure(feed, error.message);
+        await this.recordSyncHistory({
+          feed,
+          durationMs: Date.now() - feedStartTime,
+          result: null,
+          afterMerge: 0,
+          newEvents: 0,
+          updatedEvents: 0,
+          success: false,
+          errorMessage: error.message,
+        });
         errors++;
       }
     }

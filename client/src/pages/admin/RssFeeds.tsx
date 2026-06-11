@@ -133,6 +133,11 @@ export default function RssFeedsPage() {
     queryKey: ['/api/admin/rss-feeds/overview'],
   });
 
+  const { data: feedHealth = {} } = useQuery<Record<number, { feedId: number; status: 'healthy' | 'warning' | 'suspect' | 'unknown'; reason: string; activeEvents: number; lastSyncAt: string | null }>>({
+    queryKey: ['/api/admin/rss-feeds/health'],
+    staleTime: 60000,
+  });
+
   // Fetch saved visual parser configurations
   interface ParserConfig {
     id: number;
@@ -1487,6 +1492,23 @@ export default function RssFeedsPage() {
                         </TableCell>
                         <TableCell>
                           {getStatusBadge(feed.status)}
+                          {(() => {
+                            const health = feedHealth[feed.id];
+                            if (!health || health.status === 'healthy' || health.status === 'unknown') return null;
+                            const isSuspect = health.status === 'suspect';
+                            return (
+                              <div
+                                className={`mt-1 flex items-start gap-1 text-xs ${isSuspect ? 'text-red-600' : 'text-amber-600'}`}
+                                title={health.reason}
+                                data-testid={`feed-health-${feed.id}`}
+                              >
+                                <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                <span className="max-w-[180px]">
+                                  {isSuspect ? 'Importeert niets meer' : 'Geen nieuwe events'}
+                                </span>
+                              </div>
+                            );
+                          })()}
                           {feed.lastErrorMessage && (
                             <p className="text-xs text-red-500 mt-1 max-w-xs truncate" title={feed.lastErrorMessage}>
                               {feed.lastErrorMessage}

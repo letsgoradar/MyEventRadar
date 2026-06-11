@@ -181,6 +181,53 @@ function parseLocalDateTime(dateString: string): Date | undefined {
 }
 
 /**
+ * Extract the authoritative event occurrence dates from a JSON-LD Event object.
+ *
+ * Plaece-style CMS sites move the real event date(s) into `eventSchedule[]` while
+ * the top-level `startDate`/`endDate` hold a stale availability/publish timestamp
+ * (often months in the past). Parsers that only read top-level `startDate` then
+ * silently skip EVERY event via the "future date" filter while the sync still
+ * reports success — exactly the Oss bug. Always PREFER eventSchedule and only
+ * fall back to top-level dates when no schedule occurrence is available.
+ */
+function extractEventScheduleDates(event: any): { startDate?: Date; endDate?: Date } {
+  let startDate: Date | undefined;
+  let endDate: Date | undefined;
+  let startFromSchedule = false;
+
+  if (event?.eventSchedule && Array.isArray(event.eventSchedule) && event.eventSchedule.length > 0) {
+    // Pick the next upcoming occurrence so recurring/multi-day events whose first
+    // occurrence has already passed still import (fall back to earliest if all past).
+    const now = new Date();
+    const schedules = event.eventSchedule
+      .map((s: any) => ({ raw: s, start: s?.startDate ? parseLocalDateTime(s.startDate) : undefined }))
+      .filter((s: any) => s.start)
+      .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
+    const chosen = schedules.find((s: any) => s.start >= now) || schedules[0];
+    if (chosen) {
+      startDate = chosen.start;
+      startFromSchedule = true;
+      if (chosen.raw.endDate) {
+        endDate = parseLocalDateTime(chosen.raw.endDate);
+      }
+    }
+  }
+
+  // Fall back to top-level dates only when eventSchedule didn't provide them.
+  if (!startDate && event?.startDate) {
+    startDate = parseLocalDateTime(event.startDate);
+  }
+  // Only inherit the top-level endDate when start did NOT come from a specific
+  // schedule occurrence — otherwise the broad availability window would inflate
+  // this single occurrence's duration.
+  if (!endDate && event?.endDate && !startFromSchedule) {
+    endDate = parseLocalDateTime(event.endDate);
+  }
+
+  return { startDate, endDate };
+}
+
+/**
  * Sanitize XML content to fix common parsing issues.
  */
 function sanitizeXmlContent(xml: string): string {
@@ -2180,8 +2227,7 @@ export class RssFeedService {
               continue;
             }
             
-            const startDate = event.startDate ? parseLocalDateTime(event.startDate) : undefined;
-            const endDate = event.endDate ? parseLocalDateTime(event.endDate) : undefined;
+            const { startDate, endDate } = extractEventScheduleDates(event);
             
             if (startDate && startDate < new Date()) continue;
             
@@ -2460,8 +2506,7 @@ export class RssFeedService {
               continue;
             }
 
-            const startDate = event.startDate ? parseLocalDateTime(event.startDate) : undefined;
-            const endDate = event.endDate ? parseLocalDateTime(event.endDate) : undefined;
+            const { startDate, endDate } = extractEventScheduleDates(event);
 
             if (startDate && startDate < new Date()) continue;
 
@@ -2781,8 +2826,7 @@ export class RssFeedService {
               continue;
             }
 
-            const startDate = event.startDate ? parseLocalDateTime(event.startDate) : undefined;
-            const endDate = event.endDate ? parseLocalDateTime(event.endDate) : undefined;
+            const { startDate, endDate } = extractEventScheduleDates(event);
 
             if (startDate && startDate < new Date()) continue;
 
@@ -4489,8 +4533,7 @@ export class RssFeedService {
               continue;
             }
             
-            const startDate = event.startDate ? parseLocalDateTime(event.startDate) : undefined;
-            const endDate = event.endDate ? parseLocalDateTime(event.endDate) : undefined;
+            const { startDate, endDate } = extractEventScheduleDates(event);
             
             if (startDate && startDate < new Date()) continue;
             

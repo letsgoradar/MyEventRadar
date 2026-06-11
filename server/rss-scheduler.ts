@@ -81,6 +81,12 @@ async function runBackgroundSync(): Promise<void> {
     console.log(`[RSS Scheduler] Duration: ${durationMinutes} minutes`);
     console.log(`[RSS Scheduler] Feeds processed: ${result.processed}`);
     console.log(`[RSS Scheduler] Errors: ${result.errors}`);
+
+    // Controleer feed-gezondheid en waarschuw bij feeds die stilletjes zijn
+    // gestopt met importeren (fire-and-forget, eigen cooldown per feed).
+    import("./services/feed-health")
+      .then(({ checkFeedHealthAndAlert }) => checkFeedHealthAndAlert())
+      .catch((err) => console.error("[RSS Scheduler] Feed health check faalde:", err?.message ?? err));
   } catch (error: any) {
     console.error("[RSS Scheduler] Error during scrape:", error.message);
   } finally {

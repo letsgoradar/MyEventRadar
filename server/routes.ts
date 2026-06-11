@@ -2284,6 +2284,19 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  // Feed-gezondheid: detecteert feeds die stilletjes geen events meer importeren.
+  // MUST be before :id route.
+  app.get("/api/admin/rss-feeds/health", isAdmin, async (req, res) => {
+    try {
+      const { getFeedHealthMap } = await import("./services/feed-health");
+      const health = await getFeedHealthMap();
+      res.json(health);
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/health:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Stats route - MUST be before :id route
   app.get("/api/admin/rss-feeds/stats", isAdmin, async (req, res) => {
     try {

@@ -114,6 +114,81 @@ export async function sendFeedbackNotification(feedback: {
   }
 }
 
+export async function sendFeedHealthAlert(
+  feeds: { name: string; municipality?: string | null; reason: string; activeEvents: number; lastSyncAt: string | null }[],
+): Promise<boolean> {
+  if (feeds.length === 0) return true;
+
+  const adminEmail = "info@letsgoradar.com";
+  const baseUrl = getBaseUrl();
+  const adminUrl = `${baseUrl}/admin/rss-feeds`;
+  const subject = `⚠️ letsgo radar — ${feeds.length} feed${feeds.length > 1 ? "s importeren" : " importeert"} stilletjes geen events meer`;
+
+  const fmtDate = (d: string | null) =>
+    d ? new Date(d).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+
+  const rows = feeds
+    .map(
+      (f) => `
+      <div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:14px 16px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+          <strong style="font-size:14px;color:#111;">${f.name}${f.municipality ? ` <span style="font-size:12px;color:#6b7280;font-weight:normal;">(${f.municipality})</span>` : ""}</strong>
+          <span style="font-size:12px;color:#9ca3af;white-space:nowrap;">${f.activeEvents} events</span>
+        </div>
+        <p style="font-size:13px;color:#b91c1c;margin:8px 0 0;">${f.reason}</p>
+        <p style="font-size:12px;color:#6b7280;margin:6px 0 0;">Laatste sync: ${fmtDate(f.lastSyncAt)}</p>
+      </div>`,
+    )
+    .join("");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#f9fafb;">
+      <div style="background:white;border-radius:12px;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <div style="background:#dc2626;color:white;padding:16px;border-radius:8px;text-align:center;margin-bottom:20px;">
+          <h2 style="margin:0;font-size:19px;">⚠️ Feeds importeren stilletjes geen events meer</h2>
+        </div>
+        <p style="font-size:14px;color:#374151;margin:0 0 18px;">
+          De volgende feed${feeds.length > 1 ? "s lijken" : " lijkt"} nog wel te draaien, maar er worden geen events meer geïmporteerd of bijgewerkt.
+          Vaak komt dit doordat de bron zijn datums of opmaak heeft gewijzigd. Controleer de scraper of de bron-website.
+        </p>
+        ${rows}
+        <div style="text-align:center;margin:24px 0 8px;">
+          <a href="${adminUrl}" style="display:inline-block;background:#dc2626;color:white;padding:11px 24px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:bold;">
+            Bekijk feeds in admin →
+          </a>
+        </div>
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0 16px;" />
+        <p style="color:#bbb;font-size:12px;text-align:center;margin:0;">letsgo radar — Feed-gezondheidsmonitor</p>
+      </div>
+    </div>
+  `;
+
+  const transport = getTransporter();
+
+  if (!transport) {
+    console.log("\n========================================");
+    console.log(`[Email] FEED HEALTH ALERT (dev mode): ${feeds.length} verdachte feed(s)`);
+    feeds.forEach((f) => console.log(`  • ${f.name}: ${f.reason}`));
+    console.log("========================================\n");
+    return true;
+  }
+
+  try {
+    await transport.sendMail({
+      from: `letsgo radar <${getFromAddress()}>`,
+      to: adminEmail,
+      replyTo: adminEmail,
+      subject,
+      html,
+    });
+    console.log(`[Email] Feed health alert verzonden: ${feeds.length} verdachte feed(s)`);
+    return true;
+  } catch (error) {
+    console.error("[Email] Fout bij verzenden feed health alert:", error);
+    return false;
+  }
+}
+
 export async function sendTrafficAlertEmail(
   level: "warning" | "critical" | "circuit_breaker_on" | "circuit_breaker_off",
   stats: { requestsPerMin: number; uniqueIps: number; topEndpoints: { endpoint: string; count: number }[]; humanRequests?: number; topBots?: { name: string; count: number }[] }

@@ -11,6 +11,7 @@ export interface FeedHealth {
   reason: string;
   activeEvents: number;
   lastSyncAt: string | null;
+  lastSuccessfulSyncAt: string | null;
 }
 
 // "Wel veel gevonden maar niks geïmporteerd" telt pas als signaal vanaf dit aantal.
@@ -106,9 +107,13 @@ export async function getFeedHealthMap(): Promise<Record<number, FeedHealth>> {
   const map: Record<number, FeedHealth> = {};
   for (const feed of feeds) {
     if (feed.status !== "active") continue;
-    const history = await storage.getSyncHistoryForFeed(feed.id, STALE_SYNC_COUNT + 2);
+    const history = await storage.getSyncHistoryForFeed(feed.id, STALE_SYNC_COUNT + 5);
     const activeEvents = counts[feed.id] ?? 0;
     const { status, reason } = classifyFeedHealth(history, activeEvents);
+
+    // Laatste GESLAAGDE import (success !== false). History is newest-first.
+    const lastSuccessful = history.find((h) => h.success !== false && h.syncedAt);
+
     map[feed.id] = {
       feedId: feed.id,
       status,
@@ -119,32 +124,55 @@ export async function getFeedHealthMap(): Promise<Record<number, FeedHealth>> {
         : feed.lastFetchedAt
           ? new Date(feed.lastFetchedAt).toISOString()
           : null,
+      lastSuccessfulSyncAt: lastSuccessful?.syncedAt
+        ? new Date(lastSuccessful.syncedAt).toISOString()
+        : null,
     };
   }
   return map;
 }
 
-// Per-feed alert cooldown (in-memory). The daily digest provides the recurring
-// summary; this alert is an extra early heads-up, so a 24h cooldown per feed is
-// enough to avoid spamming while still flagging newly-broken feeds quickly.
+// "Ongezonde" statussen waarvoor we waarschuwen.
+const UNHEALTHY_STATUSES: FeedHealthStatus[] = ["warning", "suspect"];
+
+// Per-feed alert state (in-memory). We waarschuwen edge-getriggerd: bij elke
+// OMSLAG naar (of tussen) een ongezonde status, en daarna hooguit 1× per cooldown
+// zolang de feed ongezond blijft. Zodra een feed herstelt, vergeten we de staat
+// zodat een latere terugval opnieuw als omslag telt.
 const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-const lastAlertedAt = new Map<number, number>();
+const lastAlert = new Map<number, { status: FeedHealthStatus; at: number }>();
 
 /**
- * Check all feeds and send a single grouped email for any feed that is in the
- * "suspect" state (silently broken) and hasn't been alerted within the cooldown.
- * Safe to call fire-and-forget after a sync run.
+ * Check all feeds and send a single grouped email for any feed that has
+ * transitioned into an unhealthy state (warning or suspect). Re-alerts at most
+ * once per cooldown while a feed stays unhealthy, and resets on recovery so a
+ * later relapse alerts again. Safe to call fire-and-forget after a sync run.
  */
 export async function checkFeedHealthAndAlert(): Promise<void> {
   try {
     const map = await getFeedHealthMap();
     const now = Date.now();
 
-    const suspects = Object.values(map).filter((h) => h.status === "suspect");
-    const toAlert = suspects.filter((h) => {
-      const prev = lastAlertedAt.get(h.feedId);
-      return !prev || now - prev >= ALERT_COOLDOWN_MS;
-    });
+    const toAlert: FeedHealth[] = [];
+    for (const h of Object.values(map)) {
+      const isUnhealthy = UNHEALTHY_STATUSES.includes(h.status);
+      const prev = lastAlert.get(h.feedId);
+
+      if (!isUnhealthy) {
+        // Hersteld (of gezond/onbekend) → vergeet staat zodat een latere
+        // terugval opnieuw als omslag telt.
+        if (prev) lastAlert.delete(h.feedId);
+        continue;
+      }
+
+      // Ongezond: waarschuw bij een omslag (geen eerdere alert, of de ongezonde
+      // status is veranderd, bijv. warning→suspect) of als de cooldown verlopen is.
+      const transitioned = !prev || prev.status !== h.status;
+      const cooldownElapsed = prev != null && now - prev.at >= ALERT_COOLDOWN_MS;
+      if (transitioned || cooldownElapsed) {
+        toAlert.push(h);
+      }
+    }
 
     if (toAlert.length === 0) return;
 
@@ -152,15 +180,16 @@ export async function checkFeedHealthAndAlert(): Promise<void> {
     const named = toAlert.map((h) => ({
       name: feeds.find((f) => f.id === h.feedId)?.name ?? `Feed #${h.feedId}`,
       municipality: feeds.find((f) => f.id === h.feedId)?.municipality ?? null,
+      status: h.status,
       reason: h.reason,
       activeEvents: h.activeEvents,
-      lastSyncAt: h.lastSyncAt,
+      lastSuccessfulSyncAt: h.lastSuccessfulSyncAt,
     }));
 
     const { sendFeedHealthAlert } = await import("./email-service");
     const sent = await sendFeedHealthAlert(named);
     if (sent) {
-      for (const h of toAlert) lastAlertedAt.set(h.feedId, now);
+      for (const h of toAlert) lastAlert.set(h.feedId, { status: h.status, at: now });
     }
   } catch (err: any) {
     console.error("[FeedHealth] Fout bij gezondheidscontrole/alert:", err?.message ?? err);

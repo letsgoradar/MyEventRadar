@@ -115,30 +115,35 @@ export async function sendFeedbackNotification(feedback: {
 }
 
 export async function sendFeedHealthAlert(
-  feeds: { name: string; municipality?: string | null; reason: string; activeEvents: number; lastSyncAt: string | null }[],
+  feeds: { name: string; municipality?: string | null; status?: "warning" | "suspect" | string; reason: string; activeEvents: number; lastSuccessfulSyncAt: string | null }[],
 ): Promise<boolean> {
   if (feeds.length === 0) return true;
 
   const adminEmail = "info@letsgoradar.com";
   const baseUrl = getBaseUrl();
   const adminUrl = `${baseUrl}/admin/rss-feeds`;
-  const subject = `⚠️ letsgo radar — ${feeds.length} feed${feeds.length > 1 ? "s importeren" : " importeert"} stilletjes geen events meer`;
+  const subject = `⚠️ letsgo radar — ${feeds.length} feed${feeds.length > 1 ? "s zijn" : " is"} ongezond (importeert stil geen events meer)`;
 
   const fmtDate = (d: string | null) =>
-    d ? new Date(d).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+    d ? new Date(d).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "geen geslaagde import bekend";
 
   const rows = feeds
-    .map(
-      (f) => `
-      <div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:14px 16px;margin-bottom:12px;">
+    .map((f) => {
+      const isSuspect = f.status === "suspect";
+      const accent = isSuspect ? "#dc2626" : "#d97706";
+      const bg = isSuspect ? "#fff5f5" : "#fffbeb";
+      const border = isSuspect ? "#fca5a5" : "#fcd34d";
+      const label = isSuspect ? "VERDACHT" : "WAARSCHUWING";
+      return `
+      <div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:14px 16px;margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
           <strong style="font-size:14px;color:#111;">${f.name}${f.municipality ? ` <span style="font-size:12px;color:#6b7280;font-weight:normal;">(${f.municipality})</span>` : ""}</strong>
-          <span style="font-size:12px;color:#9ca3af;white-space:nowrap;">${f.activeEvents} events</span>
+          <span style="font-size:11px;color:#fff;background:${accent};padding:2px 8px;border-radius:10px;white-space:nowrap;">${label}</span>
         </div>
-        <p style="font-size:13px;color:#b91c1c;margin:8px 0 0;">${f.reason}</p>
-        <p style="font-size:12px;color:#6b7280;margin:6px 0 0;">Laatste sync: ${fmtDate(f.lastSyncAt)}</p>
-      </div>`,
-    )
+        <p style="font-size:13px;color:${accent};margin:8px 0 0;">${f.reason}</p>
+        <p style="font-size:12px;color:#6b7280;margin:6px 0 0;">Laatste geslaagde import: ${fmtDate(f.lastSuccessfulSyncAt)} · ${f.activeEvents} events in catalogus</p>
+      </div>`;
+    })
     .join("");
 
   const html = `

@@ -2992,24 +2992,42 @@ export class RssFeedService {
               continue;
             }
             
-            // Extract dates - check both direct properties AND eventSchedule array
+            // Extract dates - PREFER eventSchedule (the authoritative event
+            // occurrence). The source fills the top-level startDate/endDate with a
+            // stale availability/publish timestamp (e.g. a date months in the past),
+            // which used to make every event fail the "future date" filter below.
             let startDate: Date | undefined;
             let endDate: Date | undefined;
             
-            if (event.startDate) {
-              startDate = parseLocalDateTime(event.startDate);
-            } else if (event.eventSchedule && Array.isArray(event.eventSchedule) && event.eventSchedule.length > 0) {
-              // eventSchedule contains Schedule objects with startDate/endDate
-              const schedule = event.eventSchedule[0];
-              if (schedule.startDate) {
-                startDate = parseLocalDateTime(schedule.startDate);
-              }
-              if (schedule.endDate) {
-                endDate = parseLocalDateTime(schedule.endDate);
+            let startFromSchedule = false;
+            if (event.eventSchedule && Array.isArray(event.eventSchedule) && event.eventSchedule.length > 0) {
+              // eventSchedule holds one or more Schedule occurrences. Pick the next
+              // upcoming one so recurring/multi-day events whose first occurrence has
+              // already passed still import (fall back to the earliest if all are past).
+              const now = new Date();
+              const schedules = event.eventSchedule
+                .map((s: any) => ({ raw: s, start: s?.startDate ? parseLocalDateTime(s.startDate) : undefined }))
+                .filter((s: any) => s.start)
+                .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
+              const chosen = schedules.find((s: any) => s.start >= now) || schedules[0];
+              if (chosen) {
+                startDate = chosen.start;
+                startFromSchedule = true;
+                if (chosen.raw.endDate) {
+                  endDate = parseLocalDateTime(chosen.raw.endDate);
+                }
               }
             }
             
-            if (event.endDate && !endDate) {
+            // Fall back to top-level dates only when eventSchedule didn't provide them
+            if (!startDate && event.startDate) {
+              startDate = parseLocalDateTime(event.startDate);
+            }
+            
+            // Only inherit the top-level endDate when start did NOT come from a
+            // specific schedule occurrence — otherwise the broad availability window
+            // would inflate this single occurrence's duration.
+            if (!endDate && event.endDate && !startFromSchedule) {
               endDate = parseLocalDateTime(event.endDate);
             }
             

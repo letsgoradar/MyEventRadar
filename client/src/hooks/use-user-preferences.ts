@@ -13,7 +13,7 @@ export interface UserPreferences {
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   defaultRadius: 20,
-  defaultWindowDays: 100,
+  defaultWindowDays: 30,
   mapStyle: 'default',
 };
 

@@ -132,7 +132,7 @@ export function AppLayout({
   header,
   isLoading = false,
   searchQuery = "",
-  radius = 10,
+  radius = 20,
   onSearch,
   onRadiusChange,
   onFilteredEventsChange,
@@ -183,9 +183,9 @@ export function AppLayout({
     });
   }, [user, onRequireAuth]);
 
-  // Date range state - default vandaag + 99 dagen = 100 dagen totaal
+  // Date range state - default vandaag + 29 dagen = 30 dagen totaal
   const today = startOfDay(new Date());
-  const defaultEndDate = addDays(today, 99);
+  const defaultEndDate = addDays(today, 29);
   
   const [localStartDate, setLocalStartDate] = React.useState<Date | null>(today);
   const [localEndDate, setLocalEndDate] = React.useState<Date | null>(defaultEndDate);

@@ -13,7 +13,7 @@ export default function Web() {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [radius, setRadius] = React.useState(20);
-  const [windowDays, setWindowDays] = React.useState<number | null>(100);
+  const [windowDays, setWindowDays] = React.useState<number | null>(30);
   const { preferences, isAuthenticated: hasPrefs } = useUserPreferences();
   const prefsAppliedRef = React.useRef(false);
   const { location: geoLocation } = useGeoLocation();

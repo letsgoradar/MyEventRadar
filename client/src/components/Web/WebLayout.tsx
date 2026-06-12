@@ -81,14 +81,14 @@ export function WebLayout({
   // Gesynchroniseerde datum selectie state - geen default, toont alle events
   const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
   
-  // Event filters state (tags, doelgroepen, thema's) - default 100 dagen
-  // addDays(today, 99) = vandaag + 99 dagen = 100 dagen totaal
+  // Event filters state (tags, doelgroepen, thema's) - default 30 dagen
+  // addDays(today, 29) = vandaag + 29 dagen = 30 dagen totaal
   const [eventFilters, setEventFilters] = React.useState<EventFilterState>({
     tagIds: [],
     audienceIds: [],
     themeIds: [],
     startDate: null,
-    endDate: addDays(startOfDay(new Date()), 99)
+    endDate: addDays(startOfDay(new Date()), 29)
   });
   
   // Filter sidebar open/close state

@@ -127,7 +127,7 @@ export function AppHomePage() {
     queryKey: ["events-map", location?.lat, location?.lng, mapRadius],
     queryFn: async () => {
       if (!location || !mapRadius) return [];
-      return fetchEventsByRadius(location.lat, location.lng, mapRadius, 100);
+      return fetchEventsByRadius(location.lat, location.lng, mapRadius, 30);
     },
     enabled: !!location && mapRadius !== null,
     staleTime: 5 * 60 * 1000,
@@ -140,7 +140,7 @@ export function AppHomePage() {
     queryKey: ["events-bg", location?.lat, location?.lng],
     queryFn: async () => {
       if (!location) return [];
-      return fetchEventsByRadius(location.lat, location.lng, 200, 100);
+      return fetchEventsByRadius(location.lat, location.lng, 200, 30);
     },
     enabled: !!location && mapRadius !== null,
     staleTime: 10 * 60 * 1000,
@@ -277,7 +277,7 @@ export function AppHomePage() {
 
         <EventList 
           searchQuery={searchQuery}
-          radius={10}
+          radius={20}
           filteredEvents={filteredEvents}
           gridView={true}
           onEventClick={handleEventClick}

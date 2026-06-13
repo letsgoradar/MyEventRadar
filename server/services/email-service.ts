@@ -196,6 +196,14 @@ export async function sendFeedHealthAlert(
 
 export async function sendRepairDigest(
   cases: import("@shared/schema").FeedRepairCase[],
+  summary?: {
+    feedsChecked: number;
+    retried: number;
+    aiFixed: number;
+    dossiersCreated: number;
+    decisionsCreated: number;
+    skipped: number;
+  },
 ): Promise<boolean> {
   if (cases.length === 0) return true;
 
@@ -205,6 +213,24 @@ export async function sendRepairDigest(
 
   const dossiers = cases.filter((c) => c.kind === "dossier");
   const decisions = cases.filter((c) => c.kind === "decision");
+
+  // Korte ronde-samenvatting bovenaan: kapot / automatisch hersteld / aandacht nodig.
+  const autoFixed = summary ? summary.retried + summary.aiFixed : 0;
+  const needAttention = summary
+    ? summary.dossiersCreated + summary.decisionsCreated
+    : cases.length;
+  const statTile = (value: number, label: string, color: string, bg: string) => `
+    <td style="background:${bg};border-radius:8px;padding:14px 8px;text-align:center;width:33%;">
+      <div style="font-size:22px;font-weight:bold;color:${color};">${value}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:2px;">${label}</div>
+    </td>`;
+  const summaryBlock = summary
+    ? `<table style="width:100%;border-collapse:separate;border-spacing:8px;margin:0 0 18px;"><tr>
+        ${statTile(summary.feedsChecked, "feeds met problemen", "#111827", "#f3f4f6")}
+        ${statTile(autoFixed, "automatisch hersteld", "#059669", "#ecfdf5")}
+        ${statTile(needAttention, "jouw aandacht nodig", "#d97706", "#fff7ed")}
+      </tr></table>`
+    : "";
 
   const subject = `🛠️ letsgo radar — ${cases.length} feed${cases.length > 1 ? "s" : ""} hebben aandacht nodig (${dossiers.length} dossier, ${decisions.length} beslissing)`;
 
@@ -239,6 +265,7 @@ export async function sendRepairDigest(
           De automatische reparatie heeft het geprobeerd, maar deze feed${cases.length > 1 ? "s hebben" : " heeft"} menselijke aandacht nodig.
           Een <strong>dossier</strong> bevat een kant-en-klaar werkorder; een <strong>beslissing</strong> wacht op jouw keuze (bijv. een API-sleutel).
         </p>
+        ${summaryBlock}
         ${section("Reparatie-dossiers", dossiers)}
         ${section("Beslissingen", decisions)}
         <div style="text-align:center;margin:24px 0 8px;">

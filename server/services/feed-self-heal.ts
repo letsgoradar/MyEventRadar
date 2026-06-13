@@ -419,6 +419,15 @@ async function runSelfHealInner(summary: RunResult): Promise<RunResult> {
   let aiCallsLeft = Math.max(0, config.monthlyAiCallLimit - usage.aiCallsUsed);
   let dossiersLeft = Math.max(0, config.monthlyDossierLimit - usage.dossiersCreated);
 
+  // Euro-grens: schat de AI-kosten van deze maand en stop AI zodra de grens in
+  // zicht komt. De aantal-grens (hierboven) en de euro-grens gelden ALLEBEI —
+  // de strengste wint. Track A (retry) en Track C (dossiers) kosten niets.
+  const costPerCall = Math.max(0, config.aiCallCostCents);
+  const euroLimitCents = Math.max(0, config.monthlyEuroLimitCents);
+  let euroSpentCents = usage.aiCallsUsed * costPerCall;
+  const hasAiBudget = () =>
+    aiCallsLeft > 0 && euroSpentCents + costPerCall <= euroLimitCents;
+
   const healthMap = await getFeedHealthMap();
   const unhealthy = Object.values(healthMap)
     .filter((h) => h.status === "suspect" || h.status === "warning")
@@ -475,9 +484,10 @@ async function runSelfHealInner(summary: RunResult): Promise<RunResult> {
     }
 
     // --- Spoor B: structuurprobleem op een config-feed → AI-reparatie ---
-    if (cause === "structure" && isConfigFeed(feed) && config.aiFixEnabled && aiCallsLeft > 0) {
+    if (cause === "structure" && isConfigFeed(feed) && config.aiFixEnabled && hasAiBudget()) {
       const ai = await trackAiFix(feed, health);
       aiCallsLeft -= ai.aiCallsUsed;
+      euroSpentCents += ai.aiCallsUsed * costPerCall;
       if (ai.fixed) {
         await storage.createFeedRepairLog({
           feedId: feed.id, feedName: feed.name, cause, track: "ai_fix",
@@ -502,10 +512,13 @@ async function runSelfHealInner(summary: RunResult): Promise<RunResult> {
 
     // --- Spoor C: complexe/maatwerk feed of geen budget → dossier ---
     if (dossiersLeft > 0) {
-      const aiUnavailable = cause === "structure" && isConfigFeed(feed) && config.aiFixEnabled && aiCallsLeft <= 0;
+      const aiUnavailable = cause === "structure" && isConfigFeed(feed) && config.aiFixEnabled && !hasAiBudget();
+      const aiUnavailableNote = aiCallsLeft <= 0
+        ? "AI-call limiet voor deze maand bereikt — geëscaleerd naar gratis dossier."
+        : "AI-budget (€-grens) voor deze maand bereikt — geëscaleerd naar gratis dossier.";
       const c = await openCase(feed, health, cause, "dossier", {
         aiTried: false,
-        aiNote: aiUnavailable ? "AI-budget voor deze maand op" : undefined,
+        aiNote: aiUnavailable ? aiUnavailableNote : undefined,
       });
       if (c) { newCases.push(c); summary.dossiersCreated++; dossiersLeft--; }
     } else {
@@ -518,7 +531,7 @@ async function runSelfHealInner(summary: RunResult): Promise<RunResult> {
   if (newCases.length > 0) {
     try {
       const { sendRepairDigest } = await import("./email-service");
-      await sendRepairDigest(newCases);
+      await sendRepairDigest(newCases, summary);
     } catch (e: any) {
       console.error(`[SelfHeal] Digest-mail mislukt: ${e?.message ?? e}`);
     }

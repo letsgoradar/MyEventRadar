@@ -66,6 +66,12 @@ interface SelfHealConfig {
   monthlyAiCallLimit: number;
   monthlyDossierLimit: number;
   maxRetriesPerRun: number;
+  monthlyEuroLimitCents: number;
+  aiCallCostCents: number;
+}
+
+function euro(cents: number) {
+  return `€${(cents / 100).toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 interface ConfigResponse {
@@ -275,7 +281,13 @@ export default function SelfHeal() {
         {tab === "settings" && configData && (
           <Card>
             <CardContent className="p-6 space-y-6 max-w-xl">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Geschatte kosten deze maand</p>
+                  <p className="text-lg font-semibold text-emerald-600">
+                    {euro(configData.usage.aiCallsUsed * (cfg.aiCallCostCents ?? 0))} / {euro(cfg.monthlyEuroLimitCents ?? 0)}
+                  </p>
+                </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">AI-calls deze maand</p>
                   <p className="text-lg font-semibold">{configData.usage.aiCallsUsed} / {cfg.monthlyAiCallLimit}</p>
@@ -327,6 +339,23 @@ export default function SelfHeal() {
                   <Input type="number" min={0} value={cfg.maxRetriesPerRun ?? 0}
                     onChange={(e) => setDraft((d) => ({ ...d, maxRetriesPerRun: parseInt(e.target.value) || 0 }))}
                     data-testid="input-max-retries" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs">Max AI-kosten/maand (€)</Label>
+                  <Input type="number" min={0} step={1} value={(cfg.monthlyEuroLimitCents ?? 0) / 100}
+                    onChange={(e) => setDraft((d) => ({ ...d, monthlyEuroLimitCents: Math.round((parseFloat(e.target.value) || 0) * 100) }))}
+                    data-testid="input-euro-limit" />
+                  <p className="text-xs text-muted-foreground mt-1">Stopt AI-reparatie zodra de geschatte kosten deze grens bereiken. Strengste grens (aantal óf euro) wint.</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Geschatte kosten per AI-call (cent)</Label>
+                  <Input type="number" min={0} value={cfg.aiCallCostCents ?? 0}
+                    onChange={(e) => setDraft((d) => ({ ...d, aiCallCostCents: parseInt(e.target.value) || 0 }))}
+                    data-testid="input-call-cost" />
+                  <p className="text-xs text-muted-foreground mt-1">Gebruikt om de maandkosten te schatten.</p>
                 </div>
               </div>
 

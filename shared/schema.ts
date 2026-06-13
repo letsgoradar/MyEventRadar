@@ -1170,6 +1170,10 @@ export const selfHealConfig = pgTable("self_heal_config", {
   monthlyAiCallLimit: integer("monthly_ai_call_limit").default(50).notNull(),
   monthlyDossierLimit: integer("monthly_dossier_limit").default(100).notNull(),
   maxRetriesPerRun: integer("max_retries_per_run").default(2).notNull(),
+  // Echte geldgrens: stop AI-reparatie zodra de geschatte kosten deze maand de
+  // grens bereiken. Bedragen in centen om floating-point te vermijden.
+  monthlyEuroLimitCents: integer("monthly_euro_limit_cents").default(1000).notNull(),
+  aiCallCostCents: integer("ai_call_cost_cents").default(2).notNull(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

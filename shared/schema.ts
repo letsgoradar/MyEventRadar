@@ -1116,5 +1116,84 @@ export const insertBetaFeedbackSchema = createInsertSchema(betaFeedback).omit({
 export type BetaFeedback = typeof betaFeedback.$inferSelect;
 export type InsertBetaFeedback = z.infer<typeof insertBetaFeedbackSchema>;
 
+// ===== Zelfherstellende koppelingen (Self-healing feeds) =====
+// Spoor A: gratis auto-retry (transient). Spoor B: AI-fix (simpele config-feeds).
+// Spoor C: reparatie-dossier (complexe/maatwerk feeds). Plus beslissingen-inbox.
+export const SELF_HEAL_CAUSES = ['transient', 'structure', 'auth', 'unknown'] as const;
+export const SELF_HEAL_TRACKS = ['retry', 'ai_fix', 'dossier', 'decision', 'skipped'] as const;
+export const SELF_HEAL_OUTCOMES = ['success', 'failed', 'rolled_back', 'escalated', 'pending'] as const;
+export const REPAIR_CASE_KINDS = ['dossier', 'decision'] as const;
+export const REPAIR_CASE_STATUS = ['open', 'in_progress', 'resolved', 'dismissed'] as const;
+export const REPAIR_DECISION_TYPES = ['api_key', 'big_choice', 'unfixable'] as const;
+
+// Logboek: elke zelf-herstel actie (append-only).
+export const feedRepairLog = pgTable("feed_repair_log", {
+  id: serial("id").primaryKey(),
+  feedId: integer("feed_id").references(() => rssFeeds.id, { onDelete: "cascade" }),
+  feedName: text("feed_name"),
+  cause: text("cause").notNull().$type<typeof SELF_HEAL_CAUSES[number]>(),
+  track: text("track").notNull().$type<typeof SELF_HEAL_TRACKS[number]>(),
+  outcome: text("outcome").notNull().$type<typeof SELF_HEAL_OUTCOMES[number]>(),
+  message: text("message").notNull(),
+  detail: jsonb("detail").$type<Record<string, unknown>>(),
+  aiCallsUsed: integer("ai_calls_used").default(0).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Open zaken die menselijke aandacht nodig hebben:
+//   kind 'dossier'  → rijk reparatie-werkorder (complexe/maatwerk feed)
+//   kind 'decision' → beslissing nodig (API-sleutel, grote keuze, onherstelbaar)
+export const feedRepairCases = pgTable("feed_repair_cases", {
+  id: serial("id").primaryKey(),
+  feedId: integer("feed_id").references(() => rssFeeds.id, { onDelete: "cascade" }),
+  feedName: text("feed_name"),
+  kind: text("kind").notNull().$type<typeof REPAIR_CASE_KINDS[number]>(),
+  cause: text("cause").notNull().$type<typeof SELF_HEAL_CAUSES[number]>(),
+  severity: text("severity").notNull().default('warning'),
+  decisionType: text("decision_type").$type<typeof REPAIR_DECISION_TYPES[number]>(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull(),
+  diagnosis: jsonb("diagnosis").$type<Record<string, unknown>>(),
+  status: text("status").notNull().default('open').$type<typeof REPAIR_CASE_STATUS[number]>(),
+  resolution: text("resolution"),
+  resolvedBy: integer("resolved_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+// Eén-rij configuratie met de uitgavenlimieten en aan/uit-schakelaars.
+export const selfHealConfig = pgTable("self_heal_config", {
+  id: serial("id").primaryKey(),
+  autoRetryEnabled: boolean("auto_retry_enabled").default(true).notNull(),
+  aiFixEnabled: boolean("ai_fix_enabled").default(true).notNull(),
+  monthlyAiCallLimit: integer("monthly_ai_call_limit").default(50).notNull(),
+  monthlyDossierLimit: integer("monthly_dossier_limit").default(100).notNull(),
+  maxRetriesPerRun: integer("max_retries_per_run").default(2).notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertFeedRepairLogSchema = createInsertSchema(feedRepairLog).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertFeedRepairCaseSchema = createInsertSchema(feedRepairCases).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  resolvedAt: true,
+});
+export const insertSelfHealConfigSchema = createInsertSchema(selfHealConfig).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type FeedRepairLog = typeof feedRepairLog.$inferSelect;
+export type InsertFeedRepairLog = z.infer<typeof insertFeedRepairLogSchema>;
+export type FeedRepairCase = typeof feedRepairCases.$inferSelect;
+export type InsertFeedRepairCase = z.infer<typeof insertFeedRepairCaseSchema>;
+export type SelfHealConfig = typeof selfHealConfig.$inferSelect;
+export type InsertSelfHealConfig = z.infer<typeof insertSelfHealConfigSchema>;
+
 // Re-export chat models
 export * from "./models/chat";

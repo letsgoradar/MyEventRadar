@@ -194,6 +194,89 @@ export async function sendFeedHealthAlert(
   }
 }
 
+export async function sendRepairDigest(
+  cases: import("@shared/schema").FeedRepairCase[],
+): Promise<boolean> {
+  if (cases.length === 0) return true;
+
+  const adminEmail = "info@letsgoradar.com";
+  const baseUrl = getBaseUrl();
+  const adminUrl = `${baseUrl}/admin/self-heal`;
+
+  const dossiers = cases.filter((c) => c.kind === "dossier");
+  const decisions = cases.filter((c) => c.kind === "decision");
+
+  const subject = `🛠️ letsgo radar — ${cases.length} feed${cases.length > 1 ? "s" : ""} hebben aandacht nodig (${dossiers.length} dossier, ${decisions.length} beslissing)`;
+
+  const card = (c: import("@shared/schema").FeedRepairCase) => {
+    const isDecision = c.kind === "decision";
+    const accent = c.severity === "error" ? "#dc2626" : "#d97706";
+    const bg = c.severity === "error" ? "#fff5f5" : "#fffbeb";
+    const border = c.severity === "error" ? "#fca5a5" : "#fcd34d";
+    const label = isDecision ? "BESLISSING NODIG" : "REPARATIE-DOSSIER";
+    return `
+      <div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:14px 16px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+          <strong style="font-size:14px;color:#111;">${c.title}</strong>
+          <span style="font-size:11px;color:#fff;background:${accent};padding:2px 8px;border-radius:10px;white-space:nowrap;">${label}</span>
+        </div>
+        <p style="font-size:13px;color:#374151;margin:8px 0 0;">${c.summary}</p>
+      </div>`;
+  };
+
+  const section = (titel: string, list: import("@shared/schema").FeedRepairCase[]) =>
+    list.length === 0
+      ? ""
+      : `<h3 style="font-size:15px;color:#111;margin:18px 0 10px;">${titel} (${list.length})</h3>${list.map(card).join("")}`;
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#f9fafb;">
+      <div style="background:white;border-radius:12px;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <div style="background:#2563eb;color:white;padding:16px;border-radius:8px;text-align:center;margin-bottom:20px;">
+          <h2 style="margin:0;font-size:19px;">🛠️ Zelf-herstel kon dit niet automatisch oplossen</h2>
+        </div>
+        <p style="font-size:14px;color:#374151;margin:0 0 6px;">
+          De automatische reparatie heeft het geprobeerd, maar deze feed${cases.length > 1 ? "s hebben" : " heeft"} menselijke aandacht nodig.
+          Een <strong>dossier</strong> bevat een kant-en-klaar werkorder; een <strong>beslissing</strong> wacht op jouw keuze (bijv. een API-sleutel).
+        </p>
+        ${section("Reparatie-dossiers", dossiers)}
+        ${section("Beslissingen", decisions)}
+        <div style="text-align:center;margin:24px 0 8px;">
+          <a href="${adminUrl}" style="display:inline-block;background:#2563eb;color:white;padding:11px 24px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:bold;">
+            Open Zelf-herstel in admin →
+          </a>
+        </div>
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0 16px;" />
+        <p style="color:#bbb;font-size:12px;text-align:center;margin:0;">letsgo radar — Zelfherstellende koppelingen</p>
+      </div>
+    </div>
+  `;
+
+  const transport = getTransporter();
+  if (!transport) {
+    console.log("\n========================================");
+    console.log(`[Email] REPAIR DIGEST (dev mode): ${dossiers.length} dossier(s), ${decisions.length} beslissing(en)`);
+    cases.forEach((c) => console.log(`  • [${c.kind}] ${c.title}`));
+    console.log("========================================\n");
+    return true;
+  }
+
+  try {
+    await transport.sendMail({
+      from: `letsgo radar <${getFromAddress()}>`,
+      to: adminEmail,
+      replyTo: adminEmail,
+      subject,
+      html,
+    });
+    console.log(`[Email] Reparatie-digest verzonden: ${cases.length} zaak/zaken`);
+    return true;
+  } catch (error) {
+    console.error("[Email] Fout bij verzenden reparatie-digest:", error);
+    return false;
+  }
+}
+
 export async function sendTrafficAlertEmail(
   level: "warning" | "critical" | "circuit_breaker_on" | "circuit_breaker_off",
   stats: { requestsPerMin: number; uniqueIps: number; topEndpoints: { endpoint: string; count: number }[]; humanRequests?: number; topBots?: { name: string; count: number }[] }

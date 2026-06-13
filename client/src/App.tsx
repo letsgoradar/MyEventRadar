@@ -86,6 +86,7 @@ const AdminPromotions = React.lazy(() => import("@/pages/admin/Promotions"));
 const AdminVenues = React.lazy(() => import("@/pages/admin/Venues"));
 const AdminVenueDetail = React.lazy(() => import("@/pages/admin/VenueDetail"));
 const AdminFeedback = React.lazy(() => import("@/pages/admin/Feedback"));
+const AdminSelfHeal = React.lazy(() => import("@/pages/admin/SelfHeal"));
 
 const WebPage = React.lazy(() => import("@/pages/Web.tsx"));
 const WebLoginPage = React.lazy(() => import("@/pages/Web/login"));
@@ -194,6 +195,11 @@ export default function App() {
         <Route path="/admin/feedback">
           <LazyLoad>
             <AuthGuard><AdminFeedback /></AuthGuard>
+          </LazyLoad>
+        </Route>
+        <Route path="/admin/self-heal">
+          <LazyLoad>
+            <AuthGuard><AdminSelfHeal /></AuthGuard>
           </LazyLoad>
         </Route>
         <Route path="/admin/events/:id">

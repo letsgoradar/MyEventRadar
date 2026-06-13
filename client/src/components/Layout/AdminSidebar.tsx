@@ -17,7 +17,8 @@ import {
   Tags,
   Megaphone,
   Building2,
-  MessageSquare
+  MessageSquare,
+  Wrench
 } from 'lucide-react';
 import { LogoIcon } from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
@@ -67,6 +68,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose, collapsed = false 
     { href: '/admin/venues', label: 'Venues', icon: <Building2 className="w-5 h-5 shrink-0" /> },
     { href: '/admin/promotions', label: 'Promoties', icon: <Megaphone className="w-5 h-5 shrink-0" /> },
     { href: '/admin/feedback', label: 'Feedback', icon: <MessageSquare className="w-5 h-5 shrink-0" /> },
+    { href: '/admin/self-heal', label: 'Zelf-herstel', icon: <Wrench className="w-5 h-5 shrink-0" /> },
     { href: '/admin/activity-logs', label: 'Activiteiten', icon: <ClipboardList className="w-5 h-5 shrink-0" /> },
   ];
 

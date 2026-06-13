@@ -83,6 +83,14 @@ import {
   premiumFeatures,
   apiUsageStats,
   type ApiUsageStats,
+  feedRepairLog,
+  feedRepairCases,
+  selfHealConfig,
+  type FeedRepairLog,
+  type InsertFeedRepairLog,
+  type FeedRepairCase,
+  type InsertFeedRepairCase,
+  type SelfHealConfig,
 } from "@shared/schema";
 import type { BrandConfig } from "@shared/brands";
 import { buildBrandEventCondition } from "./brand";
@@ -305,6 +313,18 @@ export interface IStorage {
   // Premium Features operations
   getPremiumFeatures(): Promise<PremiumFeature[]>;
   createPremiumFeature(feature: InsertPremiumFeature): Promise<PremiumFeature>;
+
+  // Zelfherstellende koppelingen (self-healing feeds)
+  createFeedRepairLog(entry: InsertFeedRepairLog): Promise<FeedRepairLog>;
+  getFeedRepairLog(limit?: number, feedId?: number): Promise<FeedRepairLog[]>;
+  createFeedRepairCase(c: InsertFeedRepairCase): Promise<FeedRepairCase>;
+  getFeedRepairCases(status?: string): Promise<FeedRepairCase[]>;
+  getFeedRepairCase(id: number): Promise<FeedRepairCase | undefined>;
+  getOpenRepairCaseForFeed(feedId: number, kind: string): Promise<FeedRepairCase | undefined>;
+  updateFeedRepairCase(id: number, data: Partial<FeedRepairCase>): Promise<FeedRepairCase>;
+  getSelfHealConfig(): Promise<SelfHealConfig>;
+  updateSelfHealConfig(data: Partial<SelfHealConfig>): Promise<SelfHealConfig>;
+  getMonthlySelfHealUsage(): Promise<{ aiCallsUsed: number; dossiersCreated: number }>;
 }
 
 export class PgStorage implements IStorage {
@@ -2115,6 +2135,126 @@ export class PgStorage implements IStorage {
       const isSpike = averageHourly > 0 && lastHour.requests > averageHourly * 2;
       
       return { last24h, lastHour, averageHourly, peakHour, isSpike };
+    });
+  }
+
+  // ===== Zelfherstellende koppelingen (self-healing feeds) =====
+
+  async createFeedRepairLog(entry: InsertFeedRepairLog): Promise<FeedRepairLog> {
+    return this.withRetry(async () => {
+      const [row] = await db.insert(feedRepairLog).values(entry).returning();
+      return row;
+    });
+  }
+
+  async getFeedRepairLog(limit: number = 100, feedId?: number): Promise<FeedRepairLog[]> {
+    return this.withRetry(async () => {
+      let query = db.select().from(feedRepairLog).$dynamic();
+      if (feedId !== undefined) {
+        query = query.where(eq(feedRepairLog.feedId, feedId));
+      }
+      return query.orderBy(desc(feedRepairLog.createdAt)).limit(limit);
+    });
+  }
+
+  async createFeedRepairCase(c: InsertFeedRepairCase): Promise<FeedRepairCase> {
+    return this.withRetry(async () => {
+      const [row] = await db.insert(feedRepairCases).values(c).returning();
+      return row;
+    });
+  }
+
+  async getFeedRepairCases(status?: string): Promise<FeedRepairCase[]> {
+    return this.withRetry(async () => {
+      let query = db.select().from(feedRepairCases).$dynamic();
+      if (status) {
+        query = query.where(eq(feedRepairCases.status, status as any));
+      }
+      return query.orderBy(desc(feedRepairCases.updatedAt));
+    });
+  }
+
+  async getFeedRepairCase(id: number): Promise<FeedRepairCase | undefined> {
+    return this.withRetry(async () => {
+      const [row] = await db.select().from(feedRepairCases).where(eq(feedRepairCases.id, id));
+      return row;
+    });
+  }
+
+  async getOpenRepairCaseForFeed(feedId: number, kind: string): Promise<FeedRepairCase | undefined> {
+    return this.withRetry(async () => {
+      const [row] = await db
+        .select()
+        .from(feedRepairCases)
+        .where(
+          and(
+            eq(feedRepairCases.feedId, feedId),
+            eq(feedRepairCases.kind, kind as any),
+            inArray(feedRepairCases.status, ['open', 'in_progress']),
+          ),
+        )
+        .limit(1);
+      return row;
+    });
+  }
+
+  async updateFeedRepairCase(id: number, data: Partial<FeedRepairCase>): Promise<FeedRepairCase> {
+    return this.withRetry(async () => {
+      const [row] = await db
+        .update(feedRepairCases)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(feedRepairCases.id, id))
+        .returning();
+      return row;
+    });
+  }
+
+  async getSelfHealConfig(): Promise<SelfHealConfig> {
+    return this.withRetry(async () => {
+      const [existing] = await db.select().from(selfHealConfig).limit(1);
+      if (existing) return existing;
+      const [created] = await db.insert(selfHealConfig).values({}).returning();
+      return created;
+    });
+  }
+
+  async updateSelfHealConfig(data: Partial<SelfHealConfig>): Promise<SelfHealConfig> {
+    return this.withRetry(async () => {
+      const current = await this.getSelfHealConfig();
+      const [row] = await db
+        .update(selfHealConfig)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(selfHealConfig.id, current.id))
+        .returning();
+      return row;
+    });
+  }
+
+  async getMonthlySelfHealUsage(): Promise<{ aiCallsUsed: number; dossiersCreated: number }> {
+    return this.withRetry(async () => {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const [aiRow] = await db
+        .select({ total: sql<number>`COALESCE(SUM(${feedRepairLog.aiCallsUsed}), 0)` })
+        .from(feedRepairLog)
+        .where(sql`${feedRepairLog.createdAt} >= ${monthStart}`);
+
+      const [dossierRow] = await db
+        .select({ total: sql<number>`COUNT(*)` })
+        .from(feedRepairCases)
+        .where(
+          and(
+            eq(feedRepairCases.kind, 'dossier'),
+            sql`${feedRepairCases.createdAt} >= ${monthStart}`,
+          ),
+        );
+
+      return {
+        aiCallsUsed: Number(aiRow?.total ?? 0),
+        dossiersCreated: Number(dossierRow?.total ?? 0),
+      };
     });
   }
 }

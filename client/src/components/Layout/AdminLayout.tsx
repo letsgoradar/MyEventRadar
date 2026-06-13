@@ -13,6 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/venues': 'Venues',
   '/admin/promotions': 'Promoties & Advertenties',
   '/admin/feedback': 'Beta Feedback',
+  '/admin/self-heal': 'Zelf-herstel',
   '/admin/activity-logs': 'Activiteiten',
   '/admin/users': 'Gebruikersbeheer',
   '/admin/settings': 'Instellingen',

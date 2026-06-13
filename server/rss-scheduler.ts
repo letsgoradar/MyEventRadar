@@ -87,6 +87,13 @@ async function runBackgroundSync(): Promise<void> {
     import("./services/feed-health")
       .then(({ checkFeedHealthAndAlert }) => checkFeedHealthAndAlert())
       .catch((err) => console.error("[RSS Scheduler] Feed health check faalde:", err?.message ?? err));
+
+    // Zelfherstellende koppelingen: probeer ongezonde feeds automatisch te
+    // repareren (retry/AI) en escaleer de rest naar dossiers/beslissingen
+    // (fire-and-forget, budget-gegrendeld in self_heal_config).
+    import("./services/feed-self-heal")
+      .then(({ runSelfHeal }) => runSelfHeal())
+      .catch((err) => console.error("[RSS Scheduler] Zelf-herstel faalde:", err?.message ?? err));
   } catch (error: any) {
     console.error("[RSS Scheduler] Error during scrape:", error.message);
   } finally {

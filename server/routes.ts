@@ -12,7 +12,7 @@ import * as cheerio from "cheerio";
 import { setupAuth } from "./auth";
 import { AiProvider } from "./services/ai-provider";
 import { storage } from "./storage";
-import { insertEventSchema, insertUserSchema, insertActivityLogSchema, insertSavedSearchSchema, insertEventTagSchema, insertTargetAudienceSchema, insertSeasonalThemeSchema, hiddenEvents } from "@shared/schema";
+import { insertEventSchema, insertUserSchema, insertActivityLogSchema, insertSavedSearchSchema, insertEventTagSchema, insertTargetAudienceSchema, insertSeasonalThemeSchema, hiddenEvents, insertSelfHealConfigSchema } from "@shared/schema";
 import { isAdmin, isAuthenticated, attachUser } from "./middleware/auth";
 import { getRequestBrand, filterEventsForBrand } from "./brand";
 import { getBrandCityContent } from "@shared/brands";
@@ -2630,6 +2630,127 @@ Respond with ONLY the search term, nothing else.`,
     } catch (error: any) {
       console.error('Error in POST /api/admin/rss-feeds/:id/rescue-dates:', error);
       res.status(500).json({ message: "Fout bij AI datum-rescue" });
+    }
+  });
+
+  // ===== Zelfherstellende koppelingen (self-healing feeds) =====
+
+  app.get("/api/admin/self-heal/log", isAdmin, async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(String(req.query.limit ?? "100")) || 100, 500);
+      const feedId = req.query.feedId ? parseInt(String(req.query.feedId)) : undefined;
+      const log = await storage.getFeedRepairLog(limit, feedId);
+      res.json(log);
+    } catch (error: any) {
+      console.error("Error in GET /api/admin/self-heal/log:", error);
+      res.status(500).json({ message: "Fout bij ophalen reparatie-log" });
+    }
+  });
+
+  app.get("/api/admin/self-heal/cases", isAdmin, async (req, res) => {
+    try {
+      const status = typeof req.query.status === "string" ? req.query.status : undefined;
+      const cases = await storage.getFeedRepairCases(status);
+      res.json(cases);
+    } catch (error: any) {
+      console.error("Error in GET /api/admin/self-heal/cases:", error);
+      res.status(500).json({ message: "Fout bij ophalen reparatie-zaken" });
+    }
+  });
+
+  app.get("/api/admin/self-heal/cases/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Ongeldig id" });
+      const c = await storage.getFeedRepairCase(id);
+      if (!c) return res.status(404).json({ message: "Zaak niet gevonden" });
+      res.json(c);
+    } catch (error: any) {
+      console.error("Error in GET /api/admin/self-heal/cases/:id:", error);
+      res.status(500).json({ message: "Fout bij ophalen zaak" });
+    }
+  });
+
+  app.patch("/api/admin/self-heal/cases/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Ongeldig id" });
+      const existing = await storage.getFeedRepairCase(id);
+      if (!existing) return res.status(404).json({ message: "Zaak niet gevonden" });
+
+      const { action, resolution } = req.body ?? {};
+      const allowed = ["resolve", "dismiss", "respond", "reopen"];
+      if (!allowed.includes(action)) {
+        return res.status(400).json({ message: "Ongeldige actie" });
+      }
+
+      const userId = (req.user as any)?.id ?? null;
+      const update: Record<string, unknown> = {};
+      if (action === "resolve") {
+        update.status = "resolved";
+        update.resolution = typeof resolution === "string" ? resolution : "Opgelost door beheerder.";
+        update.resolvedBy = userId;
+        update.resolvedAt = new Date();
+      } else if (action === "dismiss") {
+        update.status = "dismissed";
+        update.resolution = typeof resolution === "string" ? resolution : "Genegeerd door beheerder.";
+        update.resolvedBy = userId;
+        update.resolvedAt = new Date();
+      } else if (action === "respond") {
+        update.status = "in_progress";
+        if (typeof resolution === "string") update.resolution = resolution;
+      } else if (action === "reopen") {
+        update.status = "open";
+        update.resolvedBy = null;
+        update.resolvedAt = null;
+      }
+
+      const updated = await storage.updateFeedRepairCase(id, update as any);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error in PATCH /api/admin/self-heal/cases/:id:", error);
+      res.status(500).json({ message: "Fout bij bijwerken zaak" });
+    }
+  });
+
+  app.get("/api/admin/self-heal/config", isAdmin, async (req, res) => {
+    try {
+      const [config, usage] = await Promise.all([
+        storage.getSelfHealConfig(),
+        storage.getMonthlySelfHealUsage(),
+      ]);
+      res.json({ config, usage });
+    } catch (error: any) {
+      console.error("Error in GET /api/admin/self-heal/config:", error);
+      res.status(500).json({ message: "Fout bij ophalen instellingen" });
+    }
+  });
+
+  app.put("/api/admin/self-heal/config", isAdmin, async (req, res) => {
+    try {
+      const parsed = insertSelfHealConfigSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Validatiefouten", errors: parsed.error.flatten() });
+      }
+      const config = await storage.updateSelfHealConfig(parsed.data);
+      res.json(config);
+    } catch (error: any) {
+      console.error("Error in PUT /api/admin/self-heal/config:", error);
+      res.status(500).json({ message: "Fout bij opslaan instellingen" });
+    }
+  });
+
+  app.post("/api/admin/self-heal/run", isAdmin, async (req, res) => {
+    try {
+      const { runSelfHeal } = await import("./services/feed-self-heal");
+      const result = await runSelfHeal();
+      if (result.skipped === -1) {
+        return res.json({ success: true, alreadyRunning: true, message: "Zelf-herstel draait al" });
+      }
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      console.error("Error in POST /api/admin/self-heal/run:", error);
+      res.status(500).json({ message: error?.message || "Fout bij uitvoeren zelf-herstel" });
     }
   });
 

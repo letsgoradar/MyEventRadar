@@ -233,7 +233,9 @@ async function trackRetry(feed: RssFeed, maxRetries: number): Promise<boolean> {
       console.error(`[SelfHeal] Retry-poging ${attempt} faalde voor feed #${feed.id}: ${e?.message ?? e}`);
     }
     if (attempt < maxRetries) {
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+      // Oplopende backoff (3s, 6s, 9s, …) geeft een trage/overbelaste bron meer
+      // tijd om te herstellen voordat we het opnieuw proberen.
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt));
     }
   }
   return false;
@@ -282,17 +284,40 @@ async function trackAiFix(
   await storage.updateRssFeed(feed.id, { aiExtractionProfileId: saved.id });
   try {
     const sync = await RssFeedService.processFeed({ ...feed, aiExtractionProfileId: saved.id }, storage);
-    const imported = (sync.eventsCreated ?? 0) + (sync.eventsUpdated ?? 0);
-    if (sync.success && imported > 0) {
-      return { fixed: true, aiCallsUsed, note: `${imported} events geïmporteerd met vernieuwd AI-profiel` };
+    // Kwaliteitsdrempel op GELIJKE eenheden: hoeveel event-items het nieuwe profiel
+    // daadwerkelijk van de bron haalde (itemsProcessed), niet de import-delta vs.
+    // de totale catalogus. Zo worden feeds met weinig dagelijkse mutaties (veel
+    // 'skipped' = al bekend) niet onterecht teruggedraaid. Daarnaast mogen de
+    // afgekeurde items (verkeerde locatie/datum) niet de overhand hebben.
+    const processed = sync.itemsProcessed ?? 0;
+    const created = sync.eventsCreated ?? 0;
+    const updated = sync.eventsUpdated ?? 0;
+    const skipped = sync.eventsSkipped ?? 0;
+    const rejected = sync.eventsRejected ?? 0;
+    const handled = created + updated + skipped; // geldig verwerkt (nieuw/bijgewerkt/al bekend)
+    const enoughExtracted = processed >= AI_MIN_EVENTS;
+    const notMostlyRejected = handled >= rejected;
+    if (sync.success && enoughExtracted && notMostlyRejected) {
+      return {
+        fixed: true,
+        aiCallsUsed,
+        note: `${processed} items verwerkt met vernieuwd AI-profiel (${created} nieuw, ${updated} bijgewerkt, ${skipped} al bekend, ${rejected} afgekeurd).`,
+      };
     }
+    console.warn(
+      `[SelfHeal] AI-fix feed #${feed.id} onvoldoende: verwerkt=${processed} (drempel ${AI_MIN_EVENTS}), geldig=${handled}, afgekeurd=${rejected} — terugdraaien.`,
+    );
   } catch (e: any) {
     console.error(`[SelfHeal] Her-sync na AI-fix faalde voor feed #${feed.id}: ${e?.message ?? e}`);
   }
 
-  // Geen verbetering → koppeling terugdraaien.
+  // Geen verbetering (of verslechtering) → koppeling terugdraaien naar de vorige config.
   await storage.updateRssFeed(feed.id, { aiExtractionProfileId: previousProfileId });
-  return { fixed: false, aiCallsUsed, note: "AI-profiel gaf geen verbetering — teruggedraaid" };
+  return {
+    fixed: false,
+    aiCallsUsed,
+    note: `AI-profiel haalde de kwaliteitsdrempel (min. ${AI_MIN_EVENTS} items) niet — teruggedraaid naar vorige config.`,
+  };
 }
 
 /**

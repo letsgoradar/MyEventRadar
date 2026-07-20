@@ -186,6 +186,159 @@ function FeedDetailPanel({ feed, info, platformFamilies, onPlatformChange }: {
   );
 }
 
+interface ImportedEvent {
+  id: number;
+  title: string;
+  startTime: string | null;
+  category: string | null;
+  address: string | null;
+  createdAt: string;
+}
+
+function SyncMomentsDialog({ feed, onClose }: {
+  feed: { id: number; name: string } | null;
+  onClose: () => void;
+}) {
+  const [selectedMoment, setSelectedMoment] = useState<{ entry: SyncHistoryEntry; from: string; to: string } | null>(null);
+
+  useEffect(() => {
+    setSelectedMoment(null);
+  }, [feed?.id]);
+
+  const { data: syncData, isLoading: historyLoading } = useQuery<{ history: SyncHistoryEntry[] }>({
+    queryKey: ['/api/admin/rss-feeds', feed?.id, 'sync-history', 101],
+    queryFn: async () => {
+      // 101 ophalen: we tonen er 100, de 101e dient alleen als tijdgrens voor het oudste zichtbare moment
+      const res = await fetch(`/api/admin/rss-feeds/${feed!.id}/sync-history?limit=101`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Kon sync-geschiedenis niet laden');
+      return res.json();
+    },
+    enabled: !!feed,
+    staleTime: 30000,
+  });
+
+  const { data: eventsData, isLoading: eventsLoading } = useQuery<{ events: ImportedEvent[] }>({
+    queryKey: ['/api/admin/rss-feeds', feed?.id, 'imported-events', selectedMoment?.entry.id],
+    queryFn: async () => {
+      const params = new URLSearchParams({ from: selectedMoment!.from, to: selectedMoment!.to });
+      const res = await fetch(`/api/admin/rss-feeds/${feed!.id}/imported-events?${params}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Kon events niet laden');
+      return res.json();
+    },
+    enabled: !!feed && !!selectedMoment,
+    staleTime: 30000,
+  });
+
+  const selectMoment = (entry: SyncHistoryEntry, index: number, history: SyncHistoryEntry[]) => {
+    // Half-open venster: (vorige oudere sync, dit sync-moment]. De 101e rij dient
+    // alleen als ondergrens voor het oudste zichtbare moment; is er echt geen
+    // oudere sync, dan is "alles ervoor" correct (eerste sync van deze feed).
+    const older = history[index + 1];
+    const from = older?.syncedAt ?? new Date(0).toISOString();
+    const to = new Date(entry.syncedAt).toISOString();
+    setSelectedMoment({ entry, from, to });
+  };
+
+  return (
+    <Dialog open={!!feed} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>
+            {selectedMoment ? 'Nieuw opgehaalde events' : 'Laatste 100 sync-momenten'}
+          </DialogTitle>
+          <DialogDescription>
+            {feed?.name}
+            {selectedMoment && (
+              <> · sync van {format(new Date(selectedMoment.entry.syncedAt), 'd MMM yyyy HH:mm', { locale: nl })}</>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        {selectedMoment ? (
+          <div className="space-y-3">
+            <Button variant="outline" size="sm" onClick={() => setSelectedMoment(null)} data-testid="button-back-to-moments">
+              ← Terug naar sync-momenten
+            </Button>
+            <div className="max-h-[55vh] overflow-y-auto space-y-1 pr-1">
+              {eventsLoading ? (
+                <div className="text-sm text-muted-foreground flex items-center gap-2 py-4"><Loader2 className="w-4 h-4 animate-spin" /> Events laden...</div>
+              ) : !eventsData || eventsData.events.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-4">Geen events gevonden voor dit sync-moment.</div>
+              ) : (
+                eventsData.events.map((ev) => (
+                  <a
+                    key={ev.id}
+                    href={`/event/${ev.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block border rounded-md px-3 py-2 hover:bg-muted/50 transition-colors"
+                    data-testid={`imported-event-${ev.id}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm truncate">{ev.title}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        opgehaald {format(new Date(ev.createdAt), 'd MMM HH:mm', { locale: nl })}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 mt-0.5">
+                      {ev.startTime && <span>Event: {format(new Date(ev.startTime), 'd MMM yyyy HH:mm', { locale: nl })}</span>}
+                      {ev.category && <span>{ev.category}</span>}
+                      {ev.address && <span className="truncate max-w-[220px]">{ev.address}</span>}
+                    </div>
+                  </a>
+                ))
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="max-h-[60vh] overflow-y-auto pr-1">
+            {historyLoading ? (
+              <div className="text-sm text-muted-foreground flex items-center gap-2 py-4"><Loader2 className="w-4 h-4 animate-spin" /> Laden...</div>
+            ) : !syncData || syncData.history.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-4">Nog geen syncs uitgevoerd.</div>
+            ) : (
+              <div className="space-y-1">
+                {syncData.history.slice(0, 100).map((h, i) => {
+                  const clickable = (h.newEvents ?? 0) > 0;
+                  return (
+                    <button
+                      key={h.id}
+                      type="button"
+                      disabled={!clickable}
+                      onClick={() => clickable && selectMoment(h, i, syncData.history)}
+                      className={`w-full text-left border rounded-md px-3 py-2 flex items-center gap-3 ${clickable ? 'hover:bg-muted/50 cursor-pointer' : 'opacity-70 cursor-default'}`}
+                      title={clickable ? 'Klik om de nieuw opgehaalde events te bekijken' : undefined}
+                      data-testid={`sync-moment-${h.id}`}
+                    >
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${h.success === false ? 'bg-red-500' : 'bg-green-500'}`} />
+                      <span className="text-sm w-[140px] shrink-0">
+                        {format(new Date(h.syncedAt), 'd MMM yyyy HH:mm', { locale: nl })}
+                      </span>
+                      {h.success === false ? (
+                        <span className="text-xs text-red-600 truncate" title={h.errorMessage || ''}>{h.errorMessage || 'Mislukt'}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground flex-1">
+                          {(h.newEvents ?? 0) > 0 ? (
+                            <Badge variant="default" className="bg-green-100 text-green-700 mr-2">+{h.newEvents} nieuw</Badge>
+                          ) : (
+                            <span className="mr-2">0 nieuw</span>
+                          )}
+                          {(h.updatedEvents ?? 0) > 0 && `${h.updatedEvents} bijgewerkt · `}
+                          {h.totalFound ?? 0} gevonden
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
 const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
 const FeedAnalyzerModal = lazy(() => import('@/components/admin/FeedAnalyzerModal'));
@@ -225,6 +378,7 @@ interface SourceFeedInfo {
   lastSyncAt: string | null;
   lastSuccessfulSyncAt: string | null;
   lastSyncSuccess: boolean | null;
+  lastNewEventAt: string | null;
   activeEvents: number;
   futureEvents: number;
   totalFound: number;
@@ -311,6 +465,7 @@ export default function RssFeedsPage() {
   });
 
   const [expandedFeedId, setExpandedFeedId] = useState<number | null>(null);
+  const [syncMomentsFeed, setSyncMomentsFeed] = useState<{ id: number; name: string } | null>(null);
 
   // Fetch saved visual parser configurations
   interface ParserConfig {
@@ -1812,13 +1967,27 @@ export default function RssFeedsPage() {
                         <TableCell>
                           <SyncHistoryTooltip feedId={feed.id} lastFetchedAt={feed.lastFetchedAt} />
                         </TableCell>
-                        <TableCell>
-                          {(feedOverview[feed.id]?.addedLastSync || 0) > 0 ? (
-                            <Badge variant="default" className="bg-green-100 text-green-700">
-                              +{feedOverview[feed.id]?.addedLastSync || 0}
-                            </Badge>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {sourceInfo[feed.id]?.lastNewEventAt ? (
+                            <Button
+                              variant="link"
+                              className="p-0 h-auto text-sm font-medium text-primary hover:underline"
+                              onClick={() => setSyncMomentsFeed({ id: feed.id, name: feed.name })}
+                              title="Bekijk de laatste 100 sync-momenten"
+                              data-testid={`button-sync-moments-${feed.id}`}
+                            >
+                              {format(new Date(sourceInfo[feed.id].lastNewEventAt!), 'd MMM yyyy HH:mm', { locale: nl })}
+                            </Button>
                           ) : (
-                            <span className="text-muted-foreground">0</span>
+                            <Button
+                              variant="link"
+                              className="p-0 h-auto text-sm text-muted-foreground hover:underline"
+                              onClick={() => setSyncMomentsFeed({ id: feed.id, name: feed.name })}
+                              title="Nog nooit een nieuw event opgehaald — bekijk sync-momenten"
+                              data-testid={`button-sync-moments-${feed.id}`}
+                            >
+                              Nooit
+                            </Button>
                           )}
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -2120,6 +2289,8 @@ export default function RssFeedsPage() {
               }}
             />
           </Suspense>
+
+          <SyncMomentsDialog feed={syncMomentsFeed} onClose={() => setSyncMomentsFeed(null)} />
 
                   </div>
     </AdminLayout>

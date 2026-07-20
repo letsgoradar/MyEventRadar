@@ -17,7 +17,8 @@ import { isAdmin, isAuthenticated, attachUser } from "./middleware/auth";
 import { getRequestBrand, filterEventsForBrand } from "./brand";
 import { getBrandCityContent } from "@shared/brands";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gt, lte, desc } from "drizzle-orm";
+import { events as eventsTable, rssFeedItems } from "@shared/schema";
 
 // Routes voor profielfoto uploads
 import profilePhotoRoutes from "./routes/profile-photo";
@@ -3756,9 +3757,12 @@ Respond with ONLY the search term, nothing else.`,
         return res.status(400).json({ message: "Invalid feed ID" });
       }
       
+      const rawLimit = parseInt(String(req.query.limit ?? "10"));
+      const limit = Math.min(Math.max(isNaN(rawLimit) ? 10 : rawLimit, 1), 101);
+
       const [latestSync, history, avgDuration] = await Promise.all([
         storage.getLatestSyncForFeed(feedId),
-        storage.getSyncHistoryForFeed(feedId, 10),
+        storage.getSyncHistoryForFeed(feedId, limit),
         storage.getAverageSyncDurationForFeed(feedId)
       ]);
       
@@ -3769,6 +3773,45 @@ Respond with ONLY the search term, nothing else.`,
       });
     } catch (error) {
       console.error('Error in GET /api/admin/rss-feeds/:id/sync-history:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Events die binnen een bepaald tijdvenster (sync-moment) nieuw zijn opgehaald voor een feed
+  app.get("/api/admin/rss-feeds/:id/imported-events", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Invalid feed ID" });
+      }
+      const from = req.query.from ? new Date(String(req.query.from)) : null;
+      const to = req.query.to ? new Date(String(req.query.to)) : null;
+      if (!from || !to || isNaN(from.getTime()) || isNaN(to.getTime())) {
+        return res.status(400).json({ message: "Geldige 'from' en 'to' parameters zijn verplicht" });
+      }
+
+      const rows = await db
+        .select({
+          id: eventsTable.id,
+          title: eventsTable.title,
+          startTime: eventsTable.startTime,
+          category: eventsTable.category,
+          address: eventsTable.address,
+          createdAt: eventsTable.createdAt,
+        })
+        .from(eventsTable)
+        .innerJoin(rssFeedItems, eq(rssFeedItems.eventId, eventsTable.id))
+        .where(and(
+          eq(rssFeedItems.feedId, feedId),
+          gt(eventsTable.createdAt, from),
+          lte(eventsTable.createdAt, to),
+        ))
+        .orderBy(desc(eventsTable.createdAt))
+        .limit(300);
+
+      res.json({ events: rows });
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/:id/imported-events:', error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

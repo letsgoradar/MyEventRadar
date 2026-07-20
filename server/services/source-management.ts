@@ -7,6 +7,7 @@ import {
   events,
   feedQualityChecks,
   qualityCheckIssues,
+  feedSyncHistory,
   type FeedSyncHistory,
 } from "@shared/schema";
 import { classifyFeedHealth } from "./feed-health";
@@ -23,6 +24,7 @@ export interface SourceFeedInfo {
   lastSyncAt: string | null;
   lastSuccessfulSyncAt: string | null;
   lastSyncSuccess: boolean | null;
+  lastNewEventAt: string | null;
   activeEvents: number;
   futureEvents: number;
   totalFound: number;
@@ -97,6 +99,20 @@ export async function getSourceManagementData(): Promise<Record<number, SourceFe
   for (const r of statusRows) {
     if (!r.status || r.status === "processed") continue;
     (dropoutByFeed[r.feedId] ??= {})[r.status] = Number(r.cnt);
+  }
+
+  // Meest recente sync-moment met minimaal 1 nieuw event, per feed
+  const lastNewRows = await db
+    .select({
+      feedId: feedSyncHistory.feedId,
+      last: sql<string>`MAX(${feedSyncHistory.syncedAt})`,
+    })
+    .from(feedSyncHistory)
+    .where(sql`${feedSyncHistory.newEvents} > 0`)
+    .groupBy(feedSyncHistory.feedId);
+  const lastNewEventByFeed: Record<number, string> = {};
+  for (const r of lastNewRows) {
+    if (r.last) lastNewEventByFeed[r.feedId] = new Date(r.last).toISOString();
   }
 
   // Openstaande kwaliteitsissues per feed (via laatste quality checks)
@@ -217,6 +233,7 @@ export async function getSourceManagementData(): Promise<Record<number, SourceFe
         ? new Date(lastSuccessful.syncedAt).toISOString()
         : null,
       lastSyncSuccess: latest ? latest.success !== false : null,
+      lastNewEventAt: lastNewEventByFeed[feed.id] ?? null,
       activeEvents,
       futureEvents: futureCounts[feed.id] ?? 0,
       totalFound,

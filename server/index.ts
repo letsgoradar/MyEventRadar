@@ -308,7 +308,7 @@ const HOST = '0.0.0.0';
         expirePromotions().catch(console.error);
       }
     });
-    console.log('Schedulers started (RSS interval 6h, notifications 1h, promotions 5min)');
+    console.log('Schedulers started (RSS interval 48h, notifications 1h, promotions 5min)');
 
     // Add error handling middleware
     app.use(errorHandler);

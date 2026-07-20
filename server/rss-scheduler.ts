@@ -6,7 +6,7 @@ let lastSyncTime: Date | null = null;
 let initialized = false;
 let schedulerInterval: ReturnType<typeof setInterval> | null = null;
 
-const SYNC_INTERVAL_HOURS = 6;
+const SYNC_INTERVAL_HOURS = 48;
 
 let lastDigestSentAt: Date | null = null;
 const DIGEST_COOLDOWN_HOURS = 20;

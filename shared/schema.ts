@@ -336,6 +336,9 @@ export const rssFeeds = pgTable("rss_feeds", {
   itemsImported: integer("items_imported").default(0),
   autoCreateEvents: boolean("auto_create_events").default(true),
   aiExtractionProfileId: integer("ai_extraction_profile_id"),
+  // Platformfamilie (bijv. 'uitdatabank', 'plaece', 'uitinderegio', 'umbraco', 'rss', 'maatwerk').
+  // Automatisch geclassificeerd; handmatig aanpasbaar in de admin.
+  platform: text("platform"),
   scraperConfig: jsonb("scraper_config"),
   fieldMappings: jsonb("field_mappings").$type<Record<string, string>>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),

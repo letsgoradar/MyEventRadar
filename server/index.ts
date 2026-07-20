@@ -240,6 +240,16 @@ const HOST = '0.0.0.0';
     }
 
     try {
+      const { db: migrateDb } = await import('./db');
+      const { sql } = await import('drizzle-orm');
+      await migrateDb.execute(sql`ALTER TABLE rss_feeds ADD COLUMN IF NOT EXISTS platform TEXT`);
+      const { backfillFeedPlatforms } = await import('./services/feed-platform');
+      await backfillFeedPlatforms();
+    } catch (e: any) {
+      console.error('[Migration] Feed platform migration failed:', e.message);
+    }
+
+    try {
       const { seedFeeds } = await import('./migrations/seed-feeds');
       await seedFeeds();
     } catch (e: any) {

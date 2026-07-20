@@ -1,4 +1,16 @@
 {
-  "feeds": [],
+  "feeds": [
+    {
+      "name": "s-Hertogenbosch - Zin in Den Bosch",
+      "url": "https://www.zinindenbosch.nl/api/events",
+      "feedType": "scraper",
+      "defaultCategory": "Theater, Dans & Film",
+      "municipality": "s-Hertogenbosch",
+      "province": "Noord-Brabant",
+      "defaultLatitude": "51.6881",
+      "defaultLongitude": "5.3036",
+      "updateFrequencyMinutes": 60
+    }
+  ],
   "deleted": []
 }

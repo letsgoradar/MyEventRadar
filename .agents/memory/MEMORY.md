@@ -6,4 +6,5 @@
 - [Plaece JSON-LD dates](plaece-jsonld-dates.md) — trefhetinoss/plaece sites put real dates in eventSchedule[]; top-level startDate is stale → prefer next upcoming schedule occurrence.
 - [Sync history recording](sync-history-recording.md) — every sync path (manual + bulk/auto, success + both failure exits) must write one sync_history row via recordSyncHistory; "skipped" usually = past events hidden.
 - [Category vocabulary](category-vocabulary.md) — CATEGORIES output values are duplicated across many string-literal scraper maps tsc can't catch; grep all on any rename.
+- [Feed sync staleness rotation](feed-sync-rotation.md) — bulk feed sync must order by lastFetchedAt ASC NULLS FIRST or capped/partial runs starve never-synced feeds.
 - [Country dimension](country-dimension.md) — events.country (missing=NL) + BrandConfig.countries; keep eventMatchesBrand & buildBrandEventCondition in lockstep; UiT ?country=BE windowed mode.

@@ -2284,6 +2284,31 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  // Bronnenbeheer: volledige gezondheids-/opbrengstdata per feed
+  // (groen/oranje/rood, vangstpercentage, uitvalredenen, issues).
+  // MUST be before :id route.
+  app.get("/api/admin/rss-feeds/manage", isAdmin, async (req, res) => {
+    try {
+      const { getSourceManagementData, PLATFORM_FAMILIES } = await import("./services/source-management");
+      const feeds = await getSourceManagementData();
+      res.json({ feeds, platforms: PLATFORM_FAMILIES });
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/manage:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Dekkingsoverzicht per gemeente. MUST be before :id route.
+  app.get("/api/admin/rss-feeds/coverage", isAdmin, async (req, res) => {
+    try {
+      const { getCoverageOverview } = await import("./services/source-management");
+      res.json(await getCoverageOverview());
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/coverage:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Feed-gezondheid: detecteert feeds die stilletjes geen events meer importeren.
   // MUST be before :id route.
   app.get("/api/admin/rss-feeds/health", isAdmin, async (req, res) => {
@@ -2466,6 +2491,18 @@ Respond with ONLY the search term, nothing else.`,
         fieldMappings: fieldMappings || null,
         scraperConfig: scraperConfig || null,
       });
+
+      // Platform-familie automatisch classificeren op basis van feedType/URL
+      try {
+        const { classifyFeedPlatform } = await import("./services/feed-platform");
+        const platform = classifyFeedPlatform(feed);
+        if (platform && feed.platform !== platform) {
+          await storage.updateRssFeed(feed.id, { platform });
+          (feed as any).platform = platform;
+        }
+      } catch (platErr: any) {
+        console.warn('[Feeds] Platform classification failed:', platErr.message);
+      }
 
       // Persist to feeds-config.json so this feed is included in future deployments
       try {

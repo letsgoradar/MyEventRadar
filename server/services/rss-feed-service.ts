@@ -11753,7 +11753,14 @@ export class RssFeedService {
     let errors = 0;
     const totalStartTime = Date.now();
 
-    let activeFeeds = await db.select().from(rssFeeds).where(eq(rssFeeds.status, "active"));
+    // Staleness-rotatie: feeds die nog NOOIT gesynchroniseerd zijn eerst
+    // (lastFetchedAt NULLS FIRST), daarna de langst-geleden gesynchroniseerde.
+    // Zonder deze ordening werden feeds in tabelvolgorde verwerkt, waardoor
+    // feeds achteraan de lijst (hoge IDs) nooit aan de beurt kwamen als een
+    // run voortijdig stopte (autoscale-shutdown) of gecapt werd (DEV_MAX_FEEDS).
+    let activeFeeds = await db.select().from(rssFeeds)
+      .where(eq(rssFeeds.status, "active"))
+      .orderBy(sql`${rssFeeds.lastFetchedAt} ASC NULLS FIRST`);
     
     if (process.env.NODE_ENV !== 'production' && process.env.DEV_MAX_FEEDS) {
       const devMaxFeeds = parseInt(process.env.DEV_MAX_FEEDS, 10);

@@ -51,9 +51,140 @@ import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { nl } from 'date-fns/locale';
 import { CATEGORIES } from '@shared/schema';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, Fragment } from 'react';
 
 import { SyncHistoryTooltip } from '@/components/admin/SyncHistoryTooltip';
+
+interface SyncHistoryEntry {
+  id: number;
+  syncedAt: string;
+  durationMs: number | null;
+  totalFound: number | null;
+  newEvents: number | null;
+  updatedEvents: number | null;
+  incompleteEvents: number | null;
+  skippedEvents: number | null;
+  errorMessage: string | null;
+  success: boolean | null;
+}
+
+function FeedDetailPanel({ feed, info, platformFamilies, onPlatformChange }: {
+  feed: { id: number; name: string; url: string };
+  info?: {
+    status: string; reason: string; catchRate: number | null; totalFound: number; imported: number;
+    activeEvents: number; futureEvents: number; lastSuccessfulSyncAt: string | null;
+    dropoutReasons: Array<{ reason: string; count: number }>; openIssues: { error: number; warning: number };
+    platform: string;
+  };
+  platformFamilies: Record<string, { label: string; description: string }>;
+  onPlatformChange: (platform: string) => void;
+}) {
+  const { data: syncData } = useQuery<{ history: SyncHistoryEntry[]; avgDurationMs: number | null }>({
+    queryKey: ['/api/admin/rss-feeds', feed.id, 'sync-history'],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/rss-feeds/${feed.id}/sync-history`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Kon sync-geschiedenis niet laden');
+      return res.json();
+    },
+    staleTime: 30000,
+  });
+
+  return (
+    <div className="py-3 space-y-4 text-sm" onClick={(e) => e.stopPropagation()} data-testid={`feed-detail-${feed.id}`}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+          <div className="text-xs text-muted-foreground">Actieve events</div>
+          <div className="font-semibold">{info?.activeEvents ?? '-'}</div>
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">Toekomstige events</div>
+          <div className="font-semibold">{info?.futureEvents ?? '-'}</div>
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">Vangst laatste sync</div>
+          <div className="font-semibold">
+            {info?.catchRate !== null && info?.catchRate !== undefined
+              ? `${info.catchRate}% (${info.imported} van ${info.totalFound})`
+              : 'Onbekend'}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">Laatste geslaagde sync</div>
+          <div className="font-semibold">
+            {info?.lastSuccessfulSyncAt ? format(new Date(info.lastSuccessfulSyncAt), 'd MMM yyyy HH:mm', { locale: nl }) : 'Nooit'}
+          </div>
+        </div>
+      </div>
+
+      {info?.reason && (
+        <p className="text-xs text-muted-foreground italic">{info.reason}</p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Label className="text-xs">Platform-familie:</Label>
+        <Select value={info?.platform || 'maatwerk'} onValueChange={onPlatformChange}>
+          <SelectTrigger className="w-[220px] h-8 text-xs" data-testid={`select-platform-${feed.id}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(platformFamilies).map(([key, fam]) => (
+              <SelectItem key={key} value={key}>{fam.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {info && (info.openIssues.error > 0 || info.openIssues.warning > 0) && (
+          <span className="text-xs">
+            Open issues:{' '}
+            {info.openIssues.error > 0 && <Badge variant="destructive" className="text-xs mr-1">{info.openIssues.error} errors</Badge>}
+            {info.openIssues.warning > 0 && <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700">{info.openIssues.warning} waarschuwingen</Badge>}
+          </span>
+        )}
+      </div>
+
+      {info && info.dropoutReasons.length > 0 && (
+        <div>
+          <div className="text-xs font-medium mb-1">Belangrijkste uitvalredenen</div>
+          <div className="flex flex-wrap gap-1.5">
+            {info.dropoutReasons.map((d) => (
+              <Badge key={d.reason} variant="outline" className="text-xs">
+                {d.reason}: {d.count}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div className="text-xs font-medium mb-1">Laatste syncs</div>
+        {!syncData ? (
+          <div className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Laden...</div>
+        ) : syncData.history.length === 0 ? (
+          <div className="text-xs text-muted-foreground">Nog geen syncs uitgevoerd.</div>
+        ) : (
+          <div className="space-y-1">
+            {syncData.history.slice(0, 6).map((h) => (
+              <div key={h.id} className="flex items-center gap-2 text-xs">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${h.success === false ? 'bg-red-500' : 'bg-green-500'}`} />
+                <span className="text-muted-foreground w-[120px] shrink-0">
+                  {format(new Date(h.syncedAt), 'd MMM HH:mm', { locale: nl })}
+                </span>
+                {h.success === false ? (
+                  <span className="text-red-600 truncate" title={h.errorMessage || ''}>{h.errorMessage || 'Mislukt'}</span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {h.totalFound ?? 0} gevonden · {(h.newEvents ?? 0)} nieuw · {(h.updatedEvents ?? 0)} bijgewerkt
+                    {(h.incompleteEvents ?? 0) > 0 && ` · ${h.incompleteEvents} incompleet`}
+                    {(h.skippedEvents ?? 0) > 0 && ` · ${h.skippedEvents} overgeslagen`}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const MunicipalityMap = lazy(() => import('@/components/admin/MunicipalityMap'));
 const IncompleteItemsManager = lazy(() => import('@/components/admin/IncompleteItemsManager'));
@@ -82,6 +213,34 @@ interface RssFeed {
   autoCreateEvents: boolean;
   createdAt: string;
   aiExtractionProfileId: number | null;
+  platform: string | null;
+}
+
+interface SourceFeedInfo {
+  feedId: number;
+  platform: string;
+  status: 'green' | 'orange' | 'red' | 'paused';
+  reason: string;
+  neverSynced: boolean;
+  lastSyncAt: string | null;
+  lastSuccessfulSyncAt: string | null;
+  lastSyncSuccess: boolean | null;
+  activeEvents: number;
+  futureEvents: number;
+  totalFound: number;
+  imported: number;
+  catchRate: number | null;
+  dropoutReasons: Array<{ reason: string; count: number }>;
+  openIssues: { error: number; warning: number };
+}
+
+interface CoverageMunicipality {
+  municipality: string;
+  province: string | null;
+  feeds: Array<{ id: number; name: string; status: string; platform: string; futureEvents: number; lastFetchedAt: string | null }>;
+  futureEvents: number;
+  hasGap: boolean;
+  gapReason: string | null;
 }
 
 interface RssFeedStats {
@@ -137,6 +296,21 @@ export default function RssFeedsPage() {
     queryKey: ['/api/admin/rss-feeds/health'],
     staleTime: 60000,
   });
+
+  const { data: manageData } = useQuery<{ feeds: Record<number, SourceFeedInfo>; platforms: Record<string, { label: string; description: string }> }>({
+    queryKey: ['/api/admin/rss-feeds/manage'],
+    staleTime: 60000,
+  });
+  const sourceInfo = manageData?.feeds || {};
+  const platformFamilies = manageData?.platforms || {};
+
+  const { data: coverage = [], isLoading: isLoadingCoverage } = useQuery<CoverageMunicipality[]>({
+    queryKey: ['/api/admin/rss-feeds/coverage'],
+    staleTime: 60000,
+    enabled: activeTab === 'coverage',
+  });
+
+  const [expandedFeedId, setExpandedFeedId] = useState<number | null>(null);
 
   // Fetch saved visual parser configurations
   interface ParserConfig {
@@ -221,6 +395,7 @@ export default function RssFeedsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds/manage'] });
       setEditingFeed(null);
       toast({
         title: 'Feed bijgewerkt',
@@ -758,7 +933,7 @@ export default function RssFeedsPage() {
           )}
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
             <div>
-              <h1 className="text-3xl font-bold" data-testid="text-page-title">RSS Feeds</h1>
+              <h1 className="text-3xl font-bold" data-testid="text-page-title">Bronnenbeheer</h1>
               <p className="text-muted-foreground mt-1">
                 Beheer externe bronnen voor automatisch laden van evenementen
               </p>
@@ -1311,6 +1486,10 @@ export default function RssFeedsPage() {
                 <MapPin className="w-4 h-4" />
                 Gemeentes
               </TabsTrigger>
+              <TabsTrigger value="coverage" className="flex items-center gap-2" data-testid="tab-coverage">
+                <Crosshair className="w-4 h-4" />
+                Dekking
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="map">
@@ -1357,27 +1536,102 @@ export default function RssFeedsPage() {
             </Card>
           )}
 
+          {/* Actie nodig: rode en oranje bronnen bovenaan */}
+          {(() => {
+            const needsAction = feeds
+              .map(f => ({ feed: f, info: sourceInfo[f.id] }))
+              .filter(x => x.info && (x.info.status === 'red' || x.info.status === 'orange'))
+              .sort((a, b) => {
+                const rank = (s: string) => (s === 'red' ? 0 : 1);
+                if (rank(a.info!.status) !== rank(b.info!.status)) return rank(a.info!.status) - rank(b.info!.status);
+                // Geschatte fix-opbrengst: wat de bron aanbiedt maar (nog) niet oplevert.
+                // Historisch aanbod (totalFound of eerdere actieve events) minus wat nu binnenkomt.
+                const fixYield = (x: { info: SourceFeedInfo }) => {
+                  const potential = Math.max(x.info.totalFound, x.info.activeEvents);
+                  return Math.max(potential - x.info.imported, 0);
+                };
+                return fixYield(b as any) - fixYield(a as any);
+              });
+            if (needsAction.length === 0) return null;
+            return (
+              <Card className="mb-6 border-red-200" data-testid="card-action-needed">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-red-800">
+                    <AlertTriangle className="w-4 h-4" />
+                    Actie nodig ({needsAction.length})
+                  </CardTitle>
+                  <CardDescription>
+                    Bronnen die niet syncen, verouderd zijn of weinig opleveren. Klik op een bron voor details.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-2">
+                    {needsAction.map(({ feed, info }) => (
+                      <div
+                        key={feed.id}
+                        className="flex items-start justify-between gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50"
+                        onClick={() => setExpandedFeedId(expandedFeedId === feed.id ? null : feed.id)}
+                        data-testid={`action-needed-${feed.id}`}
+                      >
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                          <span className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${info!.status === 'red' ? 'bg-red-500' : 'bg-orange-400'}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{feed.name}</span>
+                              <Badge variant="outline" className="text-xs">{platformFamilies[info!.platform]?.label || info!.platform}</Badge>
+                              {info!.neverSynced && <Badge variant="destructive" className="text-xs">Nooit gesynct</Badge>}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">{info!.reason}</p>
+                            {expandedFeedId === feed.id && (
+                              <FeedDetailPanel feed={feed} info={info!} platformFamilies={platformFamilies}
+                                onPlatformChange={(platform) => updateFeedMutation.mutate({ id: feed.id, platform } as any)} />
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 text-xs text-muted-foreground">
+                          <div>{info!.futureEvents} toekomstige events</div>
+                          {info!.catchRate !== null && <div>vangst {info!.catchRate}%</div>}
+                          <Button
+                            size="sm" variant="ghost" className="h-6 px-2 mt-1 text-xs"
+                            onClick={(e) => { e.stopPropagation(); syncSingleFeedMutation.mutate(feed.id); }}
+                            disabled={syncingFeedId === feed.id}
+                          >
+                            <RefreshCw className={`w-3 h-3 mr-1 ${syncingFeedId === feed.id ? 'animate-spin' : ''}`} />
+                            Sync nu
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           {feeds.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Geconfigureerde feeds</CardTitle>
+                <CardTitle>Geconfigureerde bronnen</CardTitle>
                 <CardDescription>
-                  Alle RSS feeds en scrapers die evenementen importeren, gegroepeerd per provincie
+                  Alle RSS feeds en scrapers die evenementen importeren, gegroepeerd per platform-familie
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {Object.entries(
                   feeds.reduce((acc, feed) => {
-                    const province = feed.province || 'Overig';
-                    if (!acc[province]) acc[province] = [];
-                    acc[province].push(feed);
+                    const platform = sourceInfo[feed.id]?.platform || feed.platform || 'maatwerk';
+                    if (!acc[platform]) acc[platform] = [];
+                    acc[platform].push(feed);
                     return acc;
                   }, {} as Record<string, RssFeed[]>)
-                ).sort(([a], [b]) => a.localeCompare(b)).map(([province, provinceFeeds]) => (
-                  <div key={province} className="mb-6">
+                ).sort(([a], [b]) => (platformFamilies[a]?.label || a).localeCompare(platformFamilies[b]?.label || b)).map(([platform, provinceFeeds]) => (
+                  <div key={platform} className="mb-6">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <Badge variant="outline" className="text-sm">{province}</Badge>
-                      <span className="text-muted-foreground text-sm">({provinceFeeds.length} feeds)</span>
+                      <Badge variant="outline" className="text-sm">{platformFamilies[platform]?.label || platform}</Badge>
+                      <span className="text-muted-foreground text-sm">({provinceFeeds.length} bronnen)</span>
+                      {platformFamilies[platform]?.description && (
+                        <span className="text-muted-foreground text-xs font-normal hidden md:inline">— {platformFamilies[platform].description}</span>
+                      )}
                     </h3>
                 <div className="overflow-x-auto">
                 <Table>
@@ -1396,9 +1650,20 @@ export default function RssFeedsPage() {
                   </TableHeader>
                   <TableBody>
                     {provinceFeeds.map((feed) => (
-                      <TableRow key={feed.id} data-testid={`row-feed-${feed.id}`}>
+                      <Fragment key={feed.id}>
+                      <TableRow data-testid={`row-feed-${feed.id}`} className="cursor-pointer" onClick={() => setExpandedFeedId(expandedFeedId === feed.id ? null : feed.id)}>
                         <TableCell>
-                          <span className="font-medium">{feed.municipality || '-'}</span>
+                          <div className="flex items-center gap-2">
+                            {(() => {
+                              const info = sourceInfo[feed.id];
+                              const color = !info ? 'bg-gray-300' :
+                                info.status === 'green' ? 'bg-green-500' :
+                                info.status === 'orange' ? 'bg-orange-400' :
+                                info.status === 'red' ? 'bg-red-500' : 'bg-gray-400';
+                              return <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${color}`} title={info?.reason || ''} />;
+                            })()}
+                            <span className="font-medium">{feed.municipality || '-'}</span>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -1556,7 +1821,7 @@ export default function RssFeedsPage() {
                             <span className="text-muted-foreground">0</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           {syncingFeedId === feed.id && syncProgress ? (
                             <div className="flex flex-col gap-2 min-w-[350px] max-w-[450px] bg-slate-50 p-3 rounded-lg border border-slate-200">
                               <div className="flex items-center justify-between">
@@ -1703,6 +1968,15 @@ export default function RssFeedsPage() {
                           )}
                         </TableCell>
                       </TableRow>
+                      {expandedFeedId === feed.id && (
+                        <TableRow>
+                          <TableCell colSpan={9} className="bg-muted/30">
+                            <FeedDetailPanel feed={feed} info={sourceInfo[feed.id]} platformFamilies={platformFamilies}
+                              onPlatformChange={(platform) => updateFeedMutation.mutate({ id: feed.id, platform } as any)} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </Fragment>
                     ))}
                   </TableBody>
                 </Table>
@@ -1723,6 +1997,77 @@ export default function RssFeedsPage() {
               }>
                 <IncompleteItemsManager />
               </Suspense>
+            </TabsContent>
+
+            <TabsContent value="coverage">
+              {isLoadingCoverage ? (
+                <div className="flex items-center justify-center h-[300px] bg-muted rounded-lg">
+                  <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Dekking per gemeente</CardTitle>
+                    <CardDescription>
+                      Gemeentes met gaten (geen actieve bron of nauwelijks toekomstige events) staan bovenaan.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead></TableHead>
+                            <TableHead>Gemeente</TableHead>
+                            <TableHead>Provincie</TableHead>
+                            <TableHead>Bronnen</TableHead>
+                            <TableHead>Toekomstige events</TableHead>
+                            <TableHead>Signaal</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {coverage.map((m) => (
+                            <TableRow key={m.municipality} data-testid={`coverage-${m.municipality}`}>
+                              <TableCell>
+                                <span className={`inline-block w-2.5 h-2.5 rounded-full ${m.hasGap ? 'bg-red-500' : 'bg-green-500'}`} />
+                              </TableCell>
+                              <TableCell className="font-medium">{m.municipality}</TableCell>
+                              <TableCell className="text-muted-foreground">{m.province || '-'}</TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1">
+                                  {m.feeds.map((f) => (
+                                    <Badge
+                                      key={f.id}
+                                      variant="outline"
+                                      className={`text-xs ${f.status !== 'active' ? 'opacity-50 line-through' : ''}`}
+                                      title={`${f.name} (${f.status}) — ${f.futureEvents} toekomstige events`}
+                                    >
+                                      {f.name.length > 30 ? f.name.substring(0, 30) + '…' : f.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </TableCell>
+                              <TableCell>{m.futureEvents}</TableCell>
+                              <TableCell>
+                                {m.hasGap ? (
+                                  <span className="text-xs text-red-600 flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                                    {m.gapReason}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-green-600 flex items-center gap-1">
+                                    <CheckCircle className="w-3 h-3" /> OK
+                                  </span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="gemeentes">

@@ -8,7 +8,7 @@ import AdminSidebar from './AdminSidebar';
 const PAGE_TITLES: Record<string, string> = {
   '/admin': 'Dashboard',
   '/admin/events': 'Evenementen',
-  '/admin/rss-feeds': 'RSS Feeds',
+  '/admin/rss-feeds': 'Bronnenbeheer',
   '/admin/tags': 'Tag Manager',
   '/admin/venues': 'Venues',
   '/admin/promotions': 'Promoties & Advertenties',

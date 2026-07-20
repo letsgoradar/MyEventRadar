@@ -20,6 +20,10 @@ const FOUND_THRESHOLD = 5;
 const STALE_SYNC_COUNT = 3;
 // Minimale catalogusgrootte voor de "geen nieuwe events"-waarschuwing.
 const MIN_CATALOG = 10;
+// Baseline-window: hoeveel syncs we terugkijken om de historische baseline te bepalen.
+const BASELINE_WINDOW = 10;
+// Als het historisch gemiddelde newEvents < dit was, beschouwen we 0 als normaal.
+const BASELINE_LOW_THRESHOLD = 1;
 
 /**
  * Classify a feed's health from its recent sync history (newest first) and the
@@ -29,6 +33,11 @@ const MIN_CATALOG = 10;
  * success and finds many items, yet imports/updates 0 — meaning every event was
  * silently skipped (e.g. by a stale source date). That stays invisible in the
  * normal success/error status, so we surface it explicitly.
+ *
+ * "Rustige bronnen" (feeds that structurally produce few new events, like small
+ * municipalities) are distinguished from actual degradation by comparing the
+ * recent zero-new-events run against the historical baseline average. If the
+ * baseline was already low, zero new events is normal and the feed stays green.
  */
 export function classifyFeedHealth(
   history: FeedSyncHistory[],
@@ -70,12 +79,28 @@ export function classifyFeedHealth(
   }
 
   // Geen nieuwe events over meerdere recente syncs, terwijl er wél een catalogus is.
+  // BASELINE-CHECK: vergelijk met historisch gemiddelde om "rustige bronnen" te sparen.
   const recent = history.slice(0, STALE_SYNC_COUNT).filter((h) => h.success !== false);
   if (
     recent.length >= STALE_SYNC_COUNT &&
     recent.every((h) => (h.newEvents ?? 0) === 0) &&
     activeEvents >= MIN_CATALOG
   ) {
+    // Bereken het historisch gemiddelde newEvents over de bredere baseline-window.
+    const baselineWindow = history.slice(0, BASELINE_WINDOW).filter((h) => h.success !== false);
+    if (baselineWindow.length >= STALE_SYNC_COUNT) {
+      const avgNewEvents =
+        baselineWindow.reduce((sum, h) => sum + (h.newEvents ?? 0), 0) / baselineWindow.length;
+
+      if (avgNewEvents < BASELINE_LOW_THRESHOLD) {
+        // Historisch al weinig nieuwe events — dit is normaal voor deze bron.
+        return {
+          status: "healthy",
+          reason: `Gezond — rustige bron (gem. ${avgNewEvents.toFixed(1)} nieuwe events/sync), geen verslechtering.`,
+        };
+      }
+    }
+
     return {
       status: "warning",
       reason: `Geen nieuwe events in de laatste ${recent.length} syncs (${activeEvents} in de catalogus). Mogelijk worden nieuwe events van de bron niet meer opgepikt.`,
@@ -107,7 +132,7 @@ export async function getFeedHealthMap(): Promise<Record<number, FeedHealth>> {
   const map: Record<number, FeedHealth> = {};
   for (const feed of feeds) {
     if (feed.status !== "active") continue;
-    const history = await storage.getSyncHistoryForFeed(feed.id, STALE_SYNC_COUNT + 5);
+    const history = await storage.getSyncHistoryForFeed(feed.id, BASELINE_WINDOW + 2);
     const activeEvents = counts[feed.id] ?? 0;
     const { status, reason } = classifyFeedHealth(history, activeEvents);
 

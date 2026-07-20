@@ -658,9 +658,10 @@ export class RssFeedService {
   private static createConsolidationKey(item: ParsedFeedItem): string | null {
     const normalizedTitle = this.normalizeTitle(item.title);
     
-    // Round coordinates to 3 decimals (~100m precision)
-    const lat = item.latitude ? Math.round(item.latitude * 1000) / 1000 : 0;
-    const lng = item.longitude ? Math.round(item.longitude * 1000) / 1000 : 0;
+    // Round coordinates to 2 decimals (~1km precision) to allow slight GPS variations
+    // between days of the same multi-day event (e.g. kermis with per-day scraping)
+    const lat = item.latitude ? Math.round(item.latitude * 100) / 100 : 0;
+    const lng = item.longitude ? Math.round(item.longitude * 100) / 100 : 0;
     
     // REQUIRE verified coordinates for consolidation
     // This prevents unrelated events with same title from merging
@@ -2174,8 +2175,11 @@ export class RssFeedService {
       const $ = cheerio.load(response.data);
       const rawItems: ParsedFeedItem[] = [];
 
-      // Extract og:image from HTML — reliably sized Plaece thumbnail, used as fallback
-      const ogImage = $('meta[property="og:image"]').attr('content') || '';
+      // Extract og:image / twitter:image from HTML — used as fallback when JSON-LD has no image
+      const ogImage = $('meta[property="og:image"]').attr('content')
+        || $('meta[name="twitter:image"]').attr('content')
+        || $('meta[property="twitter:image"]').attr('content')
+        || '';
 
       const urlSlug = url.split('/')[5] || url.replace(/[^a-z0-9]/gi, "-");
       
@@ -2231,10 +2235,11 @@ export class RssFeedService {
             
             if (startDate && startDate < new Date()) continue;
             
-            let description = event.description || "";
-            if (!description || description.length < 20) {
-              description = `${name} in ${venueName || city}. ${fullAddress ? `Locatie: ${fullAddress}.` : ""} Ontdek dit evenement in Helmond!`;
-            }
+            // Use the source description as-is; leave undefined when absent so
+            // the event is correctly classified as "incomplete" instead of "volledig".
+            const description = (event.description && event.description.length >= 20)
+              ? event.description
+              : undefined;
             
             const formattedTitle = RssFeedService.formatTitle(name);
             
@@ -3592,14 +3597,16 @@ export class RssFeedService {
       const title = $('h1').first().text().trim();
       if (!title) return items;
       
-      let description = '';
+      // Collect meaningful paragraphs and join them up to 500 chars.
+      const descParts: string[] = [];
       $('p').each((_, el) => {
         const text = $(el).text().trim();
-        if (text.length > 50 && !this.isCookieText(text)) {
-          description = text;
-          return false;
+        if (text.length > 30 && !this.isCookieText(text)) {
+          descParts.push(text);
         }
       });
+      let description = descParts.join(' ').trim();
+      if (description.length > 500) description = description.slice(0, 497) + '…';
       
       let imageUrl = '';
       $('img').each((_, el) => {
@@ -3746,6 +3753,9 @@ export class RssFeedService {
       if (startTime && startTime < new Date() && !endTime) return items;
       if (endTime && endTime < new Date()) return items;
       
+      // Rebuild description if it was collected before (rewrite as multi-paragraph join)
+      // (Already collected above via descParts)
+
       // QUALITY FILTER: Only import events with GPS coordinates
       if (!latitude || !longitude) {
         console.log(`[RSS] SKIPPED Maashorst event (no GPS): ${title}`);
@@ -3764,7 +3774,7 @@ export class RssFeedService {
       items.push({
         externalId,
         title: formattedTitle,
-        description: description || `${formattedTitle} - Evenement in Maashorst`,
+        description: description || undefined,
         link: url,
         imageUrl: imageUrl || undefined,
         publishedAt: new Date(),

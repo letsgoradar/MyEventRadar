@@ -75,6 +75,8 @@ function FeedDetailPanel({ feed, info, platformFamilies, onPlatformChange }: {
     activeEvents: number; futureEvents: number; lastSuccessfulSyncAt: string | null;
     dropoutReasons: Array<{ reason: string; count: number }>; openIssues: { error: number; warning: number };
     platform: string;
+    imageQuality: number | null;
+    descriptionQuality: number | null;
   };
   platformFamilies: Record<string, { label: string; description: string }>;
   onPlatformChange: (platform: string) => void;
@@ -118,6 +120,27 @@ function FeedDetailPanel({ feed, info, platformFamilies, onPlatformChange }: {
 
       {info?.reason && (
         <p className="text-xs text-muted-foreground italic">{info.reason}</p>
+      )}
+
+      {info && (info.imageQuality !== null || info.descriptionQuality !== null) && (
+        <div className="flex flex-wrap gap-3">
+          {info.imageQuality !== null && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-muted-foreground">Afbeeldingen:</span>
+              <span className={`font-semibold ${info.imageQuality < 0.7 ? 'text-orange-600' : 'text-green-600'}`}>
+                {Math.round(info.imageQuality * 100)}%
+              </span>
+            </div>
+          )}
+          {info.descriptionQuality !== null && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-muted-foreground">Beschrijving:</span>
+              <span className={`font-semibold ${info.descriptionQuality < 0.7 ? 'text-orange-600' : 'text-green-600'}`}>
+                {Math.round(info.descriptionQuality * 100)}%
+              </span>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3">

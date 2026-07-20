@@ -32,6 +32,8 @@ export interface SourceFeedInfo {
   catchRate: number | null; // 0..100, null als onbekend
   dropoutReasons: Array<{ reason: string; count: number }>;
   openIssues: { error: number; warning: number };
+  imageQuality: number | null;       // 0..1, aandeel events MET imageUrl; null als onbekend
+  descriptionQuality: number | null; // 0..1, aandeel events met niet-generieke beschrijving; null als onbekend
 }
 
 // Ouder dan dit (dagen) zonder geslaagde sync = rood voor actieve feeds.
@@ -41,6 +43,23 @@ const STALE_ORANGE_DAYS = 14;
 // Vangstpercentage-drempel voor oranje (bij voldoende gevonden items).
 const LOW_CATCH_RATE = 30;
 const LOW_CATCH_MIN_FOUND = 10;
+// Drempel voor beeldkwaliteitswaarschuwing: >30% events zonder afbeelding of generieke beschrijving
+const LOW_QUALITY_THRESHOLD = 0.7; // Ratio MET goede kwaliteit; onder dit = oranje
+const LOW_QUALITY_MIN_EVENTS = 5;  // Minimaal dit aantal events nodig voor de check
+
+// Patronen die duiden op een gegenereerde/generieke fallback-beschrijving
+const GENERIC_DESCRIPTION_PATTERNS = [
+  /ontdek dit evenement in/i,
+  /evenement in maashorst/i,
+  /evenement in helmond/i,
+  /evenement in vught/i,
+  /klik hier voor meer informatie/i,
+];
+
+function isGenericDescription(desc: string | null | undefined): boolean {
+  if (!desc || desc.length < 80) return true;
+  return GENERIC_DESCRIPTION_PATTERNS.some((re) => re.test(desc));
+}
 
 const DROPOUT_LABELS: Record<string, string> = {
   missing_date: "Geen datum gevonden",
@@ -133,10 +152,31 @@ export async function getSourceManagementData(): Promise<Record<number, SourceFe
     else if (r.severity === "warning") e.warning += Number(r.cnt);
   }
 
+  // Afbeeldings- en beschrijvingskwaliteit per feed: haal imageUrl + description
+  // op voor alle gekoppelde events en bereken ratios.
+  const qualityRows = await db
+    .select({
+      feedId: rssFeedItems.feedId,
+      imageUrl: events.imageUrl,
+      description: events.description,
+    })
+    .from(rssFeedItems)
+    .innerJoin(events, eq(events.id, rssFeedItems.eventId))
+    .where(and(isNotNull(rssFeedItems.eventId), sql`${events.deletedAt} IS NULL`));
+
+  const qualityByFeed: Record<number, { total: number; withImage: number; withGoodDesc: number }> = {};
+  for (const r of qualityRows) {
+    const fid = r.feedId;
+    const q = (qualityByFeed[fid] ??= { total: 0, withImage: 0, withGoodDesc: 0 });
+    q.total++;
+    if (r.imageUrl) q.withImage++;
+    if (!isGenericDescription(r.description)) q.withGoodDesc++;
+  }
+
   const map: Record<number, SourceFeedInfo> = {};
 
   for (const feed of feeds) {
-    const history: FeedSyncHistory[] = await storage.getSyncHistoryForFeed(feed.id, 8);
+    const history: FeedSyncHistory[] = await storage.getSyncHistoryForFeed(feed.id, 12);
     const latest = history[0];
     const lastSuccessful = history.find((h) => h.success !== false && h.syncedAt);
     const activeEvents = activeCounts[feed.id] ?? 0;
@@ -163,6 +203,15 @@ export async function getSourceManagementData(): Promise<Record<number, SourceFe
       .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
+
+    // Bereken afbeeldings- en beschrijvingskwaliteit
+    const qData = qualityByFeed[feed.id];
+    const imageQuality = qData && qData.total >= LOW_QUALITY_MIN_EVENTS
+      ? qData.withImage / qData.total
+      : null;
+    const descriptionQuality = qData && qData.total >= LOW_QUALITY_MIN_EVENTS
+      ? qData.withGoodDesc / qData.total
+      : null;
 
     // Statusbepaling groen/oranje/rood
     let status: SourceStatus;
@@ -209,6 +258,22 @@ export async function getSourceManagementData(): Promise<Record<number, SourceFe
       ) {
         status = "orange";
         reason = `Laag vangstpercentage: slechts ${catchRate}% van ${totalFound} gevonden items geïmporteerd.`;
+      } else if (
+        imageQuality !== null &&
+        imageQuality < LOW_QUALITY_THRESHOLD
+      ) {
+        // >30% events zonder afbeelding
+        status = "orange";
+        const pct = Math.round((1 - imageQuality) * 100);
+        reason = `${pct}% van de events heeft geen afbeelding — contentvolheid onvoldoende.`;
+      } else if (
+        descriptionQuality !== null &&
+        descriptionQuality < LOW_QUALITY_THRESHOLD
+      ) {
+        // >30% events met generieke/ontbrekende beschrijving
+        status = "orange";
+        const pct = Math.round((1 - descriptionQuality) * 100);
+        reason = `${pct}% van de events heeft een ontbrekende of gegenereerde beschrijving.`;
       } else if ((issuesByFeed[feed.id]?.warning ?? 0) > 0) {
         status = "orange";
         reason = `${issuesByFeed[feed.id].warning} openstaande kwaliteitswaarschuwing(en).`;
@@ -241,6 +306,8 @@ export async function getSourceManagementData(): Promise<Record<number, SourceFe
       catchRate,
       dropoutReasons,
       openIssues: issuesByFeed[feed.id] ?? { error: 0, warning: 0 },
+      imageQuality,
+      descriptionQuality,
     };
   }
 

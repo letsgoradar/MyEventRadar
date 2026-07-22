@@ -507,52 +507,40 @@ export function EventDetailPanel({
             </h1>
           </div>
 
-          {/* Gecombineerde event-info: datum + locatie + externe link */}
-          <div className="rounded-xl border border-gray-200 bg-gray-50/60 divide-y divide-gray-200">
-            {/* Datum rij */}
-            <div className="flex items-center gap-3 px-3 py-2.5">
-              <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-sm text-gray-800 flex-1">
+          {/* Gecombineerde event-info: datum + locatie */}
+          <div className="flex gap-2">
+            {/* Datum pill */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 flex-1 min-w-0">
+              <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="text-sm font-medium text-primary truncate">
                 {formatDateTime(event.startTime)}
               </span>
             </div>
 
-            {/* Locatie rij — tikt om kaart te openen */}
-            {event.address && (
+            {/* Locatie pill — tikt om kaart te openen, toont alleen plaatsnaam + km */}
+            {(event.address || event.distance !== undefined) && (
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-100/80 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 active:scale-95 transition-all flex-shrink-0"
                 onClick={() => setShowDetailMap(true)}
+                title="Bekijk op kaart"
               >
-                <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm text-gray-800 truncate block">{event.address}</span>
+                <MapPin className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                <div className="text-left leading-tight">
+                  {event.address && (
+                    <span className="text-xs text-emerald-600 block truncate max-w-[100px]">
+                      {extractCity(event.address)}
+                    </span>
+                  )}
                   {event.distance !== undefined && (
-                    <span className="text-xs text-muted-foreground">{event.distance.toFixed(1)} km bij jou vandaan</span>
+                    <span className="text-sm font-semibold text-emerald-700 whitespace-nowrap">
+                      {event.distance < 1
+                        ? `${Math.round(event.distance * 1000)} m`
+                        : `${event.distance.toFixed(1)} km`}
+                    </span>
                   )}
                 </div>
-                {/* Navigatie-icoon duidelijk apart */}
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); openNavigationApp(); }}
-                  className="h-7 w-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-primary hover:bg-primary/5 flex-shrink-0"
-                  title="Open routebeschrijving"
-                >
-                  <Navigation className="h-3.5 w-3.5" />
-                </button>
-              </button>
-            )}
-
-            {/* Externe link rij — altijd zichtbaar als er een URL is */}
-            {event.externalUrl && (
-              <button
-                type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-primary/5 transition-colors group"
-                onClick={handleOpenExternalPage}
-              >
-                <ExternalLink className="h-4 w-4 text-primary flex-shrink-0" />
-                <span className="text-sm text-primary font-medium flex-1">Bekijk op originele site</span>
-                <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                <Navigation className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
               </button>
             )}
           </div>

@@ -507,54 +507,58 @@ export function EventDetailPanel({
             </h1>
           </div>
 
-          {/* Compact Event Info Cards */}
-          <div className="space-y-3">
-            {/* Date & Time Card - Alleen startdatum */}
-            <Card className="p-3 bg-blue-50 border-blue-200">
-              <div className="flex items-start gap-2">
-                <Calendar className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm">
-                  <div className="font-medium text-blue-900">
-                    {formatDateTime(event.startTime)}
-                  </div>
-                </div>
-              </div>
-            </Card>
+          {/* Gecombineerde event-info: datum + locatie + externe link */}
+          <div className="rounded-xl border border-gray-200 bg-gray-50/60 divide-y divide-gray-200">
+            {/* Datum rij */}
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm text-gray-800 flex-1">
+                {formatDateTime(event.startTime)}
+              </span>
+            </div>
 
-            {/* Location Card - met afstand */}
+            {/* Locatie rij — tikt om kaart te openen */}
             {event.address && (
-              <Card 
-                className="p-3 bg-green-50 border-green-200 cursor-pointer hover:bg-green-100 transition-colors"
+              <button
+                type="button"
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-100/80 transition-colors"
                 onClick={() => setShowDetailMap(true)}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <MapPin className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="text-sm text-green-900 truncate">{event.address}</span>
-                      {event.distance !== undefined && (
-                        <span className="text-xs text-green-700">
-                          {event.distance.toFixed(1)} km afstand
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <Button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openNavigationApp();
-                    }}
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2 text-green-700 hover:bg-green-100 flex-shrink-0"
-                  >
-                    <Navigation className="h-3 w-3" />
-                  </Button>
+                <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-gray-800 truncate block">{event.address}</span>
+                  {event.distance !== undefined && (
+                    <span className="text-xs text-muted-foreground">{event.distance.toFixed(1)} km bij jou vandaan</span>
+                  )}
                 </div>
-              </Card>
+                {/* Navigatie-icoon duidelijk apart */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); openNavigationApp(); }}
+                  className="h-7 w-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-primary hover:bg-primary/5 flex-shrink-0"
+                  title="Open routebeschrijving"
+                >
+                  <Navigation className="h-3.5 w-3.5" />
+                </button>
+              </button>
             )}
 
-            {/* Additional Info */}
+            {/* Externe link rij — altijd zichtbaar als er een URL is */}
+            {event.externalUrl && (
+              <button
+                type="button"
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-primary/5 transition-colors group"
+                onClick={handleOpenExternalPage}
+              >
+                <ExternalLink className="h-4 w-4 text-primary flex-shrink-0" />
+                <span className="text-sm text-primary font-medium flex-1">Bekijk op originele site</span>
+                <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors">→</span>
+              </button>
+            )}
+          </div>
+
+          {/* Extra badges */}
+          {(event.maxParticipants || (event.isPaid && event.price)) && (
             <div className="flex flex-wrap gap-2">
               {event.maxParticipants && (
                 <Badge variant="outline" className="text-xs">
@@ -562,7 +566,6 @@ export function EventDetailPanel({
                   Max {event.maxParticipants} deelnemers
                 </Badge>
               )}
-
               {event.isPaid && event.price && (
                 <Badge variant="outline" className="text-xs text-orange-700 border-orange-300">
                   <Euro className="h-3 w-3 mr-1" />
@@ -570,7 +573,10 @@ export function EventDetailPanel({
                 </Badge>
               )}
             </div>
-          </div>
+          )}
+
+          {/* AD SLOT — subtiele advertentie hier toevoegen (tussen info en beschrijving) */}
+          {/* <AdBanner position="event-detail" /> */}
 
           {/* Compact Description */}
           {event.description && (

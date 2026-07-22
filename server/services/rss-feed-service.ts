@@ -2181,6 +2181,13 @@ export class RssFeedService {
         || $('meta[property="twitter:image"]').attr('content')
         || '';
 
+      // Collect page img tags as secondary fallback (assets.plaece.nl thumb URLs are reliable)
+      const pageThumbs: string[] = [];
+      $('img[src*="assets.plaece.nl/thumb/"], img[src*="visithelmond.nl"], .event-image img, .hero img, main img, article img').each((_, el) => {
+        const src = $(el).attr('src');
+        if (src && src.startsWith('http') && !pageThumbs.includes(src)) pageThumbs.push(src);
+      });
+
       const urlSlug = url.split('/')[5] || url.replace(/[^a-z0-9]/gi, "-");
       
       const jsonLdScripts = $('script[type="application/ld+json"]');
@@ -2210,8 +2217,9 @@ export class RssFeedService {
             } else if (rawImage && typeof rawImage === 'object') {
               imageUrl = rawImage.url || rawImage.contentUrl || '';
             }
-            // Fall back to og:image if JSON-LD has no image
+            // Fall back to og:image, then to page thumbnail if JSON-LD has no image
             if (!imageUrl) imageUrl = ogImage;
+            if (!imageUrl && pageThumbs.length > 0) imageUrl = pageThumbs[0];
 
             const location = event.location;
             const venueName = location?.name || "";
@@ -12293,13 +12301,23 @@ export class RssFeedService {
       
       if (imageUrl) {
         try {
-          const imgResponse = await axios.head(imageUrl, { timeout: 5000 });
-          if (imgResponse.status !== 200) {
+          const imgResponse = await axios.head(imageUrl, { timeout: 8000 });
+          // Only discard on explicit server rejection (4xx/5xx), NOT on network/timeout errors.
+          // A timeout or ECONNRESET could be a transient CDN issue; don't throw away a valid URL.
+          if (imgResponse.status >= 400) {
+            console.log(`[RSS] Image URL rejected (${imgResponse.status}): ${imageUrl}`);
             imageUrl = undefined;
           }
-        } catch {
-          console.log(`[RSS] Image URL not accessible: ${imageUrl}`);
-          imageUrl = undefined;
+        } catch (err: any) {
+          // Distinguish: if the server responded with a 4xx/5xx error, axios still throws.
+          const status = err?.response?.status;
+          if (status && status >= 400) {
+            console.log(`[RSS] Image URL rejected (${status}): ${imageUrl}`);
+            imageUrl = undefined;
+          } else {
+            // Network error / timeout / DNS — keep the URL, we'll show it to the browser
+            console.log(`[RSS] Image URL check skipped (network issue, keeping URL): ${imageUrl}`);
+          }
         }
       }
 

@@ -17,7 +17,7 @@ import { isAdmin, isAuthenticated, attachUser } from "./middleware/auth";
 import { getRequestBrand, filterEventsForBrand } from "./brand";
 import { getBrandCityContent } from "@shared/brands";
 import { db } from "./db";
-import { eq, and, gt, lte, desc } from "drizzle-orm";
+import { eq, and, gt, lte, desc, sql } from "drizzle-orm";
 import { events as eventsTable, rssFeedItems } from "@shared/schema";
 
 // Routes voor profielfoto uploads
@@ -3773,6 +3773,39 @@ Respond with ONLY the search term, nothing else.`,
       });
     } catch (error) {
       console.error('Error in GET /api/admin/rss-feeds/:id/sync-history:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Events van een feed zonder afbeelding (voor kwaliteitsdetectie)
+  app.get("/api/admin/rss-feeds/:id/events-without-image", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) return res.status(400).json({ message: "Invalid feed ID" });
+
+      const rows = await db
+        .select({
+          id: eventsTable.id,
+          title: eventsTable.title,
+          startTime: eventsTable.startTime,
+          category: eventsTable.category,
+          address: eventsTable.address,
+          imageUrl: eventsTable.imageUrl,
+        })
+        .from(eventsTable)
+        .innerJoin(rssFeedItems, eq(rssFeedItems.eventId, eventsTable.id))
+        .where(and(
+          eq(rssFeedItems.feedId, feedId),
+          sql`${eventsTable.imageUrl} IS NULL`,
+          sql`${eventsTable.deletedAt} IS NULL`,
+          sql`${eventsTable.startTime} > NOW()`,
+        ))
+        .orderBy(desc(eventsTable.startTime))
+        .limit(200);
+
+      res.json({ events: rows, total: rows.length });
+    } catch (error) {
+      console.error('Error in GET /api/admin/rss-feeds/:id/events-without-image:', error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

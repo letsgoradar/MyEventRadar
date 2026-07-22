@@ -68,6 +68,48 @@ interface SyncHistoryEntry {
   success: boolean | null;
 }
 
+function NoImageDialog({ feed, onClose }: { feed: { id: number; name: string } | null; onClose: () => void }) {
+  const { data, isLoading } = useQuery<{ events: Array<{ id: number; title: string; startTime: string | null; category: string | null; address: string | null }>; total: number }>({
+    queryKey: ['/api/admin/rss-feeds', feed?.id, 'events-without-image'],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/rss-feeds/${feed!.id}/events-without-image`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Kon events niet laden');
+      return res.json();
+    },
+    enabled: !!feed,
+    staleTime: 60000,
+  });
+
+  return (
+    <Dialog open={!!feed} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Toekomstige events zonder afbeelding</DialogTitle>
+          <DialogDescription>{feed?.name}{data ? ` · ${data.total} events` : ''}</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-y-auto space-y-1 pr-1">
+          {isLoading ? (
+            <div className="text-sm text-muted-foreground flex items-center gap-2 py-4"><Loader2 className="w-4 h-4 animate-spin" /> Laden...</div>
+          ) : !data || data.events.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-4">Geen toekomstige events zonder afbeelding gevonden.</div>
+          ) : (
+            data.events.map((ev) => (
+              <a key={ev.id} href={`/event/${ev.id}`} target="_blank" rel="noopener noreferrer"
+                className="block border rounded-md px-3 py-2 hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-sm truncate">{ev.title}</span>
+                  {ev.startTime && <span className="text-xs text-muted-foreground shrink-0">{format(new Date(ev.startTime), 'd MMM yyyy', { locale: nl })}</span>}
+                </div>
+                {ev.address && <div className="text-xs text-muted-foreground mt-0.5 truncate">{ev.address}</div>}
+              </a>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function FeedDetailPanel({ feed, info, platformFamilies, onPlatformChange }: {
   feed: { id: number; name: string; url: string };
   info?: {
@@ -81,6 +123,8 @@ function FeedDetailPanel({ feed, info, platformFamilies, onPlatformChange }: {
   platformFamilies: Record<string, { label: string; description: string }>;
   onPlatformChange: (platform: string) => void;
 }) {
+  const [noImageDialogOpen, setNoImageDialogOpen] = useState(false);
+
   const { data: syncData } = useQuery<{ history: SyncHistoryEntry[]; avgDurationMs: number | null }>({
     queryKey: ['/api/admin/rss-feeds', feed.id, 'sync-history'],
     queryFn: async () => {
@@ -123,14 +167,20 @@ function FeedDetailPanel({ feed, info, platformFamilies, onPlatformChange }: {
       )}
 
       {info && (info.imageQuality !== null || info.descriptionQuality !== null) && (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
           {info.imageQuality !== null && (
-            <div className="flex items-center gap-1.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setNoImageDialogOpen(true)}
+              className="flex items-center gap-1.5 text-xs hover:underline"
+              title="Klik om events zonder afbeelding te bekijken"
+            >
               <span className="text-muted-foreground">Afbeeldingen:</span>
               <span className={`font-semibold ${info.imageQuality < 0.7 ? 'text-orange-600' : 'text-green-600'}`}>
                 {Math.round(info.imageQuality * 100)}%
               </span>
-            </div>
+              {info.imageQuality < 1 && <span className="text-muted-foreground">↗</span>}
+            </button>
           )}
           {info.descriptionQuality !== null && (
             <div className="flex items-center gap-1.5 text-xs">
@@ -142,6 +192,10 @@ function FeedDetailPanel({ feed, info, platformFamilies, onPlatformChange }: {
           )}
         </div>
       )}
+      <NoImageDialog
+        feed={noImageDialogOpen ? { id: feed.id, name: feed.name } : null}
+        onClose={() => setNoImageDialogOpen(false)}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <Label className="text-xs">Platform-familie:</Label>
@@ -409,6 +463,8 @@ interface SourceFeedInfo {
   catchRate: number | null;
   dropoutReasons: Array<{ reason: string; count: number }>;
   openIssues: { error: number; warning: number };
+  imageQuality: number | null;
+  descriptionQuality: number | null;
 }
 
 interface CoverageMunicipality {

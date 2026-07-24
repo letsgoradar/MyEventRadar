@@ -6802,6 +6802,185 @@ export class RssFeedService {
   }
 
   /**
+   * Scraper for visitzuidlimburg.nl — VVV Visit Zuid-Limburg (province-wide).
+   * Coverage: Maastricht, Heerlen, Sittard-Geleen, Valkenburg, Gulpen, Vaals,
+   * Kerkrade, Landgraaf, Simpelveld, Brunssum, Meerssen and all other ZL municipalities.
+   *
+   * Strategy: reads the static sitemap.xml to get all ~300 event URLs
+   * (/agenda/detail/{slug}/{id}/), then parses JSON-LD from each detail page.
+   *
+   * Detail page (MXMS CMS):
+   *   - JSON-LD type=Event: name, description (HTML), startDate, endDate (UTC ISO),
+   *     location.name ("Street<br>City" or "Venue<br>City"), image[] (relative MXMS paths)
+   *   - Dates are midnight UTC (= date-only events, no specific time given)
+   *   - Image paths relative: /mxms/media/{uuid}?size=600x400 → prepend base URL
+   *
+   * GPS: geocoded from location parts (no coordinates in HTML or JSON-LD).
+   * ExternalID: visitzuidlimburg-{numeric-id-from-url}
+   */
+  static async scrapeVisitZuidLimburg(): Promise<FeedParseResult> {
+    const baseUrl = 'https://www.visitzuidlimburg.nl';
+    const BATCH = 6;
+
+    console.log('[RSS] Visit Zuid-Limburg: fetching sitemap...');
+
+    // 1. Get all event URLs from sitemap
+    let sitemapXml: string;
+    try {
+      const resp = await axios.get(`${baseUrl}/sitemap.xml`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        timeout: 20000,
+      });
+      sitemapXml = resp.data;
+    } catch (err: any) {
+      return { items: [], feedType: 'scraper', error: `Sitemap fetch failed: ${err.message}` };
+    }
+
+    // Extract all /agenda/detail/ URLs (pattern: /agenda/detail/{slug}/{id}/)
+    const urlPattern = /https?:\/\/www\.visitzuidlimburg\.nl\/agenda\/detail\/([^/]+)\/(\d+)\//g;
+    const eventUrls: string[] = [];
+    const seen = new Set<string>();
+    let match: RegExpExecArray | null;
+    while ((match = urlPattern.exec(sitemapXml)) !== null) {
+      const url = match[0];
+      if (!seen.has(url)) { seen.add(url); eventUrls.push(url); }
+    }
+
+    console.log(`[RSS] Visit Zuid-Limburg: ${eventUrls.length} event URLs found in sitemap`);
+    if (eventUrls.length === 0) {
+      return { items: [], feedType: 'scraper', error: 'Geen event-URLs in sitemap gevonden' };
+    }
+
+    // 2. Fetch detail pages in batches
+    const items: ParsedFeedItem[] = [];
+    const now = new Date();
+
+    for (let i = 0; i < eventUrls.length; i += BATCH) {
+      const batch = eventUrls.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        batch.map(async (url) => {
+          try {
+            const resp = await axios.get(url, {
+              headers: { 'User-Agent': 'Mozilla/5.0' },
+              timeout: 18000,
+            });
+            const html: string = resp.data;
+            const $d = cheerio.load(html);
+
+            // Find the Event JSON-LD (there are 2 ld+json blocks; pick type=Event)
+            let eventData: any = null;
+            $d('script[type="application/ld+json"]').each((_, el) => {
+              try {
+                const parsed = JSON.parse($d(el).html() || '');
+                if (parsed['@type'] === 'Event') eventData = parsed;
+              } catch {}
+            });
+            if (!eventData || !eventData.name || !eventData.startDate) return null;
+
+            const title = eventData.name.trim();
+            if (!title) return null;
+
+            // Dates: UTC ISO "2026-09-26T00:00:00Z" — midnight UTC = date-only
+            // Use UTC date parts to create a local midnight date (avoids ±1 day DST shift)
+            const parseUtcDate = (iso: string): Date | undefined => {
+              try {
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return undefined;
+                // Rebuild as local midnight using UTC components
+                return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0);
+              } catch { return undefined; }
+            };
+
+            const startTime = parseUtcDate(eventData.startDate);
+            if (!startTime || startTime < now) return null;
+
+            const endTime = eventData.endDate ? parseUtcDate(eventData.endDate) : undefined;
+            // Sanity check: endTime must be >= startTime
+            const validEndTime = endTime && endTime >= startTime ? endTime : undefined;
+
+            // Location: "Street or VenueName<br>City" → split on <br>
+            const locationRaw: string = eventData.location?.name || '';
+            const locationParts = locationRaw.split(/<br\s*\/?>/i).map((p: string) => p.trim()).filter(Boolean);
+            const streetOrVenue = locationParts[0] || '';
+            const city = locationParts[locationParts.length - 1] || 'Zuid-Limburg';
+
+            // Skip events with no real location info
+            if (!streetOrVenue && city === 'Zuid-Limburg') return null;
+
+            // GPS: geocode from street + city or just city
+            let lat: number | undefined;
+            let lng: number | undefined;
+            const isGenericLocation = /diverse\s+locatie|meerdere\s+locatie|Limburg/i.test(streetOrVenue);
+            if (!isGenericLocation && streetOrVenue && city) {
+              try {
+                const geoResult = await RssFeedService.geocodeAddress(
+                  `${streetOrVenue}, ${city}, Netherlands`
+                );
+                if (geoResult && geoResult.lat >= 50.5 && geoResult.lat <= 51.2) {
+                  lat = geoResult.lat;
+                  lng = geoResult.lng;
+                }
+              } catch {}
+            }
+            if (lat === undefined && city && city !== 'Zuid-Limburg') {
+              try {
+                const geoResult = await RssFeedService.geocodeWithMunicipalityValidation(city, city);
+                if (geoResult) { lat = geoResult.lat; lng = geoResult.lng; }
+              } catch {}
+            }
+
+            // Image: first item in image array, relative path → absolute URL
+            let imageUrl: string | undefined;
+            if (Array.isArray(eventData.image) && eventData.image.length > 0) {
+              const imgPath: string = eventData.image[0];
+              imageUrl = imgPath.startsWith('http') ? imgPath : `${baseUrl}${imgPath}`;
+              // Upgrade to larger size for better quality
+              imageUrl = imageUrl.replace(/size=\d+x\d+/, 'size=800x500');
+            }
+
+            // Description: strip HTML tags from rich text
+            const descHtml: string = eventData.description || '';
+            const descText = descHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+            // ExternalID: extract numeric ID from URL
+            const idMatch = url.match(/\/(\d+)\/?$/);
+            const externalId = `visitzuidlimburg-${idMatch ? idMatch[1] : url.split('/').filter(Boolean).pop()}`;
+
+            return {
+              title,
+              description: descText || undefined,
+              link: url,
+              startTime,
+              endTime: validEndTime,
+              latitude: lat !== undefined ? String(lat) : undefined,
+              longitude: lng !== undefined ? String(lng) : undefined,
+              location: isGenericLocation ? city : (streetOrVenue || city),
+              address: locationParts.join(', ') || city,
+              imageUrl,
+              externalId,
+              municipality: city !== 'Zuid-Limburg' ? city : undefined,
+            } as ParsedFeedItem;
+          } catch (err: any) {
+            console.warn(`[RSS] Visit Zuid-Limburg detail failed (${url}): ${err.message}`);
+            return null;
+          }
+        })
+      );
+
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) items.push(r.value);
+      }
+
+      if (i + BATCH < eventUrls.length) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+      }
+    }
+
+    console.log(`[RSS] Visit Zuid-Limburg: ${items.length} valid future events parsed`);
+    return { success: true, items, feedType: 'scraper', pagesProcessed: Math.ceil(eventUrls.length / BATCH) };
+  }
+
+  /**
    * Generic scraper for all Uit in de Regio municipalities.
    * Uses the EventON native REST API (/wp-json/eventon/events) which returns
    * complete event data (timestamps, GPS, images, descriptions) in a single request.
@@ -11373,6 +11552,7 @@ export class RssFeedService {
       if (url.includes("uitinalmelo")) return this.scrapeUitInAlmelo();
       if (url.includes("visitzwolle")) return this.scrapeVisitZwolle();
       if (url.includes("hartvanlimburg")) return this.scrapeHartVanLimburg();
+      if (url.includes("visitzuidlimburg")) return this.scrapeVisitZuidLimburg();
       if (url.includes("denhaag.com")) return this.scrapeDenHaagAgenda();
       if (url.includes("indelft.nl")) return this.scrapeInDelft();
       if (url.includes("visitleiden.nl")) return this.scrapeVisitLeiden();

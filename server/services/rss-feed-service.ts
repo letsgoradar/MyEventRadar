@@ -6981,6 +6981,214 @@ export class RssFeedService {
   }
 
   /**
+   * Scraper for friesland.nl — VVV Friesland (province-wide uitagenda).
+   * Coverage: Leeuwarden, Sneek, Heerenveen, Harlingen, Franeker, Drachten, Bolsward,
+   * Dokkum and all other Frisian municipalities.
+   *
+   * Strategy:
+   *   1. Paginated listing pages (/nl/plannen/evenementen/agenda?page=N, max 30 pages)
+   *      each with 18 event links → up to ~540 event URLs
+   *   2. Detail pages: rich JSON-LD type=Event (Plaece/ODP platform):
+   *      - location.geo: GPS coordinates DIRECTLY available (no geocoding needed)
+   *      - location.address: full PostalAddress (street, postal, city)
+   *      - eventSchedule[]: specific occurrence dates/times (local, no tz suffix)
+   *        → prefer next upcoming occurrence over top-level startDate
+   *      - top-level startDate: ISO with +02:00 tz (use new Date() directly)
+   *      - image[]: full URLs on assets.plaece.nl
+   *
+   * Recurrence: if eventSchedule has ≥2 future occurrences, detect weekly/monthly pattern.
+   * ExternalID: "friesland-{numeric-id-from-url}"
+   */
+  static async scrapeFriesland(): Promise<FeedParseResult> {
+    const baseUrl = 'https://www.friesland.nl';
+    const listingBase = `${baseUrl}/nl/plannen/evenementen/agenda`;
+    const MAX_PAGES = 30;
+    const BATCH = 8;
+
+    console.log('[RSS] Friesland: collecting event URLs from listing pages...');
+
+    // 1. Collect all unique event URLs from paginated listing
+    const eventUrls: string[] = [];
+    const seen = new Set<string>();
+
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const pageUrl = page === 1 ? listingBase : `${listingBase}?page=${page}`;
+      try {
+        const resp = await axios.get(pageUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          timeout: 20000,
+        });
+        const $ = cheerio.load(resp.data);
+        let foundOnPage = 0;
+        $('a[href^="/nl/plannen/evenementen/agenda/"], a[href^="/agenda/"]').each((_, el) => {
+          const href = $(el).attr('href') || '';
+          // Pattern: /agenda/{id}/{slug} or /nl/plannen/evenementen/agenda/{id}/{slug}
+          const idMatch = href.match(/\/agenda\/(\d+)\/([^"?#]+)/);
+          if (!idMatch) return;
+          const full = `${baseUrl}/nl/plannen/evenementen/agenda/${idMatch[1]}/${idMatch[2]}`;
+          if (!seen.has(full)) { seen.add(full); eventUrls.push(full); foundOnPage++; }
+        });
+        if (foundOnPage === 0) {
+          console.log(`[RSS] Friesland: no new events on page ${page}, stopping`);
+          break;
+        }
+        console.log(`[RSS] Friesland: page ${page} → ${foundOnPage} new events (total: ${eventUrls.length})`);
+      } catch (err: any) {
+        console.warn(`[RSS] Friesland: listing page ${page} failed: ${err.message}`);
+        if (page === 1) return { items: [], feedType: 'scraper', error: err.message };
+        break;
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    if (eventUrls.length === 0) {
+      return { items: [], feedType: 'scraper', error: 'Geen event-URLs gevonden' };
+    }
+    console.log(`[RSS] Friesland: ${eventUrls.length} total event URLs, fetching detail pages...`);
+
+    // 2. Fetch detail pages in batches
+    const items: ParsedFeedItem[] = [];
+    const now = new Date();
+
+    for (let i = 0; i < eventUrls.length; i += BATCH) {
+      const batch = eventUrls.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        batch.map(async (url) => {
+          try {
+            const resp = await axios.get(url, {
+              headers: { 'User-Agent': 'Mozilla/5.0' },
+              timeout: 18000,
+            });
+            const html: string = resp.data;
+            const $d = cheerio.load(html);
+
+            // Parse JSON-LD — friesland.nl wraps Event in an array
+            let eventData: any = null;
+            $d('script[type="application/ld+json"]').each((_, el) => {
+              try {
+                const raw = $d(el).html() || '';
+                const parsed = JSON.parse(raw);
+                // May be array or single object
+                const candidates = Array.isArray(parsed) ? parsed : [parsed];
+                for (const c of candidates) {
+                  if (c['@type'] === 'Event') { eventData = c; break; }
+                }
+              } catch {}
+            });
+            if (!eventData || !eventData.name) return null;
+
+            const title = eventData.name.trim();
+            if (!title) return null;
+
+            // --- Dates: prefer eventSchedule for specific occurrence times ---
+            let startTime: Date | undefined;
+            let endTime: Date | undefined;
+            let recurrence: string | undefined;
+
+            const schedule: any[] = eventData.eventSchedule || [];
+            if (schedule.length > 0) {
+              // eventSchedule dates have NO timezone suffix → use parseLocalDateTime
+              const futureSlots = schedule
+                .map((s: any) => ({
+                  start: s.startDate ? parseLocalDateTime(s.startDate) : undefined,
+                  end: s.endDate ? parseLocalDateTime(s.endDate) : undefined,
+                }))
+                .filter(s => s.start && s.start > now)
+                .sort((a, b) => a.start!.getTime() - b.start!.getTime());
+
+              if (futureSlots.length > 0) {
+                startTime = futureSlots[0].start;
+                endTime = futureSlots[0].end;
+
+                // Detect recurrence pattern from 2+ future slots
+                if (futureSlots.length >= 2) {
+                  const gapMs = futureSlots[1].start!.getTime() - futureSlots[0].start!.getTime();
+                  const gapDays = gapMs / (1000 * 60 * 60 * 24);
+                  if (gapDays <= 1.5) recurrence = 'daily';
+                  else if (gapDays >= 5.5 && gapDays <= 8.5) recurrence = 'weekly';
+                  else if (gapDays >= 25 && gapDays <= 36) recurrence = 'monthly';
+                }
+              }
+            } else if (eventData.startDate) {
+              // No schedule — top-level startDate has +02:00 tz, use new Date() directly
+              try { startTime = new Date(eventData.startDate); } catch {}
+              if (eventData.endDate) {
+                try {
+                  const ed = new Date(eventData.endDate);
+                  if (!isNaN(ed.getTime()) && ed > (startTime || new Date(0))) endTime = ed;
+                } catch {}
+              }
+            }
+
+            if (!startTime || isNaN(startTime.getTime()) || startTime < now) return null;
+
+            // --- GPS: directly from location.geo (no geocoding needed) ---
+            const geo = eventData.location?.geo;
+            const lat = geo?.latitude as number | undefined;
+            const lng = geo?.longitude as number | undefined;
+            const validGps = lat !== undefined && lng !== undefined &&
+              lat >= 52.5 && lat <= 53.7 && lng >= 4.5 && lng <= 6.5;
+
+            // --- Address ---
+            const addr = eventData.location?.address;
+            const street: string = addr?.streetAddress || '';
+            const postal: string = addr?.postalCode || '';
+            const city: string = addr?.addressLocality || 'Friesland';
+            const address = [street, postal, city].filter(Boolean).join(', ');
+
+            // --- Image: first item, full URL ---
+            let imageUrl: string | undefined;
+            if (Array.isArray(eventData.image) && eventData.image.length > 0) {
+              const img: string = eventData.image[0];
+              imageUrl = img.startsWith('http') ? img : `${baseUrl}${img}`;
+            }
+
+            // --- Description ---
+            const descRaw: string = eventData.description || '';
+            const description = descRaw
+              ? descRaw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+              : undefined;
+
+            // --- ExternalID ---
+            const idMatch = url.match(/\/agenda\/(\d+)\//);
+            const externalId = `friesland-${idMatch ? idMatch[1] : url.split('/').filter(Boolean).pop()}`;
+
+            return {
+              title,
+              description,
+              link: url,
+              startTime,
+              endTime,
+              latitude: validGps ? String(lat) : undefined,
+              longitude: validGps ? String(lng) : undefined,
+              location: street || city,
+              address: address || city,
+              imageUrl,
+              externalId,
+              municipality: city !== 'Friesland' ? city : undefined,
+              ...(recurrence ? { recurrence } : {}),
+            } as ParsedFeedItem;
+          } catch (err: any) {
+            console.warn(`[RSS] Friesland detail failed (${url}): ${err.message}`);
+            return null;
+          }
+        })
+      );
+
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) items.push(r.value);
+      }
+
+      if (i + BATCH < eventUrls.length) {
+        await new Promise(r => setTimeout(r, 350));
+      }
+    }
+
+    console.log(`[RSS] Friesland: ${items.length} valid future events parsed`);
+    return { success: true, items, feedType: 'scraper', pagesProcessed: MAX_PAGES };
+  }
+
+  /**
    * Generic scraper for all Uit in de Regio municipalities.
    * Uses the EventON native REST API (/wp-json/eventon/events) which returns
    * complete event data (timestamps, GPS, images, descriptions) in a single request.
@@ -11553,6 +11761,7 @@ export class RssFeedService {
       if (url.includes("visitzwolle")) return this.scrapeVisitZwolle();
       if (url.includes("hartvanlimburg")) return this.scrapeHartVanLimburg();
       if (url.includes("visitzuidlimburg")) return this.scrapeVisitZuidLimburg();
+      if (url.includes("friesland.nl")) return this.scrapeFriesland();
       if (url.includes("denhaag.com")) return this.scrapeDenHaagAgenda();
       if (url.includes("indelft.nl")) return this.scrapeInDelft();
       if (url.includes("visitleiden.nl")) return this.scrapeVisitLeiden();

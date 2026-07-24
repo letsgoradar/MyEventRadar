@@ -471,6 +471,7 @@ interface RssFeed {
   createdAt: string;
   aiExtractionProfileId: number | null;
   platform: string | null;
+  scope: string | null;
 }
 
 interface SourceFeedInfo {
@@ -527,6 +528,9 @@ export default function RssFeedsPage() {
   const [editingUrlFeedId, setEditingUrlFeedId] = useState<number | null>(null);
   const [editingUrlValue, setEditingUrlValue] = useState<string>('');
   
+  const [scopeFilter, setScopeFilter] = useState<string>('all');
+  const [feedSearch, setFeedSearch] = useState<string>('');
+
   const [newFeed, setNewFeed] = useState({
     name: '',
     url: '',
@@ -536,6 +540,7 @@ export default function RssFeedsPage() {
     defaultLatitude: '',
     defaultLongitude: '',
     municipality: '',
+    scope: 'gemeente',
     updateFrequencyMinutes: 60,
     autoCreateEvents: true,
   });
@@ -1157,6 +1162,21 @@ export default function RssFeedsPage() {
     }
   }, [syncProgress?.logs]);
 
+  const getScopeBadge = (scope: string | null) => {
+    switch (scope) {
+      case 'landelijk':
+        return <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-300 text-xs">🌍 Landelijk</Badge>;
+      case 'provincie':
+        return <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">🗺️ Provincie</Badge>;
+      case 'gemeente':
+        return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">🏘️ Gemeente</Badge>;
+      case 'venue':
+        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">🏛️ Venue</Badge>;
+      default:
+        return null;
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
@@ -1312,7 +1332,25 @@ export default function RssFeedsPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="municipality">Gemeente <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="scope">Bereik</Label>
+                      <Select
+                        value={newFeed.scope}
+                        onValueChange={(value) => setNewFeed({ ...newFeed, scope: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Kies bereik" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="gemeente">🏘️ Gemeente</SelectItem>
+                          <SelectItem value="provincie">🗺️ Provincie</SelectItem>
+                          <SelectItem value="landelijk">🌍 Landelijk</SelectItem>
+                          <SelectItem value="venue">🏛️ Venue</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Welk geografisch niveau dekt deze feed?</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="municipality">Gemeente <span className="text-muted-foreground text-xs">(optioneel bij provincie/landelijk)</span></Label>
                       <Input
                         id="municipality"
                         value={newFeed.municipality}
@@ -1369,7 +1407,7 @@ export default function RssFeedsPage() {
                     </Button>
                     <Button 
                       onClick={() => createFeedMutation.mutate(newFeed)}
-                      disabled={!newFeed.name || !newFeed.url || !newFeed.municipality || createFeedMutation.isPending}
+                      disabled={!newFeed.name || !newFeed.url || (newFeed.scope === 'gemeente' && !newFeed.municipality) || createFeedMutation.isPending}
                       data-testid="button-save-feed"
                     >
                       Toevoegen
@@ -1878,8 +1916,42 @@ export default function RssFeedsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Scope filter + search bar */}
+                <div className="flex flex-wrap gap-2 mb-4 items-center">
+                  <Input
+                    placeholder="Zoek op naam of gemeente..."
+                    value={feedSearch}
+                    onChange={(e) => setFeedSearch(e.target.value)}
+                    className="max-w-xs h-8 text-sm"
+                  />
+                  {(['all', 'landelijk', 'provincie', 'gemeente', 'venue'] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setScopeFilter(s)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${scopeFilter === s
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
+                    >
+                      {s === 'all' ? 'Alle' : s === 'landelijk' ? '🌍 Landelijk' : s === 'provincie' ? '🗺️ Provincie' : s === 'gemeente' ? '🏘️ Gemeente' : '🏛️ Venue'}
+                      {s !== 'all' && (
+                        <span className="ml-1 opacity-70">
+                          ({feeds.filter(f => (f.scope || 'gemeente') === s).length})
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
                 {Object.entries(
-                  feeds.reduce((acc, feed) => {
+                  feeds
+                    .filter(feed => {
+                      if (scopeFilter !== 'all' && (feed.scope || 'gemeente') !== scopeFilter) return false;
+                      if (feedSearch) {
+                        const q = feedSearch.toLowerCase();
+                        return feed.name.toLowerCase().includes(q) || (feed.municipality || '').toLowerCase().includes(q) || (feed.province || '').toLowerCase().includes(q);
+                      }
+                      return true;
+                    })
+                    .reduce((acc, feed) => {
                     const platform = sourceInfo[feed.id]?.platform || feed.platform || 'maatwerk';
                     if (!acc[platform]) acc[platform] = [];
                     acc[platform].push(feed);
@@ -2002,6 +2074,7 @@ export default function RssFeedsPage() {
                             <Badge variant="outline" className={feed.feedType === 'scraper' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-blue-50 text-blue-700 border-blue-200'}>
                               {feed.feedType === 'scraper' ? 'Scraper' : 'RSS'}
                             </Badge>
+                            {getScopeBadge(feed.scope)}
                             {(() => {
                               const active = feedOverview[feed.id]?.totalActive || 0;
                               const hasError = feed.status === 'error';

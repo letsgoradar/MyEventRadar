@@ -336,6 +336,9 @@ export const rssFeeds = pgTable("rss_feeds", {
   itemsImported: integer("items_imported").default(0),
   autoCreateEvents: boolean("auto_create_events").default(true),
   aiExtractionProfileId: integer("ai_extraction_profile_id"),
+  // Bereik van de feed: landelijk / provincie / gemeente / venue
+  // Geeft aan welk geografisch niveau de feed dekt.
+  scope: text("scope"),
   // Platformfamilie (bijv. 'uitdatabank', 'plaece', 'uitinderegio', 'umbraco', 'rss', 'maatwerk').
   // Automatisch geclassificeerd; handmatig aanpasbaar in de admin.
   platform: text("platform"),

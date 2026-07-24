@@ -2470,7 +2470,7 @@ Respond with ONLY the search term, nothing else.`,
 
   app.post("/api/admin/rss-feeds", isAdmin, async (req, res) => {
     try {
-      const { name, url, feedType, defaultCategory, defaultLatitude, defaultLongitude, defaultAddress, updateFrequencyMinutes, autoCreateEvents, municipality, province, fieldMappings, scraperConfig } = req.body;
+      const { name, url, feedType, defaultCategory, defaultLatitude, defaultLongitude, defaultAddress, updateFrequencyMinutes, autoCreateEvents, municipality, province, fieldMappings, scraperConfig, scope } = req.body;
       
       if (!name || !url || !defaultCategory) {
         return res.status(400).json({ message: "Name, URL, and default category are required" });
@@ -2491,6 +2491,7 @@ Respond with ONLY the search term, nothing else.`,
         province: province || null,
         fieldMappings: fieldMappings || null,
         scraperConfig: scraperConfig || null,
+        scope: scope || null,
       });
 
       // Platform-familie automatisch classificeren op basis van feedType/URL

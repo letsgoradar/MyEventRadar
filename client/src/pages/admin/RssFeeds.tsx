@@ -124,6 +124,18 @@ function FeedDetailPanel({ feed, info, platformFamilies, onPlatformChange }: {
   onPlatformChange: (platform: string) => void;
 }) {
   const [noImageDialogOpen, setNoImageDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  const mergeMultidayMutation = useMutation({
+    mutationFn: () => apiRequest(`/api/admin/rss-feeds/${feed.id}/merge-multiday`, { method: 'POST' }),
+    onSuccess: (data: any) => {
+      toast({ title: 'Samenvoegen voltooid', description: data.message });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rss-feeds', feed.id] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Fout', description: error.message || 'Samenvoegen mislukt', variant: 'destructive' });
+    },
+  });
 
   const { data: syncData } = useQuery<{ history: SyncHistoryEntry[]; avgDurationMs: number | null }>({
     queryKey: ['/api/admin/rss-feeds', feed.id, 'sync-history'],
@@ -258,6 +270,21 @@ function FeedDetailPanel({ feed, info, platformFamilies, onPlatformChange }: {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-1">
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs h-7"
+          onClick={() => mergeMultidayMutation.mutate()}
+          disabled={mergeMultidayMutation.isPending}
+          title="Voeg dagelijkse events met dezelfde naam en locatie samen tot één meerdaags event"
+        >
+          {mergeMultidayMutation.isPending
+            ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Samenvoegen...</>
+            : 'Meerdaagse events samenvoegen'}
+        </Button>
       </div>
     </div>
   );

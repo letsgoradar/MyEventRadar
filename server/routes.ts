@@ -17,8 +17,8 @@ import { isAdmin, isAuthenticated, attachUser } from "./middleware/auth";
 import { getRequestBrand, filterEventsForBrand } from "./brand";
 import { getBrandCityContent } from "@shared/brands";
 import { db } from "./db";
-import { eq, and, gt, lte, desc, sql } from "drizzle-orm";
-import { events as eventsTable, rssFeedItems } from "@shared/schema";
+import { eq, and, gt, lte, desc, sql, inArray, isNull, isNotNull } from "drizzle-orm";
+import { events as eventsTable, rssFeedItems, favorites, participants } from "@shared/schema";
 
 // Routes voor profielfoto uploads
 import profilePhotoRoutes from "./routes/profile-photo";
@@ -2668,6 +2668,113 @@ Respond with ONLY the search term, nothing else.`,
     } catch (error: any) {
       console.error('Error in POST /api/admin/rss-feeds/:id/rescue-dates:', error);
       res.status(500).json({ message: "Fout bij AI datum-rescue" });
+    }
+  });
+
+  app.post("/api/admin/rss-feeds/:id/merge-multiday", isAdmin, async (req, res) => {
+    try {
+      const feedId = parseInt(req.params.id);
+      if (isNaN(feedId)) {
+        return res.status(400).json({ message: "Ongeldig feed ID" });
+      }
+
+      const normalizeTitle = (title: string) =>
+        title.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+
+      const linkedItems = await db
+        .select({ eventId: rssFeedItems.eventId })
+        .from(rssFeedItems)
+        .where(and(eq(rssFeedItems.feedId, feedId), isNotNull(rssFeedItems.eventId)));
+
+      const eventIds = linkedItems
+        .map(fi => fi.eventId)
+        .filter((id): id is number => id !== null);
+
+      if (eventIds.length === 0) {
+        return res.json({ message: "Geen events gevonden voor deze feed", mergedGroups: 0, deletedEvents: 0 });
+      }
+
+      const feedEvents = await db
+        .select()
+        .from(eventsTable)
+        .where(and(inArray(eventsTable.id, eventIds), isNull(eventsTable.deletedAt)));
+
+      const groups = new Map<string, typeof feedEvents>();
+      for (const event of feedEvents) {
+        const lat = event.latitude ? Math.round(parseFloat(String(event.latitude)) * 100) / 100 : 0;
+        const lng = event.longitude ? Math.round(parseFloat(String(event.longitude)) * 100) / 100 : 0;
+        if (lat === 0 || lng === 0 || Math.abs(lat) < 1 || Math.abs(lng) < 1) continue;
+        const key = `${normalizeTitle(event.title)}|${lat},${lng}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(event);
+      }
+
+      let mergedGroups = 0;
+      let deletedEvents = 0;
+
+      for (const [_key, group] of Array.from(groups.entries())) {
+        if (group.length <= 1) continue;
+
+        const sorted = group.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+        const dates = sorted.map(e => new Date(e.startTime));
+
+        let contiguous = true;
+        for (let i = 1; i < dates.length; i++) {
+          const diffDays = (dates[i].getTime() - dates[i - 1].getTime()) / (1000 * 60 * 60 * 24);
+          if (diffDays > 2) { contiguous = false; break; }
+        }
+        if (!contiguous) continue;
+
+        const survivor = sorted[0];
+        const duplicates = sorted.slice(1);
+        const latestDate = dates[dates.length - 1];
+        const currentEnd = survivor.endTime ? new Date(survivor.endTime) : null;
+        const newEndTime = currentEnd && currentEnd > latestDate ? currentEnd : latestDate;
+
+        await db.update(eventsTable)
+          .set({ endTime: newEndTime })
+          .where(eq(eventsTable.id, survivor.id));
+
+        const duplicateIds = duplicates.map(d => d.id);
+
+        for (const dupId of duplicateIds) {
+          const dupFavs = await db.select().from(favorites).where(eq(favorites.eventId, dupId));
+          for (const fav of dupFavs) {
+            try {
+              await db.insert(favorites).values({ userId: fav.userId, eventId: survivor.id });
+            } catch { }
+          }
+          const dupParts = await db.select().from(participants).where(eq(participants.eventId, dupId));
+          for (const part of dupParts) {
+            const existing = await db.select().from(participants)
+              .where(and(eq(participants.userId, part.userId), eq(participants.eventId, survivor.id)));
+            if (existing.length === 0) {
+              await db.insert(participants).values({ userId: part.userId, eventId: survivor.id, status: part.status });
+            }
+          }
+        }
+
+        await db.update(rssFeedItems)
+          .set({ eventId: survivor.id })
+          .where(and(eq(rssFeedItems.feedId, feedId), inArray(rssFeedItems.eventId, duplicateIds)));
+
+        await db.update(eventsTable)
+          .set({ deletedAt: new Date() })
+          .where(inArray(eventsTable.id, duplicateIds));
+
+        mergedGroups++;
+        deletedEvents += duplicates.length;
+        console.log(`[MergeMultiday] Merged ${group.length} events into 1: "${survivor.title}" (feed ${feedId}), deleted IDs: ${duplicateIds.join(',')}`);
+      }
+
+      res.json({
+        message: `Samenvoegen voltooid: ${mergedGroups} groep${mergedGroups !== 1 ? 'en' : ''} samengevoegd, ${deletedEvents} dubbele event${deletedEvents !== 1 ? 's' : ''} verwijderd`,
+        mergedGroups,
+        deletedEvents
+      });
+    } catch (error: any) {
+      console.error('Error in POST /api/admin/rss-feeds/:id/merge-multiday:', error);
+      res.status(500).json({ message: "Fout bij samenvoegen van meerdaagse events" });
     }
   });
 

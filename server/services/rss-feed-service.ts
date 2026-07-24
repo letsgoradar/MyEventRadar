@@ -7373,6 +7373,186 @@ export class RssFeedService {
   }
 
   /**
+   * Scraper for drenthe.nl — same Plaece/ODP platform as friesland.nl / visitgroningen.nl.
+   * Listing: /evenementen-activiteiten/evenementen (paginated), detail: /evenementen-activiteiten/{id}/{slug}
+   * JSON-LD has eventSchedule[], GPS in location.geo, venue in location.name.
+   */
+  static async scrapeDrenthe(): Promise<FeedParseResult> {
+    const baseUrl = 'https://www.drenthe.nl';
+    const listingBase = `${baseUrl}/evenementen-activiteiten/evenementen`;
+    const MAX_PAGES = 30;
+    const BATCH = 8;
+
+    console.log('[RSS] Drenthe: collecting event URLs from listing pages...');
+
+    const eventUrls: string[] = [];
+    const seen = new Set<string>();
+
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const pageUrl = page === 1 ? listingBase : `${listingBase}?page=${page}`;
+      try {
+        const resp = await axios.get(pageUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          timeout: 20000,
+        });
+        const $ = cheerio.load(resp.data);
+        let foundOnPage = 0;
+        $('a[href*="/evenementen-activiteiten/"]').each((_, el) => {
+          const href = $(el).attr('href') || '';
+          const idMatch = href.match(/\/evenementen-activiteiten\/(\d+)\/([^"?#\/]+)/);
+          if (!idMatch) return;
+          const full = `${baseUrl}/evenementen-activiteiten/${idMatch[1]}/${idMatch[2]}`;
+          if (!seen.has(full)) { seen.add(full); eventUrls.push(full); foundOnPage++; }
+        });
+        if (foundOnPage === 0) {
+          console.log(`[RSS] Drenthe: no new events on page ${page}, stopping`);
+          break;
+        }
+        console.log(`[RSS] Drenthe: page ${page} → ${foundOnPage} new events (total: ${eventUrls.length})`);
+      } catch (err: any) {
+        console.warn(`[RSS] Drenthe: listing page ${page} failed: ${err.message}`);
+        if (page === 1) return { items: [], feedType: 'scraper', error: err.message };
+        break;
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    if (eventUrls.length === 0) {
+      return { items: [], feedType: 'scraper', error: 'Geen event-URLs gevonden op drenthe.nl' };
+    }
+    console.log(`[RSS] Drenthe: ${eventUrls.length} total event URLs, fetching detail pages...`);
+
+    const items: ParsedFeedItem[] = [];
+    const now = new Date();
+
+    for (let i = 0; i < eventUrls.length; i += BATCH) {
+      const batch = eventUrls.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        batch.map(async (url) => {
+          try {
+            const resp = await axios.get(url, {
+              headers: { 'User-Agent': 'Mozilla/5.0' },
+              timeout: 18000,
+            });
+            const $d = cheerio.load(resp.data);
+
+            let eventData: any = null;
+            $d('script[type="application/ld+json"]').each((_, el) => {
+              try {
+                const raw = $d(el).html() || '';
+                const parsed = JSON.parse(raw);
+                const candidates = Array.isArray(parsed) ? parsed : [parsed];
+                for (const c of candidates) {
+                  if (c['@type'] === 'Event') { eventData = c; break; }
+                }
+              } catch {}
+            });
+            if (!eventData || !eventData.name) return null;
+
+            const title = eventData.name.trim();
+            if (!title) return null;
+
+            // Dates: prefer eventSchedule (no-tz strings → parseLocalDateTime)
+            let startTime: Date | undefined;
+            let endTime: Date | undefined;
+            let recurrence: string | undefined;
+
+            const schedule: any[] = eventData.eventSchedule || [];
+            if (schedule.length > 0) {
+              const futureSlots = schedule
+                .map((s: any) => ({
+                  start: s.startDate ? parseLocalDateTime(s.startDate) : undefined,
+                  end: s.endDate ? parseLocalDateTime(s.endDate) : undefined,
+                }))
+                .filter(s => s.start && s.start > now)
+                .sort((a, b) => a.start!.getTime() - b.start!.getTime());
+
+              if (futureSlots.length > 0) {
+                startTime = futureSlots[0].start;
+                endTime = futureSlots[0].end;
+                if (futureSlots.length >= 2) {
+                  const gapDays = (futureSlots[1].start!.getTime() - futureSlots[0].start!.getTime()) / 86400000;
+                  if (gapDays <= 1.5) recurrence = 'daily';
+                  else if (gapDays >= 5.5 && gapDays <= 8.5) recurrence = 'weekly';
+                  else if (gapDays >= 25 && gapDays <= 36) recurrence = 'monthly';
+                }
+              }
+            } else if (eventData.startDate) {
+              try { startTime = new Date(eventData.startDate); } catch {}
+              if (eventData.endDate) {
+                try {
+                  const ed = new Date(eventData.endDate);
+                  if (!isNaN(ed.getTime()) && ed > (startTime || new Date(0))) endTime = ed;
+                } catch {}
+              }
+            }
+
+            if (!startTime || isNaN(startTime.getTime()) || startTime < now) return null;
+
+            // GPS: location.geo — Drenthe bounds lat 52.5–53.2, lng 6.0–7.1
+            const geo = eventData.location?.geo;
+            const lat = geo?.latitude as number | undefined;
+            const lng = geo?.longitude as number | undefined;
+            const validGps = lat !== undefined && lng !== undefined &&
+              lat >= 52.4 && lat <= 53.3 && lng >= 5.8 && lng <= 7.2;
+
+            const venueName: string = eventData.location?.name || '';
+            const addr = eventData.location?.address;
+            const street: string = addr?.streetAddress || '';
+            const postal: string = addr?.postalCode || '';
+            const city: string = addr?.addressLocality || 'Drenthe';
+            const address = [street, postal, city].filter(Boolean).join(', ');
+
+            let imageUrl: string | undefined;
+            if (Array.isArray(eventData.image) && eventData.image.length > 0) {
+              const img: string = eventData.image[0];
+              imageUrl = img.startsWith('http') ? img : `${baseUrl}${img}`;
+            }
+
+            const descRaw: string = eventData.description || '';
+            const description = descRaw
+              ? descRaw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+              : undefined;
+
+            const idMatch = url.match(/\/evenementen-activiteiten\/(\d+)\//);
+            const externalId = `drenthe-${idMatch ? idMatch[1] : url.split('/').filter(Boolean).pop()}`;
+
+            return {
+              title,
+              description,
+              link: url,
+              startTime,
+              endTime,
+              latitude: validGps ? String(lat) : undefined,
+              longitude: validGps ? String(lng) : undefined,
+              location: venueName || street || city,
+              address: address || city,
+              imageUrl,
+              externalId,
+              municipality: city !== 'Drenthe' ? city : undefined,
+              ...(recurrence ? { recurrence } : {}),
+            } as ParsedFeedItem;
+          } catch (err: any) {
+            console.warn(`[RSS] Drenthe detail failed (${url}): ${err.message}`);
+            return null;
+          }
+        })
+      );
+
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) items.push(r.value);
+      }
+
+      if (i + BATCH < eventUrls.length) {
+        await new Promise(r => setTimeout(r, 350));
+      }
+    }
+
+    console.log(`[RSS] Drenthe: ${items.length} valid future events parsed`);
+    return { success: true, items, feedType: 'scraper', pagesProcessed: MAX_PAGES };
+  }
+
+  /**
    * Generic scraper for all Uit in de Regio municipalities.
    * Uses the EventON native REST API (/wp-json/eventon/events) which returns
    * complete event data (timestamps, GPS, images, descriptions) in a single request.
@@ -11947,6 +12127,7 @@ export class RssFeedService {
       if (url.includes("visitzuidlimburg")) return this.scrapeVisitZuidLimburg();
       if (url.includes("friesland.nl")) return this.scrapeFriesland();
       if (url.includes("visitgroningen")) return this.scrapeVisitGroningen();
+      if (url.includes("drenthe.nl")) return this.scrapeDrenthe();
       if (url.includes("denhaag.com")) return this.scrapeDenHaagAgenda();
       if (url.includes("indelft.nl")) return this.scrapeInDelft();
       if (url.includes("visitleiden.nl")) return this.scrapeVisitLeiden();

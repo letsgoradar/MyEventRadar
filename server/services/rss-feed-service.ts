@@ -5814,6 +5814,261 @@ export class RssFeedService {
   }
 
   /**
+   * Scraper for visitoost.nl — UIE/TouristServer CMS covering all of Overijssel.
+   * Overview: /agenda/DD-MM-YYYY-DD-MM-YYYY/ paginated with ?p=N (12 events/page).
+   * Event links: a.box[href*="/agenda-item/"].
+   * Article text contains "adres {venue}, {city}" for location metadata.
+   * Detail: first <time class="start" datetime="...">, last <time class="end" datetime="...">,
+   * GPS from UIE_MAP JS (if available) or geocoded from venue+city,
+   * image converted from listing thumbnail (C485X250 → B1200X1200), og:description.
+   * Note: multi-day events show one <time> entry per day; take first start + last end.
+   * Deduplication: externalId "visitoost-{id}" prevents re-importing same event.
+   * Overlap with Almelo/Hardenberg/Ommen/Zwolle feeds handled by title+date+location dedup.
+   */
+  static async scrapeVisitOost(): Promise<FeedParseResult> {
+    const baseUrl = 'https://www.visitoost.nl';
+    const maxPages = 60;
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = new Date();
+    const future = new Date(today);
+    future.setMonth(future.getMonth() + 6);
+    const fmt = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+    const dateRange = `${fmt(today)}-${fmt(future)}`;
+
+    try {
+      // 1. Collect event links + article metadata (venue, city, image) from listing pages
+      // Map: eventId → { href, image, venue, city }
+      const eventMeta = new Map<string, {
+        href: string;
+        image?: string;
+        venue?: string;
+        city?: string;
+      }>();
+
+      let pagesScraped = 0;
+      for (let page = 1; page <= maxPages; page++) {
+        pagesScraped = page;
+        const url = page === 1
+          ? `${baseUrl}/agenda/${dateRange}/`
+          : `${baseUrl}/agenda/${dateRange}/?p=${page}`;
+
+        console.log(`[RSS] VisitOost: fetching overview page ${page}...`);
+
+        try {
+          const resp = await axios.get(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Accept': 'text/html,application/xhtml+xml',
+            },
+            timeout: 30000,
+          });
+
+          const $ = cheerio.load(resp.data);
+          const before = eventMeta.size;
+          const articles = $('article');
+
+          articles.each((_, el) => {
+            const linkEl = $(el).find('a.box[href*="/agenda-item/"]');
+            const href = linkEl.attr('href');
+            if (!href) return;
+            const idMatch = href.match(/\/agenda-item\/(\d+)\//);
+            if (!idMatch) return;
+            const id = idMatch[1];
+            if (eventMeta.has(id)) return; // already collected
+
+            // Image: data-src from listing, upgrade to large size
+            const dataSrc = $(el).find('[data-src]').first().attr('data-src');
+            const image = dataSrc
+              ? dataSrc.replace(/\/C\d+X\d+\//, '/B1200X1200/')
+              : undefined;
+
+            // Address from article text: "adres {venue}, {city}"
+            const articleText = $(el).text().replace(/\s+/g, ' ').trim();
+            const adresMatch = articleText.match(/adres\s+(.+?)(?:,\s*([^\s,][^,]*))?(?:\s+SITE::|$)/i);
+            let venue: string | undefined;
+            let city: string | undefined;
+            if (adresMatch) {
+              // Pattern: "adres Venue Name, City" — split on last comma
+              const fullAddr = adresMatch[0]
+                .replace(/^adres\s+/i, '')
+                .replace(/\s+SITE::.*$/, '')
+                .trim();
+              const commaIdx = fullAddr.lastIndexOf(',');
+              if (commaIdx > 0) {
+                venue = fullAddr.slice(0, commaIdx).trim();
+                city = fullAddr.slice(commaIdx + 1).trim();
+              } else {
+                venue = fullAddr;
+              }
+            }
+
+            eventMeta.set(id, {
+              href: href.startsWith('http') ? href : `${baseUrl}${href}`,
+              image,
+              venue,
+              city,
+            });
+          });
+
+          const added = eventMeta.size - before;
+          console.log(`[RSS] VisitOost page ${page}: +${added} new links (total ${eventMeta.size})`);
+
+          // Stop when no articles found on page (past last page)
+          if (articles.length === 0) break;
+
+          // If we added zero new links for 3 consecutive pages, we're likely done
+          if (added === 0 && page > 3) {
+            console.log(`[RSS] VisitOost: no new links on page ${page}, stopping`);
+            break;
+          }
+        } catch (err: any) {
+          console.warn(`[RSS] VisitOost page ${page} failed: ${err.message}`);
+          break;
+        }
+
+        // Small delay between listing page requests
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      console.log(`[RSS] VisitOost: ${eventMeta.size} unique event links collected`);
+
+      // 2. Fetch detail pages in batches of 5
+      const items: ParsedFeedItem[] = [];
+      const now = new Date();
+      const entries = Array.from(eventMeta.entries());
+
+      for (let i = 0; i < entries.length; i += 5) {
+        const batch = entries.slice(i, i + 5);
+        const results = await Promise.allSettled(
+          batch.map(async ([id, meta]) => {
+            try {
+              const resp = await axios.get(meta.href, {
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                timeout: 25000,
+              });
+              const html: string = resp.data;
+              const $ = cheerio.load(html);
+
+              // Title: h1.t1 or og:title stripped of date suffix
+              const title = $('h1.t1').first().text().trim()
+                || ($('meta[property="og:title"]').attr('content') || '')
+                  .replace(/\s*-\s*\d{1,2}\s+\w+\s+\d{4}.*$/, '')
+                  .trim();
+              if (!title) return null;
+
+              // Dates: first time.start, last time.end
+              // Multi-day events list one <time> pair per day; first = event start, last = event end
+              const startDatetimes = $('time.start').map((_, el) => $(el).attr('datetime')).get()
+                .filter(Boolean) as string[];
+              const endDatetimes = $('time.end').map((_, el) => $(el).attr('datetime')).get()
+                .filter(Boolean) as string[];
+
+              const rawStart = startDatetimes[0] || '';
+              const rawEnd = endDatetimes[endDatetimes.length - 1] || '';
+
+              const normalise = (s: string) => s.endsWith('T') ? s + '00:00:00' : s;
+
+              let startTime: Date | undefined;
+              let endTime: Date | undefined;
+
+              if (rawStart) {
+                try { startTime = parseLocalDateTime(normalise(rawStart)); } catch {}
+              }
+              if (rawEnd) {
+                try {
+                  const et = parseLocalDateTime(normalise(rawEnd));
+                  // Only use endTime if it's after startTime and not just 23:59 (all-day marker)
+                  if (startTime && et > startTime) endTime = et;
+                } catch {}
+              }
+
+              // Skip past events
+              if (!startTime || startTime < now) return null;
+
+              // GPS: try UIE_MAP JS pattern first
+              let lat: number | undefined;
+              let lng: number | undefined;
+              const mapMatch = html.match(/"lat":([\d.]+),"lng":([\d.]+)/);
+              if (mapMatch) {
+                const mlat = parseFloat(mapMatch[1]);
+                const mlng = parseFloat(mapMatch[2]);
+                if (mlat >= 50.7 && mlat <= 53.6 && mlng >= 3.3 && mlng <= 7.2) {
+                  lat = mlat;
+                  lng = mlng;
+                }
+              }
+
+              // If no GPS, geocode from venue + city
+              const venue = meta.venue;
+              const city = meta.city || 'Overijssel';
+              if (!lat && (venue || city !== 'Overijssel')) {
+                const geocodeQuery = venue ? `${venue}, ${city}` : city;
+                try {
+                  const geoResult = await RssFeedService.geocodeWithMunicipalityValidation(
+                    geocodeQuery, city
+                  );
+                  if (geoResult) {
+                    lat = geoResult.lat;
+                    lng = geoResult.lng;
+                  }
+                } catch {}
+              }
+
+              // Image: from listing thumbnail (already large-sized) or og:image from detail
+              const imageUrl = meta.image
+                || $('meta[property="og:image"]').attr('content')
+                || undefined;
+
+              // Description
+              const description = $('meta[name="description"]').attr('content')
+                || $('meta[property="og:description"]').attr('content')
+                || undefined;
+
+              const address = venue && city !== 'Overijssel'
+                ? `${venue}, ${city}`
+                : (venue || city);
+
+              return {
+                title,
+                description,
+                link: meta.href,
+                startTime,
+                endTime,
+                latitude: lat !== undefined ? String(lat) : undefined,
+                longitude: lng !== undefined ? String(lng) : undefined,
+                location: venue || city,
+                address,
+                imageUrl,
+                externalId: `visitoost-${id}`,
+                municipality: city !== 'Overijssel' ? city : undefined,
+              } as ParsedFeedItem;
+            } catch (err: any) {
+              console.warn(`[RSS] VisitOost detail fetch failed (${meta.href}): ${err.message}`);
+              return null;
+            }
+          })
+        );
+
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) items.push(r.value);
+        }
+
+        // Throttle between batches to be a respectful guest
+        if (i + 5 < entries.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      console.log(`[RSS] VisitOost: ${items.length} valid future events parsed`);
+      return { success: true, items, feedType: 'scraper', pagesProcessed: pagesScraped };
+    } catch (err: any) {
+      console.error(`[RSS] VisitOost scraper failed: ${err.message}`);
+      return { items: [], feedType: 'scraper', error: err.message };
+    }
+  }
+
+  /**
    * Scraper for visithardenberg.nl — same UIE/TouristServer CMS as Ommen.
    * Overview: /agenda/{TODAY}-{TODAY+6M}/ paginated with ?p=N.
    * Event links: a.box[href*="/agenda-item/"].
@@ -10936,6 +11191,7 @@ export class RssFeedService {
       if (url.includes("wijchenis")) return this.scrapeWijchenIs();
       if (url.includes("intonijmegen")) return this.scrapeIntoNijmegen();
       if (url.includes("welkominommen")) return this.scrapeWelkominOmmen();
+      if (url.includes("visitoost")) return this.scrapeVisitOost();
       if (url.includes("visithardenberg")) return this.scrapeVisitHardenberg();
       if (url.includes("uitinalmelo")) return this.scrapeUitInAlmelo();
       if (url.includes("visitzwolle")) return this.scrapeVisitZwolle();

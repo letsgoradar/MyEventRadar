@@ -14,6 +14,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
+const extractCity = (address: string): string => {
+  const parts = address.split(',');
+  return parts[parts.length - 1].trim() || address;
+};
+
 interface EventSource {
   id: number;
   eventId: number;

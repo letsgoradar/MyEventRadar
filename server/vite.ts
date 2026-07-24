@@ -79,10 +79,38 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Hashed assets (JS/CSS in /assets/) get a long cache — they never change content
+  app.use(
+    "/assets",
+    express.static(path.join(distPath, "assets"), {
+      maxAge: "1y",
+      immutable: true,
+    }),
+  );
 
-  // fall through to index.html if the file doesn't exist
+  // Everything else (images, icons, manifest, service-worker, etc.) — no cache
+  app.use(
+    express.static(distPath, {
+      index: false, // Never auto-serve index.html here; we handle it below with no-cache headers
+      setHeaders(res, filePath) {
+        // Service worker must never be cached — must always reflect the latest version
+        if (filePath.endsWith("service-worker.js")) {
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        }
+      },
+    }),
+  );
+
+  // Serve index.html for all routes with strict no-cache headers.
+  // This prevents Chrome from serving a stale HTML that references old (deleted) JS chunks,
+  // which is the root cause of the "Er ging iets mis" crash on home-screen PWAs after a deploy.
   app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    res
+      .set({
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      })
+      .sendFile(path.resolve(distPath, "index.html"));
   });
 }

@@ -6625,6 +6625,183 @@ export class RssFeedService {
   }
 
   /**
+   * Scraper for hartvanlimburg.nl — VVV Hart van Limburg (Midden-Limburg).
+   * Coverage: Weert, Roermond, Leudal, Maasgouw, Roerdalen, Echt-Susteren, Beesel, Venlo/Venray area.
+   * NOT South Limburg (Maastricht/Heerlen/Sittard-Geleen covered by feeds #68/#69).
+   *
+   * Listing: /nl/evenementen — 76 unique event slugs in one HTML page, no pagination.
+   * Event links: href="/nl/evenement/{slug}".
+   *
+   * Detail page (Drupal):
+   *   - field--name-field-company     → venue name
+   *   - field--name-field-address-    → street address
+   *   - field--name-field-postal-code → postal code
+   *   - field--name-field-place       → city
+   *   - time[datetime]                → ISO 8601 with timezone (first = start, last = end)
+   *   - og:image                      → AWS S3 image
+   *   - field--name-field-short-description → description
+   *
+   * GPS: geocoded from street + postal + city (no coordinates in HTML).
+   */
+  static async scrapeHartVanLimburg(): Promise<FeedParseResult> {
+    const baseUrl = 'https://www.hartvanlimburg.nl';
+    const BATCH = 5;
+
+    console.log('[RSS] Hart van Limburg: fetching event listing...');
+
+    // 1. Collect unique event slugs from listing page
+    let listHtml: string;
+    try {
+      const resp = await axios.get(`${baseUrl}/nl/evenementen`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+        timeout: 30000,
+      });
+      listHtml = resp.data;
+    } catch (err: any) {
+      return { items: [], feedType: 'scraper', error: `Listing fetch failed: ${err.message}` };
+    }
+
+    const $ = cheerio.load(listHtml);
+    const eventUrls: string[] = [];
+    $('a[href^="/nl/evenement/"]').each((_, el) => {
+      const href = $(el).attr('href') || '';
+      const full = `${baseUrl}${href}`;
+      if (!eventUrls.includes(full)) eventUrls.push(full);
+    });
+
+    console.log(`[RSS] Hart van Limburg: ${eventUrls.length} unique event links found`);
+    if (eventUrls.length === 0) {
+      return { items: [], feedType: 'scraper', error: 'Geen event links gevonden op listing pagina' };
+    }
+
+    // 2. Fetch detail pages in batches
+    const items: ParsedFeedItem[] = [];
+    const now = new Date();
+
+    for (let i = 0; i < eventUrls.length; i += BATCH) {
+      const batch = eventUrls.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        batch.map(async (url) => {
+          try {
+            const resp = await axios.get(url, {
+              headers: { 'User-Agent': 'Mozilla/5.0' },
+              timeout: 20000,
+            });
+            const html: string = resp.data;
+            const $d = cheerio.load(html);
+
+            // Title: og:title (strip site suffix) or h1
+            const ogTitle = $d('meta[property="og:title"]').attr('content') || '';
+            const title = ogTitle.replace(/\s*\|\s*VVV.*$/, '').trim()
+              || $d('h1').first().text().trim();
+            if (!title) return null;
+
+            // Dates: first time.start → startTime, last time → endTime
+            const allTimes = $d('time[datetime]').map((_, el) => $d(el).attr('datetime')).get()
+              .filter(Boolean) as string[];
+            // Filter out duplicate/calendar-only times by taking unique values
+            const uniqueTimes = [...new Set(allTimes)];
+
+            let startTime: Date | undefined;
+            let endTime: Date | undefined;
+
+            if (uniqueTimes.length > 0) {
+              try { startTime = new Date(uniqueTimes[0]); } catch {}
+            }
+            if (uniqueTimes.length > 1) {
+              try {
+                // Find the last time that is >= startTime (the true end)
+                for (let t = uniqueTimes.length - 1; t >= 1; t--) {
+                  const candidate = new Date(uniqueTimes[t]);
+                  if (startTime && candidate >= startTime) {
+                    endTime = candidate;
+                    break;
+                  }
+                }
+              } catch {}
+            }
+
+            if (!startTime || isNaN(startTime.getTime()) || startTime < now) return null;
+
+            // Address from Drupal fields
+            const fieldText = (selector: string) =>
+              $d(selector).first().text().replace(/\s+/g, ' ').trim();
+
+            const venue = fieldText('.field--name-field-company');
+            const street = fieldText('.field--name-field-address-');
+            const postalCode = fieldText('.field--name-field-postal-code');
+            const city = fieldText('.field--name-field-place') || 'Limburg';
+
+            const address = [street, postalCode, city].filter(Boolean).join(', ');
+
+            // GPS: geocode from full address
+            let lat: number | undefined;
+            let lng: number | undefined;
+            if (street && city) {
+              try {
+                const geoQuery = `${street}, ${postalCode} ${city}, Netherlands`.trim();
+                const geoResult = await RssFeedService.geocodeAddress(geoQuery);
+                if (geoResult && geoResult.lat >= 50.5 && geoResult.lat <= 53.7) {
+                  lat = geoResult.lat;
+                  lng = geoResult.lng;
+                }
+              } catch {}
+            } else if (city && city !== 'Limburg') {
+              try {
+                const geoResult = await RssFeedService.geocodeWithMunicipalityValidation(city, city);
+                if (geoResult) { lat = geoResult.lat; lng = geoResult.lng; }
+              } catch {}
+            }
+
+            // Image: og:image
+            const imageUrl = $d('meta[property="og:image"]').attr('content') || undefined;
+
+            // Description: short description field or og:description
+            const description = fieldText('.field--name-field-short-description')
+              || $d('meta[name="description"]').attr('content')
+              || $d('meta[property="og:description"]').attr('content')
+              || undefined;
+
+            const externalId = `hartvanlimburg-${url.replace(/.*\/nl\/evenement\//, '').replace(/\/$/, '')}`;
+
+            return {
+              title,
+              description: description || undefined,
+              link: url,
+              startTime,
+              endTime,
+              latitude: lat !== undefined ? String(lat) : undefined,
+              longitude: lng !== undefined ? String(lng) : undefined,
+              location: venue || street || city,
+              address: address || city,
+              imageUrl,
+              externalId,
+              municipality: city !== 'Limburg' ? city : undefined,
+            } as ParsedFeedItem;
+          } catch (err: any) {
+            console.warn(`[RSS] Hart van Limburg detail failed (${url}): ${err.message}`);
+            return null;
+          }
+        })
+      );
+
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) items.push(r.value);
+      }
+
+      if (i + BATCH < eventUrls.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    console.log(`[RSS] Hart van Limburg: ${items.length} valid future events parsed`);
+    return { success: true, items, feedType: 'scraper', pagesProcessed: 1 };
+  }
+
+  /**
    * Generic scraper for all Uit in de Regio municipalities.
    * Uses the EventON native REST API (/wp-json/eventon/events) which returns
    * complete event data (timestamps, GPS, images, descriptions) in a single request.
@@ -11195,6 +11372,7 @@ export class RssFeedService {
       if (url.includes("visithardenberg")) return this.scrapeVisitHardenberg();
       if (url.includes("uitinalmelo")) return this.scrapeUitInAlmelo();
       if (url.includes("visitzwolle")) return this.scrapeVisitZwolle();
+      if (url.includes("hartvanlimburg")) return this.scrapeHartVanLimburg();
       if (url.includes("denhaag.com")) return this.scrapeDenHaagAgenda();
       if (url.includes("indelft.nl")) return this.scrapeInDelft();
       if (url.includes("visitleiden.nl")) return this.scrapeVisitLeiden();

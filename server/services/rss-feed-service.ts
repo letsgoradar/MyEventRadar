@@ -15,7 +15,7 @@ import { VenueService } from "./venue-service";
 import { FeedFieldDetector } from "./feed-field-detector";
 import { AiHtmlAnalyzer, type AiExtractionSelectors, type AiPaginationInfo } from "./ai-html-analyzer";
 
-import { fetchRenderedHtml, detectJsRenderingNeeded } from "./puppeteer-fetcher";
+import { fetchRenderedHtml, detectJsRenderingNeeded, interceptPageApiCalls } from "./puppeteer-fetcher";
 import { matchTags } from "./tag-matcher";
 import { validateExternalUrl } from "../utils/url-validator";
 import { consolidateRecurringEvents } from "./scraper-manifest";
@@ -7553,6 +7553,204 @@ export class RssFeedService {
   }
 
   /**
+   * Zeeland provincie scraper — zeeland.com uses a JavaScript-only Localbooker/Allyourz
+   * widget (no server-side HTML). We use Puppeteer with network-response interception to
+   * capture the JSON data returned by the Allyourz API when the widget loads.
+   * Falls back to DOM extraction if API interception yields no results.
+   */
+  static async scrapeZeeland(): Promise<FeedParseResult> {
+    const eventsPageUrl = 'https://www.zeeland.com/nl-nl/visit/wat-te-doen/evenementen/alle-evenementen';
+    const now = new Date();
+
+    console.log('[RSS] Zeeland: loading events page via Puppeteer with API interception...');
+
+    const result = await interceptPageApiCalls(eventsPageUrl, {
+      apiDomains: ['allyourz.nl', 'localbooker.nl'],
+      timeout: 45000,
+      waitMs: 5000,
+    });
+
+    const items: ParsedFeedItem[] = [];
+
+    // -- Strategy A: parse captured API responses --
+    if (result.responses.length > 0) {
+      console.log(`[RSS] Zeeland: processing ${result.responses.length} captured API response(s)`);
+
+      for (const { url, body } of result.responses) {
+        let eventList: any[] = [];
+
+        // Allyourz API typically wraps results in data/items/results/objects
+        if (Array.isArray(body)) {
+          eventList = body;
+        } else if (Array.isArray(body?.data)) {
+          eventList = body.data;
+        } else if (Array.isArray(body?.items)) {
+          eventList = body.items;
+        } else if (Array.isArray(body?.results)) {
+          eventList = body.results;
+        } else if (Array.isArray(body?.objects)) {
+          eventList = body.objects;
+        } else if (Array.isArray(body?.content)) {
+          eventList = body.content;
+        }
+
+        console.log(`[RSS] Zeeland: API response from ${url}: ${eventList.length} items`);
+
+        for (const evt of eventList) {
+          try {
+            const title: string = (evt.name || evt.title || evt.label || '').trim();
+            if (!title) continue;
+
+            // Parse dates — allyourz uses ISO strings or unix timestamps
+            let startTime: Date | undefined;
+            let endTime: Date | undefined;
+
+            const rawStart = evt.startDate || evt.start_date || evt.startTime || evt.start || evt.dateFrom;
+            const rawEnd = evt.endDate || evt.end_date || evt.endTime || evt.end || evt.dateTo;
+
+            if (rawStart) {
+              startTime = typeof rawStart === 'number'
+                ? new Date(rawStart * 1000)
+                : parseLocalDateTime(String(rawStart)) ?? new Date(rawStart);
+            }
+            if (rawEnd) {
+              endTime = typeof rawEnd === 'number'
+                ? new Date(rawEnd * 1000)
+                : parseLocalDateTime(String(rawEnd)) ?? new Date(rawEnd);
+            }
+
+            if (!startTime || isNaN(startTime.getTime()) || startTime < now) continue;
+            if (endTime && (!isNaN(endTime.getTime())) && endTime <= startTime) endTime = undefined;
+
+            // GPS
+            const lat: number | undefined = evt.latitude ?? evt.lat ?? evt.location?.latitude ?? evt.location?.lat;
+            const lng: number | undefined = evt.longitude ?? evt.lng ?? evt.location?.longitude ?? evt.location?.lng;
+            const validGps = lat !== undefined && lng !== undefined &&
+              lat >= 51.1 && lat <= 51.8 && lng >= 3.3 && lng <= 4.3;
+
+            // Address
+            const venueName: string = evt.venueName || evt.venue?.name || evt.location?.name || evt.place || '';
+            const city: string = evt.city || evt.location?.city || evt.location?.addressLocality || 'Zeeland';
+            const street: string = evt.street || evt.address || evt.location?.street || '';
+            const address = [street, city].filter(Boolean).join(', ') || city;
+
+            // Image
+            let imageUrl: string | undefined = evt.image || evt.imageUrl || evt.thumbnail || evt.photo;
+            if (!imageUrl && Array.isArray(evt.images) && evt.images.length > 0) {
+              imageUrl = evt.images[0]?.url || evt.images[0];
+            }
+            if (imageUrl && !imageUrl.startsWith('http')) imageUrl = `https:${imageUrl}`;
+
+            // Link
+            const link: string = evt.url || evt.detailUrl || evt.link || eventsPageUrl;
+
+            // External ID
+            const externalId = `zeeland-${evt.id || evt.slug || title.toLowerCase().replace(/\s+/g, '-').slice(0, 40)}`;
+
+            const description: string | undefined = evt.description || evt.intro || evt.summary || undefined;
+
+            items.push({
+              title,
+              description: description ? description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : undefined,
+              link,
+              startTime,
+              endTime,
+              latitude: validGps ? String(lat) : undefined,
+              longitude: validGps ? String(lng) : undefined,
+              location: venueName || city,
+              address,
+              imageUrl,
+              externalId,
+              municipality: city !== 'Zeeland' ? city : undefined,
+            } as ParsedFeedItem);
+          } catch {}
+        }
+      }
+    }
+
+    // -- Strategy B: DOM extraction from rendered HTML (JSON-LD) --
+    if (items.length === 0 && result.html) {
+      console.log('[RSS] Zeeland: no API events found, trying DOM extraction from rendered HTML...');
+
+      const $dom = cheerio.load(result.html);
+      $dom('script[type="application/ld+json"]').each((_, el) => {
+        try {
+          const raw = $dom(el).html() || '';
+          const parsed = JSON.parse(raw);
+          const candidates = Array.isArray(parsed) ? parsed : [parsed];
+          for (const c of candidates) {
+            if (c['@type'] !== 'Event' || !c.name) continue;
+            const title: string = c.name.trim();
+
+            let startTime: Date | undefined;
+            let endTime: Date | undefined;
+
+            const schedule: any[] = c.eventSchedule || [];
+            if (schedule.length > 0) {
+              const future = schedule
+                .map((s: any) => ({
+                  start: s.startDate ? parseLocalDateTime(s.startDate) : undefined,
+                  end: s.endDate ? parseLocalDateTime(s.endDate) : undefined,
+                }))
+                .filter(s => s.start && s.start > now)
+                .sort((a, b) => a.start!.getTime() - b.start!.getTime());
+              if (future.length > 0) { startTime = future[0].start; endTime = future[0].end; }
+            } else if (c.startDate) {
+              startTime = parseLocalDateTime(c.startDate) ?? new Date(c.startDate);
+              if (c.endDate) {
+                const ed = parseLocalDateTime(c.endDate) ?? new Date(c.endDate);
+                if (!isNaN(ed.getTime()) && ed > (startTime || new Date(0))) endTime = ed;
+              }
+            }
+
+            if (!startTime || isNaN(startTime.getTime()) || startTime < now) continue;
+
+            const geo = c.location?.geo;
+            const lat = geo?.latitude as number | undefined;
+            const lng = geo?.longitude as number | undefined;
+            const validGps = lat !== undefined && lng !== undefined &&
+              lat >= 51.1 && lat <= 51.8 && lng >= 3.3 && lng <= 4.3;
+
+            const venueName: string = c.location?.name || '';
+            const addr = c.location?.address;
+            const city: string = addr?.addressLocality || 'Zeeland';
+            const street: string = addr?.streetAddress || '';
+            const address = [street, city].filter(Boolean).join(', ') || city;
+
+            let imageUrl: string | undefined;
+            if (Array.isArray(c.image) && c.image.length > 0) imageUrl = String(c.image[0]);
+            else if (typeof c.image === 'string') imageUrl = c.image;
+
+            const externalId = `zeeland-jsonld-${title.toLowerCase().replace(/\s+/g, '-').slice(0, 40)}`;
+
+            items.push({
+              title,
+              description: c.description ? c.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : undefined,
+              link: c.url || eventsPageUrl,
+              startTime,
+              endTime,
+              latitude: validGps ? String(lat) : undefined,
+              longitude: validGps ? String(lng) : undefined,
+              location: venueName || city,
+              address,
+              imageUrl,
+              externalId,
+              municipality: city !== 'Zeeland' ? city : undefined,
+            } as ParsedFeedItem);
+          }
+        } catch {}
+      });
+    }
+
+    if (!result.success && items.length === 0) {
+      return { items: [], feedType: 'scraper', error: result.error || 'Puppeteer interception failed' };
+    }
+
+    console.log(`[RSS] Zeeland: ${items.length} valid future events found`);
+    return { success: true, items, feedType: 'scraper' };
+  }
+
+  /**
    * Generic scraper for all Uit in de Regio municipalities.
    * Uses the EventON native REST API (/wp-json/eventon/events) which returns
    * complete event data (timestamps, GPS, images, descriptions) in a single request.
@@ -12128,6 +12326,7 @@ export class RssFeedService {
       if (url.includes("friesland.nl")) return this.scrapeFriesland();
       if (url.includes("visitgroningen")) return this.scrapeVisitGroningen();
       if (url.includes("drenthe.nl")) return this.scrapeDrenthe();
+      if (url.includes("zeeland.com")) return this.scrapeZeeland();
       if (url.includes("denhaag.com")) return this.scrapeDenHaagAgenda();
       if (url.includes("indelft.nl")) return this.scrapeInDelft();
       if (url.includes("visitleiden.nl")) return this.scrapeVisitLeiden();

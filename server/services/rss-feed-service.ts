@@ -12725,16 +12725,30 @@ export class RssFeedService {
       return { success: true, items: [] };
     }
 
-    // Determine mode from the feed URL: country-wide (e.g. ?country=BE) vs per-city.
+    // Determine mode from the feed URL:
+    //   country-wide  ?country=BE
+    //   province-wide ?addressProvince=Zeeland  (NL provinces via postal-code wildcards)
+    //   city-mode     ?addressLocality=Middelburg  (default)
     let addressLocality = '';
     let countryMode: string | null = null;
+    let provinceMode: string | null = null;
     try {
       const feedUrl = new URL(feed.url);
       addressLocality = feedUrl.searchParams.get('addressLocality') || feed.municipality || '';
       countryMode = (feedUrl.searchParams.get('country') || '').toUpperCase() || null;
+      provinceMode = feedUrl.searchParams.get('addressProvince') || feed.province || null;
+      // Province mode takes precedence over bare addressLocality when both are set
+      if (provinceMode) addressLocality = '';
     } catch {
       addressLocality = feed.municipality || '';
     }
+
+    // Postal-code prefix sets for Dutch provinces (expand as needed)
+    const PROVINCE_POSTAL_PREFIXES: Record<string, string[]> = {
+      Zeeland: ['43', '44', '45', '46'],
+      'Noord-Holland': ['10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'],
+      'Zuid-Holland': ['22', '23', '24', '25', '26', '27', '28', '29', '30'],
+    };
 
     const BASE_URL = 'https://search.uitdatabank.be/events/';
     const PAGE_SIZE = 50;
@@ -12750,6 +12764,46 @@ export class RssFeedService {
     };
 
     try {
+      if (provinceMode) {
+        // PROVINCE MODE: filter by NL country + postal-code prefixes for the province.
+        // Shallow pagination (max 10 pages) — province feeds are naturally bounded.
+        const prefixes = PROVINCE_POSTAL_PREFIXES[provinceMode] || [];
+        const postalQ = prefixes.length > 0
+          ? prefixes.map(p => `address.\\*.addressPostalCode:${p}*`).join(' OR ')
+          : null;
+        const q = postalQ
+          ? `address.\\*.addressCountry:NL AND (${postalQ})`
+          : 'address.\\*.addressCountry:NL';
+
+        const MAX_PAGES = 20;
+        const dateFrom = isoOffset(new Date());
+        for (let page = 0; page < MAX_PAGES; page++) {
+          const params = new URLSearchParams({
+            limit: String(PAGE_SIZE),
+            start: String(page * PAGE_SIZE),
+            embed: 'true',
+            dateFrom,
+            addressCountry: '*',
+            q,
+          });
+          console.log(`[RSS] UiTdatabank provincie ${provinceMode}: pagina ${page + 1}…`);
+          const resp = await axios.get(`${BASE_URL}?${params.toString()}`, { headers, timeout: 25000 });
+          const members: any[] = resp.data?.member || [];
+          if (members.length === 0) break;
+          for (const event of members) {
+            const parsed = this.parseUitMember(event, provinceMode, 'NL');
+            if (parsed && !seenIds.has(parsed.externalId)) {
+              seenIds.add(parsed.externalId);
+              items.push(parsed);
+            }
+          }
+          if (members.length < PAGE_SIZE) break;
+          await new Promise(r => setTimeout(r, 150));
+        }
+        console.log(`[RSS] UiTdatabank provincie ${provinceMode}: ${items.length} events gevonden`);
+        return { success: true, items };
+      }
+
       if (countryMode) {
         // COUNTRY MODE: slice the future into month windows to stay under the
         // 10k deep-pagination cap (start=10000 -> 404), paginate within each.

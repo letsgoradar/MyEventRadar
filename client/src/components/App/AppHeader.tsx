@@ -127,7 +127,7 @@ export function AppHeader({
   };
 
   return (
-    <div className="sticky top-0 z-10 bg-background">
+    <div className="sticky top-0 z-10 bg-background" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="flex items-center justify-between py-3 px-4 border-b">
         <div className="flex items-center gap-2 w-full">
           <div className="relative flex-1">

@@ -61,7 +61,7 @@ export function LocationSetupScreen({ onDismiss }: LocationSetupScreenProps = {}
         let msg = "Locatietoegang geweigerd.";
         if (error.code === error.TIMEOUT) msg = "Locatiebepaling duurde te lang.";
         if (error.code === error.POSITION_UNAVAILABLE) msg = "Locatie kon niet worden bepaald.";
-        setGpsError(msg + " Voer je stad of postcode in.");
+        setGpsError(msg + " Voer hieronder je woonplaats in.");
         setStep("manual");
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -200,7 +200,7 @@ export function LocationSetupScreen({ onDismiss }: LocationSetupScreenProps = {}
               onClick={() => setStep("manual")}
             >
               <Search className="h-5 w-5" />
-              Voer stad of postcode in
+              Voer je woonplaats in
             </Button>
           </div>
         )}
@@ -227,7 +227,7 @@ export function LocationSetupScreen({ onDismiss }: LocationSetupScreenProps = {}
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 autoFocus
-                placeholder="Bijv. Ommen, Amsterdam, 7731..."
+                placeholder="Bijv. Ommen, Amsterdam, Utrecht..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                 className="pl-9 h-12"

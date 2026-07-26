@@ -79,12 +79,14 @@
     margin: 0;
     padding: 0;
     height: 100vh;
+    height: 100dvh; /* dynamische hoogte: past zich aan Safari-adresbalk aan */
     overflow: hidden;
     @apply font-sans antialiased bg-background text-foreground;
   }
 
   #root {
     height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
   }
@@ -94,7 +96,7 @@
     overflow-y: auto;
     position: relative;
     z-index: 1;
-    margin-top: env(safe-area-inset-top);
+    /* Safe-area margins zijn niet meer nodig nu headers zelf de inset dragen */
     margin-bottom: env(safe-area-inset-bottom);
   }
 }

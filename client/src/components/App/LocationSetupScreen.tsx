@@ -78,9 +78,10 @@ export function LocationSetupScreen({ onDismiss }: LocationSetupScreenProps = {}
       .then((status) => {
         if (status.state === "granted") {
           doGPS();
-        } else if (status.state === "denied") {
-          setStep("manual");
         } else {
+          // "denied" or "prompt": always show initial screen with both options.
+          // If truly denied the user can enable location in browser settings;
+          // clicking GPS will show an error + fall back to manual search.
           setStep("initial");
         }
       })

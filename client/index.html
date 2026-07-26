@@ -30,30 +30,32 @@
         'analytics_storage': 'denied'
       });
     </script>
-    <!-- WebSocket fix voor Vite HMR -->
+    <!-- WebSocket fix voor Vite HMR — alleen in de Replit-ontwikkelomgeving -->
     <script>
       (function() {
-        const originalWebSocket = window.WebSocket;
-        const originalConsoleError = console.error;
-        
-        // Onderdruk Vite WebSocket errors
-        console.error = function(...args) {
-          const message = args.join(' ');
-          if (message.includes('[vite] failed to connect to websocket')) {
-            return; // Stille onderdrukking
-          }
-          originalConsoleError.apply(console, args);
+        // Alleen uitvoeren op Replit dev / localhost, NIET op de productiesite.
+        // Op productie is er geen Vite HMR en veroorzaakte dit problemen in Safari.
+        var host = window.location.hostname;
+        var isDevEnv = host === 'localhost' || host.endsWith('.replit.dev') || host.endsWith('.repl.co');
+        if (!isDevEnv) return;
+
+        var originalWebSocket = window.WebSocket;
+        var originalConsoleError = console.error;
+
+        // Onderdruk Vite WebSocket errors in dev
+        console.error = function() {
+          var message = Array.prototype.join.call(arguments, ' ');
+          if (message.indexOf('[vite] failed to connect to websocket') !== -1) return;
+          originalConsoleError.apply(console, arguments);
         };
-        
+
         window.WebSocket = function(url, protocols) {
-          // Fix undefined poort in WebSocket URL
-          if (url && url.includes(':undefined')) {
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          if (url && url.indexOf(':undefined') !== -1) {
+            var wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             url = url.replace(/wss?:\/\/localhost:undefined/, wsProtocol + '//' + window.location.host);
           }
           return new originalWebSocket(url, protocols);
         };
-        
         window.WebSocket.prototype = originalWebSocket.prototype;
         Object.setPrototypeOf(window.WebSocket, originalWebSocket);
       })();

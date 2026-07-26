@@ -45,8 +45,15 @@ class RouteErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    // Log to console so browser devtools / remote debugging can capture it
+    console.error("[ErrorBoundary] Caught error:", error, info.componentStack);
+  }
+
   render() {
     if (this.state.hasError) {
+      const msg = this.state.error?.message ?? "";
+      const stack = this.state.error?.stack ?? "";
       return (
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center space-y-4 max-w-md p-8">
@@ -55,6 +62,12 @@ class RouteErrorBoundary extends React.Component<
             <p className="text-muted-foreground">
               De pagina kon niet geladen worden. Probeer het opnieuw.
             </p>
+            {msg && (
+              <details className="text-left text-xs text-muted-foreground bg-muted rounded-lg p-3 cursor-pointer">
+                <summary className="font-medium select-none">Foutdetails (voor ondersteuning)</summary>
+                <pre className="mt-2 whitespace-pre-wrap break-all">{msg}{"\n\n"}{stack}</pre>
+              </details>
+            )}
             <Button
               onClick={() => {
                 this.setState({ hasError: false, error: null });

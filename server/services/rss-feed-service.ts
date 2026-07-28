@@ -5832,7 +5832,7 @@ export class RssFeedService {
     const pad = (n: number) => String(n).padStart(2, '0');
     const today = new Date();
     const future = new Date(today);
-    future.setMonth(future.getMonth() + 6);
+    future.setMonth(future.getMonth() + 12);
     const fmt = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
     const dateRange = `${fmt(today)}-${fmt(future)}`;
 
@@ -6699,30 +6699,26 @@ export class RssFeedService {
               || $d('h1').first().text().trim();
             if (!title) return null;
 
-            // Dates: first time.start → startTime, last time → endTime
-            const allTimes = $d('time[datetime]').map((_, el) => $d(el).attr('datetime')).get()
-              .filter(Boolean) as string[];
-            // Filter out duplicate/calendar-only times by taking unique values
-            const uniqueTimes = [...new Set(allTimes)];
+            // Dates: parse from .date-wrapper .from / .to  (Dutch text: "30 jul 2026")
+            // The site does NOT use <time datetime> — dates are plain Dutch text in .date-wrapper.
+            const DUTCH_MONTHS_HVL: Record<string, number> = {
+              'jan': 0, 'feb': 1, 'mrt': 2, 'mar': 2, 'apr': 3, 'mei': 4, 'jun': 5,
+              'jul': 6, 'aug': 7, 'sep': 8, 'okt': 9, 'oct': 9, 'nov': 10, 'dec': 11,
+            };
+            const parseDutchDateHVL = (text: string): Date | undefined => {
+              const m = text.match(/(\d{1,2})\s+(\w{3,3})\s+(\d{4})/);
+              if (!m) return undefined;
+              const month = DUTCH_MONTHS_HVL[m[2].toLowerCase()];
+              if (month === undefined) return undefined;
+              return new Date(parseInt(m[3]), month, parseInt(m[1]), 0, 0, 0);
+            };
 
-            let startTime: Date | undefined;
-            let endTime: Date | undefined;
-
-            if (uniqueTimes.length > 0) {
-              try { startTime = new Date(uniqueTimes[0]); } catch {}
-            }
-            if (uniqueTimes.length > 1) {
-              try {
-                // Find the last time that is >= startTime (the true end)
-                for (let t = uniqueTimes.length - 1; t >= 1; t--) {
-                  const candidate = new Date(uniqueTimes[t]);
-                  if (startTime && candidate >= startTime) {
-                    endTime = candidate;
-                    break;
-                  }
-                }
-              } catch {}
-            }
+            const fromText = $d('.date-wrapper .from').text();
+            const toText   = $d('.date-wrapper .to').text();
+            let startTime = parseDutchDateHVL(fromText);
+            let endTime   = toText ? parseDutchDateHVL(toText) : undefined;
+            // Sanity: endTime must be strictly after startTime
+            if (endTime && startTime && endTime <= startTime) endTime = undefined;
 
             if (!startTime || isNaN(startTime.getTime()) || startTime < now) return null;
 
@@ -6731,7 +6727,10 @@ export class RssFeedService {
               $d(selector).first().text().replace(/\s+/g, ' ').trim();
 
             const venue = fieldText('.field--name-field-company');
-            const street = fieldText('.field--name-field-address-');
+            // Address is split across address-1 (street name) + address-2 (house number)
+            const street1 = fieldText('[class*="field--name-field-address-1"]');
+            const street2 = fieldText('[class*="field--name-field-address-2"]');
+            const street = [street1, street2].filter(Boolean).join(' ');
             const postalCode = fieldText('.field--name-field-postal-code');
             const city = fieldText('.field--name-field-place') || 'Limburg';
 
@@ -6804,61 +6803,98 @@ export class RssFeedService {
   /**
    * Scraper for visitzuidlimburg.nl — VVV Visit Zuid-Limburg (province-wide).
    * Coverage: Maastricht, Heerlen, Sittard-Geleen, Valkenburg, Gulpen, Vaals,
-   * Kerkrade, Landgraaf, Simpelveld, Brunssum, Meerssen and all other ZL municipalities.
+   *           Kerkrade, Landgraaf, Simpelveld, Brunssum, Meerssen and all other ZL municipalities.
    *
-   * Strategy: reads the static sitemap.xml to get all ~300 event URLs
-   * (/agenda/detail/{slug}/{id}/), then parses JSON-LD from each detail page.
+   * Strategy: calls the govisit teaser API (nodeId=68023) which returns all current/upcoming
+   * events as JSON (~300). The sitemap approach was abandoned because it contained mostly
+   * past events (303 total, only ~20 future). The API pre-filters to relevant events.
+   * Then fetches each detailsUrl for JSON-LD (address, description, accurate dates).
+   *
+   * API: GET /mxms/api/govisit/teaser/Model.Event?nodeId=68023
+   *   → [{title, detailsUrl, additionalProperties:{dateText}, media:[{url}], location:{city}}]
+   *   dateText: "D-M-YYYY t/m D-M-YYYY" | "D-M-YYYY" | "Elke dag" (skip)
    *
    * Detail page (MXMS CMS):
    *   - JSON-LD type=Event: name, description (HTML), startDate, endDate (UTC ISO),
-   *     location.name ("Street<br>City" or "Venue<br>City"), image[] (relative MXMS paths)
-   *   - Dates are midnight UTC (= date-only events, no specific time given)
-   *   - Image paths relative: /mxms/media/{uuid}?size=600x400 → prepend base URL
+   *     location.name ("Venue<br>City"), image[] (relative /mxms/media/... paths)
    *
    * GPS: geocoded from location parts (no coordinates in HTML or JSON-LD).
-   * ExternalID: visitzuidlimburg-{numeric-id-from-url}
+   * ExternalID: visitzuidlimburg-{numeric-id-from-detailsUrl}
    */
   static async scrapeVisitZuidLimburg(): Promise<FeedParseResult> {
     const baseUrl = 'https://www.visitzuidlimburg.nl';
     const BATCH = 6;
-
-    console.log('[RSS] Visit Zuid-Limburg: fetching sitemap...');
-
-    // 1. Get all event URLs from sitemap
-    let sitemapXml: string;
-    try {
-      const resp = await axios.get(`${baseUrl}/sitemap.xml`, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        timeout: 20000,
-      });
-      sitemapXml = resp.data;
-    } catch (err: any) {
-      return { items: [], feedType: 'scraper', error: `Sitemap fetch failed: ${err.message}` };
-    }
-
-    // Extract all /agenda/detail/ URLs (pattern: /agenda/detail/{slug}/{id}/)
-    const urlPattern = /https?:\/\/www\.visitzuidlimburg\.nl\/agenda\/detail\/([^/]+)\/(\d+)\//g;
-    const eventUrls: string[] = [];
-    const seen = new Set<string>();
-    let match: RegExpExecArray | null;
-    while ((match = urlPattern.exec(sitemapXml)) !== null) {
-      const url = match[0];
-      if (!seen.has(url)) { seen.add(url); eventUrls.push(url); }
-    }
-
-    console.log(`[RSS] Visit Zuid-Limburg: ${eventUrls.length} event URLs found in sitemap`);
-    if (eventUrls.length === 0) {
-      return { items: [], feedType: 'scraper', error: 'Geen event-URLs in sitemap gevonden' };
-    }
-
-    // 2. Fetch detail pages in batches
-    const items: ParsedFeedItem[] = [];
     const now = new Date();
 
-    for (let i = 0; i < eventUrls.length; i += BATCH) {
-      const batch = eventUrls.slice(i, i + BATCH);
+    console.log('[RSS] Visit Zuid-Limburg: fetching govisit event list...');
+
+    // 1. Get all events from the govisit teaser API (returns ~300 current/upcoming events)
+    let apiEvents: any[];
+    try {
+      const resp = await axios.get(
+        `${baseUrl}/mxms/api/govisit/teaser/Model.Event?nodeId=68023`,
+        { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }, timeout: 20000 }
+      );
+      apiEvents = Array.isArray(resp.data) ? resp.data : [];
+    } catch (err: any) {
+      return { items: [], feedType: 'scraper', error: `Govisit API fetch failed: ${err.message}` };
+    }
+
+    // 2. Parse dateText and pre-filter to only events that are current or upcoming
+    //    dateText format: "D-M-YYYY t/m D-M-YYYY" | "D-M-YYYY" | "Elke dag" (skip)
+    const parseGovisitDate = (s: string): Date | undefined => {
+      const m = s.trim().match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+      if (!m) return undefined;
+      return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]), 0, 0, 0);
+    };
+
+    type ApiEventEntry = { url: string; apiImage?: string; apiCity?: string; apiId: string };
+    const relevantEntries: ApiEventEntry[] = [];
+
+    for (const ev of apiEvents) {
+      const dateText: string = ev.additionalProperties?.dateText || '';
+      if (!dateText || /elke\s+dag/i.test(dateText)) continue; // skip "Elke dag" recurring activities
+
+      const parts = dateText.split(/\s+t\/m\s+/);
+      const startDate = parseGovisitDate(parts[0] || '');
+      const endDate   = parts[1] ? parseGovisitDate(parts[1]) : undefined;
+
+      // Include if: not yet ended (endDate >= today) OR not yet started (startDate >= today)
+      const relevant = endDate ? endDate >= now : (startDate ? startDate >= now : false);
+      if (!relevant) continue;
+
+      const detailsUrl: string = ev.detailsUrl || '';
+      if (!detailsUrl) continue;
+
+      // Normalise URL (trim trailing spaces, ensure absolute)
+      const url = detailsUrl.trim().startsWith('http')
+        ? detailsUrl.trim()
+        : `${baseUrl}${detailsUrl.trim()}`;
+
+      const mainMedia = (ev.media || []).find((m: any) => m.isMain) || ev.media?.[0];
+      const apiImage = mainMedia?.url
+        ? (mainMedia.url.startsWith('http') ? mainMedia.url : `${baseUrl}${mainMedia.url}`)
+            .replace(/size=\d+x\d+/, 'size=800x500')
+        : undefined;
+
+      const idMatch = url.match(/\/(\d+)\/?$/);
+      const apiId = idMatch ? idMatch[1] : ev.id || ev.uniqueID || url;
+
+      relevantEntries.push({ url, apiImage, apiCity: ev.location?.city || undefined, apiId });
+    }
+
+    console.log(`[RSS] Visit Zuid-Limburg: ${relevantEntries.length} relevant events from API (${apiEvents.length} total)`);
+    if (relevantEntries.length === 0) {
+      return { items: [], feedType: 'scraper', error: 'Geen toekomstige events via govisit API' };
+    }
+
+    // 3. Fetch detail pages in batches to get full address + description from JSON-LD
+    const items: ParsedFeedItem[] = [];
+
+    for (let i = 0; i < relevantEntries.length; i += BATCH) {
+      const batch = relevantEntries.slice(i, i + BATCH);
       const results = await Promise.allSettled(
-        batch.map(async (url) => {
+        batch.map(async ({ url, apiImage, apiCity, apiId }) => {
           try {
             const resp = await axios.get(url, {
               headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -6875,7 +6911,7 @@ export class RssFeedService {
                 if (parsed['@type'] === 'Event') eventData = parsed;
               } catch {}
             });
-            if (!eventData || !eventData.name || !eventData.startDate) return null;
+            if (!eventData || !eventData.name) return null;
 
             const title = eventData.name.trim();
             if (!title) return null;
@@ -6886,25 +6922,25 @@ export class RssFeedService {
               try {
                 const d = new Date(iso);
                 if (isNaN(d.getTime())) return undefined;
-                // Rebuild as local midnight using UTC components
                 return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0);
               } catch { return undefined; }
             };
 
-            const startTime = parseUtcDate(eventData.startDate);
-            if (!startTime || startTime < now) return null;
+            // Accept ongoing events (startDate in past but endDate in future) as well as future events
+            const startTime = eventData.startDate ? parseUtcDate(eventData.startDate) : undefined;
+            const endTime   = eventData.endDate   ? parseUtcDate(eventData.endDate)   : undefined;
+            const validEndTime = endTime && startTime && endTime >= startTime ? endTime : undefined;
 
-            const endTime = eventData.endDate ? parseUtcDate(eventData.endDate) : undefined;
-            // Sanity check: endTime must be >= startTime
-            const validEndTime = endTime && endTime >= startTime ? endTime : undefined;
+            // An event is relevant if it hasn't ended yet, or has no end and hasn't started
+            const isRelevant = validEndTime ? validEndTime >= now : (startTime ? startTime >= now : false);
+            if (!isRelevant) return null;
 
-            // Location: "Street or VenueName<br>City" → split on <br>
+            // Location: "Venue<br>City" → split on <br>
             const locationRaw: string = eventData.location?.name || '';
             const locationParts = locationRaw.split(/<br\s*\/?>/i).map((p: string) => p.trim()).filter(Boolean);
             const streetOrVenue = locationParts[0] || '';
-            const city = locationParts[locationParts.length - 1] || 'Zuid-Limburg';
+            const city = locationParts[locationParts.length - 1] || apiCity || 'Zuid-Limburg';
 
-            // Skip events with no real location info
             if (!streetOrVenue && city === 'Zuid-Limburg') return null;
 
             // GPS: geocode from street + city or just city
@@ -6929,12 +6965,11 @@ export class RssFeedService {
               } catch {}
             }
 
-            // Image: first item in image array, relative path → absolute URL
-            let imageUrl: string | undefined;
-            if (Array.isArray(eventData.image) && eventData.image.length > 0) {
+            // Image: prefer API thumbnail (already sized 800x500), fall back to JSON-LD
+            let imageUrl: string | undefined = apiImage;
+            if (!imageUrl && Array.isArray(eventData.image) && eventData.image.length > 0) {
               const imgPath: string = eventData.image[0];
               imageUrl = imgPath.startsWith('http') ? imgPath : `${baseUrl}${imgPath}`;
-              // Upgrade to larger size for better quality
               imageUrl = imageUrl.replace(/size=\d+x\d+/, 'size=800x500');
             }
 
@@ -6942,15 +6977,13 @@ export class RssFeedService {
             const descHtml: string = eventData.description || '';
             const descText = descHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
-            // ExternalID: extract numeric ID from URL
-            const idMatch = url.match(/\/(\d+)\/?$/);
-            const externalId = `visitzuidlimburg-${idMatch ? idMatch[1] : url.split('/').filter(Boolean).pop()}`;
+            const externalId = `visitzuidlimburg-${apiId}`;
 
             return {
               title,
               description: descText || undefined,
               link: url,
-              startTime,
+              startTime: startTime || now, // ongoing events use today as effective start
               endTime: validEndTime,
               latitude: lat !== undefined ? String(lat) : undefined,
               longitude: lng !== undefined ? String(lng) : undefined,
@@ -6971,13 +7004,13 @@ export class RssFeedService {
         if (r.status === 'fulfilled' && r.value) items.push(r.value);
       }
 
-      if (i + BATCH < eventUrls.length) {
+      if (i + BATCH < relevantEntries.length) {
         await new Promise(resolve => setTimeout(resolve, 400));
       }
     }
 
-    console.log(`[RSS] Visit Zuid-Limburg: ${items.length} valid future events parsed`);
-    return { success: true, items, feedType: 'scraper', pagesProcessed: Math.ceil(eventUrls.length / BATCH) };
+    console.log(`[RSS] Visit Zuid-Limburg: ${items.length} valid events parsed`);
+    return { success: true, items, feedType: 'scraper', pagesProcessed: Math.ceil(relevantEntries.length / BATCH) };
   }
 
   /**

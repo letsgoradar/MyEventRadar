@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Heart, UserPlus, UserCheck, Navigation, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Heart, UserPlus, UserCheck, Navigation, ExternalLink, ChevronDown, Globe } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ShareMenu } from "@/components/ShareMenu";
 import { trackEventView, trackExternalClick, trackAddFavorite } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
@@ -155,6 +156,28 @@ export function EventDetailPanel({
         variant: "destructive",
       });
     },
+  });
+
+  // Fetch event sources (multiple sources from different feeds)
+  interface EventSource {
+    id: number;
+    eventId: number;
+    feedId: number;
+    sourceUrl: string;
+    sourceName: string;
+    isPrimary: boolean;
+  }
+  const { data: eventSources = [] } = useQuery<EventSource[]>({
+    queryKey: ['/api/events', event.id, 'sources'],
+    queryFn: async () => {
+      const response = await fetch(`/api/events/${event.id}/sources`, {
+        credentials: 'include',
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!event.externalUrl,
+    staleTime: 60000,
   });
 
   // State voor interstitial
@@ -421,15 +444,47 @@ export function EventDetailPanel({
 
           <div className="flex flex-wrap gap-2 pt-4">
             {event.externalUrl ? (
-              <Button 
-                className="flex-1 h-9 text-sm"
-                onClick={handleOpenExternalPage}
-                disabled={openExternalPageMutation.isPending}
-                data-testid="button-open-external-page"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Bekijk op originele site
-              </Button>
+              eventSources.length > 1 ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      className="flex-1 h-9 text-sm"
+                      data-testid="button-open-external-page"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Bekijk op originele site ({eventSources.length})
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    {eventSources.map((source) => (
+                      <DropdownMenuItem
+                        key={source.id}
+                        onClick={() => window.open(source.sourceUrl, '_blank', 'noopener,noreferrer')}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Globe className="h-4 w-4 text-gray-500" />
+                        <div className="flex flex-col">
+                          <span className="font-medium">{source.sourceName}</span>
+                          {source.isPrimary && (
+                            <span className="text-xs text-green-600">Primaire bron</span>
+                          )}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button
+                  className="flex-1 h-9 text-sm"
+                  onClick={handleOpenExternalPage}
+                  disabled={openExternalPageMutation.isPending}
+                  data-testid="button-open-external-page"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Bekijk op originele site
+                </Button>
+              )
             ) : (
               <Button 
                 className="flex-1 h-9 text-sm"

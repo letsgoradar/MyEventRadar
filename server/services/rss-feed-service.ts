@@ -5831,10 +5831,13 @@ export class RssFeedService {
 
     const pad = (n: number) => String(n).padStart(2, '0');
     const today = new Date();
+    // Start 3 weeks back to capture ongoing multi-day events that started before today
+    const rangeStart = new Date(today);
+    rangeStart.setDate(rangeStart.getDate() - 21);
     const future = new Date(today);
     future.setMonth(future.getMonth() + 12);
     const fmt = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
-    const dateRange = `${fmt(today)}-${fmt(future)}`;
+    const dateRange = `${fmt(rangeStart)}-${fmt(future)}`;
 
     try {
       // 1. Collect event links + article metadata (venue, city, image) from listing pages
@@ -5983,8 +5986,11 @@ export class RssFeedService {
                 } catch {}
               }
 
-              // Skip past events
-              if (!startTime || startTime < now) return null;
+              // Skip events with no start date
+              if (!startTime) return null;
+              // Skip fully past events; keep ongoing multi-day events (startTime in past but endTime in future)
+              const effectiveEnd = endTime || startTime;
+              if (effectiveEnd < now) return null;
 
               // GPS: try UIE_MAP JS pattern first
               let lat: number | undefined;

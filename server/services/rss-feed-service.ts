@@ -5644,13 +5644,16 @@ export class RssFeedService {
     const baseUrl = 'https://www.welkominommen.nl';
     const maxPages = 30;
 
-    // Build date-range URL: today → today + 6 months (DD-MM-YYYY format)
+    // Build date-range URL: 3 weeks back → today + 6 months (DD-MM-YYYY format)
+    // Starting 3 weeks back captures ongoing multi-day events that started before today.
     const pad = (n: number) => String(n).padStart(2, '0');
     const today = new Date();
+    const rangeStart = new Date(today);
+    rangeStart.setDate(rangeStart.getDate() - 21);
     const future = new Date(today);
     future.setMonth(future.getMonth() + 6);
     const fmt = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
-    const dateRange = `${fmt(today)}-${fmt(future)}`;
+    const dateRange = `${fmt(rangeStart)}-${fmt(future)}`;
 
     try {
       const eventLinks: string[] = [];
@@ -5728,25 +5731,31 @@ export class RssFeedService {
                 || '';
               if (!title) return null;
 
-              // Dates from <time> elements
-              // Note: datetime may be truncated as "2026-05-20T" — pad with 00:00:00
-              const rawStart = $('time.start').attr('datetime') || '';
-              const rawEnd = $('time.end').attr('datetime') || '';
-              const startAttr = rawStart.endsWith('T') ? rawStart + '00:00:00' : rawStart;
-              const endAttr = rawEnd.endsWith('T') ? rawEnd + '00:00:00' : rawEnd;
+              // Dates from <time> elements.
+              // Multi-day events emit one <time class="start/end"> pair per day;
+              // collect ALL and use first start + last end so ongoing events aren't dropped.
+              // Note: datetime may be truncated as "2026-05-20T" — pad with 00:00:00.
+              const normalise = (s: string) => s.endsWith('T') ? s + '00:00:00' : s;
+              const startDatetimes = ($('time.start').map((_, el) => $(el).attr('datetime')).get() as string[]).filter(Boolean);
+              const endDatetimes = ($('time.end').map((_, el) => $(el).attr('datetime')).get() as string[]).filter(Boolean);
+              const rawStart = startDatetimes[0] || '';
+              const rawEnd = endDatetimes[endDatetimes.length - 1] || '';
 
               let startTime: Date | undefined;
               let endTime: Date | undefined;
-              if (startAttr) {
-                try { startTime = parseLocalDateTime(startAttr); } catch {}
+              if (rawStart) {
+                try { startTime = parseLocalDateTime(normalise(rawStart)); } catch {}
               }
-              if (endAttr) {
+              if (rawEnd) {
                 try {
-                  const et = parseLocalDateTime(endAttr);
+                  const et = parseLocalDateTime(normalise(rawEnd));
                   if (startTime && et > startTime) endTime = et;
                 } catch {}
               }
-              if (!startTime || startTime < now) return null;
+              // Skip events with no start date; keep ongoing multi-day events
+              if (!startTime) return null;
+              const effectiveEnd = endTime || startTime;
+              if (effectiveEnd < now) return null;
 
               // GPS from UIE_MAP.initPointerMap JS
               let lat: number | undefined;
@@ -6085,13 +6094,16 @@ export class RssFeedService {
     const baseUrl = 'http://www.visithardenberg.nl';
     const maxPages = 30;
 
-    // Build date-range URL: today → today + 6 months (DD-MM-YYYY format)
+    // Build date-range URL: 3 weeks back → today + 6 months (DD-MM-YYYY format)
+    // Starting 3 weeks back captures ongoing multi-day events that started before today.
     const pad = (n: number) => String(n).padStart(2, '0');
     const today = new Date();
+    const rangeStart = new Date(today);
+    rangeStart.setDate(rangeStart.getDate() - 21);
     const future = new Date(today);
     future.setMonth(future.getMonth() + 6);
     const fmt = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
-    const dateRange = `${fmt(today)}-${fmt(future)}`;
+    const dateRange = `${fmt(rangeStart)}-${fmt(future)}`;
 
     try {
       const eventLinks: string[] = [];
@@ -6166,24 +6178,30 @@ export class RssFeedService {
                 || '';
               if (!title) return null;
 
-              // Note: datetime may be truncated as "2026-05-20T" — pad with 00:00:00
-              const rawStart = $('time.start').attr('datetime') || '';
-              const rawEnd = $('time.end').attr('datetime') || '';
-              const startAttr = rawStart.endsWith('T') ? rawStart + '00:00:00' : rawStart;
-              const endAttr = rawEnd.endsWith('T') ? rawEnd + '00:00:00' : rawEnd;
+              // Multi-day events emit one <time class="start/end"> pair per day;
+              // collect ALL and use first start + last end so ongoing events aren't dropped.
+              // Note: datetime may be truncated as "2026-05-20T" — pad with 00:00:00.
+              const normalise = (s: string) => s.endsWith('T') ? s + '00:00:00' : s;
+              const startDatetimes = ($('time.start').map((_, el) => $(el).attr('datetime')).get() as string[]).filter(Boolean);
+              const endDatetimes = ($('time.end').map((_, el) => $(el).attr('datetime')).get() as string[]).filter(Boolean);
+              const rawStart = startDatetimes[0] || '';
+              const rawEnd = endDatetimes[endDatetimes.length - 1] || '';
 
               let startTime: Date | undefined;
               let endTime: Date | undefined;
-              if (startAttr) {
-                try { startTime = parseLocalDateTime(startAttr); } catch {}
+              if (rawStart) {
+                try { startTime = parseLocalDateTime(normalise(rawStart)); } catch {}
               }
-              if (endAttr) {
+              if (rawEnd) {
                 try {
-                  const et = parseLocalDateTime(endAttr);
+                  const et = parseLocalDateTime(normalise(rawEnd));
                   if (startTime && et > startTime) endTime = et;
                 } catch {}
               }
-              if (!startTime || startTime < now) return null;
+              // Skip events with no start date; keep ongoing multi-day events
+              if (!startTime) return null;
+              const effectiveEnd = endTime || startTime;
+              if (effectiveEnd < now) return null;
 
               let lat: number | undefined;
               let lng: number | undefined;
@@ -6250,6 +6268,17 @@ export class RssFeedService {
     const baseUrl = 'https://www.uitinalmelo.nl';
     const maxPages = 30;
 
+    // Build date-range URL: 3 weeks back → today + 6 months (DD-MM-YYYY format)
+    // Starting 3 weeks back captures ongoing multi-day events that started before today.
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = new Date();
+    const rangeStart = new Date(today);
+    rangeStart.setDate(rangeStart.getDate() - 21);
+    const future = new Date(today);
+    future.setMonth(future.getMonth() + 6);
+    const fmt = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+    const dateRange = `${fmt(rangeStart)}-${fmt(future)}`;
+
     try {
       const eventLinks: string[] = [];
 
@@ -6258,8 +6287,8 @@ export class RssFeedService {
       for (let page = 1; page <= maxPages; page++) {
         pagesScraped = page;
         const url = page === 1
-          ? `${baseUrl}/uitagenda/all/`
-          : `${baseUrl}/uitagenda/all/?p=${page}`;
+          ? `${baseUrl}/uitagenda/${dateRange}/`
+          : `${baseUrl}/uitagenda/${dateRange}/?p=${page}`;
 
         console.log(`[RSS] Almelo: fetching overview page ${page}...`);
 
@@ -6326,22 +6355,30 @@ export class RssFeedService {
                 || '';
               if (!title) return null;
 
-              // Dates from <time> elements
-              const startAttr = $('time.start').attr('datetime') || '';
-              const endAttr = $('time.end').attr('datetime') || '';
+              // Dates from <time> elements.
+              // Multi-day events emit one <time class="start/end"> pair per day;
+              // collect ALL and use first start + last end so ongoing events aren't dropped.
+              const normalise = (s: string) => s.endsWith('T') ? s + '00:00:00' : s;
+              const startDatetimes = ($('time.start').map((_, el) => $(el).attr('datetime')).get() as string[]).filter(Boolean);
+              const endDatetimes = ($('time.end').map((_, el) => $(el).attr('datetime')).get() as string[]).filter(Boolean);
+              const rawStart = startDatetimes[0] || '';
+              const rawEnd = endDatetimes[endDatetimes.length - 1] || '';
 
               let startTime: Date | undefined;
               let endTime: Date | undefined;
-              if (startAttr) {
-                try { startTime = parseLocalDateTime(startAttr); } catch {}
+              if (rawStart) {
+                try { startTime = parseLocalDateTime(normalise(rawStart)); } catch {}
               }
-              if (endAttr) {
+              if (rawEnd) {
                 try {
-                  const et = parseLocalDateTime(endAttr);
+                  const et = parseLocalDateTime(normalise(rawEnd));
                   if (startTime && et > startTime) endTime = et;
                 } catch {}
               }
-              if (!startTime || startTime < now) return null;
+              // Skip events with no start date; keep ongoing multi-day events
+              if (!startTime) return null;
+              const effectiveEnd = endTime || startTime;
+              if (effectiveEnd < now) return null;
 
               // Venue GPS + address come from the embedded organisation JSON.
               // NOTE: the page's schema.org streetAddress (e.g. "Grotestraat 118")

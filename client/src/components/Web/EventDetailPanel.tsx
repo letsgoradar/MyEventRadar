@@ -182,6 +182,7 @@ export function EventDetailPanel({
 
   // State voor interstitial
   const [showInterstitial, setShowInterstitial] = useState(false);
+  const [interstitialUrl, setInterstitialUrl] = useState<string | null>(null);
 
   const openExternalPageMutation = useMutation({
     mutationFn: async () => {
@@ -199,12 +200,21 @@ export function EventDetailPanel({
     if (event.externalUrl) {
       openExternalPageMutation.mutate();
       trackExternalClick(event.externalUrl, event.title);
+      setInterstitialUrl(event.externalUrl);
       setShowInterstitial(true);
     }
   };
 
+  const handleOpenSourceWithInterstitial = (sourceUrl: string) => {
+    openExternalPageMutation.mutate();
+    trackExternalClick(sourceUrl, event.title);
+    setInterstitialUrl(sourceUrl);
+    setShowInterstitial(true);
+  };
+
   const handleCloseInterstitial = () => {
     setShowInterstitial(false);
+    setInterstitialUrl(null);
   };
 
   const handleToggleFavorite = () => {
@@ -271,9 +281,9 @@ export function EventDetailPanel({
 
   return (
     <>
-    {showInterstitial && event.externalUrl && (
+    {showInterstitial && (interstitialUrl || event.externalUrl) && (
       <ExternalLinkInterstitial
-        externalUrl={event.externalUrl}
+        externalUrl={(interstitialUrl || event.externalUrl)!}
         eventTitle={event.title}
         onClose={handleCloseInterstitial}
         eventLat={Number(event.latitude)}
@@ -460,7 +470,7 @@ export function EventDetailPanel({
                     {eventSources.map((source) => (
                       <DropdownMenuItem
                         key={source.id}
-                        onClick={() => window.open(source.sourceUrl, '_blank', 'noopener,noreferrer')}
+                        onClick={() => handleOpenSourceWithInterstitial(source.sourceUrl)}
                         className="flex items-center gap-2 cursor-pointer"
                       >
                         <Globe className="h-4 w-4 text-gray-500" />

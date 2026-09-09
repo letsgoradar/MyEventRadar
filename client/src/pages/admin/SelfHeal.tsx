@@ -26,6 +26,7 @@ import {
   RotateCcw,
   AlertTriangle,
   Clock,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -153,6 +154,30 @@ export default function SelfHeal() {
       setResponse("");
     },
     onError: (e: any) => toast({ title: "Fout", description: e?.message ?? "Mislukt", variant: "destructive" }),
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest(`/api/admin/self-heal/cases/${id}/retry-verify`, {
+        method: "POST",
+      }),
+    onSuccess: (result: any) => {
+      if (result.case) setSelected(result.case);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/self-heal/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/self-heal/log"] });
+      toast({
+        title: result.passed ? "Feed hersteld en geverifieerd" : "Controle afgerond",
+        description: result.passed
+          ? "De nieuwe sync en kwaliteitscontrole zijn geslaagd. Het dossier is automatisch gesloten."
+          : "De feed is opnieuw getest. Het rapport laat zien waarom verdere actie nodig is.",
+        variant: result.passed ? "default" : "destructive",
+      });
+    },
+    onError: (e: any) => toast({
+      title: "Controle mislukt",
+      description: e?.message ?? "De feed kon niet opnieuw worden getest.",
+      variant: "destructive",
+    }),
   });
 
   const configMutation = useMutation({
@@ -391,6 +416,10 @@ export default function SelfHeal() {
                 </div>
                 <p className="text-sm">{selected.summary}</p>
 
+                {selected.diagnosis?.lastVerification && (
+                  <VerificationReport verification={selected.diagnosis.lastVerification} />
+                )}
+
                 {selected.diagnosis?.workOrder && (
                   <div className="rounded-lg bg-muted p-4">
                     <p className="text-xs font-semibold mb-2 text-muted-foreground">WERKORDER</p>
@@ -413,20 +442,38 @@ export default function SelfHeal() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 justify-end">
+                  {selected.feedId && (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="/admin/rss-feeds">
+                        <ExternalLink className="w-4 h-4 mr-1" /> Open bronnenbeheer
+                      </a>
+                    </Button>
+                  )}
+                  {selected.status !== "resolved" && selected.status !== "dismissed" && (
+                    <Button size="sm"
+                      onClick={() => verifyMutation.mutate(selected.id)}
+                      disabled={verifyMutation.isPending || caseMutation.isPending}
+                      data-testid="button-retry-verify">
+                      {verifyMutation.isPending
+                        ? <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                        : <PlayCircle className="w-4 h-4 mr-1" />}
+                      {verifyMutation.isPending ? "Testen en controleren…" : "Opnieuw testen en verifiëren"}
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm"
                     onClick={() => caseMutation.mutate({ id: selected.id, action: "respond", resolution: response })}
-                    disabled={caseMutation.isPending} data-testid="button-respond">
+                    disabled={caseMutation.isPending || verifyMutation.isPending} data-testid="button-respond">
                     <RotateCcw className="w-4 h-4 mr-1" /> In behandeling
                   </Button>
                   <Button variant="outline" size="sm"
                     onClick={() => caseMutation.mutate({ id: selected.id, action: "dismiss", resolution: response })}
-                    disabled={caseMutation.isPending} data-testid="button-dismiss">
+                    disabled={caseMutation.isPending || verifyMutation.isPending} data-testid="button-dismiss">
                     <XCircle className="w-4 h-4 mr-1" /> Negeren
                   </Button>
-                  <Button size="sm"
+                  <Button variant="outline" size="sm"
                     onClick={() => caseMutation.mutate({ id: selected.id, action: "resolve", resolution: response })}
-                    disabled={caseMutation.isPending} data-testid="button-resolve">
-                    <CheckCircle2 className="w-4 h-4 mr-1" /> Opgelost
+                    disabled={caseMutation.isPending || verifyMutation.isPending} data-testid="button-resolve">
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Administratief sluiten
                   </Button>
                 </div>
               </div>
@@ -435,6 +482,53 @@ export default function SelfHeal() {
         </DialogContent>
       </Dialog>
     </AdminLayout>
+  );
+}
+
+function VerificationReport({ verification }: { verification: any }) {
+  const sync = verification.sync ?? {};
+  const quality = verification.quality ?? {};
+  const health = verification.health;
+  return (
+    <div className={cn(
+      "rounded-lg border p-4 space-y-3",
+      verification.passed ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50",
+    )}>
+      <div className="flex items-center gap-2">
+        {verification.passed
+          ? <CheckCircle2 className="w-5 h-5 text-green-600" />
+          : <AlertTriangle className="w-5 h-5 text-amber-600" />}
+        <div>
+          <p className="font-semibold text-sm">
+            {verification.passed ? "Laatste controle geslaagd" : "Laatste controle vraagt aandacht"}
+          </p>
+          {verification.completedAt && (
+            <p className="text-xs text-muted-foreground">{fmt(verification.completedAt)}</p>
+          )}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <Metric label="Verwerkt" value={sync.itemsProcessed ?? 0} />
+        <Metric label="Nieuw" value={sync.eventsCreated ?? 0} />
+        <Metric label="Bijgewerkt" value={sync.eventsUpdated ?? 0} />
+        <Metric label="Afgekeurd" value={sync.eventsRejected ?? 0} />
+        <Metric label="Kwaliteit" value={`${quality.score ?? 0}%`} />
+        <Metric label="Gecontroleerd" value={quality.checked ?? 0} />
+        <Metric label="Fouten" value={quality.errorIssues ?? 0} />
+        <Metric label="Feedstatus" value={health?.status ?? "onbekend"} />
+      </div>
+      {health?.reason && <p className="text-xs text-muted-foreground">{health.reason}</p>}
+      {sync.error && <p className="text-xs text-red-700">{sync.error}</p>}
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-md bg-white/80 border px-2 py-2">
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold truncate">{value}</p>
+    </div>
   );
 }
 

@@ -2817,6 +2817,100 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  app.post("/api/admin/self-heal/cases/:id/retry-verify", isAdmin, async (req, res) => {
+    req.setTimeout(180000);
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Ongeldig id" });
+
+      const repairCase = await storage.getFeedRepairCase(id);
+      if (!repairCase) return res.status(404).json({ message: "Zaak niet gevonden" });
+      if (!repairCase.feedId) return res.status(400).json({ message: "Deze zaak heeft geen gekoppelde feed" });
+
+      const feed = await storage.getRssFeed(repairCase.feedId);
+      if (!feed) return res.status(404).json({ message: "Gekoppelde feed niet gevonden" });
+
+      const startedAt = new Date();
+      const { RssFeedService } = await import("./services/rss-feed-service");
+      const sync = await RssFeedService.processFeed(feed, storage);
+
+      const { qualityCheckService } = await import("./services/quality-check-service");
+      const quality = await qualityCheckService.runBasicChecks(feed.id);
+
+      const { getFeedHealthMap } = await import("./services/feed-health");
+      const healthMap = await getFeedHealthMap();
+      const health = healthMap[feed.id];
+      const errorIssues = quality.issues.filter((issue) => issue.severity === "error").length;
+      const passed =
+        sync.success === true &&
+        health?.status === "healthy" &&
+        quality.status === "completed" &&
+        errorIssues === 0 &&
+        quality.overallScore >= 80;
+
+      const attempt = {
+        startedAt: startedAt.toISOString(),
+        completedAt: new Date().toISOString(),
+        passed,
+        sync: {
+          success: sync.success,
+          itemsProcessed: sync.itemsProcessed ?? 0,
+          eventsCreated: sync.eventsCreated ?? 0,
+          eventsUpdated: sync.eventsUpdated ?? 0,
+          eventsSkipped: sync.eventsSkipped ?? 0,
+          eventsRejected: sync.eventsRejected ?? 0,
+          error: sync.error,
+        },
+        quality: {
+          score: quality.overallScore,
+          checked: quality.totalEventsChecked,
+          eventsWithIssues: quality.eventsWithIssues,
+          errorIssues,
+          issueCount: quality.issues.length,
+        },
+        health: health ?? null,
+      };
+
+      const previousDiagnosis = (repairCase.diagnosis ?? {}) as Record<string, any>;
+      const previousAttempts = Array.isArray(previousDiagnosis.verificationAttempts)
+        ? previousDiagnosis.verificationAttempts
+        : [];
+      const diagnosis = {
+        ...previousDiagnosis,
+        lastVerification: attempt,
+        verificationAttempts: [...previousAttempts, attempt].slice(-10),
+      };
+
+      const resolution = passed
+        ? `Automatisch geverifieerd: sync geslaagd, kwaliteitscore ${quality.overallScore}% en feedstatus gezond.`
+        : `Nieuwe controle uitgevoerd: sync ${sync.success ? "geslaagd" : "mislukt"}, kwaliteitscore ${quality.overallScore}%, feedstatus ${health?.status ?? "onbekend"}. Verdere actie nodig.`;
+
+      const updatedCase = await storage.updateFeedRepairCase(id, {
+        diagnosis,
+        status: passed ? "resolved" : "in_progress",
+        resolution,
+        resolvedBy: passed ? ((req.user as any)?.id ?? null) : null,
+        resolvedAt: passed ? new Date() : null,
+      } as any);
+
+      await storage.createFeedRepairLog({
+        feedId: feed.id,
+        feedName: feed.name,
+        cause: repairCase.cause as any,
+        track: "retry",
+        outcome: passed ? "success" : "failed",
+        message: resolution,
+        detail: attempt,
+        aiCallsUsed: 0,
+      });
+
+      res.json({ passed, attempt, case: updatedCase });
+    } catch (error: any) {
+      console.error("Error in POST /api/admin/self-heal/cases/:id/retry-verify:", error);
+      res.status(500).json({ message: error?.message || "Opnieuw testen en verifiëren mislukt" });
+    }
+  });
+
   app.patch("/api/admin/self-heal/cases/:id", isAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);

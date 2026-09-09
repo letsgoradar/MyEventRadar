@@ -146,7 +146,7 @@ export function WelcomeScreen() {
                 attributionControl={false}
               >
                 <TileLayer
-                  url={`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`}
+                  url={`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`}
                   subdomains="abcd"
                 />
                 

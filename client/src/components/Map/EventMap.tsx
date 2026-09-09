@@ -31,7 +31,7 @@ export default function EventMap({ events, onEventClick, center = [52.3676, 4.90
         <TileLayer
           url={isSatelliteView
             ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            : `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`
+            : `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`
           }
           {...(isSatelliteView ? { subdomains: [] } : { subdomains: 'abcd' })}
         />

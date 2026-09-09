@@ -99,7 +99,7 @@ const LocationPicker = ({
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
-          url={`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`}
+          url={`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`}
           subdomains="abcd"
         />
         <Marker position={markerPosition} />

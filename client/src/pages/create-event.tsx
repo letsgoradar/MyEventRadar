@@ -177,7 +177,7 @@ export default function CreateEventPage() {
   // Map tile styles
   const tileUrl = isSatelliteView
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+    : `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`;
 
   const tileConfig = isSatelliteView
     ? { subdomains: [] }

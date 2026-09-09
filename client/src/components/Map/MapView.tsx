@@ -1093,7 +1093,7 @@ export default function MapView({
         {/* Meerdere stijlkeuzes voor kaartlagen */}
         {mapStyle === 'default' && (
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            url={`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`}
             subdomains="abcd"
           />
         )}
@@ -1104,7 +1104,7 @@ export default function MapView({
         )}
         {mapStyle === 'minimal' && (
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            url={`https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?api_key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`}
             subdomains="abcd"
           />
         )}

@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { getFeedHealthMap, type FeedHealth } from "./feed-health";
 import { RssFeedService } from "./rss-feed-service";
 import { AiHtmlAnalyzer } from "./ai-html-analyzer";
+import { AiProvider } from "./ai-provider";
 import type {
   RssFeed,
   FeedRepairCase,
@@ -483,26 +484,16 @@ async function runSelfHealInner(summary: RunResult): Promise<RunResult> {
       continue;
     }
 
-    // --- Spoor B: structuurprobleem op een config-feed → AI-reparatie ---
+    // --- Spoor B: structuurprobleem op een config-feed ---
+    // Automatisch toepassen is bewust uitgeschakeld: domeinprofielen worden
+    // gedeeld en in-place aangepast, waardoor terugdraaien niet betrouwbaar is.
+    // AI-onderzoek blijft beschikbaar vanuit het dossier, zonder code/config te wijzigen.
     if (cause === "structure" && isConfigFeed(feed) && config.aiFixEnabled && hasAiBudget()) {
-      const ai = await trackAiFix(feed, health);
-      aiCallsLeft -= ai.aiCallsUsed;
-      euroSpentCents += ai.aiCallsUsed * costPerCall;
-      if (ai.fixed) {
-        await storage.createFeedRepairLog({
-          feedId: feed.id, feedName: feed.name, cause, track: "ai_fix",
-          outcome: "success", message: ai.note, aiCallsUsed: ai.aiCallsUsed,
-        });
-        summary.aiFixed++;
-        continue;
-      }
-      // AI hielp niet → log + escaleer naar dossier.
-      await storage.createFeedRepairLog({
-        feedId: feed.id, feedName: feed.name, cause, track: "ai_fix",
-        outcome: "rolled_back", message: ai.note, aiCallsUsed: ai.aiCallsUsed,
-      });
       if (dossiersLeft > 0) {
-        const c = await openCase(feed, health, cause, "dossier", { aiTried: true, aiNote: ai.note });
+        const c = await openCase(feed, health, cause, "dossier", {
+          aiTried: false,
+          aiNote: "Gericht AI-onderzoek is veilig beschikbaar vanuit het dossier; automatisch toepassen staat uit.",
+        });
         if (c) { newCases.push(c); summary.dossiersCreated++; dossiersLeft--; }
       } else {
         summary.skipped++;
@@ -551,5 +542,167 @@ async function logSkipped(feed: RssFeed, cause: Cause, reason: string): Promise<
     });
   } catch {
     // niet kritiek
+  }
+}
+
+let aiBudgetQueue: Promise<void> = Promise.resolve();
+const activeAiInvestigations = new Set<number>();
+
+async function reserveAiInvestigationBudget(repairCase: FeedRepairCase, feed: RssFeed): Promise<void> {
+  const previous = aiBudgetQueue;
+  let release!: () => void;
+  aiBudgetQueue = new Promise<void>((resolve) => { release = resolve; });
+  await previous;
+  try {
+    const config = await storage.getSelfHealConfig();
+    const usage = await storage.getMonthlySelfHealUsage();
+    const estimatedNextCost = (usage.aiCallsUsed + 1) * Math.max(0, config.aiCallCostCents);
+    if (
+      usage.aiCallsUsed >= config.monthlyAiCallLimit ||
+      estimatedNextCost > config.monthlyEuroLimitCents
+    ) {
+      throw new Error("De ingestelde maandlimiet voor AI-onderzoek is bereikt");
+    }
+    // Reserveer vóór de provider-call. Ook mislukte provider-calls kunnen kosten
+    // veroorzaken en tellen daarom mee in de maandlimiet.
+    await storage.createFeedRepairLog({
+      feedId: feed.id,
+      feedName: feed.name,
+      cause: repairCase.cause as Cause,
+      track: "ai_investigation",
+      outcome: "reserved",
+      message: "AI-onderzoeksbudget gereserveerd.",
+      detail: { caseId: repairCase.id, stage: "reserved" },
+      aiCallsUsed: 1,
+    });
+  } finally {
+    release();
+  }
+}
+
+export async function investigateRepairCase(caseId: number): Promise<{
+  case: FeedRepairCase;
+  investigation: Record<string, unknown>;
+}> {
+  const repairCase = await storage.getFeedRepairCase(caseId);
+  if (!repairCase) throw new Error("Reparatiezaak niet gevonden");
+  if (!repairCase.feedId) throw new Error("Reparatiezaak heeft geen gekoppelde feed");
+  if (repairCase.status === "resolved" || repairCase.status === "dismissed") {
+    throw new Error("Een gesloten zaak moet eerst expliciet worden heropend");
+  }
+  if (activeAiInvestigations.has(caseId)) {
+    throw new Error("Voor deze zaak loopt al een AI-onderzoek");
+  }
+
+  activeAiInvestigations.add(caseId);
+  try {
+    const feed = await storage.getRssFeed(repairCase.feedId);
+    if (!feed) throw new Error("Gekoppelde feed niet gevonden");
+
+    const previousDiagnosis = (repairCase.diagnosis ?? {}) as Record<string, any>;
+    if (previousDiagnosis.aiInvestigation) {
+      return { case: repairCase, investigation: previousDiagnosis.aiInvestigation };
+    }
+
+    const html = await fetchHtml(feed.url);
+    if (!html) throw new Error("De bronpagina kon niet worden opgehaald voor onderzoek");
+
+  const history = await storage.getSyncHistoryForFeed(feed.id, 10);
+  const sourceText = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, 12000);
+
+  await reserveAiInvestigationBudget(repairCase, feed);
+  const response = await AiProvider.complete({
+    systemPrompt: `Je bent een senior data-integratie engineer voor een evenementenplatform.
+Onderzoek waarom een feed structureel afwijkende output geeft. Baseer conclusies uitsluitend op het bewijs.
+Maak geen productiecode en beweer niet dat een reparatie werkt zonder test.
+Geef geldig JSON met:
+{
+  "summary": "korte Nederlandse uitleg",
+  "likelyCause": "structure|pagination|dates|location|access|source_empty|unknown",
+  "confidence": 0-100,
+  "evidence": ["concreet bewijs"],
+  "attemptsReviewed": ["wat al is geprobeerd"],
+  "proposedActions": [{"title":"actie","description":"uitleg","risk":"low|medium|high","automatic":true|false}],
+  "verificationPlan": ["controle na reparatie"],
+  "needsHumanDecision": true|false
+}`,
+    userPrompt: `FEED
+Naam: ${feed.name}
+URL: ${feed.url}
+Type: ${feed.feedType}
+Gemeente: ${feed.municipality || "onbekend"}
+Maatwerk: ${isMaatwerkFeed(feed) ? "ja" : "nee"}
+
+HUIDIG DOSSIER
+${JSON.stringify(previousDiagnosis)}
+
+LAATSTE SYNCHRONISATIES
+${JSON.stringify(history.map((h) => ({
+  syncedAt: h.syncedAt,
+  success: h.success,
+  totalFound: h.totalFound,
+  pagesProcessed: h.pagesProcessed,
+  newEvents: h.newEvents,
+  updatedEvents: h.updatedEvents,
+  incompleteEvents: h.incompleteEvents,
+  errorMessage: h.errorMessage,
+})))}
+
+BRONTEKST (INGEKORT)
+${sourceText}`,
+    maxTokens: 1800,
+    temperature: 0.1,
+    jsonMode: true,
+  });
+
+  if (!response.success || !response.content) {
+    throw new Error(response.error || "AI-onderzoek leverde geen resultaat op");
+  }
+
+  let investigation: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(response.content);
+    investigation = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : { summary: "AI-resultaat had een onverwacht formaat", raw: response.content };
+  } catch {
+    investigation = { summary: "AI-resultaat kon niet als JSON worden gelezen", raw: response.content };
+  }
+
+  const completedAt = new Date().toISOString();
+  const currentCase = await storage.getFeedRepairCase(caseId);
+  if (!currentCase || currentCase.status === "resolved" || currentCase.status === "dismissed") {
+    throw new Error("De zaak is tijdens het onderzoek gesloten; het resultaat is niet toegepast");
+  }
+  const updated = await storage.updateFeedRepairCase(caseId, {
+    status: "in_progress",
+    diagnosis: {
+      ...previousDiagnosis,
+      aiInvestigation: investigation,
+      aiInvestigatedAt: completedAt,
+    },
+    resolution: "AI-onderzoek uitgevoerd; voorstel wacht op beoordeling en verificatie.",
+  } as any);
+  if (!updated) throw new Error("AI-onderzoek kon niet in het dossier worden opgeslagen");
+
+  await storage.createFeedRepairLog({
+    feedId: feed.id,
+    feedName: feed.name,
+    cause: repairCase.cause as Cause,
+    track: "ai_investigation",
+    outcome: "investigated",
+    message: String(investigation.summary || "AI-onderzoek afgerond; voorstel beschikbaar."),
+    detail: { investigation, caseId },
+    aiCallsUsed: 0,
+  });
+
+  return { case: updated, investigation };
+  } finally {
+    activeAiInvestigations.delete(caseId);
   }
 }

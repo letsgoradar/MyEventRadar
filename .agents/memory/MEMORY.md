@@ -9,3 +9,4 @@
 - [Feed sync staleness rotation](feed-sync-rotation.md) — bulk feed sync must order by lastFetchedAt ASC NULLS FIRST or capped/partial runs starve never-synced feeds.
 - [Country dimension](country-dimension.md) — events.country (missing=NL) + BrandConfig.countries; keep eventMatchesBrand & buildBrandEventCondition in lockstep; UiT ?country=BE windowed mode.
 - [Feed scope column](feed-scope.md) — rss_feeds.scope values: landelijk/provincie/gemeente/venue; defaults set via ALTER TABLE with CASE on municipality/province nullability; new feeds need scope in POST body.
+- [Safe AI scraper repair](safe-ai-scraper-repair.md) — AI may diagnose and propose, but never mutate a shared domain profile in place unless rollback restores the profile contents.

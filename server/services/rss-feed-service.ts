@@ -12354,6 +12354,29 @@ export class RssFeedService {
       const consolidatedItems = this.consolidateMultiDayEvents(result.items);
       console.log(`[RSS] ${feed.name}: Consolidated ${result.items.length} items into ${consolidatedItems.length} events`);
 
+      const { evaluateFeedRun } = await import("./feed-quality-gate");
+      const gate = await evaluateFeedRun(feed, result.items.length, result.pagesProcessed ?? 0);
+      if (gate.blocked) {
+        await this.recordSyncHistory({
+          feed,
+          durationMs: Date.now() - feedStartTime,
+          result,
+          afterMerge: consolidatedItems.length,
+          newEvents: 0,
+          updatedEvents: 0,
+          success: false,
+          errorMessage: gate.reason,
+        });
+        console.warn(`[RSS] ${feed.name}: QUALITY GATE BLOCKED — ${gate.reason}`);
+        return {
+          success: false,
+          itemsProcessed: result.items.length,
+          eventsCreated: 0,
+          eventsUpdated: 0,
+          error: gate.reason,
+        };
+      }
+
       // Report processing status with total items
       onProgress?.({ 
         status: 'processing', 
@@ -13155,6 +13178,24 @@ export class RssFeedService {
 
         // UNIVERSAL MULTI-DAY CONSOLIDATION - apply to ALL feeds
         const consolidatedItems = this.consolidateMultiDayEvents(result.items);
+
+        const { evaluateFeedRun } = await import("./feed-quality-gate");
+        const gate = await evaluateFeedRun(feed, result.items.length, result.pagesProcessed ?? 0);
+        if (gate.blocked) {
+          await this.recordSyncHistory({
+            feed,
+            durationMs: Date.now() - feedStartTime,
+            result,
+            afterMerge: consolidatedItems.length,
+            newEvents: 0,
+            updatedEvents: 0,
+            success: false,
+            errorMessage: gate.reason,
+          });
+          console.warn(`[RSS] [${i + 1}/${activeFeeds.length}] ${feed.name}: QUALITY GATE BLOCKED — ${gate.reason}`);
+          errors++;
+          continue;
+        }
 
         // Country-wide UiTdatabank feeds (windowed, pre-validated geo) get a much higher
         // cap; everything else keeps the conservative runaway-guard.

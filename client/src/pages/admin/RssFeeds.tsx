@@ -577,6 +577,18 @@ export default function RssFeedsPage() {
 
   const [expandedFeedId, setExpandedFeedId] = useState<number | null>(null);
   const [syncMomentsFeed, setSyncMomentsFeed] = useState<{ id: number; name: string } | null>(null);
+  const deepLinkHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (deepLinkHandledRef.current || feeds.length === 0) return;
+    const feedId = Number(new URLSearchParams(window.location.search).get("feedId"));
+    if (!Number.isInteger(feedId) || !feeds.some((feed) => feed.id === feedId)) return;
+    const feed = feeds.find((item) => item.id === feedId)!;
+    setActiveTab("list");
+    setFeedSearch(feed.name);
+    setExpandedFeedId(feedId);
+    deepLinkHandledRef.current = true;
+  }, [feeds]);
 
   // Fetch saved visual parser configurations
   interface ParserConfig {

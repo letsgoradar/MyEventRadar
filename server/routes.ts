@@ -2911,6 +2911,20 @@ Respond with ONLY the search term, nothing else.`,
     }
   });
 
+  app.post("/api/admin/self-heal/cases/:id/ai-investigate", isAdmin, async (req, res) => {
+    req.setTimeout(180000);
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Ongeldig id" });
+      const { investigateRepairCase } = await import("./services/feed-self-heal");
+      const result = await investigateRepairCase(id);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error in POST /api/admin/self-heal/cases/:id/ai-investigate:", error);
+      res.status(500).json({ message: error?.message || "AI-onderzoek mislukt" });
+    }
+  });
+
   app.patch("/api/admin/self-heal/cases/:id", isAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -3301,10 +3315,31 @@ Respond with ONLY the search term, nothing else.`,
           }
         });
       }).then((result) => {
-        // Mark as completed
         const resultAny = result as any;
         const currentProgress = SYNC_PROGRESS.get(feedId);
         const completedLogs = currentProgress?.logs || [];
+        if (!result.success) {
+          completedLogs.push(`[${new Date().toLocaleTimeString('nl-NL')}] ⚠ Synchronisatie tegengehouden: ${result.error || "onbekende fout"}`);
+          SYNC_PROGRESS.set(feedId, {
+            feedId,
+            feedName: feed.name,
+            status: 'error',
+            totalItems: result.itemsProcessed || 0,
+            processedItems: result.itemsProcessed || 0,
+            eventsCreated: 0,
+            eventsUpdated: 0,
+            eventsSkipped: resultAny.eventsSkipped || 0,
+            eventsRejected: resultAny.eventsRejected || 0,
+            rejectionReasons: resultAny.rejectionReasons || {},
+            startTime: currentProgress?.startTime || Date.now(),
+            message: result.error || 'Synchronisatie tegengehouden',
+            error: result.error || 'Synchronisatie mislukt',
+            logs: completedLogs,
+          });
+          setTimeout(() => SYNC_PROGRESS.delete(feedId), 30000);
+          return;
+        }
+
         completedLogs.push(`[${new Date().toLocaleTimeString('nl-NL')}] ✓ Synchronisatie voltooid: ${result.eventsCreated} nieuw, ${result.eventsUpdated} bijgewerkt`);
         
         SYNC_PROGRESS.set(feedId, {
@@ -3572,6 +3607,10 @@ Respond with ONLY the search term, nothing else.`,
                 }
               }
             });
+
+            if (!result.success) {
+              throw new Error(result.error || "Synchronisatie tegengehouden door kwaliteitscontrole");
+            }
             
             // Mark feed as completed
             if (SYNC_ALL_PROGRESS) {

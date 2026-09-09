@@ -27,6 +27,7 @@ import {
   AlertTriangle,
   Clock,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -86,11 +87,14 @@ const OUTCOME_BADGE: Record<string, { label: string; cls: string }> = {
   rolled_back: { label: "Teruggedraaid", cls: "bg-amber-100 text-amber-700" },
   escalated: { label: "Geëscaleerd", cls: "bg-blue-100 text-blue-700" },
   pending: { label: "Overgeslagen", cls: "bg-gray-100 text-gray-600" },
+  reserved: { label: "Gereserveerd", cls: "bg-purple-100 text-purple-700" },
+  investigated: { label: "Onderzocht", cls: "bg-purple-100 text-purple-700" },
 };
 
 const TRACK_LABEL: Record<string, string> = {
   retry: "Opnieuw geprobeerd",
   ai_fix: "AI-reparatie",
+  ai_investigation: "AI-onderzoek",
   dossier: "Dossier",
   decision: "Beslissing",
   skipped: "Overgeslagen",
@@ -176,6 +180,28 @@ export default function SelfHeal() {
     onError: (e: any) => toast({
       title: "Controle mislukt",
       description: e?.message ?? "De feed kon niet opnieuw worden getest.",
+      variant: "destructive",
+    }),
+  });
+
+  const investigateMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest(`/api/admin/self-heal/cases/${id}/ai-investigate`, {
+        method: "POST",
+      }),
+    onSuccess: (result: any) => {
+      if (result.case) setSelected(result.case);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/self-heal/cases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/self-heal/log"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/self-heal/config"] });
+      toast({
+        title: "AI-onderzoek afgerond",
+        description: "De vermoedelijke oorzaak, het bewijs en veilige vervolgstappen staan in het dossier.",
+      });
+    },
+    onError: (e: any) => toast({
+      title: "AI-onderzoek mislukt",
+      description: e?.message ?? "Het onderzoek kon niet worden uitgevoerd.",
       variant: "destructive",
     }),
   });
@@ -420,6 +446,13 @@ export default function SelfHeal() {
                   <VerificationReport verification={selected.diagnosis.lastVerification} />
                 )}
 
+                {selected.diagnosis?.aiInvestigation && (
+                  <AiInvestigationReport
+                    investigation={selected.diagnosis.aiInvestigation}
+                    investigatedAt={selected.diagnosis.aiInvestigatedAt}
+                  />
+                )}
+
                 {selected.diagnosis?.workOrder && (
                   <div className="rounded-lg bg-muted p-4">
                     <p className="text-xs font-semibold mb-2 text-muted-foreground">WERKORDER</p>
@@ -444,15 +477,26 @@ export default function SelfHeal() {
                 <div className="flex flex-wrap gap-2 justify-end">
                   {selected.feedId && (
                     <Button variant="outline" size="sm" asChild>
-                      <a href="/admin/rss-feeds">
+                      <a href={`/admin/rss-feeds?feedId=${selected.feedId}`}>
                         <ExternalLink className="w-4 h-4 mr-1" /> Open bronnenbeheer
                       </a>
                     </Button>
                   )}
                   {selected.status !== "resolved" && selected.status !== "dismissed" && (
+                    <Button variant="outline" size="sm"
+                      onClick={() => investigateMutation.mutate(selected.id)}
+                      disabled={investigateMutation.isPending || verifyMutation.isPending || caseMutation.isPending}
+                      data-testid="button-ai-investigate">
+                      {investigateMutation.isPending
+                        ? <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                        : <Sparkles className="w-4 h-4 mr-1" />}
+                      {investigateMutation.isPending ? "AI onderzoekt…" : "Onderzoek met AI"}
+                    </Button>
+                  )}
+                  {selected.status !== "resolved" && selected.status !== "dismissed" && (
                     <Button size="sm"
                       onClick={() => verifyMutation.mutate(selected.id)}
-                      disabled={verifyMutation.isPending || caseMutation.isPending}
+                      disabled={verifyMutation.isPending || investigateMutation.isPending || caseMutation.isPending}
                       data-testid="button-retry-verify">
                       {verifyMutation.isPending
                         ? <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
@@ -519,6 +563,71 @@ function VerificationReport({ verification }: { verification: any }) {
       </div>
       {health?.reason && <p className="text-xs text-muted-foreground">{health.reason}</p>}
       {sync.error && <p className="text-xs text-red-700">{sync.error}</p>}
+    </div>
+  );
+}
+
+function AiInvestigationReport({
+  investigation,
+  investigatedAt,
+}: {
+  investigation: any;
+  investigatedAt?: string;
+}) {
+  const actions = Array.isArray(investigation.proposedActions) ? investigation.proposedActions : [];
+  const evidence = Array.isArray(investigation.evidence) ? investigation.evidence : [];
+  const verification = Array.isArray(investigation.verificationPlan) ? investigation.verificationPlan : [];
+  return (
+    <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 space-y-3">
+      <div className="flex items-start gap-2">
+        <Sparkles className="w-5 h-5 text-purple-600 mt-0.5" />
+        <div>
+          <p className="font-semibold text-sm">AI-onderzoek</p>
+          <p className="text-sm">{investigation.summary || "Onderzoek afgerond."}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Oorzaak: {investigation.likelyCause || "onbekend"} · Betrouwbaarheid: {investigation.confidence ?? "–"}%
+            {investigatedAt ? ` · ${fmt(investigatedAt)}` : ""}
+          </p>
+        </div>
+      </div>
+      {evidence.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold mb-1">Bewijs</p>
+          <ul className="text-xs list-disc pl-5 space-y-1">
+            {evidence.map((item: string, index: number) => <li key={index}>{item}</li>)}
+          </ul>
+        </div>
+      )}
+      {actions.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold mb-1">Voorgestelde acties</p>
+          <div className="space-y-2">
+            {actions.map((action: any, index: number) => (
+              <div key={index} className="rounded-md border bg-white/80 p-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold">{action.title}</span>
+                  <Badge variant="outline" className="text-[10px]">Risico: {action.risk || "onbekend"}</Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    {action.automatic ? "Automatisch mogelijk" : "Goedkeuring nodig"}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{action.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {verification.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold mb-1">Verificatie na reparatie</p>
+          <ol className="text-xs list-decimal pl-5 space-y-1">
+            {verification.map((item: string, index: number) => <li key={index}>{item}</li>)}
+          </ol>
+        </div>
+      )}
+      <p className="text-[11px] text-purple-700">
+        AI geeft een onderzoeksvoorstel. Maatwerkcode wordt niet automatisch gewijzigd of gepubliceerd.
+      </p>
     </div>
   );
 }

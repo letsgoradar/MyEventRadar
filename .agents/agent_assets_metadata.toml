@@ -28,3 +28,59 @@ mtime_ms = 1789073965634
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:6405337e-0620-4117-98e6-1889093fcdc3/2de685ab-433d-4f39-baa1-7933d8eb5389/51311cdb-ca08-42df-ac86-e78f163496e5"
 storage_version_token = "1789073975924363"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "cmifwvs1tPy3y8wxnCijM"
+uri = "file://brand-assets/evenementenradar/png/logo-horizontal.png"
+type = "image"
+title = "Hoofdlogo op lichte achtergrond"
+description = "Turquoise beeldmerk met donkerblauw woordmerk en slogan."
+logical_id = "597f1abf-8ff0-4309-ade8-56aeb13cc60a"
+content_hash = "sha256:c5b60e1cfc6f19b3ab74a0d81fcf3539cc495d1cfe090a74445195b0808d9668"
+size = 527147
+mtime_ms = 1789073955566
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:6405337e-0620-4117-98e6-1889093fcdc3/597f1abf-8ff0-4309-ade8-56aeb13cc60a/8e5203eb-d658-42b1-913f-20465109d5fe"
+storage_version_token = "1789074175095744"
+content_type = "image/png"
+
+[[outputs]]
+id = "MyjkFnqSY5BxOTU6f2AAz"
+uri = "file://brand-assets/evenementenradar/png/logo-horizontal-light.png"
+type = "image"
+title = "Hoofdlogo voor donkere achtergrond"
+description = "Turquoise beeldmerk met wit woordmerk en slogan."
+logical_id = "2eabc0f3-e476-4047-88b8-ac89b64dfbf0"
+content_hash = "sha256:98646d595be4d05ebbbe777e05d46c0de92bfa6b9963cfcaccfbb94531962996"
+size = 482271
+mtime_ms = 1789073954878
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:6405337e-0620-4117-98e6-1889093fcdc3/2eabc0f3-e476-4047-88b8-ac89b64dfbf0/14616c2a-69f2-42b2-b807-ebdc117452ed"
+storage_version_token = "1789074176124042"
+content_type = "image/png"
+
+[[outputs]]
+id = "lBM6QXK9J64Hipkh95H0w"
+uri = "file://brand-assets/evenementenradar/png/app-icon-teal-1024.png"
+type = "image"
+title = "Turquoise app-icoon"
+description = "Wit radarsymbool op de turquoise merkachtergrond."
+logical_id = "edeada10-31e8-4503-8b17-ed28d8dce79d"
+content_hash = "sha256:c31a08989b6bf10ed2a62bb71c03e79f9d7aff177a92acf8637e133edb881799"
+size = 172708
+mtime_ms = 1789073960346
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:6405337e-0620-4117-98e6-1889093fcdc3/edeada10-31e8-4503-8b17-ed28d8dce79d/5543d23a-64d1-44da-8e09-b302b02f04ea"
+storage_version_token = "1789074176989969"
+content_type = "image/png"
+
+[[outputs]]
+id = "ZT-hFTky4BVCGDM_MURjp"
+uri = "file://brand-assets/evenementenradar/png/app-icon-navy-1024.png"
+type = "image"
+title = "Donkerblauw app-icoon"
+description = "Turquoise radarsymbool op de donkerblauwe merkachtergrond."
+logical_id = "31ee69e0-58bc-4954-8941-a97cb3bdd1b2"
+content_hash = "sha256:07e55eb96dd0330fd0184628e9b0b70abf6c3370683b37e24960b7185bde82d8"
+size = 175417
+mtime_ms = 1789073963610
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:6405337e-0620-4117-98e6-1889093fcdc3/31ee69e0-58bc-4954-8941-a97cb3bdd1b2/8a42ae74-f76e-406d-a36f-e0e1d8be6ca5"
+storage_version_token = "1789074178106944"
+content_type = "image/png"

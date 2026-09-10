@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Evenementenradar — brand assets</title>
+<style>
+:root{--navy:#0c1830;--teal:#20c9b0;--mint:#f6fffc;--ink:#15253e}
+*{box-sizing:border-box}body{margin:0;background:#edf4f2;color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:var(--navy);color:var(--mint);padding:56px clamp(24px,6vw,88px) 48px;position:relative;overflow:hidden}
+header:after{content:"";position:absolute;width:420px;height:420px;border:1px solid #20c9b044;border-radius:50%;right:-160px;top:-210px;box-shadow:0 0 0 30px #20c9b018,0 0 0 62px #20c9b00d}
+h1{margin:0;color:var(--teal);font-size:clamp(36px,6vw,76px);letter-spacing:-.06em;line-height:.9}header p{max-width:580px;color:#c8d7db;margin:22px 0 0;font-size:18px}
+main{max-width:1240px;margin:0 auto;padding:40px 24px 80px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.16em;margin:36px 0 14px;color:#50726f}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}.card{min-height:240px;border-radius:18px;padding:28px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.card.light{background:#fbfffd;border:1px solid #d5e5e1}.card.dark{background:var(--navy)}.card.checker{background:linear-gradient(45deg,#dbe7e4 25%,transparent 25%,transparent 75%,#dbe7e4 75%),linear-gradient(45deg,#dbe7e4 25%,transparent 25%,transparent 75%,#dbe7e4 75%);background-position:0 0,12px 12px;background-size:24px 24px}
+.card img{max-width:100%;max-height:190px}.label{position:absolute;top:14px;left:18px;color:#6a8582;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.dark .label{color:#8acdc0}
+.safe{padding:48px;background:var(--navy);border-radius:18px;display:flex;justify-content:center}.safe-inner{border:1px dashed #20c9b0;padding:34px;display:flex;justify-content:center;align-items:center;max-width:100%;}.safe img{width:min(660px,100%);height:auto}
+footer{border-top:1px solid #d5e5e1;padding-top:26px;color:#58716e;font-size:13px}code{color:var(--navy);font-weight:700}
+</style>
+</head>
+<body>
+<header><h1>evenementen<br>radar.nl</h1><p>Brand sheet · een precieze, lokale radar voor alles wat er bij jou in de buurt gebeurt.</p></header>
+<main>
+<h2>Symbolen</h2><section class="grid">
+<div class="card light"><span class="label">Primary symbol · transparent</span><img src="symbol.svg" alt="Turquoise locatiepin met radar-ringen"></div>
+<div class="card dark"><span class="label">Light symbol · dark field</span><img src="symbol-light.svg" alt="Witte locatiepin met radar-ringen"></div>
+<div class="card checker"><span class="label">Small-size symbol</span><img src="symbol-small.svg" alt="Vereenvoudigd turquoise symbool"></div>
+</section>
+<h2>App icons · 1024 × 1024</h2><section class="grid">
+<div class="card" style="background:#20c9b0;min-height:320px"><span class="label" style="color:#e9fffa">Teal field · iOS / Android safe</span><img src="app-icon-teal.svg" alt="Turquoise Evenementenradar app icon"></div>
+<div class="card" style="background:#0c1830;min-height:320px"><span class="label" style="color:#8acdc0">Navy field · iOS / Android safe</span><img src="app-icon-navy.svg" alt="Navy Evenementenradar app icon"></div>
+</section>
+<h2>Wordmarks</h2><section class="grid">
+<div class="card light"><span class="label">Horizontal · light</span><img src="logo-horizontal.svg" alt="Evenementenradar horizontaal logo"></div>
+<div class="card dark"><span class="label">Horizontal · dark</span><img src="logo-horizontal-dark.svg" alt="Evenementenradar horizontaal logo op navy"></div>
+<div class="card light"><span class="label">Stacked · light</span><img src="logo-stacked.svg" alt="Evenementenradar gestapeld logo"></div>
+<div class="card dark"><span class="label">Stacked · dark</span><img src="logo-stacked-dark.svg" alt="Evenementenradar gestapeld logo op navy"></div>
+</section>
+<h2>Safe area</h2><section class="safe"><div class="safe-inner"><img src="logo-horizontal-light.svg" alt="Logo met veilige marge"></div></section>
+<footer>Palette: <code>#20C9B0</code> turquoise · <code>#0C1830</code> navy · <code>#F6FFFC</code> light. SVGs zijn zelfstandig, transparant waar aangegeven en gebruiken geen externe dependencies.</footer>
+</main>
+</body>
+</html>

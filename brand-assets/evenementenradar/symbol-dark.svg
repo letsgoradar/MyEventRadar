@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 340" role="img" aria-labelledby="title desc">
+  <title id="title">Evenementenradar symbol on navy</title>
+  <desc id="desc">The turquoise location radar symbol on the brand navy field.</desc>
+  <rect width="420" height="340" rx="20" fill="#0C1830"/>
+  <g fill="none" stroke="#20C9B0" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="18" d="M210 28C148 28 98 76 98 136c0 51 39 86 112 110 73-24 112-59 112-110 0-60-50-108-112-108Z"/>
+    <circle cx="210" cy="136" r="39" stroke-width="18"/>
+    <path stroke-width="17" d="M58 270c33 30 85 45 152 45s119-15 152-45"/>
+    <path stroke-width="17" d="M91 259c28 23 68 35 119 35s91-12 119-35"/>
+    <path stroke-width="17" d="M129 250c20 14 49 21 81 21s61-7 81-21"/>
+  </g>
+</svg>

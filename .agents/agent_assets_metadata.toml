@@ -1,0 +1,30 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "X_RUezlYLcRoWBoLTe_ZW"
+uri = "file://brand-assets/evenementenradar/brand-sheet.html"
+type = "text"
+title = "Evenementenradar merkoverzicht"
+description = "Overzicht van het symbool, horizontale en gestapelde logo’s, lichte/donkere varianten, kleuren en app-iconen."
+logical_id = "766cc9e1-3048-40ed-b0e4-f360ff354647"
+content_hash = "sha256:ba39bfa4fb8feb2443e70706aab14f213088ddd5b1a54054561f2741cfb406d5"
+size = 4387
+mtime_ms = 1789073937486
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:6405337e-0620-4117-98e6-1889093fcdc3/766cc9e1-3048-40ed-b0e4-f360ff354647/f9e34d79-7a8c-47fe-88ce-abf89fcd024f"
+storage_version_token = "1789073974602451"
+content_type = "text/html"
+
+[[outputs]]
+id = "d_QIwFsUIJhi7Z9cb_8hF"
+uri = "file://brand-assets/evenementenradar-logo-set.zip"
+type = "unspecified"
+title = "Evenementenradar complete logoset"
+description = "Downloadbundel met schaalbare SVG-bronbestanden en scherpe PNG-exports voor web, app en drukwerk."
+logical_id = "2de685ab-433d-4f39-baa1-7933d8eb5389"
+content_hash = "sha256:743f743ce32641db00be150c616d77aa1f7b842592446abdc54f2bfbdb64aa7d"
+size = 3464018
+mtime_ms = 1789073965634
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:6405337e-0620-4117-98e6-1889093fcdc3/2de685ab-433d-4f39-baa1-7933d8eb5389/51311cdb-ca08-42df-ac86-e78f163496e5"
+storage_version_token = "1789073975924363"
+content_type = "application/octet-stream"

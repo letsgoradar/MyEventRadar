@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Evenementenradar small symbol</title>
+  <desc id="desc">Simplified turquoise location pin with a single radar ring.</desc>
+  <g fill="none" stroke="#20C9B0" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="9" d="M64 10C39 10 20 29 20 53c0 19 15 33 44 43 29-10 44-24 44-43 0-24-19-43-44-43Z"/>
+    <circle cx="64" cy="53" r="15" stroke-width="9"/>
+    <path stroke-width="8" d="M18 101c13 10 29 15 46 15s33-5 46-15"/>
+  </g>
+</svg>

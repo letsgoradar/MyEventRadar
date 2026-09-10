@@ -518,11 +518,13 @@ async function runSelfHealInner(summary: RunResult): Promise<RunResult> {
     }
   }
 
-  // Eén gegroepeerde digest-mail voor alle nieuwe zaken.
-  if (newCases.length > 0) {
+  // Alleen beslissingen die echt menselijke input vereisen worden direct
+  // gemaild. Gewone dossiers en feedwaarschuwingen komen in het dagoverzicht.
+  const urgentDecisions = newCases.filter((repairCase) => repairCase.kind === "decision");
+  if (urgentDecisions.length > 0) {
     try {
       const { sendRepairDigest } = await import("./email-service");
-      await sendRepairDigest(newCases, summary);
+      await sendRepairDigest(urgentDecisions, summary);
     } catch (e: any) {
       console.error(`[SelfHeal] Digest-mail mislukt: ${e?.message ?? e}`);
     }

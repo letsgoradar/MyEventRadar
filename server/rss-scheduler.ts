@@ -82,12 +82,6 @@ async function runBackgroundSync(): Promise<void> {
     console.log(`[RSS Scheduler] Feeds processed: ${result.processed}`);
     console.log(`[RSS Scheduler] Errors: ${result.errors}`);
 
-    // Controleer feed-gezondheid en waarschuw bij feeds die stilletjes zijn
-    // gestopt met importeren (fire-and-forget, eigen cooldown per feed).
-    import("./services/feed-health")
-      .then(({ checkFeedHealthAndAlert }) => checkFeedHealthAndAlert())
-      .catch((err) => console.error("[RSS Scheduler] Feed health check faalde:", err?.message ?? err));
-
     // Zelfherstellende koppelingen: probeer ongezonde feeds automatisch te
     // repareren (retry/AI) en escaleer de rest naar dossiers/beslissingen
     // (fire-and-forget, budget-gegrendeld in self_heal_config).

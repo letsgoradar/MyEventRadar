@@ -815,7 +815,7 @@ export async function sendDailyDigest(): Promise<boolean> {
     timeZone: "Europe/Amsterdam",
   });
 
-  const subject = `[letsgo radar] Dagelijks feedrapport — ${dateLabel}`;
+  let subject = `[letsgo radar] Dagoverzicht — ${dateLabel}`;
 
   function getAmsterdamDayStart(daysAgo: number): Date {
     const ref = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
@@ -862,6 +862,13 @@ export async function sendDailyDigest(): Promise<boolean> {
 
   const feedCountsToday = new Map<number, number>();
   const feedCountsYesterday = new Map<number, number>();
+  let openRepairCases: import("@shared/schema").FeedRepairCase[] = [];
+  let unhealthyFeeds: Array<{
+    feedId: number;
+    status: string;
+    reason: string;
+    activeEvents: number;
+  }> = [];
 
   try {
     const { db } = await import("../db");
@@ -922,12 +929,30 @@ export async function sendDailyDigest(): Promise<boolean> {
       .limit(50);
 
     newEvents = recentItems;
+
+    const { storage } = await import("../storage");
+    const { getFeedHealthMap } = await import("./feed-health");
+    const [repairCases, healthMap] = await Promise.all([
+      storage.getFeedRepairCases(),
+      getFeedHealthMap(),
+    ]);
+    openRepairCases = repairCases.filter(
+      (repairCase) => repairCase.status === "open" || repairCase.status === "in_progress",
+    );
+    unhealthyFeeds = Object.values(healthMap).filter(
+      (health) => health.status === "warning" || health.status === "suspect",
+    );
   } catch (error) {
     console.error("[Email] Digest: fout bij ophalen data uit DB:", error);
   }
 
   const activeFeeds = allFeeds.filter((f) => f.status === "active");
   const problemFeeds = allFeeds.filter((f) => f.status === "error" || f.status === "paused");
+  const decisions = openRepairCases.filter((repairCase) => repairCase.kind === "decision");
+  const dossiers = openRepairCases.filter((repairCase) => repairCase.kind === "dossier");
+  subject = decisions.length > 0
+    ? `ACTIE NODIG — ${decisions.length} beslissing${decisions.length === 1 ? "" : "en"} · letsgo radar`
+    : `[letsgo radar] Dagoverzicht — ${newEvents.length} nieuwe events, ${unhealthyFeeds.length} bewaakte feeds`;
 
   function statusBadge(status: string): string {
     if (status === "active") return `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:bold;">actief</span>`;
@@ -992,9 +1017,22 @@ export async function sendDailyDigest(): Promise<boolean> {
           Beheer probleem-feeds →
         </a>
       </div>`
-    : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;margin:24px 0;text-align:center;">
-        <p style="margin:0;color:#166534;font-size:14px;">✅ Alle feeds functioneren zonder problemen</p>
-      </div>`;
+    : "";
+
+  const repairCaseCard = (repairCase: import("@shared/schema").FeedRepairCase) => {
+    const needsDecision = repairCase.kind === "decision";
+    return `<div style="background:${needsDecision ? "#fff7ed" : "#f8fafc"};border:1px solid ${needsDecision ? "#fdba74" : "#cbd5e1"};border-radius:8px;padding:12px 14px;margin-bottom:9px;">
+      <strong style="font-size:13px;color:#111;">${repairCase.title}</strong>
+      <span style="float:right;font-size:10px;font-weight:bold;color:${needsDecision ? "#c2410c" : "#475569"};">${needsDecision ? "JOUW BESLISSING" : "WORDT BEWAAKT"}</span>
+      <p style="font-size:12px;color:#475569;margin:6px 0 0;">${repairCase.summary}</p>
+    </div>`;
+  };
+  const actionSection = openRepairCases.length > 0
+    ? `<h2 style="font-size:17px;color:#111;margin:24px 0 12px;padding-bottom:8px;border-bottom:2px solid #e5e7eb;">Wat vraagt aandacht?</h2>
+      ${decisions.length > 0 ? `<p style="font-size:13px;color:#c2410c;font-weight:bold;">Nu jouw keuze nodig (${decisions.length})</p>${decisions.map(repairCaseCard).join("")}` : ""}
+      ${dossiers.length > 0 ? `<p style="font-size:13px;color:#475569;font-weight:bold;margin-top:16px;">Automatisch bewaakt / reparatiedossier (${dossiers.length})</p>${dossiers.map(repairCaseCard).join("")}` : ""}
+      <div style="text-align:center;margin:16px 0 24px;"><a href="${baseUrl}/admin/self-heal" style="display:inline-block;background:#2563eb;color:white;padding:10px 22px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:bold;">Open Reliability Autopilot →</a></div>`
+    : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;margin:20px 0;text-align:center;"><p style="margin:0;color:#166534;font-size:14px;">Geen beslissingen of reparatiedossiers open</p></div>`;
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:20px;background:#f9fafb;">
@@ -1003,7 +1041,7 @@ export async function sendDailyDigest(): Promise<boolean> {
           <div style="background:#00A9C5;display:inline-block;padding:10px 22px;border-radius:8px;">
             <span style="color:white;font-size:18px;font-weight:bold;letter-spacing:-0.5px;">letsgo&#33; radar</span>
           </div>
-          <h1 style="font-size:20px;color:#111;margin:16px 0 4px;">Dagelijks feedrapport</h1>
+          <h1 style="font-size:20px;color:#111;margin:16px 0 4px;">Dagoverzicht</h1>
           <p style="color:#6b7280;font-size:14px;margin:0;">${dateLabel}</p>
         </div>
 
@@ -1012,9 +1050,9 @@ export async function sendDailyDigest(): Promise<boolean> {
             <div style="font-size:26px;font-weight:bold;color:#16a34a;">${activeFeeds.length}</div>
             <div style="font-size:12px;color:#6b7280;margin-top:2px;">Actieve feeds</div>
           </div>
-          <div style="flex:1;background:${problemFeeds.length > 0 ? "#fff5f5" : "#f9fafb"};border-radius:8px;padding:14px;">
-            <div style="font-size:26px;font-weight:bold;color:${problemFeeds.length > 0 ? "#dc2626" : "#6b7280"};">${problemFeeds.length}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Probleem-feeds</div>
+          <div style="flex:1;background:${unhealthyFeeds.length > 0 ? "#fff7ed" : "#f9fafb"};border-radius:8px;padding:14px;">
+            <div style="font-size:26px;font-weight:bold;color:${unhealthyFeeds.length > 0 ? "#d97706" : "#6b7280"};">${unhealthyFeeds.length}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Bewaakte feeds</div>
           </div>
           <div style="flex:1;background:#eff6ff;border-radius:8px;padding:14px;">
             <div style="font-size:26px;font-weight:bold;color:#2563eb;">${newEvents.length}</div>
@@ -1026,6 +1064,7 @@ export async function sendDailyDigest(): Promise<boolean> {
           </div>
         </div>
 
+        ${actionSection}
         ${problemSection}
 
         <h2 style="font-size:17px;color:#111;margin:32px 0 12px;padding-bottom:8px;border-bottom:2px solid #e5e7eb;">

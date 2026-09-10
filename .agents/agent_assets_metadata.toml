@@ -84,3 +84,31 @@ mtime_ms = 1789073963610
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:6405337e-0620-4117-98e6-1889093fcdc3/31ee69e0-58bc-4954-8941-a97cb3bdd1b2/8a42ae74-f76e-406d-a36f-e0e1d8be6ca5"
 storage_version_token = "1789074178106944"
 content_type = "image/png"
+
+[[outputs]]
+id = "c4ikjnfBiAIwXoffmckHx"
+uri = "file://brand-previews/evenementenradar-applications/preview.jpg"
+type = "image"
+title = "Evenementenradar — drie kleurtoepassingen"
+description = "Direct overzicht van rustige lichte toepassing, donkere merkdrager en zachte mintkleurige lokale toepassing."
+logical_id = "c7b1a324-fcf6-48a2-a860-30470b323168"
+content_hash = "sha256:80ecc7c04b3a1bfd5f98575310053a639f6c599d51f0ca10ae06f0298b3dd7c1"
+size = 92433
+mtime_ms = 1789075386122
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:6405337e-0620-4117-98e6-1889093fcdc3/c7b1a324-fcf6-48a2-a860-30470b323168/4d48ed79-c1d1-4951-9d0a-38bc69fdf93e"
+storage_version_token = "1789075396246879"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "ViKyh5xAGYpJtdW6t02u5"
+uri = "file://brand-previews/evenementenradar-applications/index.html"
+type = "text"
+title = "Interactieve beoordeling Evenementenradar"
+description = "Open de volledige pagina om alle drie richtingen, eventkaarten, filters, knoppen en mobiele navigatie te vergelijken."
+logical_id = "a363a817-ec99-48e4-aa39-4feca06270b6"
+content_hash = "sha256:26eaa402b365cf2ea5530fd48cf9d2d0fa0841fdedc01750b4218f529120d34e"
+size = 15552
+mtime_ms = 1789075366858
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:6405337e-0620-4117-98e6-1889093fcdc3/a363a817-ec99-48e4-aa39-4feca06270b6/bdaae7c3-502b-498c-8248-313c2e23a90c"
+storage_version_token = "1789075397081355"
+content_type = "text/html"

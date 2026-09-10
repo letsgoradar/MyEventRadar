@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Evenementenradar.nl — application hypotheses</title>
+  <style>
+    :root{--navy:#0d1c35;--navy-2:#152948;--teal:#21cbb2;--teal-dark:#129b91;--mint:#e9f7f3;--ink:#13233d;--muted:#6c7b8f;--line:#dce7e5;--paper:#f6f9f7;--white:#fff}
+    *{box-sizing:border-box}html{background:#eef2ef}body{margin:0;color:var(--ink);font-family:'Avenir Next','Gill Sans','Trebuchet MS',sans-serif}button{font:inherit;cursor:pointer;border:0}.board{max-width:1500px;margin:auto;padding:40px 38px 58px}.intro{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:31px}.eyebrow{font:500 11px 'SFMono-Regular','Courier New',monospace;letter-spacing:.16em;text-transform:uppercase;color:#189d94;margin:0 0 11px}.intro h1{font:700 clamp(28px,3.3vw,50px) 'Avenir Next','Gill Sans','Trebuchet MS',sans-serif;letter-spacing:-.055em;line-height:.98;margin:0;color:var(--navy)}.intro p{max-width:385px;margin:0 0 2px;color:#677888;font-size:14px;line-height:1.55}.intro p strong{color:var(--ink)}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.hypothesis{min-width:0}.hypothesis-label{display:flex;justify-content:space-between;align-items:center;margin:0 3px 10px}.hypothesis-label h2{font:600 16px 'Avenir Next','Gill Sans','Trebuchet MS',sans-serif;margin:0;color:var(--navy)}.hypothesis-label span{font:500 10px 'SFMono-Regular','Courier New',monospace;color:#7a8996;letter-spacing:.08em;text-transform:uppercase}.note{font-size:12px;line-height:1.45;color:#657587;margin:12px 3px 0;max-width:385px}.note b{font-weight:600;color:#263a51}.phone{border-radius:18px;overflow:hidden;min-height:600px;box-shadow:0 15px 38px #203a4c16,0 2px 5px #203a4c0d;position:relative}
+    .brand{display:flex;align-items:center;gap:10px;white-space:nowrap}.brand strong{font:700 16px 'Avenir Next','Gill Sans','Trebuchet MS',sans-serif;letter-spacing:-.055em}.brand small{display:block;font:400 9px 'SFMono-Regular','Courier New',monospace;letter-spacing:.01em;margin-top:2px;opacity:.7}.pin{width:35px;height:35px;overflow:hidden;position:relative;flex:none;border-radius:9px}.pin img{height:100%;width:200%;max-width:none;position:absolute;top:0;left:0;object-fit:cover}.pin.dark img{left:-100%}.mark{width:35px;height:35px;overflow:hidden;position:relative;flex:none;border-radius:9px}.mark img{height:100%;width:200%;max-width:none;position:absolute;top:0;left:0}.mark.dark img{left:-100%}.search{display:flex;align-items:center;gap:9px;border-radius:9px;height:40px;padding:0 13px;font-size:12px}.search svg{width:16px;flex:none}.search span{opacity:.65}.filters{display:flex;gap:7px;overflow:hidden}.chip{padding:8px 11px;border-radius:99px;white-space:nowrap;font-size:11px;font-weight:600}.event{border-radius:13px;overflow:hidden}.event-visual{height:108px;position:relative;background:linear-gradient(120deg,#d8ebe5,#b4dbcf)}.event-visual:before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,#84c9bd 40%,#84c9bd 43%,transparent 43%),linear-gradient(45deg,#f2ce98 0 46%,transparent 46%)}.event-date{position:absolute;left:12px;top:12px;background:#fff;border-radius:8px;text-align:center;padding:6px 8px;line-height:1}.event-date b{font:700 17px 'Avenir Next','Gill Sans','Trebuchet MS',sans-serif;display:block}.event-date small{font:500 9px 'SFMono-Regular','Courier New',monospace;color:#148f87}.event-copy{padding:13px 14px 15px}.event-copy h3{font:600 15px 'Avenir Next','Gill Sans','Trebuchet MS',sans-serif;margin:0 0 6px;letter-spacing:-.025em}.event-copy p{font-size:11px;color:var(--muted);margin:0 0 13px}.event-meta{display:flex;justify-content:space-between;align-items:center;color:#53677a;font:500 10px 'SFMono-Regular','Courier New',monospace}.save{width:27px;height:27px;border-radius:50%;background:#e7f5f1;color:#159b90}.mobile-nav{display:flex;justify-content:space-around;align-items:center;height:61px;font-size:9px}.mobile-nav div{text-align:center;opacity:.58}.mobile-nav .active{opacity:1;font-weight:700}.mobile-nav svg{display:block;width:18px;height:18px;margin:0 auto 4px}.cta{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:8px;font-size:11px;font-weight:700}
+    /* A / Quiet clarity */
+    .quiet{background:#fff}.quiet .top{padding:22px 20px 16px;border-bottom:1px solid #edf2ef}.quiet .brand strong{color:var(--navy)}.quiet .search{background:#f1f6f4;color:#243d50;margin-top:18px}.quiet .welcome{padding:19px 20px 8px}.quiet .welcome h3{font:600 21px 'Space Grotesk';letter-spacing:-.05em;margin:0 0 4px}.quiet .welcome p{font-size:11px;color:#71818e;margin:0}.quiet .filters{padding:12px 20px 15px}.quiet .chip{background:#f2f6f5;color:#557182}.quiet .chip.selected{background:var(--teal);color:#fff}.quiet .feed{padding:0 20px 20px}.quiet .event{background:#f7faf8;border:1px solid #e3eeea}.quiet .mobile-nav{border-top:1px solid #e5efeb;background:#fff;color:#426276}.quiet .mobile-nav .active{color:#129b91}.quiet .cta{background:var(--navy);color:#fff;margin-top:13px}
+    /* B / Night radar */
+    .night{background:var(--navy);color:#fff}.night .top{padding:19px 18px 16px;background:#0a172d}.night .brand strong{color:#fff}.night .search{background:#203653;color:#d8e6eb;margin-top:17px;border:1px solid #2e4966}.night .welcome{padding:21px 18px 12px}.night .welcome h3{font:600 21px 'Space Grotesk';letter-spacing:-.05em;margin:0 0 4px}.night .welcome p{font-size:11px;color:#a5b8c6;margin:0}.night .filters{padding:9px 18px 17px}.night .chip{background:#1c3451;color:#a8bac7}.night .chip.selected{background:var(--teal);color:var(--navy)}.night .feed{padding:0 18px 20px}.night .event{background:#f9fbfa;color:var(--ink)}.night .mobile-nav{background:#09162c;color:#abc0ca;border-top:1px solid #203753}.night .mobile-nav .active{color:var(--teal)}.night .cta{background:var(--teal);color:var(--navy);margin-top:13px}
+    /* C / Local layer */
+    .local{background:var(--mint)}.local .top{padding:20px 18px 15px;background:#fff;border-bottom:1px solid #d7ebe5}.local .brand strong{color:var(--navy)}.local .search{margin-top:16px;background:var(--mint);color:#29465a}.local .welcome{background:#d9f0e9;padding:20px 18px 17px}.local .welcome h3{font:600 20px 'Space Grotesk';letter-spacing:-.045em;margin:0 0 4px}.local .welcome p{font-size:11px;color:#4f7075;margin:0}.local .filters{padding:15px 18px 17px}.local .chip{background:#fff;color:#52717b;border:1px solid #d1e7df}.local .chip.selected{background:var(--navy);color:#fff;border-color:var(--navy)}.local .feed{padding:0 18px 20px}.local .event{background:#fff;border:1px solid #d3e9e2}.local .mobile-nav{background:#fff;color:#58777d;border-top:1px solid #d2e8e1}.local .mobile-nav .active{color:#119c91}.local .cta{background:#fff;color:var(--navy);border:1px solid #c4e3da;margin-top:13px}
+    .source-note{margin:28px 3px 0;padding-top:17px;border-top:1px solid #d7e2df;display:flex;gap:10px;align-items:center;color:#71808c;font-size:11px}.source-note .pin{width:24px;height:24px;border-radius:6px}.source-note strong{color:#415569;font-weight:600}.arrow{float:right;opacity:.55}
+    @media(max-width:900px){.board{padding:28px 20px 45px}.intro{display:block}.intro p{margin-top:15px}.grid{grid-template-columns:1fr;gap:35px}.phone{min-height:0;max-width:530px}.hypothesis-label{max-width:530px}.note{max-width:530px}.source-note{max-width:530px}}
+    @media(min-width:901px) and (max-width:1100px){.board{padding-inline:20px}.brand strong{font-size:14px}}
+  </style>
+</head>
+<body>
+  <main class="board">
+    <header class="intro">
+      <div><p class="eyebrow">Brand application / 03 hypotheses</p><h1>Hoe voelt de radar<br>in gebruik?</h1></div>
+      <p>Een compacte vergelijking voor <strong>evenementenradar.nl</strong> — niet een nieuw logo, maar drie manieren waarop het bestaande merk een product kan dragen.</p>
+    </header>
+    <section class="grid" aria-label="Drie interface-hypotheses">
+      <article class="hypothesis">
+        <div class="hypothesis-label"><h2>A — Quiet clarity</h2><span>vertrouwen</span></div>
+        <div class="phone quiet">
+          <div class="top"><div class="brand"><div class="pin"><img src="assets/appicoons-pin-panels.png" alt="Turquoise pin uit aangeleverd artwork"></div><div><strong>evenementenradar.nl</strong><small>Ontdek wat er bij jou in de buurt gebeurt</small></div></div><div class="search"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><span>Zoek in jouw buurt</span></div></div>
+          <div class="welcome"><h3>Wat speelt er om de hoek?</h3><p>Vandaag · Utrecht, 5 km rondom jou</p></div>
+          <div class="filters"><div class="chip selected">Alles</div><div class="chip">Muziek</div><div class="chip">Markt</div><div class="chip">Voor kinderen</div></div>
+          <div class="feed"><div class="event"><div class="event-visual"><div class="event-date"><b>14</b><small>JUN</small></div></div><div class="event-copy"><h3>De Nacht van de Stad</h3><p>Podium, plein &amp; straat · Utrecht</p><div class="event-meta"><span>Vandaag · 19:30</span><button class="save" aria-label="Bewaar event">♡</button></div><button class="cta">Bekijk evenement <span class="arrow">→</span></button></div></div></div>
+          <nav class="mobile-nav"><div class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>Ontdekken</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16M4 12h16M4 19h16"/></svg>Agenda</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s7-6.1 7-11A7 7 0 0 0 5 10c0 4.9 7 11 7 11Z"/><circle cx="12" cy="10" r="2"/></svg>Buurt</div></nav>
+        </div>
+        <p class="note"><b>Hypothese:</b> wit laat het event zelf spreken en maakt zoeken rustig. <b>Trade-off:</b> de merkherkenning leunt op de kleine, spaarzame turquoise momenten.</p>
+      </article>
+      <article class="hypothesis">
+        <div class="hypothesis-label"><h2>B — Night radar</h2><span>herkenning</span></div>
+        <div class="phone night">
+          <div class="top"><div class="brand"><div class="mark dark"><img src="assets/appicoons-pin-panels.png" alt="Navy pin uit aangeleverd artwork"></div><div><strong>evenementenradar.nl</strong><small>Ontdek wat er bij jou in de buurt gebeurt</small></div></div><div class="search"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><span>Zoek een evenement</span></div></div>
+          <div class="welcome"><h3>Vanavond in de stad</h3><p>Utrecht · dichtbij geselecteerd</p></div>
+          <div class="filters"><div class="chip selected">In de buurt</div><div class="chip">Muziek</div><div class="chip">Eten &amp; drinken</div></div>
+          <div class="feed"><div class="event"><div class="event-visual"><div class="event-date"><b>14</b><small>JUN</small></div></div><div class="event-copy"><h3>De Nacht van de Stad</h3><p>Podium, plein &amp; straat · Utrecht</p><div class="event-meta"><span>Vandaag · 19:30</span><button class="save" aria-label="Bewaar event">♡</button></div><button class="cta">Bekijk evenement <span class="arrow">→</span></button></div></div></div>
+          <nav class="mobile-nav"><div class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>Radar</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16M4 12h16M4 19h16"/></svg>Agenda</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 4v16M18 4v16M4 9h16M4 15h16"/></svg>Filters</div></nav>
+        </div>
+        <p class="note"><b>Hypothese:</b> een donker frame maakt de radar direct eigen en herkenbaar. <b>Trade-off:</b> eventbeelden en langere sessies voelen zwaarder aan.</p>
+      </article>
+      <article class="hypothesis">
+        <div class="hypothesis-label"><h2>C — Local layer</h2><span>nabijheid</span></div>
+        <div class="phone local">
+          <div class="top"><div class="brand"><div class="pin"><img src="assets/appicoons-pin-panels.png" alt="Turquoise pin uit aangeleverd artwork"></div><div><strong>evenementenradar.nl</strong><small>Ontdek wat er bij jou in de buurt gebeurt</small></div></div><div class="search"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><span>Zoek op plaats of type</span></div></div>
+          <div class="welcome"><h3>Jouw lokale laag</h3><p>Alles dichtbij · Utrecht centrum</p></div>
+          <div class="filters"><div class="chip selected">Dit weekend</div><div class="chip">Muziek</div><div class="chip">Markt</div><div class="chip">Gratis</div></div>
+          <div class="feed"><div class="event"><div class="event-visual"><div class="event-date"><b>14</b><small>JUN</small></div></div><div class="event-copy"><h3>De Nacht van de Stad</h3><p>Podium, plein &amp; straat · Utrecht</p><div class="event-meta"><span>Vandaag · 19:30</span><button class="save" aria-label="Bewaar event">♡</button></div><button class="cta">Bekijk evenement <span class="arrow">→</span></button></div></div></div>
+          <nav class="mobile-nav"><div class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>Ontdekken</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16M4 12h16M4 19h16"/></svg>Agenda</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s7-6.1 7-11A7 7 0 0 0 5 10c0 4.9 7 11 7 11Z"/><circle cx="12" cy="10" r="2"/></svg>Buurt</div></nav>
+        </div>
+        <p class="note"><b>Hypothese:</b> mint zones geven filters en locatie een zachte, lokale context. <b>Trade-off:</b> de interface wordt warmer, maar minder neutraal voor beeldrijke feeds.</p>
+      </article>
+    </section>
+    <footer class="source-note"><div class="pin"><img src="assets/appicoons-pin-panels.png" alt=""></div><span><strong>Bronnotitie.</strong> De pin is rechtstreeks gebruikt uit het aangeleverde artwork: links turquoise, rechts navy. Niet opnieuw getekend of aangepast.</span></footer>
+  </main>
+  <script>
+    document.querySelectorAll('.phone').forEach(function (phone) {
+      phone.querySelectorAll('.chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          phone.querySelectorAll('.chip').forEach(function (item) { item.classList.remove('selected'); });
+          chip.classList.add('selected');
+        });
+      });
+      var save = phone.querySelector('.save');
+      save.addEventListener('click', function () {
+        var saved = save.dataset.saved === 'true';
+        save.dataset.saved = String(!saved);
+        save.textContent = saved ? '♡' : '♥';
+        save.style.background = saved ? '' : '#cceee7';
+      });
+      phone.querySelector('.cta').addEventListener('click', function (event) {
+        event.currentTarget.firstChild.textContent = 'Opgeslagen in agenda ';
+      });
+    });
+  </script>
+</body>
+</html>

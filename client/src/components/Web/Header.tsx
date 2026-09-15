@@ -388,14 +388,18 @@ export function Header({
   };
 
   return (
-    <div className="h-20 border-b border-border bg-background flex items-center px-4 justify-between pointer-events-auto shadow-sm">
+    <div className="relative z-[120] h-20 border-b border-border bg-background/95 backdrop-blur-md flex items-center px-4 justify-between pointer-events-auto shadow-[0_8px_24px_hsl(var(--foreground)/0.08)]">
       {/* Left side area - logo */}
-      <Link href="/" className="flex items-center w-32 md:w-48">
-        <RadarLogoWithText height={44} textColor="hsl(var(--foreground))" />
+      <Link
+        href="/"
+        aria-label="Naar de homepage van Evenementenradar"
+        className="absolute left-4 top-full z-[130] flex h-[88px] w-[190px] -translate-y-1/2 items-center justify-start rounded-2xl border border-border/80 bg-card px-4 shadow-[0_12px_28px_hsl(var(--foreground)/0.2)] transition-transform duration-200 hover:-translate-y-[54%] hover:shadow-[0_16px_34px_hsl(var(--foreground)/0.24)] md:left-6 md:w-[220px]"
+      >
+        <RadarLogoWithText height={58} textColor="hsl(var(--foreground))" className="w-full" />
       </Link>
       
       {/* Center area with AI assistant, search and date filters */}
-      <div className="flex items-center justify-center gap-2 max-w-xl flex-1">
+      <div className="flex items-center justify-center gap-2 max-w-xl flex-1 ml-40 md:ml-52">
         {/* AI Assistent tijdelijk verborgen */}
         {/* <AssistantButton variant="header" /> */}
         

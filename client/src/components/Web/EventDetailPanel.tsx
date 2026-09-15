@@ -293,14 +293,14 @@ export function EventDetailPanel({
       />
     )}
     <div className="w-full h-full bg-background text-foreground flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b border-border">
+      <div className="flex min-h-[58px] items-center justify-between border-b border-border bg-card/90 px-4 py-3 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 
             size="sm"
             onClick={handlePrevious}
             disabled={!hasPrevious}
-            className="p-2"
+            className="rounded-full p-2"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -309,7 +309,7 @@ export function EventDetailPanel({
             variant="outline" 
             size="sm"
             onClick={onClose}
-            className="px-4"
+            className="rounded-full px-4"
           >
             Terug naar overzicht
           </Button>
@@ -319,7 +319,7 @@ export function EventDetailPanel({
             size="sm"
             onClick={handleNext}
             disabled={!hasNext}
-            className="p-2"
+            className="rounded-full p-2"
           >
             <ArrowRight className="h-4 w-4" />
           </Button>
@@ -329,18 +329,18 @@ export function EventDetailPanel({
           variant="ghost" 
           size="sm"
           onClick={onClose}
-          className="p-2"
+           className="rounded-full p-2"
         >
           <X className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {(() => {
           const displayImage = event.imageUrl || getDeterministicCategoryImage(event.category, event.id);
           const isStockPhoto = !event.imageUrl;
           return (
-            <div className="h-64 relative">
+            <div className="relative h-44 overflow-hidden sm:h-52">
               <img
                 src={displayImage}
                 alt={event.title}
@@ -362,29 +362,29 @@ export function EventDetailPanel({
           );
         })()}
 
-        <div className="p-6 space-y-6">
-          <div className="flex items-center gap-3 text-sm">
-            <Badge variant="secondary" className="flex items-center gap-1.5">
+        <div className="space-y-7 p-5 pb-8 sm:p-7 sm:pb-10">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant="secondary" className="flex items-center gap-1.5 rounded-full px-3 py-1">
               <CategoryIcon category={event.category as any} className="h-4 w-4" />
               {event.category}
             </Badge>
             {event.secondaryCategory && (
-              <Badge variant="outline" className="flex items-center gap-1.5">
+              <Badge variant="outline" className="flex items-center gap-1.5 rounded-full px-3 py-1">
                 <CategoryIcon category={event.secondaryCategory as any} className="h-4 w-4" />
                 {event.secondaryCategory}
               </Badge>
             )}
           </div>
 
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="max-w-2xl text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
             {event.title}
           </h1>
 
-          <div className="space-y-3">
-            <div className="flex items-start gap-3 text-muted-foreground">
-              <Calendar className="h-5 w-5 flex-shrink-0 mt-0.5" />
-              <div>
-                <div className="font-medium">{formatDateTime(event.startTime)}</div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-card/60 p-3 text-muted-foreground">
+              <Calendar className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
+              <div className="min-w-0">
+                <div className="font-medium text-foreground">{formatDateTime(event.startTime)}</div>
                 {event.endTime && (
                   <div className="text-sm text-muted-foreground">
                     tot {formatDateTime(event.endTime)}
@@ -394,16 +394,16 @@ export function EventDetailPanel({
             </div>
 
             {event.address && (
-              <div className="flex items-center justify-between gap-3 text-muted-foreground">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 p-3 text-muted-foreground">
                 <div className="flex items-center gap-3">
-                  <MapPin className="h-5 w-5 flex-shrink-0" />
-                  <span>{event.address}</span>
+                  <MapPin className="h-5 w-5 flex-shrink-0 text-primary" />
+                  <span className="min-w-0 truncate text-foreground">{event.address}</span>
                 </div>
                 <Button 
                   onClick={openNavigationApp}
                   variant="outline"
                   size="sm"
-                  className="flex-shrink-0"
+                   className="flex-shrink-0 rounded-full"
                   title="Navigeer naar locatie"
                 >
                   <Navigation className="h-4 w-4 mr-2" />
@@ -413,16 +413,16 @@ export function EventDetailPanel({
             )}
 
             {event.maxParticipants && (
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Users className="h-5 w-5 flex-shrink-0" />
-                <span>Maximaal {event.maxParticipants} deelnemers</span>
+              <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/60 p-3 text-muted-foreground">
+                <Users className="h-5 w-5 flex-shrink-0 text-primary" />
+                <span className="text-foreground">Maximaal {event.maxParticipants} deelnemers</span>
               </div>
             )}
 
             {event.isPaid && event.price && (
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Euro className="h-5 w-5 flex-shrink-0" />
-                <span>€{event.price}</span>
+              <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/60 p-3 text-muted-foreground">
+                <Euro className="h-5 w-5 flex-shrink-0 text-primary" />
+                <span className="text-foreground">€{event.price}</span>
               </div>
             )}
           </div>
@@ -443,7 +443,7 @@ export function EventDetailPanel({
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowFullDescription(!showFullDescription)}
-                    className="h-auto p-0 text-blue-600 hover:text-blue-800 mt-2"
+                     className="mt-2 h-auto p-0 text-primary hover:text-primary/80"
                   >
                     {showFullDescription ? 'Minder tonen' : 'Meer lezen'}
                   </Button>
@@ -452,13 +452,17 @@ export function EventDetailPanel({
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2 pt-4">
+        </div>
+      </div>
+
+      <div className="flex-shrink-0 border-t border-border bg-card/95 px-5 py-3 shadow-[0_-8px_20px_hsl(var(--foreground)/0.08)] backdrop-blur-md sm:px-7">
+          <div className="flex flex-wrap gap-2">
             {event.externalUrl ? (
               eventSources.length > 1 ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      className="flex-1 h-9 text-sm"
+                       className="min-w-[190px] flex-1 rounded-full text-sm"
                       data-testid="button-open-external-page"
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
@@ -486,7 +490,7 @@ export function EventDetailPanel({
                 </DropdownMenu>
               ) : (
                 <Button
-                  className="flex-1 h-9 text-sm"
+                   className="min-w-[190px] flex-1 rounded-full text-sm"
                   onClick={handleOpenExternalPage}
                   disabled={openExternalPageMutation.isPending}
                   data-testid="button-open-external-page"
@@ -497,7 +501,7 @@ export function EventDetailPanel({
               )
             ) : (
               <Button 
-                className="flex-1 h-9 text-sm"
+                 className="min-w-[150px] flex-1 rounded-full text-sm"
                 onClick={handleToggleParticipant}
                 disabled={toggleParticipantMutation.isPending}
                 variant={isParticipating ? "secondary" : "default"}
@@ -517,7 +521,7 @@ export function EventDetailPanel({
             )}
             
             <Button 
-              className="h-9 text-sm"
+                 className="rounded-full text-sm"
               variant={isFavorited ? "secondary" : "outline"}
               onClick={handleToggleFavorite}
               disabled={toggleFavoriteMutation.isPending}
@@ -534,9 +538,8 @@ export function EventDetailPanel({
               variant="web"
               buttonSize="sm"
             />
-          </div>
-        </div>
       </div>
+    </div>
     </div>
     </>
   );

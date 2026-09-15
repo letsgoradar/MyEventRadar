@@ -394,16 +394,16 @@ export function EventDetailPanel({
             </div>
 
             {event.address && (
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 p-3 text-muted-foreground">
-                <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 p-3 text-muted-foreground">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                   <MapPin className="h-5 w-5 flex-shrink-0 text-primary" />
-                  <span className="min-w-0 truncate text-foreground">{event.address}</span>
+                  <span className="min-w-0 break-words text-foreground">{event.address}</span>
                 </div>
                 <Button 
                   onClick={openNavigationApp}
                   variant="outline"
                   size="sm"
-                   className="flex-shrink-0 rounded-full"
+                   className="ml-auto max-w-full flex-shrink-0 rounded-full"
                   title="Navigeer naar locatie"
                 >
                   <Navigation className="h-4 w-4 mr-2" />

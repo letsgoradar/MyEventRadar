@@ -36,14 +36,15 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
 import { EventFilters, ActiveFilterBadges, type EventFilterState } from "@/components/Filters/EventFilters";
-import { RadarLogoWithText } from "@/components/RadarLogo";
+import { RadarLogo } from "@/components/RadarLogo";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { useAuth } from "@/hooks/use-auth";
-import { LogIn, Navigation, MapPin, LocateFixed } from "lucide-react";
+import { LogIn, Navigation, MapPin, LocateFixed, Sun, Moon } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
 import { useLocation as useGeoLocation, clearSavedLocation, setManualLocation, useCityName } from "@/hooks/useLocation";
+import { getThemePreference, setThemePreference } from "@/lib/theme";
 
 // Top-50 Nederlandse steden met coördinaten
 const DUTCH_CITIES = [
@@ -178,6 +179,18 @@ export function Header({
   const [locationPopoverOpen, setLocationPopoverOpen] = React.useState(false);
   const [gpsLoading, setGpsLoading] = React.useState(false);
   const cityName = useCityName();
+  const [isDarkTheme, setIsDarkTheme] = React.useState(false);
+
+  React.useEffect(() => {
+    const preference = getThemePreference();
+    setIsDarkTheme(preference === "dark" || (preference === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches));
+  }, []);
+
+  const toggleTheme = React.useCallback(() => {
+    const next = !isDarkTheme;
+    setThemePreference(next ? "dark" : "light");
+    setIsDarkTheme(next);
+  }, [isDarkTheme]);
 
   const handleGoToMyLocation = React.useCallback(() => {
     if (!navigator.geolocation) return;
@@ -388,23 +401,14 @@ export function Header({
   };
 
   return (
-    <div className="relative z-[120] h-20 border-b border-border bg-background/95 backdrop-blur-md flex items-center px-4 justify-between pointer-events-auto shadow-[0_8px_24px_hsl(var(--foreground)/0.08)]">
-      {/* Left side area - logo */}
-      <Link
-        href="/"
-        aria-label="Naar de homepage van Evenementenradar"
-        className="absolute left-4 top-full z-[130] flex h-[88px] w-[190px] -translate-y-1/2 items-center justify-start rounded-2xl border border-border/80 bg-card px-4 shadow-[0_12px_28px_hsl(var(--foreground)/0.2)] transition-transform duration-200 hover:-translate-y-[54%] hover:shadow-[0_16px_34px_hsl(var(--foreground)/0.24)] md:left-6 md:w-[220px]"
-      >
-        <RadarLogoWithText height={58} textColor="hsl(var(--foreground))" className="w-full" />
-      </Link>
-      
-      {/* Center area with AI assistant, search and date filters */}
-      <div className="flex items-center justify-center gap-2 max-w-xl flex-1 ml-40 md:ml-52">
+    <div className="relative z-[120] flex min-h-16 items-center gap-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur-md pointer-events-auto shadow-[0_8px_24px_hsl(var(--foreground)/0.08)] md:px-4">
+      {/* Search leads the compact web chrome; the full wordmark is intentionally omitted. */}
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
         {/* AI Assistent tijdelijk verborgen */}
         {/* <AssistantButton variant="header" /> */}
         
         {/* Zoekveld */}
-        <div className="relative flex-1">
+         <div className="relative min-w-0 flex-1">
           <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
           <div className="relative">
             <AnimatedHeaderInput
@@ -554,32 +558,37 @@ export function Header({
         </div>
       </div>
       
-      {/* Right side with navigation and user profile */}
-      <div className="flex items-center gap-2">
-        {/* Adverteren link */}
-        <Link href="/adverteren">
-          <Button variant="ghost" size="sm" className="h-10 px-3 rounded-full flex items-center gap-1.5">
-            <span className="hidden sm:inline text-muted-foreground hover:text-foreground">Adverteren</span>
-          </Button>
+      {/* Relevant tools and account controls share one compact navigation rail. */}
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Link href="/adverteren" className="hidden h-10 items-center rounded-full border border-border/70 bg-card/60 px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground md:flex">
+          Adverteren
         </Link>
 
-        {/* Mijn Events link */}
-        <Link href="/web/my-events">
-          <Button variant="ghost" size="sm" className="h-10 px-3 rounded-full flex items-center gap-1.5">
-            <MdCalendarToday className="h-4 w-4" />
-            <span className="hidden sm:inline">Mijn Events</span>
-          </Button>
+        <Link href="/web/my-events" className="flex h-10 items-center gap-1.5 rounded-full border border-border/70 bg-card/60 px-3 text-sm font-medium transition-colors hover:border-primary/50 hover:bg-accent">
+          <MdCalendarToday className="h-4 w-4 text-primary" />
+          <span className="hidden lg:inline">Mijn Events</span>
         </Link>
+
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={toggleTheme}
+          className="h-10 w-10 rounded-full bg-card/60"
+          title={isDarkTheme ? "Licht thema gebruiken" : "Donker thema gebruiken"}
+          aria-label={isDarkTheme ? "Licht thema gebruiken" : "Donker thema gebruiken"}
+        >
+          {isDarkTheme ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
 
         {/* Locatie knop met dropdown */}
         <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className={cityName ? "h-10 px-3 rounded-full flex items-center gap-1.5 max-w-[160px]" : "h-10 w-10 rounded-full"}
+              className={cityName ? "h-10 max-w-[150px] rounded-full px-3 flex items-center gap-1.5" : "h-10 w-10 rounded-full"}
               title="Locatie wijzigen"
             >
-              <MapPin className="h-5 w-5 flex-shrink-0" />
+              <RadarLogo size={18} className="flex-shrink-0" />
               {cityName && (
                 <span className="text-sm font-medium truncate">{cityName}</span>
               )}

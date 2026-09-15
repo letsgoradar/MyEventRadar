@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { EventInterface } from '@shared/schema';
-import { MapPin, Calendar, Euro, X, Heart } from 'lucide-react';
+import { MapPin, Calendar, Clock, Euro, X, Heart } from 'lucide-react';
 import { isImageFailed, markImageFailed } from '@/lib/imageCache';
 
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
@@ -113,9 +113,6 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
   const endTime = event.endTime ? new Date(event.endTime) : new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
   const isExpired = endTime < now;
   const isOngoing = startTime <= now && endTime >= now;
-  const isStartingSoon = !isOngoing && !isExpired &&
-    (startTime.getTime() - now.getTime()) < 24 * 60 * 60 * 1000;
-
   const isApp = window.location.pathname.includes('/app');
   const isAppMapView = window.location.pathname.includes('/app') &&
     (window.location.search.includes('view=map') ||
@@ -295,6 +292,15 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 {dateBadgeText === 'Nu bezig' && <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />}
                 {dateBadgeText}
               </span>
+              {!isOngoing && !isExpired && (
+                <CountdownTimer
+                  targetDate={startTime}
+                  showHours
+                  showMinutesSeconds={startTime.getTime() - now.getTime() < 60 * 60 * 1000}
+                  pulsate={startTime.getTime() - now.getTime() < 60 * 60 * 1000}
+                  className="bg-background/90 text-foreground"
+                />
+              )}
             </div>
 
             <HeartButton />
@@ -313,25 +319,19 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
           </CardHeader>
 
           <CardContent className="p-4 pt-0">
-            <div className="flex justify-between items-center text-sm text-muted-foreground">
-              <div className="flex items-center flex-wrap gap-1">
-                <Calendar className="h-4 w-4 mr-1" />
-                <span>
-                  {formatSmartEventDate(event.startTime, event.endTime)}{(() => {
-                    const tr = formatEventTimeRange(event.startTime, event.endTime);
-                    return tr ? ` ${tr}` : '';
-                  })()}
-                  {!isOngoing && !isExpired && (() => {
-                    const hoursUntil = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60 * 60));
-                    const daysUntil = Math.ceil((startTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                    if (hoursUntil < 24) return <span className="text-green-600 ml-1">(over {hoursUntil}u)</span>;
-                    if (daysUntil === 1) return <span className="text-muted-foreground ml-1">(morgen)</span>;
-                    return <span className="text-muted-foreground ml-1">(over {daysUntil} dagen)</span>;
-                  })()}
-                </span>
+            <div className="flex min-w-0 justify-between gap-2 text-sm text-muted-foreground">
+              <div className="min-w-0 space-y-1">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Calendar className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{formatSmartEventDate(event.startTime, event.endTime)}</span>
+                </div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Clock className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{formatEventTimeRange(event.startTime, event.endTime)}</span>
+                </div>
               </div>
               {event.isPaid && (
-                <div className="flex items-center ml-auto">
+                <div className="ml-auto flex flex-shrink-0 items-center">
                   <Euro className="h-4 w-4 mr-1" />
                   <span>{Number(event.price).toFixed(2)} EUR</span>
                 </div>
@@ -489,14 +489,6 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
 
             <CardContent className="p-4 pt-2 flex-1 flex flex-col">
               <div className="flex flex-col gap-2 mb-4">
-                {!isOngoing && !isExpired && (
-                  <CountdownTimer
-                    targetDate={startTime}
-                    showHours={isStartingSoon}
-                    showMinutesSeconds={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
-                    pulsate={isStartingSoon && (startTime.getTime() - now.getTime()) < 60 * 60 * 1000}
-                  />
-                )}
                 {event.isPaid && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Euro className="h-3 w-3" />
@@ -505,22 +497,16 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
                 )}
               </div>
 
-              <div className="flex justify-between items-center text-sm text-muted-foreground mt-2">
-                <div className="flex items-center flex-wrap gap-1">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  <span>
-                    {formatSmartEventDate(event.startTime, event.endTime)}{(() => {
-                      const tr = formatEventTimeRange(event.startTime, event.endTime);
-                      return tr ? ` ${tr}` : '';
-                    })()}
-                    {!isOngoing && !isExpired && (() => {
-                      const hoursUntil = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60 * 60));
-                      const daysUntil = Math.ceil((startTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                      if (hoursUntil < 24) return <span className="text-green-600 ml-1">(over {hoursUntil}u)</span>;
-                      if (daysUntil === 1) return <span className="text-muted-foreground ml-1">(morgen)</span>;
-                      return <span className="text-muted-foreground ml-1">(over {daysUntil} dagen)</span>;
-                    })()}
-                  </span>
+              <div className="flex justify-between items-start text-sm text-muted-foreground mt-2">
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{formatSmartEventDate(event.startTime, event.endTime)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-4 w-4 flex-shrink-0" />
+                    <span>{formatEventTimeRange(event.startTime, event.endTime)}</span>
+                  </div>
                 </div>
               </div>
             </CardContent>

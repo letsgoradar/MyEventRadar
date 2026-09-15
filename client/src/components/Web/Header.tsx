@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "wouter";
 import { trackSearch } from "@/lib/analytics";
-import { MdSearch, MdTune, MdMap, MdViewList, MdCalendarToday } from "react-icons/md";
+import { MdSearch, MdTune, MdMap, MdViewList } from "react-icons/md";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -391,12 +391,12 @@ export function Header({
   return (
     <div className="relative z-[120] flex min-h-16 items-center gap-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur-md pointer-events-auto shadow-[0_8px_24px_hsl(var(--foreground)/0.08)] md:px-4">
       {/* Search leads the compact web chrome; the full wordmark is intentionally omitted. */}
-      <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+      <div className="flex min-w-0 flex-1 items-center justify-start gap-2">
         {/* AI Assistent tijdelijk verborgen */}
         {/* <AssistantButton variant="header" /> */}
         
         {/* Zoekveld */}
-         <div className="relative min-w-0 flex-1">
+          <div className="relative min-w-0 flex-1 max-w-[min(100%,48rem)]">
           <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
           <div className="relative">
             <AnimatedHeaderInput
@@ -550,11 +550,6 @@ export function Header({
       <div className="flex shrink-0 items-center gap-1.5">
         <Link href="/adverteren" className="hidden h-10 items-center rounded-full border border-border/70 bg-card/60 px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground md:flex">
           Adverteren
-        </Link>
-
-        <Link href="/web/my-events" className="flex h-10 items-center gap-1.5 rounded-full border border-border/70 bg-card/60 px-3 text-sm font-medium transition-colors hover:border-primary/50 hover:bg-accent">
-          <MdCalendarToday className="h-4 w-4 text-primary" />
-          <span className="hidden lg:inline">Mijn Events</span>
         </Link>
 
         {/* Locatie knop met dropdown */}

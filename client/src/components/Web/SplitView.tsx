@@ -13,6 +13,8 @@ import { startOfDay } from "date-fns";
 import L from "leaflet";
 import { useLocation as useRouterLocation } from "wouter";
 import { useLocation } from "@/hooks/useLocation";
+import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 import { MapPin, Clock, ChevronDown, Plus, SlidersHorizontal, Eye, EyeOff } from "lucide-react";
 import { useHiddenEvents } from "@/hooks/useHiddenEvents";
 import { cn } from "@/lib/utils";
@@ -68,6 +70,34 @@ export function SplitView({
 }: SplitViewProps) {
   const [, setRouterLocation] = useRouterLocation();
   const { isHidden, hideEvent, unhideEvent } = useHiddenEvents();
+  const { user } = useAuth();
+  const [personalOnly, setPersonalOnly] = React.useState(false);
+  const { data: createdEvents = [] } = useQuery<Event[]>({
+    queryKey: ["/api/events/byuser", user?.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/events/byuser/${user?.id}`, { credentials: "include" });
+      if (!response.ok) throw new Error("Persoonlijke evenementen konden niet worden geladen");
+      return response.json();
+    },
+    enabled: !!user?.id,
+  });
+  const { data: participatingEvents = [] } = useQuery<Event[]>({
+    queryKey: [`/api/events/participation/${user?.id}`],
+    enabled: !!user?.id,
+  });
+  const { data: favoriteEvents = [] } = useQuery<Event[]>({
+    queryKey: ["/api/events/favorites"],
+    enabled: !!user,
+  });
+  const personalEventIds = React.useMemo(() => new Set(
+    [...createdEvents, ...participatingEvents, ...favoriteEvents]
+      .map((event) => Number(event.id))
+      .filter((id) => Number.isFinite(id))
+  ), [createdEvents, participatingEvents, favoriteEvents]);
+  const [personalAvailableCount, setPersonalAvailableCount] = React.useState(0);
+  React.useEffect(() => {
+    if (!user) setPersonalOnly(false);
+  }, [user]);
   const [showHiddenEvents, setShowHiddenEvents] = React.useState(false);
   const [activeEventId, setActiveEventId] = React.useState<number | null>(null);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
@@ -77,6 +107,8 @@ export function SplitView({
   const [showExpiredEvents, setShowExpiredEvents] = React.useState<boolean>(false);
   const [hoveredEventId, setHoveredEventId] = React.useState<number | null>(null);
   const [sortOption, setSortOption] = React.useState<SortOption>("time");
+  const [isPreviewMode, setIsPreviewMode] = React.useState<boolean>(false);
+  const [previewEvent, setPreviewEvent] = React.useState<Event | null>(null);
   const scrollPositionRef = React.useRef<number>(0);
   const listContainerRef = React.useRef<HTMLDivElement>(null);
   
@@ -106,9 +138,10 @@ export function SplitView({
     }
     
     // Basis filtering op verlopen events
+    const availableEvents = filteredEvents;
     const nonExpiredEvents = showExpiredEvents ? 
-      filteredEvents : 
-      filteredEvents.filter(event => !isEventExpired(event));
+      availableEvents :
+      availableEvents.filter(event => !isEventExpired(event));
     
     // Als er geen mapBounds zijn, toon alleen gefilterd op verlopen status
     let eventsToProcess = nonExpiredEvents;
@@ -133,6 +166,14 @@ export function SplitView({
                  (eventStart.getTime() === selected.getTime());
         });
       });
+    }
+
+    setPersonalAvailableCount(
+      eventsToProcess.filter((event) => personalEventIds.has(Number(event.id))).length
+    );
+
+    if (personalOnly) {
+      eventsToProcess = eventsToProcess.filter((event) => personalEventIds.has(Number(event.id)));
     }
     
     // Bereken afstand voor elk event
@@ -203,11 +244,16 @@ export function SplitView({
     }
     
     setVisibleEvents(eventsWithDistance);
-  }, [filteredEvents, mapBounds, showExpiredEvents, selectedDays, location, sortOption]);
+  }, [filteredEvents, personalOnly, personalEventIds, mapBounds, showExpiredEvents, selectedDays, location, sortOption]);
 
-  // Nieuwe states voor kaart preview mode vs detail mode
-  const [isPreviewMode, setIsPreviewMode] = React.useState<boolean>(false);
-  const [previewEvent, setPreviewEvent] = React.useState<Event | null>(null);
+  React.useEffect(() => {
+    if (selectedEvent && !visibleEvents.some((event) => event.id === selectedEvent.id)) {
+      setSelectedEvent(null);
+      setActiveEventId(null);
+      setIsPreviewMode(false);
+      setPreviewEvent(null);
+    }
+  }, [selectedEvent, visibleEvents]);
 
   const handleMapEventClick = React.useCallback((event: Event) => {
     if (listContainerRef.current) {
@@ -370,10 +416,34 @@ export function SplitView({
               <div ref={listContainerRef} className="h-full overflow-y-auto pb-20 px-4 relative">
                 {/* Toon het aantal resultaten en sorteeroptie */}
                 <div className="sticky top-0 pt-4 pb-3 bg-background z-20 mb-2">
-                  <div className="flex justify-between items-center">
-                    <div className="text-lg font-medium">
-                      {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'}
-                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                     <div className="flex min-w-0 items-center gap-3">
+                       <div className="text-lg font-medium whitespace-nowrap">
+                         {visibleEvents.length} {visibleEvents.length === 1 ? 'evenement' : 'evenementen'}
+                       </div>
+                       {user && (
+                         <div role="radiogroup" aria-label="Evenementenfilter" className="flex items-center rounded-full border border-border bg-card p-0.5 text-xs sm:text-sm">
+                           <button
+                             type="button"
+                             role="radio"
+                             aria-checked={!personalOnly}
+                             onClick={() => setPersonalOnly(false)}
+                             className={cn("rounded-full px-2.5 py-1 transition-colors", !personalOnly ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+                           >
+                             Alle evenementen
+                           </button>
+                           <button
+                             type="button"
+                             role="radio"
+                             aria-checked={personalOnly}
+                             onClick={() => setPersonalOnly(true)}
+                             className={cn("rounded-full px-2.5 py-1 transition-colors", personalOnly ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+                           >
+                             Mijn evenementen ({personalAvailableCount})
+                           </button>
+                         </div>
+                       )}
+                     </div>
                     <div className="flex items-center gap-2">
                       {(() => {
                         const hiddenCount = visibleEvents.filter(e => isHidden(e.id)).length;

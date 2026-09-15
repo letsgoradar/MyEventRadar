@@ -59,6 +59,7 @@ export function AppHomePage() {
   const [showOnboarding, setShowOnboarding] = React.useState(false);
   const authTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const onboardingShownRef = React.useRef(false);
+  const authDismissKey = "evenementenradar-auth-prompt-dismissed-v1";
 
   React.useEffect(() => {
     if (authFromQuery === "create" && !user) {
@@ -79,7 +80,7 @@ export function AppHomePage() {
       }
       return;
     }
-    if (!user) {
+    if (!user && window.localStorage.getItem(authDismissKey) !== "1") {
       authTimerRef.current = setTimeout(() => setShowAuthModal(true), 15000);
       return () => { if (authTimerRef.current) clearTimeout(authTimerRef.current); };
     }
@@ -87,9 +88,7 @@ export function AppHomePage() {
 
   const handleAuthClose = React.useCallback(() => {
     setShowAuthModal(false);
-    if (!user) {
-      authTimerRef.current = setTimeout(() => setShowAuthModal(true), 60000);
-    }
+    if (!user) window.localStorage.setItem(authDismissKey, "1");
   }, [user]);
 
   const handleAuthSuccess = React.useCallback(() => {

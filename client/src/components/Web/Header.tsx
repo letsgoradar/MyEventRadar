@@ -39,12 +39,12 @@ import { EventFilters, ActiveFilterBadges, type EventFilterState } from "@/compo
 import { RadarLogo } from "@/components/RadarLogo";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { useAuth } from "@/hooks/use-auth";
-import { LogIn, Navigation, MapPin, LocateFixed, Sun, Moon } from "lucide-react";
+import { LogIn, Navigation, MapPin, LocateFixed } from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
 import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, differenceInDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { getDistance } from "@/utils/location-utils";
 import { useLocation as useGeoLocation, clearSavedLocation, setManualLocation, useCityName } from "@/hooks/useLocation";
-import { getThemePreference, setThemePreference } from "@/lib/theme";
 
 // Top-50 Nederlandse steden met coördinaten
 const DUTCH_CITIES = [
@@ -179,18 +179,6 @@ export function Header({
   const [locationPopoverOpen, setLocationPopoverOpen] = React.useState(false);
   const [gpsLoading, setGpsLoading] = React.useState(false);
   const cityName = useCityName();
-  const [isDarkTheme, setIsDarkTheme] = React.useState(false);
-
-  React.useEffect(() => {
-    const preference = getThemePreference();
-    setIsDarkTheme(preference === "dark" || (preference === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches));
-  }, []);
-
-  const toggleTheme = React.useCallback(() => {
-    const next = !isDarkTheme;
-    setThemePreference(next ? "dark" : "light");
-    setIsDarkTheme(next);
-  }, [isDarkTheme]);
 
   const handleGoToMyLocation = React.useCallback(() => {
     if (!navigator.geolocation) return;
@@ -569,17 +557,6 @@ export function Header({
           <span className="hidden lg:inline">Mijn Events</span>
         </Link>
 
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={toggleTheme}
-          className="h-10 w-10 rounded-full bg-card/60"
-          title={isDarkTheme ? "Licht thema gebruiken" : "Donker thema gebruiken"}
-          aria-label={isDarkTheme ? "Licht thema gebruiken" : "Donker thema gebruiken"}
-        >
-          {isDarkTheme ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </Button>
-
         {/* Locatie knop met dropdown */}
         <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
           <PopoverTrigger asChild>
@@ -654,13 +631,7 @@ export function Header({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-2">
-                    <div className="h-10 w-10 rounded-full overflow-hidden border border-border hover:border-primary/50 transition-colors flex-shrink-0">
-                      <img 
-                        src={user.photoUrl || user.avatar || "/images/default-user.svg"} 
-                        alt="Profielfoto" 
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
+                    <UserAvatar user={user} size="md" className="border border-border hover:border-primary/50 transition-colors flex-shrink-0" />
                     <span className="hidden md:inline text-sm font-medium max-w-[120px] truncate">
                       {user.username || user.name || ''}
                     </span>

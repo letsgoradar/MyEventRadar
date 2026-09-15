@@ -3,9 +3,9 @@ export type ThemePreference = "light" | "dark" | "system";
 const STORAGE_KEY = "evenementenradar-theme";
 
 export function getThemePreference(): ThemePreference {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "light";
   const saved = window.localStorage.getItem(STORAGE_KEY);
-  return saved === "light" || saved === "dark" ? saved : "system";
+  return saved === "light" || saved === "dark" ? saved : "light";
 }
 
 export function applyTheme(preference: ThemePreference): boolean {

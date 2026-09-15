@@ -37,6 +37,7 @@ import { setThemePreference } from "@/lib/theme";
 import { useUserPreferences, type MapStyle } from "@/hooks/use-user-preferences";
 import { Link } from "wouter";
 import { Lock } from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
 
 interface UserProfile {
   id: number;
@@ -80,9 +81,7 @@ export function WebProfilePage() {
       <WebLayout>
         <div className="container mx-auto p-6 max-w-md">
           <div className="flex flex-col items-center py-16">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
-              <User className="w-10 h-10 text-muted-foreground" />
-            </div>
+            <UserAvatar size="lg" className="mb-4" />
             <h2 className="text-xl font-bold mb-2">Geen profiel</h2>
             <p className="text-muted-foreground text-center text-sm mb-6">
               Log in of maak een account aan om je profiel te bekijken en evenementen te beheren.
@@ -331,7 +330,8 @@ export function WebProfilePage() {
                         {([
                           { value: 'default', label: 'Standaard' },
                           { value: 'minimal', label: 'Minimaal' },
-                          { value: 'satellite', label: 'Satelliet' },
+                           { value: 'satellite', label: 'Satelliet' },
+                           { value: 'dark', label: 'Donker' },
                         ] as { value: MapStyle; label: string }[]).map(({ value, label }) => (
                           <button
                             key={value}

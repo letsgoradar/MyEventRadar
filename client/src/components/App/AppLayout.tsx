@@ -1,8 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, CircleUserRound, Clock, LogOut, SortAsc } from "lucide-react";
+import { ChevronDown, ChevronUp, List, Map, Search, Sliders, X, CalendarDays, User, Clock, LogOut, SortAsc } from "lucide-react";
 import "./app-styles.css";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,7 +81,7 @@ import { NotificationCenter } from "./NotificationCenter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { RadarLogoWithText } from "@/components/RadarLogo";
+import { UserAvatar } from "@/components/UserAvatar";
 import { useHiddenEvents } from "@/hooks/useHiddenEvents";
 import { useLocation as useGeoLocation } from "@/hooks/useLocation";
 
@@ -491,27 +490,13 @@ export function AppLayout({
               </Link>
             ) : (
               <Link href="/app/profile" className="cursor-pointer">
-                <Avatar className="h-8 w-8 border-2 border-primary">
-                  {savedPhotoUrl ? (
-                    <AvatarImage src={savedPhotoUrl} alt="Profielfoto" />
-                  ) : user?.photoUrl ? (
-                    <AvatarImage src={user.photoUrl} alt="Profielfoto" />
-                  ) : (
-                    <AvatarFallback>
-                      <CircleUserRound className="h-5 w-5" />
-                    </AvatarFallback>
-                  )}
-                </Avatar>
+                <UserAvatar user={user} src={savedPhotoUrl} size="sm" className="border-2 border-primary" />
               </Link>
             )}
           </div>
           {/* Midden: logo of titel */}
           <div className="flex-1 flex justify-center">
-            {title === "Evenementen" ? (
-              <RadarLogoWithText height={44} textColor="hsl(var(--foreground))" />
-            ) : (
-              <h1 className="text-xl font-semibold">{title}</h1>
-            )}
+             <h1 className="text-xl font-semibold">{title}</h1>
           </div>
           {/* Rechts: notificaties */}
           <div className="flex items-center w-10 justify-end">
@@ -660,16 +645,6 @@ export function AppLayout({
               </div>
             </div>
             
-            {/* Filter knop - naast zoekveld */}
-            <EventFilters
-              filters={eventFilters}
-              onFiltersChange={setEventFilters}
-              resultCount={displayedEvents.length}
-              userLat={geoLocation?.lat}
-              userLng={geoLocation?.lng}
-              userRadius={radius}
-            />
-            
             {/* Datum filter - naast zoekveld */}
             <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
               <PopoverTrigger asChild>
@@ -755,6 +730,16 @@ export function AppLayout({
       {view === "map" && !isProfilePage && (
         <div className="flex-1 app-layout" id="map-container">
           <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[106px] z-0 border-t border-b-0 border-border">
+            <div className="absolute top-3 right-3 z-[500]">
+              <EventFilters
+                filters={eventFilters}
+                onFiltersChange={setEventFilters}
+                resultCount={displayedEvents.length}
+                userLat={geoLocation?.lat}
+                userLng={geoLocation?.lng}
+                userRadius={radius}
+              />
+            </div>
             <MapView 
               filteredEvents={displayedEvents} 
               radius={50} 

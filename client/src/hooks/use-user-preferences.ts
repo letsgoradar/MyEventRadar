@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
 
-export type MapStyle = 'default' | 'satellite' | 'minimal';
+export type MapStyle = 'default' | 'satellite' | 'minimal' | 'dark';
 
 export interface UserPreferences {
   defaultRadius: number;

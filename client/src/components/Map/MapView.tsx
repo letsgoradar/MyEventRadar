@@ -760,7 +760,7 @@ export default function MapView({
   const [eventsData, setEventsData] = React.useState<EventInterface[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<EventInterface | null>(null);
   const [mapStyle, setMapStyle] = React.useState<'default' | 'satellite' | 'dark' | 'minimal' | 'colorful'>('default');
-  const { preferences, isAuthenticated: hasPrefs } = useUserPreferences();
+  const { preferences, isAuthenticated: hasPrefs, updatePreferences } = useUserPreferences();
   const mapPrefAppliedRef = React.useRef(false);
   React.useEffect(() => {
     if (hasPrefs && !mapPrefAppliedRef.current) {
@@ -1018,8 +1018,8 @@ export default function MapView({
   // Render de kaart
   return (
     <div className="h-full w-full relative flex-1 overflow-hidden z-0">
-      {/* Kaartstijl selector rechtsonder */}
-      <div className="absolute bottom-20 right-4 z-[150]">
+      {/* Web-only map style control: grouped beside SplitView's bottom-left map actions. */}
+      {isWebView && <div className="absolute bottom-4 left-20 z-[150]">
         <div className="relative" ref={layerMenuRef}>
           <Button 
             size="sm" 
@@ -1036,13 +1036,14 @@ export default function MapView({
           </Button>
           
           {showLayerOptions && (
-            <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-zinc-800 rounded-md shadow-lg p-2 z-[200]">
+            <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-zinc-800 rounded-md shadow-lg p-2 z-[200]">
               <div className="flex flex-col space-y-2">
                 <Button 
                   size="sm" 
                   variant={mapStyle === 'default' ? "default" : "outline"}
                   onClick={() => {
                     setMapStyle('default');
+                    if (hasPrefs) updatePreferences({ mapStyle: 'default' });
                     setShowLayerOptions(false);
                   }}
                   className="text-xs px-3 py-1 h-auto whitespace-nowrap"
@@ -1054,6 +1055,7 @@ export default function MapView({
                   variant={mapStyle === 'minimal' ? "default" : "outline"}
                   onClick={() => {
                     setMapStyle('minimal');
+                    if (hasPrefs) updatePreferences({ mapStyle: 'minimal' });
                     setShowLayerOptions(false);
                   }}
                   className="text-xs px-3 py-1 h-auto whitespace-nowrap"
@@ -1065,17 +1067,30 @@ export default function MapView({
                   variant={mapStyle === 'satellite' ? "default" : "outline"}
                   onClick={() => {
                     setMapStyle('satellite');
+                    if (hasPrefs) updatePreferences({ mapStyle: 'satellite' });
                     setShowLayerOptions(false);
                   }}
                   className="text-xs px-3 py-1 h-auto whitespace-nowrap"
                 >
                   Satelliet
                 </Button>
+                <Button
+                  size="sm"
+                  variant={mapStyle === 'dark' ? "default" : "outline"}
+                  onClick={() => {
+                    setMapStyle('dark');
+                    if (hasPrefs) updatePreferences({ mapStyle: 'dark' });
+                    setShowLayerOptions(false);
+                  }}
+                  className="text-xs px-3 py-1 h-auto whitespace-nowrap"
+                >
+                  Donker
+                </Button>
               </div>
             </div>
           )}
         </div>
-      </div>
+      </div>}
       
       <MapContainer
         center={(() => { const s = readSavedMapState(); return s.center || userLocation; })()}
@@ -1105,6 +1120,12 @@ export default function MapView({
         {mapStyle === 'minimal' && (
           <TileLayer
             url={`https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`}
+            subdomains="abcd"
+          />
+        )}
+        {mapStyle === 'dark' && (
+          <TileLayer
+            url={`https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${import.meta.env.VITE_CARTO_BASEMAP_KEY}`}
             subdomains="abcd"
           />
         )}

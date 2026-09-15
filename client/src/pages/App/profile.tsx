@@ -43,6 +43,7 @@ import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { clearSavedLocation } from "@/hooks/useLocation";
 import { Lock } from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   Dialog,
   DialogContent,
@@ -148,9 +149,7 @@ export function AppProfilePage() {
       <AppLayout title="Profiel" header={<div className="hidden"></div>}>
         <div className="pb-20 h-full overflow-auto flex flex-col items-center justify-center px-6">
           <div className="flex flex-col items-center max-w-sm w-full py-12">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
-              <User className="w-10 h-10 text-muted-foreground" />
-            </div>
+             <UserAvatar size="lg" className="mb-4" />
             <h2 className="text-xl font-bold mb-2">Geen profiel</h2>
             <p className="text-muted-foreground text-center text-sm mb-6">
               Log in of maak een account aan om je profiel te bekijken en evenementen te beheren.
@@ -493,7 +492,8 @@ export function AppProfilePage() {
                     {([
                       { value: 'default', label: 'Standaard' },
                       { value: 'minimal', label: 'Minimaal' },
-                      { value: 'satellite', label: 'Satelliet' },
+                       { value: 'satellite', label: 'Satelliet' },
+                       { value: 'dark', label: 'Donker' },
                     ] as { value: MapStyle; label: string }[]).map(({ value, label }) => (
                       <button
                         key={value}

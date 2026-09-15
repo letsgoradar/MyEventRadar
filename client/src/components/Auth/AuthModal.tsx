@@ -12,6 +12,7 @@ import {
   Mail, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2,
   Check, X, ArrowLeft, MailCheck, PartyPopper,
 } from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
 
 type AuthView = "welcome" | "login" | "register" | "verification_pending" | "verified";
 
@@ -195,11 +196,22 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
     <div className="fixed inset-0 z-[10100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={view === "verification_pending" || view === "verified" ? undefined : onClose} />
       <div className="relative z-10 w-full max-w-sm bg-background/95 backdrop-blur-sm rounded-2xl shadow-xl border border-border p-6 animate-in fade-in zoom-in-95 duration-200">
+        {view !== "verification_pending" && view !== "verified" && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Sluiten"
+            className="absolute right-3 top-3 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
 
         {/* ========== WELCOME VIEW ========== */}
         {view === "welcome" && (
           <div className="space-y-4">
             <div className="text-center space-y-1">
+              <UserAvatar size="lg" className="mx-auto mb-3" />
               <h1 className="text-2xl font-bold text-primary">Welkom bij Evenementenradar.nl</h1>
               <p className="text-muted-foreground text-sm">Ontdek evenementen in jouw buurt</p>
               <p className="text-xs text-muted-foreground">Registreer of log in om alle details te bekijken</p>
@@ -277,6 +289,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
               Terug
             </button>
             <div className="text-center space-y-1">
+              <UserAvatar size="md" className="mx-auto mb-2" />
               <h2 className="text-xl font-bold">Welkom terug</h2>
               <p className="text-muted-foreground text-sm">Log in om evenementen te ontdekken</p>
             </div>
@@ -372,6 +385,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
               Terug
             </button>
             <div className="text-center space-y-1">
+              <UserAvatar size="md" className="mx-auto mb-2" />
               <h2 className="text-xl font-bold">Account aanmaken</h2>
               <p className="text-muted-foreground text-sm">Maak een gratis account aan</p>
             </div>

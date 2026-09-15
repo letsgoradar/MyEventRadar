@@ -37,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import ProfilePhotoUpload from "@/components/App/ProfilePhotoUpload";
 import { useAuth } from "@/hooks/use-auth";
+import { setThemePreference } from "@/lib/theme";
 import { useUserPreferences, type MapStyle } from "@/hooks/use-user-preferences";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
@@ -66,7 +67,7 @@ interface UserProfile {
 
 export function AppProfilePage() {
   const { toast } = useToast();
-  const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [isDarkMode, setIsDarkMode] = React.useState(() => document.documentElement.classList.contains("dark"));
   const { user: authUser, logoutMutation } = useAuth();
   const { preferences, updatePreferences, isAuthenticated: isLoggedIn } = useUserPreferences();
   const [, setLocation] = useLocation();
@@ -427,7 +428,7 @@ export function AppProfilePage() {
                     checked={isDarkMode}
                     onCheckedChange={(checked) => {
                       setIsDarkMode(checked);
-                      document.documentElement.classList.toggle('dark', checked);
+                      setThemePreference(checked ? "dark" : "light");
                     }}
                   />
                 </div>

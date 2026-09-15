@@ -179,7 +179,7 @@ export function BottomSheet({
         }}
       >
         <div className="drag-handle flex justify-center items-center py-3 cursor-grab active:cursor-grabbing">
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+          <div className="w-12 h-1.5 bg-muted-foreground/40 rounded-full" />
         </div>
         
         <div className="px-4 pb-2">

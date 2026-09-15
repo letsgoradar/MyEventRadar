@@ -115,7 +115,7 @@ export function EventPreview({ event, onViewDetails, onClose }: EventPreviewProp
       <CardContent className="space-y-4">
         {/* Event Image Preview */}
         {event.imageUrl && (
-          <div className="relative h-32 bg-gray-100 rounded-md overflow-hidden">
+          <div className="relative h-32 bg-muted rounded-md overflow-hidden">
             <img 
               src={event.imageUrl} 
               alt={event.title}
@@ -126,14 +126,14 @@ export function EventPreview({ event, onViewDetails, onClose }: EventPreviewProp
 
         {/* Event Info */}
         <div className="space-y-3">
-          <div className="flex items-start gap-2 text-sm text-gray-600">
+          <div className="flex items-start gap-2 text-sm text-muted-foreground">
             <Calendar className="h-4 w-4 flex-shrink-0 mt-0.5" />
             <div>
               <div className="font-medium">
                 {formatDateTime(event.startTime)}
               </div>
               {event.endTime && (
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-muted-foreground">
                   tot {formatDateTime(event.endTime)}
                 </div>
               )}
@@ -141,7 +141,7 @@ export function EventPreview({ event, onViewDetails, onClose }: EventPreviewProp
           </div>
 
           {event.address && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <MapPin className="h-4 w-4 flex-shrink-0" />
               <span className="truncate">{event.address}</span>
             </div>
@@ -149,14 +149,14 @@ export function EventPreview({ event, onViewDetails, onClose }: EventPreviewProp
 
           <div className="flex items-center justify-between">
             {event.maxParticipants && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Users className="h-4 w-4 flex-shrink-0" />
                 <span>Max {event.maxParticipants}</span>
               </div>
             )}
 
             {event.isPaid && event.price && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Euro className="h-4 w-4 flex-shrink-0" />
                 <span>€{event.price}</span>
               </div>
@@ -166,7 +166,7 @@ export function EventPreview({ event, onViewDetails, onClose }: EventPreviewProp
 
         {/* Description Preview */}
         {event.description && (
-          <p className="text-sm text-gray-700 line-clamp-3">
+            <p className="text-sm text-foreground/85 line-clamp-3">
             {event.description}
           </p>
         )}

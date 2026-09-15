@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import ProfilePhotoUpload from "@/components/App2/ProfilePhotoUpload";
 import { useAuth } from "@/hooks/use-auth";
+import { setThemePreference } from "@/lib/theme";
 import { useUserPreferences, type MapStyle } from "@/hooks/use-user-preferences";
 import { Link } from "wouter";
 import { Lock } from "lucide-react";
@@ -51,7 +52,7 @@ interface UserProfile {
 
 export function WebProfilePage() {
   const { toast } = useToast();
-  const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [isDarkMode, setIsDarkMode] = React.useState(() => document.documentElement.classList.contains("dark"));
   const { user: authUser } = useAuth();
   const { preferences, updatePreferences, isAuthenticated: isLoggedIn } = useUserPreferences();
 
@@ -265,7 +266,7 @@ export function WebProfilePage() {
                         checked={isDarkMode}
                         onCheckedChange={(checked) => {
                           setIsDarkMode(checked);
-                          document.documentElement.classList.toggle('dark', checked);
+                          setThemePreference(checked ? "dark" : "light");
                         }}
                       />
                     </div>

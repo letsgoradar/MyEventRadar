@@ -4997,7 +4997,7 @@ Antwoord in dit JSON formaat:
     if (process.env.CUSTOM_DOMAIN) return `https://${process.env.CUSTOM_DOMAIN}`;
     const host = req.get("host");
     if (process.env.NODE_ENV === "production") {
-      return `https://${host ?? "letsgoradar.com"}`;
+      return `https://${host ?? "evenementenradar.nl"}`;
     }
     return `http://${host ?? "localhost:5000"}`;
   };
@@ -5692,15 +5692,15 @@ Antwoord in dit JSON formaat:
 
       // Build event-specific OG values
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const rawTitle = event.title ? `${event.title} | letsgo radar` : 'letsgo radar - Ontdek lokale evenementen';
+      const rawTitle = event.title ? `${event.title} | Evenementenradar.nl` : 'Evenementenradar.nl - Ontdek lokale evenementen';
       const rawDesc = event.description
         ? event.description.replace(/<[^>]+>/g, '').substring(0, 200).trim()
-        : 'Ontdek lokale evenementen in jouw buurt met letsgo radar';
+        : 'Ontdek lokale evenementen in jouw buurt met Evenementenradar.nl';
       const title = escAttr(rawTitle);
       const description = escAttr(rawDesc);
       let rawImage = event.imageUrl || '';
       if (rawImage && !rawImage.startsWith('http')) rawImage = `${baseUrl}${rawImage}`;
-      const image = escAttr(rawImage || `${baseUrl}/images/letsgo-radar-logo.png`);
+      const image = escAttr(rawImage || `${baseUrl}/images/evenementenradar-logo.png`);
       const canonicalUrl = escAttr(`${baseUrl}${req.originalUrl}`);
 
       // Replace/inject OG meta tags in the template

@@ -47,14 +47,14 @@ export function RadarLogoWithText({
   const brand = getCurrentBrand();
 
   if (brand.logoWithText) {
-    const aspectRatio = 930 / 230;
+    const aspectRatio = 1024 / 333;
     const width = Math.round(height * aspectRatio);
     return (
       <img
         src={brand.logoWithText}
         alt={brand.displayName}
-        style={{ height: `${height}px`, width: `${width}px` }}
-        className={`object-contain drop-shadow-sm ${className}`}
+        style={{ height: `${height}px`, width: `${width}px`, maxWidth: "100%" }}
+        className={`brand-wordmark object-contain drop-shadow-sm ${className}`}
       />
     );
   }

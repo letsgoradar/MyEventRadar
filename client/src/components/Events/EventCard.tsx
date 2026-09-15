@@ -302,7 +302,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
 
           <CardHeader className="p-4 pb-2 flex-1">
             <CardTitle className="text-lg font-bold">{event.title}</CardTitle>
-            <div className="flex items-center gap-1.5 mt-1 text-gray-500 text-sm">
+            <div className="flex items-center gap-1.5 mt-1 text-muted-foreground text-sm">
               <MapPin className="flex-shrink-0 h-4 w-4" />
               <span>
                 {cityName || ''}
@@ -473,7 +473,7 @@ export default function EventCard({ event, distance, gridView = false, onEventCl
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="text-lg font-bold line-clamp-1">{event.title}</CardTitle>
-                  <CardDescription className="flex items-center gap-2 mt-1 text-gray-500">
+                  <CardDescription className="flex items-center gap-2 mt-1 text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
                       <span className="text-xs">

@@ -7,7 +7,7 @@
         <key>CFBundleDevelopmentRegion</key>
         <string>en</string>
         <key>CFBundleDisplayName</key>
-        <string>let's go Radar</string>
+        <string>Evenementenradar.nl</string>
         <key>CFBundleExecutable</key>
         <string>$(EXECUTABLE_NAME)</string>
         <key>CFBundleIdentifier</key>
@@ -48,11 +48,11 @@
         <key>UIViewControllerBasedStatusBarAppearance</key>
         <true/>
         <key>NSLocationWhenInUseUsageDescription</key>
-        <string>Let's go Radar gebruikt je locatie om evenementen bij jou in de buurt te tonen.</string>
+        <string>Evenementenradar gebruikt je locatie om evenementen bij jou in de buurt te tonen.</string>
         <key>NSCameraUsageDescription</key>
-        <string>Let's go Radar kan je camera gebruiken voor het uploaden van foto's.</string>
+        <string>Evenementenradar kan je camera gebruiken voor het uploaden van foto's.</string>
         <key>NSPhotoLibraryUsageDescription</key>
-        <string>Let's go Radar kan foto's uit je bibliotheek gebruiken.</string>
+        <string>Evenementenradar kan foto's uit je bibliotheek gebruiken.</string>
         <key>ITSAppUsesNonExemptEncryption</key>
         <false/>
         <key>CFBundleURLTypes</key>

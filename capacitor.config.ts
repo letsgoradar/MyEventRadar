@@ -11,7 +11,7 @@ if (!productionUrl && process.env.NODE_ENV === 'production') {
 
 const config: CapacitorConfig = {
   appId: 'nl.letsgoradar.app',
-  appName: "let's go Radar",
+  appName: 'Evenementenradar.nl',
   webDir: 'dist/public',
   server: {
     androidScheme: 'https',

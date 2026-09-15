@@ -63,12 +63,61 @@
 
 @layer base {
   :root {
-    --theme-color-1: #f0fafc;
-    --theme-color-2: #e0f5f9;
-    --theme-color-3: #00A9C5;
-    --theme-color-4: #1A2B3C;
+    --background: 180 33% 99%;
+    --foreground: 216 48% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 216 48% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 216 48% 13%;
+    --primary: 173 78% 44%;
+    --primary-foreground: 216 48% 13%;
+    --secondary: 178 39% 94%;
+    --secondary-foreground: 216 48% 18%;
+    --muted: 180 24% 94%;
+    --muted-foreground: 215 20% 40%;
+    --accent: 177 53% 90%;
+    --accent-foreground: 216 48% 13%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 180 18% 86%;
+    --input: 180 18% 78%;
+    --ring: 173 78% 38%;
+    --radius: .75rem;
+    --theme-color-1: #f4fffd;
+    --theme-color-2: #e2faf6;
+    --theme-color-3: #18c7b2;
+    --theme-color-4: #081a33;
     --theme-color-5: #ffffff;
-    --theme-text-color: #1A2B3C;
+    --theme-text-color: #081a33;
+    --brand-color: #18c7b2;
+  }
+
+  .dark {
+    --background: 216 48% 9%;
+    --foreground: 180 24% 96%;
+    --card: 216 42% 13%;
+    --card-foreground: 180 24% 96%;
+    --popover: 216 42% 13%;
+    --popover-foreground: 180 24% 96%;
+    --primary: 173 78% 48%;
+    --primary-foreground: 216 48% 9%;
+    --secondary: 216 34% 19%;
+    --secondary-foreground: 180 24% 96%;
+    --muted: 216 34% 18%;
+    --muted-foreground: 215 18% 72%;
+    --accent: 174 38% 24%;
+    --accent-foreground: 180 24% 96%;
+    --destructive: 0 62% 43%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 216 28% 26%;
+    --input: 216 28% 31%;
+    --ring: 173 78% 56%;
+    --theme-color-1: #0b213d;
+    --theme-color-2: #102b48;
+    --theme-color-3: #18c7b2;
+    --theme-color-4: #f2fffd;
+    --theme-color-5: #102b48;
+    --theme-text-color: #f2fffd;
   }
 
   * {
@@ -82,6 +131,25 @@
     height: 100dvh; /* dynamische hoogte: past zich aan Safari-adresbalk aan */
     overflow: hidden;
     @apply font-sans antialiased bg-background text-foreground;
+    color-scheme: light;
+    transition: background-color .2s ease, color .2s ease;
+  }
+
+  .dark body { color-scheme: dark; }
+
+  /* Het aangeleverde woordlogo bevat donkerblauwe tekst. Houd het in
+     donkere weergave leesbaar zonder het bronbestand te veranderen. */
+  .dark .brand-wordmark {
+    background: hsl(0 0% 100%);
+    border: 1px solid hsl(var(--border));
+    border-radius: .5rem;
+    box-shadow: 0 4px 14px hsl(216 48% 4% / .24);
+    padding: .2rem .35rem;
+  }
+
+  :focus-visible {
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 
   #root {
@@ -105,21 +173,21 @@
 @layer components {
   /* Bottom Navigation - vlakke achtergrond */
   .fixed.bottom-0.bg-background.border-t {
-    background: var(--theme-color-1, hsl(var(--primary)));
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    background: hsl(var(--card));
+    border-top: 1px solid hsl(var(--border));
     border-radius: 16px 16px 0 0;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 -2px 16px hsl(var(--foreground) / .12);
   }
   
   .fixed.bottom-0 .text-muted-foreground,
   .fixed.bottom-0 a {
-    color: var(--theme-text-color, #1a1a1a) !important;
+    color: hsl(var(--foreground)) !important;
   }
   
   .fixed.bottom-0 .text-primary,
   .fixed.bottom-0 a.active,
   .fixed.bottom-0 .text-foreground {
-    color: var(--theme-text-color, #1a1a1a) !important;
+    color: hsl(var(--foreground)) !important;
     font-weight: 600;
   }
   
@@ -129,43 +197,43 @@
   
   /* Primaire knop in bottom nav */
   .fixed.bottom-0 .bg-primary {
-    background: var(--theme-color-3, hsl(var(--primary))) !important;
-    color: var(--theme-text-color, #1a1a1a) !important;
+    background: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid hsl(var(--primary) / .45);
   }
   
   /* AppLayout header - vlakke achtergrond */
   header.sticky.top-0 {
-    background: var(--theme-color-1, hsl(var(--primary)));
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background: hsl(var(--card));
+    border-bottom: 1px solid hsl(var(--border));
     border-radius: 0 0 16px 16px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 16px hsl(var(--foreground) / .10);
   }
   
   header.sticky.top-0 h1,
   header.sticky.top-0 button,
   header.sticky.top-0 svg {
-    color: var(--theme-text-color, #1a1a1a) !important;
+    color: hsl(var(--foreground)) !important;
   }
   
   /* Tab styling - vlakke achtergrond */
   [role="tablist"] {
-    background: var(--theme-color-2, hsl(var(--primary))) !important;
+    background: hsl(var(--muted)) !important;
     border-radius: 0 !important;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-top: 1px solid hsl(var(--border));
   }
   
   [role="tab"] {
-    color: var(--theme-text-color, #1a1a1a) !important;
+    color: hsl(var(--muted-foreground)) !important;
     opacity: 0.7;
     font-weight: 500;
   }
   
   [role="tab"][data-state="active"] {
-    color: var(--theme-text-color, #1a1a1a) !important;
+    color: hsl(var(--foreground)) !important;
     opacity: 1;
-    background: var(--theme-color-3, rgba(0, 0, 0, 0.1)) !important;
+    background: hsl(var(--accent)) !important;
     font-weight: 700;
     border-radius: 8px;
   }
@@ -173,22 +241,22 @@
   /* Event cards met subtiele randen */
   .event-card {
     border-radius: 12px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid hsl(var(--border));
     transition: all 0.2s ease;
   }
   
   .event-card:hover {
-    border-color: rgba(0, 0, 0, 0.15);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    border-color: hsl(var(--primary) / .55);
+    box-shadow: 0 4px 15px hsl(var(--foreground) / .12);
   }
   
   /* Buttons - vlakke achtergrond */
   button.bg-primary,
   .bg-primary {
-    background: var(--theme-color-3, hsl(var(--primary))) !important;
-    color: var(--theme-text-color, #1a1a1a) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+    box-shadow: 0 2px 8px hsl(var(--foreground) / .14);
+    border: 1px solid hsl(var(--primary) / .45);
   }
   
   button.bg-primary:hover {

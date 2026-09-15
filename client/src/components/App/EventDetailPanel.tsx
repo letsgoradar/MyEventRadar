@@ -397,14 +397,14 @@ export function EventDetailPanel({
         }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
-        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl overflow-y-auto"
+        className="fixed bottom-0 left-0 right-0 bg-background text-foreground rounded-t-3xl shadow-2xl overflow-y-auto"
         style={{ height: "75vh", zIndex: 9999 }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
       {/* Compact Header - Mobile Optimized */}
-      <div className="sticky top-0 bg-white border-b border-gray-200 z-10 shadow-sm">
+      <div className="sticky top-0 bg-card border-b border-border z-10 shadow-sm">
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-1">
             <Button 
@@ -437,7 +437,7 @@ export function EventDetailPanel({
             </Button>
           </div>
           
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-muted-foreground">
             {currentIndex + 1} van {events.length}
           </div>
           
@@ -472,7 +472,7 @@ export function EventDetailPanel({
       <div className="pb-20"> {/* Padding voor fixed bottom actions */}
         {/* Compact Event Image - Minder hoog */}
         {event.imageUrl && (
-          <div className="relative h-32 bg-gray-100">
+          <div className="relative h-32 bg-muted">
             <img 
               src={event.imageUrl} 
               alt={event.title}
@@ -490,7 +490,7 @@ export function EventDetailPanel({
               <Button
                 size="sm"
                 variant="secondary"
-                className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                className="h-8 w-8 p-0 bg-card/90 hover:bg-card"
                 onClick={handleToggleFavorite}
               >
                 <Heart className={cn("h-4 w-4", isFavorited ? "fill-primary text-primary" : "text-primary")} />
@@ -517,7 +517,7 @@ export function EventDetailPanel({
               )}
             </div>
             
-            <h1 className="text-xl font-bold text-gray-900 leading-tight">
+            <h1 className="text-xl font-bold text-foreground leading-tight">
               {event.title}
             </h1>
           </div>
@@ -584,10 +584,10 @@ export function EventDetailPanel({
           {/* Compact Description */}
           {event.description && (
             <div className="space-y-2">
-              <h3 className="text-base font-semibold text-gray-900">
+              <h3 className="text-base font-semibold text-foreground">
                 Beschrijving
               </h3>
-              <div className="text-sm text-gray-700 leading-relaxed">
+              <div className="text-sm text-foreground/85 leading-relaxed">
                 {showFullDescription ? (
                   <p className="whitespace-pre-wrap">{event.description}</p>
                 ) : (
@@ -610,7 +610,7 @@ export function EventDetailPanel({
       </div>
 
       {/* Fixed Bottom Action Bar - Mobile Style - Helemaal onderaan */}
-      <div className="fixed left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg" style={{ bottom: 0, zIndex: 10000 }}>
+      <div className="fixed left-0 right-0 bg-background border-t border-border p-4 shadow-lg" style={{ bottom: 0, zIndex: 10000 }}>
         <div className="flex gap-3">
           {event.externalUrl ? (
             eventSources.length > 1 ? (
@@ -632,7 +632,7 @@ export function EventDetailPanel({
                       onClick={() => handleOpenSourceWithInterstitial(source.sourceUrl)}
                       className="flex items-center gap-2 cursor-pointer"
                     >
-                      <Globe className="h-4 w-4 text-gray-500" />
+                      <Globe className="h-4 w-4 text-muted-foreground" />
                       <div className="flex flex-col">
                         <span className="font-medium">{source.sourceName}</span>
                         {source.isPrimary && (
@@ -701,11 +701,11 @@ export function EventDetailPanel({
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
-            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+            className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Route Details</h3>
+              <h3 className="text-lg font-bold text-foreground">Route Details</h3>
               <Button
                 variant="ghost"
                 size="sm"
@@ -753,8 +753,8 @@ export function EventDetailPanel({
                   <div className="flex items-start gap-2 text-sm">
                     <div className="w-3 h-3 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
                     <div>
-                      <p className="font-medium text-gray-900">Jouw locatie</p>
-                      <p className="text-xs text-gray-600">
+                      <p className="font-medium text-foreground">Jouw locatie</p>
+                      <p className="text-xs text-muted-foreground">
                         {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
                       </p>
                     </div>
@@ -764,8 +764,8 @@ export function EventDetailPanel({
                 <div className="flex items-start gap-2 text-sm">
                   <div className="w-3 h-3 rounded-full bg-red-500 mt-1 flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-gray-900">Event locatie</p>
-                    <p className="text-xs text-gray-600">{event.address}</p>
+                    <p className="font-medium text-foreground">Event locatie</p>
+                    <p className="text-xs text-muted-foreground">{event.address}</p>
                   </div>
                 </div>
               </div>

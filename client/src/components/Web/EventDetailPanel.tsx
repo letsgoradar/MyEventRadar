@@ -292,8 +292,8 @@ export function EventDetailPanel({
         eventId={event.id}
       />
     )}
-    <div className="w-full h-full bg-white flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+    <div className="w-full h-full bg-background text-foreground flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 
@@ -376,17 +376,17 @@ export function EventDetailPanel({
             )}
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-foreground">
             {event.title}
           </h1>
 
           <div className="space-y-3">
-            <div className="flex items-start gap-3 text-gray-600">
+            <div className="flex items-start gap-3 text-muted-foreground">
               <Calendar className="h-5 w-5 flex-shrink-0 mt-0.5" />
               <div>
                 <div className="font-medium">{formatDateTime(event.startTime)}</div>
                 {event.endTime && (
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-muted-foreground">
                     tot {formatDateTime(event.endTime)}
                   </div>
                 )}
@@ -394,7 +394,7 @@ export function EventDetailPanel({
             </div>
 
             {event.address && (
-              <div className="flex items-center justify-between gap-3 text-gray-600">
+              <div className="flex items-center justify-between gap-3 text-muted-foreground">
                 <div className="flex items-center gap-3">
                   <MapPin className="h-5 w-5 flex-shrink-0" />
                   <span>{event.address}</span>
@@ -413,14 +413,14 @@ export function EventDetailPanel({
             )}
 
             {event.maxParticipants && (
-              <div className="flex items-center gap-3 text-gray-600">
+              <div className="flex items-center gap-3 text-muted-foreground">
                 <Users className="h-5 w-5 flex-shrink-0" />
                 <span>Maximaal {event.maxParticipants} deelnemers</span>
               </div>
             )}
 
             {event.isPaid && event.price && (
-              <div className="flex items-center gap-3 text-gray-600">
+              <div className="flex items-center gap-3 text-muted-foreground">
                 <Euro className="h-5 w-5 flex-shrink-0" />
                 <span>€{event.price}</span>
               </div>
@@ -429,10 +429,10 @@ export function EventDetailPanel({
 
           {event.description && (
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-foreground">
                 Beschrijving
               </h3>
-              <div className="text-gray-700 leading-relaxed">
+              <div className="text-foreground/85 leading-relaxed">
                 {showFullDescription ? (
                   <p className="whitespace-pre-wrap">{event.description}</p>
                 ) : (
@@ -473,7 +473,7 @@ export function EventDetailPanel({
                         onClick={() => handleOpenSourceWithInterstitial(source.sourceUrl)}
                         className="flex items-center gap-2 cursor-pointer"
                       >
-                        <Globe className="h-4 w-4 text-gray-500" />
+                        <Globe className="h-4 w-4 text-muted-foreground" />
                         <div className="flex flex-col">
                           <span className="font-medium">{source.sourceName}</span>
                           {source.isPrimary && (

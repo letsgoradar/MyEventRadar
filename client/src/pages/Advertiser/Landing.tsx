@@ -76,7 +76,7 @@ export default function AdvertiserLanding() {
             Bereik duizenden lokale bezoekers
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-            Adverteren op LetsGo Radar
+            Adverteren op Evenementenradar.nl
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Breng jouw bedrijf of evenement onder de aandacht van actieve bezoekers in jouw regio. 

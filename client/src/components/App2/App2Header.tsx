@@ -119,7 +119,7 @@ export function App2Header({
               onChange={handleSearchChange}
               className="pr-10 w-full"
             />
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           </div>
           
           <div className="flex items-center gap-2">

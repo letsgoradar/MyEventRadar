@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">let\'s go Radar</string>
-    <string name="title_activity_main">let\'s go Radar</string>
+    <string name="app_name">Evenementenradar</string>
+    <string name="title_activity_main">Evenementenradar</string>
     <string name="package_name">nl.letsgoradar.app</string>
     <string name="custom_url_scheme">nl.letsgoradar.app</string>
 </resources>

@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import ProfilePhotoUpload from "@/components/App2/ProfilePhotoUpload";
 import { useAuth } from "@/hooks/use-auth";
+import { setThemePreference } from "@/lib/theme";
 import { useLocation } from "wouter";
 
 // Dummy gebruikersgegevens (normaal gesproken zou dit uit een API komen)
@@ -63,7 +64,7 @@ interface UserProfile {
 
 export function App2ProfilePage() {
   const { toast } = useToast();
-  const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [isDarkMode, setIsDarkMode] = React.useState(() => document.documentElement.classList.contains("dark"));
   const { user: authUser, logoutMutation } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -263,7 +264,7 @@ export function App2ProfilePage() {
                     checked={isDarkMode}
                     onCheckedChange={(checked) => {
                       setIsDarkMode(checked);
-                      document.documentElement.classList.toggle('dark', checked);
+                      setThemePreference(checked ? "dark" : "light");
                     }}
                   />
                 </div>

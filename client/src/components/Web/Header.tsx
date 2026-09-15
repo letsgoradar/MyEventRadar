@@ -405,7 +405,7 @@ export function Header({
           <div className="relative">
             <AnimatedHeaderInput
               searchQuery={searchQuery}
-              className="pl-10 pr-24 h-10 text-base rounded-full shadow-sm border-slate-200"
+               className="pl-10 pr-24 h-10 text-base rounded-full shadow-sm border-border bg-card"
               onChange={handleSearchChange}
               onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit("")}
             />
@@ -413,7 +413,7 @@ export function Header({
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute right-16 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 rounded-full text-gray-400 hover:text-gray-600"
+                 className="absolute right-16 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 rounded-full text-muted-foreground hover:text-foreground"
                 onClick={clearSearch}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -431,7 +431,7 @@ export function Header({
             
             {/* Live zoekresultaten dropdown */}
             {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white max-h-[400px] overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 border border-border shadow-md rounded-md overflow-hidden z-50 bg-card max-h-[400px] overflow-y-auto">
                 {/* Zoek alle resultaten knop */}
                 <button
                   onClick={() => {
@@ -448,7 +448,7 @@ export function Header({
                       }
                     }
                   }}
-                  className="w-full p-3 text-left hover:bg-gray-100 text-blue-600 font-medium border-b flex items-center gap-2"
+                   className="w-full p-3 text-left hover:bg-muted text-primary font-medium border-b border-border flex items-center gap-2"
                 >
                   <MdSearch className="text-muted-foreground h-5 w-5" />
                   <span>
@@ -477,7 +477,7 @@ export function Header({
                         // zonder de detailpagina te openen
                         if (onEventClick) onEventClick(result);
                       }}
-                      className={`p-3 hover:bg-gray-100 cursor-pointer border-b flex items-start gap-3 ${!result.inViewport ? 'bg-gray-50' : ''}`}
+                       className={`p-3 hover:bg-muted cursor-pointer border-b border-border flex items-start gap-3 ${!result.inViewport ? 'bg-muted/60' : ''}`}
                     >
                       <CategoryIcon category={result.category as any} size={20} className="mt-1" />
                       <div className="flex flex-col flex-1">

@@ -78,7 +78,7 @@ export function NotificationCenter() {
       case 'promotion':
         return <Megaphone className="h-4 w-4 text-teal-500" />;
       default:
-        return <Info className="h-4 w-4 text-gray-500" />;
+        return <Info className="h-4 w-4 text-muted-foreground" />;
     }
   };
 

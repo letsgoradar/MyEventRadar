@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getCurrentBrand } from "@/lib/brand";
 
 export function Sidebar() {
   const [location] = useLocation();
   const [isExpanded, setIsExpanded] = React.useState(false);
   const { user, logoutMutation } = useAuth();
+  const brand = getCurrentBrand();
   
   // Sidebar wordt standaard uitgeklapt bij klikken op pijltje
   const toggleExpanded = () => {
@@ -41,8 +43,8 @@ export function Sidebar() {
           <>
             <div className="flex flex-col items-center mb-2 w-full">
               <img
-                src="/images/myeventradar-logo.jpg"
-                alt="MyEventRadar.com"
+                src={brand.logoWithText ?? brand.logo ?? undefined}
+                alt={brand.displayName}
                 className="w-full object-contain drop-shadow-sm"
                 style={{ maxHeight: '44px', width: 'auto', maxWidth: '180px' }}
               />
@@ -58,13 +60,13 @@ export function Sidebar() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <img
-                      src="/images/letsgo-radar-logo.png"
-                      alt="MyEventRadar"
+                      src={brand.logo ?? brand.logoWithText ?? undefined}
+                      alt={brand.name}
                       className="w-10 h-10 object-contain"
                     />
                   </TooltipTrigger>
                   <TooltipContent side="right">
-                    <p>MyEventRadar.com</p>
+                    <p>{brand.displayName}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

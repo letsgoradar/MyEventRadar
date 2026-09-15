@@ -8,9 +8,9 @@
 /* Zorg ervoor dat de eventkaarten in map-view een achtergrond hebben en niet doorschijnen */
 .app2-layout .event-card {
   position: relative;
-  background-color: white; 
+  background-color: hsl(var(--card));
   z-index: 50 !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 14px -6px hsl(var(--foreground) / .35);
 }
 
 /* In map-view krijgt de content een hogere z-index dan de kaart */

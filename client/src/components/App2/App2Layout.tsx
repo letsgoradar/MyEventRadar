@@ -492,14 +492,14 @@ export function App2Layout({
                   placeholder="Zoek evenementen..."
                   value={searchQuery}
                   onChange={handleSearchChange}
-                  className="pl-9 pr-4 h-10 w-full border-gray-300"
+                  className="pl-9 pr-4 h-10 w-full border-border bg-card"
                   onKeyDown={(e) => e.key === "Enter" && onSearch && onSearch(searchQuery)}
                 />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 
                 {/* Live zoekresultaten dropdown */}
                 {searchQuery.trim() !== "" && (
-                  <Command className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white">
+                   <Command className="absolute top-full left-0 right-0 mt-1 border border-border shadow-md rounded-md overflow-hidden z-50 bg-card">
                     <CommandList 
                       className="overflow-y-auto" 
                       style={{ maxHeight: dropdownMaxHeight }}
@@ -507,7 +507,7 @@ export function App2Layout({
                       <CommandGroup>
                         <CommandItem 
                           onSelect={() => onSearch && onSearch(searchQuery)}
-                          className="p-2 cursor-pointer hover:bg-slate-100"
+                           className="p-2 cursor-pointer hover:bg-muted"
                         >
                           <div className="flex items-center gap-2">
                             <Search className="h-4 w-4 text-muted-foreground" />
@@ -532,7 +532,7 @@ export function App2Layout({
                             return matchingEvents.slice(0, 5).map(event => (
                               <Link href={`/app2/event/${event.id}`} key={event.id}>
                                 <CommandItem 
-                                  className="py-3 px-2 cursor-pointer hover:bg-slate-100"
+                                   className="py-3 px-2 cursor-pointer hover:bg-muted"
                                   onSelect={() => {}} // Dummy handler zodat onSelect niet afgevuurd wordt
                                 >
                                   <div className="flex items-center gap-2">
@@ -585,7 +585,7 @@ export function App2Layout({
                             <CommandItem 
                               key={index}
                               onSelect={() => onSearch && onSearch(search)}
-                              className="p-2 cursor-pointer hover:bg-slate-100"
+                               className="p-2 cursor-pointer hover:bg-muted"
                             >
                               <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4 text-muted-foreground" />

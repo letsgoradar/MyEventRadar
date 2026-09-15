@@ -529,15 +529,15 @@ export function AppLayout({
               <div className="relative">
                 <AnimatedPlaceholderInput
                   searchQuery={searchQuery}
-                  className="pl-9 pr-16 h-10 w-full border-gray-300"
+                  className="pl-9 pr-16 h-10 w-full border-border bg-card"
                   onChange={handleSearchChange}
                   onKeyDown={(e) => e.key === "Enter" && onSearch && onSearch(searchQuery)}
                   onFocus={() => setIsSearchFocused(true)}
                 />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <button
                   onClick={() => { onSearch && onSearch(searchQuery); setIsSearchFocused(false); }}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary text-white text-xs font-medium px-2.5 py-1 rounded-full hover:bg-primary/90 transition-colors"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-xs font-medium px-2.5 py-1 rounded-full hover:bg-primary/90 transition-colors"
                 >
                   Zoek
                 </button>
@@ -545,7 +545,7 @@ export function AppLayout({
                 {/* Live zoekresultaten dropdown */}
                 {searchQuery.trim() !== "" && isSearchFocused && (
                   <div 
-                    className="absolute top-full left-0 right-0 mt-1 border shadow-md rounded-md overflow-hidden z-50 bg-white"
+                    className="absolute top-full left-0 right-0 mt-1 border border-border shadow-md rounded-md overflow-hidden z-50 bg-card"
                     style={{ 
                       maxHeight: '50vh', 
                       minHeight: '150px',
@@ -560,7 +560,7 @@ export function AppLayout({
                             onSearch && onSearch(searchQuery);
                             setIsSearchFocused(false);
                           }}
-                          className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-100 flex items-center gap-2"
+                           className="p-3 cursor-pointer hover:bg-muted border-b border-border flex items-center gap-2"
                         >
                           <Search className="h-4 w-4 text-muted-foreground" />
                           <span className="flex-1">
@@ -579,7 +579,7 @@ export function AppLayout({
                           
                           return (
                             <div>
-                              <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-gray-100">
+                              <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border">
                                 Overeenkomende evenementen
                               </div>
                               {matchingEvents.slice(0, 5).map(event => (
@@ -591,7 +591,7 @@ export function AppLayout({
                                       setIsSearchFocused(false);
                                     }
                                   }}
-                                  className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-50"
+                                  className="p-3 cursor-pointer hover:bg-muted border-b border-border"
                                 >
                                   <div className="flex items-center gap-2">
                                     <CategoryIcon category={event.category} className="h-5 w-5" />
@@ -629,7 +629,7 @@ export function AppLayout({
                             
                             return (
                               <div>
-                                <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-gray-100">
+                                <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border">
                                   Recente zoekacties
                                 </div>
                                 {recentSearches.slice(0, 5).map((search: string, index: number) => (
@@ -639,7 +639,7 @@ export function AppLayout({
                                       onSearch && onSearch(search);
                                       setIsSearchFocused(false);
                                     }}
-                                    className="p-3 cursor-pointer hover:bg-slate-100 border-b border-gray-50"
+                                    className="p-3 cursor-pointer hover:bg-muted border-b border-border"
                                   >
                                     <div className="flex items-center gap-2">
                                       <Clock className="h-4 w-4 text-muted-foreground" />

@@ -182,7 +182,7 @@ export async function generateAssistantResponse(
     const { eventList, eventContext } = await getEventContextWithData(lat, lng, radius);
     
     // Bouw de prompt - KORT en met event IDs
-    const systemPrompt = `Je bent de letsgo radar assistent. Help mensen leuke activiteiten te vinden.
+    const systemPrompt = `Je bent de Evenementenradar.nl assistent. Help mensen leuke activiteiten te vinden.
 
 BESCHIKBARE EVENEMENTEN (gebruik deze IDs om aan te bevelen):
 ${eventContext}

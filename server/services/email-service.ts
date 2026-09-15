@@ -36,7 +36,7 @@ function getBaseUrl(): string {
   if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
     return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
   }
-  return `https://${process.env.REPLIT_DEV_DOMAIN || "localhost:5000"}`;
+  return `https://${process.env.REPLIT_DEV_DOMAIN || "evenementenradar.nl"}`;
 }
 
 export async function sendFeedbackNotification(feedback: {
@@ -54,7 +54,7 @@ export async function sendFeedbackNotification(feedback: {
     anders: "Anders 📝",
   };
 
-  const subject = `[letsgo radar BETA] Nieuwe feedback: ${typeLabels[feedback.feedbackType] || feedback.feedbackType}`;
+  const subject = `[Evenementenradar.nl BETA] Nieuwe feedback: ${typeLabels[feedback.feedbackType] || feedback.feedbackType}`;
 
   const ratingHtml = feedback.rating
     ? `<p><strong>Rating:</strong> ${"★".repeat(feedback.rating)}${"☆".repeat(5 - feedback.rating)} (${feedback.rating}/5)</p>`
@@ -77,7 +77,7 @@ export async function sendFeedbackNotification(feedback: {
       </table>
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
       <p style="color: #aaa; font-size: 12px;">
-        letsgo radar BETA — Feedback systeem
+        Evenementenradar.nl BETA — Feedback systeem
       </p>
     </div>
   `;
@@ -101,7 +101,7 @@ export async function sendFeedbackNotification(feedback: {
 
   try {
     await transport.sendMail({
-      from: `letsgo radar <${getFromAddress()}>`,
+      from: `Evenementenradar.nl <${getFromAddress()}>`,
       to: notificationEmail,
       subject,
       html,
@@ -122,7 +122,7 @@ export async function sendFeedHealthAlert(
   const adminEmail = "info@letsgoradar.com";
   const baseUrl = getBaseUrl();
   const adminUrl = `${baseUrl}/admin/rss-feeds`;
-  const subject = `⚠️ letsgo radar — ${feeds.length} feed${feeds.length > 1 ? "s zijn" : " is"} ongezond (importeert stil geen events meer)`;
+  const subject = `⚠️ Evenementenradar.nl — ${feeds.length} feed${feeds.length > 1 ? "s zijn" : " is"} ongezond (importeert stil geen events meer)`;
 
   const fmtDate = (d: string | null) =>
     d ? new Date(d).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "geen geslaagde import bekend";
@@ -163,7 +163,7 @@ export async function sendFeedHealthAlert(
           </a>
         </div>
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0 16px;" />
-        <p style="color:#bbb;font-size:12px;text-align:center;margin:0;">letsgo radar — Feed-gezondheidsmonitor</p>
+        <p style="color:#bbb;font-size:12px;text-align:center;margin:0;">Evenementenradar.nl — Feed-gezondheidsmonitor</p>
       </div>
     </div>
   `;
@@ -180,7 +180,7 @@ export async function sendFeedHealthAlert(
 
   try {
     await transport.sendMail({
-      from: `letsgo radar <${getFromAddress()}>`,
+      from: `Evenementenradar.nl <${getFromAddress()}>`,
       to: adminEmail,
       replyTo: adminEmail,
       subject,
@@ -232,7 +232,7 @@ export async function sendRepairDigest(
       </tr></table>`
     : "";
 
-  const subject = `🛠️ letsgo radar — ${cases.length} feed${cases.length > 1 ? "s" : ""} hebben aandacht nodig (${dossiers.length} dossier, ${decisions.length} beslissing)`;
+  const subject = `🛠️ Evenementenradar.nl — ${cases.length} feed${cases.length > 1 ? "s" : ""} hebben aandacht nodig (${dossiers.length} dossier, ${decisions.length} beslissing)`;
 
   const card = (c: import("@shared/schema").FeedRepairCase) => {
     const isDecision = c.kind === "decision";
@@ -274,7 +274,7 @@ export async function sendRepairDigest(
           </a>
         </div>
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0 16px;" />
-        <p style="color:#bbb;font-size:12px;text-align:center;margin:0;">letsgo radar — Zelfherstellende koppelingen</p>
+        <p style="color:#bbb;font-size:12px;text-align:center;margin:0;">Evenementenradar.nl — Zelfherstellende koppelingen</p>
       </div>
     </div>
   `;
@@ -290,7 +290,7 @@ export async function sendRepairDigest(
 
   try {
     await transport.sendMail({
-      from: `letsgo radar <${getFromAddress()}>`,
+      from: `Evenementenradar.nl <${getFromAddress()}>`,
       to: adminEmail,
       replyTo: adminEmail,
       subject,
@@ -316,7 +316,7 @@ export async function sendTrafficAlertEmail(
   };
 
   const info = levelLabels[level] || levelLabels.warning;
-  const subject = `${info.icon} letsgo radar — ${info.label}`;
+  const subject = `${info.icon} Evenementenradar.nl — ${info.label}`;
 
   const endpointsHtml = stats.topEndpoints
     .map(e => `<tr><td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${e.endpoint}</td><td style="padding: 4px 8px; border-bottom: 1px solid #eee; text-align: right;">${e.count}</td></tr>`)
@@ -365,7 +365,7 @@ export async function sendTrafficAlertEmail(
         ` : ""}
         <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
         <p style="color: #bbb; font-size: 12px; text-align: center; margin: 0;">
-          letsgo radar — Verkeersmonitor
+          Evenementenradar.nl — Verkeersmonitor
         </p>
       </div>
     </div>
@@ -386,7 +386,7 @@ export async function sendTrafficAlertEmail(
 
   try {
     await transport.sendMail({
-      from: `letsgo radar <${getFromAddress()}>`,
+      from: `Evenementenradar.nl <${getFromAddress()}>`,
       to: adminEmail,
       subject,
       html,
@@ -404,13 +404,13 @@ export async function sendPasswordResetEmail(
   username: string,
   resetUrl: string
 ): Promise<boolean> {
-  const subject = "Wachtwoord resetten — letsgo radar";
+  const subject = "Wachtwoord resetten — Evenementenradar.nl";
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
       <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
         <div style="text-align: center; margin-bottom: 24px;">
           <div style="background: #00A9C5; display: inline-block; padding: 12px 24px; border-radius: 8px;">
-            <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">letsgo&#33; radar&#46;nl</span>
+            <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">Evenementenradar.nl</span>
           </div>
         </div>
         <h2 style="color: #111; font-size: 22px; margin: 0 0 12px;">Wachtwoord resetten</h2>
@@ -432,7 +432,7 @@ export async function sendPasswordResetEmail(
         </p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
         <p style="color: #bbb; font-size: 12px; text-align: center; margin: 0;">
-          letsgo radar — Ontdek evenementen in je buurt
+          Evenementenradar.nl — Ontdek evenementen in je buurt
         </p>
       </div>
     </div>
@@ -452,7 +452,7 @@ export async function sendPasswordResetEmail(
 
   try {
     await transport.sendMail({
-      from: `letsgo radar <${getFromAddress()}>`,
+      from: `Evenementenradar.nl <${getFromAddress()}>`,
       to: email,
       subject,
       html,
@@ -474,13 +474,13 @@ export async function sendUserVerificationEmail(
   const baseUrl = requestBaseUrl || getBaseUrl();
   const verifyUrl = `${baseUrl}/api/auth/verify-email/${token}`;
 
-  const subject = "Bevestig je e-mailadres — letsgo radar";
+  const subject = "Bevestig je e-mailadres — Evenementenradar.nl";
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
       <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
         <div style="text-align: center; margin-bottom: 24px;">
           <div style="background: #00A9C5; display: inline-block; padding: 12px 24px; border-radius: 8px;">
-            <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">letsgo&#33; radar&#46;nl</span>
+            <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">Evenementenradar.nl</span>
           </div>
         </div>
         <h2 style="color: #111; font-size: 22px; margin: 0 0 12px;">Bijna klaar, ${username}!</h2>
@@ -501,7 +501,7 @@ export async function sendUserVerificationEmail(
         </p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
         <p style="color: #bbb; font-size: 12px; text-align: center; margin: 0;">
-          letsgo radar — Ontdek evenementen in je buurt
+          Evenementenradar.nl — Ontdek evenementen in je buurt
         </p>
       </div>
     </div>
@@ -521,7 +521,7 @@ export async function sendUserVerificationEmail(
 
   try {
     await transport.sendMail({
-      from: `letsgo radar <${getFromAddress()}>`,
+      from: `Evenementenradar.nl <${getFromAddress()}>`,
       to: email,
       subject,
       html,
@@ -543,15 +543,15 @@ export async function sendVerificationEmail(
   const baseUrl = requestBaseUrl || getBaseUrl();
   const verifyUrl = `${baseUrl}/api/advertiser/verify/${token}`;
 
-  const subject = "Verifieer je bedrijfsaccount — letsgo radar";
+  const subject = "Verifieer je bedrijfsaccount — Evenementenradar.nl";
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h1 style="color: #333; font-size: 24px;">Welkom bij letsgo radar!</h1>
+      <h1 style="color: #333; font-size: 24px;">Welkom bij Evenementenradar.nl!</h1>
       <p style="color: #555; font-size: 16px; line-height: 1.5;">
         Hallo <strong>${companyName}</strong>,
       </p>
       <p style="color: #555; font-size: 16px; line-height: 1.5;">
-        Bedankt voor je registratie als adverteerder op letsgo radar. Klik op de onderstaande knop om je bedrijfs e-mailadres te verifiëren en je account te activeren.
+        Bedankt voor je registratie als adverteerder op Evenementenradar.nl. Klik op de onderstaande knop om je bedrijfs e-mailadres te verifiëren en je account te activeren.
       </p>
       <div style="text-align: center; margin: 30px 0;">
         <a href="${verifyUrl}" style="display: inline-block; background-color: #2563eb; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: bold;">
@@ -567,7 +567,7 @@ export async function sendVerificationEmail(
       </p>
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
       <p style="color: #aaa; font-size: 12px;">
-        letsgo radar — Ontdek evenementen in je buurt
+        Evenementenradar.nl — Ontdek evenementen in je buurt
       </p>
     </div>
   `;
@@ -586,7 +586,7 @@ export async function sendVerificationEmail(
 
   try {
     await transport.sendMail({
-      from: `letsgo radar <${getFromAddress()}>`,
+      from: `Evenementenradar.nl <${getFromAddress()}>`,
       to: email,
       subject,
       html,
@@ -606,13 +606,13 @@ export async function sendWelcomeEmail(
   const baseUrl = getBaseUrl();
   const appUrl = `${baseUrl}/web`;
 
-  const subject = "Welkom bij letsgo radar! 🎉";
+  const subject = "Welkom bij Evenementenradar.nl! 🎉";
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
       <div style="background: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
         <div style="text-align: center; margin-bottom: 24px;">
           <div style="background: #00A9C5; display: inline-block; padding: 12px 24px; border-radius: 8px;">
-            <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">letsgo&#33; radar&#46;nl</span>
+            <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">Evenementenradar.nl</span>
           </div>
         </div>
         <h2 style="color: #111; font-size: 24px; margin: 0 0 8px;">Welkom, ${username}!</h2>
@@ -666,7 +666,7 @@ export async function sendWelcomeEmail(
         </div>
         <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
         <p style="color: #bbb; font-size: 12px; text-align: center; margin: 0;">
-          letsgo radar — Ontdek evenementen in je buurt
+          Evenementenradar.nl — Ontdek evenementen in je buurt
         </p>
       </div>
     </div>
@@ -685,7 +685,7 @@ export async function sendWelcomeEmail(
 
   try {
     await transport.sendMail({
-      from: `letsgo radar <${getFromAddress()}>`,
+      from: `Evenementenradar.nl <${getFromAddress()}>`,
       to: email,
       subject,
       html,
@@ -707,7 +707,7 @@ export async function sendFeedPausedNotification(feed: {
   lastErrorMessage: string | null;
 }, failureHistory: Array<{ attemptedAt: Date; errorMessage: string }>): Promise<boolean> {
   const adminEmail = "info@letsgoradar.com";
-  const subject = `[letsgo radar] Feed gepauzeerd na 3 mislukte pogingen: ${feed.name}`;
+  const subject = `[Evenementenradar.nl] Feed gepauzeerd na 3 mislukte pogingen: ${feed.name}`;
   const baseUrl = getBaseUrl();
 
   const attemptsHtml = failureHistory.map((attempt, i) => `
@@ -775,7 +775,7 @@ export async function sendFeedPausedNotification(feed: {
         Je kunt de feed handmatig heractiveren in het admin paneel (RSS Feeds → bewerk → status terug naar actief),
         of gebruik de knop "Retry fouten" om alle gepauzeerde feeds opnieuw te proberen.
         <br><br>
-        letsgo radar — automatisch bericht
+        Evenementenradar.nl — automatisch bericht
       </p>
     </div>
   `;
@@ -787,7 +787,7 @@ export async function sendFeedPausedNotification(feed: {
   }
   try {
     await t.sendMail({
-      from: `letsgo radar <${getFromAddress()}>`,
+      from: `Evenementenradar.nl <${getFromAddress()}>`,
       to: adminEmail,
       subject,
       html,
@@ -815,7 +815,7 @@ export async function sendDailyDigest(): Promise<boolean> {
     timeZone: "Europe/Amsterdam",
   });
 
-  let subject = `[letsgo radar] Dagoverzicht — ${dateLabel}`;
+  let subject = `[Evenementenradar.nl] Dagoverzicht — ${dateLabel}`;
 
   function getAmsterdamDayStart(daysAgo: number): Date {
     const ref = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
@@ -951,8 +951,8 @@ export async function sendDailyDigest(): Promise<boolean> {
   const decisions = openRepairCases.filter((repairCase) => repairCase.kind === "decision");
   const dossiers = openRepairCases.filter((repairCase) => repairCase.kind === "dossier");
   subject = decisions.length > 0
-    ? `ACTIE NODIG — ${decisions.length} beslissing${decisions.length === 1 ? "" : "en"} · letsgo radar`
-    : `[letsgo radar] Dagoverzicht — ${newEvents.length} nieuwe events, ${unhealthyFeeds.length} bewaakte feeds`;
+    ? `ACTIE NODIG — ${decisions.length} beslissing${decisions.length === 1 ? "" : "en"} · Evenementenradar.nl`
+    : `[Evenementenradar.nl] Dagoverzicht — ${newEvents.length} nieuwe events, ${unhealthyFeeds.length} bewaakte feeds`;
 
   function statusBadge(status: string): string {
     if (status === "active") return `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:bold;">actief</span>`;
@@ -1039,7 +1039,7 @@ export async function sendDailyDigest(): Promise<boolean> {
       <div style="background:white;border-radius:12px;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
         <div style="text-align:center;margin-bottom:24px;">
           <div style="background:#00A9C5;display:inline-block;padding:10px 22px;border-radius:8px;">
-            <span style="color:white;font-size:18px;font-weight:bold;letter-spacing:-0.5px;">letsgo&#33; radar</span>
+            <span style="color:white;font-size:18px;font-weight:bold;letter-spacing:-0.5px;">Evenementenradar.nl</span>
           </div>
           <h1 style="font-size:20px;color:#111;margin:16px 0 4px;">Dagoverzicht</h1>
           <p style="color:#6b7280;font-size:14px;margin:0;">${dateLabel}</p>
@@ -1112,7 +1112,7 @@ export async function sendDailyDigest(): Promise<boolean> {
 
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0 16px;" />
         <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0;">
-          letsgo radar — Automatisch dagrapport · 
+          Evenementenradar.nl — Automatisch dagrapport ·
           <a href="${baseUrl}/admin" style="color:#9ca3af;">Admin</a>
         </p>
       </div>
@@ -1133,7 +1133,7 @@ export async function sendDailyDigest(): Promise<boolean> {
 
   try {
     await transport.sendMail({
-      from: `letsgo radar <${getFromAddress()}>`,
+      from: `Evenementenradar.nl <${getFromAddress()}>`,
       to: adminEmail,
       replyTo: adminEmail,
       subject,

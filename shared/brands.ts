@@ -78,20 +78,20 @@ export interface BrandConfig {
 
 const DEFAULT_BRAND: BrandConfig = {
   id: "letsgo",
-  name: "MyEventRadar",
-  displayName: "MyEventRadar.com",
+  name: "Evenementenradar",
+  displayName: "Evenementenradar.nl",
   hostnames: [],
-  logo: "/images/letsgo-radar-logo.png",
-  logoWithText: "/images/myeventradar-logo.jpg",
-  themeColor: "#00A9C5",
+  logo: "/images/evenementenradar-icon-navy.png",
+  logoWithText: "/images/evenementenradar-logo.png",
+  themeColor: "#18c7b2",
   categories: null,
   isFocus: false,
   tagline: "Ontdek lokale evenementen in jouw buurt",
   seo: {
-    homeTitle: "MyEventRadar.com - Ontdek lokale evenementen",
+    homeTitle: "Evenementenradar.nl - Ontdek lokale evenementen",
     homeDescription:
-      "Ontdek lokale evenementen in jouw buurt met MyEventRadar. Vind activiteiten, festivals, workshops, markten en meer.",
-    cityTitleTemplate: "Evenementen in {city} - MyEventRadar.com",
+      "Ontdek lokale evenementen in jouw buurt met Evenementenradar.nl. Vind activiteiten, festivals, workshops, markten en meer.",
+    cityTitleTemplate: "Evenementen in {city} - Evenementenradar.nl",
     eventNoun: "evenementen",
     eventNounSingular: "evenement",
   },

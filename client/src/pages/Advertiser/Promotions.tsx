@@ -501,7 +501,7 @@ export default function AdvertiserPromotions() {
                 <Megaphone className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
                 <h3 className="text-lg font-medium mb-2">Nog geen promoties</h3>
                 <p className="text-muted-foreground mb-4">
-                  Promoot je event bovenaan de zoekresultaten van MyEventRadar.com.
+                  Promoot je event bovenaan de zoekresultaten van Evenementenradar.nl.
                 </p>
                 <Button onClick={() => setShowPurchase(true)} disabled={!isVerified}>
                   <Plus className="mr-2 h-4 w-4" /> Eerste event promoten

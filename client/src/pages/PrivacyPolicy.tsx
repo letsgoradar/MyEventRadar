@@ -22,7 +22,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold mb-3">1. Wie zijn wij?</h2>
             <p className="text-muted-foreground leading-relaxed">
-              let's go Radar is een platform voor het ontdekken van lokale evenementen in Nederland. 
+              Evenementenradar.nl is een platform voor het ontdekken van lokale evenementen in Nederland.
               Wij respecteren je privacy en gaan zorgvuldig om met je persoonsgegevens. 
               Dit privacybeleid legt uit welke gegevens wij verzamelen, waarom, en hoe wij deze beschermen.
             </p>

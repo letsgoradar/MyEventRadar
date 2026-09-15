@@ -111,8 +111,8 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose, collapsed = false 
             {!collapsed && (
               <div>
                 <h1 className="font-bold text-lg leading-tight">
-                  <span className="block">letsgo</span>
-                  <span className="block text-sm">radar admin</span>
+                  <span className="block">Evenementenradar</span>
+                  <span className="block text-sm">Admin</span>
                 </h1>
               </div>
             )}
@@ -223,7 +223,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose, collapsed = false 
                 <p className="text-sm font-medium truncate">{user.name || user.username}</p>
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               </div>
-              <Shield className="w-4 h-4 text-primary shrink-0" title="Admin" />
+              <Shield className="w-4 h-4 text-primary shrink-0" aria-label="Admin" />
             </div>
           )
         )}

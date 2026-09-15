@@ -91,7 +91,7 @@ app.get("/robots.txt", (req: Request, res: Response) => {
   const baseUrl = process.env.CUSTOM_DOMAIN
     ? `https://${process.env.CUSTOM_DOMAIN}`
     : process.env.NODE_ENV === "production"
-      ? `https://${req.get("host") ?? "letsgo-radar.replit.app"}`
+      ? `https://${req.get("host") ?? "evenementenradar.nl"}`
       : "http://localhost:5000";
   res.type("text/plain").send(
     `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /login\nDisallow: /admin/login\n\nSitemap: ${baseUrl}/sitemap.xml\n`

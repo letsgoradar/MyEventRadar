@@ -85,7 +85,7 @@ export function FeedbackWidget() {
               </div>
               <p className="text-lg font-semibold">Bedankt!</p>
               <p className="text-sm text-muted-foreground text-center">
-                Je feedback helpt ons MyEventRadar.com te verbeteren.
+                Je feedback helpt ons Evenementenradar.nl te verbeteren.
               </p>
             </div>
           ) : (

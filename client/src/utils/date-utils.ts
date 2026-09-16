@@ -31,9 +31,20 @@ export function formatEventTimeRange(
 ): string | null {
   const formattedStart = formatEventTime(startTime);
   const formattedEnd = formatEventTime(endTime);
+  const rawStart = startTime ? new Date(startTime) : null;
+  const rawEnd = endTime ? new Date(endTime) : null;
+  const isAllDayUtcRange = !!rawStart && !!rawEnd
+    && !isNaN(rawStart.getTime()) && !isNaN(rawEnd.getTime())
+    && rawStart.getUTCHours() === 0 && rawStart.getUTCMinutes() === 0
+    && rawEnd.getUTCHours() === 23 && rawEnd.getUTCMinutes() === 59;
+  const isAllDayDisplayRange = formattedStart === '00:00' && formattedEnd === '23:59';
+
+  if (isAllDayUtcRange || isAllDayDisplayRange) {
+    return 'Zie website';
+  }
   
   if (!formattedStart && !formattedEnd) {
-    return 'Tijd onbekend';
+    return 'Zie website';
   }
   
   if (formattedStart && formattedEnd) {
@@ -44,7 +55,7 @@ export function formatEventTimeRange(
     return `vanaf ${formattedStart}`;
   }
   
-  return 'Tijd onbekend';
+  return 'Zie website';
 }
 
 export function hasValidTime(date: string | Date | null | undefined): boolean {

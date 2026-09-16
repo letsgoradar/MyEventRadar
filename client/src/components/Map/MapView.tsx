@@ -69,23 +69,17 @@ function getAdaptiveRadarSize(zoomLevel: number): number {
 
 // Stabiele radar icon - wordt eenmalig gecreëerd en niet bij elke render
 // Dit voorkomt dat de CSS animatie reset bij React re-renders
-const STABLE_RADAR_SIZE = 800; // Vaste grootte - adaptive sizing via CSS transform
-const STABLE_CLICKABLE_SIZE = 50;
-const STABLE_HALF_CLICKABLE = 25;
+const STABLE_CLICKABLE_SIZE = 58;
+const STABLE_HALF_CLICKABLE = 29;
 
 const stableUserLocationIcon = L.divIcon({
   className: 'user-location-marker',
   html: `
-    <div class="radar-wrapper-xl" style="position: relative; width: ${STABLE_CLICKABLE_SIZE}px; height: ${STABLE_CLICKABLE_SIZE}px; display: flex; align-items: center; justify-content: center;">
-      <div class="radar-container-xl" style="position: absolute; width: ${STABLE_RADAR_SIZE}px; height: ${STABLE_RADAR_SIZE}px; display: flex; align-items: center; justify-content: center; pointer-events: none; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-        <!-- Grote radar sweep effect met groene kleur - pure CSS animatie uit map-styles.css -->
-        <div class="radar-sweep-xl" style="width: ${STABLE_RADAR_SIZE - 20}px; height: ${STABLE_RADAR_SIZE - 20}px;"></div>
-        <!-- Radar bereik cirkel -->
-        <div class="radar-range-xl" style="width: ${STABLE_RADAR_SIZE - 20}px; height: ${STABLE_RADAR_SIZE - 20}px;"></div>
-      </div>
-      <!-- Centrale punt - dit is het enige klikbare element -->
-      <div class="radar-center-xl">
-        <div class="radar-center-dot-xl"></div>
+    <div class="brand-location-marker">
+      <span class="brand-location-pulse brand-location-pulse--outer"></span>
+      <span class="brand-location-pulse brand-location-pulse--inner"></span>
+      <div class="brand-location-icon">
+        <img src="/images/evenementenradar-icon-teal.png" alt="" />
       </div>
     </div>
   `,

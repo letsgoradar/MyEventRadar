@@ -36,7 +36,6 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { DateRangeFilter } from "@/components/Filters/DateRangeFilter";
 import { EventFilters, ActiveFilterBadges, type EventFilterState } from "@/components/Filters/EventFilters";
-import { RadarLogo } from "@/components/RadarLogo";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { useAuth } from "@/hooks/use-auth";
 import { LogIn, Navigation, MapPin, LocateFixed } from "lucide-react";
@@ -138,6 +137,55 @@ const AnimatedHeaderInput = React.memo(function AnimatedHeaderInput({
     const t = setInterval(() => setIdx(i => (i + 1) % SEARCH_SUGGESTIONS_HEADER.length), 3000);
     return () => clearInterval(t);
   }, []);
+  const locationControl = (
+    <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cityName ? "h-10 max-w-[150px] shrink-0 rounded-full px-3 flex items-center gap-1.5" : "h-10 w-10 shrink-0 rounded-full"}
+          title="Locatie wijzigen"
+        >
+          <MapPin className="h-4 w-4 flex-shrink-0 text-primary" />
+          {cityName && (
+            <span className="text-sm font-medium truncate">{cityName}</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="start">
+        <button
+          onClick={handleGoToMyLocation}
+          disabled={gpsLoading}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted transition-colors disabled:opacity-60 border-b"
+        >
+          <LocateFixed className={`h-4 w-4 text-primary flex-shrink-0 ${gpsLoading ? 'animate-pulse' : ''}`} />
+          <div className="text-left">
+            <div className="font-medium">{gpsLoading ? 'Locatie bepalen…' : 'Mijn locatie gebruiken'}</div>
+            <div className="text-xs text-muted-foreground">Ga terug naar je GPS-positie</div>
+          </div>
+        </button>
+        <Command>
+          <CommandInput placeholder="Zoek een stad…" className="h-9" />
+          <CommandList className="max-h-52">
+            <CommandEmpty>Geen resultaat</CommandEmpty>
+            <CommandGroup heading="Steden">
+              {DUTCH_CITIES.map((city) => (
+                <CommandItem
+                  key={city.name}
+                  value={city.name}
+                  onSelect={() => handleSelectCity(city)}
+                  className="cursor-pointer"
+                >
+                  <Navigation className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
+                  {city.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+
   return (
     <Input
       placeholder={searchQuery ? '' : `Zoek op ${SEARCH_SUGGESTIONS_HEADER[idx]}...`}
@@ -392,6 +440,7 @@ export function Header({
     <div className="relative z-[120] flex min-h-16 items-center gap-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur-md pointer-events-auto shadow-[0_8px_24px_hsl(var(--foreground)/0.08)] md:px-4">
       {/* Search leads the compact web chrome; the full wordmark is intentionally omitted. */}
       <div className="flex min-w-0 flex-1 items-center justify-start gap-2">
+        {locationControl}
         {/* AI Assistent tijdelijk verborgen */}
         {/* <AssistantButton variant="header" /> */}
         
@@ -512,11 +561,10 @@ export function Header({
           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
             <PopoverTrigger asChild>
               <Button 
-                variant={endDate ? "default" : "outline"} 
+                variant="outline"
                 size="sm" 
                 className={cn(
-                  "h-10 rounded-full flex items-center gap-1",
-                  endDate && "bg-primary text-primary-foreground hover:bg-primary/90"
+                  "h-10 rounded-full flex items-center gap-1 bg-card text-foreground hover:bg-muted"
                 )}
               >
                 <Calendar className="h-4 w-4" />
@@ -551,56 +599,6 @@ export function Header({
         <Link href="/adverteren" className="hidden h-10 items-center rounded-full border border-border/70 bg-card/60 px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground md:flex">
           Adverteren
         </Link>
-
-        {/* Locatie knop met dropdown */}
-        <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cityName ? "h-10 max-w-[150px] rounded-full px-3 flex items-center gap-1.5" : "h-10 w-10 rounded-full"}
-              title="Locatie wijzigen"
-            >
-              <RadarLogo size={18} className="flex-shrink-0" />
-              {cityName && (
-                <span className="text-sm font-medium truncate">{cityName}</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72 p-0" align="end">
-            {/* GPS locatie */}
-            <button
-              onClick={handleGoToMyLocation}
-              disabled={gpsLoading}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted transition-colors disabled:opacity-60 border-b"
-            >
-              <LocateFixed className={`h-4 w-4 text-primary flex-shrink-0 ${gpsLoading ? 'animate-pulse' : ''}`} />
-              <div className="text-left">
-                <div className="font-medium">{gpsLoading ? 'Locatie bepalen…' : 'Mijn locatie gebruiken'}</div>
-                <div className="text-xs text-muted-foreground">Ga terug naar je GPS-positie</div>
-              </div>
-            </button>
-            {/* Stad zoeken */}
-            <Command>
-              <CommandInput placeholder="Zoek een stad…" className="h-9" />
-              <CommandList className="max-h-52">
-                <CommandEmpty>Geen resultaat</CommandEmpty>
-                <CommandGroup heading="Steden">
-                  {DUTCH_CITIES.map((city) => (
-                    <CommandItem
-                      key={city.name}
-                      value={city.name}
-                      onSelect={() => handleSelectCity(city)}
-                      className="cursor-pointer"
-                    >
-                      <Navigation className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
-                      {city.name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
 
         {/* Toon de kaart/lijst schakelaar alleen indien niet verborgen */}
         {!hideViewToggle && (

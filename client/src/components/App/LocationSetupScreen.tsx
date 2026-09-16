@@ -170,7 +170,7 @@ export function LocationSetupScreen({ onDismiss }: LocationSetupScreenProps = {}
       )}
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8 pb-8">
         <div className="flex flex-col items-center gap-3">
-          <RadarLogoWithText height={48} textColor="hsl(var(--foreground))" />
+          <RadarLogoWithText height={80} textColor="hsl(var(--foreground))" />
           <p className="text-muted-foreground text-sm text-center max-w-xs">
             Om evenementen bij jou in de buurt te vinden, hebben we je locatie nodig.
           </p>

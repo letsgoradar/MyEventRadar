@@ -649,9 +649,9 @@ export function AppLayout({
             <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
               <PopoverTrigger asChild>
                 <Button 
-                  variant={startDate ? "default" : "outline"} 
+                  variant="outline"
                   size="sm" 
-                  className="h-10 flex items-center gap-1"
+                  className="h-10 flex items-center gap-1 bg-card text-foreground hover:bg-muted"
                 >
                   <CalendarDays className="h-4 w-4" />
                   <span className="font-medium hidden sm:inline">

@@ -5,7 +5,7 @@ import SplitView from "./SplitView";
 import { EventDetailPanel } from "./EventDetailPanel";
 import { addDays, startOfDay, endOfDay, eachDayOfInterval, differenceInDays } from "date-fns";
 import { type EventFilterState, FilterSidebar } from "@/components/Filters/EventFilters";
-import { Loader2, MapPin } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { AuthModal } from "@/components/Auth/AuthModal";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -45,6 +45,7 @@ export function WebLayout({
   const { user } = useAuth();
   const [showAuthModal, setShowAuthModal] = React.useState(false);
   const authTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const authDismissKey = "evenementenradar-auth-prompt-dismissed-v1";
 
   React.useEffect(() => {
     if (user && user.emailVerified !== false) {
@@ -52,17 +53,18 @@ export function WebLayout({
       if (authTimerRef.current) clearTimeout(authTimerRef.current);
       return;
     }
-    if (!user) {
-      authTimerRef.current = setTimeout(() => setShowAuthModal(true), 15000);
+    if (!user && window.localStorage.getItem(authDismissKey) !== "1") {
+      authTimerRef.current = setTimeout(() => {
+        window.localStorage.setItem(authDismissKey, "1");
+        setShowAuthModal(true);
+      }, 15000);
       return () => { if (authTimerRef.current) clearTimeout(authTimerRef.current); };
     }
   }, [user]);
 
   const handleAuthClose = React.useCallback(() => {
     setShowAuthModal(false);
-    if (!user) {
-      authTimerRef.current = setTimeout(() => setShowAuthModal(true), 60000);
-    }
+    if (!user) window.localStorage.setItem(authDismissKey, "1");
   }, [user]);
 
   const handleAuthSuccess = React.useCallback(() => {
@@ -234,9 +236,11 @@ export function WebLayout({
           {isLoading && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[200]">
               <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-xl shadow-lg border">
-                <div className="relative flex items-center justify-center w-16 h-16">
-                  <MapPin className="h-12 w-12 text-primary animate-bounce" />
-                </div>
+                <img
+                  src="/images/evenementenradar-logo.png"
+                  alt="Evenementenradar.nl"
+                  className="h-auto w-[min(70vw,280px)]"
+                />
                 <div className="text-center">
                   <h3 className="font-semibold text-lg">Events laden...</h3>
                   <p className="text-sm text-muted-foreground">We zoeken naar activiteiten in jouw buurt</p>

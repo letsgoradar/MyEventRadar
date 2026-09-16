@@ -81,7 +81,10 @@ export function AppHomePage() {
       return;
     }
     if (!user && window.localStorage.getItem(authDismissKey) !== "1") {
-      authTimerRef.current = setTimeout(() => setShowAuthModal(true), 15000);
+      authTimerRef.current = setTimeout(() => {
+        window.localStorage.setItem(authDismissKey, "1");
+        setShowAuthModal(true);
+      }, 15000);
       return () => { if (authTimerRef.current) clearTimeout(authTimerRef.current); };
     }
   }, [user]);
@@ -245,7 +248,7 @@ export function AppHomePage() {
   return (
     <>
       <AppLayout
-        title="Evenementen"
+        title=""
         searchQuery={searchQuery}
         filteredEvents={filteredEvents}
         onSearch={setSearchQuery}

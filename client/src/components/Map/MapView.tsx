@@ -86,7 +86,12 @@ const stableUserLocationIcon = L.divIcon({
       <!-- Centrale punt - dit is het enige klikbare element -->
       <div class="radar-center-xl">
         <div class="radar-center-dot-xl"></div>
-        <div class="radar-location-pin-shadow"></div>
+        <div class="radar-location-pin-shadow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
+        </div>
         <div class="radar-location-pin" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
             <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
@@ -332,7 +337,7 @@ function readSavedMapState(): { center: [number, number] | null; zoom: number } 
       return { center: JSON.parse(centerStr) as [number, number], zoom: parseInt(zoomStr, 10) };
     }
   } catch {}
-  return { center: null, zoom: 11 };
+  return { center: null, zoom: 12 };
 }
 
 // Component om de kaart automatisch te centreren op gebruiker — alleen bij eerste bezoek
@@ -349,9 +354,9 @@ function MapCenter({ lat, lng, shouldFlyTo = false }: { lat: number; lng: number
     if (lat && lng) {
       hasRunRef.current = true;
       if (shouldFlyTo) {
-        map.flyTo([lat, lng], 13);
+        map.flyTo([lat, lng], 12);
       } else {
-        map.setView([lat, lng], 13);
+        map.setView([lat, lng], 12);
       }
     }
   }, [lat, lng, map, shouldFlyTo]);

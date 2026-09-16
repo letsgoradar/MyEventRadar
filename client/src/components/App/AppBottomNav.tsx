@@ -31,6 +31,7 @@ const getWebPath = () => {
 
 export function AppBottomNav() {
   const [location] = useLocation();
+  const [viewportRevision, setViewportRevision] = React.useState(0);
   
   // Check of deze pagina ook in de webversie beschikbaar is
   const webVersionEnabled = React.useMemo(() => {
@@ -40,6 +41,30 @@ export function AppBottomNav() {
   React.useEffect(() => {
     console.log("Web version enabled:", webVersionEnabled);
   }, [webVersionEnabled]);
+
+  React.useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    let keyboardWasOpen = false;
+    const handleViewportChange = () => {
+      const keyboardIsOpen = viewport.height < window.innerHeight * 0.78;
+      if (keyboardWasOpen && !keyboardIsOpen) {
+        window.requestAnimationFrame(() => {
+          window.scrollTo(0, 0);
+          setViewportRevision((value) => value + 1);
+        });
+      }
+      keyboardWasOpen = keyboardIsOpen;
+    };
+
+    viewport.addEventListener("resize", handleViewportChange);
+    viewport.addEventListener("scroll", handleViewportChange);
+    return () => {
+      viewport.removeEventListener("resize", handleViewportChange);
+      viewport.removeEventListener("scroll", handleViewportChange);
+    };
+  }, []);
 
   // Navigatie items configuratie
   const navItems = React.useMemo(() => [
@@ -65,7 +90,10 @@ export function AppBottomNav() {
   ], [location]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-background border-t z-50 pb-2">
+    <div
+      key={viewportRevision}
+      className="app-bottom-nav fixed bottom-0 left-0 right-0 bg-background border-t z-50 pb-2"
+    >
       <div className="flex items-center justify-between px-2 py-2 relative">
         {navItems.map((item, index) => (
           <Link key={index} href={item.href} className="w-full">

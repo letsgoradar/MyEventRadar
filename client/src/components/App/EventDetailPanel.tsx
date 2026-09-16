@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Heart, UserPlus, Navigation, ExternalLink, Eye, ChevronDown, Globe, Link } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ArrowLeft, ArrowRight, X, Calendar, MapPin, Users, Euro, Clock, Heart, UserPlus, Navigation, ExternalLink, Eye, ChevronDown, Globe, Link, Car, Bike, Footprints, Route } from "lucide-react";
 import { ShareMenu } from "@/components/ShareMenu";
 import { ExternalLinkInterstitial } from "@/components/Ads/ExternalLinkInterstitial";
 import { trackEventView, trackExternalClick, trackAddFavorite } from "@/lib/analytics";
@@ -689,7 +690,7 @@ export function EventDetailPanel({
       </div>
 
       {/* Detail Kaart Overlay */}
-      {showDetailMap && (
+      {showDetailMap && createPortal((
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -701,11 +702,14 @@ export function EventDetailPanel({
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
-            className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+            className="bg-card rounded-2xl p-5 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl border border-border"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-foreground">Route Details</h3>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Route en bereikbaarheid</h3>
+                <p className="text-sm text-muted-foreground">Vanaf je huidige locatie</p>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -716,59 +720,53 @@ export function EventDetailPanel({
               </Button>
             </div>
 
-            <div className="space-y-4">
-              {/* Afstand Info */}
+            <div className="space-y-3">
+              {/* Afstand en reistijden */}
               {event.distance !== undefined && (
-                <Card className="p-3 bg-blue-50 border-blue-200">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <p className="text-sm font-medium text-blue-900">Afstand</p>
-                      <p className="text-lg font-bold text-blue-700">{event.distance.toFixed(1)} km</p>
+                <Card className="overflow-hidden border-border bg-background shadow-none">
+                  <div className="flex items-center gap-3 border-b border-border p-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Route className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">Afstand</p>
+                      <p className="text-base font-semibold text-foreground">{event.distance.toFixed(1)} km</p>
                     </div>
                   </div>
-                </Card>
-              )}
-
-              {/* Geschatte reistijd */}
-              {event.distance !== undefined && (
-                <Card className="p-3 bg-green-50 border-green-200">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="text-sm font-medium text-green-900">Geschatte reistijd</p>
-                      <div className="flex gap-3 text-sm text-green-700">
-                        <span>🚗 {Math.ceil(event.distance * 2)} min</span>
-                        <span>🚴 {Math.ceil(event.distance * 4)} min</span>
-                        <span>🚶 {Math.ceil(event.distance * 12)} min</span>
+                  <div className="p-3">
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">Geschatte reistijd</p>
+                    <div className="grid grid-cols-3 divide-x divide-border">
+                      <div className="flex flex-col items-center gap-1 px-2 text-center">
+                        <Car className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-foreground">{Math.ceil(event.distance * 2)} min</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1 px-2 text-center">
+                        <Bike className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-foreground">{Math.ceil(event.distance * 4)} min</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1 px-2 text-center">
+                        <Footprints className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-foreground">{Math.ceil(event.distance * 12)} min</span>
                       </div>
                     </div>
                   </div>
                 </Card>
               )}
 
-              {/* Locatie info */}
-              <div className="space-y-2">
-                {userLocation && (
-                  <div className="flex items-start gap-2 text-sm">
-                    <div className="w-3 h-3 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-foreground">Jouw locatie</p>
-                      <p className="text-xs text-muted-foreground">
-                        {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
-                      </p>
-                    </div>
+              {/* Evenementadres; eigen coördinaten zijn bewust niet relevant in deze UI */}
+              <Card className="border-border bg-background p-3 shadow-none">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <MapPin className="h-4 w-4" />
                   </div>
-                )}
-                
-                <div className="flex items-start gap-2 text-sm">
-                  <div className="w-3 h-3 rounded-full bg-red-500 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium text-foreground">Event locatie</p>
-                    <p className="text-xs text-muted-foreground">{event.address}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Adres evenement</p>
+                    <p className="mt-0.5 text-sm font-medium leading-snug text-foreground">
+                      {event.address || "Bekijk de evenementpagina voor het adres"}
+                    </p>
                   </div>
                 </div>
-              </div>
+              </Card>
 
               {/* Navigatie button */}
               <Button
@@ -779,12 +777,12 @@ export function EventDetailPanel({
                 }}
               >
                 <Navigation className="h-4 w-4 mr-2" />
-                Open in Navigatie App
+                Open in navigatie
               </Button>
             </div>
           </motion.div>
         </motion.div>
-      )}
+      ), document.body)}
     </motion.div>
     </AnimatePresence>
     </>

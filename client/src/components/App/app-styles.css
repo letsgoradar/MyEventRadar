@@ -1,5 +1,22 @@
 /* App2 specifieke stijlaanpassingen */
 
+/* Voorkom dat iOS Safari/Capacitor automatisch inzoomt op invoervelden.
+   Die zoom kan na het sluiten van het toetsenbord fixed navigatie verbergen. */
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  .app-bottom-nav {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
+  }
+}
+
 /* Zorg ervoor dat de kaart in app-view altijd onder de content blijft in map view */
 .app2-layout .leaflet-container {
   z-index: 0 !important;

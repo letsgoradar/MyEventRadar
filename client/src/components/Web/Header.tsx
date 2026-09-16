@@ -137,55 +137,6 @@ const AnimatedHeaderInput = React.memo(function AnimatedHeaderInput({
     const t = setInterval(() => setIdx(i => (i + 1) % SEARCH_SUGGESTIONS_HEADER.length), 3000);
     return () => clearInterval(t);
   }, []);
-  const locationControl = (
-    <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cityName ? "h-10 max-w-[150px] shrink-0 rounded-full px-3 flex items-center gap-1.5" : "h-10 w-10 shrink-0 rounded-full"}
-          title="Locatie wijzigen"
-        >
-          <MapPin className="h-4 w-4 flex-shrink-0 text-primary" />
-          {cityName && (
-            <span className="text-sm font-medium truncate">{cityName}</span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
-        <button
-          onClick={handleGoToMyLocation}
-          disabled={gpsLoading}
-          className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted transition-colors disabled:opacity-60 border-b"
-        >
-          <LocateFixed className={`h-4 w-4 text-primary flex-shrink-0 ${gpsLoading ? 'animate-pulse' : ''}`} />
-          <div className="text-left">
-            <div className="font-medium">{gpsLoading ? 'Locatie bepalen…' : 'Mijn locatie gebruiken'}</div>
-            <div className="text-xs text-muted-foreground">Ga terug naar je GPS-positie</div>
-          </div>
-        </button>
-        <Command>
-          <CommandInput placeholder="Zoek een stad…" className="h-9" />
-          <CommandList className="max-h-52">
-            <CommandEmpty>Geen resultaat</CommandEmpty>
-            <CommandGroup heading="Steden">
-              {DUTCH_CITIES.map((city) => (
-                <CommandItem
-                  key={city.name}
-                  value={city.name}
-                  onSelect={() => handleSelectCity(city)}
-                  className="cursor-pointer"
-                >
-                  <Navigation className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
-                  {city.name}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-
   return (
     <Input
       placeholder={searchQuery ? '' : `Zoek op ${SEARCH_SUGGESTIONS_HEADER[idx]}...`}
@@ -423,6 +374,55 @@ export function Header({
   const handleRadiusChange = (value: number[]) => {
     onRadiusChange?.(value[0]);
   };
+
+  const locationControl = (
+    <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cityName ? "h-10 max-w-[150px] shrink-0 rounded-full px-3 flex items-center gap-1.5" : "h-10 w-10 shrink-0 rounded-full"}
+          title="Locatie wijzigen"
+        >
+          <MapPin className="h-4 w-4 flex-shrink-0 text-primary" />
+          {cityName && (
+            <span className="text-sm font-medium truncate">{cityName}</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="start">
+        <button
+          onClick={handleGoToMyLocation}
+          disabled={gpsLoading}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted transition-colors disabled:opacity-60 border-b"
+        >
+          <LocateFixed className={`h-4 w-4 text-primary flex-shrink-0 ${gpsLoading ? 'animate-pulse' : ''}`} />
+          <div className="text-left">
+            <div className="font-medium">{gpsLoading ? 'Locatie bepalen…' : 'Mijn locatie gebruiken'}</div>
+            <div className="text-xs text-muted-foreground">Ga terug naar je GPS-positie</div>
+          </div>
+        </button>
+        <Command>
+          <CommandInput placeholder="Zoek een stad…" className="h-9" />
+          <CommandList className="max-h-52">
+            <CommandEmpty>Geen resultaat</CommandEmpty>
+            <CommandGroup heading="Steden">
+              {DUTCH_CITIES.map((city) => (
+                <CommandItem
+                  key={city.name}
+                  value={city.name}
+                  onSelect={() => handleSelectCity(city)}
+                  className="cursor-pointer"
+                >
+                  <Navigation className="h-3.5 w-3.5 mr-2 text-muted-foreground flex-shrink-0" />
+                  {city.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 
   const toggleCategory = (category: string) => {
     setSelectedCategories(prev => {

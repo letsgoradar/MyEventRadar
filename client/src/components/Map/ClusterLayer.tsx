@@ -324,15 +324,14 @@ export function ClusterLayer({
         
         const createPopupElement = () => {
           const container = document.createElement('div');
-          container.style.minWidth = '200px';
-          container.className = 'cluster-popup-content';
+          container.className = 'cluster-popup-content event-map-popup-card';
           container.dataset.eventId = String(event.id);
           
           if (event.event.imageUrl && !isImageFailed(event.event.imageUrl)) {
             const img = document.createElement('img');
             img.src = event.event.imageUrl;
             img.alt = event.title;
-            img.style.cssText = 'width: 100%; height: 100px; object-fit: cover; border-radius: 4px 4px 0 0;';
+            img.className = 'event-map-popup-image-element';
             img.addEventListener('error', () => {
               img.style.display = 'none';
               markImageFailed(event.event.imageUrl, event.id);
@@ -341,43 +340,47 @@ export function ClusterLayer({
           }
           
           const info = document.createElement('div');
-          info.style.padding = '8px';
+          info.className = 'event-map-popup-info';
           
           const title = document.createElement('h3');
-          title.style.cssText = 'margin: 0 0 4px; font-size: 14px; font-weight: 600;';
+          title.className = 'event-map-popup-title';
           title.textContent = event.title;
           info.appendChild(title);
           
           const address = document.createElement('p');
-          address.style.cssText = 'margin: 0; font-size: 12px; color: #666;';
-          address.textContent = event.event.address || '';
+          address.className = 'event-map-popup-meta-row';
+          address.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg><span></span>';
+          address.querySelector('span')!.textContent = event.event.address || '';
           info.appendChild(address);
           
           const category = document.createElement('p');
-          category.style.cssText = 'margin: 4px 0 0; font-size: 11px; color: #888;';
+          category.className = 'event-map-popup-category';
           category.textContent = event.category;
           info.appendChild(category);
 
           const dateEl = document.createElement('p');
-          dateEl.style.cssText = 'margin: 5px 0 0; font-size: 12px; color: #444; font-weight: 500;';
-          dateEl.textContent = '📅 ' + formatPopupDate(event.event.startTime);
+          dateEl.className = 'event-map-popup-meta-row';
+          dateEl.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg><span></span>';
+          dateEl.querySelector('span')!.textContent = formatPopupDate(event.event.startTime);
           info.appendChild(dateEl);
 
           const timeStr = formatPopupTime(event.event.startTime, event.event.endTime);
           if (timeStr) {
             const timeEl = document.createElement('p');
-            timeEl.style.cssText = 'margin: 2px 0 0; font-size: 11px; color: #666;';
-            timeEl.textContent = '🕐 ' + timeStr;
+            timeEl.className = 'event-map-popup-meta-row';
+            timeEl.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span></span>';
+            timeEl.querySelector('span')!.textContent = timeStr;
             info.appendChild(timeEl);
           }
 
           const actionsRow = document.createElement('div');
-          actionsRow.style.cssText = 'display: flex; gap: 6px; margin-top: 8px;';
+          actionsRow.className = 'event-map-popup-actions';
 
           const heartBtn = document.createElement('button');
           heartBtn.title = 'Opslaan als favoriet';
-          heartBtn.style.cssText = 'flex: 1; padding: 5px 8px; background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: #555;';
-          heartBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg> Opslaan';
+          heartBtn.className = 'event-map-popup-icon-button';
+          heartBtn.setAttribute('aria-label', 'Evenement opslaan');
+          heartBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3C14.7 3 13.5 3.5 12 5c-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5C2 10.8 3.5 12.5 5 14l7 7Z"/></svg>';
           L.DomEvent.on(heartBtn, 'click', (e) => {
             L.DomEvent.stopPropagation(e);
             L.DomEvent.preventDefault(e);
@@ -387,22 +390,18 @@ export function ClusterLayer({
 
           const hideBtn = document.createElement('button');
           hideBtn.title = 'Evenement verbergen';
-          hideBtn.style.cssText = 'flex: 1; padding: 5px 8px; background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: #555;';
-          hideBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Verbergen';
+          hideBtn.className = 'event-map-popup-icon-button';
+          hideBtn.setAttribute('aria-label', 'Evenement verbergen');
+          hideBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.7a2 2 0 0 0 2.7 2.7"/><path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c5.5 0 9 6 9 6a16 16 0 0 1-2.1 2.9M6.6 6.6C4.3 8.2 3 10 3 10s3.5 6 9 6c1 0 2-.2 2.8-.5"/></svg>';
           L.DomEvent.on(hideBtn, 'click', (e) => {
             L.DomEvent.stopPropagation(e);
             L.DomEvent.preventDefault(e);
             marker.closePopup();
             onHideEvent?.(event.id);
           });
-          actionsRow.appendChild(hideBtn);
-
-          info.appendChild(actionsRow);
-
           if (!isWebView) {
             const btn = document.createElement('button');
             btn.className = 'cluster-popup-details-btn';
-            btn.style.cssText = 'width: 100%; margin-top: 6px; padding: 6px 12px; background-color: hsl(var(--primary)); color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;';
             btn.textContent = 'Bekijk details';
             L.DomEvent.on(btn, 'click', (e) => {
               L.DomEvent.stopPropagation(e);
@@ -410,8 +409,10 @@ export function ClusterLayer({
               marker.closePopup();
               onEventClick(event.event);
             });
-            info.appendChild(btn);
+            actionsRow.prepend(btn);
           }
+          actionsRow.appendChild(hideBtn);
+          info.appendChild(actionsRow);
           
           container.appendChild(info);
           return container;

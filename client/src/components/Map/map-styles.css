@@ -23,6 +23,151 @@
   background-color: white;
 }
 
+.event-preview-popup .leaflet-popup-content-wrapper,
+.event-cluster-popup .leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 12px 32px rgba(8, 26, 51, 0.18);
+}
+
+.event-map-popup-card {
+  width: 280px;
+  overflow: hidden;
+  color: hsl(var(--foreground));
+  background: hsl(var(--card));
+}
+
+.event-map-popup-image,
+.event-map-popup-image-element {
+  display: block;
+  width: 100%;
+  height: 132px;
+  object-fit: cover;
+  overflow: hidden;
+  background: hsl(var(--muted));
+}
+
+.event-map-popup-image {
+  border-radius: 0;
+}
+
+.event-map-popup-header,
+.event-map-popup-info {
+  padding: 12px 14px 0;
+}
+
+.event-map-popup-title {
+  margin: 0 0 7px;
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.event-map-popup-location,
+.event-map-popup-meta-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.event-map-popup-location svg,
+.event-map-popup-meta-row svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin-top: 1px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.event-map-popup-category {
+  margin: 7px 0 9px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.event-map-popup-meta {
+  display: grid;
+  gap: 6px;
+  padding: 8px 14px 0;
+}
+
+.event-map-popup-info .event-map-popup-meta-row + .event-map-popup-meta-row {
+  margin-top: 6px;
+}
+
+.event-map-popup-actions {
+  display: flex;
+  gap: 7px;
+  width: 100%;
+  padding: 12px 14px 14px;
+}
+
+.event-map-popup-primary,
+.cluster-popup-details-btn {
+  flex: 1;
+  height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.event-map-popup-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  padding: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 9px;
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.event-map-popup-icon-button:hover {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.45);
+  background: hsl(var(--primary) / 0.06);
+}
+
+.event-map-popup-icon-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.event-preview-popup .leaflet-popup-close-button,
+.event-cluster-popup .leaflet-popup-close-button {
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(8, 26, 51, 0.7);
+  color: white;
+  line-height: 24px;
+  backdrop-filter: blur(4px);
+}
+
 /* Markers stijlen */
 .custom-div-icon, .custom-user-icon {
   background: transparent;

@@ -9,7 +9,7 @@ import { nl } from "date-fns/locale";
 import { CategoryIcon, getCategoryColor, CATEGORY_PATHS } from "../CategoryIcon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Clock, Euro, Navigation, Heart } from "lucide-react";
+import { Calendar, MapPin, Clock, Euro, Navigation, Heart, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import "leaflet/dist/leaflet.css";
 import "./map-styles.css";
@@ -1224,10 +1224,10 @@ export default function MapView({
                 }
               }}
             >
-            <Popup autoPan={!isWebView}>
-              <Card className="border-0 shadow-none">
+            <Popup autoPan={!isWebView} className="event-preview-popup">
+              <Card className="event-map-popup-card border-0 shadow-none">
                 {event.event.imageUrl && (
-                  <div className="relative w-full h-32 overflow-hidden rounded-t-md">
+                  <div className="event-map-popup-image">
                     <img 
                       src={event.event.imageUrl} 
                       alt={event.title} 
@@ -1235,34 +1235,34 @@ export default function MapView({
                     />
                   </div>
                 )}
-                <CardHeader className="p-2 pb-0">
-                  <CardTitle className="text-base">
+                <CardHeader className="event-map-popup-header">
+                  <CardTitle className="event-map-popup-title">
                     {event.title}
                   </CardTitle>
-                  <CardDescription className="flex items-center text-xs">
-                    <MapPin className="h-3 w-3 mr-1" />
+                  <CardDescription className="event-map-popup-location">
+                    <MapPin />
                     <span>
                       {event.event.address || 
                        getLocationName(event.coords[0], event.coords[1])}
                     </span>
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-2">
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <CategoryIcon category={event.category as any} size={12} className="mr-1" />
+                <CardContent className="event-map-popup-meta">
+                  <div className="event-map-popup-meta-row">
+                    <CategoryIcon category={event.category as any} size={14} />
                     <span>{event.category}</span>
                   </div>
-                  <div className="flex items-center text-xs text-muted-foreground mt-1">
-                    <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
-                    <span className="font-medium text-foreground">
+                  <div className="event-map-popup-meta-row">
+                    <Calendar />
+                    <span>
                       {formatSmartEventDate(event.event.startTime, event.event.endTime)}
                     </span>
                   </div>
                   {(() => {
                     const tr = formatEventTimeRange(event.event.startTime, event.event.endTime);
                     return tr ? (
-                      <div className="flex items-center text-xs text-muted-foreground mt-0.5">
-                        <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
+                      <div className="event-map-popup-meta-row">
+                        <Clock />
                         <span>{tr}</span>
                       </div>
                     ) : null;
@@ -1273,16 +1273,42 @@ export default function MapView({
                     </div>
                   )}
                 </CardContent>
-                <CardFooter className="p-2 pt-0">
+                <CardFooter className="event-map-popup-actions">
                   <Button 
                     size="sm" 
-                    className="w-full bg-primary text-white hover:bg-primary/90 border border-primary"
+                    className="event-map-popup-primary"
                     onClick={(e) => {
                       e.stopPropagation();
                       onEventClick?.(event.event);
                     }}
                   >
                     Bekijk details
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="event-map-popup-icon-button"
+                    aria-label="Evenement opslaan"
+                    title="Opslaan"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFavoriteToggle?.(event.id);
+                    }}
+                  >
+                    <Heart />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="event-map-popup-icon-button"
+                    aria-label="Evenement verbergen"
+                    title="Verbergen"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onHideEvent?.(event.id);
+                    }}
+                  >
+                    <EyeOff />
                   </Button>
                 </CardFooter>
               </Card>

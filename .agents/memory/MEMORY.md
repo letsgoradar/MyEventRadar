@@ -12,3 +12,4 @@
 - [Safe AI scraper repair](safe-ai-scraper-repair.md) — AI may diagnose and propose, but never mutate a shared domain profile in place unless rollback restores the profile contents.
 - [Evenementenradar technical migration](evenementenradar-technical-migration.md) — visible rebrand first; migrate app IDs, deep links and mail only after the new domain infrastructure is verified.
 - [User-location radar marker](user-location-radar-marker.md) — preserve the original full radar sweep; visual additions belong above its pulsing center and must not replace it.
+- [Mobile app top bar](mobile-app-top-bar.md) — app home uses one row: search left, days center, profile right; notifications live under profile with an unread avatar badge.

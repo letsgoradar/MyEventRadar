@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "date-fns/locale";
 import { useLocation } from "wouter";
+import { UserAvatar } from "@/components/UserAvatar";
 
 interface Notification {
   id: number;
@@ -29,7 +30,12 @@ interface Notification {
   createdAt: string;
 }
 
-export function NotificationCenter() {
+interface NotificationCenterProps {
+  profileTrigger?: boolean;
+  profilePhotoUrl?: string | null;
+}
+
+export function NotificationCenter({ profileTrigger = false, profilePhotoUrl }: NotificationCenterProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -101,12 +107,24 @@ export function NotificationCenter() {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn("relative rounded-full", profileTrigger && "h-10 w-10 p-0")}
+          aria-label={profileTrigger ? "Profiel en meldingen openen" : "Meldingen openen"}
+        >
+          {profileTrigger ? (
+            <UserAvatar user={user} src={profilePhotoUrl || undefined} size="sm" className="border-2 border-primary" />
+          ) : (
+            <Bell className="h-5 w-5" />
+          )}
           {user && unreadCount > 0 && (
             <Badge 
               variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+              className={cn(
+                "absolute h-5 min-w-5 rounded-full px-1 flex items-center justify-center text-[10px] ring-2 ring-background",
+                profileTrigger ? "-top-1 -right-1" : "-top-1 -right-1"
+              )}
             >
               {unreadCount > 9 ? '9+' : unreadCount}
             </Badge>
@@ -115,7 +133,7 @@ export function NotificationCenter() {
       </SheetTrigger>
       <SheetContent className="w-[400px] sm:w-[540px]">
         <SheetHeader>
-          <SheetTitle>Notificaties</SheetTitle>
+          <SheetTitle>{profileTrigger ? "Profiel en meldingen" : "Notificaties"}</SheetTitle>
           <SheetDescription>
             {unreadCount > 0 
               ? `Je hebt ${unreadCount} ongelezen ${unreadCount === 1 ? 'notificatie' : 'notificaties'}`
@@ -123,8 +141,29 @@ export function NotificationCenter() {
             }
           </SheetDescription>
         </SheetHeader>
+
+        {profileTrigger && (
+          <>
+            <Button
+              variant="outline"
+              className="mt-4 h-auto w-full justify-start gap-3 rounded-xl p-3"
+              onClick={() => {
+                setIsOpen(false);
+                setLocation("/app/profile");
+              }}
+            >
+              <UserAvatar user={user} src={profilePhotoUrl || undefined} size="sm" className="border-2 border-primary" />
+              <span className="flex flex-col items-start">
+                <span className="font-semibold">Mijn profiel</span>
+                <span className="text-xs font-normal text-muted-foreground">Bekijk en beheer je account</span>
+              </span>
+            </Button>
+            <Separator className="mt-4" />
+            <h3 className="mt-4 text-sm font-semibold">Meldingen</h3>
+          </>
+        )}
         
-        <ScrollArea className="h-[calc(100vh-120px)] mt-4">
+        <ScrollArea className={cn("mt-4", profileTrigger ? "h-[calc(100vh-250px)]" : "h-[calc(100vh-120px)]")}>
           {!user ? (
             <div className="text-center text-muted-foreground py-8">
               <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />

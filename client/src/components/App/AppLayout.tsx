@@ -81,7 +81,6 @@ import { NotificationCenter } from "./NotificationCenter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { UserAvatar } from "@/components/UserAvatar";
 import { useHiddenEvents } from "@/hooks/useHiddenEvents";
 import { useLocation as useGeoLocation } from "@/hooks/useLocation";
 
@@ -464,10 +463,11 @@ export function AppLayout({
   // Maak de inhoud van de pagina op basis van de gekozen weergave
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
-      {/* Header met titel */}
+      {/* Gecombineerde appbalk */}
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        {(isProfilePage || hideSearchAndFilters) && (
         <div className="container py-3 px-4 flex items-center">
-          {/* Links: profiel avatar */}
+          {/* Links: terugknop of vaste ruimte */}
           <div className="flex items-center w-10">
             {(showBackButton && !hideBackButton) ? (
               <Link href={backTo}>
@@ -488,45 +488,34 @@ export function AppLayout({
                   </svg>
                 </Button>
               </Link>
-            ) : (
-              <Link href="/app/profile" className="cursor-pointer">
-                <UserAvatar user={user} src={savedPhotoUrl} size="sm" className="border-2 border-primary" />
-              </Link>
-            )}
+            ) : null}
           </div>
           {/* Midden: logo of titel */}
           <div className="flex-1 flex justify-center">
              <h1 className="text-xl font-semibold">{title}</h1>
           </div>
-          {/* Rechts: notificaties */}
+          {/* Rechts: profiel met meldingsbadge */}
           <div className="flex items-center w-10 justify-end">
-            <NotificationCenter />
+            <NotificationCenter profileTrigger profilePhotoUrl={savedPhotoUrl} />
           </div>
           {header}
         </div>
-      </header>
+        )}
       
-      {/* Zoekbalk en weergaveknoppen - alleen tonen als niet op profielpagina en hideSearchAndFilters is false */}
+      {/* Zoekveld, dagenfilter en profiel op één balk */}
       {!isProfilePage && !hideSearchAndFilters && (
-        <div className="container mt-2 px-4">
-          <div className="flex gap-2 mb-3">
+        <div className="container px-3 py-2">
+          <div className="flex items-center gap-2">
             <div className="relative flex-1" ref={searchContainerRef}>
               <div className="relative">
                 <AnimatedPlaceholderInput
                   searchQuery={searchQuery}
-                  className="pl-9 pr-16 h-10 w-full border-border bg-card"
+                   className="pl-9 pr-3 h-10 w-full border-border bg-card"
                   onChange={handleSearchChange}
                   onKeyDown={(e) => e.key === "Enter" && onSearch && onSearch(searchQuery)}
                   onFocus={() => setIsSearchFocused(true)}
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <button
-                  onClick={() => { onSearch && onSearch(searchQuery); setIsSearchFocused(false); }}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-xs font-medium px-2.5 py-1 rounded-full hover:bg-primary/90 transition-colors"
-                >
-                  Zoek
-                </button>
-                
                 {/* Live zoekresultaten dropdown */}
                 {searchQuery.trim() !== "" && isSearchFocused && (
                   <div 
@@ -645,13 +634,13 @@ export function AppLayout({
               </div>
             </div>
             
-            {/* Datum filter - naast zoekveld */}
+             {/* Dagenfilter tussen zoeken en profiel */}
             <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
               <PopoverTrigger asChild>
                 <Button 
                   variant="outline"
                   size="sm" 
-                  className="h-10 flex items-center gap-1 bg-card text-foreground hover:bg-muted"
+                   className="h-10 min-w-14 px-2 flex items-center justify-center gap-1 bg-card text-foreground hover:bg-muted"
                 >
                   <CalendarDays className="h-4 w-4" />
                   <span className="font-medium hidden sm:inline">
@@ -682,6 +671,8 @@ export function AppLayout({
                 />
               </PopoverContent>
             </Popover>
+
+            <NotificationCenter profileTrigger profilePhotoUrl={savedPhotoUrl} />
             
             {!hideViewToggle && (
               <div className="flex gap-1">
@@ -725,11 +716,12 @@ export function AppLayout({
           )}
         </div>
       )}
+      </header>
       
       {/* Kaart weergave - exact tussen de navigatiebalken */}
       {view === "map" && !isProfilePage && (
         <div className="flex-1 app-layout" id="map-container">
-          <div className="w-full h-[calc(100vh-7.5rem)] absolute inset-0 top-[7.5rem] bottom-[106px] z-0 border-t border-b-0 border-border">
+          <div className="w-full h-[calc(100vh-5.5rem)] absolute inset-0 top-[5.5rem] bottom-[106px] z-0 border-t border-b-0 border-border">
             <div className="absolute top-3 right-3 z-[500]">
               <EventFilters
                 filters={eventFilters}

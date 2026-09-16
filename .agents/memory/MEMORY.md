@@ -11,3 +11,4 @@
 - [Feed scope column](feed-scope.md) — rss_feeds.scope values: landelijk/provincie/gemeente/venue; defaults set via ALTER TABLE with CASE on municipality/province nullability; new feeds need scope in POST body.
 - [Safe AI scraper repair](safe-ai-scraper-repair.md) — AI may diagnose and propose, but never mutate a shared domain profile in place unless rollback restores the profile contents.
 - [Evenementenradar technical migration](evenementenradar-technical-migration.md) — visible rebrand first; migrate app IDs, deep links and mail only after the new domain infrastructure is verified.
+- [User-location radar marker](user-location-radar-marker.md) — preserve the original full radar sweep; visual additions belong above its pulsing center and must not replace it.

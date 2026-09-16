@@ -189,7 +189,7 @@
   position: absolute;
   width: 20px;
   height: 20px;
-  background: linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(22, 163, 74) 100%);
+  background: transparent;
   border-radius: 50%;
   animation: centerPulseXL 2s ease-in-out infinite;
 }

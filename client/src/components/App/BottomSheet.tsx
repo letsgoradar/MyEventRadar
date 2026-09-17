@@ -36,9 +36,9 @@ interface BottomSheetProps {
   onRequireAuth?: () => void;
 }
 
-const COLLAPSED_HEIGHT = 50;
+const COLLAPSED_HEIGHT = 92;
 const EXPANDED_HEIGHT_RATIO = 0.55;
-const BOTTOM_NAV_HEIGHT = 70;
+const FALLBACK_BOTTOM_NAV_HEIGHT = 76;
 const PAGE_SIZE = 20;
 
 export function BottomSheet({ 
@@ -57,6 +57,7 @@ export function BottomSheet({
   const sentinelRef = React.useRef<HTMLDivElement>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [displayCount, setDisplayCount] = React.useState(PAGE_SIZE);
+  const [bottomNavHeight, setBottomNavHeight] = React.useState(FALLBACK_BOTTOM_NAV_HEIGHT);
   const { user } = useAuth();
 
   const expandedHeight = typeof window !== 'undefined' 
@@ -95,6 +96,20 @@ export function BottomSheet({
       scrollRef.current.scrollTop = 0;
     }
   }, [events]);
+
+  React.useEffect(() => {
+    const bottomNav = document.querySelector<HTMLElement>('.app-bottom-nav');
+    if (!bottomNav) return;
+
+    const updateBottomNavHeight = () => {
+      setBottomNavHeight(bottomNav.getBoundingClientRect().height);
+    };
+
+    updateBottomNavHeight();
+    const observer = new ResizeObserver(updateBottomNavHeight);
+    observer.observe(bottomNav);
+    return () => observer.disconnect();
+  }, []);
 
   React.useEffect(() => {
     if (!isExpanded || !sentinelRef.current) return;
@@ -159,7 +174,7 @@ export function BottomSheet({
       className="fixed left-0 right-0 bg-background rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] z-40 overflow-hidden"
       style={{ 
         height: expandedHeight,
-        bottom: BOTTOM_NAV_HEIGHT,
+        bottom: bottomNavHeight,
       }}
       animate={{
         y: isExpanded ? 0 : expandedHeight - COLLAPSED_HEIGHT

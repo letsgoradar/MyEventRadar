@@ -36,7 +36,7 @@ interface BottomSheetProps {
   onRequireAuth?: () => void;
 }
 
-const COLLAPSED_HEIGHT = 92;
+const COLLAPSED_HEIGHT = 68;
 const EXPANDED_HEIGHT_RATIO = 0.55;
 const FALLBACK_BOTTOM_NAV_HEIGHT = 76;
 const PAGE_SIZE = 20;
@@ -194,10 +194,22 @@ export function BottomSheet({
         }}
       >
         <div className="drag-handle flex justify-center items-center py-3 cursor-grab active:cursor-grabbing">
-          <div className="w-12 h-1.5 bg-muted-foreground/40 rounded-full" />
+          <motion.div
+            className="w-12 h-1.5 bg-muted-foreground/40 rounded-full"
+            animate={isExpanded ? undefined : {
+              scaleX: [1, 1.2, 1],
+              opacity: [0.55, 0.9, 0.55],
+            }}
+            transition={{
+              duration: 1.8,
+              repeat: Infinity,
+              repeatDelay: 2.5,
+              ease: "easeInOut",
+            }}
+          />
         </div>
         
-        <div className="px-4 pb-2">
+        <div className="px-4 pb-2 text-center">
           <p className="text-sm text-muted-foreground font-medium">
             {filteredByHidden.length} {filteredByHidden.length === 1 ? 'evenement' : 'evenementen'}
           </p>
@@ -212,7 +224,7 @@ export function BottomSheet({
                   onShowHiddenChange?.(newVal);
                   if (newVal) { onOpenChange?.(true); setIsExpanded(true); }
                 }}
-                className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 hover:text-foreground transition-colors"
+                className="text-xs text-muted-foreground mt-0.5 mx-auto flex items-center gap-1 hover:text-foreground transition-colors"
               >
                 {showHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
                 <span>{showHidden ? 'Verberg verborgen' : `${hiddenCount} verborgen – toon`}</span>

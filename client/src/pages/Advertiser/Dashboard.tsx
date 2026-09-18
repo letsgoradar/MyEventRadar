@@ -63,6 +63,9 @@ interface PromotionData {
     };
   }>;
 }
+interface CampaignData {
+  campaigns: Array<{ campaign: { id: number; status: string; name: string; impressions?: number; clicks?: number; budgetCents?: number } }>;
+}
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -103,6 +106,10 @@ export default function AdvertiserDashboard() {
 
   const { data: promotionsData } = useQuery<PromotionData>({
     queryKey: ["/api/advertiser/my-promotions"],
+    enabled: !!user,
+  });
+  const { data: campaignsData } = useQuery<CampaignData>({
+    queryKey: ["/api/advertiser/campaigns"],
     enabled: !!user,
   });
 
@@ -157,6 +164,8 @@ export default function AdvertiserDashboard() {
   const activePromotions = promotionsData?.promotions?.filter(
     (p) => p.promotion.status === "active"
   ).length || 0;
+  const campaigns = campaignsData?.campaigns || [];
+  const activeCampaigns = campaigns.filter((item) => item.campaign.status === "active").length;
 
   const statusColors: Record<string, string> = {
     active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
@@ -283,7 +292,7 @@ export default function AdvertiserDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <ImagePlus className="h-5 w-5" />
-                  Bedrijfsadvertenties
+                   Advertentiemateriaal
                 </CardTitle>
                 <CardDescription>
                   {activeAds} actieve advertentie{activeAds !== 1 ? "s" : ""}
@@ -319,7 +328,7 @@ export default function AdvertiserDashboard() {
                   className="w-full mt-4"
                   onClick={() => setLocation("/advertiser/ads")}
                 >
-                  Alle advertenties <ArrowRight className="ml-2 h-4 w-4" />
+                   Materiaal beheren <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardContent>
             </Card>
@@ -328,27 +337,27 @@ export default function AdvertiserDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Megaphone className="h-5 w-5" />
-                  Event Promoties
+                   Campagnes
                 </CardTitle>
                 <CardDescription>
-                  {activePromotions} actieve promotie{activePromotions !== 1 ? "s" : ""}
+                   {activeCampaigns} actieve campagne{activeCampaigns !== 1 ? "s" : ""}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {promotionsData?.promotions && promotionsData.promotions.length > 0 ? (
+                 {campaigns.length > 0 ? (
                   <div className="space-y-3">
-                    {promotionsData.promotions.slice(0, 5).map((p) => (
-                      <div key={p.promotion.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                     {campaigns.slice(0, 5).map(({ campaign }) => (
+                       <div key={campaign.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                         <div>
-                          <p className="font-medium text-sm">{p.event.title}</p>
+                           <p className="font-medium text-sm">{campaign.name}</p>
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                            <span>{p.promotion.impressions} impressies</span>
-                            <span>{p.promotion.clicks} kliks</span>
-                            <span>{formatCents(p.promotion.priceCents)}</span>
+                             <span>{campaign.impressions || 0} impressies</span>
+                             <span>{campaign.clicks || 0} kliks</span>
+                             <span>{formatCents(campaign.budgetCents || 0)} budget</span>
                           </div>
                         </div>
-                        <Badge variant={p.promotion.status === "active" ? "default" : "secondary"}>
-                          {p.promotion.status}
+                         <Badge variant={campaign.status === "active" ? "default" : "secondary"}>
+                           {campaign.status}
                         </Badge>
                       </div>
                     ))}
@@ -356,15 +365,15 @@ export default function AdvertiserDashboard() {
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <Megaphone className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                    <p>Nog geen promoties</p>
+                     <p>Nog geen campagnes</p>
                   </div>
                 )}
                 <Button
                   variant="outline"
                   className="w-full mt-4"
-                  onClick={() => setLocation("/advertiser/promotions")}
+                   onClick={() => setLocation("/advertiser/campaigns")}
                 >
-                  Alle promoties <ArrowRight className="ml-2 h-4 w-4" />
+                   Campagnes beheren <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardContent>
             </Card>

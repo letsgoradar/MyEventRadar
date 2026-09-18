@@ -963,6 +963,10 @@ export const BUSINESS_CATEGORIES = [
 
 export const ADVERTISER_STATUS = ['pending', 'active', 'suspended'] as const;
 export const BUSINESS_AD_STATUS = ['draft', 'pending', 'active', 'paused', 'exhausted'] as const;
+export const CAMPAIGN_PLACEMENTS = ['external_interstitial', 'event_boost', 'banner', 'venue_spotlight'] as const;
+export const CAMPAIGN_DESTINATIONS = ['website', 'venue', 'event', 'external'] as const;
+export const CAMPAIGN_STATUS = ['draft', 'pending', 'scheduled', 'active', 'paused', 'exhausted', 'expired'] as const;
+export const CAMPAIGN_PRICING_MODELS = ['cpm', 'fixed'] as const;
 export const PROMOTION_PERIOD = ['day', 'week', 'month'] as const;
 export const PROMOTION_STATUS = ['active', 'expired', 'cancelled'] as const;
 export const RADIUS_OPTIONS = [5, 10, 15, 20, 25, 30, 40, 50, 0] as const;
@@ -1037,6 +1041,56 @@ export const eventPromotions = pgTable("event_promotions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/** Canonical paid delivery record. business_ads is the reusable creative. */
+export const adCampaigns = pgTable("ad_campaigns", {
+  id: serial("id").primaryKey(),
+  advertiserId: integer("advertiser_id").references(() => advertiserProfiles.id, { onDelete: "cascade" }).notNull(),
+  adId: integer("ad_id").references(() => businessAds.id, { onDelete: "cascade" }).notNull(),
+  legacyBusinessAdId: integer("legacy_business_ad_id").references(() => businessAds.id, { onDelete: "set null" }).unique(),
+  legacyEventPromotionId: integer("legacy_event_promotion_id").references(() => eventPromotions.id, { onDelete: "set null" }).unique(),
+  name: text("name").notNull(),
+  placement: text("placement").notNull().$type<typeof CAMPAIGN_PLACEMENTS[number]>(),
+  destinationType: text("destination_type").notNull().$type<typeof CAMPAIGN_DESTINATIONS[number]>(),
+  venueId: integer("venue_id").references(() => venues.id, { onDelete: "set null" }),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "set null" }),
+  destinationUrl: text("destination_url"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  budgetCents: integer("budget_cents").notNull(),
+  spentCents: integer("spent_cents").notNull().default(0),
+  targetRadiusKm: integer("target_radius_km").notNull().default(10),
+  targetCategories: text("target_categories").array(),
+  status: text("status").notNull().default("draft").$type<typeof CAMPAIGN_STATUS[number]>(),
+  pricingModel: text("pricing_model").notNull().default("cpm").$type<typeof CAMPAIGN_PRICING_MODELS[number]>(),
+  unitPriceCents: integer("unit_price_cents").notNull(),
+  impressions: integer("impressions").notNull().default(0),
+  clicks: integer("clicks").notNull().default(0),
+  closes: integer("closes").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const walletTransactions = pgTable("wallet_transactions", {
+  id: serial("id").primaryKey(),
+  advertiserId: integer("advertiser_id").references(() => advertiserProfiles.id, { onDelete: "cascade" }).notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  type: text("type").notNull(),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  stripePaymentIntentId: text("stripe_payment_intent_id").unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const adInteractions = pgTable("ad_interactions", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").references(() => adCampaigns.id, { onDelete: "cascade" }).notNull(),
+  type: text("type").notNull().$type<"impression" | "click" | "close">(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  eventId: integer("event_id").references(() => events.id, { onDelete: "set null" }),
+  idempotencyKey: text("idempotency_key").unique(),
+  costCents: integer("cost_cents").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const pricingConfig = pgTable("pricing_config", {
   id: serial("id").primaryKey(),
   productType: text("product_type").notNull().$type<typeof PRICING_PRODUCT_TYPE[number]>(),
@@ -1078,6 +1132,11 @@ export const insertEventPromotionSchema = createInsertSchema(eventPromotions).om
   impressions: true,
   clicks: true,
 });
+export const insertAdCampaignSchema = createInsertSchema(adCampaigns).omit({
+  id: true, createdAt: true, updatedAt: true, spentCents: true, impressions: true, clicks: true, closes: true,
+});
+export const insertWalletTransactionSchema = createInsertSchema(walletTransactions).omit({ id: true, createdAt: true });
+export const insertAdInteractionSchema = createInsertSchema(adInteractions).omit({ id: true, createdAt: true });
 
 export const insertPricingConfigSchema = createInsertSchema(pricingConfig).omit({
   id: true,
@@ -1094,6 +1153,10 @@ export type AdImpression = typeof adImpressions.$inferSelect;
 export type InsertAdImpression = z.infer<typeof insertAdImpressionSchema>;
 export type EventPromotion = typeof eventPromotions.$inferSelect;
 export type InsertEventPromotion = z.infer<typeof insertEventPromotionSchema>;
+export type AdCampaign = typeof adCampaigns.$inferSelect;
+export type InsertAdCampaign = z.infer<typeof insertAdCampaignSchema>;
+export type WalletTransaction = typeof walletTransactions.$inferSelect;
+export type AdInteraction = typeof adInteractions.$inferSelect;
 export type PricingConfig = typeof pricingConfig.$inferSelect;
 export type InsertPricingConfig = z.infer<typeof insertPricingConfigSchema>;
 

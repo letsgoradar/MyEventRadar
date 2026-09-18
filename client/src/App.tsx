@@ -136,6 +136,7 @@ const AdvertiserRegister = React.lazy(() => import("@/pages/Advertiser/Register"
 const AdvertiserDashboard = React.lazy(() => import("@/pages/Advertiser/Dashboard"));
 const AdvertiserAds = React.lazy(() => import("@/pages/Advertiser/Ads"));
 const AdvertiserPromotions = React.lazy(() => import("@/pages/Advertiser/Promotions"));
+const AdvertiserCampaigns = React.lazy(() => import("@/pages/Advertiser/Campaigns"));
 const AdvertiserBilling = React.lazy(() => import("@/pages/Advertiser/Billing"));
 const AdvertiserVerify = React.lazy(() => import("@/pages/Advertiser/Verify"));
 
@@ -260,9 +261,14 @@ export default function App() {
             <AdvertiserAuthGuard><AdvertiserAds /></AdvertiserAuthGuard>
           </LazyLoad>
         </Route>
+        <Route path="/advertiser/campaigns">
+          <LazyLoad>
+            <AdvertiserAuthGuard><AdvertiserCampaigns /></AdvertiserAuthGuard>
+          </LazyLoad>
+        </Route>
         <Route path="/advertiser/promotions">
           <LazyLoad>
-            <AdvertiserAuthGuard><AdvertiserPromotions /></AdvertiserAuthGuard>
+            <AdvertiserAuthGuard><AdvertiserCampaigns /></AdvertiserAuthGuard>
           </LazyLoad>
         </Route>
         <Route path="/advertiser/billing">

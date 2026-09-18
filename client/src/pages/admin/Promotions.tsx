@@ -795,6 +795,34 @@ function PricingTab() {
   );
 }
 
+function CampaignsTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<any>({ name: "", advertiserId: "", adId: "", placement: "banner", destinationType: "website", startDate: "", endDate: "", budget: "", radius: "10" });
+  const { data, isLoading } = useQuery<{ campaigns: Array<{ campaign: any; ad?: any; event?: any; venue?: any }> }>({
+    queryKey: ["/api/promotions/admin/campaigns"],
+  });
+  const advertisersQuery = useQuery<{ advertisers: Array<{ profile: AdvertiserProfile; user: UserInfo }> }>({ queryKey: ["/api/promotions/admin/advertisers"] });
+  const adsQuery = useQuery<{ ads: Array<{ ad: BusinessAd; profile: AdvertiserProfile }> }>({ queryKey: ["/api/promotions/admin/all-ads"] });
+  const createMutation = useMutation({
+    mutationFn: () => apiRequest("/api/promotions/admin/campaigns", { method: "POST", data: {
+      name: draft.name, advertiserId: Number(draft.advertiserId), adId: Number(draft.adId), placement: draft.placement, destinationType: draft.destinationType,
+      startDate: new Date(draft.startDate).toISOString(), endDate: new Date(draft.endDate).toISOString(), budgetCents: Math.round(Number(draft.budget) * 100), targetRadiusKm: Number(draft.radius), status: "pending",
+    }}),
+    onSuccess: () => { setOpen(false); queryClient.invalidateQueries({ queryKey: ["/api/promotions/admin/campaigns"] }); toast({ title: "Campagne aangemaakt" }); },
+    onError: (e: Error) => toast({ title: "Campagne kon niet worden aangemaakt", description: e.message, variant: "destructive" }),
+  });
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) => apiRequest(`/api/promotions/admin/campaigns/${id}/status`, { method: "PATCH", data: { status } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/promotions/admin/campaigns"] }),
+    onError: (e: Error) => toast({ title: "Status kon niet worden bijgewerkt", description: e.message, variant: "destructive" }),
+  });
+  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>;
+  const campaigns = data?.campaigns || [];
+  return <><div className="flex justify-end mb-4"><Button onClick={() => setOpen(true)}><Megaphone className="h-4 w-4 mr-2" />Campagne aanmaken</Button></div>{campaigns.length ? <Table><TableHeader><TableRow><TableHead>Campagne</TableHead><TableHead>Materiaal</TableHead><TableHead>Doel</TableHead><TableHead>Looptijd</TableHead><TableHead>Budget</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{campaigns.map(({ campaign, ad, event, venue }) => <TableRow key={campaign.id}><TableCell className="font-medium">{campaign.name}</TableCell><TableCell>{ad?.title || "—"}</TableCell><TableCell>{event?.title || venue?.name || "Algemeen"}</TableCell><TableCell className="text-sm">{format(new Date(campaign.startDate), "d MMM", { locale: nl })} – {format(new Date(campaign.endDate), "d MMM yyyy", { locale: nl })}</TableCell><TableCell>{formatCents(campaign.budgetCents || 0)}</TableCell><TableCell>{statusBadge(campaign.status)}</TableCell><TableCell><Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: campaign.id, status: campaign.status === "active" ? "paused" : "active" })}>{campaign.status === "active" ? "Pauzeren" : "Activeren"}</Button></TableCell></TableRow>)}</TableBody></Table> : <div className="text-center py-12 text-gray-500"><Megaphone className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>Nog geen campagnes</p></div>}<Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>Campagne voor promotor</DialogTitle><DialogDescription>Selecteer promotor en advertentiemateriaal.</DialogDescription></DialogHeader><div className="space-y-3"><Input placeholder="Campagnenaam" onChange={(e) => setDraft({ ...draft, name: e.target.value })} /><select className="w-full border rounded-md p-2" value={draft.advertiserId} onChange={(e) => setDraft({ ...draft, advertiserId: e.target.value, adId: "" })}><option value="">Promotor selecteren</option>{(advertisersQuery.data?.advertisers || []).map(({ profile }) => <option key={profile.id} value={profile.id}>{profile.companyName}</option>)}</select><select className="w-full border rounded-md p-2" value={draft.adId} onChange={(e) => setDraft({ ...draft, adId: e.target.value })}><option value="">Advertentiemateriaal selecteren</option>{(adsQuery.data?.ads || []).filter(({ ad }) => String(ad.advertiserId) === String(draft.advertiserId)).map(({ ad }) => <option key={ad.id} value={ad.id}>{ad.title}</option>)}</select><div className="grid grid-cols-2 gap-2"><Input type="datetime-local" onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /><Input type="datetime-local" onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></div><div className="grid grid-cols-2 gap-2"><Input type="number" placeholder="Budget €" onChange={(e) => setDraft({ ...draft, budget: e.target.value })} /><Input type="number" placeholder="Radius km" value={draft.radius} onChange={(e) => setDraft({ ...draft, radius: e.target.value })} /></div><Button className="w-full" disabled={createMutation.isPending} onClick={() => createMutation.mutate()}>Campagne aanmaken</Button></div></DialogContent></Dialog></>;
+}
+
 export default function Promotions() {
   const { data: revenue } = useQuery<RevenueData>({
     queryKey: ["/api/promotions/admin/revenue"],
@@ -874,17 +902,18 @@ export default function Promotions() {
           </Card>
         </div>
 
-        <Tabs defaultValue="ads" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs defaultValue="campaigns" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="campaigns">Campagnes</TabsTrigger>
             <TabsTrigger value="ads" className="relative">
-              Advertenties
+              Materiaal (legacy)
               {pendingAds > 0 && (
                 <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                   {pendingAds}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="promotions">Event Promoties</TabsTrigger>
+            <TabsTrigger value="promotions">Event Promoties (legacy)</TabsTrigger>
             <TabsTrigger value="advertisers" className="relative">
               Adverteerders
               {pendingAdvertisers > 0 && (
@@ -896,6 +925,16 @@ export default function Promotions() {
             <TabsTrigger value="revenue">Inkomsten</TabsTrigger>
             <TabsTrigger value="pricing">Prijsbeheer</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="campaigns">
+            <Card>
+              <CardHeader>
+                <CardTitle>Campagnes</CardTitle>
+                <CardDescription>Centraal overzicht van advertentiemateriaal, doelgroep, looptijd en budget</CardDescription>
+              </CardHeader>
+              <CardContent><CampaignsTab /></CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="ads">
             <Card>

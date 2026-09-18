@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/use-auth';
 import {
   LayoutDashboard,
   Megaphone,
-  Star,
   CreditCard,
   ArrowLeft,
   Building2,
@@ -16,8 +15,7 @@ import { RadarLogoWithText } from '@/components/RadarLogo';
 
 const navItems = [
   { href: '/advertiser/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/advertiser/ads', label: 'Advertenties', icon: Megaphone },
-  { href: '/advertiser/promotions', label: 'Event Promoties', icon: Star },
+  { href: '/advertiser/campaigns', label: 'Campagnes', icon: Megaphone },
   { href: '/advertiser/billing', label: 'Saldo & Facturatie', icon: CreditCard },
 ];
 

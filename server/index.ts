@@ -156,7 +156,14 @@ const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunctio
 };
 
 // Setup middleware
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({
+  limit: '2mb',
+  verify: (req, _res, buffer) => {
+    if ((req as any).originalUrl?.endsWith('/stripe-webhook')) {
+      (req as Request & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
+    }
+  },
+}));
 app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 app.use(cookieParser());
 
@@ -301,6 +308,13 @@ const HOST = '0.0.0.0';
     }
 
     // Register routes first for faster API availability
+    try {
+      const { ensureAdCampaignSchema } = await import("./migrations/ad-campaigns");
+      await ensureAdCampaignSchema();
+    } catch (e: any) {
+      console.error("[Migration] Ad campaign schema failed:", e.message);
+      throw e;
+    }
     const server = await registerRoutes(app);
     console.log('Routes registered successfully');
 

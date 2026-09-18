@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ExternalLink, Clock } from "lucide-react";
 import { AdBanner } from "./AdBanner";
+import { apiRequest } from "@/lib/queryClient";
 import { RadarLogoWithText } from "@/components/RadarLogo";
 
 interface ExternalLinkInterstitialProps {
@@ -29,6 +30,8 @@ export function ExternalLinkInterstitial({
 }: ExternalLinkInterstitialProps) {
   const [countdown, setCountdown] = useState(isPremium ? 0 : 5);
   const [canProceed, setCanProceed] = useState(isPremium);
+  const [servedCampaignId, setServedCampaignId] = useState<number>();
+  const closeKey = useRef(`close-${Date.now()}-${Math.random().toString(36).slice(2)}`).current;
 
   const hasLocation = eventLat !== undefined && eventLng !== undefined;
 
@@ -54,6 +57,16 @@ export function ExternalLinkInterstitial({
     onClose();
   }, [externalUrl, onClose]);
 
+  const handleClose = useCallback(() => {
+    if (servedCampaignId) {
+      apiRequest("/api/ads/close", {
+        method: "POST",
+        data: { campaignId: servedCampaignId, eventId, idempotencyKey: closeKey },
+      }).catch(() => {});
+    }
+    onClose();
+  }, [eventId, onClose, servedCampaignId, closeKey]);
+
   const handleAdClick = () => {
     if (onAdClick) {
       onAdClick();
@@ -68,7 +81,7 @@ export function ExternalLinkInterstitial({
         <Button 
           variant="ghost" 
           size="sm"
-          onClick={onClose}
+           onClick={handleClose}
           className="flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -94,10 +107,15 @@ export function ExternalLinkInterstitial({
             lng={eventLng}
             eventCategory={eventCategory}
             eventId={eventId}
+            onCampaignId={setServedCampaignId}
+            placement="external_interstitial"
           />
         </div>
 
-        <div className="flex flex-col items-center gap-4 mt-4">
+         <div className="flex flex-col items-center gap-4 mt-4">
+           {!isPremium && <div className="w-full max-w-xs h-1.5 rounded-full bg-gray-200 overflow-hidden" aria-label="Voortgang doorverwijzing">
+             <div className="h-full bg-teal-500 transition-all duration-1000" style={{ width: `${((5 - countdown) / 5) * 100}%` }} />
+           </div>}
           {!canProceed ? (
             <div className="flex items-center gap-3 text-gray-500">
               <Clock className="w-5 h-5 animate-pulse" />
@@ -117,7 +135,7 @@ export function ExternalLinkInterstitial({
           )}
 
           <button 
-            onClick={onClose}
+             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 text-sm underline"
           >
             Annuleren en terug

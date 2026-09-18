@@ -2,9 +2,11 @@ import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
 import { db } from "../db";
 import {
-  eventPromotions, events, pricingConfig, businessAds, adImpressions,
+  eventPromotions, events, pricingConfig, businessAds, adImpressions, adCampaigns, adInteractions, walletTransactions,
+  venues,
   advertiserProfiles, users,
-  RADIUS_OPTIONS, PROMOTION_PERIOD, BUSINESS_CATEGORIES, PRICING_PRODUCT_TYPE,
+  RADIUS_OPTIONS, PROMOTION_PERIOD, BUSINESS_CATEGORIES, PRICING_PRODUCT_TYPE, CAMPAIGN_PLACEMENTS,
+  CAMPAIGN_DESTINATIONS, CAMPAIGN_STATUS, CAMPAIGN_PRICING_MODELS,
 } from "@shared/schema";
 import { eq, and, gte, lte, sql, desc, ilike, or } from "drizzle-orm";
 import { z } from "zod";
@@ -12,6 +14,7 @@ import { attachUser, isAuthenticated, isAdmin } from "../middleware/auth";
 import { getStripe, isStripeConfigured } from "../stripe";
 import { sendVerificationEmail } from "../services/email-service";
 import rateLimit from "express-rate-limit";
+import { ensureAdCampaignSchema } from "../migrations/ad-campaigns";
 
 const impressionClickLimiter = rateLimit({
   windowMs: 60000,
@@ -53,32 +56,35 @@ router.get("/active", async (req: Request, res: Response) => {
 
     const now = new Date();
 
-    await db
-      .update(eventPromotions)
-      .set({ status: "expired" })
-      .where(
-        and(
-          eq(eventPromotions.status, "active"),
-          lte(eventPromotions.endDate, now)
-        )
-      );
+    await db.update(adCampaigns).set({ status: "expired" })
+      .where(and(eq(adCampaigns.placement, "event_boost"), lte(adCampaigns.endDate, now),
+        sql`${adCampaigns.status} IN ('active','scheduled')`));
 
     const activePromotions = await db
       .select({
-        promotion: eventPromotions,
+        promotion: adCampaigns,
         event: events,
+        profile: advertiserProfiles,
       })
-      .from(eventPromotions)
-      .innerJoin(events, eq(events.id, eventPromotions.eventId))
+      .from(adCampaigns)
+      .innerJoin(events, eq(events.id, adCampaigns.eventId))
+      .innerJoin(advertiserProfiles, eq(advertiserProfiles.id, adCampaigns.advertiserId))
       .where(
         and(
-          eq(eventPromotions.status, "active"),
-          lte(eventPromotions.startDate, now),
-          gte(eventPromotions.endDate, now)
+          eq(adCampaigns.placement, "event_boost"), eq(adCampaigns.status, "active"),
+          eq(advertiserProfiles.status, "active"),
+          lte(adCampaigns.startDate, now), gte(adCampaigns.endDate, now)
         )
       );
 
     const filtered = activePromotions.filter((row) => {
+      if (row.promotion.pricingModel === "cpm" &&
+          (row.promotion.spentCents >= row.promotion.budgetCents ||
+           row.profile.balanceCents <= 0 ||
+           (row.profile.monthlyBudgetCapCents !== null &&
+            row.profile.currentMonthSpendCents >= row.profile.monthlyBudgetCapCents))) {
+        return false;
+      }
       if (row.promotion.targetRadiusKm === 0) return true;
       const eventLat = Number(row.event.latitude);
       const eventLng = Number(row.event.longitude);
@@ -92,8 +98,8 @@ router.get("/active", async (req: Request, res: Response) => {
       ...row.event,
       promotionId: row.promotion.id,
       isPromoted: true,
-      promotionPeriod: row.promotion.promotionPeriod,
-      promotionEndDate: row.promotion.endDate,
+       promotionPeriod: "campaign",
+       promotionEndDate: row.promotion.endDate,
     }));
 
     res.json(result);
@@ -107,42 +113,100 @@ router.get("/active", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/:id/impression", impressionClickLimiter, async (req: Request, res: Response) => {
+router.post("/:id(\\d+)/impression", impressionClickLimiter, async (req: Request, res: Response) => {
   try {
     const promotionId = parseInt(req.params.id);
     if (isNaN(promotionId)) {
       return res.status(400).json({ message: "Ongeldig promotie-ID" });
     }
 
-    await db
-      .update(eventPromotions)
-      .set({
-        impressions: sql`${eventPromotions.impressions} + 1`,
-      })
-      .where(eq(eventPromotions.id, promotionId));
+    const { idempotencyKey, eventId } = z.object({
+      idempotencyKey: z.string().max(200).optional(),
+      eventId: z.number().optional(),
+    }).parse(req.body || {});
+    const result = await db.transaction(async (tx) => {
+      const [campaign] = await tx.select().from(adCampaigns)
+        .where(and(
+          eq(adCampaigns.id, promotionId),
+          eq(adCampaigns.placement, "event_boost"),
+          eq(adCampaigns.status, "active")
+        )).for("update");
+      if (!campaign) return { success: false, reason: "campaign_not_found" };
+      const inserted = await tx.insert(adInteractions).values({
+        campaignId: campaign.id, type: "impression", eventId: eventId || null,
+        idempotencyKey: idempotencyKey || null,
+      }).onConflictDoNothing().returning({ id: adInteractions.id });
+      if (!inserted.length) return { success: true, duplicate: true, campaignId: campaign.id };
 
-    res.json({ success: true });
+      const costCents = campaign.pricingModel === "fixed"
+        ? 0
+        : Math.max(1, Math.round(campaign.unitPriceCents / 1000));
+      const [profile] = await tx.select().from(advertiserProfiles)
+        .where(eq(advertiserProfiles.id, campaign.advertiserId)).for("update");
+      if (!profile || profile.balanceCents < costCents) {
+        throw new Error("Onvoldoende wallet-saldo voor deze impressie");
+      }
+      if (campaign.spentCents + costCents > campaign.budgetCents) {
+        await tx.update(adCampaigns).set({ status: "exhausted", updatedAt: new Date() })
+          .where(eq(adCampaigns.id, campaign.id));
+        throw new Error("Campagnebudget bereikt");
+      }
+      if (profile.monthlyBudgetCapCents &&
+          profile.currentMonthSpendCents + costCents > profile.monthlyBudgetCapCents) {
+        throw new Error("Maandbudget bereikt");
+      }
+
+      await tx.update(adInteractions).set({ costCents }).where(eq(adInteractions.id, inserted[0].id));
+      await tx.update(adCampaigns).set({
+        impressions: sql`${adCampaigns.impressions} + 1`,
+        spentCents: sql`${adCampaigns.spentCents} + ${costCents}`,
+      })
+        .where(eq(adCampaigns.id, campaign.id));
+      await tx.update(businessAds).set({
+        impressions: sql`${businessAds.impressions} + 1`,
+        totalSpendCents: sql`${businessAds.totalSpendCents} + ${costCents}`,
+      }).where(eq(businessAds.id, campaign.adId));
+      if (costCents > 0) {
+        await tx.update(advertiserProfiles).set({
+          balanceCents: sql`${advertiserProfiles.balanceCents} - ${costCents}`,
+          currentMonthSpendCents: sql`${advertiserProfiles.currentMonthSpendCents} + ${costCents}`,
+        }).where(eq(advertiserProfiles.id, profile.id));
+      }
+      return { success: true, campaignId: campaign.id };
+    });
+    res.json(result);
   } catch (error) {
     console.error("Error recording promotion impression:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
-router.post("/:id/click", impressionClickLimiter, async (req: Request, res: Response) => {
+router.post("/:id(\\d+)/click", impressionClickLimiter, async (req: Request, res: Response) => {
   try {
     const promotionId = parseInt(req.params.id);
     if (isNaN(promotionId)) {
       return res.status(400).json({ message: "Ongeldig promotie-ID" });
     }
 
-    await db
-      .update(eventPromotions)
-      .set({
-        clicks: sql`${eventPromotions.clicks} + 1`,
-      })
-      .where(eq(eventPromotions.id, promotionId));
-
-    res.json({ success: true });
+    const [campaign] = await db.select().from(adCampaigns).where(eq(adCampaigns.id, promotionId));
+    if (!campaign || campaign.placement !== "event_boost") {
+      return res.status(404).json({ message: "Campagne niet gevonden" });
+    }
+    const { idempotencyKey, eventId } = z.object({
+      idempotencyKey: z.string().max(200).optional(),
+      eventId: z.number().optional(),
+    }).parse(req.body || {});
+    const result = await db.transaction(async (tx) => {
+      const inserted = await tx.insert(adInteractions).values({
+        campaignId: campaign.id, type: "click", eventId: eventId || null,
+        idempotencyKey: idempotencyKey || null,
+      }).onConflictDoNothing().returning({ id: adInteractions.id });
+      if (!inserted.length) return { success: true, duplicate: true, campaignId: campaign.id };
+      await tx.update(adCampaigns).set({ clicks: sql`${adCampaigns.clicks} + 1` })
+        .where(eq(adCampaigns.id, campaign.id));
+      return { success: true, campaignId: campaign.id };
+    });
+    res.json(result);
   } catch (error) {
     console.error("Error recording promotion click:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -171,29 +235,36 @@ router.get("/ads/serve", attachUser, async (req: Request, res: Response) => {
       lat: z.coerce.number(),
       lng: z.coerce.number(),
       eventCategory: z.string().optional(),
+      placement: z.enum(["banner", "external_interstitial"]).default("banner"),
     });
 
-    const { lat, lng, eventCategory } = schema.parse({
+    const { lat, lng, eventCategory, placement } = schema.parse({
       lat: req.query.lat,
       lng: req.query.lng,
       eventCategory: req.query.eventCategory,
+      placement: req.query.placement,
     });
 
     const activeAds = await db
       .select({
+        campaign: adCampaigns,
         ad: businessAds,
         profile: advertiserProfiles,
       })
-      .from(businessAds)
-      .innerJoin(advertiserProfiles, eq(businessAds.advertiserId, advertiserProfiles.id))
+      .from(adCampaigns)
+      .innerJoin(businessAds, eq(adCampaigns.adId, businessAds.id))
+      .innerJoin(advertiserProfiles, eq(adCampaigns.advertiserId, advertiserProfiles.id))
       .where(
         and(
+          eq(adCampaigns.status, "active"),
+          eq(advertiserProfiles.status, "active"),
           eq(businessAds.status, "active"),
-          eq(advertiserProfiles.status, "active")
+          eq(adCampaigns.placement, placement)
         )
       );
 
-    const candidates = activeAds.filter(({ ad, profile }) => {
+    const candidates = activeAds.filter(({ campaign, ad, profile }) => {
+      if (campaign.startDate > new Date() || campaign.endDate < new Date() || campaign.spentCents >= campaign.budgetCents) return false;
       if (profile.balanceCents <= 0) return false;
 
       if (
@@ -208,15 +279,15 @@ router.get("/ads/serve", attachUser, async (req: Request, res: Response) => {
           parseFloat(profile.latitude as string),
           parseFloat(profile.longitude as string)
         );
-        if (ad.targetRadiusKm > 0 && distance > ad.targetRadiusKm) return false;
+        if (campaign.targetRadiusKm > 0 && distance > campaign.targetRadiusKm) return false;
       }
 
       if (
         eventCategory &&
-        ad.targetCategories &&
-        ad.targetCategories.length > 0
+        campaign.targetCategories &&
+        campaign.targetCategories.length > 0
       ) {
-        if (!ad.targetCategories.includes(eventCategory)) return false;
+        if (!campaign.targetCategories.includes(eventCategory)) return false;
       }
 
       return true;
@@ -242,14 +313,15 @@ router.get("/ads/serve", attachUser, async (req: Request, res: Response) => {
 
     res.json({
       id: selected.ad.id,
+      campaignId: selected.campaign.id,
       title: selected.ad.title,
       description: selected.ad.description,
       imageUrl: selected.ad.imageUrl,
-      ctaUrl: selected.ad.ctaUrl,
+      ctaUrl: selected.campaign.destinationUrl || selected.ad.ctaUrl,
       ctaText: selected.ad.ctaText || "Meer info",
       companyName: selected.profile.companyName,
       logoUrl: selected.profile.logoUrl,
-      cpmCents: selected.ad.cpmCents,
+      cpmCents: selected.campaign.unitPriceCents,
     });
   } catch (error) {
     console.error("Error serving ad:", error);
@@ -266,75 +338,73 @@ router.post("/ads/impression", impressionClickLimiter, attachUser, async (req: R
     const schema = z.object({
       adId: z.number(),
       eventId: z.number().optional(),
+      campaignId: z.number().optional(),
+      idempotencyKey: z.string().max(200).optional(),
     });
 
-    const { adId, eventId } = schema.parse(req.body);
+    const { adId, eventId, campaignId, idempotencyKey } = schema.parse(req.body);
     const userId = (req as any).user?.id || null;
 
-    const [ad] = await db
-      .select()
-      .from(businessAds)
-      .where(eq(businessAds.id, adId));
+    const result = await db.transaction(async (tx) => {
+      if (idempotencyKey) {
+        const [existing] = await tx.select().from(adInteractions)
+          .where(eq(adInteractions.idempotencyKey, idempotencyKey));
+        if (existing) return { tracked: false, duplicate: true, campaignId: existing.campaignId, costCents: 0 };
+      }
 
-    if (!ad) {
-      return res.status(404).json({ error: "Ad not found" });
-    }
+      const [campaign] = await tx.select().from(adCampaigns)
+        .where(and(
+          campaignId ? eq(adCampaigns.id, campaignId) : eq(adCampaigns.adId, adId),
+          eq(adCampaigns.adId, adId),
+          eq(adCampaigns.status, "active")
+        ))
+        .for("update");
+      if (!campaign) return { tracked: false, reason: "no_active_campaign", campaignId: null, costCents: 0 };
 
-    const costCents = Math.round(ad.cpmCents / 1000);
+      const [ad] = await tx.select().from(businessAds)
+        .where(eq(businessAds.id, campaign.adId))
+        .for("update");
+      const [profile] = await tx.select().from(advertiserProfiles)
+        .where(eq(advertiserProfiles.id, campaign.advertiserId))
+        .for("update");
+      if (!ad || !profile) return { tracked: false, reason: "campaign_not_deliverable", campaignId: campaign.id, costCents: 0 };
 
-    const [profile] = await db
-      .select()
-      .from(advertiserProfiles)
-      .where(eq(advertiserProfiles.id, ad.advertiserId));
+      const costCents = campaign.pricingModel === "fixed"
+        ? 0
+        : Math.max(1, Math.round(campaign.unitPriceCents / 1000));
+      if (campaign.spentCents + costCents > campaign.budgetCents) {
+        await tx.update(adCampaigns).set({ status: "exhausted" }).where(eq(adCampaigns.id, campaign.id));
+        return { tracked: false, reason: "campaign_budget_reached", campaignId: campaign.id, costCents: 0 };
+      }
+      if (profile.balanceCents < costCents) {
+        return { tracked: false, reason: "insufficient_balance", campaignId: campaign.id, costCents: 0 };
+      }
+      if (profile.monthlyBudgetCapCents &&
+          profile.currentMonthSpendCents + costCents > profile.monthlyBudgetCapCents) {
+        return { tracked: false, reason: "monthly_budget_cap_reached", campaignId: campaign.id, costCents: 0 };
+      }
 
-    if (!profile || profile.balanceCents < costCents) {
-      return res.json({ tracked: false, reason: "insufficient_balance" });
-    }
-
-    if (
-      profile.monthlyBudgetCapCents &&
-      profile.currentMonthSpendCents + costCents > profile.monthlyBudgetCapCents
-    ) {
-      return res.json({ tracked: false, reason: "budget_cap_reached" });
-    }
-
-    await db.insert(adImpressions).values({
-      adId,
-      eventId: eventId || null,
-      userId,
-      costCents,
-    });
-
-    await db
-      .update(businessAds)
-      .set({
+      await tx.insert(adInteractions).values({
+        campaignId: campaign.id, type: "impression", userId, eventId: eventId || null,
+        idempotencyKey: idempotencyKey || null, costCents,
+      });
+      await tx.insert(adImpressions).values({ adId, eventId: eventId || null, userId, costCents });
+      await tx.update(adCampaigns).set({
+        impressions: sql`${adCampaigns.impressions} + 1`,
+        spentCents: sql`${adCampaigns.spentCents} + ${costCents}`,
+      }).where(eq(adCampaigns.id, campaign.id));
+      await tx.update(businessAds).set({
         impressions: sql`${businessAds.impressions} + 1`,
         totalSpendCents: sql`${businessAds.totalSpendCents} + ${costCents}`,
-      })
-      .where(eq(businessAds.id, adId));
-
-    await db
-      .update(advertiserProfiles)
-      .set({
+      }).where(eq(businessAds.id, adId));
+      await tx.update(advertiserProfiles).set({
         balanceCents: sql`${advertiserProfiles.balanceCents} - ${costCents}`,
         currentMonthSpendCents: sql`${advertiserProfiles.currentMonthSpendCents} + ${costCents}`,
-      })
-      .where(eq(advertiserProfiles.id, ad.advertiserId));
+      }).where(eq(advertiserProfiles.id, profile.id));
 
-    const updatedBalance = profile.balanceCents - costCents;
-    if (updatedBalance <= 0) {
-      await db
-        .update(businessAds)
-        .set({ status: "exhausted" })
-        .where(
-          and(
-            eq(businessAds.advertiserId, ad.advertiserId),
-            eq(businessAds.status, "active")
-          )
-        );
-    }
-
-    res.json({ tracked: true, costCents });
+      return { tracked: true, campaignId: campaign.id, costCents };
+    });
+    res.json(result);
   } catch (error) {
     console.error("Error tracking impression:", error);
     res.status(500).json({ error: "Failed to track impression" });
@@ -345,22 +415,48 @@ router.post("/ads/click", impressionClickLimiter, async (req: Request, res: Resp
   try {
     const schema = z.object({
       adId: z.number(),
+      campaignId: z.number().optional(),
+      idempotencyKey: z.string().max(200).optional(),
     });
 
-    const { adId } = schema.parse(req.body);
-
-    await db
-      .update(businessAds)
-      .set({
-        clicks: sql`${businessAds.clicks} + 1`,
-      })
-      .where(eq(businessAds.id, adId));
-
-    res.json({ tracked: true });
+    const { adId, campaignId, idempotencyKey } = schema.parse(req.body);
+    if (!campaignId) return res.json({ tracked: false, reason: "campaign_id_required" });
+    const result = await db.transaction(async (tx) => {
+      const [campaign] = await tx.select().from(adCampaigns)
+        .where(and(eq(adCampaigns.id, campaignId), eq(adCampaigns.adId, adId)));
+      if (!campaign) return { tracked: false, reason: "campaign_not_found" };
+      const inserted = await tx.insert(adInteractions).values({
+        campaignId: campaign.id, type: "click", idempotencyKey: idempotencyKey || null,
+      }).onConflictDoNothing().returning({ id: adInteractions.id });
+      if (!inserted.length) return { tracked: false, duplicate: true, campaignId: campaign.id };
+      await tx.update(adCampaigns).set({ clicks: sql`${adCampaigns.clicks} + 1` })
+        .where(eq(adCampaigns.id, campaign.id));
+      await tx.update(businessAds).set({ clicks: sql`${businessAds.clicks} + 1` })
+        .where(eq(businessAds.id, adId));
+      return { tracked: true, campaignId: campaign.id };
+    });
+    res.json(result);
   } catch (error) {
     console.error("Error tracking click:", error);
     res.status(500).json({ error: "Failed to track click" });
   }
+});
+router.post("/ads/close", impressionClickLimiter, async (req: Request, res: Response) => {
+  try {
+    const { campaignId, eventId, idempotencyKey } = z.object({ campaignId: z.number(), eventId: z.number().optional(), idempotencyKey: z.string().optional() }).parse(req.body);
+    const result = await db.transaction(async (tx) => {
+      const inserted = await tx.insert(adInteractions).values({
+        campaignId, eventId: eventId || null, type: "close", idempotencyKey: idempotencyKey || null,
+      }).onConflictDoNothing().returning({ id: adInteractions.id });
+      if (!inserted.length) return { tracked: false, duplicate: true, campaignId };
+      const updated = await tx.update(adCampaigns).set({ closes: sql`${adCampaigns.closes} + 1` })
+        .where(eq(adCampaigns.id, campaignId)).returning({ id: adCampaigns.id });
+      return updated.length
+        ? { tracked: true, campaignId }
+        : { tracked: false, reason: "campaign_not_found", campaignId };
+    });
+    res.json(result);
+  } catch (e: any) { res.status(400).json({ error: e.message || "Close tracking failed" }); }
 });
 
 router.get("/ads/pricing", async (_req: Request, res: Response) => {
@@ -711,30 +807,25 @@ router.post("/purchase", isAuthenticated, async (req: Request, res: Response) =>
     else if (data.period === "week") endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     else endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    if (!isStripeConfigured()) {
-      const [promotion] = await db.insert(eventPromotions).values({
-        eventId: data.eventId, purchasedByUserId: userId, promotionPeriod: data.period,
-        startDate: now, endDate, targetRadiusKm: data.radiusKm, priceCents: price.priceCents, status: "active",
+    const campaign = await db.transaction(async (tx) => {
+      const [locked] = await tx.select().from(advertiserProfiles).where(eq(advertiserProfiles.id, advertiser.id)).for("update");
+      if (!locked || locked.balanceCents < price.priceCents) throw new Error("Onvoldoende saldo in wallet");
+      let [creative] = await tx.select().from(businessAds).where(and(eq(businessAds.advertiserId, advertiser.id), ilike(businessAds.title, event.title))).limit(1);
+      if (!creative) [creative] = await tx.insert(businessAds).values({
+        advertiserId: advertiser.id, title: event.title, description: "Event promotie",
+        imageUrl: event.imageUrl, ctaUrl: event.externalUrl || `https://evenementenradar.nl/events/${event.id}`,
+        targetRadiusKm: data.radiusKm, status: "pending", cpmCents: price.priceCents,
       }).returning();
-      return res.json({ promotion, paymentRequired: false });
-    }
-
-    const stripe = getStripe();
-    const [profile] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, userId));
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: price.priceCents, currency: "eur",
-      customer: profile?.stripeCustomerId || undefined,
-      metadata: {
-        type: "event_promotion", eventId: String(data.eventId), userId: String(userId),
-        period: data.period, radiusKm: String(data.radiusKm), endDate: endDate.toISOString(),
-      },
+      await tx.update(advertiserProfiles).set({ balanceCents: sql`${advertiserProfiles.balanceCents} - ${price.priceCents}` }).where(eq(advertiserProfiles.id, advertiser.id));
+      await tx.insert(walletTransactions).values({ advertiserId: advertiser.id, amountCents: -price.priceCents, type: "event_boost_purchase", idempotencyKey: `event-boost-${userId}-${data.eventId}-${now.getTime()}` });
+      const [created] = await tx.insert(adCampaigns).values({
+        advertiserId: advertiser.id, adId: creative.id, name: `Event boost: ${event.title}`, placement: "event_boost",
+        destinationType: "event", eventId: data.eventId, startDate: now, endDate, budgetCents: price.priceCents,
+        targetRadiusKm: data.radiusKm, status: "active", pricingModel: "fixed", unitPriceCents: price.priceCents,
+      }).returning();
+      return created;
     });
-    const [promotion] = await db.insert(eventPromotions).values({
-      eventId: data.eventId, purchasedByUserId: userId, promotionPeriod: data.period,
-      startDate: now, endDate, targetRadiusKm: data.radiusKm, priceCents: price.priceCents,
-      stripePaymentIntentId: paymentIntent.id, status: "pending",
-    }).returning();
-    res.json({ promotion, clientSecret: paymentIntent.client_secret, paymentRequired: true });
+    res.json({ campaign, paymentRequired: false });
   } catch (error: any) {
     console.error("Error purchasing promotion:", error);
     res.status(400).json({ error: error.message || "Aankoop mislukt" });
@@ -829,6 +920,112 @@ router.get("/my-promotions", isAuthenticated, async (req: Request, res: Response
   } catch (error) {
     res.status(500).json({ error: "Kon promoties niet ophalen" });
   }
+});
+
+// ============ CANONICAL CAMPAIGNS ============
+const campaignBodySchema = z.object({
+  name: z.string().min(1).max(120), adId: z.number().int().positive(),
+  placement: z.enum(CAMPAIGN_PLACEMENTS), destinationType: z.enum(CAMPAIGN_DESTINATIONS),
+  venueId: z.number().int().positive().optional(), eventId: z.number().int().positive().optional(),
+  destinationUrl: z.string().url().optional(), startDate: z.coerce.date(), endDate: z.coerce.date(),
+  budgetCents: z.number().int().positive(), targetRadiusKm: z.number().int().min(0).default(10),
+  targetCategories: z.array(z.string()).optional(), status: z.enum(CAMPAIGN_STATUS).optional(),
+  pricingModel: z.enum(CAMPAIGN_PRICING_MODELS).default("cpm"), unitPriceCents: z.number().int().nonnegative().optional(),
+  advertiserId: z.number().int().positive().optional(),
+});
+async function campaignResults(where?: any) {
+  const rows = await db.select({ campaign: adCampaigns, ad: businessAds, profile: advertiserProfiles,
+    event: events, venue: venues }).from(adCampaigns)
+    .innerJoin(businessAds, eq(adCampaigns.adId, businessAds.id))
+    .innerJoin(advertiserProfiles, eq(adCampaigns.advertiserId, advertiserProfiles.id))
+    .leftJoin(events, eq(adCampaigns.eventId, events.id)).leftJoin(venues, eq(adCampaigns.venueId, venues.id))
+    .where(where || sql`true`).orderBy(desc(adCampaigns.createdAt));
+  return rows;
+}
+
+router.get("/campaigns", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const [profile] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, (req.user as any).id));
+    if (!profile) return res.status(404).json({ error: "Geen profiel gevonden" });
+    res.json({ campaigns: await campaignResults(eq(adCampaigns.advertiserId, profile.id)) });
+  } catch (e) { res.status(500).json({ error: "Kon campagnes niet ophalen" }); }
+});
+router.post("/campaigns", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const data = campaignBodySchema.parse(req.body);
+    const [profile] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, (req.user as any).id));
+    if (!profile || (data.advertiserId && data.advertiserId !== profile.id)) return res.status(403).json({ error: "Niet geautoriseerd" });
+    const [ad] = await db.select().from(businessAds).where(and(eq(businessAds.id, data.adId), eq(businessAds.advertiserId, profile.id)));
+    if (!ad) return res.status(404).json({ error: "Creative niet gevonden" });
+    if (data.endDate <= data.startDate) return res.status(400).json({ error: "Einddatum moet na de startdatum liggen" });
+    if (data.placement === "event_boost" && !data.eventId) return res.status(400).json({ error: "Kies een event voor een eventcampagne" });
+    if (data.placement === "venue_spotlight" && !data.venueId) return res.status(400).json({ error: "Kies een locatie voor een locatiecampagne" });
+    const [campaign] = await db.insert(adCampaigns).values({ ...data, advertiserId: profile.id,
+      unitPriceCents: ad.cpmCents, status: data.status === "draft" ? "draft" : "pending" }).returning();
+    res.status(201).json({ campaign });
+  } catch (e: any) { res.status(400).json({ error: e.message || "Campagne ongeldig" }); }
+});
+router.patch("/campaigns/:id", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id), [profile] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, (req.user as any).id));
+    if (!profile) return res.status(403).json({ error: "Niet geautoriseerd" });
+    const data = campaignBodySchema.partial().omit({ adId: true, advertiserId: true, status: true, unitPriceCents: true }).parse(req.body);
+    const [campaign] = await db.update(adCampaigns).set({ ...data, updatedAt: new Date() })
+      .where(and(eq(adCampaigns.id, id), eq(adCampaigns.advertiserId, profile.id))).returning();
+    if (!campaign) return res.status(404).json({ error: "Campagne niet gevonden" });
+    res.json({ campaign });
+  } catch (e: any) { res.status(400).json({ error: e.message }); }
+});
+router.patch("/campaigns/:id/status", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { status } = z.object({ status: z.enum(["active", "paused"]) }).parse(req.body);
+    const [profile] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, (req.user as any).id));
+    const allowedCurrentStatus = status === "paused" ? "active" : "paused";
+    const [campaign] = profile ? await db.update(adCampaigns).set({ status, updatedAt: new Date() })
+      .where(and(
+        eq(adCampaigns.id, Number(req.params.id)),
+        eq(adCampaigns.advertiserId, profile.id),
+        eq(adCampaigns.status, allowedCurrentStatus)
+      )).returning() : [];
+    if (!campaign) return res.status(404).json({ error: "Campagne niet gevonden" });
+    res.json({ campaign });
+  } catch (e: any) { res.status(400).json({ error: e.message }); }
+});
+router.get("/admin/campaigns", isAdmin, async (req: Request, res: Response) => {
+  try { const advertiserId = req.query.advertiserId ? Number(req.query.advertiserId) : undefined;
+    res.json({ campaigns: await campaignResults(advertiserId ? eq(adCampaigns.advertiserId, advertiserId) : undefined) });
+  } catch (e) { res.status(500).json({ error: "Kon campagnes niet ophalen" }); }
+});
+router.post("/admin/campaigns", isAdmin, async (req: Request, res: Response) => {
+  try {
+    const data = campaignBodySchema.extend({ advertiserId: z.number().int().positive() }).parse(req.body);
+    const [ad] = await db.select().from(businessAds).where(and(eq(businessAds.id, data.adId), eq(businessAds.advertiserId, data.advertiserId)));
+    if (!ad) return res.status(400).json({ error: "Creative hoort niet bij deze advertiser" });
+    const [campaign] = await db.insert(adCampaigns).values({ ...data, unitPriceCents: data.unitPriceCents ?? ad.cpmCents, status: data.status ?? "draft" }).returning();
+    res.status(201).json({ campaign });
+  } catch (e: any) { res.status(400).json({ error: e.message }); }
+});
+router.patch("/admin/campaigns/:id/status", isAdmin, async (req: Request, res: Response) => {
+  try {
+    const { status } = z.object({ status: z.enum(CAMPAIGN_STATUS) }).parse(req.body);
+    const campaign = await db.transaction(async (tx) => {
+      const [updated] = await tx.update(adCampaigns).set({ status, updatedAt: new Date() })
+        .where(eq(adCampaigns.id, Number(req.params.id))).returning();
+      if (updated && status === "active") {
+        await tx.update(businessAds).set({ status: "active", updatedAt: new Date() })
+          .where(eq(businessAds.id, updated.adId));
+      }
+      return updated;
+    });
+    if (!campaign) return res.status(404).json({ error: "Campagne niet gevonden" });
+    res.json({ campaign });
+  } catch (e: any) { res.status(400).json({ error: e.message }); }
+});
+router.patch("/admin/campaigns/:id", isAdmin, async (req: Request, res: Response) => {
+  try { const data = campaignBodySchema.partial().omit({ adId: true, advertiserId: true, status: true, unitPriceCents: true }).parse(req.body);
+    const [campaign] = await db.update(adCampaigns).set({ ...data, updatedAt: new Date() }).where(eq(adCampaigns.id, Number(req.params.id))).returning();
+    if (!campaign) return res.status(404).json({ error: "Campagne niet gevonden" }); res.json({ campaign });
+  } catch (e: any) { res.status(400).json({ error: e.message }); }
 });
 
 // ============ ADMIN ENDPOINTS ============
@@ -951,7 +1148,9 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
     }
     let event;
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+      if (!rawBody) return res.status(400).json({ error: "Raw webhook body unavailable" });
+      event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     } catch (err: any) {
       console.error("[Stripe Webhook] Signature verification failed:", err.message);
       return res.status(400).json({ error: "Invalid signature" });
@@ -961,19 +1160,39 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
         const pi = event.data.object;
         if (pi.metadata?.type === "top_up") {
           const profileId = parseInt(pi.metadata.advertiserProfileId);
-          await db.update(advertiserProfiles).set({
-            balanceCents: sql`${advertiserProfiles.balanceCents} + ${pi.amount}`,
-          }).where(eq(advertiserProfiles.id, profileId));
+          await db.transaction(async (tx) => {
+            await tx.select().from(advertiserProfiles)
+              .where(eq(advertiserProfiles.id, profileId)).for("update");
+            const inserted = await tx.insert(walletTransactions).values({
+              advertiserId: profileId, amountCents: pi.amount, type: "stripe_top_up",
+              idempotencyKey: `stripe-payment-intent:${pi.id}`, stripePaymentIntentId: pi.id,
+            }).onConflictDoNothing().returning({ id: walletTransactions.id });
+            if (inserted.length) {
+              await tx.update(advertiserProfiles).set({
+                balanceCents: sql`${advertiserProfiles.balanceCents} + ${pi.amount}`,
+              }).where(eq(advertiserProfiles.id, profileId));
+            }
+          });
         } else if (pi.metadata?.type === "event_promotion") {
-          await db.update(eventPromotions).set({
-            status: "active",
-          }).where(eq(eventPromotions.stripePaymentIntentId, pi.id));
+          await db.transaction(async (tx) => {
+            const [promotion] = await tx.update(eventPromotions).set({ status: "active" })
+              .where(eq(eventPromotions.stripePaymentIntentId, pi.id)).returning({ id: eventPromotions.id });
+            if (promotion) {
+              const [campaign] = await tx.update(adCampaigns).set({ status: "active", updatedAt: new Date() })
+                .where(eq(adCampaigns.legacyEventPromotionId, promotion.id)).returning({ adId: adCampaigns.adId });
+              if (campaign) {
+                await tx.update(businessAds).set({ status: "active", updatedAt: new Date() })
+                  .where(eq(businessAds.id, campaign.adId));
+              }
+            }
+          });
         }
         break;
       }
       case "setup_intent.succeeded": {
         const si = event.data.object;
-        const profileId = parseInt(si.metadata.advertiserProfileId);
+        const profileId = parseInt(si.metadata?.advertiserProfileId || "");
+        if (!Number.isFinite(profileId)) break;
         await db.update(advertiserProfiles).set({
           status: "active",
         }).where(eq(advertiserProfiles.id, profileId));
@@ -991,6 +1210,7 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
 
 export async function expirePromotions() {
   try {
+    await ensureAdCampaignSchema();
     const now = new Date();
     const result = await db
       .update(eventPromotions)
@@ -1002,6 +1222,8 @@ export async function expirePromotions() {
         )
       )
       .returning();
+    await db.update(adCampaigns).set({ status: "expired", updatedAt: new Date() })
+      .where(and(lte(adCampaigns.endDate, now), sql`${adCampaigns.status} IN ('active','scheduled')`));
 
     if (result.length > 0) {
       console.log(`[Promotions] ${result.length} promoties verlopen`);

@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ExternalLink } from "lucide-react";
 
 interface ServedAd {
   id: number;
+  campaignId?: number;
   title: string;
   description: string | null;
   imageUrl: string | null;
@@ -22,20 +23,24 @@ interface AdBannerProps {
   lng?: number;
   eventCategory?: string;
   eventId?: number;
+  onCampaignId?: (campaignId: number) => void;
+  placement?: "banner" | "external_interstitial";
 }
 
-export function AdBanner({ type = "house", onClick, lat, lng, eventCategory, eventId }: AdBannerProps) {
+export function AdBanner({ type = "house", onClick, lat, lng, eventCategory, eventId, onCampaignId, placement = "banner" }: AdBannerProps) {
   const [radarAngle, setRadarAngle] = useState(0);
   const [pulseScale, setPulseScale] = useState(1);
   const [dotPositions, setDotPositions] = useState<{x: number, y: number, opacity: number}[]>([]);
   const [impressionTracked, setImpressionTracked] = useState(false);
+  const impressionKey = useRef(`impression-${Date.now()}-${Math.random().toString(36).slice(2)}`).current;
+  const clickKey = useRef(`click-${Date.now()}-${Math.random().toString(36).slice(2)}`).current;
 
   const queryParams = lat && lng
-    ? `/api/ads/serve?lat=${lat}&lng=${lng}${eventCategory ? `&eventCategory=${encodeURIComponent(eventCategory)}` : ''}`
+    ? `/api/ads/serve?lat=${lat}&lng=${lng}&placement=${placement}${eventCategory ? `&eventCategory=${encodeURIComponent(eventCategory)}` : ''}`
     : null;
 
   const { data: servedAd } = useQuery<ServedAd | null>({
-    queryKey: ['/api/ads/serve', lat, lng, eventCategory],
+    queryKey: ['/api/ads/serve', lat, lng, eventCategory, placement],
     enabled: type === "served" && !!queryParams,
     staleTime: 60000,
     queryFn: async () => {
@@ -49,12 +54,13 @@ export function AdBanner({ type = "house", onClick, lat, lng, eventCategory, eve
   useEffect(() => {
     if (servedAd && !impressionTracked) {
       setImpressionTracked(true);
+      if (servedAd.campaignId) onCampaignId?.(servedAd.campaignId);
       apiRequest('/api/ads/impression', {
         method: 'POST',
-        data: { adId: servedAd.id, eventId },
+        data: { adId: servedAd.id, campaignId: servedAd.campaignId, eventId, idempotencyKey: impressionKey },
       }).catch(() => {});
     }
-  }, [servedAd, impressionTracked, eventId]);
+  }, [servedAd, impressionTracked, eventId, impressionKey, onCampaignId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -83,11 +89,11 @@ export function AdBanner({ type = "house", onClick, lat, lng, eventCategory, eve
     if (servedAd) {
       apiRequest('/api/ads/click', {
         method: 'POST',
-        data: { adId: servedAd.id },
+        data: { adId: servedAd.id, campaignId: servedAd.campaignId, eventId, idempotencyKey: clickKey },
       }).catch(() => {});
       window.open(servedAd.ctaUrl, '_blank', 'noopener,noreferrer');
     }
-  }, [servedAd]);
+  }, [servedAd, eventId, clickKey]);
 
   if (type === "served" && servedAd) {
     return (

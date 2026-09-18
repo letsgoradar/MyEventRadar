@@ -24,6 +24,7 @@ export function PromotedEventsCarousel({ onEventClick, onEventHover, hoveredEven
   const [isPaused, setIsPaused] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const trackedRef = useRef<Set<number>>(new Set());
+  const trackingSessionRef = useRef(`promoted-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
   const { data: promotedEvents = [] } = useQuery<PromotedEvent[]>({
     queryKey: ["/api/promotions/active", location?.lat, location?.lng],
@@ -47,7 +48,11 @@ export function PromotedEventsCarousel({ onEventClick, onEventHover, hoveredEven
   const trackImpression = useCallback((promotionId: number) => {
     if (trackedRef.current.has(promotionId)) return;
     trackedRef.current.add(promotionId);
-    fetch(`/api/promotions/${promotionId}/impression`, { method: "POST" }).catch(() => {});
+    fetch(`/api/promotions/${promotionId}/impression`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idempotencyKey: `${trackingSessionRef.current}:impression:${promotionId}` }),
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -76,7 +81,14 @@ export function PromotedEventsCarousel({ onEventClick, onEventHover, hoveredEven
   const visibleEvents = promotedEvents.slice(start, start + itemsPerPage);
 
   const handleClick = (event: PromotedEvent) => {
-    fetch(`/api/promotions/${event.promotionId}/click`, { method: "POST" }).catch(() => {});
+    fetch(`/api/promotions/${event.promotionId}/click`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventId: event.id,
+        idempotencyKey: `${trackingSessionRef.current}:click:${event.promotionId}`,
+      }),
+    }).catch(() => {});
     onEventClick?.(event);
   };
 

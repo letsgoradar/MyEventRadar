@@ -533,7 +533,20 @@ export function setupAuth(app: Express) {
 
     app.get("/api/auth/google", (req, res, next) => {
       const rawReturnTo = req.query.returnTo as string || '/web';
-      const returnTo = rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//') ? rawReturnTo : '/web';
+      let returnTo = '/web';
+      try {
+        let decoded = rawReturnTo;
+        for (let i = 0; i < 3; i += 1) {
+          const next = decodeURIComponent(decoded);
+          if (next === decoded) break;
+          decoded = next;
+        }
+        const base = 'https://evenementenradar.internal';
+        const parsed = new URL(decoded, base);
+        if (!/[\u0000-\u001f\\]/.test(decoded) && !decoded.startsWith('//') && parsed.origin === base) {
+          returnTo = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        }
+      } catch {}
       const nativeApp = req.query.nativeApp === 'true';
       (req.session as any).returnTo = returnTo;
       (req.session as any).nativeApp = nativeApp;

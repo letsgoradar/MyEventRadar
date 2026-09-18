@@ -58,10 +58,10 @@ export default function AdvertiserLanding() {
           </Link>
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild>
-              <Link href="/advertiser/dashboard">Dashboard</Link>
+              <Link href="/advertiser/register">Promotoraccount</Link>
             </Button>
             <Button asChild>
-              <Link href="/advertiser/dashboard">
+              <Link href="/advertiser/register">
                 Start nu <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -80,11 +80,11 @@ export default function AdvertiserLanding() {
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Breng jouw bedrijf of evenement onder de aandacht van actieve bezoekers in jouw regio. 
-            Twee advertentieproducten, eerlijke prijzen die meeschalen met je bereik.
+             Eén promotoraccount voor algemene advertenties én eventcampagnes. Het verschil zit in de campagne en de afrekening: betaal per vertoning voor bereik, of per periode om een event extra zichtbaar te maken.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
             <Button size="lg" asChild>
-              <Link href="/advertiser/dashboard">
+              <Link href="/advertiser/register">
                 Gratis account aanmaken <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -98,7 +98,10 @@ export default function AdvertiserLanding() {
 
       <section className="py-16 px-4 bg-muted/30">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Twee advertentieproducten</h2>
+          <h2 className="text-3xl font-bold text-center mb-4">Eén promotoraccount, twee campagnes</h2>
+          <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-12">
+            Je hoeft geen tweede account te maken. Vanuit hetzelfde promotoraccount beheer je algemene advertenties én eventcampagnes. Alleen de campagne-instelling en afrekening verschillen.
+          </p>
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="border-2 hover:border-primary/50 transition-colors">
               <CardHeader>
@@ -107,7 +110,7 @@ export default function AdvertiserLanding() {
                     <Megaphone className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <CardTitle>Bedrijfsadvertenties</CardTitle>
+                  <CardTitle>Algemene advertenties</CardTitle>
                     <CardDescription>CPM-model (betaal per vertoning)</CardDescription>
                   </div>
                 </div>
@@ -122,7 +125,7 @@ export default function AdvertiserLanding() {
                     'Betaal alleen voor vertoningen (CPM)',
                     'Stel een maandelijks budgetlimiet in',
                     'Kies je doelradius (5-50 km of landelijk)',
-                    'Automatische incasso via Stripe',
+                     'Afrekening per 1.000 vertoningen',
                     'Real-time statistieken',
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-2 text-sm">
@@ -141,7 +144,7 @@ export default function AdvertiserLanding() {
                     <Star className="h-6 w-6 text-amber-500" />
                   </div>
                   <div>
-                    <CardTitle>Gepromote Events</CardTitle>
+                  <CardTitle>Eventcampagnes</CardTitle>
                     <CardDescription>Vooraf betaald per periode</CardDescription>
                   </div>
                 </div>
@@ -156,7 +159,7 @@ export default function AdvertiserLanding() {
                     'Bovenaan in zoekresultaten',
                     'Kies 1 dag, 1 week of 1 maand',
                     'Kies je doelradius (5-50 km of landelijk)',
-                    'Eenmalige betaling, geen verrassingen',
+                     'Afrekening per gekozen periode',
                     'Gouden badge op je evenement',
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-2 text-sm">
@@ -184,11 +187,11 @@ export default function AdvertiserLanding() {
                 <TabsList className="grid w-full grid-cols-2 mb-8">
                   <TabsTrigger value="promotions" className="flex items-center gap-2">
                     <Star className="h-4 w-4" />
-                    Event Promoties
+                     Eventcampagnes
                   </TabsTrigger>
                   <TabsTrigger value="ads" className="flex items-center gap-2">
                     <Megaphone className="h-4 w-4" />
-                    Bedrijfsadvertenties
+                     Algemene advertenties
                   </TabsTrigger>
                 </TabsList>
 
@@ -352,11 +355,10 @@ export default function AdvertiserLanding() {
         <div className="max-w-2xl mx-auto text-center space-y-6">
           <h2 className="text-3xl font-bold">Klaar om te starten?</h2>
           <p className="text-muted-foreground">
-            Maak een gratis account aan en begin direct met adverteren. 
-            Minimale storting van €10 om je account te activeren.
+             Maak een gratis promotoraccount aan. Daarna kies je zelf tussen een algemene advertentiecampagne of een eventcampagne; de campagne bepaalt hoe je afrekent.
           </p>
           <Button size="lg" asChild>
-            <Link href="/advertiser/dashboard">
+             <Link href="/advertiser/register">
               Start met adverteren <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

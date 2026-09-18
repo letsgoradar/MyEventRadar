@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -112,6 +113,10 @@ export default function AdvertiserDashboard() {
     queryKey: ["/api/advertiser/campaigns"],
     enabled: !!user,
   });
+  const profile = profileData?.profile;
+  useEffect(() => {
+    if (!profileLoading && user && !profile) setLocation("/advertiser/register");
+  }, [profileLoading, user, profile, setLocation]);
 
   if (authLoading || profileLoading) {
     return (
@@ -136,26 +141,8 @@ export default function AdvertiserDashboard() {
     return null;
   }
 
-  const profile = profileData?.profile;
   if (!profile) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-muted/40">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <AlertCircle className="h-12 w-12 mx-auto text-amber-500 mb-2" />
-            <CardTitle>Geen adverteerdersprofiel</CardTitle>
-            <CardDescription>
-              Je hebt nog geen adverteerdersprofiel. Registreer je eerst als adverteerder.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
-            <Button onClick={() => setLocation("/advertiser/register")}>
-              Registreren <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return null;
   }
 
   const activeAds = adsData?.ads?.filter((a) => a.status === "active").length || 0;

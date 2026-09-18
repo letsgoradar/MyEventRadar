@@ -599,6 +599,27 @@ export async function sendVerificationEmail(
   }
 }
 
+/** Send a passwordless promoter invitation. No password is ever generated. */
+export async function sendPromoterInvitationEmail(
+  email: string, organizationName: string, token: string, requestBaseUrl?: string
+): Promise<boolean> {
+  const baseUrl = requestBaseUrl || getBaseUrl();
+  const url = `${baseUrl}/advertiser/register?invite=${encodeURIComponent(token)}`;
+  const subject = "Je bent uitgenodigd als promotor — Evenementenradar.nl";
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px">
+    <h2>Uitnodiging voor ${organizationName}</h2>
+    <p>Maak zelf een account aan of log in om je bedrijfsprofiel te koppelen.</p>
+    <p><a href="${url}" style="background:#2563eb;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px">Uitnodiging openen</a></p>
+    <p>Deze link is 7 dagen geldig. Je hoeft geen wachtwoord via e-mail in te stellen.</p>
+  </div>`;
+  const transport = getTransporter();
+  if (!transport) { console.log(`[Email] Promotoruitnodiging (dev mode) aan ${email}: ${url}`); return true; }
+  try {
+    await transport.sendMail({ from: `Evenementenradar.nl <${getFromAddress()}>`, to: email, subject, html });
+    return true;
+  } catch (error) { console.error("[Email] Uitnodiging verzenden mislukt:", error); return false; }
+}
+
 export async function sendWelcomeEmail(
   email: string,
   username: string

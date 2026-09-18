@@ -12,6 +12,7 @@ import { LayoutGrid, List, Loader2, MapPin } from "lucide-react";
 import { addDays, startOfDay } from "date-fns";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { AuthModal } from "@/components/Auth/AuthModal";
+import { safeReturnTo } from "@/lib/safe-return-to";
 import { OnboardingModal } from "@/components/Auth/OnboardingModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearch } from "wouter";
@@ -54,7 +55,9 @@ interface UserPreferences {
 export function AppHomePage() {
   const { user } = useAuth();
   const searchString = useSearch();
-  const authFromQuery = new URLSearchParams(searchString).get("auth");
+  const authParams = new URLSearchParams(searchString);
+  const authFromQuery = authParams.get("auth");
+  const authReturnTo = authParams.get("returnTo");
   const [showAuthModal, setShowAuthModal] = React.useState(false);
   const [showOnboarding, setShowOnboarding] = React.useState(false);
   const authTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,15 +65,23 @@ export function AppHomePage() {
   const authDismissKey = "evenementenradar-auth-prompt-dismissed-v1";
 
   React.useEffect(() => {
-    if (authFromQuery === "create" && !user) {
+    const safeDestination = safeReturnTo(authReturnTo, "");
+    if (safeDestination) window.sessionStorage.setItem("authReturnTo", safeDestination);
+    if ((authFromQuery === "create" || authFromQuery === "login" || authFromQuery === "register") && !user) {
       setShowAuthModal(true);
     }
-  }, [authFromQuery, user]);
+  }, [authFromQuery, authReturnTo, user]);
 
   React.useEffect(() => {
     if (user && user.emailVerified !== false) {
       setShowAuthModal(false);
       if (authTimerRef.current) clearTimeout(authTimerRef.current);
+      const returnTo = safeReturnTo(window.sessionStorage.getItem("authReturnTo"), "");
+      if (returnTo) {
+        window.sessionStorage.removeItem("authReturnTo");
+        window.location.href = returnTo;
+        return;
+      }
 
       const prefs = user.preferences as UserPreferences | null;
       const hasPrefs = prefs?.onboardingCompleted || (Array.isArray(prefs?.preferredTagIds) && (prefs.preferredTagIds?.length ?? 0) > 0);
@@ -242,6 +253,18 @@ export function AppHomePage() {
   const isFirstLoad = mapLoading || (!!location && mapRadius === null);
 
   if (!location) {
+    if (authFromQuery === "login" || authFromQuery === "register") {
+      return (
+        <div className="min-h-[100dvh] bg-muted/40">
+          <AuthModal
+            isOpen={showAuthModal}
+            onClose={handleAuthClose}
+            onSuccess={handleAuthSuccess}
+            initialView={authFromQuery}
+          />
+        </div>
+      );
+    }
     return <LocationSetupScreen />;
   }
 
@@ -306,6 +329,7 @@ export function AppHomePage() {
         isOpen={showAuthModal}
         onClose={handleAuthClose}
         onSuccess={handleAuthSuccess}
+        initialView={authFromQuery === "login" ? "login" : authFromQuery === "register" ? "register" : "welcome"}
       />
       
       <OnboardingModal

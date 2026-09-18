@@ -315,6 +315,13 @@ const HOST = '0.0.0.0';
       console.error("[Migration] Ad campaign schema failed:", e.message);
       throw e;
     }
+    try {
+      const { ensurePromoterInvitationSchema } = await import("./migrations/promoter-invitations");
+      await ensurePromoterInvitationSchema();
+    } catch (e: any) {
+      console.error("[Migration] Promoter invitation schema failed:", e.message);
+      throw e;
+    }
     const server = await registerRoutes(app);
     console.log('Routes registered successfully');
 

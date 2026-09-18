@@ -57,6 +57,9 @@ import {
   Clock,
   MapPin,
   Save,
+  UserPlus,
+  Send,
+  Trash2,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { nl } from "date-fns/locale";
@@ -83,6 +86,14 @@ interface UserInfo {
   username: string;
   email: string;
   role: string;
+}
+interface PromoterInvitation {
+  id: number;
+  organizationName: string;
+  email: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
 }
 
 interface BusinessAd {
@@ -146,7 +157,8 @@ function formatCents(cents: number): string {
 
 function statusBadge(status: string) {
   const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-    pending: { variant: "outline", label: "In afwachting" },
+     invited: { variant: "outline", label: "Uitgenodigd" },
+     pending: { variant: "outline", label: "Wacht verificatie" },
     active: { variant: "default", label: "Actief" },
     suspended: { variant: "destructive", label: "Opgeschort" },
     draft: { variant: "secondary", label: "Concept" },
@@ -167,9 +179,14 @@ function periodLabel(period: string): string {
 function AdvertisersTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [invite, setInvite] = useState({ organizationName: "", email: "" });
 
   const { data, isLoading } = useQuery<{ advertisers: Array<{ profile: AdvertiserProfile; user: UserInfo }> }>({
     queryKey: ["/api/promotions/admin/advertisers"],
+  });
+  const invitationsQuery = useQuery<{ invitations: PromoterInvitation[] }>({
+    queryKey: ["/api/promoter-invitations"],
   });
 
   const updateStatusMutation = useMutation({
@@ -187,8 +204,30 @@ function AdvertisersTab() {
       toast({ title: "Fout", description: "Kon status niet bijwerken", variant: "destructive" });
     },
   });
+  const inviteMutation = useMutation({
+    mutationFn: () => apiRequest("/api/promoter-invitations", { method: "POST", data: invite }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/promotions/admin/advertisers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/promoter-invitations"] });
+      setInvite({ organizationName: "", email: "" });
+      setInviteOpen(false);
+      toast({ title: "Uitnodiging verzonden" });
+    },
+    onError: (error: Error) => toast({ title: "Uitnodiging mislukt", description: error.message, variant: "destructive" }),
+  });
+  const actionMutation = useMutation({
+    mutationFn: ({ id, action }: { id: number; action: "resend" | "revoke" }) =>
+      apiRequest(`/api/promoter-invitations/${id}/${action}`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/promotions/admin/advertisers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/promoter-invitations"] });
+      toast({ title: "Uitnodiging bijgewerkt" });
+    },
+    onError: () => toast({ title: "Actie mislukt", description: "Probeer het opnieuw.", variant: "destructive" }),
+  });
 
   const advertisers = data?.advertisers || [];
+  const invitations = invitationsQuery.data?.invitations || [];
 
   if (isLoading) {
     return (
@@ -198,19 +237,28 @@ function AdvertisersTab() {
     );
   }
 
-  if (advertisers.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>Nog geen adverteerders geregistreerd</p>
-      </div>
-    );
-  }
-
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
+    <>
+      <div className="flex justify-end mb-4">
+        <Button onClick={() => setInviteOpen(true)}><UserPlus className="h-4 w-4 mr-2" />Promotor uitnodigen</Button>
+      </div>
+      {invitations.length > 0 && <div className="mb-6 space-y-2">
+        <h3 className="text-sm font-semibold">Uitnodigingen</h3>
+        {invitations.map((invitation) => {
+          const isExpired = invitation.status === "active" && new Date(invitation.expiresAt) <= new Date();
+          const canResend = invitation.status === "active";
+          const canRevoke = invitation.status === "active" && !isExpired;
+          const label = invitation.status === "accepted" ? "Geaccepteerd" : invitation.status === "revoked" ? "Ingetrokken" : isExpired ? "Verlopen" : "Uitgenodigd";
+          return <div key={invitation.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div><div className="flex items-center gap-2"><span className="font-medium">{invitation.organizationName}</span><Badge variant={canRevoke ? "outline" : "secondary"}>{label}</Badge></div><div className="text-sm text-muted-foreground">{invitation.email} · verloopt {format(new Date(invitation.expiresAt), "d MMM yyyy", { locale: nl })}</div></div>
+            {canResend && <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => actionMutation.mutate({ id: invitation.id, action: "resend" })}><Send className="mr-2 h-4 w-4" />Opnieuw</Button>{canRevoke && <Button size="sm" variant="outline" onClick={() => actionMutation.mutate({ id: invitation.id, action: "revoke" })}><Trash2 className="mr-2 h-4 w-4 text-red-600" />Intrekken</Button>}</div>}
+          </div>;
+        })}
+      </div>}
+      {advertisers.length === 0 ? (
+        <div className="text-center py-12 text-gray-500"><Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>Nog geen promotors geregistreerd</p></div>
+      ) : <Table>
+        <TableHeader><TableRow>
           <TableHead>Bedrijf</TableHead>
           <TableHead>Gebruiker</TableHead>
           <TableHead>Categorie</TableHead>
@@ -220,9 +268,7 @@ function AdvertisersTab() {
           <TableHead className="text-right">Budget Cap</TableHead>
           <TableHead>Geregistreerd</TableHead>
           <TableHead></TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+        </TableRow></TableHeader><TableBody>
         {advertisers.map(({ profile, user }) => (
           <TableRow key={profile.id}>
             <TableCell className="font-medium">
@@ -250,7 +296,7 @@ function AdvertisersTab() {
               <div className="text-xs text-muted-foreground">{user.email}</div>
             </TableCell>
             <TableCell className="capitalize">{profile.businessCategory}</TableCell>
-            <TableCell>{statusBadge(profile.status)}</TableCell>
+             <TableCell>{statusBadge(profile.status === "invited" ? "invited" : profile.status)}</TableCell>
             <TableCell className="text-right font-mono">{formatCents(profile.balanceCents)}</TableCell>
             <TableCell className="text-right font-mono">{formatCents(profile.currentMonthSpendCents)}</TableCell>
             <TableCell className="text-right font-mono">
@@ -290,8 +336,18 @@ function AdvertisersTab() {
             </TableCell>
           </TableRow>
         ))}
-      </TableBody>
-    </Table>
+      </TableBody></Table>}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Promotor uitnodigen</DialogTitle><DialogDescription>Stuur een verificatie-uitnodiging naar een organisatie. Er is nog geen account nodig.</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <div><label className="text-sm font-medium">Organisatienaam</label><Input className="mt-1" value={invite.organizationName} onChange={(e) => setInvite({ ...invite, organizationName: e.target.value })} placeholder="Bijv. Stadsmuseum Utrecht" /></div>
+            <div><label className="text-sm font-medium">E-mailadres</label><Input className="mt-1" type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder="beheer@organisatie.nl" /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setInviteOpen(false)}>Annuleren</Button><Button disabled={!invite.organizationName.trim() || !invite.email.trim() || inviteMutation.isPending} onClick={() => inviteMutation.mutate()}>{inviteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Uitnodiging verzenden</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

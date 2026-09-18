@@ -974,7 +974,7 @@ export const PRICING_PRODUCT_TYPE = ['event_promotion', 'business_ad'] as const;
 
 export const advertiserProfiles = pgTable("advertiser_profiles", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
   companyName: text("company_name").notNull(),
   description: text("description"),
   logoUrl: text("logo_url"),
@@ -996,6 +996,20 @@ export const advertiserProfiles = pgTable("advertiser_profiles", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+/** Passwordless, single-use invitations sent by administrators. */
+export const promoterInvitations = pgTable("promoter_invitations", {
+  id: serial("id").primaryKey(),
+  organizationName: text("organization_name").notNull(),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  status: text("status").notNull().default("active"),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  revokedAt: timestamp("revoked_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type PromoterInvitation = typeof promoterInvitations.$inferSelect;
 
 export const businessAds = pgTable("business_ads", {
   id: serial("id").primaryKey(),

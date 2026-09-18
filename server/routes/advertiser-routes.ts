@@ -31,6 +31,21 @@ const impressionClickLimiter = rateLimit({
 
 const router = Router();
 
+async function requireActivePromoter(req: Request, res: Response, next: () => void) {
+  try {
+    const userId = (req.user as any)?.id;
+    const [profile] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, userId));
+    if (!profile) return res.status(403).json({ error: "Maak eerst een promotorprofiel aan" });
+    if (profile.status !== "active" || !profile.emailVerified) {
+      return res.status(403).json({ error: "Je promotorprofiel is nog niet actief" });
+    }
+    (req as any).promoterProfile = profile;
+    next();
+  } catch {
+    res.status(500).json({ error: "Kon promotorstatus niet controleren" });
+  }
+}
+
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -545,15 +560,15 @@ router.get("/events/search", isAuthenticated, async (req: Request, res: Response
 // ============ ADVERTISER PROFILE ============
 
 const registerAdvertiserSchema = z.object({
-  companyName: z.string().min(2),
-  description: z.string().optional(),
-  logoUrl: z.string().optional(),
-  websiteUrl: z.string().optional(),
-  address: z.string().optional(),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
-  businessCategory: z.enum(BUSINESS_CATEGORIES),
-  phone: z.string().optional(),
+  companyName: z.string().trim().min(2),
+  description: z.string().optional().transform(v => v || null),
+  logoUrl: z.string().optional().transform(v => v || null),
+  websiteUrl: z.string().optional().transform(v => v || null),
+  address: z.string().optional().transform(v => v || null),
+  latitude: z.string().optional().transform(v => v || null),
+  longitude: z.string().optional().transform(v => v || null),
+  businessCategory: z.enum(BUSINESS_CATEGORIES).default("overig"),
+  phone: z.string().optional().transform(v => v || null),
   verificationEmail: z.string().email("Voer een geldig e-mailadres in"),
 });
 
@@ -563,7 +578,7 @@ router.post("/register", isAuthenticated, async (req: Request, res: Response) =>
     const userId = (req.user as any).id;
     const existing = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, userId));
     if (existing.length > 0) {
-      return res.status(400).json({ error: "Je hebt al een adverteerdersprofiel" });
+      return res.status(409).json({ error: "Je hebt al een adverteerdersprofiel", code: "PROFILE_EXISTS", profile: existing[0] });
     }
     const token = randomUUID();
     const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -589,7 +604,11 @@ router.post("/register", isAuthenticated, async (req: Request, res: Response) =>
     await sendVerificationEmail(data.verificationEmail, token, data.companyName, requestBaseUrl);
     res.json({ profile, verificationSent: true });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || "Registratie mislukt" });
+    const status = error?.code === "23505" ? 409 : 400;
+    res.status(status).json({
+      error: status === 409 ? "Je hebt al een promotorprofiel" : (error.message || "Registratie mislukt"),
+      ...(status === 409 ? { code: "PROFILE_EXISTS" } : {}),
+    });
   }
 });
 
@@ -662,10 +681,10 @@ router.get("/profile", isAuthenticated, async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/profile", isAuthenticated, async (req: Request, res: Response) => {
+router.patch("/profile", isAuthenticated, requireActivePromoter, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any).id;
-    const data = registerAdvertiserSchema.partial().parse(req.body);
+    const data = registerAdvertiserSchema.partial().omit({ verificationEmail: true }).parse(req.body);
     const [updated] = await db.update(advertiserProfiles)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(advertiserProfiles.userId, userId))
@@ -679,7 +698,7 @@ router.patch("/profile", isAuthenticated, async (req: Request, res: Response) =>
 
 // ============ STRIPE PAYMENT ============
 
-router.post("/setup-payment", isAuthenticated, async (req: Request, res: Response) => {
+router.post("/setup-payment", isAuthenticated, requireActivePromoter, async (req: Request, res: Response) => {
   try {
     if (!isStripeConfigured()) {
       return res.status(503).json({ error: "Betalingen zijn nog niet geconfigureerd" });
@@ -715,7 +734,7 @@ router.post("/setup-payment", isAuthenticated, async (req: Request, res: Respons
   }
 });
 
-router.post("/top-up", isAuthenticated, async (req: Request, res: Response) => {
+router.post("/top-up", isAuthenticated, requireActivePromoter, async (req: Request, res: Response) => {
   try {
     if (!isStripeConfigured()) {
       return res.status(503).json({ error: "Betalingen zijn nog niet geconfigureerd" });
@@ -752,7 +771,7 @@ router.get("/balance", isAuthenticated, async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/budget-cap", isAuthenticated, async (req: Request, res: Response) => {
+router.patch("/budget-cap", isAuthenticated, requireActivePromoter, async (req: Request, res: Response) => {
   try {
     const { monthlyBudgetCapCents } = z.object({
       monthlyBudgetCapCents: z.number().min(0).nullable(),
@@ -776,7 +795,7 @@ const purchasePromotionSchema = z.object({
   radiusKm: z.number().refine(v => [0, 5, 10, 15, 20, 25, 30, 40, 50].includes(v), "Ongeldige radius"),
 });
 
-router.post("/purchase", isAuthenticated, async (req: Request, res: Response) => {
+router.post("/purchase", isAuthenticated, requireActivePromoter, async (req: Request, res: Response) => {
   try {
     const data = purchasePromotionSchema.parse(req.body);
     const userId = (req.user as any).id;
@@ -844,7 +863,7 @@ const createBusinessAdSchema = z.object({
   targetCategories: z.array(z.string()).optional(),
 });
 
-router.post("/create-ad", isAuthenticated, async (req: Request, res: Response) => {
+router.post("/create-ad", isAuthenticated, requireActivePromoter, async (req: Request, res: Response) => {
   try {
     const data = createBusinessAdSchema.parse(req.body);
     const userId = (req.user as any).id;
@@ -885,7 +904,7 @@ router.get("/my-ads", isAuthenticated, async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/my-ads/:id/status", isAuthenticated, async (req: Request, res: Response) => {
+router.patch("/my-ads/:id/status", isAuthenticated, requireActivePromoter, async (req: Request, res: Response) => {
   try {
     const adId = parseInt(req.params.id);
     const { status } = z.object({ status: z.enum(["paused", "active"]) }).parse(req.body);
@@ -950,7 +969,7 @@ router.get("/campaigns", isAuthenticated, async (req: Request, res: Response) =>
     res.json({ campaigns: await campaignResults(eq(adCampaigns.advertiserId, profile.id)) });
   } catch (e) { res.status(500).json({ error: "Kon campagnes niet ophalen" }); }
 });
-router.post("/campaigns", isAuthenticated, async (req: Request, res: Response) => {
+router.post("/campaigns", isAuthenticated, requireActivePromoter, async (req: Request, res: Response) => {
   try {
     const data = campaignBodySchema.parse(req.body);
     const [profile] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, (req.user as any).id));
@@ -965,7 +984,7 @@ router.post("/campaigns", isAuthenticated, async (req: Request, res: Response) =
     res.status(201).json({ campaign });
   } catch (e: any) { res.status(400).json({ error: e.message || "Campagne ongeldig" }); }
 });
-router.patch("/campaigns/:id", isAuthenticated, async (req: Request, res: Response) => {
+router.patch("/campaigns/:id", isAuthenticated, requireActivePromoter, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id), [profile] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, (req.user as any).id));
     if (!profile) return res.status(403).json({ error: "Niet geautoriseerd" });
@@ -976,7 +995,7 @@ router.patch("/campaigns/:id", isAuthenticated, async (req: Request, res: Respon
     res.json({ campaign });
   } catch (e: any) { res.status(400).json({ error: e.message }); }
 });
-router.patch("/campaigns/:id/status", isAuthenticated, async (req: Request, res: Response) => {
+router.patch("/campaigns/:id/status", isAuthenticated, requireActivePromoter, async (req: Request, res: Response) => {
   try {
     const { status } = z.object({ status: z.enum(["active", "paused"]) }).parse(req.body);
     const [profile] = await db.select().from(advertiserProfiles).where(eq(advertiserProfiles.userId, (req.user as any).id));
@@ -1046,7 +1065,11 @@ router.patch("/admin/advertisers/:id/status", isAdmin, async (req: Request, res:
     const id = parseInt(req.params.id);
     const { status } = z.object({ status: z.enum(["pending", "active", "suspended"]) }).parse(req.body);
     const [updated] = await db.update(advertiserProfiles)
-      .set({ status, updatedAt: new Date() }).where(eq(advertiserProfiles.id, id)).returning();
+      .set({
+        status,
+        ...(status === "active" ? { emailVerified: true, verificationToken: null, tokenExpiresAt: null } : {}),
+        updatedAt: new Date(),
+      }).where(eq(advertiserProfiles.id, id)).returning();
     res.json({ profile: updated });
   } catch (error: any) {
     res.status(400).json({ error: error.message });

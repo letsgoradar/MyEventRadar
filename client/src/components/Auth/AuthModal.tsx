@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isNativeApp, getApiBaseUrl } from "@/lib/capacitor";
+import { safeReturnTo } from "@/lib/safe-return-to";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -189,13 +190,14 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "welcome" 
   const handleGoogleLogin = () => {
     const base = isNativeApp() ? getApiBaseUrl() : '';
     const nativeParam = isNativeApp() ? '&nativeApp=true' : '';
-    window.location.href = `${base}/api/auth/google?returnTo=${encodeURIComponent(window.location.pathname)}${nativeParam}`;
+    const returnTo = safeReturnTo(window.sessionStorage.getItem("authReturnTo"), window.location.pathname);
+    window.location.href = `${base}/api/auth/google?returnTo=${encodeURIComponent(returnTo)}${nativeParam}`;
   };
 
   return (
-    <div className="fixed inset-0 z-[10100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[10100] flex items-center justify-center overflow-y-auto p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={view === "verification_pending" || view === "verified" ? undefined : onClose} />
-      <div className="relative z-10 w-full max-w-sm bg-background/95 backdrop-blur-sm rounded-2xl shadow-xl border border-border p-6 animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative z-10 my-auto max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto bg-background/95 backdrop-blur-sm rounded-2xl shadow-xl border border-border p-6 animate-in fade-in zoom-in-95 duration-200">
         {view !== "verification_pending" && view !== "verified" && (
           <button
             type="button"

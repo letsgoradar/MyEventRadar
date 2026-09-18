@@ -247,9 +247,7 @@ export default function App() {
           <LazyLoad><AdvertiserLanding /></LazyLoad>
         </Route>
         <Route path="/advertiser/register">
-          <LazyLoad>
-            <AdvertiserAuthGuard><AdvertiserRegister /></AdvertiserAuthGuard>
-          </LazyLoad>
+          <LazyLoad><AdvertiserRegister /></LazyLoad>
         </Route>
         <Route path="/advertiser/dashboard">
           <LazyLoad>

@@ -29,6 +29,7 @@ import promotionRoutes from "./routes/advertiser-routes";
 import feedbackRoutes from "./routes/feedback-routes";
 import themeHandler from "./theme-handler";
 import backupRoutes from "./routes/backup-routes";
+import promoterInvitationRoutes from "./routes/advertiser-invitations";
 
 const MAX_GEO_CACHE_SIZE = 1000;
 const GEOCODING_CACHE = new Map();
@@ -160,6 +161,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/unsplash", unsplashSearchRoutes);
   app.use("/api/promotions", promotionRoutes);
   app.use("/api/advertiser", promotionRoutes);
+  // Public prefill/accept and admin management share one router; each
+  // management endpoint is protected by isAdmin.
+  app.use("/api/promoter-invitations", promoterInvitationRoutes);
   app.use("/api", promotionRoutes);
   app.use("/api", feedbackRoutes);
   app.use("/api", themeHandler);

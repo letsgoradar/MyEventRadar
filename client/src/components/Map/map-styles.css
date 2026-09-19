@@ -350,7 +350,7 @@
   z-index: 3;
   width: 35px;
   height: 45px;
-  transform: translate(-50%, -70%);
+  transform: translate(-50%, -100%);
   transform-origin: 50% 100%;
   filter:
     drop-shadow(0 3px 2px rgba(8, 26, 51, 0.28))
@@ -384,7 +384,7 @@
   height: 45px;
   opacity: 0.3;
   filter: blur(1.2px);
-  transform: translate(-28%, -58%) skewX(-8deg) scaleY(0.92);
+  transform: translate(-28%, -88%) skewX(-8deg) scaleY(0.92);
   transform-origin: 50% 100%;
   pointer-events: none;
 }

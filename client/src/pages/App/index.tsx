@@ -13,6 +13,7 @@ import { addDays, startOfDay } from "date-fns";
 import { AssistantButton } from "@/components/Assistant/AssistantButton";
 import { AuthModal } from "@/components/Auth/AuthModal";
 import { safeReturnTo } from "@/lib/safe-return-to";
+import { getDeterministicCategoryImage } from "@/lib/categoryImages";
 import { OnboardingModal } from "@/components/Auth/OnboardingModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearch } from "wouter";
@@ -136,6 +137,7 @@ export function AppHomePage() {
   const {
     data: mapEvents = [],
     isLoading: mapLoading,
+    isFetching: mapFetching,
   } = useQuery({
     queryKey: ["events-map", location?.lat, location?.lng, mapRadius],
     queryFn: async () => {
@@ -149,6 +151,7 @@ export function AppHomePage() {
   const {
     data: bgEvents = [],
     isLoading: bgLoading,
+    isFetching: bgFetching,
   } = useQuery({
     queryKey: ["events-bg", location?.lat, location?.lng],
     queryFn: async () => {
@@ -229,6 +232,7 @@ export function AppHomePage() {
   const [gridView, setGridView] = React.useState(true);
   const [selectedEvent, setSelectedEvent] = React.useState<EventWithDistance | null>(null);
   const [visibleEvents, setVisibleEvents] = React.useState<EventWithDistance[]>([]);
+  const [initialMapReady, setInitialMapReady] = React.useState(false);
 
   const handleEventClick = React.useCallback((event: EventWithDistance) => {
     setSelectedEvent(event);
@@ -250,7 +254,75 @@ export function AppHomePage() {
     }
   }, [selectedEvent, visibleEvents, filteredEvents]);
 
-  const isFirstLoad = mapLoading || (!!location && mapRadius === null);
+  React.useEffect(() => {
+    setInitialMapReady(false);
+  }, [location?.lat, location?.lng]);
+
+  React.useEffect(() => {
+    if (
+      initialMapReady ||
+      !location ||
+      mapRadius === null ||
+      mapLoading ||
+      bgLoading ||
+      mapFetching ||
+      bgFetching
+    ) return;
+
+    if (allEvents.length === 0) {
+      setInitialMapReady(true);
+      return;
+    }
+
+    if (visibleEvents.length === 0) return;
+
+    const imageUrls = Array.from(new Set(
+      visibleEvents
+        .map((event) => event.imageUrl || getDeterministicCategoryImage(event.category, event.id))
+        .filter((url): url is string => Boolean(url))
+    ));
+
+    if (imageUrls.length === 0) {
+      setInitialMapReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    const preloadImage = (src: string) => new Promise<void>((resolve) => {
+      const image = new Image();
+      const timeout = window.setTimeout(resolve, 8000);
+      const finish = () => {
+        window.clearTimeout(timeout);
+        resolve();
+      };
+      image.onload = finish;
+      image.onerror = finish;
+      image.src = src;
+      if (image.complete) finish();
+    });
+
+    Promise.all(imageUrls.map(preloadImage)).then(() => {
+      if (!cancelled) {
+        window.requestAnimationFrame(() => setInitialMapReady(true));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    initialMapReady,
+    location,
+    mapRadius,
+    mapLoading,
+    bgLoading,
+    mapFetching,
+    bgFetching,
+    allEvents.length,
+    visibleEvents,
+  ]);
+
+  const isFirstLoad = !!location && !initialMapReady;
   const [loadingMessage, setLoadingMessage] = React.useState(0);
   const loadingMessages = React.useMemo(() => [
     "Je buurt wordt gescand",

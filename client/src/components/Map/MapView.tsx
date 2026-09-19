@@ -78,14 +78,11 @@ const stableUserLocationIcon = L.divIcon({
   html: `
     <div class="radar-wrapper-xl" style="position: relative; width: ${STABLE_CLICKABLE_SIZE}px; height: ${STABLE_CLICKABLE_SIZE}px; display: flex; align-items: center; justify-content: center;">
       <div class="radar-container-xl" style="position: absolute; width: ${STABLE_RADAR_SIZE}px; height: ${STABLE_RADAR_SIZE}px; display: flex; align-items: center; justify-content: center; pointer-events: none; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-        <!-- Grote radar sweep effect met groene kleur - pure CSS animatie uit map-styles.css -->
+        <!-- Grote radar sweep zonder zichtbare buitenste cirkel -->
         <div class="radar-sweep-xl" style="width: ${STABLE_RADAR_SIZE - 20}px; height: ${STABLE_RADAR_SIZE - 20}px;"></div>
-        <!-- Radar bereik cirkel -->
-        <div class="radar-range-xl" style="width: ${STABLE_RADAR_SIZE - 20}px; height: ${STABLE_RADAR_SIZE - 20}px;"></div>
       </div>
-      <!-- Centrale punt - dit is het enige klikbare element -->
+      <!-- Transparant klikgebied met alleen de locatiepin als zichtbaar middelpunt -->
       <div class="radar-center-xl">
-        <div class="radar-center-dot-xl"></div>
         <div class="radar-location-pin-shadow" aria-hidden="true">
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />

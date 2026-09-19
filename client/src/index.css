@@ -171,6 +171,37 @@
 
 /* Moderne menu styling - vlakke kleuren zonder gradient */
 @layer components {
+  .radar-loading-card { animation: radarLoadingIn .45s cubic-bezier(.22,1,.36,1) both; }
+  .radar-loading-orbit {
+    position: relative; width: 86px; height: 86px; border-radius: 50%;
+    border: 1px solid hsl(var(--primary) / .22);
+    background: radial-gradient(circle, hsl(var(--primary) / .1) 0 3px, transparent 4px);
+  }
+  .radar-loading-orbit::before, .radar-loading-orbit::after {
+    content: ""; position: absolute; inset: 12px; border: 1px solid hsl(var(--primary) / .16); border-radius: 50%;
+  }
+  .radar-loading-orbit::after { inset: 28px; border-color: hsl(var(--primary) / .2); }
+  .radar-loading-sweep {
+    position: absolute; inset: -1px; border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0 300deg, hsl(var(--primary) / .03) 320deg, hsl(var(--primary) / .35) 360deg);
+    animation: radarLoadingSweep 2.2s linear infinite;
+  }
+  .radar-loading-pin { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-58%); filter: drop-shadow(0 2px 3px hsl(var(--foreground) / .24)); }
+  .radar-loading-dot { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: hsl(var(--primary)); animation: radarLoadingPing 2.2s ease-in-out infinite; }
+  .radar-loading-dot.dot-a { left: 16px; top: 23px; animation-delay: -.7s; }
+  .radar-loading-dot.dot-b { right: 13px; bottom: 22px; animation-delay: -.2s; }
+  .radar-loading-progress { height: 3px; overflow: hidden; border-radius: 999px; background: hsl(var(--primary) / .12); }
+  .radar-loading-progress span { display: block; width: 42%; height: 100%; border-radius: inherit; background: hsl(var(--primary)); animation: radarLoadingProgress 1.8s ease-in-out infinite; }
+  .loading-ellipsis { display: inline-block; width: 1.1em; overflow: hidden; vertical-align: bottom; animation: loadingEllipsis 1.2s steps(4,end) infinite; }
+  @keyframes radarLoadingIn { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes radarLoadingSweep { to { transform: rotate(360deg); } }
+  @keyframes radarLoadingPing { 0%,100% { opacity: .25; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.35); } }
+  @keyframes radarLoadingProgress { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
+  @keyframes loadingEllipsis { 0% { width: 0; } 100% { width: 1.1em; } }
+  @media (prefers-reduced-motion: reduce) {
+    .radar-loading-card, .radar-loading-sweep, .radar-loading-dot, .radar-loading-progress span, .loading-ellipsis { animation: none; }
+    .radar-loading-progress span { width: 55%; transform: none; }
+  }
   /* Bottom Navigation - vlakke achtergrond */
   .fixed.bottom-0.bg-background.border-t {
     background: hsl(var(--card));

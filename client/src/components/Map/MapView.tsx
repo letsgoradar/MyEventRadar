@@ -33,8 +33,8 @@ const RADAR_CONFIG = {
   SWEEP_DURATION: 5000, // 5 seconden per rotatie
   SIZE: 800, // pixels diameter
   COLOR: {
-    primary: '34, 197, 94', // Groen RGB (tailwind green-500)
-    glow: '22, 163, 74', // Donkerder groen (green-600)
+    primary: '24, 199, 178', // App teal
+    glow: '13, 148, 136', // App teal shadow
   }
 };
 

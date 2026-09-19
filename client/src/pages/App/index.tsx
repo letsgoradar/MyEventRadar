@@ -251,6 +251,21 @@ export function AppHomePage() {
   }, [selectedEvent, visibleEvents, filteredEvents]);
 
   const isFirstLoad = mapLoading || (!!location && mapRadius === null);
+  const [loadingMessage, setLoadingMessage] = React.useState(0);
+  const loadingMessages = React.useMemo(() => [
+    "Je buurt wordt gescand",
+    "Evenementen in de buurt zoeken",
+    "De kaart wordt gevuld",
+    "Bijna klaar voor ontdekking",
+  ], []);
+
+  React.useEffect(() => {
+    if (!isFirstLoad) return;
+    const timer = window.setInterval(() => {
+      setLoadingMessage((current) => (current + 1) % loadingMessages.length);
+    }, 1650);
+    return () => window.clearInterval(timer);
+  }, [isFirstLoad, loadingMessages.length]);
 
   if (!location) {
     if (authFromQuery === "login" || authFromQuery === "register") {
@@ -285,17 +300,22 @@ export function AppHomePage() {
         onRequireAuth={() => setShowAuthModal(true)}
       >
         {isFirstLoad && (
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[200]">
-            <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-xl shadow-lg border">
-              <div className="relative flex items-center justify-center w-16 h-16">
-                <MapPin className="h-12 w-12 text-primary animate-bounce" />
+          <div className="absolute inset-0 bg-background/72 backdrop-blur-[3px] flex items-center justify-center z-[200] px-6" role="status" aria-live="polite">
+            <div className="radar-loading-card flex flex-col items-center gap-5 p-7 bg-card/95 rounded-[1.5rem] shadow-xl border border-primary/15">
+              <div className="radar-loading-orbit" aria-hidden="true">
+                <span className="radar-loading-sweep" />
+                <span className="radar-loading-dot dot-a" />
+                <span className="radar-loading-dot dot-b" />
+                <MapPin className="radar-loading-pin h-7 w-7 text-primary" />
               </div>
-              <div className="text-center">
-                <h3 className="font-semibold text-lg">Events laden...</h3>
-                <p className="text-sm text-muted-foreground">
-                  We zoeken naar activiteiten in jouw buurt
+              <div className="text-center min-w-[220px]">
+                <h3 className="font-semibold text-lg tracking-[-0.02em]">Even geduld</h3>
+                <p className="mt-1 text-sm text-muted-foreground transition-opacity">
+                  {loadingMessages[loadingMessage]}
+                  <span className="loading-ellipsis" aria-hidden="true">...</span>
                 </p>
               </div>
+              <div className="radar-loading-progress w-full" aria-hidden="true"><span /></div>
             </div>
           </div>
         )}

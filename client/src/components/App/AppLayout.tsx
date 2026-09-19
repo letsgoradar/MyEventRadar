@@ -781,7 +781,7 @@ export function AppLayout({
         <BottomSheet 
           events={boundsFilteredEvents}
           onEventClick={onEventClick}
-          isOpen={true}
+          isOpen={false}
           isHidden={isHidden}
           onHideToggle={handleHideToggle}
           showHidden={showHiddenInSheet}

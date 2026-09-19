@@ -83,12 +83,7 @@ const stableUserLocationIcon = L.divIcon({
       </div>
       <!-- Transparant klikgebied met alleen de locatiepin als zichtbaar middelpunt -->
       <div class="radar-center-xl">
-        <div class="radar-location-pin-shadow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
-            <circle cx="12" cy="10" r="3" />
-          </svg>
-        </div>
+        <div class="radar-location-pin-shadow" aria-hidden="true"></div>
         <div class="radar-location-pin" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
             <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />

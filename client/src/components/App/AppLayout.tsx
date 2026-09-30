@@ -464,7 +464,7 @@ export function AppLayout({
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
       {/* Gecombineerde appbalk */}
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <header className="app-main-header sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         {(isProfilePage || hideSearchAndFilters) && (
         <div className="container py-3 px-4 flex items-center">
           {/* Links: terugknop of vaste ruimte */}
